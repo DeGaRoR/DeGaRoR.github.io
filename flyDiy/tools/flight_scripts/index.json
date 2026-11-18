@@ -1,0 +1,162 @@
+[
+ {
+  "name": "perf_crash_cub",
+  "what": "THE USER'S CRASHES (l.11): the cub off HOME, put into the ground from its climb - the crash and its aftermath measured",
+  "file": "perf/crash_cub.json"
+ },
+ {
+  "name": "perf_crash_pc6",
+  "what": "THE USER'S CRASHES (l.11): the pc6 off HOME, put into the ground from its climb - the crash and its aftermath measured",
+  "file": "perf/crash_pc6.json"
+ },
+ {
+  "name": "perf_cub_long_grass",
+  "what": "THE USER'S Cub taxi in the long grass (l.11): Cabin Strip's meadow, a minute of taxi on the grass",
+  "file": "perf/cub_long_grass.json"
+ },
+ {
+  "name": "perf_five_cessna",
+  "what": "THE USER'S FIVE PLANES (l.12): the cessna from the start line, take off, turn to Metlakatla (w7), camera changes and orbits incl. inside",
+  "file": "perf/five_cessna.json"
+ },
+ {
+  "name": "perf_five_cub",
+  "what": "THE USER'S FIVE PLANES (l.12): the cub from the start line, take off, turn to Metlakatla (w7), camera changes and orbits incl. inside",
+  "file": "perf/five_cub.json"
+ },
+ {
+  "name": "perf_five_dc3",
+  "what": "THE USER'S FIVE PLANES (l.12): the dc3 from the start line, take off, turn to Metlakatla (w7), camera changes and orbits incl. inside",
+  "file": "perf/five_dc3.json"
+ },
+ {
+  "name": "perf_five_pc6",
+  "what": "THE USER'S FIVE PLANES (l.12): the pc6 from the start line, take off, turn to Metlakatla (w7), camera changes and orbits incl. inside",
+  "file": "perf/five_pc6.json"
+ },
+ {
+  "name": "perf_five_petrel",
+  "what": "THE USER'S FIVE PLANES (l.12): the petrel from the start line, take off, turn to Metlakatla (w7), camera changes and orbits incl. inside",
+  "file": "perf/five_petrel.json"
+ },
+ {
+  "name": "perf_float_plane",
+  "what": "THE USER'S FLOAT PLANE (l.10): the same camera moves, take off from the bay (SEA), land at Cedar Harbour (mk_sea, by Metlakatla), interior / exterior",
+  "file": "perf/float_plane.json"
+ },
+ {
+  "name": "perf_load_light",
+  "what": "THE USER'S LOADS (a): the Cessna 172 loaded light (passengers + baggage into the seeded card), HOME's circuit",
+  "file": "perf/load_light.json"
+ },
+ {
+  "name": "perf_load_mtow",
+  "what": "THE USER'S LOADS (a): the Cessna 172 loaded mtow (passengers + baggage into the seeded card), HOME's circuit",
+  "file": "perf/load_mtow.json"
+ },
+ {
+  "name": "perf_load_typical",
+  "what": "THE USER'S LOADS (a): the Cessna 172 loaded typical (passengers + baggage into the seeded card), HOME's circuit",
+  "file": "perf/load_typical.json"
+ },
+ {
+  "name": "perf_main_journey",
+  "what": "THE USER'S MAIN BENCHMARK (PERF-WEEK-METHOD l.9): garage, roll out, taxi 40 s, skip to the start, take off, full orbit, interior + back, weather and time switches, the destination changed in flight, the minimap, the landing on the bumpy muddy old community runway (w6), orbit, back to the shed, roll out again - loaded typical",
+  "file": "perf/main_journey.json"
+ },
+ {
+  "name": "perf_pan_forest",
+  "what": "THE USER'S 360 PANS (l.11): a full turn of the camera at w1 (forest), on the ground, the scene settled",
+  "file": "perf/pan_forest.json"
+ },
+ {
+  "name": "perf_pan_home",
+  "what": "THE USER'S 360 PANS (l.11): a full turn of the camera at HOME (home), on the ground, the scene settled",
+  "file": "perf/pan_home.json"
+ },
+ {
+  "name": "perf_pan_town",
+  "what": "THE USER'S 360 PANS (l.11): a full turn of the camera at w7 (town), on the ground, the scene settled",
+  "file": "perf/pan_town.json"
+ },
+ {
+  "name": "perf_takeoff_altiport",
+  "what": "THE USER'S TAKE-OFFS (l.11): the user's Cub off tw_ski (the start chooser): the taxi, the line-up and the take-off",
+  "file": "perf/takeoff_altiport.json"
+ },
+ {
+  "name": "perf_takeoff_cabin",
+  "what": "THE USER'S TAKE-OFFS (l.11): the user's Cub off w1 (the start chooser): the taxi, the line-up and the take-off",
+  "file": "perf/takeoff_cabin.json"
+ },
+ {
+  "name": "perf_takeoff_eastpoint",
+  "what": "THE USER'S TAKE-OFFS (l.11): the user's Cub off nv_strip (the start chooser): the taxi, the line-up and the take-off",
+  "file": "perf/takeoff_eastpoint.json"
+ },
+ {
+  "name": "perf_takeoff_mill",
+  "what": "THE USER'S TAKE-OFFS (l.11): the user's Cub off mn_strip (the start chooser): the taxi, the line-up and the take-off",
+  "file": "perf/takeoff_mill.json"
+ },
+ {
+  "name": "perf_takeoff_oldcommunity",
+  "what": "THE USER'S TAKE-OFFS (l.11): the user's Cub off w6 (the start chooser): the taxi, the line-up and the take-off",
+  "file": "perf/takeoff_oldcommunity.json"
+ },
+ {
+  "name": "altiport",
+  "what": "the Cub F-BCUB: HOME to Skyline Altiport (the sloped mountain strip) and back",
+  "file": "altiport.json"
+ },
+ {
+  "name": "cub_home_taxi",
+  "what": "the Cub (list:1) off HOME's stand on the game's day: start-up and the taxi to the hold, nothing more (A0 15 Nov: DIRT-DUST saw a Cub sit at HOME's stand at 0.5 throttle; the samples carry the surface, softZ and rpm)",
+  "file": "cub_home_taxi.json"
+ },
+ {
+  "name": "east_point",
+  "what": "the Cub F-BCUB: HOME to East Point Clearing (150 m) and back, on a CALM day (on the game's day, 8 kt from 250, the Cub judges East Point too short with the wind behind and diverts to Hiking Strip - the pilot's own call, GATE TOUR 5/6)",
+  "file": "east_point.json"
+ },
+ {
+  "name": "float_circuit",
+  "what": "the float Cessna B-CESF (the story's) off Annette Dock: water taxi, take-off, one circuit, the water landing, stopped on SEA. Its known approach (JOIN-PARITY G1970.4, vref-raised: the elevator cannot hold Vref at this power) goes round up to twice before the committed landing - the cap holds all three; the start is the page's water start, lined up on the lane",
+  "file": "float_circuit.json"
+ },
+ {
+  "name": "high_final_cessna",
+  "what": "the Cessna 172 F-HCSN off HOME, one circuit; on the final the aeroplane is lifted 300 m (the autopilot handed back high), then lands and stops on HOME with no prop strike - DESCENT, the user 15 Nov ('losing altitude fast while remaining as slow as possible')",
+  "file": "high_final_cessna.json"
+ },
+ {
+  "name": "high_final_cub",
+  "what": "the Cub off HOME, one circuit; on the final the aeroplane is lifted 300 m (the autopilot handed back high), then lands and stops on HOME with no prop strike - DESCENT, the user 15 Nov ('losing altitude fast while remaining as slow as possible')",
+  "file": "high_final_cub.json"
+ },
+ {
+  "name": "high_final_rufus",
+  "what": "Rufus off HOME, one circuit; on the final the aeroplane is lifted 300 m (the autopilot handed back high), then lands and stops on HOME with no prop strike - DESCENT, the user 15 Nov ('losing altitude fast while remaining as slow as possible')",
+  "file": "high_final_rufus.json"
+ },
+ {
+  "name": "home_circuit",
+  "what": "the Cessna 172 F-HCSN off HOME's stand: taxi, take-off, one circuit, the landing, stopped on HOME (GATE FLIGHTSCRIPT)",
+  "file": "home_circuit.json"
+ },
+ {
+  "name": "rufus_cabin",
+  "what": "Rufus (list:7) off Cabin Strip, one circuit on the drawn approach, the game's day (the user's flight of 15 Nov: its BASE must not climb; read the steps' fly.hMax)",
+  "file": "rufus_cabin.json"
+ },
+ {
+  "name": "rufus_cabin_trees",
+  "what": "rufus_cabin with a 25 m stand of trees 150 m before the threshold (the page's canopy, which the node world lacks there): the obstacle steepens the slope to the cap, 0.16 - the user's 989 m FAF",
+  "file": "rufus_cabin_trees.json"
+ },
+ {
+  "name": "strip_jumbo",
+  "what": "the Jodel F-PJDL: HOME to Jumbo Mine (250 m, the mine street) and back",
+  "file": "strip_jumbo.json"
+ }
+]

@@ -1502,8 +1502,11 @@ const CASTOR_HOUSE = 0.062;
 // total arm length"): with a wheel pant on (fair 1) and legFairTo set, the leg's shroud runs on INTO the pant - its end
 // hidden in the pant's inboard face, 0.4 tyre radii over the axle - as a spring-steel leg's fairing meets the spat on the
 // real aeroplane. Absent / no pant: it stops above the tyre as it always has.
+// (INLINE-FORK, proto 17 Nov: the inline fork's wheel is ON the leg's axle - no castor below it - so its shroud stops
+// clear of the tyre and of the spat's crown, the user: "it should stop short of the fairing and the wheel")
 const fairStopY = (st, axleY) =>
-  (st.steer > 0 && st.x <= 0.01) ? axleY + CASTOR_HOUSE
+  st.inline ? axleY + st.R * (st.fair ? 1.3 : 1.08)
+  : (st.steer > 0 && st.x <= 0.01) ? axleY + CASTOR_HOUSE
                                  : axleY + st.R * (st.legFairTo && st.fair === 1 ? 0.4 : 1.04);
 
 // the STUB AXLE: from where the leg ends, out through the hub and a
@@ -1591,9 +1594,13 @@ function legBeam(bags, AF, P, st, sgn) {
                          P.beamT * 0.5 + 0.004);
   const w0 = P.beamW, w1 = P.beamW * P.beamTaper;
   const t0 = P.beamT, t1 = P.beamT * (0.62 + 0.38 * P.beamTaper);
+  // BEAM-FLAT (17 Nov, the Virus; the user: "the beam suspension draws a band with the thickness the wrong way. It needs
+  // to be thin when seen from the front, and bigger when seen from the side ... fixed once and for all"): the blade's
+  // WIDTH runs fore-aft (the clamp block and its two bolts were always laid out that way, along F.fore) and its
+  // thickness lies in the plane it flexes in - the section's up hint is F.fore, not F.side
   sweep(bags.steel, path,
         t => secBlade(w0 + (w1 - w0) * t, t0 + (t1 - t0) * t),
-        true, F.side);
+        true, F.fore);
   // G133: the trouser (st.fair 2) or the leg-fairing row shrouds the blade
   if (st.legFair || st.fair === 2)
     legShroud(bags.fair, path, fairStopY(st, axle[1]),
@@ -1917,7 +1924,11 @@ function legOleo(bags, AF, P, st, sgn) {
   const trunn = RT && RT.free ? [axleIn[0], RT.kneeB ? axleIn[1] + RT.kneeB : Math.max(F.p[1], axleIn[1] + 2.2 * st.R), axleIn[2]]   // (P2: the folding knee's leg, its length solved)
     : RT ? off(F.p, F.n, -RT.in) : off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   const dir = nrm(sub(axleIn, trunn));
-  const L = len(sub(axleIn, trunn));
+  // INLINE-FORK (proto 17 Nov, the Virus; the user: "the attachment point is coming from a position backward of it ... it
+  // should just connect straight into it ... exactly like the plane does in real life"): a steered centre oleo whose
+  // fork carries on in the strut's own line - the strut stops a fork's length short of the axle (inlineFork draws the
+  // rest); absent / 0 the strut to the axle as ever
+  const L0 = len(sub(axleIn, trunn)), L = st.inline ? Math.max(0.1, L0 - (st.R + 0.045)) : L0;
   const Rc = P.oleoDia * 0.5;
   if (!RT) padOn(bags, AF, st, st.z, aS * P.oleoAng * D2R, 0.19, 0.15,
                 { thick: 0.009 }, -aS * hubIn);
@@ -2032,8 +2043,22 @@ function legOleo(bags, AF, P, st, sgn) {
               Math.max(P.oleoDia * 1.5, st.R * 0.30));
   const axis = [sgn, 0, 0];
   axleStub(LB, axleIn, hS < 0 ? [-sgn, 0, 0] : axis, hubIn);
-  return { axle, axis, root: RT ? trunn : F.p, travel: mul(dir, -1),
+  return { axle, axis, root: RT ? trunn : F.p, travel: mul(dir, -1), ...(st.inline ? { inlineTop: off(trunn, dir, L), inlineDir: dir } : {}),
            ...(RT ? { pin: pax, trunnion: trunn, strutDir: dir, strutL: L, cylF: clamp(P.oleoCyl, 0.30, 0.80) } : {}) };
+}
+
+// INLINE-FORK (proto 17 Nov): the fork at the foot of a raked nose strut - a crown across the piston's end and two prongs
+// straight on in the strut's line to the axle, either side of the tyre; it turns about the strut itself (ax = the strut's
+// direction, top = the piston's end), so a steered nose yaws as the real one does
+function inlineFork(bags, P, top, axle, dir, R) {
+  const side = [1, 0, 0], ax = nrm(dir), fwd = nrm(crs(side, ax)), hw = R * 0.46;
+  boxIn(bags.steel, off(top, ax, 0.012), [hw + 0.016, 0.014, 0.024], side, ax, fwd);
+  for (const s of [-1, 1]) {
+    const a = add(off(top, ax, 0.012), mul(side, s * hw)), b = add(axle, mul(side, s * hw));
+    sweep(bags.steel, resample([a, b], 6), t => secBlade(0.030 - 0.008 * t, 0.012), true, fwd);
+  }
+  taper(bags.alloy, add(axle, mul(side, -R * 0.56)), add(axle, mul(side, R * 0.56)), 0.011, 0.011, 12);
+  return { hub: axle.slice(), axis: side, ax, top: top.slice() };
 }
 
 // ---- 3. STEERING: THE CASTOR MODULE ---------------------------------------
@@ -3476,6 +3501,6 @@ window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
-                    fitPad, towRelease, legBeam, legLink, legOleo, castorUnit, steerRun, pc6Scissor, pc6CompMax, pc6PistonRun, PC6_RAKE,
+                    fitPad, towRelease, legBeam, legLink, legOleo, castorUnit, inlineFork, steerRun, pc6Scissor, pc6CompMax, pc6PistonRun, PC6_RAKE,
                     legTailwheel, legTipWheel, legLever, leverRowsOf, Bag };
 })();

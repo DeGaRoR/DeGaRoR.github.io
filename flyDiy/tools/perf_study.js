@@ -156,6 +156,15 @@ const REAL = {
                dims: { length: 5.38, height: 1.78, AR: 6.6, cRoot: 1.47, cTip: 1.47, fuelL: 38, seats: 2,
                        engineHP: 64, engineKg: 39, propD: 1.73, cabinW: 0.60,
                        src: 'ASAP sheet: 17 ft 8 in long, 5 ft 10 in high, 32 ft span, 154.5 sq ft (chord 4.83 ft = 1.47 m, constant), tandem, 10 US gal; the 582 with the E gearbox 39 kg dry; a 68 in three-blade IVO is the usual prop' } },
+  // (proto 17 Nov, the Virus/Velis thread) the Velis Electro SW 128 off POH-128-00-40-001 rev B00: Vs1 51 KCAS power off
+  // flaps 0, Vs0 45 KCAS flaps +2; VH 93 KCAS (2300 rpm, 36 kW: rpm-limited); ROC 647 fpm (MCP 48 kW, VY 75); TO roll 240 /
+  // 448 m over 50 ft (MPTOP 50 kW, flaps +1, asphalt); LDG 183 / 537; glide 15:1; MTOP 57.6 kW (90 s), MCP 49.2 kW
+  velis:     { name: 'Pipistrel Velis Electro (E-811, 2 x 11 kWh)', mtow: 600, empty: 428, S: 9.51, b: 10.71, powerKW: 57.6,
+               Vs1: 94, V75: 170, Vmax: 172, roc: 3.29, TO: 240, LDG: 183, LD: 15, engineMatch: true,
+               TO50: 448, LDG50: 537, Vs0: 83, Vy: 139,
+               src: 'POH-128 rev B00 sections 2, 5 (proto row)',
+               dims: { length: 6.49, height: 2.08, AR: 10.71 * 10.71 / 9.51, cRoot: 1.10, cTip: 0.68, hSpan: 2.18, track: 1.60,
+                       fuelL: 0, seats: 2, engineHP: 77, engineKg: 31.1, propD: 1.64, src: 'POH-128 1-5, 7-12, 7-25' } },
   c172:      { name: 'Cessna 172R (IO-360-L2A 160 hp)', mtow: 1111, empty: 736, S: 16.2, b: 11.0, powerKW: 119,
                // Vs1 was 87 (the flaps-30 KCAS) until 2026-09-20: the POH's
                // section 5 gives 44 KIAS / 51-52 KCAS flaps up at 2450 lb
@@ -360,7 +369,9 @@ out('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
 const results = [];
 if (buildFile) {
   const raw = JSON.parse(require('fs').readFileSync(buildFile, 'utf8'));
-  const spec = raw.spec || raw;
+  // (proto 17 Nov, --door): the build THROUGH THE GAME'S LOAD DOOR (_load_build: the join re-measures the drawn cage -
+  // the wing, the gear, the cabin) - a drafting-table file carries cage rows the saved records never saw
+  const spec = args.includes('--door') ? require(path.join(T, '_load_build.js')).gameSpecFull({ v: raw.v, spec: raw.spec || raw }).spec : (raw.spec || raw);
   let name = raw.name || path.basename(buildFile);
   if (engineKey) {
     if (!C.POWERPLANTS[engineKey]) { console.log('no registry row ' + engineKey + ': ' + Object.keys(C.POWERPLANTS).join(' ')); process.exit(2); }

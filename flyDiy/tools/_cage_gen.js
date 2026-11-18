@@ -229,13 +229,13 @@ function cageResolve(S) {
   // touches nothing. comp is faded in with sin(theta) so the waist stays
   // exactly at Ww and only the dome inflates against CC shrinkage.
   // Round top + round bottom = the full oval tube (sailplane pod, bizjet).
-  function roundTop(lv, Ww, roofY, Wk, keelY, yWr, yBr, rBo) {
+  function roundTop(lv, Ww, roofY, Wk, keelY, yWr, yBr, rBo, rTo) {
     // yWr/yBr: the ring's OWN waist/band heights (the ride, below) —
     // callers without them get the global line, exactly as before
     const yW = yWr != null ? yWr : S.waistY;
     const yB = yBr != null ? yBr : S.bandY;
     // rBo: a ring's OWN bottom roundness (the round body's front, aeroRound) - absent = the shell's
-    const rT = TOP.round || 0, rB = rBo != null ? rBo : (TOP.botRound || 0);
+    const rT = rTo != null ? rTo : (TOP.round || 0), rB = rBo != null ? rBo : (TOP.botRound || 0);
     const arcTo = (ww, half, deg) => {
       const th = deg * Math.PI / 180;
       const k = 1 + (TOP.comp - 1) * Math.sin(th);
@@ -297,8 +297,17 @@ function cageResolve(S) {
       floor: { x: Wk + (d.Ww - Wk) * wallT, y: yF, z },
       keel:  { x: Wk, y: d.keelY, z },
     };
+    // BOOM-ROUND (proto 17 Nov, the Virus: "the transition from a square section to a round section ... transition
+    // smoothly into a round boom"): along the boom (aft of the boom's first ring) the top and bottom roundness ease from
+    // the shell's to S.boomRound, full by the share S.boomRoundAt of the boom (smoothstep). Absent (0): as ever, to the bit
+    let rBo = d.botRound, rTo = null;
+    if (S.boomRound > 0 && typeof zPaxA === 'number' && typeof zCap === 'number' && z < zPaxA - 1e-6 && zPaxA > zCap) {
+      const t = Math.min(1, Math.max(0, (zPaxA - z) / (zPaxA - zCap)) / Math.max(0.05, S.boomRoundAt || 0.5)), e = t * t * (3 - 2 * t);
+      const r0T = TOP.round || 0, r0B = rBo != null ? rBo : (TOP.botRound || 0), R = Math.min(1, S.boomRound);
+      rTo = r0T + (R - r0T) * e; rBo = r0B + (R - r0B) * e;
+    }
     return { name, kind: 'full',
-             lv: roundTop(lv, d.Ww, d.roofY, Wk, d.keelY, yW, yB, d.botRound) };
+             lv: roundTop(lv, d.Ww, d.roofY, Wk, d.keelY, yW, yB, rBo, rTo) };
   }
 
   const rings = [], bays = [];
@@ -984,6 +993,23 @@ function cageResolve(S) {
     chain.band = { ...chain.band, y: chain.band.y + lift(chain.band.y) };
     chain.waist = { ...chain.waist, y: chain.waist.y + lift(chain.waist.y) };
   }
+  // WS-BASE-CROWN (proto 17 Nov, the Virus; the user: "things going up in a profile where it should go down ... everything
+  // would need to align much better"): the windscreen base's CENTRE point lifted on its own (cage units) - the deck runs
+  // straight from the cowl into the glass with no dip, and the glass's side edges stay where they were drawn (wsBaseLift
+  // moves them all); the band follows by half so the glass stays one straight run. Absent: as built
+  if (CFG.wsBaseCrown) {
+    chain.waist = { ...chain.waist, y: chain.waist.y + CFG.wsBaseCrown };
+    chain.band = { ...chain.band, y: chain.band.y + 0.5 * CFG.wsBaseCrown };
+  }
+  // WS-STRAIGHT (proto 17 Nov, the Virus; the user: "there's just the angle for the windshield, but then everything should be
+  // completely aligned"): the glass's centre line is the chain base -> band -> top; the band's station was a template share
+  // (6 cm behind the base on the Virus, 15 cm above it: a lip, then a bend back - the bubble). wsStraight slides the band
+  // onto the straight line from the base to the top at its own height (1 straight, 0 / absent the template's station)
+  if (CFG.wsStraight && chain.ceil.y - chain.waist.y > 1e-6) {
+    const u = (chain.band.y - chain.waist.y) / (chain.ceil.y - chain.waist.y);
+    const zL = chain.waist.z + u * (chain.ceil.z - chain.waist.z);
+    chain.band = { ...chain.band, z: chain.band.z + (zL - chain.band.z) * CFG.wsStraight };
+  }
   // in round mode the chain's ceil (the glass-band edge across the front)
   // levels out with the rounded ceiling of the windshield frame
   if (TOP.round) {
@@ -1122,8 +1148,10 @@ function cageResolve(S) {
         if (i0 > 0) spans.push(Math.abs(zOf(i0 - 1) - zOf(i0)));
         if (i1 + 1 < rings.length) spans.push(Math.abs(zOf(i1 + 1) - zOf(i1)));
         const span = spans.length ? Math.min(...spans) : Infinity;
-        if (mag > 0.5 * span * (1 + 1e-9)) {
-          const k = 0.5 * span / mag;
+        // FRLEANCAP (proto 17 Nov, the Virus back pillar): the share of the shorter bay a frame may lean into; absent = 0.5
+        const capF = S.frLeanCap > 0 ? Math.min(0.9, S.frLeanCap) : 0.5;
+        if (mag > capF * span * (1 + 1e-9)) {
+          const k = capF * span / mag;
           f = { topZ: f.topZ * k, waistZ: f.waistZ * k, botZ: f.botZ * k };
         }
       }
@@ -4002,11 +4030,18 @@ function cageCut(m, S) {
           own2.set(k, own2.get(k) | gl);
         }
       }
-      for (const [k, b] of own2) {
-        if (b !== 3) continue;
-        const [a, c] = k.split('_').map(Number), p = V[a], q = V[c];
-        const run = Math.hypot(p[0] - q[0], p[2] - q[2]);
-        if (Math.abs(p[1] - q[1]) < run * 0.5 && Math.max(p[1], q[1]) <= yCap) m.wsBase.push([a, c]);
+      // DASH-BAND (proto 17 Nov, the Virus: "why is the dashboard itself not rendering?"): a base that bows high at its sides
+      // (the Virus's straight glass) leaves 2 edges in the lowest fifth, a 3-point line the dash refuses (it needs 5) - the
+      // band widens to two fifths only then; every base the fifth already found (the Cessnas') is untouched
+      for (const cap of [yCap, y0 + (y1 - y0) * 0.4]) {
+        m.wsBase.length = 0;
+        for (const [k, b] of own2) {
+          if (b !== 3) continue;
+          const [a, c] = k.split('_').map(Number), p = V[a], q = V[c];
+          const run = Math.hypot(p[0] - q[0], p[2] - q[2]);
+          if (Math.abs(p[1] - q[1]) < run * 0.5 && Math.max(p[1], q[1]) <= cap) m.wsBase.push([a, c]);
+        }
+        if (m.wsBase.length >= 4) break;
       }
     }
   }
@@ -5155,10 +5190,16 @@ function cageInterior(m, S) {
     const vN = new Map();
     const fN = fi => {
       const p = F[fi].v.map(i => V[i]);
-      const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
-      const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
-      const n = [u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2],
-                 u[0]*w[1]-u[1]*w[0]];
+      let n;
+      if (p.length === 4) {
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
+        const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        n = [u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]];
+      } else {   // LINER-NGON (proto 17 Nov): a knife's triangle / n-gon - Newell's normal (a quad as always, to the bit)
+        n = [0, 0, 0];
+        for (let k = 0; k < p.length; k++) { const q = p[k], r = p[(k + 1) % p.length];
+          n[0] += (q[1] - r[1]) * (q[2] + r[2]); n[1] += (q[2] - r[2]) * (q[0] + r[0]); n[2] += (q[0] - r[0]) * (q[1] + r[1]); }
+      }
       const l = Math.hypot(n[0], n[1], n[2]) || 1;
       return [n[0]/l, n[1]/l, n[2]/l];
     };
@@ -5174,7 +5215,7 @@ function cageInterior(m, S) {
       stY.set(k, [Math.min(r[0], p[1]), Math.max(r[1], p[1])]);
     }
     const outward = (fi, n) => {
-      const p = F[fi].v.map(i => V[i]), c = [0, 1, 2].map(a => (p[0][a] + p[1][a] + p[2][a] + p[3][a]) / 4);
+      const p = F[fi].v.map(i => V[i]), c = [0, 1, 2].map(a => p.reduce((q, r) => q + r[a], 0) / p.length);
       const r = stY.get(stK(c[2])); if (!r) return n;
       const rx = c[0], ry = c[1] - (r[0] + r[1]) / 2;
       if (Math.hypot(rx, ry) < 0.05 || Math.hypot(n[0], n[1]) < 0.3) return n;
@@ -5218,8 +5259,8 @@ function cageInterior(m, S) {
     const eCount = new Map();
     for (const fi of sel) {
       const f = F[fi];
-      for (let e = 0; e < 4; e++) {
-        const k = cageEdgeKey(f.v[e], f.v[(e + 1) % 4]);
+      for (let e = 0; e < f.v.length; e++) {
+        const k = cageEdgeKey(f.v[e], f.v[(e + 1) % f.v.length]);
         eCount.set(k, (eCount.get(k) || 0) + 1);
       }
     }
@@ -5230,8 +5271,8 @@ function cageInterior(m, S) {
       add.push(fIn);
       // the OUTER sheet closes the solid (skin winding — outward)
       add.push({ v: f.v.map(outerOf), m: matF(F[fi]), att: 1 });
-      for (let e = 0; e < 4; e++) {
-        const a = f.v[e], b = f.v[(e + 1) % 4];
+      for (let e = 0; e < f.v.length; e++) {
+        const a = f.v[e], b = f.v[(e + 1) % f.v.length];
         if (eCount.get(cageEdgeKey(a, b)) !== 1) continue;
         add.push({ v: [outerOf(b), outerOf(a), innerOf(a), innerOf(b)],
                    m: matF(F[fi]), att: 1 });
@@ -5262,11 +5303,17 @@ function cageInterior(m, S) {
                           'skyWindows']);
     const shell = [], pil = [], bands = [];
     F.forEach((f, i) => {
-      if (f.v.length !== 4 || (f.m === 'joint' || f.m === 'doorSeal') || f.paneEdge || f.capFace) return;
-      if (GLM2.has(f.m) || f.m === 'boomTube') return;
+      // LINER-NGON (proto 17 Nov, the Virus; the user: "a really rough cut along existing low poly geometry rather than a
+      // clean perfect cut"): the shell took quads only, so round a drawn window - the knife's triangles and n-gons - it
+      // stopped at the last whole quad: a stepped hole with the skin's bare back in it. The shell takes them now (the
+      // pillar and band doublers stay on quads)
+      const ng = f.v.length !== 4;
+      if (f.v.length < 3 || (f.m === 'joint' || f.m === 'doorSeal') || f.paneEdge || f.capFace) return;
+      if (GLM2.has(f.m) || f.m === 'boomTube' || f.m === 'reveal') return;
       const [cy, cz] = cenOf(f);
       if (consAt(cy, cz) !== 'carbon') return;
       shell.push(i);
+      if (ng) return;
       if (PM.has(f.m)) pil.push(i);
       else if (f.m === 'waistband' || f.m === 'floorLoop') bands.push(i);
     });
@@ -8979,7 +9026,7 @@ const CAGE_PARAMS = {
   frPostTopZ: 0, frPostWaistZ: 0, frPostBotZ: 0,
   frCabTopY: null, frCabWaistY: null, frCabBotY: null,
   frCabTopW: null, frCabWaistW: null, frCabBotW: null,
-  frCabTopZ: 0, frCabWaistZ: 0, frCabBotZ: 0,
+  frCabTopZ: 0, frCabWaistZ: 0, frCabBotZ: 0, frLeanCap: 0, boomRound: 0, boomRoundAt: 0.5,
   frPaxTopY: null, frPaxWaistY: null, frPaxBotY: null,
   frPaxTopW: null, frPaxWaistW: null, frPaxBotW: null,
   frPaxTopZ: 0, frPaxWaistZ: 0, frPaxBotZ: 0,
@@ -9932,6 +9979,8 @@ function cageSpec(P) {
     rearAperture: (P.rearAperture || cageAftEngineFace(P)) ? 1 : 0,
     aeroAft,
     noseCrown: P.noseCrown,
+    ...(+P.wsBaseCrown ? { wsBaseCrown: +P.wsBaseCrown } : {}),   // WS-BASE-CROWN (proto 17 Nov)
+    ...(+P.wsStraight ? { wsStraight: Math.min(1, +P.wsStraight) } : {}),   // WS-STRAIGHT (proto 17 Nov)
     noseFinish: (P.noseFinish || !noseEngK) ? 'aero' : 'engine',
     cowl: { loops: Math.max(0, Math.round(P.cowlLoops)),
             ease: P.cowlEase, bulge: P.cowlBulge,
@@ -9991,6 +10040,8 @@ function cageSpec(P) {
 
   S.pilot.len = P.pilotLen;
   S.pillarW = Math.max(0, P.pillarW || 0);
+  S.frLeanCap = +P.frLeanCap || 0;
+  S.boomRound = +P.boomRound || 0; S.boomRoundAt = P.boomRoundAt != null ? +P.boomRoundAt : 0.5;   // BOOM-ROUND (proto)              // FRLEANCAP (proto): absent = the half-bay lean clamp
   S.cabinPillarW = P.pillarW > 0 ? P.pillarW : P.cabPillarW;
   S.pax.count = Math.max(0, Math.round(P.paxCount));
   S.pax.len = P.paxLen;

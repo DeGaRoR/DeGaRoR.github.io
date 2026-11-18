@@ -56,6 +56,7 @@ const CLASSES = {
   "Stearman-alike": ["reproduction", "builds/candidates/stearman_2026-10.json", "40-1749"],
   "Tiger Moth-alike": ["reproduction", "builds/candidates/tigermoth_2026-10.json", "T7230"],
   "Camel-alike": ["reproduction", "builds/candidates/camel_2026-10.json", "B6313"],
+  "Electric trainer": ["reproduction", "builds/candidates/electric_trainer.json", "F-WETR"],
   "Rufus": ["story", "builds/rufus_2026-10-18_certified.json", "N47RF"],
   "Client Cub": ["story", "builds/cub_2026-09-20.json", "N1938J"],
   // ("Cessna 172 (career)", list:40 B-CESS: retired by the user 13 Nov, "one official Cessna" - list:50; now a test copy)

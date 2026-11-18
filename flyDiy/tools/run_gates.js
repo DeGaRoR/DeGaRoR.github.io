@@ -1235,6 +1235,9 @@ const GATES = [
   // preferences, the client's airframe, the failure rules + restart, the in-flight tracker, timers, markers. ~40 s.
   // `--selftest`: 37 doctored rules, each red (~25 min)
   { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
+  // PERF-BENCH (17 Nov): the in-game benchmark (src/viewer/perf_bench.js) - wired, runPage's step rules, the frame stats, the default
+  // scenario library, the trace's keys; --selftest breaks each rule
+  { id: 'PERFBENCH', file: '_perfbench_check.js', argv: ['--selftest'], tier: 'core', wall: 5 },
   { id: 'PROJECTS', file: '_projects_check.js', tier: 'core', wall: 15 },   // PROJECTS (13 Nov): a pack's projects - steps, works, site states, abilities (73b_missions.js, 74_career.js)
   // MISSION-FEASIBILITY: the harness that flies every mission the game's way (tools/mission_feas.js, mission_feas_lib.js:
   // the career stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop) held on three demo

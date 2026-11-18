@@ -767,7 +767,7 @@ window.CAGE_PAGE = {
          { when: P => +P.doorOn }],
       ]],
       ['cockpit', [
-        ['dashBack',  'dash setback',   0.01, 0.30, 0.005,
+        ['dashBack',  'dash setback',   0.01, 0.80, 0.005,   // (proto 17 Nov, the Velis: 0.30 -> 0.80, a dash out to the pilot)
          { when: P => +P.intOn && +P.intDash, dim: 'len' }],
         ['dashLip',   'dash lip',       0.01, 0.10, 0.002,
          { when: P => +P.intOn && +P.intDash }],

@@ -343,6 +343,10 @@ function slab(bag, o) {
       const k = (t + th) / (2 * th) * (ht - hb) + dt;
       return [Bt[0] + nx * k, Bt[1] + ny * k, Bt[2] + nz * k];
     }
+    // SEAT-STICK-CUT: the front edge (s = -hs) drawn back by d at the centre, fading over the next d + 6 cm (monotone: the
+    // lattice never folds) and across |u| < w with a round bottom - a U notch for the stick
+    if (o.notch) { const D = o.notch.d + 0.06, f = Math.max(0, 1 - (u / o.notch.w) * (u / o.notch.w)), back = Math.max(0, 1 - (s + hs) / D);
+      s += o.notch.d * Math.sqrt(f) * back; }
     const q = o.sp.at(sc + s);
     const tt = t + dt + (o.face ? -th : 0) + (o.lift || 0);
     return [o.sx + xw, q.p[0] + q.n[0] * tt, q.p[1] + q.n[1] * tt];
@@ -600,7 +604,12 @@ function seatCarbon(B, A, P, g, pre, sbs) {
   };
   const hwAt = v => { const s = (v + 1) / 2 * L; return 1 - 0.30 * smooth(sHead - 0.10, sHead + 0.02, s) * S.kx / S.kx; };
   const sh = slab(B.of(mShell), { sx: S.sx, sp, s0: 0, s1: L, hw: S.hw, hwAt, th: 0.0045, r: 0.0044, rs: 0.0044,
-                                  face: true, lift: -pad, wing, nx: 22, ns: 54, nt: 1, nE: 3 });
+                                  face: true, lift: -pad, wing, nx: 22, ns: 54, nt: 1, nE: 3,
+                                  // SEAT-STICK-CUT (proto 17 Nov, the Velis; the user: "a front opening ... between the legs
+                                  // so that the stick can come through"): the pan's front edge drawn back at the centre by
+                                  // seatStickCut (m), over a third of the seat's width - the pads ride the shell and follow;
+                                  // only with a stick between the legs; absent / 0 the bucket as ever
+                                  ...(+P.seatStickCut > 0 && Math.round(+P.ctlStick || 0) === 0 ? { notch: { d: Math.min(0.25, +P.seatStickCut), w: 0.32 } } : {}) });
   // the rim bead: the shell's cut edge is rolled, not sawn
   rimBead(B.of(mShell), sh, 0.0065);
   // the pads: a squab and a back, set inside the walls; the back's centre is fluted
