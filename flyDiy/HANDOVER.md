@@ -318239,9 +318239,9 @@ FIXED 18 Nov (the user 11:20: "Fix the two tests pointing at the old metal Cessn
   lose parts, are drawn as before); list:50's physics fiche re-baked.
 - PLANELISTS: cars skip the plane-file rule by their spec (cage.isCar: the Dune Bug, the roadster); the trailer's flying
   boat moved to tools/fixtures/test_copies/ with its row (list:96, GATE TRAILER's path follows). STILL RED: the two PC-6
-  livery cards are one aeroplane - owner the livery session (fold them into the PC-6's liveries).
-OPEN for the user: list:50 draws T-RUEX (the user's own reg, 16 Nov, commit 2c83f3569) while its list row, the fiche
-  index and PLANELISTS' pin say F-HCSN - A0 asked for F-HCSN; the card is unchanged until the user says which.
+  livery cards are one aeroplane - AIRCRAFT-LOOKS' pc6-liveries (56c0526ae, ahead in L40h) retires both files and rows.
+- THE REG: T-RUEX (the user 16 Nov, again 18 Nov via A0: "T-RUEX") - list:50's row, the fiche index and PLANELISTS'
+  pin follow the card (they said F-HCSN).
 NOTED (Deform's stills, A0 18 Nov): in the tree at 100 km/h list:50's left wing folds steeply UP at the root.
 STILL NAMED:
 - JOINPARITY: list:50's node vs page mass 1061.70 / 1061.80 kg (the Jodel's master red, the same 0.1 kg class) and its

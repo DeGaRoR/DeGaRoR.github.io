@@ -45,7 +45,7 @@ const SELF = process.argv.includes('--selftest');
 const CLASSES = {
   "Piper Cub": ["reproduction", "builds/cub_2026-09-20_corrected.json", "F-BCUB"],
   "Jodel D112": ["reproduction", "builds/jodel_2026-09-20_corrected.json", "F-PJDL"],
-  "Cessna 172": ["reproduction", "builds/cessna172r_2026-11-08.json", "F-HCSN"],
+  "Cessna 172": ["reproduction", "builds/cessna172r_2026-11-08.json", "T-RUEX"],   // the user 16 + 18 Nov: "T-RUEX"
   "PA-18 on floats": ["reproduction", "builds/pa18_floats_2026-10-23.json", "F-AMOR"],
   "Carbon Cub SS": ["reproduction", "builds/candidates/carbon_cub_ss.json", "N340SS"],
   "Chinook": ["reproduction", "builds/chinook_2026-09-21_corrected.json", "C-ICHK"],
