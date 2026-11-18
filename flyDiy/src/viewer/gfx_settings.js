@@ -174,6 +174,18 @@
     // hides them - nothing is rebuilt, so it is free either way.
     // THE TWO ROWS THE LOW TIERS NEEDED (G570, 2026-09-24): what the frame costs since the town and the ground's cover -
     // the cover ring's rocks, debris and shrubs (~1 600 draws at the stand with their shadows) and the premises' houses
+    // GRASS-CARDS (G4180; the user 17 Nov: "d is best looking. Maybe a ladder D -> B -> B phone?"): THE MOWN GRASS'S LADDER - the
+    // bench's grass cards on every mown band, apron, verge and grass strip (cover_ring layer 'lawn'), its own row so the phone's
+    // preset (laptop: ground cover off) can still have it. off = no cards: the mown ground keeps the field's short tufts where
+    // the ground cover row has them (none on the laptop / potato presets)
+    // A FREE ROW (the desktop presets stay as train 31 shipped them - GATE GFX 10, the user's rule): 'auto' picks the rung by the
+    // preset (LAWN_OF), a player's own pick is kept
+    { k: 'lawn', label: 'mown grass', free: true, def: 'auto', steps: [
+        { v: 'auto',  label: 'auto', why: 'by the graphics preset: dense on gamer and ultra, lawn on current and retro, off on potato and laptop (the phones)' },
+        { v: 'D',     label: 'dense', why: 'cards 10 cm tall, 300 a square metre, to 20 m: the lawn at its best (gamer, ultra)' },
+        { v: 'B',     label: 'lawn', why: 'cards 8 cm tall, 150 a square metre, to 40 m: a little lighter, farther (current, retro)' },
+        { v: 'phone', label: 'near', why: 'the dense lawn to 12 m only: the phone\u2019s and the laptop\u2019s' },
+        { v: 'off',   label: 'off', why: 'no cards: the short grass tufts of the ground cover row, or bare ground where that row is off' } ] },
     { k: 'cover', label: 'ground cover', steps: [
         { v: 'full', label: 'full', why: 'rocks, debris and shrubs to 220 m, their shadows from 35 cm' },
         { v: 'lean', label: 'lean', why: 'to 120 m, half as dense, shadows only from 1 m: about a third of the draws' },
@@ -447,6 +459,16 @@
 
   // ---- applying: each option to its handle, only when the world has it -----
   let applied = {};                          // what the handles currently hold
+  // the mown grass row's rungs (cover_ring layer 'lawn' dials; GRASS-CARDS G4180) - the 12:40 slot's phone pick replaces `phone`
+  const LAWN_LADDER = {
+    D:     { off: false, dens: 300, cutH: 0.10, reach: 20, near: 6, cell: 4, block: 8, lean: 1 },
+    B:     { off: false, dens: 150, cutH: 0.08, reach: 40, near: 10, cell: 8, block: 4, lean: 1 },
+    phone: { off: false, dens: 300, cutH: 0.10, reach: 12, near: 4, cell: 4, block: 8, lean: 1 },
+    off:   { off: true } };
+  // 'auto': the rung by the preset (the user 17 Nov: "D -> B -> phone"; a custom mix takes its build preset's)
+  // (potato / laptop - the phones - 'off': the 12:40 slot 17 Nov - on their PLAIN ground the cards take the textured ground's colour,
+  //  pale and pixelated against the olive, with a hard line at 12 m; owed to perf week: the cards in the plain ground's colour)
+  const LAWN_OF = { ultra: 'D', gamer: 'D', current: 'B', retro: 'B', potato: 'off', laptop: 'off' };
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
     if (W.FLYDIY_PACE && applied.fps !== S.fps) { W.FLYDIY_PACE.set(S.fps); applied.fps = S.fps; }   // G586: the frame cap
@@ -469,6 +491,17 @@
     if (fld && fld.set && applied.field !== S.cover) {
       const F = { full: { off: false, near: 15, reach: 90, aglFull: 27, aglOff: 90, aglPre: 150, tufts: 70 }, lean: { off: false, near: 8, reach: 50, aglFull: 15, aglOff: 50, aglPre: 110, tufts: 42 }, off: { off: true } }[S.cover];
       if (F) { fld.set(F); applied.field = S.cover; }
+    }
+    // THE LAWN (GRASS-CARDS, G4180): the mown grass row's ladder (the user 17 Nov: D -> B -> the phone's). D: 10 cm, 300 cards / m2 to
+    // 20 m on 4 m cells (a cell's build stays small at that density); B: 8 cm, 150 / m2 to 40 m on 8 m cells; phone: D's look to 12 m;
+    // off: none (the field then keeps the cut ground's tufts). The field replants with it (it leaves the cut ground to the lawn)
+    const lwn = W.TREE_FILL && W.TREE_FILL.lawn ? W.TREE_FILL.lawn() : null;
+    const rung = S.lawn === 'auto' || !S.lawn ? (LAWN_OF[S.preset] || LAWN_OF[S.build] || 'B') : S.lawn;
+    if (lwn && lwn.set && applied.lawn !== rung) {
+      const L = LAWN_LADDER[rung], on = () => !!(lwn.get().on && !lwn.get().off), was = on();
+      // (the field replants only when the lawn turns on or off - it leaves the cut ground to it; a replant at every apply was the
+      //  roll-out's +40 frustum tests / +516 GL calls, FRAMECOST 17 Nov: the world's first apply re-planted the whole field)
+      if (L) { lwn.set(L); applied.lawn = rung; if (on() !== was && fld && fld.replant) fld.replant(); }
     }
     const PR = world && world.premises;
     if (PR && PR.streamState && applied.build !== S.build) { PR.streamState.reach = budget().townReach; applied.build = S.build; }   // G1230: the town's stream to the budget's reach (down: at once)
@@ -638,7 +671,7 @@
   const GROUPS = [
     { k: 'perf', label: 'performance', sub: 'the preset, the frame rate, the scale, the smoothing', rows: ['fps', 'scale', 'aa', 'drawDist'] },
     { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
-    { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover'] },
+    { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover', 'lawn'] },
     { k: 'water', label: 'water', sub: 'the sea and its reflections', rows: ['water', 'mirror'] },
     { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'fmist', 'glare'] },
     { k: 'post', label: 'post-fx', sub: 'the passes over the finished frame', rows: ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'] },

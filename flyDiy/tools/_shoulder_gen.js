@@ -732,8 +732,11 @@ function shoulderLever(mesh, spec, opt, CAGE, req) {
   const piv = [xFace - u * back, yT, req.z];
   const a0 = -arc / 2;
   const dir = [u * Math.cos(a0), 0, Math.sin(a0)];
-  return { mode: 'slot', side, piv, dir, axis: [0, 1, 0], len: back / Math.cos(a0) + 0.045, arc,
-           wx: 0.012, tz: 0.008, knobR: 0, reach: 0.045, face };
+  // (THROTTLE-SHOULDER, the user 16 Nov: "it can't do that properly"): the lever is the row's length from the pivot
+  // (thrLen, cage units here), at least the old 45 mm through the face; absent = the old fixed reach
+  const reach = req.len != null ? Math.max(0.045, +req.len - back / Math.cos(a0)) : 0.045;
+  return { mode: 'slot', side, piv, dir, axis: [0, 1, 0], len: back / Math.cos(a0) + reach, arc,
+           wx: 0.012, tz: 0.008, knobR: 0, reach, face };
 }
 // ---- the slot planner (one per chain) ------------------------------------
 function planSlot(o, st, u, side, ch, off) {

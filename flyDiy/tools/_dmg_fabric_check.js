@@ -155,7 +155,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
   for (const k of BUILDS) jobs.push(['panels', k], ['intact', k]);
   for (const [k, id] of CRASH) jobs.push(['crash', k, id]);
   for (const k of ['cub', 'metal']) jobs.push(['base', k]);
-  jobs.push(['hop', 'cub', 'trunk0']);
+  jobs.push(['hop', 'metal', 'trunk0']);   // (G4103: the Cub's trunk0 tears no tie under the kinks' tethers - the metal Cessna's tears 6, 2 after its first payload)
   const out = new Array(jobs.length); let i = 0;
   await Promise.all([0, 1, 2].map(async () => { while (i < jobs.length) { const j = i++; out[j] = await child(jobs[j]); } }));
   const R = (w, k, id) => out.find((o, j) => jobs[j][0] === w && jobs[j][1] === k && (id == null || jobs[j][2] === id));
@@ -198,7 +198,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       else yes(on === BASE[k + '-' + nm + '-on'], k + ' ' + nm + ': damage ON, no covered panel parted - the base\'s bits (' + on + ')');
     } }
   console.log('6. the drawing agrees (the hop)');
-  { const r = R('hop', 'cub', 'trunk0'); if (r && !r.err) { const H = r.H;
+  { const r = R('hop', 'metal', 'trunk0'); if (r && !r.err) { const H = r.H;
     yes(H.keysBefore === 0, 'no tie key in a payload before a tie is made (' + H.payloads + ' payloads)');
     yes(H.tyPayloads > 0 && H.liveMis === 0 && H.liveEq > 0, 'the live and the torn ties reach the page\'s state on every payload once made (' + H.liveEq + ' payloads, ' + H.liveMis + ' off)');
     yes(H.tearPayloads > 0, 'a tear is a payload of its own (' + H.tearPayloads + ')'); } }

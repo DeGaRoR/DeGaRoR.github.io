@@ -5,7 +5,8 @@ rule change would plant, without a browser or a GPU. Pictures of the summits, be
 cost estimate. (MOUNTAIN-VEG, 15 Nov 2026; A0's yes for the row the same day.)
 
 ```
-node flyDiy/tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north] [--w 760] [--eyes 2] [--subalpine 0]
+node flyDiy/tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north,home] [--w 760] [--eyes 2] [--subalpine 0] [--forestedge 0]
+node flyDiy/tools/veg_bench.js --out <dir> --edge home,cabin,skyline,north [--forestedge 0]
 ```
 
 - ~35 s for the four areas (the world composes in ~3 s, a 6 km window walks in ~6 s).
@@ -18,7 +19,14 @@ node flyDiy/tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north] 
 - `--subalpine 0` plants the game without 19 SUBALPINE (the before; files get `_off`). The rule itself is the game's
   (`BIOMES.subCode` / `subKeep`, the baked `subalpine` mix); the two hooks are copied from render_world.js.
 
+- `--forestedge 0` plants the game without FOREST-EDGE's size ramp (files get `_fe0`); the rule is the game's
+  (`BIOMES.edgeField` / `edgeRamp` / `edgeLift` / `edgeCanIn`) on render_world's own test.
+- `--edge <areas>`: THE FOREST BORDER. Every lattice point by its signed distance to the forest's edge (+ inside), 2 m bands
+  from -12 to 60 m: the share planted, the refusing rule, the canopy map's height, the tree's size factor, the terrain codes;
+  `<area>_edge.png` (forest ground with no tree within 6 m in orange) and `edge.json`. `home` is the home field's woods.
+
 ## Traps
+- The edge band's bushes and weeds (cover_ring edgeBand) are not drawn; GATE COVER 9 holds where they stand.
 - It copies the fill's rule by hand. If `walkRows`, `forestHere`, `openHere`, `codeAt` or `FILL` change, change
   `plantAt` in the bench too, and prove it again against the game (page_rig + `TREE_FILL` probe in a GPU slot).
 - Not modelled: the puddle skip, the town's own trees, the species' per-subject patches, the far stand cards, the grass

@@ -169,16 +169,21 @@ const STAND_CARDS = (() => {
         if (!ISLC || !ISLC.ttype) continue;
         // G2935 (BIOME-POLY): a premises polygon's own mix opens the gate and stands floored, as the fill's walk does
         const pm = polyMix ? polyMix(x, z, BIO) : undefined;
-        if (!forestHere(x, z) && !openHere(x, z) && !(pm && polyGround && polyGround(x, z))) continue;
+        const fh = forestHere(x, z);
+        if (!fh && !openHere(x, z) && !(pm && polyGround && polyGround(x, z))) continue;
         const tt = ttypeAt(x, z); if (tt < 2 && !pm) continue;
         const cd = pm !== undefined ? -1 : (BIO.subAt ? BIO.subAt(codeAt(x, z, hsh(gx + 21, gz + 23)), x, z) : codeAt(x, z, hsh(gx + 21, gz + 23)));   // 19 SUBALPINE: the vegetation's code
         const mix = pm !== undefined ? pm : BIO.mixAt(cd); if (!mix) continue;
         const MF = BIO.mixOf(mix).forest || {};
         let can = ISLC.canopyAt(x, z), floored = false;
+        // FOREST-EDGE: the walk's own lift (render_world walkRows; 28c_biomes edge*) - the far cards keep the near fill's edge
+        if (ctx.edgeD && BIO.edgeOn && fh && pm === undefined) { const d = ctx.edgeD(x, z); if (d < BIO.knobs().edgeOut) can = Math.max(can, BIO.edgeCanIn(ISLC.canopyAt, x, z) * BIO.edgeRamp(d)); }
         if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);
         if (pm) { floored = true; can = Math.max(can, MF.canopyFloor || 0, POLY_CAN || 12); }
         if (MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
-        if (MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue;
+        // (17 Nov, the alpine zones) a mix's clumpUp [h0, h1, bare share at h1]: the bare share rises with the altitude, as the walk's
+        const clH = MF.clumpUp ? MF.clump + (MF.clumpUp[2] - MF.clump) * (t => t * t * (3 - 2 * t))(Math.max(0, Math.min(1, (world.terrainH(x, z) - MF.clumpUp[0]) / Math.max(1, MF.clumpUp[1] - MF.clumpUp[0])))) : MF.clump;
+        if (clH > 0 && vnoise(x, z, MF.clumpM || 30, 41) < clH) continue;
         let kind = Math.min(1, BIO.density(mix) * spc * spc * FILL.island.biomeGain); if (kind <= 0) continue;
         if (cd === BIO.SUBALPINE && BIO.keepAt) kind *= BIO.keepAt(cd, x, z, world.terrainH(x, z));   // 19 SUBALPINE: the walk's thinning (render_world)
         let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);

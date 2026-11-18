@@ -347,7 +347,9 @@
     else { for (let k = 0; k < K; k++) { wo[o2 + k] = k === 0 ? d : R.wi[o + k]; w2o[o2 + k] = k === 0 ? 1 : 0; } }
   }
   function cutStage(R, T, D, BP, rest, base, LK) {
-    const K = R.K, nt = R.nt, i0 = R.idx0, dead = R.dead, vp = R.vp, dom = R.dom, pc = D.pc;
+    const K = R.K, nt = R.nt, i0 = R.idx0, dead = R.dead, vp = R.vp, dom = R.dom;
+    // (G4103: one piece - D.pc null - is every node on piece 0 for the sides' bindings; the copies keep D.pc's null)
+    const pc = D.pc || (R.pc0 && R.pc0.length === T.n ? R.pc0 : (R.pc0 = new Int32Array(T.n)));
     const E = BP.ends, brk = (x, y) => E[x] === 1 && E[y] === 1 && BP.has(x, y);
     const MEM = LK ? R.mem : null, rows = [];        // [t, side's piece, side's node, sign, sd0, sd1, sd2, clip]
     for (let t = 0; t < nt; t++) {
@@ -386,7 +388,7 @@
     if (!rows.length) { R.cut2 = null; return; }
     const n2 = rows.length, nv = n2 * 3;
     const C2 = { nv, K, wi: new Int32Array(nv * K), ww: null, w2: new Float32Array(nv * K), vp: new Int32Array(nv), dom: new Int32Array(nv),
-                 ride: new Uint8Array(nv).fill(1), rep: null, sag: R.sag ? new Float32Array(nv) : null, pc, cage: true, active: true,
+                 ride: new Uint8Array(nv).fill(1), rep: null, sag: R.sag ? new Float32Array(nv) : null, pc: D.pc, cage: true, active: true,
                  src: new Int32Array(nv), tri: new Int32Array(n2), base: new Float64Array(nv * 3), d: new Float32Array(nv), s: new Int8Array(nv),
                  v: (R.cut2 ? R.cut2.v : 0) + 1 };
     C2.ww = C2.w2;
@@ -591,7 +593,9 @@
       if (any) R.sag = sag;
     }
     // G4102 (CRASH-LOOK CUT-THROUGH): the triangles the rule above removed across a parting, drawn again cut through
-    if (OPT.cut && R.cage && rest && base && pc) cutStage(R, T, D, BP, rest, base, LK); else R.cut2 = null;
+    // (G4103: and while the wreck is ONE piece - a member broken that parted nothing, now usual with the kinks' tethers
+    // holding the airframe together: its triangles were dropped along their own edges, uncut)
+    if (OPT.cut && R.cage && rest && base) cutStage(R, T, D, BP, rest, base, LK); else R.cut2 = null;
     // (G1818: what the next event compares - this one's pieces and broken count, and the record's nodes)
     { const n = T.n, M = R.nodeMask && R.nodeMask.length === n ? R.nodeMask : (R.nodeMask = new Uint8Array(n));
       M.fill(0);

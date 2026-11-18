@@ -482,7 +482,7 @@ function makeSim(def, world) {
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0, wires: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
-                groups: [], floors: 0, cracks: 0, rag: [], armedN: 0,
+                groups: [], floors: 0, tether: 0, tetherT: 0, cracks: 0, rag: [], armedN: 0,
                 // DMG-D1b: the body frame's refs parted (G1821: when, which node), the strips split / dropped (G1820)
                 brokeUp: null, stripsSplit: 0, stripsDropped: 0 };
   // G2357 (DMG-SCAR, 34_scar.js): THE GROUND'S SCAR - the contacts of a crash recorded (read, never pushed: the bits are the
@@ -587,7 +587,7 @@ function makeSim(def, world) {
   // the pieces now: live members (a kink floor pushes only, a SUPPORT limiter only touches: neither holds), clusters still on
   function pieces() {
     for (let i = 0; i < n; i++) ufP[i] = i;
-    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken && b.tt !== 1) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }   // (G4103: a live tether joins)
     for (const C of clusters) if (!C.off) { const r0 = ufFind(C.idx[0]); for (const i of C.idx) { const x = ufFind(i); if (x !== r0) ufP[x] = r0; } }
     return ufFind;
   }
@@ -857,6 +857,8 @@ function makeSim(def, world) {
   // while it is not empty
   const FLR = new Int32Array(nb);
   let nFlr = 0;
+  const TETH = DMG_ON && typeof GEN_DMG_TETHER !== 'undefined' && GEN_DMG_TETHER.on !== false;   // G4103 (JOINT-TETHER)
+  let tetherTorn = 0; const TTQ = [];   // (G4103: the members whose tethers tore this pass, their groups judged after it)
   // G1898.4 (coordinator, perf): ONE hook in substep() for the floors (D1a) and the limiters (D1b) - set at the frame's
   // start (after armFrame) and on a break, read once a substep; two checks there cost the metal Cessna ~1 %
   let postLive = 0;
@@ -901,7 +903,7 @@ function makeSim(def, world) {
       const Dt = R ? Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI) : 0;
       b.mp = R && R.ty ? R.ty * b.A * Dt / Math.PI : Infinity;
       b.thf = R ? R.thf : 0;
-      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
+      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0; b.tt = 0;
       if (R) dmgMember(bi, b, R);                    // G1811-G1814 (DMG-D1a): Euler, the seams, wood's ragged break
       if (PHY && R) { PHY[bi * 4] = b.fy0; PHY[bi * 4 + 1] = b.fu; PHY[bi * 4 + 2] = b.fc0; PHY[bi * 4 + 3] = R.ty * b.A; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.Lr = 0; b.broken = false; b.kB = 0; b.cB = 0; b.yielded = false;
@@ -1390,10 +1392,10 @@ function makeSim(def, world) {
       const b = beams[bi];
       if (b.broken) { b.k = b.kB; b.c = b.cB; b.broken = false; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
-      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
+      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0; b.tt = 0;
     }
     nFlr = 0; postLive = 0; nPost = 0; nTie = 0; nTieL = 0; tieOf.clear(); if (COV) { for (const D of covDone) D.clear(); DMG.tieN = 0; DMG.tieT = 0; DMG.tieBorn = 0; DMG.tieFirstT = null; }
-    grpDone.fill(0); grpLost.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
+    grpDone.fill(0); grpLost.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.tether = 0; DMG.tetherT = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     if (DMG_ON) clReset();          // G1840 (DMG-D3): every cluster as built, every cut whole
     for (const C of clusters) { C.off = false; C.dirty = false; }
@@ -1430,6 +1432,9 @@ function makeSim(def, world) {
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
     const inGear = grpOf[bi] >= 0 && gearGrp[grpOf[bi]] === 1;
     if (b.kink && !inGear) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost; GEAR-FALLS: a gear joint's leaves with its leg, it props nothing)
+    // (G4103: and holds no tether - its tether lives in the floor pass, which never walks it: a gear member's tether
+    // stayed live past any length, joining a fallen leg to the wreck it lay 40 m from - the 17 Nov nose-down stills)
+    else if (b.tt === 1) { b.tt = 0; DMG.tether--; }
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     // (GEAR-FALLS: a wire snapping is damage, not a crash - structural's 'a bracing wire snapped'; the leg stands)
     if (gearWire[bi]) { if (how !== 'group') DMG.wires++; }
@@ -1454,7 +1459,7 @@ function makeSim(def, world) {
       else {
         const G0 = DGR[g].t0; let cap = 0;
         for (let q = 0; q < G0.length; q++) { const f = beams[G0[q]].fu; cap += f < Infinity ? f : 0; }
-        grpLost[g] += b.fu < Infinity ? b.fu : 0;
+        grpLost[g] += Math.max(0, (b.fu < Infinity ? b.fu : 0) - tetherKeep(b));   // (G4103: a tethered kink still pulls - the joint lost only the rest; its tether's tear the rest, tetherGroups)
         rel = !(cap > 0) || grpLost[g] >= GEN_DMG_GROUP.rel * cap * (1 - 1e-9);
       }
     }
@@ -1526,7 +1531,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; beamBreak(bi, 'kink'); }   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b)) { b.Lt = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
@@ -2082,6 +2087,28 @@ function makeSim(def, world) {
   // compares every p and v. A world without a bound (the island's raster, a
   // premises layer) gets the old path; so does FLYDIY_EXACT_GROUND=1.
   const GROUND_CONE_EPS = 0.01;
+  // THE GROUND PUSHES ALONG ITS NORMAL (TOW-LAUNCH, 2026-11-12). The contact pushed every node STRAIGHT UP and every
+  // friction lived in the horizontal plane, so a slope never pulled an aeroplane downhill: the motorglider set down on
+  // Skyline Altiport (tw_ski, ~10 % grass) never moved, and pushed to 4.4 m/s it slowed at 0.47 m/s2 where a free wheel
+  // runs on at g (grade - Crr). Now a contact on a slope reads the terrain's normal off a forward difference (two more
+  // terrainH, GROUND_SLOPE_D: about a tyre's half-width), its spring and damper push along that normal (the penetration
+  // stays the vertical one - the error is O(grade^2), 0.5 % of the spring at 10 %, and a flat contact keeps its old
+  // depth), and its friction lives in the tangent plane. A contact whose difference is exactly zero (every flat pad: the
+  // analytic HOME, a graded apron or stand) takes the old lines, so flat ground is master's to the bit.
+  // THE HOLD: the old ground had no slope to hold against, and its rolling resistance under 0.2 m/s is a damper (G121.3)
+  // - on a slope that is a creep, a parked aeroplane walking off downhill. So on a slope a wheel under 0.2 m/s is static
+  // friction: it takes the tangential force the node carries (gravity's share, the airframe's members, the push) up to
+  // its Coulomb limit (the creep mu N: Crr unbraked, Crr + brake mu on a braked main; the side's mu across), the damper
+  // on top. Parked on a grade under Crr it stays where it stands, on one over it it rolls at g (sin - Crr cos); a braked
+  // main also holds what the unbraked tailwheel passes on (the tilt's pull alone let a braked motorglider creep 2 mm/s
+  // down 9 %). Above 0.2 m/s the friction is the old law in the new plane. GATE SLOPE holds all of it.
+  // THE NORMAL IS READ ONCE A FRAME a contact node, and again only when the node has run GROUND_SLOPE_D / 2 from where
+  // it was read (the normal is the ground's at the tyre's patch, not the substep's: 24 substeps a frame read it 24
+  // times). The cache is the frame's own (snFrame, bumped by step()), so a frame's forces depend on its start state
+  // only - determinism and a reset() need no bookkeeping. Typed arrays: the contact pass allocates nothing.
+  const GROUND_SLOPE_D = 0.25, GROUND_SLOPE_RE2 = (GROUND_SLOPE_D / 2) * (GROUND_SLOPE_D / 2);
+  const snCx = new Float64Array(n), snCz = new Float64Array(n), snCn = new Float64Array(n * 3), snCf = new Int32Array(n).fill(-1);
+  let snFrame = 0;
   let coneOn = !(typeof process !== 'undefined' && process.env && process.env.FLYDIY_EXACT_GROUND === '1');
   let coneLive = false, coneS2 = 0;
   const gcx = new Float64Array(n), gcz = new Float64Array(n), gcy = new Float64Array(n);
@@ -4134,6 +4161,7 @@ function makeSim(def, world) {
       const b = beams[FLR[q]], a3 = b.a*3, b3 = b.b*3;
       let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
       const L = hyp3(dx, dy, dz) || 1e-9;
+      if (b.tt === 1 && L > b.Lt) { tetherPull(b, a3, b3, dx / L, dy / L, dz / L, L); if (b.tt !== 1) TTQ.push(FLR[q]); continue; }   // G4103: the tether
       if (L >= b.Lf) continue;
       dx /= L; dy /= L; dz /= L;
       let Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
@@ -4145,6 +4173,57 @@ function makeSim(def, world) {
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
+  }
+  // G4103 (JOINT-TETHER): a kinked member's tether (60_gen_spec GEN_DMG_TETHER): 1 a ductile tube or sheet, 2 wood, 0 none
+  function tetherKind(b) {
+    const R = b.mat ? GEN_CRASH[b.mat] : null;
+    if (!R || !(b.Lr > 0)) return 0;
+    return R.etu > 0 ? 1 : b.mat === 'wood' ? 2 : 0;
+  }
+  // its pull: kB (L - Lt) to its cap - a fold opening (L under its rest length) at rFold x its crush force, then the
+  // creased wall's share of its strength - plastic past the cap (Lt follows: the stored energy at most F^2 / 2 kB); torn
+  // once past its rest length by what its material has left: the piece event again
+  // the share of its strength a live tether still carries (the group's count: a joint whose kinked members still pull
+  // has not lost them - the user 13 Nov: "more bending, less disintegrating", within the physics: joints tear late)
+  function tetherKeep(b) {
+    if (b.tt !== 1) return 0;
+    // (a DUCTILE member only: a folded tube's wall still carries its tension, but crushed spruce has lost its joint - its
+    // tether holds the splinters together, it is no strength: the Jodel's certificate read BROKE AT 9.54 g with 104 of
+    // its wing's members broken from 6.01 g while the crushed caps were counted kept, GATE DMGCERT 17 Nov)
+    const k = tetherKind(b), fu = b.fu < Infinity ? b.fu : 0;
+    return k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;
+  }
+  // after a pass: a torn tether's joint has now lost the rest of that member - its group judged again (G1894's third)
+  function tetherGroups() {
+    brkDepth++;
+    for (const bi of TTQ) {
+      const b = beams[bi], g = grpOf[bi];
+      if (g < 0 || grpDone[g] || gearGrp[g]) continue;
+      const fu = b.fu < Infinity ? b.fu : 0, k = tetherKind(b);
+      grpLost[g] += k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (wood was counted lost whole at its kink: tetherKeep)
+      const G0 = DGR[g].t0; let cap = 0;
+      for (let q = 0; q < G0.length; q++) { const f2 = beams[G0[q]].fu; cap += f2 < Infinity ? f2 : 0; }
+      if (cap > 0 && grpLost[g] < GEN_DMG_GROUP.rel * cap * (1 - 1e-9)) continue;
+      grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT, how: 'tether' });
+      if (grpCut[g] >= 0) cutPart(grpCut[g], 'member', 0);
+      for (const j of grpAll[g]) beamBreak(j, 'group');
+    }
+    TTQ.length = 0;
+    --brkDepth;
+  }
+  function tetherPull(b, a3, b3, dx, dy, dz, L) {
+    const T = GEN_DMG_TETHER, k = tetherKind(b), R = GEN_CRASH[b.mat];
+    if (L > b.Lr * (1 + (k === 1 ? T.eDuct * R.etu : 0))) { b.tt = 0; DMG.tetherT++; tetherTorn = 1; return; }
+    const fu = b.fu < Infinity ? b.fu : 0;
+    const Fm = k === 2 ? T.rWood * fu : L < b.Lr && b.Ff > 0 ? T.rFold * b.Ff : T.rDuct * fu;
+    let F = b.kB * (L - b.Lt);
+    if (F > Fm) { F = Fm; b.Lt = L - Fm / b.kB; }
+    // (and the member's own damper, as its floor's: a folded tube's wall rubs - a piece hung on its tether comes to rest)
+    F += b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+    if (F > Fm) F = Fm;
+    if (!(F > 0)) return;
+    f[a3]+=F*dx; f[a3+1]+=F*dy; f[a3+2]+=F*dz;
+    f[b3]-=F*dx; f[b3+1]-=F*dy; f[b3+2]-=F*dz;
   }
   // G1822: the SUPPORT limiters - push only, below their closing length (walked in a frame armed or after a break)
   function suppPass() {
@@ -4397,7 +4476,7 @@ function makeSim(def, world) {
     if (OLEO !== null) oleoPass(dt);                 // WILGA-GEAR: the trailing-link legs' struts
     if (TELE !== null) telePass(dt);                 // PC6-OLEO: the telescopic tail strut
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
-      if (nFlr) floorPass();                         // G1813: the kinked members' floors
+      if (nFlr) { floorPass(); if (tetherTorn) { tetherTorn = 0; if (TTQ.length) tetherGroups(); compEvent(); } }   // G1813: the kinked members' floors (G4103: a tether torn - the pieces again)
       if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
       if (nSup && (armed || DMG.breaks)) suppPass(); // G1822: the SUPPORT limiters
     }
@@ -4428,13 +4507,30 @@ function makeSim(def, world) {
       const pen = FnT !== null ? 1 : gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
       if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
+      // TOW-LAUNCH: the terrain's normal (n = (-gx, 1, -gz)/|.|); exactly flat -> the old lines, bit for bit
+      let snx = 0, sny = 1, snz = 0;
+      if (gH && FnT === null) {   // (a ski node: its own law, master's - SKIS)
+        const cdx = p[i3] - snCx[i], cdz = p[i3+2] - snCz[i];
+        if (snCf[i] !== snFrame || cdx * cdx + cdz * cdz > GROUND_SLOPE_RE2) {   // the frame's first contact, or the node ran on
+          const sgx = (gH(p[i3] + GROUND_SLOPE_D, p[i3+2]) - gy) / GROUND_SLOPE_D, sgz = (gH(p[i3], p[i3+2] + GROUND_SLOPE_D) - gy) / GROUND_SLOPE_D;
+          if (sgx !== 0 || sgz !== 0) { sny = 1 / Math.sqrt(sgx * sgx + sgz * sgz + 1); snx = -sgx * sny; snz = -sgz * sny; }
+          snCf[i] = snFrame; snCx[i] = p[i3]; snCz[i] = p[i3+2]; snCn[i3] = snx; snCn[i3+1] = sny; snCn[i3+2] = snz;
+        } else { snx = snCn[i3]; sny = snCn[i3+1]; snz = snCn[i3+2]; }
+      }
+      const flat = sny === 1;
       let Fn = FnT !== null ? FnT : KGn[i] * pen - CGn[i] * v[i3+1];
+      if (!flat) Fn = KGn[i] * pen - CGn[i] * (v[i3] * snx + v[i3+1] * sny + v[i3+2] * snz);   // the damper on the normal velocity
       if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * Fn;
 
       if (Fn < 0) Fn = 0;
+      if (flat) {
       f[i3+1] += Fn;
       if (tcE !== 0) { f[i3] -= Fn * tcE * ENVO[kE*7+2]; f[i3+2] -= Fn * tcE * ENVO[kE*7+3]; }   // ROUGH GROUND: the stone pushes back by its angle
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
+      } else {
+        f[i3] += Fn * snx; f[i3+1] += Fn * sny; f[i3+2] += Fn * snz;
+        cIx += Fn * snx * dt; cIy += Fn * sny * dt; cIz += Fn * snz * dt;
+      }
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
       if ((isMain || (isTW && TWM !== 4)) && (GR === null || (isTW && RET.fixedTw) || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
@@ -4448,8 +4544,15 @@ function makeSim(def, world) {
           hx = nx; hz = nz;
         }
         const hL = hyp2(hx, hz) || 1e-9; hx/=hL; hz/=hL;
-        const lx = -hz, lz = hx;
-        const vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
+        let lx = -hz, lz = hx, hy = 0, ly = 0;
+        if (!flat) {                                 // TOW-LAUNCH: the heading laid into the tangent plane, the lateral t x n
+          const hn = hx * snx + hz * snz; let tx = hx - hn * snx, ty = -hn * sny, tz = hz - hn * snz;
+          const tL = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1e-9; tx /= tL; ty /= tL; tz /= tL;
+          hx = tx; hy = ty; hz = tz;
+          lx = ty * snz - tz * sny; ly = tz * snx - tx * snz; lz = tx * sny - ty * snx;
+        }
+        const vr_ = flat ? v[i3]*hx + v[i3+2]*hz : v[i3]*hx + v[i3+1]*hy + v[i3+2]*hz;
+        const vl = flat ? v[i3]*lx + v[i3+2]*lz : v[i3]*lx + v[i3+1]*ly + v[i3+2]*lz;
         // G115: the wheel asks WHAT IT IS ROLLING ON. `world.surface` is the
         // biome classifier with the aerodrome strips folded in (measured: 5
         // at Morford's pavement, 0 at HOME); classes without a row read the
@@ -4510,22 +4613,44 @@ function makeSim(def, world) {
         // tightened the Jodel's taxi turn at 0.2 of rudder from 31.8 to 25.1 m (GATE DMGTYRE: x0.62 of the old law) and the
         // arc's breakout does not need it)
         const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
+        if (flat) {
         if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
+        } else {
+          // TOW-LAUNCH: the friction in the tangent plane; under 0.2 m/s the wheel holds the tilt's pull (-Fn t.y, -Fn l.y)
+          // up to its Coulomb limit (THE HOLD, above): the creep regime's damper alone would walk a parked aeroplane downhill
+          let Fr = -kR * vr_, Fl = -kL * vl;
+          if (Math.abs(vr_) < 0.2) {
+            const lr = muRe * Fn, ll = su[2] * Fn;
+            const ft = f[i3] * hx + f[i3+1] * hy + f[i3+2] * hz, fl = f[i3] * lx + f[i3+1] * ly + f[i3+2] * lz;
+            Fr = Math.max(-lr, Math.min(lr, Fr - ft)); Fl = Math.max(-ll, Math.min(ll, Fl - fl));
+          }
+          if (isTW && TWL) TWL.F[twQ] = -Fl;
+          f[i3] += Fr * hx + Fl * lx; f[i3+1] += Fr * hy + Fl * ly; f[i3+2] += Fr * hz + Fl * lz;
+        }
       } else if (isTW || SKD[i]) {
         // G3800: THE TAIL SKID (twMode 4) - and TIP-SKID's wingtip shoes, the same law - a steel shoe sliding, Coulomb in every direction at its surface's mu
         // (TW_SKID_MU), regularised at 0.02 m/s so it holds parked as a wheel's creep does; no rolling, no steering
         const sk = TW_SKID_MU[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0];
+        if (flat) {
         const vx = v[i3], vz = v[i3+2], sp = hyp2(vx, vz);
         const kf = Math.min((sk == null ? TW_SKID_MU[0] : sk) * Fn / Math.max(sp, 0.02), m[i]/dt);
         f[i3] -= kf * vx; f[i3+2] -= kf * vz;
+        } else {                                     // TOW-LAUNCH: the shoe slides in the tangent plane
+          const vn = v[i3] * snx + v[i3+1] * sny + v[i3+2] * snz, vx = v[i3] - vn * snx, vy = v[i3+1] - vn * sny, vz = v[i3+2] - vn * snz;
+          const kf = Math.min((sk == null ? TW_SKID_MU[0] : sk) * Fn / Math.max(Math.sqrt(vx * vx + vy * vy + vz * vz), 0.02), m[i]/dt);
+          f[i3] -= kf * vx; f[i3+1] -= kf * vy; f[i3+2] -= kf * vz;
+        }
       } else {
         scrape = true;                               // G1470: something other than a wheel on the ground (arms the yield)
-        const vx=v[i3], vz=v[i3+2], sp = hyp2(vx, vz);
+        let vx=v[i3], vz=v[i3+2], vy = 0;
+        if (!flat) { const vn = vx * snx + v[i3+1] * sny + vz * snz; vx -= vn * snx; vy = v[i3+1] - vn * sny; vz -= vn * snz; }   // TOW-LAUNCH: the slide in the tangent plane
+        const sp = flat ? hyp2(vx, vz) : Math.sqrt(vx * vx + vy * vy + vz * vz);
         if (sp > 1e-6) {
           const kf = Math.min(0.8 * Fn / sp, m[i]/dt);
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
+          if (!flat) { f[i3+1] -= kf * vy; cIy -= kf * vy * dt; }
           cIx -= kf * vx * dt; cIz -= kf * vz * dt;
           if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
           if (PODS !== null && PODS[i] >= 0) { const P4 = DMG.pod, k = PODS[i]; P4.slide[k] += sp * dt; P4.work[k] += kf * sp * sp * dt; P4.n++;
@@ -4643,6 +4768,7 @@ function makeSim(def, world) {
     if (SKI !== null) skiStep(dtFrame);              // SKIS: the wheel-ski's selector and the skis' pitch
     aicFresh = true;
     rigFresh = true;               // G1885: the frame's first substep sums the second moments
+    snFrame = (snFrame + 1) & 0x3fffffff;   // TOW-LAUNCH: the contact normals are read afresh this frame
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
@@ -4958,6 +5084,9 @@ function makeSim(def, world) {
            // t0 (made), torn (when; -1 live); n of them, nLive. Views on the solver's own arrays (read-only by contract)
            coverTies: () => COV ? { n: nTie, nLive: nTieL, a: TA, b: TB, Ls: TLs, k: TK, ku: TKu, Fy: TFy, eu: TEu, c: TC, Lp: TLp, Fp: TFp, F: TF, w: TW, sheet: TSh, t0: TT0, torn: TT, live: TLIVE } : null,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
+           // TOW-LAUNCH (15 Nov): the build's named nodes (def.refs - the mains, the tow hook, the skids), read-only by contract:
+           // the tow line finds its release on the sim it pulls (src/vehicle/tow.js towHookNodes)
+           refs: () => def.refs,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,

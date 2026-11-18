@@ -310,7 +310,7 @@ function perturbPose(sim, seed, amp) { const r = mulberry(seed * 2654435761 >>> 
 function crashStats(sim) {
   const D = dmgSim(sim), n = sim.n, P = new Int32Array(n); for (let i = 0; i < n; i++) P[i] = i;
   const f = i => { while (P[i] !== i) { P[i] = P[P[i]]; i = P[i]; } return i; };
-  for (const b of sim.beams) if (!b.broken) { const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
+  for (const b of sim.beams) if (!b.broken || b.tt === 1) { const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }   // (G4103: a kinked member's live tether joins - the pieces' rule)
   const cc = sim.clusterCuts ? sim.clusterCuts().clusters : [];
   for (const C of cc) if (!C.off && C.nodes && C.nodes.length) for (const i of C.nodes) { const x = f(i), y = f(C.nodes[0]); if (x !== y) P[x] = y; }
   const m = new Map(); for (let i = 0; i < n; i++) { const r = f(i); m.set(r, (m.get(r) || 0) + sim.m[i]); }

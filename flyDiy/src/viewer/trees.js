@@ -77,7 +77,9 @@
     for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
     if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
     if (seen[1]) seen[18] = 1;   // G3430: a lake's shore band is 18 LAKESHORE (28c_biomes SHORE; the cover ring's)
-    const names = new Set(['grass_dry']);
+    // MOUNTAIN-VEG: heath, scrub and dense scrub above the height ramp are 19 SUBALPINE (28c_biomes subCode; off by ?subalpine=0)
+    if (B.SUBALPINE && B.subOn !== false && (seen[2] || seen[7] || seen[14])) seen[B.SUBALPINE] = 1;
+    const names = new Set(['grass_dry', 'grass_plates']);   // grass_plates: the lawn's cards (GRASS-CARDS, cover_ring layer 'lawn'; 1.3 KB + three 512x256 maps)
     for (let c = 0; c < 256; c++) { if (!seen[c]) continue;
       const m = B.mixAt(c), M = m && B.mixOf(m); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }
     for (const c of PACK.collections) if (c.kind === 'rock' || c.kind === 'debris' || c.kind === 'cliff') names.add(c.name);
@@ -363,7 +365,7 @@
   // which they had called a little too dark WHEN IT WAS A SILHOUETTE; at the same luma with the
   // albedo intact it is the look that was wanted all along, which is the whole lesson of G548.
   // TREE_LEAF.tint({ light }) moves it live; TREE_LEAF.master() only READS it.
-  const MASTER = { hue: 0.045, sat: 1.2, light: 0.42 * 1.38 };   // x 1.38: the user's F8 world look (2026-10-03, the environment albedo baked into the leaves' default)
+  const MASTER = { hue: 0.045, sat: 1.2, light: 0.42 * 1.38 * 0.85 };   // x 1.38: the user's F8 world look (2026-10-03, the environment albedo baked into the leaves' default); x 0.85: the user 17 Nov ("0,85 for trees looks OK" - the trees were brighter than the ground they stand on; models and stand-ins together)
   // THE GRASS AND THE BUSHES HAVE A MASTER EACH (G1385 EDITOR-VEG, the user: "We are missing coloration options for
   // the grass and bushes in the world editor"). A kind's master rides ON TOP of what that kind rode before - a SHRUB
   // on MASTER (the trees'), a COVER on the bench's committed COVER_BASE (sat 1.58, light 1.12, G551: the cover ring

@@ -62,7 +62,7 @@
 // ============================================================
 const SIM_LINK = (() => {
   'use strict';
-  const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround'];   // setGrassSides: GRASS-ON-GREEN, the grass law is the wheels' ground too
+  const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround', 'setGroundLadder'];   // setGrassSides: GRASS-ON-GREEN, the grass law is the wheels' ground too
   // the pilot's fields assigned whole (never merged into the page's objects: a site or a plan may be shared)
   const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report', 'drawn'];   // G2120: the drawn route's state, whole
   const AP_SKIP = ['route', 'nav', 'sheet'];
@@ -251,7 +251,7 @@ const SIM_LINK = (() => {
     // (which B8B9 made instant: no screen) does not hold the stand for it. The registry so far goes first.
     function worldMsg() {
       const isl = W.ISLAND_BOOT;
-      return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null, ground: world.groundForce || null,   // (SNOW-MUD LADDER: the ground's dev override)
+      return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null, ground: world.groundForce || null, ladder: typeof GROUND_WX !== 'undefined' ? GROUND_WX.ladder() : null,   // (SNOW-MUD LADDER: the ground's dev override, the ladder's numbers)
                opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat, grassSides: typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides ? PREMISES_GEN.grassSides() : null },   // grassSides: GRASS-ON-GREEN, the page's grass law (look + wheels) on the worker's world   // G3790: the test field's flat world, the same on the worker
                fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
@@ -304,6 +304,8 @@ const SIM_LINK = (() => {
     // ---- A FLIGHT: asked for, checked, then live ---------------------------------------------------
     function eligible(S) {
       if (S.curKey !== 'gen') return 'not the garage aeroplane (' + S.curKey + ')';
+      // TOW-LAUNCH: a glider on the tow flies inline - the line acts in the solver's substeps (sim.onSubstep), on the page's sim
+      if (typeof window !== 'undefined' && typeof window.FLYDIY_TOW_WANTED === 'function' && window.FLYDIY_TOW_WANTED()) return 'the glider tow (the line acts in the page\'s substeps)';
       if (!S.sim.hydro && !S.lastStart) return 'no start recorded (applyRoute never ran)';
       return null;
     }
@@ -336,7 +338,7 @@ const SIM_LINK = (() => {
       let shake = null;
       try { shake = S.shake ? S.shake() : null; } catch (e) { shake = null; }
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
-                  pilot: { kind: S.pilotChoice || 'auto', profile: S.pilotProfile || undefined, shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null, ground: world.groundForce || null,
+                  pilot: { kind: S.pilotChoice || 'auto', profile: S.pilotProfile || undefined, shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null, ground: world.groundForce || null, ladder: typeof GROUND_WX !== 'undefined' ? GROUND_WX.ladder() : null,
                   damage: typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null };   // G1898: the page's ?damage
       // G2400 (FREIGHT-STRAP): the load the page's sim carries (sim.setFreight at the roll-out), flown there too; absent
       // with none (the init message as it always was)

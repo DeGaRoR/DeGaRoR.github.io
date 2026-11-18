@@ -439,6 +439,34 @@ function decalMix(rgb, k, nk, fl, cls, ok) {
   return rgb;
 }
 
+// ---- --mud [seconds]: GROUND-FX's computed mud and dust (tools/mud_roll.js: the drawn aeroplane voxelised, a taxi and a
+// take-off run, dust.js's own throw and clouds marched against it), drawn per PIXEL by the shader's arithmetic
+// (GROUND_DEPOSIT.pbrAt: the mud's cover eroded by the spatter, the dust film, the wetness -> albedo and gloss).
+// --scen mud|heavy|dust (default mud); --dry s: let the mud dry s seconds after the run (fresh = wet and glossy);
+// --mudcell m: the grid's cell (0.08 gamer, 0.12 phone)
+let MUDF = null;
+// GROUND-FX: the PBR at a pixel - the dust's veil, the mud (wet: dark and glossy; dry: lighter, matte); n = the outward normal
+function mudPix(img, i, t, w0_, w1_, w2_, qx, qy, qz, lm, sp) {
+  const P = MUDF(w0_ * t[0] + w1_ * t[3] + w2_ * t[6], w0_ * t[1] + w1_ * t[4] + w2_ * t[7], w0_ * t[2] + w1_ * t[5] + w2_ * t[8], qx, qy, qz);
+  if (P.dust > 0.004) { const Dc = [178, 158, 126]; for (let k = 0; k < 3; k++) img[i * 3 + k] = Math.round(img[i * 3 + k] + (Dc[k] * lm - img[i * 3 + k]) * 0.8 * P.dust); }
+  if (P.mud > 0.004) {
+    const gl = Math.max(0, Math.min(1, (0.9 - P.rough) / 0.65)), Mw = [60, 46, 33], Md = [116, 96, 74];
+    for (let k = 0; k < 3; k++) { const M = Mw[k] + (Md[k] - Mw[k]) * (1 - P.wet); img[i * 3 + k] = Math.round(img[i * 3 + k] + (Math.min(255, M * lm * (0.85 + 0.3 * P.h) + 255 * sp * 2.2 * gl) - img[i * 3 + k]) * P.mud); }
+  }
+}
+if (argv.includes('--mud')) {
+  const MR = require(path.join(ROOT, 'tools', 'mud_roll.js')), GDq = require(path.join(ROOT, 'src', 'viewer', 'ground_deposit.js'));
+  const mt = +opt('mud', 20) > 0 ? +opt('mud', 20) : 20;
+  const SCN = opt('scen', 'mud'), R = MR.run(spec, { S, T: mt, h: +opt('mudcell', 0.08), scen: SCN });
+  const dry = +opt('dry', 0); for (let t = 0; t < dry; t += 30) GDq.wash(R.G, Math.min(30, dry - t), 0, null);
+  GDq.smooth(R.G);
+  const st = R.stats;
+  console.log('mud: ' + mt + ' s, scenario ' + SCN + (dry ? ', dried ' + dry + ' s' : '') + ', grid ' + st.dims.join('x') + ', thrown ' + st.emitted + ', hits ' + st.hits + ', dust rays ' + st.rayHits + ', coat ' + st.coat.toFixed(3) + ' (' + st.msAll + ' ms)');
+  // per PIXEL in the raster: editor -> craft
+  const PO = {};
+  MUDF = (x, y, z, nx, ny, nz) => GDq.pbrAt(R.G, x, -z, y, nx, -nz, ny, 0.5, PO);
+}
+
 // ---- the marks: fittings placed, quad corners ---------------------------------------------------------------
 const marks = [];
 if (MARKS.includes('fittings') && S.W.CAGE_ACCESS)
@@ -500,7 +528,7 @@ function raster(project, Wd, H, bg) {
         const f2 = fl ? [w0_ * fl[0] + w1_ * fl[2] + w2_ * fl[4], w0_ * fl[1] + w1_ * fl[3] + w2_ * fl[5]] : null;
         const c3 = decalMix([r, g, b], [kx, ky, kz], nk, f2, DK.cls, DK.ok); r = c3[0]; g = c3[1]; b = c3[2];
       }
-      let R, G, Bc;
+      let R, G, Bc, mq = null, mlm = lam, msp = 0;   // (GROUND-FX --mud: the normal, the light and the highlight the pixel was lit with)
       if (tn) {
         let qx = w0_ * tn[0] + w1_ * tn[3] + w2_ * tn[6], qy = w0_ * tn[1] + w1_ * tn[4] + w2_ * tn[7], qz = w0_ * tn[2] + w1_ * tn[5] + w2_ * tn[8];
         const ql = Math.hypot(qx, qy, qz) || 1; qx *= sgf / ql; qy *= sgf / ql; qz *= sgf / ql;
@@ -509,6 +537,7 @@ function raster(project, Wd, H, bg) {
         const hx = L[0] / Ll + vd[0], hy = L[1] / Ll + vd[1], hz = L[2] / Ll + vd[2], hl = Math.hypot(hx, hy, hz) || 1;
         const sp = Math.pow(Math.abs((qx * hx + qy * hy + qz * hz) / hl), 24) * 0.18;
         const lm = 0.32 + 0.68 * dl;
+        mq = [qx, qy, qz]; mlm = lm; msp = sp;
         R = r * lm + 255 * sp * r / 255; G = g * lm + 255 * sp * g / 255; Bc = b * lm + 255 * sp * b / 255;
         if (PARTS && !tc) { R = r * lm + 255 * sp; G = g * lm + 255 * sp; Bc = b * lm + 255 * sp; }
         if (PARTS && tc) { const vr = w0_ * tc[0] + w1_ * tc[3] + w2_ * tc[6], vg = w0_ * tc[1] + w1_ * tc[4] + w2_ * tc[7], vb = w0_ * tc[2] + w1_ * tc[5] + w2_ * tc[8];
@@ -516,7 +545,9 @@ function raster(project, Wd, H, bg) {
       } else { R = r * lam; G = g * lam; Bc = b * lam; }
       R = Math.min(255, R); G = Math.min(255, G); Bc = Math.min(255, Bc);
       if (glass) { const a = t.al; img[i * 3] = img[i * 3] * (1 - a) + R * a; img[i * 3 + 1] = img[i * 3 + 1] * (1 - a) + G * a; img[i * 3 + 2] = img[i * 3 + 2] * (1 - a) + Bc * a; }
-      else { img[i * 3] = R; img[i * 3 + 1] = G; img[i * 3 + 2] = Bc; }
+      else { img[i * 3] = R; img[i * 3 + 1] = G; img[i * 3 + 2] = Bc;
+        // GROUND-FX --mud: the computed mud and dust at this pixel (a face drawn flat by the face's normal: the skin painted too)
+        if (MUDF) { const q = mq || [nx / nl, ny / nl, nz / nl]; mudPix(img, i, t, w0_, w1_, w2_, q[0], q[1], q[2], mlm, msp); } }
     }
   } };
   pass(false); pass(true);
