@@ -189,6 +189,8 @@ function makeContext(opts) {
   const { MANIFEST } = require(path.join(T, 'build.js'));
   const skip = new Set([...EXCLUDE, ...((opts && opts.exclude) || [])]);
   if (opts && opts.whole) for (const f of WHOLE_LAYERS) skip.delete(f);
+  // (proto 17 Nov, QS_VESSELS: the energy layer too - the build's own packs and tanks drawn)
+  if (opts && opts.whole && process.env.QS_VESSELS) for (const f of ['_bay_site.js', '_vessel_gen.js', '_vessel_mesh.js', '_cage_energy.js']) skip.delete(f);
   // opts.include: layers EXCLUDE keeps out, loaded all the same (quickshot --parts --crew: the crew layer, the seat and the pilot)
   for (const f of (opts && opts.include) || []) skip.delete(f);
   const loaded = [], errors = [];
@@ -216,6 +218,7 @@ function sceneBuild(spec, opts) {
   // layer's bay rule reads in the game, G1106); opts.inGame sets CAGE_IN_GAME for the build
   W.GARAGE_SPEC = opts.garage ? Object.assign({ get: () => opts.garage }, opts.resolved ? { resolved: opts.resolved, update() {} } : {}) : undefined;
   W.CAGE_IN_GAME = !!opts.inGame;
+  W.QS_SEED_ENERGY = !!process.env.QS_VESSELS;   // (proto 17 Nov: the energy layer seeds from the build's own spec)
   const t0 = Date.now();
   // opts.base: the P the build lands ON (G1985: the editor's own DEFAULTS, CAGE_PARAMS + the page's defaults - the
   // page's applySpec assigns cageFromSpec over the P it holds, so a row cageFromSpec does not return keeps that value)

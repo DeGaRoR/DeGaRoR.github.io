@@ -2831,6 +2831,8 @@ PAGE.post = ctx => {
   const skiUnits = [];
   // RETRACT-1: a retracting gear is drawn bare (no spat, no trouser, no leg shroud: noRet above)
   if (GEAR_RETRACTABLE(P)) for (const st of stations) { st.fair = 0; st.legFair = 0; }
+  // INLINE-FORK (proto 17 Nov): the steered nose oleo's fork in the strut's line (s2Inline; absent / 0 the castor under it)
+  for (const st of stations) if (st.x < 0.01 && st.steer > 0 && +P.s2Inline && GG.inlineFork) st.inline = 1;
   // WILGA-GEAR (the user, 9 Nov: "allow only a fairing for the leg, not the wheel on this suspension type"): the trailing
   // link's wheel swings on its arm under the boot - it wears no spat and no trousers (the leg-fairing row is its fairing)
   for (const st of stations) if (st.leg === 4 && !st.single) st.fair = 0;
@@ -3309,7 +3311,8 @@ PAGE.post = ctx => {
           // rides inside it in the game (app.js: the tw wheel is the castor's
           // child, and refs.tw IS the nosewheel on a tricycle).
           const cb = allBags();
-          const u = GG.castorUnit(cb, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
+          const u = st.inline && st.leg === 2 && r.inlineTop ? GG.inlineFork(cb, st.P, r.inlineTop, r.axle, r.inlineDir, st.R)
+                  : GG.castorUnit(cb, st.P, r.axle, sgn, st.R, st.P.twSteer, false);
           GG.wheel(wu.proxy, u.hub, u.axis, st.R, { brake: !!st.brake, P: st.P });
           if (st.fair) GG.spat(cb, u.hub, u.axis, st.R, fOpt);
           castorUnitOut = { bags: cb, top: u.top, ax: u.ax, axle: u.hub };
