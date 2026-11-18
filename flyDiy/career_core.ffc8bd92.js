@@ -75,24 +75,24 @@ const CONTRACT_FIELDS = {
 //   tankL      the vessel's litres (energyL); power the energy kind (fuel | electric)
 // What a design CAN DO is judged from these alone (contractCanDo, 73_): the load against the cabin, the loaded
 // take-off distance against both strips, the gear against both surfaces, the range against the leg.
-// SNAPSHOTS-OF 537d96cf431e6a28 (tools/snapshots.js: CONTRACT_DESIGNS, FREIGHT_CARDS and PROCURE eff measured off these build files)
+// SNAPSHOTS-OF a85b2a27a8b67736 (tools/snapshots.js: CONTRACT_DESIGNS, FREIGHT_CARDS and PROCURE eff measured off these build files)
 const CONTRACT_DESIGNS = {
   cub:    { id: 'cub',    label: 'Cub',             build: 'builds/cub_2026-09-20_corrected.json',
-            gear: 'wheels', seats: 2, bagKg: 10, massKg: 475, emptyKg: 352, toM: 153,
-            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 44388, tankL: 47.7, power: 'fuel' },
+            gear: 'wheels', seats: 2, bagKg: 10, massKg: 476, emptyKg: 354, toM: 156,
+            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 44396, tankL: 47.7, power: 'fuel' },
   jodel:  { id: 'jodel',  label: 'Jodel',           build: 'builds/jodel_2026-09-20_corrected.json',
-            gear: 'wheels', seats: 2, bagKg: 10, massKg: 462, emptyKg: 340, toM: 205,
-            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 45882, tankL: 47.7, power: 'fuel' },
+            gear: 'wheels', seats: 2, bagKg: 10, massKg: 464, emptyKg: 341, toM: 206,
+            cruiseKmh: 127, rangeKm: 421, spanM: 8.3, cost: 45895, tankL: 47.7, power: 'fuel' },
   c172:   { id: 'c172',   label: 'metal Cessna',    build: 'bugReports/cessnaMetal (1).json',
-            gear: 'wheels', seats: 4, bagKg: 40, massKg: 880, emptyKg: 662, toM: 144,
-            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 137572, tankL: 26.5, power: 'fuel' },
+            gear: 'wheels', seats: 4, bagKg: 40, massKg: 881, emptyKg: 663, toM: 144,
+            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 137583, tankL: 26.5, power: 'fuel' },
   c172f:  { id: 'c172f',  label: 'Cessna floats',   build: 'bugReports/cessnaFloatsWOrks.json',
-            gear: 'floats', seats: 4, bagKg: 40, massKg: 1017, emptyKg: 799, toM: 243,
-            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 202863, tankL: 26.5, power: 'fuel' },
+            gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 800, toM: 243,
+            cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 202874, tankL: 26.5, power: 'fuel' },
   twinf:  { id: 'twinf',  label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
             patch: 'floats',
-            gear: 'floats', seats: 1, bagKg: 0, massKg: 475, emptyKg: 382, toM: 53,
-            cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 68854, tankL: 20.1, power: 'fuel' },
+            gear: 'floats', seats: 1, bagKg: 0, massKg: 477, emptyKg: 383, toM: 53,
+            cruiseKmh: 130, rangeKm: 111, spanM: 11.8, cost: 68961, tankL: 20.1, power: 'fuel' },
 };
 
 // ---- THE TRACKS (§11.2 as amended by §R G-PROV: the mine and the dock are ONE track, two projects) ----------
@@ -5584,7 +5584,7 @@ const PROCURE_MODELS = {
                                       o200: { eng: 'o200', eff: { cub: PE_({ cost: 32084, emptyKg: 8, massKg: 8, toM: -56, cruiseKmh: 17, rangeKm: -95, tankL: 0, seats: 0 }) } },
                                       r912: { eng: 'r912', eff: { cub: PE_({ cost: 10888, emptyKg: -27, massKg: -27, toM: -51, cruiseKmh: 8, rangeKm: -49, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { cub: {} } },
-                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 814, emptyKg: 8, massKg: 24, toM: 23, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { cub: PE_({ cost: 814, emptyKg: 8, massKg: 24, toM: 24, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
       gear:     { def: 'wheels', vals: { wheels: { eff: { cub: {} } },
                                          tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 15, emptyKg: 3, massKg: 3, toM: 3, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { cub: {} } },
@@ -5596,10 +5596,10 @@ const PROCURE_MODELS = {
     id: 'pinson', maker: 'vernier', name: 'mdl.pinson.name', line: 'mdl.pinson.line', designs: { wheels: 'jodel' },
     opts: {
       engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { jodel: {} } },
-                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 32119, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -96, tankL: 0, seats: 0 }) } },
+                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 32120, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -94, tankL: 0, seats: 0 }) } },
                                       vw: { eng: 'vw', eff: { jodel: PE_({ cost: -2473, emptyKg: -18, massKg: -18, toM: 3, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { jodel: {} } },
-                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 920, emptyKg: 9, massKg: 25, toM: 30, cruiseKmh: -3, rangeKm: 195, tankL: 23.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { jodel: PE_({ cost: 919, emptyKg: 9, massKg: 25, toM: 30, cruiseKmh: -3, rangeKm: 196, tankL: 23.8, seats: 0 }) } } } },
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { jodel: {} } },
                                         minimal: { fit: 'minimal', eff: { jodel: PE_({ cost: -9224, emptyKg: -25, massKg: -25, toM: -27, cruiseKmh: 3, rangeKm: 10, tankL: 0, seats: 0 }) } },
                                         ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 10681, emptyKg: 7, massKg: 7, toM: 10, cruiseKmh: -1, rangeKm: -2, tankL: 0, seats: 0 }) } } } },
@@ -5614,16 +5614,16 @@ const PROCURE_MODELS = {
     opts: {
       gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
       engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
-                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -13365, emptyKg: -78, massKg: -78, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
+                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -13364, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
                                                                    c172f: PE_({ cost: -13347, emptyKg: -77, massKg: -77, toM: 71, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
-                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -12946, emptyKg: -54, massKg: -54, toM: 15, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
+                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -12946, emptyKg: -54, massKg: -54, toM: 16, cruiseKmh: -5, rangeKm: 24, tankL: 0, seats: 0 }),
                                                                      c172f: PE_({ cost: -12935, emptyKg: -54, massKg: -54, toM: 34, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
-                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 810, emptyKg: 7, massKg: 16, toM: 6, cruiseKmh: 1, rangeKm: 46, tankL: 13.3, seats: 0 }),
+                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 810, emptyKg: 7, massKg: 16, toM: 7, cruiseKmh: 2, rangeKm: 47, tankL: 13.3, seats: 0 }),
                                                                 c172f: PE_({ cost: 808, emptyKg: 7, massKg: 16, toM: 9, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
       seats:    { def: '4', vals: { 4: { seats: null, eff: { c172: {}, c172f: {} } },
-                                    3: { seats: 1, eff: { c172: PE_({ cost: -1553, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: -1 }),
-                                                          c172f: PE_({ cost: -1530, emptyKg: -15, massKg: -15, toM: -9, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
+                                    3: { seats: 1, eff: { c172: PE_({ cost: -1552, emptyKg: -16, massKg: -16, toM: -5, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: -1 }),
+                                                          c172f: PE_({ cost: -1530, emptyKg: -15, massKg: -15, toM: -9, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
       avionics: { def: 'custom', vals: { custom: { fit: null, eff: { c172: {}, c172f: {} } },
                                          basic: { fit: 'basic', eff: { c172: PE_({ cost: -13195, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: 0, tankL: 0, seats: 0 }),
                                                                        c172f: PE_({ cost: -13192, emptyKg: -9, massKg: -9, toM: -5, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },
@@ -5635,7 +5635,7 @@ const PROCURE_MODELS = {
       engine:   { def: 'r582', vals: { r582: { eng: 'r582', eff: { twinf: {} } },
                                        r503: { eng: 'r503', eff: { twinf: PE_({ cost: -8803, emptyKg: -14, massKg: -14, toM: 10, cruiseKmh: -3, rangeKm: 30, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { twinf: {} } },
-                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 983, emptyKg: 7, massKg: 13, toM: 3, cruiseKmh: 2, rangeKm: 57, tankL: 10.1, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { twinf: PE_({ cost: 983, emptyKg: 7, massKg: 13, toM: 5, cruiseKmh: 2, rangeKm: 58, tankL: 10.1, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
 };
