@@ -48,7 +48,8 @@
 // ============================================================
 var CLOUDS = (function () {
   'use strict';
-  const S = { overcast: 1,   // THE OVERCAST (17 Nov): a deck at cover >= 0.85 - a solid base, darker under its thickness (0 = as before)
+  const S = { overcast: 1, ovcRho: 0.35,   // ovcRho (RAIN 13): a full deck's mean density for its diffuse light (tau = sigma x ovcRho x thickness)
+                // THE OVERCAST (17 Nov): a deck at cover >= 0.85 - a solid base, darker under its thickness (0 = as before)
     rainExt: 1, rainLight: 0.6, rainKm: 30, rainSteps: 6,   // RAIN step 1c (16 Nov): the shafts' density (x the 07d law), the sky light in them, their reach (km), the steps (lean 4)
     mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
@@ -350,14 +351,21 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
           // the sky's light: dimmed under a deck above (to half at most - the sides see round it), and inside the
           // cloud by the depth toward the sun (the sun's march, a proxy for the depth under the top: a core is
           // darker than a fringe - the flat grey underside had no such gradation), never below a third
-          // THE OVERCAST'S GREY (RAIN 12, 17 Nov): the sky's light is BLUE (the clear dome's irradiance), and a full deck's underside lit by it
-          // alone - the sun spent inside 4 km of cloud - read as the blue sky itself (the shoot: the pass covered 99.9 %, the eye saw blue).
-          // Under a full deck no blue dome lights the base: the light is the deck's own, scattered down through it - neutral. So at
-          // ovcOf the ambient keeps its luminance and loses its hue (a breath of cool left); a fair or broken sky is untouched
-          vec3 ambC = mix(uAmbBot, uAmbTop, h); float ovG = ovcOf(li);
-          if (ovG > 0.0) ambC = mix(ambC, dot(ambC, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.96, 0.98, 1.04), ovG);
-          Ls += ambC * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z))
-                * (1.0 - 0.7 * ovcOf(li) * smoothstep(600.0, 4000.0, uLayerA[li].y) * (1.0 - h));   // THE OVERCAST: the underside of a thick, full deck is dark
+          // THE OVERCAST'S LIGHT (RAIN 13, 21 Nov; the 18 Nov shoot read the march itself: the storm deck's radiance ~0.01, blue, the same
+          // with the sky's light off or the sun off - the deck was nearly BLACK and the thin haze before it was all the eye saw). The
+          // march carries the sun's light only along near-straight paths (the octaves: exp(-od a)), which 4 km of cloud kills; a real
+          // overcast is bright because the light DIFFUSES down through it - a plane-parallel cloud of optical depth tau passes
+          // ~1 / (1 + 0.75 tau (1 - g)) of what falls on its top (the two-stream result; g 0.85 for droplets), and the many scatterings
+          // mix the hues: neutral. So on a full deck (ovcOf) the sky light term is that diffuse light: the sun and the sky on the top
+          // (uSunCol x the sun's height / pi + uAmbTop), through the cloud ABOVE the sample (tau x (1 - h): brighter toward the top),
+          // grey. tau = sigma x the column's mean density (S.ovcRho, 0.35) x the deck's thickness: a 300 m stratus passes ~half, a 4 km
+          // storm ~7 %. A fair or broken sky (ovcOf 0) is exactly as it was. No new program: two lines in the march.
+          float ovG = ovcOf(li);
+          vec3 ambL = mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z));
+          if (ovG > 0.0) { float tauA = uGlob.x * uShape.w * uLayerA[li].y * (1.0 - h);
+            vec3 Etop = uSunCol * (max(uSun.y, 0.0) * 0.3183099) + uAmbTop;
+            ambL = mix(ambL, vec3(dot(Etop, vec3(0.2126, 0.7152, 0.0722)) / (1.0 + 0.1125 * tauA)), ovG); }
+          Ls += ambL;
           float a = 1.0 - Tstep;
           col += T * Ls * a;
           tw += T * a * t; tsum += T * a;
@@ -929,7 +937,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
       U.uScale.value = A.U.scale.value;
     } else { U.uSunCol.value.set(1, 1, 1); U.uAmbTop.value.set(0.2, 0.25, 0.35); U.uAmbBot.value.set(0.1, 0.1, 0.1); }
     U.uSteps.value.set(S.steps, S.lightSteps); U.uDials.value.set(S.powder, S.g, S.ms, S.maxKm); U.uDials2.value.set(S.jitter, S.shadowSoft, S.ambDepth, 0);
-    U.uShape.value.set(S.detail, S.curl, S.overcast, 0);
+    U.uShape.value.set(S.detail, S.curl, S.overcast, S.ovcRho);
     if (U.uRain.value) {
       const G = typeof window !== 'undefined' && window.GFX && window.GFX.get ? window.GFX.get() : null, q = typeof location !== 'undefined' && /[?&]rain=0(?![.0-9]*[1-9])/.test(location.search || '');
       const tier = G && G.rain === 'off' ? 'off' : (G && (G.rain === 'lean' || (G.rain !== 'full' && /^(laptop|potato|retro)$/.test(G.preset || ''))) ? 'lean' : 'full');

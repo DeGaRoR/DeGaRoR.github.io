@@ -161,14 +161,15 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
 // 11 THE OVERCAST (17 Nov; the user: "the cloud coverage is not there"): a deck at cover >= 0.85 keeps a solid base and darkens under
 //    its thickness; below 0.85 (every fair and broken sky) the factors are exactly 1 - the march is what it was
 { const fsx = require('fs'), px = require('path'), C = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'clouds.js'), 'utf8');
-  ok(C.indexOf('float ovcOf(int li) { return smoothstep(0.85, 1.0, uDriftA[li].z) * uShape.z; }') > 0 && C.indexOf('DA[o + 2] = l.cover;') > 0 && C.indexOf('U.uShape.value.set(S.detail, S.curl, S.overcast, 0);') > 0,
+  ok(C.indexOf('float ovcOf(int li) { return smoothstep(0.85, 1.0, uDriftA[li].z) * uShape.z; }') > 0 && C.indexOf('DA[o + 2] = l.cover;') > 0 && C.indexOf('U.uShape.value.set(S.detail, S.curl, S.overcast, S.ovcRho);') > 0,
      '11a how overcast a deck is: 0 below cover 0.85, x the dial (S.overcast, 1); the deck\'s cover rides uDriftA.z');
-  ok(C.indexOf('hf * uShape.x * (1.0 - 0.85 * ovcOf(li))') > 0 && C.indexOf('(1.0 - 0.7 * ovcOf(li) * smoothstep(600.0, 4000.0, uLayerA[li].y) * (1.0 - h))') > 0,
-     '11b an overcast\'s base stays solid (the erosion fades) and its underside darkens with the deck\'s thickness');
+  ok(C.indexOf('hf * uShape.x * (1.0 - 0.85 * ovcOf(li))') > 0 && C.indexOf('float tauA = uGlob.x * uShape.w * uLayerA[li].y * (1.0 - h);') > 0 && C.indexOf('/ (1.0 + 0.1125 * tauA)), ovG); }') > 0,
+     '11b an overcast\'s base stays solid (the erosion fades) and it is lit by the light diffused down through the deck above (RAIN 13: 1 / (1 + 0.75 tau (1 - g)), g 0.85)');
   const WR = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
   ok(WR.indexOf("cs('overcast')") > 0 && WR.indexOf("overcast: 'overcast'") > 0, '11c the dial is in the world editor\'s rain block and THE LOOK');
-  ok(C.indexOf('if (ovG > 0.0) ambC = mix(ambC, dot(ambC, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.96, 0.98, 1.04), ovG);') > 0 && C.indexOf('Ls += ambC * (0.5 + 0.5 * exp(-upOD))') > 0,
-     '11d an overcast\'s ambient keeps its luminance and loses the clear dome\'s blue (the storm\'s base read as the blue sky, 17 Nov)');
+  { const tr = tau => 1 / (1 + 0.75 * tau * (1 - 0.85)), sg = 0.08, rho = 0.35;
+    ok(C.indexOf('ambL = mix(ambL, vec3(dot(Etop, vec3(0.2126, 0.7152, 0.0722))') > 0 && /ovcRho: 0\.35/.test(C) && Math.abs(tr(sg * rho * 300) - 0.513) < 0.01 && Math.abs(tr(sg * rho * 4000) - 0.0735) < 0.005,
+       '11d the overcast\'s light is neutral and its law reads right: a 300 m stratus passes ' + tr(sg * rho * 300).toFixed(3) + ', a 4 km storm ' + tr(sg * rho * 4000).toFixed(3) + ' of the light on its top'); }
   ok(C.indexOf('if (n > 0) { float ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }') > C.indexOf('gTm = tm;') && C.indexOf('gTm = tm;') > 0 && C.indexOf('if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }\n      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001));') > 0,
      '11e on a full deck the haze is taken at the deck\'s entry, not kilometres inside it (the opaque storm deck read blue, 18:05 shoot); a fair sky keeps the mean distance'); }
 
