@@ -215,6 +215,9 @@
     new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
+  const groundCache = typeof GROUND_MATERIAL_CACHE !== 'undefined' && typeof location !== 'undefined' && /[?&]groundcache=[12](&|$)/.test(location.search || '')
+    ? GROUND_MATERIAL_CACHE.install(THREE, renderer, { packed: /[?&]groundcache=2(&|$)/.test(location.search || '') }) : null;
+  if (typeof window !== 'undefined') window.FLYDIY_GROUND_CACHE = groundCache;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   // G1460 (SOFT-GPU) NO ANISOTROPY ON A SOFTWARE RENDERER: SwiftShader filters on the CPU, an anisotropic fetch up to 16
   // bilinear taps - and the ground, the pavement and the props ask for 8-16. three clamps every texture's anisotropy to
@@ -1078,16 +1081,47 @@
   // The cube excludes the subjects (and their lights), while the visible garage
   // includes them. Light counts key every lit program. Dress each compile task
   // exactly like the cube draw, then restore before yielding to another task.
+  const probePadPool = { point: [], spot: [] };
+  function probeLightPadding(subjects) {
+    const enabled = typeof window !== 'undefined' && (window.FLYDIY_PROBE_PAD === true ||
+      (window.FLYDIY_PROBE_PAD !== false && /[?&]probepad=1(&|$)/.test(location.search)));
+    if (!enabled || craftInProbe || !hangarScene) return () => {};
+    const count = { point: 0, spot: 0 }, seen = new Set();
+    for (const subject of subjects) {
+      if (!subject || !subject.traverseVisible) continue;
+      let parent = subject; while (parent && parent !== hangarScene && parent.visible !== false) parent = parent.parent;
+      if (parent !== hangarScene) continue;
+      subject.traverseVisible(light => {
+        if (!light.isLight || seen.has(light) || light.castShadow || !(light.layers.mask & 1)) return;
+        seen.add(light);
+        if (light.isPointLight) count.point++; else if (light.isSpotLight) count.spot++;
+      });
+    }
+    const added = [];
+    for (const kind of ['point', 'spot']) for (let i = 0; i < count[kind]; i++) {
+      let light = probePadPool[kind][i];
+      if (!light) {
+        light = kind === 'point' ? new THREE.PointLight(0, 0, 1) : new THREE.SpotLight(0, 0, 1);
+        light.position.set(0, 1000000, 0); light.name = 'probe:zero:' + kind + i;
+        probePadPool[kind][i] = light;
+      }
+      hangarScene.add(light); added.push(light);
+    }
+    return () => { for (const light of added) hangarScene.remove(light); };
+  }
   function probeCompileDress(fn) {
     const subjects = [craft, edSit, refSit, bpSit], was = subjects.map(o => o && o.visible);
     const shafts = hangar && hangar.shafts, shWas = shafts && shafts.visible;
     const mask = camera.layers.mask;
+    let unpad = () => {};
     try {
       camera.layers.mask = 1;   // a CubeCamera's default layer; no UI or shadow helper layers
       if (shafts) shafts.visible = false;
+      unpad = probeLightPadding(subjects);
       if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
       return fn();
     } finally {
+      unpad();
       camera.layers.mask = mask;
       if (shafts) shafts.visible = shWas;
       subjects.forEach((o, i) => { if (o) o.visible = was[i]; });
@@ -1219,6 +1253,7 @@
       // subject, and a subject that lights itself is a mirror.
       const subjects = [craft, edSit, refSit, bpSit];
       const subWas = subjects.map(o => o && o.visible);
+      const unpad = probeLightPadding(subjects);
       if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
       // THE GROUND BOUNCE IS OCCLUDED (user: "the plane is lit from the
       // bottom"). This camera sits at 3.2 m in an empty middle of the floor,
@@ -1251,13 +1286,13 @@
         gWas.push([m, m.color.clone()]);
         m.color.multiplyScalar(gb);
       }
-      if (part === 'face') {
+      try { if (part === 'face') {
         // G2662: ONE FACE - the CubeCamera's own update (its targets, its faces' order, the mip rule on the last), the other
         // five renders skipped; the subjects hidden and the ground scaled around this face exactly as around all six
         const rr = renderer.render, want = cam.children[o.face];
         renderer.render = function (sc, c) { if (c === want) return rr.apply(this, arguments); };
         try { cam.update(renderer, hangarScene); } finally { renderer.render = rr; }
-      } else cam.update(renderer, hangarScene);
+      } else cam.update(renderer, hangarScene); } finally { unpad(); }
       for (const [m, c0] of gWas) m.color.copy(c0);
       hangar.shafts.visible = shWas;
       subjects.forEach((o, i) => { if (o) o.visible = subWas[i]; });
@@ -2908,7 +2943,8 @@
       const k = kind || (m.userData && m.userData.aeroFinish === 'glass' ? 'glass' : 'live');
       const ud = m.userData; m.userData = {};
       let c; try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
-      c.userData = Object.assign({}, ud, { scuff: k, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U, SCUFF.W) });
+      const scClass = SCUFF.S.OPT.specialize && k === 'live' ? SCUFF.S.clsOf(ud && ud.aeroFinish || '') : -1;
+      c.userData = Object.assign({}, ud, { scuff: k, scuffClass: scClass, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U, SCUFF.W, scClass) });
       if (m.defines) c.defines = Object.assign({}, m.defines);
       for (const q of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[q] !== undefined && c[q] !== undefined) c[q] = m[q];
       // the glass's blend follows the pooled pane's (aeroSetGlassBlend flips the pool's, live)
@@ -2917,7 +2953,8 @@
       // hook in _atmoHook and serves it wrapped (atmo.js install; flown_bake.js hookOf) - an own-property test alone found
       // none, and the copy drew without AEROSKIN's hook (its programs failed to compile: the soft-still run, 2026-10-06)
       const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
-      c.onBeforeCompile = SCUFF.wrap(own, k, SCUFF.U, SCUFF.W);   // (asleep until the first damage: the plain program)
+      c.userData.scuffBase = own;
+      c.onBeforeCompile = SCUFF.wrap(own, k, SCUFF.U, SCUFF.W, scClass);   // (asleep until the first damage: the plain program)
       c.name = (m.name || 'aeroskin') + ':scuff';
       c.needsUpdate = true;
       return c;
@@ -4298,6 +4335,26 @@
     // G2004 (DMG-SCUFF): the baked exterior on its wrapped copy, and the record attributes on every geometry a wrapped
     // material draws - now, while the hybrid's views are still in the graph (they park below)
     const scuffAt = SCUFF ? scuffAttach(grp, FBK, scuffMat, SCUFF.W) : null;
+    if (SCUFF && SCUFF.S.OPT.specialize) {
+      // A material may be reused on merged/fold geometry. Specialize ONLY if every
+      // geometry it draws has the same authoritative class used to build damage records.
+      const seen = new Set(), unsafe = new Set();
+      grp.traverse(o => {
+        if (!o.isMesh || !o.geometry) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (!m || !m.userData || m.userData.scuffClass < 0 || m.userData.scuff !== 'live') continue;
+          seen.add(m);
+          if (!wreckBuild.finOf.has(o.geometry) || SCUFF.S.clsOf(wreckBuild.finOf.get(o.geometry)) !== m.userData.scuffClass) unsafe.add(m);
+        }
+      });
+      for (const m of unsafe) {
+        m.userData.scuffClass = -1;
+        m.onBeforeCompile = SCUFF.wrap(m.userData.scuffBase, 'live', SCUFF.U, SCUFF.W, -1);
+        m.userData.scuffRe = h => SCUFF.wrap(h, 'live', SCUFF.U, SCUFF.W, -1);
+        m.needsUpdate = true;
+      }
+      SCUFF.W.classAudit = { checkedMaterials: seen.size, specialized: seen.size - unsafe.size, generalFallback: unsafe.size };
+    }
     // G1121: the kept live meshes (the cabin's; the hybrid's exterior) out of the graph until they are drawn
     for (const F of [fold, foldIn, foldEye]) if (F && F.park) F.park();
     wreckBuild.folds = [fold, foldIn, foldEye].filter(F => F && F.live);   // (DMG-D4b: the hybrid's folds - GATE DMGUPLOAD reads their members' visibility)
@@ -7023,7 +7080,7 @@
     for (const R of at.recs) { const r = R.sc.rec; for (let v = 0; v < R.nv; v++) { cnt.verts++; if (R.sc.cls === 4) continue; if (r[v * 4]) cnt.crush++; if (r[v * 4 + 1]) cnt.scrape++; if (r[v * 4 + 2]) cnt.torn++; } }
     return { on: true, recs: at.recs.length, attrVerts: at.verts, passes: st.passes, places: st.places, frameMs: +at.frameMax.toFixed(2), tickMs: +st.ms.frameMax.toFixed(2),
              tornMs: +st.ms.torn.toFixed(2), mkMs: +at.mkMs.toFixed(1), bound: at.bound, uploads: at.uploads, bytes: at.bytes, any: at.any, uOn: SCUFF_U().uDmgOn.value,
-             awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre, premade: at.premade == null ? null : at.premade, made: at.made,
+             awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre, premade: at.premade == null ? null : at.premade, made: at.made, optimization: SKIN_SCUFF.OPT, classAudit: at.W.classAudit || null,
              phases: Object.fromEntries(Object.entries(at.ms).map(([k, v]) => [k, +v.toFixed(2)])), bindUs: +at.bindUs.toFixed(2),
              panes: st.panes.map(P => ({ sev: +P.sev.toFixed(3), slot: P.slot })), counts: cnt, busy: S_busy(st) };
   };
@@ -7208,6 +7265,7 @@
   // crack everywhere a mark reaches); a sampler swap links no program
   const CRK = { tex: {}, ready: {}, want: null };
   function glassSheet(U, look) {   // (look: FLYDIY_GLASS_TEST's third argument, 'acrylic' | 'laminated' - a sheet by hand)
+    if (typeof location !== 'undefined' && /[?&]cracks=0(?:&|$)/.test(location.search)) return;
     if (typeof CRACK_SHEET === 'undefined' || !CRACK_SHEET || !U.tCrack) return;
     const gm = def && def.spec && def.spec.cabin && def.spec.cabin.glazingMat, sh = CRACK_SHEET[look] ? look : DMG_GLASS.sheetOf(gm);
     CRK.want = sh; U.uCrackMat.value = DMG_GLASS.matIndex(sh);
@@ -7862,12 +7920,14 @@
   const WET_N = 1500;
   let wetPool = null;
   function wetPoolGet() {
+    if (typeof location !== 'undefined' && /[?&]waterfx=0(?:&|$)/.test(location.search)) return null;
     if (wetPool || !window.SPRAY || !THREE.InstancedBufferGeometry) return wetPool;
     wetPool = SPRAY.make(THREE, WET_N); wetPool.mesh.visible = false;
     scene.add(wetPool.mesh);
     return wetPool;
   }
   function buildWaterFx() {
+    if (typeof location !== 'undefined' && /[?&]waterfx=0(?:&|$)/.test(location.search)) return;
     if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { if (waterFx.shared && o === waterFx.pts) { o.visible = false; continue; } craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); }
       if (waterFx.drops.sheets) { craft.remove(waterFx.drops.sheets.mesh); waterFx.drops.sheets.dispose(); } waterFx = null; }
     const HY = sim && sim.hydro;
@@ -15602,6 +15662,7 @@
   // G1122: ...and their first draws and buffers under the craft step's screen, in the world's lights (the craft dressed in
   // the world per slice, as the compiles are) - the band's first crossing in flight then draws what is already resident
   function hybridWarm() {
+    if (!window.FLOWN_BAKE) return null;
     if (window.FLOWN_BAKE && FLOWN_BAKE.FB.noWarmDraw) return null;   // (the isolation's ?fbake=nowarmdraw)
     const L = keptGroup().KEPT;
     window.__hyWarm = { n: L.length, model: model, at: performance.now() };   // (GATE FRAMECOST reads it at the crossing)
@@ -15698,9 +15759,28 @@
       .then(() => compileDepthVariants(gs, true, inS))
       .catch(e => console.warn('craft shed compile:', e && e.message)), 'garage', 60000);
   }
+  // The village pool exists before its first update but can still be unarmed.
+  // Key prelinks with the count that the flight will use, then restore the
+  // scene immediately. Otherwise a night boot pays for both 2- and 10-point
+  // ground/pavement programs. ?prelinklamps=0 retains the old timing for A/B.
+  function withWorldLampSignature(fn) {
+    if (typeof location !== 'undefined' && /[?&]prelinklamps=0(&|$)/.test(location.search || '')) return fn();
+    const lamps = WF && WF.premises && WF.premises.lamps;
+    if (!lamps || !WF.lampsWant || !WF.lampsArm) return fn();
+    const was = !!lamps.armed, want = !!WF.lampsWant();
+    if (was === want) return fn();
+    const intensities = lamps.pool.map(l => l.intensity);
+    WF.lampsArm(want);
+    try { return fn(); }
+    finally {
+      WF.lampsArm(was);
+      for (let i = 0; i < intensities.length; i++) lamps.pool[i].intensity = intensities[i];
+    }
+  }
+  const worldPrelinkDress = fn => craftInWorldNow(() => craftLightsGuess(() => withWorldLampSignature(fn)));
   function worldPrelinkSettled() {
     if (!WF || typeof renderer.compileAsync !== 'function' || tripKeys.worldCompile !== undefined) return;
-    const dress = f => craftInWorldNow(() => craftLightsGuess(f));
+    const dress = worldPrelinkDress;
     compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
       .then(() => compileDepthVariants(scene, true, dress))
       .catch(e => console.warn('world prelink (settled):', e && e.message));
@@ -15718,7 +15798,7 @@
     const S = TRIP_BY.worldCompile; let k = null; try { k = S.key(); } catch (e) { k = null; }
     if (k === null || k === tripKeys.worldCompile || k === worldPrelinkGfxK) return worldPrelinkGfxP;   // nothing re-keyed, or on its way
     worldPrelinkGfxK = k;
-    const dress = f => craftInWorldNow(() => craftLightsGuess(f));
+    const dress = worldPrelinkDress;
     const run = () => compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
       .then(() => compileDepthVariants(scene, true, dress))
       .catch(e => console.warn('world prelink (settings):', e && e.message));
@@ -15732,6 +15812,26 @@
   // The material is made here (the game's path makes it with no load callback too: render_premises' turf) and keyed
   // through a one-triangle stand-in with the lot mesh's own layout (position, uv, normal, aSplat, aTone, aAlpha,
   // indexed; receives shadows, casts none), in the world's lights with the craft's, beside the town's prelink
+  // The fine material exists before its streamed tiles do. Submit its exact
+  // layout now, without creating terrain or adding anything to the scene.
+  // Experimental until total-readiness measurements justify enabling it.
+  function fineGroundPrelink() {
+    if (typeof location === 'undefined' || !/[?&]fineprelink=1(&|$)/.test(location.search || '')) return;
+    const fine = WF && WF.ground && WF.ground.fine && WF.ground.fine();
+    if (!fine || !fine.on || fine.off || !fine.mat) return;
+    let geo;
+    try {
+      geo = new THREE.BufferGeometry();
+      for (const [name, size] of [['position', 3], ['normal', 3], ['uv', 2], ['aCoarse', 1], ['aCoarseN', 3]])
+        geo.setAttribute(name, new THREE.BufferAttribute(new Float32Array(3 * size), size));
+      geo.setIndex([0, 1, 2]);
+      const m = new THREE.Mesh(geo, fine.mat);
+      m.receiveShadow = true; m.frustumCulled = true; m.renderOrder = -0.4;
+      const g = new THREE.Group(); g.add(m);
+      compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, worldPrelinkDress)
+        .then(() => geo.dispose(), e => { geo.dispose(); console.warn('fine ground prelink:', e && e.message); });
+    } catch (e) { if (geo) geo.dispose(); console.warn('fine ground prelink:', e && e.message); }
+  }
   function lotGroundPrelink() {
     if (typeof LOT_GROUND === 'undefined' || !LOT_GROUND || typeof LOT_GROUND.material !== 'function') return;
     try {
@@ -15745,7 +15845,7 @@
       const m = new THREE.Mesh(geo, LOT_GROUND.material(THREE, null));
       m.renderOrder = 3; m.receiveShadow = true; m.castShadow = false;
       const g = new THREE.Group(); g.add(m);
-      compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, f => craftInWorldNow(() => craftLightsGuess(f)))
+      compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, worldPrelinkDress)
         .then(() => geo.dispose(), e => { geo.dispose(); console.warn('lot ground prelink:', e && e.message); });
     } catch (e) { console.warn('lot ground prelink:', e && e.message); }
   }
@@ -16126,8 +16226,9 @@
       // binary). Its sources are made here, a group a task (compileSliced), not awaited; the compile step then finds
       // them known (their key) and mostly linked, and compiles what the town added.
       if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function' && !worldPrelink)
-        worldPrelink = compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, f => craftInWorldNow(() => craftLightsGuess(f))).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights - G1085: a task at a time)
+        worldPrelink = compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, worldPrelinkDress).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights - G1085: a task at a time)
       if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function') lotGroundPrelink();
+      if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function') fineGroundPrelink();
       if (PK_ASYNC()) window.PARKED.async = true;
       if (!WF || !WF.premisesPrewarm || typeof renderer.compileAsync !== 'function') return;
       const cg = tripCg();
@@ -16399,10 +16500,11 @@
       uni(m.uniforms);
       const pr = renderer.properties && renderer.properties.has && renderer.properties.has(m) ? renderer.properties.get(m) : null;
       if (pr && pr.uniforms && pr.uniforms !== m.uniforms) uni(pr.uniforms); };
-    sc.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
+    sc.traverse(o => { if (o.material) for (const material of (Array.isArray(o.material) ? o.material : [o.material]))
+      (groundCache ? groundCache.materials(material) : [material]).forEach(grab); });
     if (sc.environment) texs.add(sc.environment);
     if (sc.background && sc.background.isTexture) texs.add(sc.background);
-    const list = [...texs].filter(t => t.image || t.isDataTexture || t.isCanvasTexture);
+    const list = [...texs].filter(t => !(groundCache && groundCache.ownsTexture(t)) && (t.image || t.isDataTexture || t.isCanvasTexture));
     let i = 0;
     return new Promise(res => {
       const tick = () => {
@@ -22296,7 +22398,8 @@
         if (!m) continue;
         const k = m.uuid + '|' + ok + '|' + gk;
         if (seen.has(k)) continue;
-        seen.add(k); reps.push([o, m]); mats.add(m);
+        seen.add(k); reps.push([o, m]);
+        for (const linkedMaterial of (groundCache ? groundCache.materials(m) : [m])) mats.add(linkedMaterial);
       }
     }));
     let job = null;
@@ -22331,8 +22434,16 @@
         // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
         // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
         // per key, and the ones still linking made the settings screen's first frame wait 1.1 s in getProgramInfoLog)
-        const ready = p => !p || !p.isReady || p.isReady();
         const poll = () => {
+          // Many materials share a program. Query each pending program once
+          // per tick, including currentProgram's duplicate in programs. Keep
+          // this cache local to the tick: a false result must be polled again.
+          const readiness = new Map();
+          const ready = p => {
+            if (!p || !p.isReady) return true;
+            if (!readiness.has(p)) readiness.set(p, p.isReady());
+            return readiness.get(p);
+          };
           for (const m of mats) { const pr = renderer.properties.get(m); let ok = ready(pr.currentProgram);
             if (ok && pr.programs) for (const p of pr.programs.values()) if (!ready(p)) { ok = false; break; }
             if (ok) mats.delete(m); }

@@ -45,6 +45,9 @@
 // window.SKIN_SCUFF in the page; module.exports in node.
 (function () {
   'use strict';
+  let optMode = '';
+  try { optMode = new URLSearchParams(location.search).get('scuffopt') || ''; } catch (e) {}
+  const OPT = { sharedGrunge: optMode === '1' || optMode === 'share', specialize: optMode === '1' || optMode === 'class' };
   // ---- THE TABLE (every number the drawing reads off the physics) ----
   const SC = {
     eps0: 0.008,      // crush: a member's equivalent plastic strain where the paint starts to craze (0.8 %: a SET member,
@@ -799,8 +802,11 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
     for (const m of W.mats) m.needsUpdate = true;
     return true;
   }
-  function wrap(h, kind, U, W) {
-    const key = kind + '|' + (h ? h.toString() : '');
+  function wrap(h, kind, U, W, classHint) {
+    const specialized = OPT.specialize && kind !== 'baked' && kind !== 'glass' && Number.isInteger(classHint) && classHint >= 0 && classHint <= 3;
+    const optKey = (OPT.sharedGrunge ? '|shared-grunge-v1' : '') + (OPT.specialize ? '|class:' + (specialized ? classHint : 'general') : '');
+    const baseKey = kind + '|' + (h ? h.toString() : '');
+    const key = baseKey + optKey;
     const C = W ? W.wraps : WRAPS;
     let w = C.get(key);
     if (w) return w;
@@ -813,17 +819,24 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
       // (GD_OFF, GROUND-FX 17 Nov: the live mud / rain term's two 3-D samplers took the scuffed program past the GPU's 16
       // texture units - the 16:05 re-shoot's link error, VALIDATE_STATUS false; compiled out here, the unit count is
       // master's again: a scuffed part draws no computed mud or rain)
-      const def = '#define DMG_SCUFF 1\n#define GD_OFF 1\n' + (obj ? '#define DMG_OBJ 1\n' : '');
+      const shared = OPT.sharedGrunge && sh.fragmentShader.includes('uniform sampler2D tGrunge;');
+      let pars = AERO_DMG_FS_PARS;
+      if (shared) {
+        sh.fragmentShader = sh.fragmentShader.replace('uniform sampler2D tGrunge;', '');
+        pars = pars.replace('uniform sampler2D tDmgG;', 'uniform sampler2D tGrunge;\n#define tDmgG tGrunge');
+      }
+      const def = '#define DMG_SCUFF 1\n' + (shared ? '' : '#define GD_OFF 1\n') + (obj ? '#define DMG_OBJ 1\n' : '');
+      const surf = specialized ? AERO_DMG_SURF_FS.replace('float dCls = mod(vDmgD.w, 8.0);', 'float dCls = ' + classHint.toFixed(1) + ';') : AERO_DMG_SURF_FS;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', def + AERO_DMG_VS_PARS + '#include <common>')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + AERO_DMG_VS_MAIN);
       const nm = /uniform\s+mat3\s+normalMatrix\s*;/.test(sh.fragmentShader) ? '' : 'uniform mat3 normalMatrix;\n';
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', def + nm + AERO_DMG_FS_PARS + '#include <common>')
-        .replace('#include <lights_physical_fragment>', (kind === 'glass' ? AERO_DMG_GLASS_FS : AERO_DMG_SURF_FS)
+        .replace('#include <common>', def + nm + pars + '#include <common>')
+        .replace('#include <lights_physical_fragment>', (kind === 'glass' ? AERO_DMG_GLASS_FS : surf)
                  + '#include <lights_physical_fragment>\n' + AERO_DMG_CC_FS);
     };
-    w.toString = W ? () => 'dmg.scuff|' + (W.on ? '' : 'asleep|') + key : () => 'dmg.scuff|' + key;
+    w.toString = W ? () => 'dmg.scuff|' + (W.on ? key : 'asleep|' + baseKey) : () => 'dmg.scuff|' + key;
     w.scuffKind = kind;
     C.set(key, w);
     return w;
@@ -852,7 +865,7 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
     };
     return UNI;
   }
-  const API = { SC, CLS, FIN_CLS, clsOf, fields, prep, incidence, weightsOf, place, tornBand, panesOf, state, request, begin, tick, busy, finish, glassBytes,
+  const API = { OPT, SC, CLS, FIN_CLS, clsOf, fields, prep, incidence, weightsOf, place, tornBand, panesOf, state, request, begin, tick, busy, finish, glassBytes,
                 paneVec, bindWanted, restNormals, placesOf, replace, wrap, waker, wakeSet, uniforms,
                 AERO_DMG_VS_PARS, AERO_DMG_VS_MAIN, AERO_DMG_FS_PARS, AERO_DMG_SURF_FS, AERO_DMG_GLASS_FS, AERO_DMG_CC_FS };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

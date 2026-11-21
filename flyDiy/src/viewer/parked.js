@@ -124,6 +124,21 @@
   const WEAR = { age: 0.45, flight: 0.5, bush: 0.25, rain: 0.2 };   // a parked aeroplane has flown
   const GLASS_FAR_A = 0.8;                  // the multiply pass's slab where no cabin stands behind the pane (L1+)
   const W = (typeof window !== 'undefined') ? window : globalThis;
+  // Audit-only: frozen shipped props. Container and manifest signatures must
+  // agree, but these fixed assets deliberately bypass the running-build key.
+  const STATIC_TRIO = !!(W.location && /[?&](?:parktrio=1|perftrim=1)(?:&|$)/.test(W.location.search || ''));
+  // Matching diagnostic control: retain player props, load the frozen stock
+  // packs exactly as the published build did, despite the audit build hash.
+  const FROZEN_STOCK = STATIC_TRIO || !!(W.location && /[?&]parkstock=1(?:&|$)/.test(W.location.search || ''));
+  const TRIO_KEYS = ['arch:cub', 'arch:c172', 'arch:jodel'];
+  function staticKey(key) {
+    if (!STATIC_TRIO) return key;
+    if (/jodel/i.test(key)) return TRIO_KEYS[2];
+    if (/cessna|c172/i.test(key)) return TRIO_KEYS[1];
+    if (/cub/i.test(key)) return TRIO_KEYS[0];
+    let h = 0; for (const c of String(key)) h = (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0;
+    return TRIO_KEYS[h % TRIO_KEYS.length];
+  }
   const REC = {};                           // key -> the captured record
   const PENDING = [];                       // groups placed before their capture
   const log = (...a) => { if (W.PARKED && W.PARKED.quiet) return; console.log('parked:', ...a); };
@@ -132,6 +147,7 @@
 
   // ---- the keys and their specs ----------------------------------------------
   function keys() {
+    if (STATIC_TRIO) return TRIO_KEYS.map(k => [k, 'static prop · ' + k.slice(5)]);
     const out = [];
     const D = W.CAGE_DESIGN;
     if (D && D.ARCHETYPES) for (const a of D.ARCHETYPES)
@@ -447,6 +463,7 @@
     return n;
   }
   function capture(key, spec0) {
+    if (STATIC_TRIO) { key = staticKey(key); if (!REC[key]) enqueue(key); return REC[key] || null; }
     if (REC[key]) return REC[key];
     if (!canCapture()) return null;
     flush();                                   // a batch in flight holds the editor: finish it first
@@ -470,6 +487,13 @@
     setTimeout(pump, 0);
   }
   function enqueue(key) {
+    if (STATIC_TRIO) {
+      key = staticKey(key);
+      if (REC[key] || COOK.waiting.has(key)) return;
+      COOK.waiting.add(key); COOK.pending++; ASYNC.asked++;
+      cookLoad(key).then(rec => { COOK.pending--; COOK.waiting.delete(key); if (rec) fillPending(key); else console.error('static trio: missing shipped prop', key); });
+      return;
+    }
     if (REC[key] || ASYNC.queue.includes(key)) return;
     // G805: a key the cook may hold waits for its answer (the bytes, or no) before the editor is touched
     if (cookable(key) && !COOK.why[key]) {     // COOK.why: the cook's refusal (no cook, stale, failed) - then captured
@@ -1626,13 +1650,14 @@ self.onmessage = function (e) {
   }
   // one key: the manifest's answer, the signature, the bytes, the record (REC[key]); null = capture it live
   function cookLoad(key) {
+    if (STATIC_TRIO) key = staticKey(key);
     let p = COOK.loads.get(key);
     if (p) return p;
     const t0 = performance.now();
     p = cookManifest().then(man => {
       const e = man.keys[key];
       if (!e) { COOK.why[key] = 'no cook'; return null; }
-      const sig = cookSig(key);
+      const sig = FROZEN_STOCK ? e.sig : cookSig(key);
       if (!sig || sig !== e.sig) { COOK.why[key] = 'stale'; log(key, 'the cook is stale (' + e.sig + ', this build ' + sig + '): captured live'); return null; }
       return cookBytes(e.src).then(u8 => {
         const t1 = performance.now(), d = cookDecode(u8);
@@ -1654,7 +1679,7 @@ self.onmessage = function (e) {
   function cookAll() {
     if (COOK.all || COOK.allDone || !cookable('arch:')) return;
     const fin = () => { COOK.all = null; COOK.allDone = true; };
-    COOK.all = cookManifest().then(man => Promise.all(Object.keys(man.keys).filter(cookable)
+    COOK.all = cookManifest().then(man => Promise.all((STATIC_TRIO ? TRIO_KEYS : Object.keys(man.keys).filter(cookable))
       .map(k => cookLoad(k).then(rec => { if (rec) fillPending(k); })))).then(fin, fin);
   }
   // THE COOK'S OWN DOOR (tools/parked_cook.js, in a page with ?parkcook=0): the key captured and baked by the
@@ -1833,6 +1858,7 @@ self.onmessage = function (e) {
   // stand one at (x, y, z) turned by yaw (rotation.y); returns the group at once
   // — filled now when the key is captured, or when its capture lands
   function place(THREE, key, x, y, z, yaw) {
+    key = staticKey(key);
     const grp = new THREE.Group();
     grp.name = 'parkedAt:' + key;
     grp.position.set(x, y, z); grp.rotation.y = yaw || 0;
@@ -1862,6 +1888,7 @@ self.onmessage = function (e) {
   // the boot step: capture what the world asked for (every pending key), then
   // the module is `ready` and later placements capture on the spot
   function captureAll() {
+    if (STATIC_TRIO) { cookAll(); W.PARKED.ready = true; return 0; }
     const want = [...new Set(PENDING.map(p => p.key))].filter(k => !REC[k]);
     let n = 0;
     // one batch (G680): the view held and the player's aeroplane restored once for them all
@@ -1898,7 +1925,7 @@ self.onmessage = function (e) {
   try { if (W.location && /[?&]parkclean=0(?:&|$)/.test(W.location.search || '')) W.__parkClean0 = true; } catch (e) {}
   // G2226: ON by default (the user's ruling GQ9: the fleet visible everywhere; FLEET-PROPS B's timing) - off with ?fleet=0 or
   // window.FLYDIY_FLEET = false (the A/B and the gates' 'off' rows)
-  const fleetOn = () => { if (W.FLYDIY_FLEET === false) return false; if (W.FLYDIY_FLEET === true) return true; try { return !(W.location && /[?&]fleet=0(?:&|$)/.test(W.location.search || '')); } catch (e) { return true; } };
+  const fleetOn = () => { if (STATIC_TRIO) return false; if (W.FLYDIY_FLEET === false) return false; if (W.FLYDIY_FLEET === true) return true; try { return !(W.location && /[?&]fleet=0(?:&|$)/.test(W.location.search || '')); } catch (e) { return true; } };
   const isMine = key => typeof key === 'string' && key.lastIndexOf('mine:', 0) === 0;
   // the game's state (app.js FLYDIY_HOLDS): no handle (a gate's vm) = a garage at rest
   const holds = () => { try { return W.FLYDIY_HOLDS ? W.FLYDIY_HOLDS() : null; } catch (e) { return null; } };
@@ -1946,7 +1973,7 @@ self.onmessage = function (e) {
   }
   // the player's last input (any pointer, key, wheel or input event, seen in the capture phase), and a pointer held down
   // (a slider held still for longer than the window is still a drag: nothing starts until it is let go)
-  try { if (W.addEventListener) {
+  try { if (!STATIC_TRIO && W.addEventListener) {
     for (const t of ['pointerdown', 'pointermove', 'pointerup', 'keydown', 'wheel', 'input', 'touchstart'])
       W.addEventListener(t, () => { FLEET.inputAt = performance.now(); }, { capture: true, passive: true });
     W.addEventListener('pointerdown', () => { FLEET.down = true; }, { capture: true, passive: true });
@@ -1955,6 +1982,7 @@ self.onmessage = function (e) {
   function fleetKick(ms) { if (FLEET.timer || FLEET.busy || !FLEET.queue.length) return; FLEET.timer = setTimeout(fleetStep, ms); }
   function fleetStep() {
     FLEET.timer = null;
+    if (!fleetOn()) return;
     if (FLEET.busy || !FLEET.queue.length) return;
     // UNDER THE WORLD NOTHING STARTS: looked at again later (a timer that does nothing in flight), drained in the garage
     if (!garageIdle()) { FLEET.stats.worldRefused++; fleetKick(FLEET.worldMs); return; }
@@ -1969,6 +1997,7 @@ self.onmessage = function (e) {
       .then(() => { FLEET.busy = false; FLEET.framed = false; FLEET.bakeEnd = performance.now(); fleetKick(FLEET.idleMs); });
   }
   async function fleetBake(key) {
+    if (STATIC_TRIO) return null;
     const spec = specOf(key);
     if (!spec) { FLEET.why[key] = 'no slot'; return null; }
     const raw = slotImages(key.slice(5)), sig = fleetSig(spec, raw);
@@ -2007,6 +2036,7 @@ self.onmessage = function (e) {
   }
   // THE ROLL-OUT'S DOOR: the bytes decoded, or nothing (queued for the garage)
   function fleetLoad(key) {
+    if (STATIC_TRIO) return Promise.resolve(null);
     if (REC[key] && REC[key].fleet) { fleetTouch(key); fillPending(key); return Promise.resolve(REC[key]); }
     if (!mayDecode()) { FLEET.stats.flightRefused++; return Promise.resolve(null); }
     const spec = specOf(key);
@@ -2099,6 +2129,7 @@ self.onmessage = function (e) {
   // Not selectable: the editor picks through its own mount alone (app.js pickRay on edSitP).
   const RESIDENT = new Set();
   function resident(THREE, key, rung) {
+    key = staticKey(key);
     const grp = new THREE.Group();
     grp.name = 'resident:' + key;
     grp.userData.parkedKey = key; grp.userData.rung = rung == null ? 1 : rung; grp.userData.filled = false;
@@ -2121,6 +2152,7 @@ self.onmessage = function (e) {
       fleetTouch(key);
       return true;
     };
+    if (STATIC_TRIO) return cookLoad(key).then(go);
     const r = REC[key] && REC[key].fleet ? REC[key] : null;
     if (r) return Promise.resolve(go(r));
     if (grp.userData.loading) return grp.userData.loading;          // one look at the store at a time (the drag path asks)
@@ -2135,7 +2167,7 @@ self.onmessage = function (e) {
 
   const trisOf = grp => { let n = 0; grp.traverse(o => { if (o.isMesh && o.geometry && o.visible) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } }); return n; };
 
-  W.PARKED = { keys, specOf, capture, captureAll, place, build, stance, hitboxOf, records: REC, pending: PENDING,
+  W.PARKED = { staticTrio: STATIC_TRIO, staticKey, keys, specOf, capture, captureAll, place, build, stance, hitboxOf, records: REC, pending: PENDING,
                async: false, flush, whenIdle, queued: () => ASYNC.queue.length + (ASYNC.run ? 1 : 0),   // G680: the roll-out screen's door
                LEVELS, CUT, WEAR, ready: false, boxes: false, cleanCapture: !W.__parkClean0 /* G2220: false re-opens the capture leak (the gate's negative control; ?parkclean=0) */, decodeImages, L0: false /* the interior rung, shelved: G571 */, quiet: false, trisOf, drawBoxes, exteriorMesh, cloneBlock, copyBlock,
                dupe, levelMeshes, farLevel, cutFar, isInterior, PART_L1,   // GATE PARKED drives these headless

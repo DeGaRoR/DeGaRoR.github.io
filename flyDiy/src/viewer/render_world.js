@@ -52,7 +52,7 @@ function ROCK_BIAS(Hf, sea, N, hx0, hz0, hdx, hdz, gx0, gz0, cs, W2, H2) {
 // the job: { done, out, onDone } - the worker fills it and calls onDone (the tint's late write); ROCK_STATS { biasWorkerMs (inside
 // the worker), biasMainMs (the post here + the copy back), biasWorker: true }. null = no worker (the step makes it on the main thread)
 function rockBiasStart(world, BUD) {
-  try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+  try { if (/[?&](?:rocks=0|perftrim=1)(?:&|$)/.test(location.search)) return null; } catch (e) {}
   if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
   const I = world.island, g = world.hydro && world.hydro.grids;
   if (!I || !I.albedo || !I.grid || !I.tint || !g || !g.H || !g.N) return null;
@@ -1962,6 +1962,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the island ground's materials (and the premises patch's clones of them: render_premises matOwn) - re-keyed together
     // when the production / full line is crossed (groundSync, G1311); groundKey: a material's program key on that line
     const GROUND_FAMILY = new Set();
+    // Experimental, visual-preserving A/B: share the expensive near/fine
+    // fragment program; their morph/discard choice becomes a material uniform.
+    let GROUND_DISC_SHARED = typeof location !== 'undefined' && /[?&]groundshare=1(&|$)/.test(location.search);
     let groundSync = () => {}, groundFullNow = false, groundKey = base => () => base;
     const islandKeyed = (m, base) => { m.customProgramCacheKey = groundKey(base); m.groundFamily = GROUND_FAMILY; GROUND_FAMILY.add(m); return m; };
     yield 'island ground';
@@ -1995,7 +1998,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const rockBias = () => {
         if (rockBiasA) return rockBiasA;
         if (rockLate) return null;   // (in flight: the neutral alpha meanwhile - tintRGBA)
-        try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+        try { if (/[?&](?:rocks=0|perftrim=1)(?:&|$)/.test(location.search)) return null; } catch (e) {}
         const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
         rockBiasA = (typeof ROCK_RING_CORE !== 'undefined' && ROCK_RING_CORE.bakeIsland && ISLA.ttype)   // (no Worker: the island's macro bake here - v1's field, the shader's encoding)
@@ -2113,9 +2116,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       groundSync = () => { const f = groundFull(), p = groundPlain(), st = groundStrip(); if (f === groundFullNow && p === groundPlainNow && st === groundStripNow) return; groundFullNow = f; groundPlainNow = p; groundStripNow = st; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
       groundFullNow = groundFull();
       if (SPL) SPL.api.onInspect = () => groundSync();
-      groundKey = base => () => base + (groundFull() ? ':full' : '') + (groundPlain() ? ':plain' : '') + groundStrip();
+      groundKey = base => () => (GROUND_DISC_SHARED && (base === 'island-ring' || base === 'island-fine') ? 'island-disc-shared' : base) + (groundFull() ? ':full' : '') + (groundPlain() ? ':plain' : '') + groundStrip();
       const islandGroundHookFor = (side, rock) => sh => {
         const full = groundFull();
+        const sharedDisc = GROUND_DISC_SHARED && side !== 0, fineVertex = side > 0 || sharedDisc;
         // G1521: the splat in this program, or not (the plain ground: none of its text, its arrays or its uniforms)
         const SP = SPL && !SPL.api.plain() ? SPL : null;
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
@@ -2124,6 +2128,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
         // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
+        // Keep the binding in legacy mode too: returning to a cached shared
+        // program must not inherit a last-compile uniforms map without it.
+        sh.uniforms.uGroundDiscSide = { value: side };
         const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '')
           + (side === 0 && SP ? '#define GS_TRLITE 1\n' : '');   // ROCK-STUDY R1: the outer ring and the premises patch - the rock's micro and joints out   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
@@ -2132,9 +2139,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // meshes the attributes are absent (aRM.w reads 1: not a relief vertex). The relief folds back under the ground toward
             // the ring's reach (uRingF: sink, reach, band)
             'attribute vec4 aRM, aRX; attribute vec3 aRD; varying vec4 vRM, vRX; uniform vec4 uRingF;\n' +
-            (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
-          .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') +
+            (sharedDisc ? 'uniform float uGroundDiscSide;\n' : '') +
+            (fineVertex ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
+          .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (fineVertex ? '\n' + (sharedDisc ? 'if (uGroundDiscSide > 0.0) ' : '') + 'objectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (fineVertex ? (sharedDisc ? 'if (uGroundDiscSide > 0.0) ' : '') + 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') +
             'vRM = aRM; vRX = aRX; if (aRM.w > 1.5 && aRM.w < 3.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n' +
             '  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\n' +
             'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
@@ -2143,7 +2151,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // blocks, the tiles). Off (uTier.z 0) for every material but the patch's and the fine tiles' (TIER_U)
             '{ vec2 tD = abs(vWPi.xz - uTier.xy); if (max(tD.x, tD.y) < uTier.z) { transformed.y -= uTier.w; vWPi.y -= uTier.w; } }');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\nvarying vec4 vRM, vRX;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\nvarying vec4 vRM, vRX;\n' + (sharedDisc ? 'uniform float uGroundDiscSide;\n' : '') +
             (rock ? 'uniform sampler2D uRockMap; uniform vec4 uRockRect, uRockFade;\n' : '') +
             'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
@@ -2194,7 +2202,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             (SP ? (full ? SP.glslCommonFull : SP.glslCommon) : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
-            (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
+            (sharedDisc ? 'if (uGroundDiscSide < 0.0) { if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard; } else if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n'
+              : side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             // THE DEEP BED IS NOT PAINTED (PERF 2026-09-23): 25 m under the sea's level the water in front of it is
             // opaque to 1 - exp(-0.3 x 25) = 99.9 % at its clearest (water.js: alpha = 1 - exp(-opa D), opa >= 0.3),
@@ -2335,6 +2344,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       islandGroundHookFine = islandGroundHookFor(1, true);     // the fine tiles
     }
     groundApi = {
+      // Diagnostic A/B only; callers prepare the new programs under the normal
+      // loading screen before drawing. No graphics menu or quality setting changes.
+      shareDisc: value => {
+        if (typeof value === 'boolean' && value !== GROUND_DISC_SHARED) {
+          GROUND_DISC_SHARED = value; for (const m of GROUND_FAMILY) m.needsUpdate = true;
+        }
+        return GROUND_DISC_SHARED;
+      },
       splat: () => (SPL ? SPL.api : null),
       splatFull: () => SPL,   // ROCK-STUDY: the whole splat (its uniforms: the rock ring's material reads its arrays)
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
@@ -6288,14 +6305,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
                                                     ttypeAt, codeAt, forestHere, openHere, edgeD, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
-          if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
+          if (!(typeof location !== 'undefined' && /[?&]perftrim=1(?:&|$)/.test(location.search)) && typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
           // ROCK-STUDY: THE ISLAND'S ROCK AS GEOMETRY (rock_ring.js): the outcrops round the eye, built in a worker from the ground's
           // own heights, the map's types and NDVI and the drainage (the bias worker's D8), with the 'rocks' collection's boulders
           // seated on them; their own material (the splat's arrays). ?rocks=0 none, ?ring=0 the ring off (the cost A/B)
           if (typeof ROCK_RING !== 'undefined' && world.island && groundApi.splatFull && groundApi.splatFull()) {
-            let rocksOn = true; try { if (/[?&]rocks=0/.test(location.search)) rocksOn = false; } catch (e) {}
+            let rocksOn = true; try { if (/[?&](?:rocks=0|perftrim=1)(?:&|$)/.test(location.search)) rocksOn = false; } catch (e) {}
             if (rocksOn) try {
               const kit = null;   // (the boulders are the PROCEDURAL kit, closed rocks - rock_ring_core procKit; the pack's scans are open shells)
               let flowSync = null;
@@ -7890,6 +7907,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     for (const a of world.aerodromes) {
       if (a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises)) continue;
       standStrip(a);
+      // Let the host's existing slice budget run between strips. Building the
+      // entire island here was one measured 7.2-second, uninterruptible task.
+      yield 'strip ' + a.id;
     }
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
     // every premises strip are taken away and stood again from the registry as it is now

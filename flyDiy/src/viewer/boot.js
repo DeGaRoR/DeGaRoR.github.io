@@ -455,7 +455,11 @@
     // step finished or a step's own count rising within the idle window is progress (B._progT): the hard timeout lifts
     // only a chain that has stopped moving; 'nothing landed for 30 s' stays as it was, and five times the hard timeout is
     // the last resort whatever moves (a chain that never ends)
-    const moving = B._progT && t - B._progT < idle && B.state === 'loading';
+    // The final step hands off to 'landing' while three rendered quiet frames
+    // are verified. Keep its recent progress valid across that handoff; otherwise
+    // a healthy >120s load races the watchdog just before ready(). Idle and
+    // absolute limits remain unchanged, including a landing that stops drawing.
+    const moving = B._progT && t - B._progT < idle && (B.state === 'loading' || B.state === 'landing');
     if (t - B.lastEvent >= idle || (t - B.opt.t0 >= hard && !compiling && !moving) || t - B.opt.t0 >= 5 * hard) {
       fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
     B._watchArmed = t; if (hasTimer) setTimeout(watch, 2000);

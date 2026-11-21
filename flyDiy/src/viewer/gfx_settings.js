@@ -570,7 +570,7 @@
     // takes effect now through the pockets' lane, ON needs the code compiled in (set() reloads, below)
     if (applied.fmist !== S.fmist) {
       try { if (!/[?&]fmist=/.test(W.location.search || '')) W.localStorage.setItem('flydiy.fmist', S.fmist === 'on' ? '1' : '0'); } catch (e) {}
-      if (W.FMIST && W.FMIST.ON) W.FMIST.use.c = S.fmist === 'on' && W.FMIST.C;
+      if (W.FMIST && W.FMIST.ON) { const enabled = S.fmist === 'on'; W.FMIST.use.a = enabled && W.FMIST.A; W.FMIST.use.b = enabled && W.FMIST.B; W.FMIST.use.c = enabled && W.FMIST.C; }
       applied.fmist = S.fmist;
     }
     // the sway's gain: 0 is a zero bend in the SAME program, so switching it
@@ -630,7 +630,10 @@
       if (want !== is) { try { W.localStorage.setItem('flydiy.cm', want ? '1' : '0'); } catch (e) {} W.location.reload(); }
     }
     // the forest mist's code is compiled at the start: turning it on reloads when it is not in (never under a ?fmist= rig)
-    if (k === 'fmist' && S.fmist === 'on' && W.FMIST && !W.FMIST.C && W.location && !/[?&]fmist=/.test(W.location.search || '')) W.location.reload();
+    if (k === 'fmist' && S.fmist === 'on' && W.FMIST && !W.FMIST.ON && W.location && !/[?&]fmist=/.test(W.location.search || '')) W.location.reload();
+    // Crossing cloudless/cloud-pass presets changes the compiled mist method.
+    // Save happened above: reload into the matching method, retaining mist.
+    if ((k === 'clouds' || k === 'preset') && W.FMIST && W.FMIST.ON && W.FMIST.automatic && W.FMIST.methodForClouds(S.clouds) !== (W.FMIST.A ? 'a' : 'c')) W.location.reload();
     // the town switch (G590) is decided when the world is composed (app.js TOWN): reload when the row and the world differ
     if (k === 'town' && W.FLYDIY_TOWN && townAll() !== !!W.FLYDIY_TOWN.all && W.location && !/[?&]town=/.test(W.location.search || '')) W.location.reload();   // G1526: the budget's cap counted (potato never reloads into Metlakatla)
     return Object.assign({}, S);

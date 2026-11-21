@@ -601,9 +601,10 @@ const MANIFEST = {
               'ground_tex.js', 'ktx2.js', 'ktx2_twins.js', 'ground_lib.js',   // ktx2.js (AS3, G917): the KTX2 path GROUND_LIB and propTexture take first (the loader itself is lazy, below); ktx2_twins.js the plain maps' twins (tools/ktx2_twins.js)
               'site_ground.js',
               'splat_ground.js',   // the splat: the arrays, the GLSL, F8's handle
+              'ground_material_cache.js', // opt-in split material/lighting integration
               'rock_ring_core.js', 'rock_ring.js',   // ROCK-STUDY: the island's rock as geometry round the eye (the worker's law, the ring)
               // THE PAVEMENT (v1.16, 2026-09-22): the one material every strip, road and apron wears
-              'pavement.js',
+              'pavement_noise_cache.js', 'pavement_field_cache.js', 'pavement.js',
               'ground_tier.js',   // G2115 (TERRAIN-MATCH): the 1 m contact tier under the aeroplane - render_world.js drives it
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea

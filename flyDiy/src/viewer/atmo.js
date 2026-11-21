@@ -426,6 +426,7 @@ var ATMO = (function () {
   // FOREST-MIST (prototype, futureDesigns/FOREST-MIST-STUDY-2026-11.md): only under ?fmist - off, every string below
   // and the lanes' array are exactly what they were
   const FM_ON = typeof FMIST !== 'undefined' && FMIST.ON;
+  const FM_VEIL = FM_ON && FMIST.C;
   const MIST_GLSL = `
     // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
     // below its top yTop, decaying over H above it - integrated in closed form along the ray
@@ -498,7 +499,7 @@ var ATMO = (function () {
       // change how much mist the day has - that number is the day's own (Koschmieder, SS2a).
       return mix(1.0, smoothstep(0.15, 0.85, n) * 2.0, uMist[6].w);
     }
-${FM_ON ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
+${FM_VEIL ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
     // THE MARCH: the optical depth with a top and a density that vary over the ground. Only the
     // slice of the ray inside [ground, the field's highest top + 5H] is walked; outside it the
     // layer contributes nothing and a sample there is a sample wasted.
@@ -534,9 +535,9 @@ ${FM_ON ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
                : (uMist[4].w > 1.5 ? mistODField(vec3(uMist[4].x, y0, uMist[4].z), d, D)
                                    : mistOD(y0, d.y, D));
       if (uMist[3].x > 0.0) od += uMist[3].x * slabLen(y0, d.y, D, uMist[3].y, uMist[3].z);
-${FM_ON ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od${FM_ON ? ' - odP' : ''});
+${FM_VEIL ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od${FM_VEIL ? ' - odP' : ''});
       float fwd = 1.0 + uMist[1].w * atmoFwdK * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
-${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-6, od + odP);   // two media, each its own light (the pockets: the beam, fmCol)\n      return col * T + Lin * (1.0 - T);\n' : ''}
+${FM_VEIL ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-6, od + odP);   // two media, each its own light (the pockets: the beam, fmCol)\n      return col * T + Lin * (1.0 - T);\n' : ''}
       return col * T + uMist[1].rgb * fwd * (1.0 - T);
     }`.replace(FM_ON ? 'uniform vec4 uMist[' + '7];' : '\u0000', 'uniform vec4 uMist[' + '13];');   // FOREST-MIST's lanes, only when it is on (off: the text as it was)
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
@@ -1094,13 +1095,13 @@ ${STAR_FIELD_GLSL}
   }
   // blit(renderer, px, N, x, y): an N^2 RGBA float map drawn into the atlas's own columns at (x, y) - a scissored
   // quad, no clear, the way bakeField's field goes in. FOREST-MIST's map (forest_mist.js) is its only caller.
-  function blit(renderer, px, N, x, y) {
+  function blit(renderer, px, N, x, y, proceduralFragment) {
     if (!renderer || !G.rtAP || !G.quad || typeof MATLIB === 'undefined') return false;
-    const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
-    tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
-    const mat = MATLIB.make(THREE, 'shader', { uniforms: { uSrc: { value: tex } },
+    const tex = proceduralFragment ? null : new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
+    if (tex) { tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true; }
+    const mat = MATLIB.make(THREE, 'shader', { uniforms: tex ? { uSrc: { value: tex } } : {},
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-      fragmentShader: 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
+      fragmentShader: proceduralFragment || 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
       depthTest: false, depthWrite: false });
     const prevRT = renderer.getRenderTarget(), ac = renderer.autoClear, pm = G.quad.material;
     const vp = new THREE.Vector4(), sc = new THREE.Vector4(); renderer.getViewport(vp); renderer.getScissor(sc);
@@ -1110,7 +1111,7 @@ ${STAR_FIELD_GLSL}
     renderer.render(G.scene, G.cam);
     renderer.setScissorTest(st); renderer.setViewport(vp); renderer.setScissor(sc);
     renderer.setRenderTarget(prevRT); renderer.autoClear = ac; G.quad.material = pm;
-    mat.dispose(); tex.dispose();
+    mat.dispose(); if (tex) tex.dispose();
     return true;
   }
 
@@ -1386,7 +1387,7 @@ ${STAR_FIELD_GLSL}
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
     setEyeY(y) { U.eyeY.value = y; }, getEyeY() { return U.eyeY.value; },
     PROBE_FADE, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
-    MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL, STARS: STAR_FIELD_GLSL },   // the clouds' pass shares the splice's samplers and functions
+    MIST, apUniforms, GLSL: { MIST: MIST_GLSL, MIST_CLOUD: FM_ON && FMIST.A && !FM_VEIL ? MIST_GLSL + '\n' + FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : MIST_GLSL, AP: AP_SAMPLE_GLSL, STARS: STAR_FIELD_GLSL },   // density library only in passes that use it
   };
 })();
 if (typeof window !== 'undefined') { window.ATMO = ATMO; ATMO.install(); }   // BEFORE any program compiles: the splice must be in every fogged material's chunks
