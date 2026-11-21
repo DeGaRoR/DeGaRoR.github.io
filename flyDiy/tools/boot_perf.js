@@ -46,11 +46,15 @@ const CHROME = [
   '/usr/bin/google-chrome', '/usr/bin/chromium',
 ].find(p => fs.existsSync(p));
 if (!CHROME) { console.error('boot_perf: no Chrome found'); process.exit(2); }
-const UDD = flag('cold') ? path.join(os.tmpdir(), 'cdp_boot_' + PORT + '_' + Date.now())
-                         : path.join(os.tmpdir(), 'flydiy_boot_perf_profile');
+// --udd <dir>: this Chrome profile, kept between runs (the WARM-CACHE test, PERF-LEAD 22 Nov: a second PROCESS on
+// the profile a cold run just filled is a returning player's load). --chrome <flag>, repeatable: one more Chrome
+// switch (e.g. --chrome --gpu-program-cache-size-kb=1048576). Neither is given by default: the runs are as before.
+const UDD = opt('udd', null) || (flag('cold') ? path.join(os.tmpdir(), 'cdp_boot_' + PORT + '_' + Date.now())
+                         : path.join(os.tmpdir(), 'flydiy_boot_perf_profile'));
+const XFLAGS = argv.map((a, i) => (a === '--chrome' ? argv[i + 1] : null)).filter(Boolean);
 const args = ['--headless=new', '--remote-debugging-port=' + PORT,
   '--window-size=1920,1080', '--hide-scrollbars', '--no-first-run',
-  '--user-data-dir=' + UDD, '--disable-gpu-sandbox', 'about:blank'];
+  '--user-data-dir=' + UDD, '--disable-gpu-sandbox'].concat(XFLAGS, ['about:blank']);
 const ch = spawn(CHROME, args, { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => {
@@ -266,5 +270,16 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   if (COMPARE && fs.existsSync(COMPARE)) { const c = JSON.parse(fs.readFileSync(COMPARE, 'utf8'));
     console.log(`  vs ${path.basename(COMPARE)}: overlay gone ${c.bootGone} -> ${M.bootGone} ms; long tasks ${c.longTaskTotalMs} -> ${longSum} ms; network ${(c.netTotalKB / 1024).toFixed(1)} -> ${(out.netTotalKB / 1024).toFixed(1)} MB; programs ${c.gpu && c.gpu.programs} -> ${gpu && gpu.programs}`); }
   console.log('  wrote ' + path.relative(process.cwd(), OUT));
+  // --udd: the profile is read by the NEXT run, so Chrome closes itself (Browser.close on the browser's own socket,
+  // 20 s at most) and has the time to write its GPU shader cache to disk; a kill would leave the next run cold.
+  if (opt('udd', null)) {
+    const gone = new Promise(r => ch.once('exit', r));
+    try { const v = await getJSON('http://127.0.0.1:' + PORT + '/json/version');
+      const bw = new WebSocket(v.webSocketDebuggerUrl); await new Promise((r, j) => { bw.onopen = r; bw.onerror = j; });
+      bw.send(JSON.stringify({ id: 1, method: 'Browser.close' })); } catch (e) { console.log('  Browser.close failed: ' + e.message); }
+    const how = await Promise.race([gone.then(() => 'closed itself'), sleep(20000).then(() => 'KILLED after 20 s (its shader cache may not be on disk)')]);
+    console.log('  chrome ' + how); if (ch.exitCode === null) ch.kill();
+    return;
+  }
   ws.close(); ch.kill();
 })().catch(e => { console.error(e); ch.kill(); process.exit(1); });
