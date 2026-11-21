@@ -58,7 +58,7 @@ function polarOf(sim, S, flap, trimmed) {
   const V = 30, q = 0.5 * RHO * V * V, f0 = sim.ctl.flap, d0 = sim.ctl.de;
   sim.ctl.flap = flap || 0;
   const rows = [];
-  for (let a = -0.12; a <= 0.50 + 1e-9; a += 0.005) {
+  for (let a = -0.25; a <= 0.50 + 1e-9; a += 0.005) {
     let de = 0, sat = false;
     if (trimmed) { const t = trimDe(sim, V, a); de = t.de; sat = t.sat; }
     sim.ctl.de = de;
@@ -142,7 +142,8 @@ function auditPlane(key, loadId, protos) {
   const out = {
     key, ref: P.ref, label: P.label, load: loadId, mass: sim.totalM, W, S, span: b, AR, empty, ledger,
     engine: def.params.engine && def.params.engine.name, P: Psh, nE, T0: thrust(0),
-    prop: def.params.prop ? { D: def.params.prop.D, blades: def.params.prop.blades, pitch: def.params.prop.pitchUsed || def.params.prop.pitch, V0: def.params.prop.V0, fm: def.params.prop.fm } : null,
+    prop: def.params.prop ? { D: def.params.prop.D, blades: (spec.prop && spec.prop.blades) || null, material: (spec.prop && spec.prop.material) || null, pitch: (spec.prop && (spec.prop.pitchUsed || spec.prop.pitch)) || null,
+                             T0: def.params.prop.Tstatic, V0: Math.sqrt(def.params.prop.Tstatic / def.params.prop.kV2) } : null,
     CLmax: clean.CLmax, CLmaxTrim: cleanT.CLmax, deAtCLmax: cleanT.deMax, deSat: cleanT.satMax,
     CLmaxLdg: ldg && ldg.CLmax, CLmaxLdgTrim: ldgT && ldgT.CLmax, deSatLdg: ldgT && ldgT.satMax, flapLdg: fL, flapTO: fTO,
     CD0: fit && fit.CD0, K: fit && fit.K, e: fit && 1 / (Math.PI * AR * fit.K), CdS: fit && fit.CD0 * S,
@@ -154,7 +155,10 @@ function auditPlane(key, loadId, protos) {
   };
   if (protos && protos.length) {
     const PR = require(path.join(T, 'physics_audit_proto.js'));
-    out.proto = PR.apply(protos, { key, P, R, def, sim, spec, S, W, Psh, nE, clean, cleanT, ldg, ldgT, thrust, figures, base: out });
+    // (one set of names, or several: [[...], [...]] - the polars are measured once)
+    const sets = Array.isArray(protos[0]) ? protos : [protos];
+    const all = sets.map(names => { const r = PR.apply(names, { key, P, R, def, sim, spec, S, W, Psh, nE, clean, cleanT, ldg, ldgT, thrust, figures, fitPolar, base: out }); delete r.pol; return r; });
+    out.proto = all[0]; if (Array.isArray(protos[0])) out.protos = all;
   }
   return out;
 }
@@ -177,7 +181,11 @@ if (require.main === module) {
   const protos = opt('proto', '').split(',').filter(Boolean), res = [];
   for (const k of keys) {
     if (!PLANES[k]) { console.log('no plane ' + k); continue; }
-    try { const o = auditPlane(k, opt('load', 'mtow'), protos); res.push(o); console.log(line(o)); }
+    try {
+      const o = auditPlane(k, opt('load', 'mtow'), protos); res.push(o); console.log(line(o));
+      if (o.proto) { const p = o.proto.fig; console.log('   proto ' + protos.join('+') + ': Vs ' + f(kmh(p.Vs)) + '  L/D ' + f(p.LD, 1) + '@' + f(kmh(p.Vbg)) + '  sink ' + f(p.sink, 2) + '  ROC ' + f(p.roc, 2) + '@' + f(kmh(p.Vy)) +
+        '  Vmax ' + f(kmh(p.Vmax)) + '  V75 ' + f(kmh(p.V75)) + '  eta Vy ' + f(p.etaVy, 2) + ' Vmax ' + f(p.etaVmax, 2) + '  roll x' + f(p.rollRatio, 2) + '  ' + JSON.stringify(o.proto.notes, (kk, v) => typeof v === 'number' ? +v.toPrecision(3) : v)); }
+    }
     catch (e) { console.log(k + ': FAILED ' + (e && e.stack || e)); }
   }
   if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify(res, null, 1));
