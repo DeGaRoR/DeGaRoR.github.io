@@ -754,7 +754,7 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
       float rgh = roughnessFactor, met = metalnessFactor;
       float crease = (1.0-abs(2.0*buckle.x-1.0))*cr;
       col *= 1.0 - crease*(0.10+0.18*dFab);
-      float flake = smoothstep(0.65,0.9,cr)*smoothstep(0.60,0.78,pat.b+0.15*(buckle.x-0.5));
+      float flake = smoothstep(0.65,0.9,cr)*smoothstep(0.60,0.78,pat.b+0.15*(buckle.x-0.5))*(dMet+0.7*dWood);
       col = mix(col,dSub,flake);
       met = mix(met,uDmgSub[dCi].a,flake);
       float coh = smoothstep(0.30,0.75,dDl)*(1.0-dw.x);
@@ -765,7 +765,7 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
       float dirt = sc*(0.15+0.35*dR.w)*smoothstep(0.3,0.8,pat.g);
       col = mix(col,mix(uDmgCol[1].rgb,uDmgCol[2].rgb,dR.w*pat.b),max(dirt,band*pat.b*0.45));
       float edge = smoothstep(0.55,0.92,tb+0.18*(pat.g-0.5));
-      col = mix(col,mix(dSub*1.15,vec3(0.50,0.45,0.34),dFab),edge);
+      col = mix(col,mix(dSub*1.15,vec3(0.50,0.45,0.34),dFab),edge*(dMet+dFab+dWood));
       col *= 1.0 - tb*(1.0-edge)*0.18;
       rgh = mix(rgh,max(rgh,0.88),max(cr,max(sc,tb)));
       rgh = mix(rgh,uDmgSub2[dCi].x,flake*dMet);
@@ -867,7 +867,7 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
     return true;
   }
   function wrap(h, kind, U, W, classHint) {
-    const simplify = !!OPT.simplify, sharedEnabled = OPT.sharedGrunge, always = !!OPT.always;
+    const simplify = !!OPT.simplify, sharedEnabled = OPT.sharedGrunge, always = !!OPT.always && kind !== 'glass';
     const specialized = OPT.specialize && kind !== 'baked' && kind !== 'glass' && Number.isInteger(classHint) && classHint >= 0 && classHint <= 3;
     const optKey = (sharedEnabled ? '|shared-grunge-v1' : '') + (OPT.specialize ? '|class:' + (specialized ? classHint : 'general') : '') + (simplify ? '|surface-lite-v1' : '') + (always ? '|one-state-v1' : '');
     const baseKey = kind + '|' + (h ? h.toString() : '');
@@ -933,7 +933,7 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
   }
   const API = { OPT, SC, CLS, FIN_CLS, clsOf, fields, prep, incidence, weightsOf, place, tornBand, panesOf, state, request, begin, tick, busy, finish, glassBytes,
                 paneVec, bindWanted, restNormals, placesOf, replace, wrap, waker, wakeSet, uniforms,
-                AERO_DMG_VS_PARS, AERO_DMG_VS_MAIN, AERO_DMG_FS_PARS, AERO_DMG_SURF_FS, AERO_DMG_GLASS_FS, AERO_DMG_CC_FS };
+                AERO_DMG_VS_PARS, AERO_DMG_VS_MAIN, AERO_DMG_FS_PARS, AERO_DMG_SURF_FS, AERO_DMG_SURF_LITE_FS, AERO_DMG_GLASS_FS, AERO_DMG_CC_FS };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_SCUFF = API;
 })();

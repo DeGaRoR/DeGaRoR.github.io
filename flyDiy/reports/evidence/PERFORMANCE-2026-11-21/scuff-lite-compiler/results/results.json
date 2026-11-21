@@ -1,0 +1,722 @@
+{
+  "scope": "Compiler-only wall time of complete captured real-game source pairs, one link at a time. Prepared source interventions identify compiler work; no game rendering or visual acceptance is claimed. No scene rendering, no loading-time saving or exclusive CPU attribution. Fresh visible Chrome per order, real GPU; driver cache erasure not claimed.",
+  "runs": [
+    {
+      "order": 0,
+      "rows": [
+        {
+          "name": "Window cracks / Original (mud workaround)",
+          "family": "Window cracks",
+          "ms": 479.1000000089407,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 135258,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tCrack",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 7,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Window cracks / Full detail + shared mud",
+          "family": "Window cracks",
+          "ms": 480.70000000298023,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 135258,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tCrack",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 7,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Window cracks / Simplified + shared mud",
+          "family": "Window cracks",
+          "ms": 460.59999999403954,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 135258,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tCrack",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 7,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Surface damage / Original (mud workaround)",
+          "family": "Surface damage",
+          "ms": 3404.8999999910593,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 268383,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFast",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFastM",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tDmgG",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 11,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Surface damage / Full detail + shared mud",
+          "family": "Surface damage",
+          "ms": 3954.9000000059605,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 279089,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFast",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFastM",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGdMud",
+              "size": 1,
+              "type": 35679
+            },
+            {
+              "name": "tGdFw",
+              "size": 1,
+              "type": 35679
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Surface damage / Simplified + shared mud",
+          "family": "Surface damage",
+          "ms": 2257.9000000059605,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 248187,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFast",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFastM",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGdMud",
+              "size": 1,
+              "type": 35679
+            },
+            {
+              "name": "tGdFw",
+              "size": 1,
+              "type": 35679
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        }
+      ],
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    {
+      "order": 1,
+      "rows": [
+        {
+          "name": "Surface damage / Simplified + shared mud",
+          "family": "Surface damage",
+          "ms": 2087.7999999970198,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 248187,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFast",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFastM",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGdMud",
+              "size": 1,
+              "type": 35679
+            },
+            {
+              "name": "tGdFw",
+              "size": 1,
+              "type": 35679
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Surface damage / Full detail + shared mud",
+          "family": "Surface damage",
+          "ms": 3539.8999999910593,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 279089,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFast",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFastM",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGdMud",
+              "size": 1,
+              "type": 35679
+            },
+            {
+              "name": "tGdFw",
+              "size": 1,
+              "type": 35679
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Surface damage / Original (mud workaround)",
+          "family": "Surface damage",
+          "ms": 3321.5999999940395,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 268383,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFast",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tFastM",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tDmgG",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 11,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Window cracks / Simplified + shared mud",
+          "family": "Window cracks",
+          "ms": 467,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 135258,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tCrack",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 7,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Window cracks / Full detail + shared mud",
+          "family": "Window cracks",
+          "ms": 459.79999999701977,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 135258,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tCrack",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 7,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Window cracks / Original (mud workaround)",
+          "family": "Window cracks",
+          "ms": 460,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 135258,
+          "samplers": [
+            {
+              "name": "tDetail",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tGrunge",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "tCrack",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 7,
+          "fragmentTextureUnitLimit": 16
+        }
+      ],
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    }
+  ],
+  "complete": true
+}

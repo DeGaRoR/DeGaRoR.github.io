@@ -1,6 +1,6 @@
 # Wingsmith performance — consolidated living report
 
-Updated: 2026-11-21T04:21:31.819Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+Updated: 2026-11-21T04:44:06.014Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
 
 ## Latest validated native-player mist comparison
 
@@ -28,7 +28,7 @@ Untouched published original attempt1 reached241.680s with GL1282, then dashboar
 
 ### Simplified scuff: preliminary evidence and next validation
 
-Lite uses one analytic buckle field and three filtered reads of the existing grunge texture; dents, directional abrasion/stains, exposed substrate, ragged torn edges and computed mud remain. Window crack body unchanged. Liteone also shares intact/damaged opaque surface programs; glass retains original asleep/awake paths. Both opt-in pending integrated loading, active image and GPU checks.
+Lite uses one analytic buckle field and three filtered reads of the existing grunge texture; dents, directional abrasion/stains, exposed substrate, ragged torn edges and computed mud remain. Window crack body unchanged. Liteone also shares intact/damaged opaque surface programs; glass retains original asleep/awake paths. Both remain opt-in: integrated loading/image/GPU results follow; fine-pattern visual approval and full-flight validation remain pending.
 
 Two opposite-order compiler screens link12/12 with GL0, peak63°C. Representative surface original3.405/3.322s, full shared-mud3.955/3.540s, lite2.258/2.088s (~35% below original). Window~0.46s unchanged. Screen predates final material-class guards: preliminary, not a whole-game loading or FPS saving.
 
@@ -36,14 +36,34 @@ Two opposite-order compiler screens link12/12 with GL0, peak63°C. Representativ
 
 Fresh visible Chrome profiles, saved Cub/full hangar,5120x1271/DPR1. Legacy diagnostic-clock startup measurements; native-player mist/FPS circuit reported separately. Mist B, all seven scenery systems and original full runway geometry/cues retained. Accepted advanced-cliff/runtime-aircraft-bake cuts only. Experimental caches off. Original-scuff controls bracket lite candidates;20s garage soak; no world departure in loading cases. Controlled damage/deposit images and GPU patches follow cold timing and are excluded from loading. Window crack body unchanged; shared-state candidate applies only to opaque surfaces. Driver cache not erased.
 
-| Case | Garage (s) | Shorter than reference (s) | Submitted links | Awake damage links | Peak CPU (°C) |
+| Case | Garage (s) | Shorter than reference (s) | Submitted links | Damage-capable links | Peak CPU (°C) |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Approved mist B, original scuff — incomplete/excluded | — | — | — | — | — |
-| Simplified scuff, two states — incomplete/excluded | — | — | — | — | — |
-| Simplified scuff, shared surface state — incomplete/excluded | — | — | — | — | — |
-| Repeated original-scuff reference — incomplete/excluded | — | — | — | — | — |
+| Approved mist B, original scuff | 141.954 | 0.000 | 565 | 8 | 76 |
+| Simplified scuff, two states | 140.720 | 1.234 | 566 | 10 | 84 |
+| Simplified scuff, shared surface state | 126.007 | 15.947 | 560 | 24 | 85 |
+| Repeated original-scuff reference | 128.126 | 13.828 | 566 | 10 | 84 |
+| Shared surface state — repeat after closing reference | 124.677 | 17.277 | 559 | 24 | 87 |
 
 These are independent loading observations. Lite replaces fine procedural damage networks with three filtered reads of the existing grunge texture while keeping dents, directional abrasion, exposed substrate, torn edges and computed mud. Window crack body remains unchanged. Liteone additionally shares intact/damaged opaque surface programs, with a possible intact-frame overhead that requires measurement. Glass keeps the original asleep/awake paths. Candidates remain opt-in until loading, image activity and GPU costs are reviewed.
+
+Damage-capable link counts include intact surfaces in shared-state mode; they do not count actual damaged aircraft. Opening original-scuff reference141.954s and closing128.126s show13.828s drift. Shared-state126.007s is15.947s below opening but only2.119s below closing: no established16s causal saving. Repeat after closing reference is recorded separately. Ordinary two-state lite140.720s establishes no startup gain.
+
+Repeat shared-state candidate124.677s, 3.448s below the closing reference. Candidates cluster124.7–126.0s; controls128.1–142.0s. This is a modest startup signal with substantial control drift, not a clean16s saving. All five cases pass normal readiness/GL/20s garage soak; all peaks≤87°C. Main recommendation: retain the opt-in two-state lite as an active-damage rendering candidate; its intact path is unchanged. Keep shared-state mode experimental because its intact patch overhead has not been checked through a native full flight. No new default or visual acceptance is claimed.
+
+### Controlled active-damage GPU checks
+
+Four actual Cub material classes,512² offscreen patches, synthetic uniform damage and deposit records. Four alternating-order samples/profile,12 draws/query. These are isolated patch times, not whole-world FPS. Intact output is pixel-identical; damage-on/off and mud-on/off both change pixels for all four classes. No query disjoint/errors in this run.
+
+| Finish | Original active (ms/draw) | Full + shared mud | Lite + shared mud | Lite with damage off | Original intact |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| fabric | 0.1484 | 0.1578 | 0.0721 | 0.0742 | 0.0569 |
+| rubber | 0.1830 | 0.1929 | 0.0876 | 0.0721 | 0.0713 |
+| steelTube | 0.0273 | 0.0297 | 0.0171 | 0.0166 | 0.0156 |
+| ply | 0.0707 | 0.0736 | 0.0370 | 0.0299 | 0.0283 |
+
+Active simplified patch cost is37–52% below original in this test, with computed mud restored. Keeping the damage code present when inactive adds~0.001–0.017ms/draw on these patches (~1–30% relative, depending finish); that is the shared-state tradeoff. Ordinary two-state lite keeps original asleep shaders for intact surfaces. Fine scratch/gouge/fray patterns are visibly simplified; images are controlled material tests, not a physical crash validation. Window crack body is unchanged by source equivalence test; glass remains two-state.
+
+Controlled forced-damage panel images: [original surface](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-originalDry.png), [simplified surface](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-liteDry.png), [simplified with computed mud](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-liteMud.png).
 
 Branch checkpoints04411db93 (approved optimizations),5989b85c1 (sensor monitoring),bf1ba4408 (opt-in scuff prototypes). Generated main files, private save and raw flight logs excluded from commits. Under20s garage/under60s initial loading remain unmet.
 
@@ -1307,6 +1327,12 @@ Correction / next action: Finish normal-load comparison only after the temperatu
 User explicitly approved mist B after seeing two daylight A/B views: softer cloud-pass haze preferred over original bright surface pockets. Build73f492674f4c makes cloud-pass mist the ordinary default when clouds are enabled; cloudless presets retain the original veil. Live mist off/on updates all techniques, and crossing cloudless/cloud-pass settings reloads into the correct compiled method. Focused tests cover saved/explicit settings, preset/profile/welcome/software selection and live switches. Scuff specialization/shared-grunge prototype and experimental runway/ground/mist caches remain OFF by default. All seven prioritized scenery systems, town and original high-poly runway geometry/cues remain in benchmark; ONLY advanced cliffs and runtime player-derived aircraft bakes excluded via perftrim=1. Latest valid observations: Original veil mist / original scuff 181.188s (buildca358c1224b4, peak78C); Original veil mist / specialized scuff + live mud 167.714s (buildca358c1224b4, peak83C); Cloud-pass pocket mist / specialized scuff + live mud 138.327s (buildca358c1224b4, peak86C); Cloud-pass mist / full-detail specialized scuff + live mud 133.775s (build83ba2179d8e5, peak86C); Cloud-pass mist / full-detail specialized scuff + live mud 134.003s (build83ba2179d8e5, peak89C); Original surface-veil mist and scuff 161.865s (build83ba2179d8e5, peak86C); Original mist / full-detail optimized scuff + live mud 199.560s (build83ba2179d8e5, peak90C); Approved mist B / original scuff, actual default 131.625s (build73f492674f4c, peak87C). Latest same-build83ba2179d8e5: original methods161.865s, combined mist B/scuff134.003s, scuff-only199.560s. The earlier scuff181.188→167.714 screening pair did not establish a repeatable gain. New cold damaged shader instances increased6→18 (all links563→574); default scuff remains unchanged. Controlled actual fabric/steel/ply parts with damage-on/off activity checks now show pixel-identical general-vs-specialized results, with mud active; computed mud restoration changes pixels versus old GD_OFF. These are synthetic material probes, not a physical crash or full-fleet visual acceptance. Empty images from a local/world camera mismatch and nonempty-but-damage-inactive comparisons caused by live-frame uniform resets are rejected; corrected tests explicitly reapply damage/grid uniforms before synchronous draws. Mist hash atlas/compact-loop caches failed consistent compile gains; parked OFF. GL1281 remains intermittent/unidentified: failures and instrumented timings excluded; subsequent ordinary runs passed. Loader quiet-frame handoff watchdog recognizes landing progress without extending any threshold. Current thermal policy matches updated user steering: brief95C peaks allowed, no sustained90C; first94C stop or3s90C+,1Hz/fail-closed monitoring. Earlier conservative thermal stops remain excluded, never retroactively accepted. GFX gate has one pre-existing device-probe whitelist failure in unchanged perf_bench.js (also in HEAD); other assertions pass and focused new mist tests pass. No publication or commit of generated main files. Under20s garage remains unmet. Approved actual-default run:131.625s garage, no fmist/scuffopt override, GL zero and normal readiness, garage20s soak median9.8/p99 12.8/max27.2ms with no100ms gaps or long tasks. Unchanged-design departures9.456/9.364s, returns0.636/0.317s, peak87C. This is30.241s/18.7% shorter than the latest161.865s original-method reference from the preceding build; not a repeated same-build causal estimate. World stand samples still about43ms/~23fps; first had one147.6ms hitch, second max47.5ms. No claim of smooth crashes, edited-aircraft readiness or full scripted-circuit acceptance.
 
 Correction / next action: Keep approved mist B default and original scuff. Next scuff lead is shared-sampler-only without tripling material classes; full specialization had no reliable loading win. Next larger measurement is the scripted circuit/GPU-versus-main-thread world cost: ~23fps and a first-stand147.6ms hitch remain, despite responsive garage and fast unchanged-design trips. Preserve credible damage and mud; no additional cuts without scope/benefit approval. Keep all seconds, failures, screenshots and thermal evidence in PERFORMANCE-REPORT.md.
+
+### Simplified scuff integrated loading and active GPU validation 2026-11-21 — All five load cases valid; active patch GPU improvement; startup benefit modest/unresolved; opt-in only
+
+Build290bbbf690ea with approved mist B and accepted cliff/runtime-bake cuts only: original-scuff opening141.954s, two-state lite140.720s, shared-state126.007s, closing original128.126s, shared-state repeat124.677s. Controls drift13.828s: do not claim16s causal saving. All cases normal ready/GL0/20s garage soak, peak87C maximum. Four real Cub material classes:224 GPU patch queries valid, active simplified damage37–52% cheaper than original, computed mud active, damage-on/off nonzero, intact images pixel-identical. Shared-state inactive code adds~1–30% relative patch cost (~0.001–0.017ms/draw); no native full-flight result for scuff candidate. Window crack body unchanged; glass stays asleep/awake. Fine procedural scratch/gouge/fray detail visibly simplified; no appearance approval yet.
+
+Correction / next action: Keep candidate flags off by default. Two-state lite is the lower-risk active-damage rendering candidate; shared-state stays experimental. Next substantial loading target: duplicated lighting-state program preparation (native B night→noon164 additional links,38.440s rollout gate), then~32s terrain/roads/aerodromes and~15s nearby scenery fill. Updated comparison and current waterfall distinguish native versus diagnostic clocks. Visual QA initially missed isolated iframe contexts and a missing per-frame error array; corrected tool passes desktop/narrow initial/changed states. Windows chart validation needed UTF8 and a temporary executable alias; no game change. No raw/private save or generated main output committed.
 
 ## Matched integration comparison and post-ready behaviour
 

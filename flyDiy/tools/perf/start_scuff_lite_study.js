@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('fs'),path=require('path');
+const root=path.resolve('flyDiy/reports/evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated');
+fs.mkdirSync(root,{recursive:true});
+if(fs.existsSync(path.join(root,'manifest.json')))throw Error('Study already exists; resume explicitly');
+const common='mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1';
+const cases=[['control','Approved mist B, original scuff',''],['lite','Simplified scuff, two states','scuffopt=lite'],['liteone','Simplified scuff, shared surface state','scuffopt=liteone'],['control-close','Repeated original-scuff reference','']].map(([id,label,change])=>({id,label,change,query:common+(change?'&'+change:''),validationScope:'startup-only',coolSeconds:45,pageDiagnostic:'flyDiy/tools/perf/'+(id==='lite'?'scuff_surface_page.js':'scuff_mesh_page.js')}));
+fs.writeFileSync(path.join(root,'thermal-policy.json'),JSON.stringify({stopC:90,peakC:94,sustainedMs:3000}));
+fs.writeFileSync(path.join(root,'manifest.json'),JSON.stringify({title:'Simplified surface damage: integrated loading and controlled rendering',started:new Date().toISOString(),common,cases,startMaxC:38,coolingDeadlineMs:180000,reportTool:'flyDiy/tools/perf/scuff_lite_report.js',protocol:'Fresh visible Chrome profiles, saved Cub/full hangar,5120x1271/DPR1. Legacy diagnostic-clock startup measurements; native-player mist/FPS circuit reported separately. Mist B, all seven scenery systems and original full runway geometry/cues retained. Accepted advanced-cliff/runtime-aircraft-bake cuts only. Experimental caches off. Original-scuff controls bracket lite candidates;20s garage soak; no world departure in loading cases. Controlled damage/deposit images and GPU patches follow cold timing and are excluded from loading. Window crack body unchanged; shared-state candidate applies only to opaque surfaces. Driver cache not erased.'},null,2));
+console.log(root);

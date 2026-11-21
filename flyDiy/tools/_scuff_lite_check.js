@@ -9,4 +9,5 @@ const s=shader();a.call({},s);assert(!s.fragmentShader.includes('GD_OFF'));asser
 const D=load(''),dg=shader(),lg=shader();D.wrap(hook,'glass',U).call({},dg);L.wrap(hook,'glass',U).call({},lg);assert.equal(lg.fragmentShader.slice(lg.fragmentShader.indexOf('void main')),dg.fragmentShader.slice(dg.fragmentShader.indexOf('void main')),'Window crack body remains identical');
 assert(!lg.fragmentShader.includes('dmgStroke'));assert(lg.fragmentShader.includes('vec3 dmgCell'));
 const O=load('liteone'),OW=O.waker(),one=O.wrap(hook,'live',U,OW,0),key=one.toString(),off=shader();one.call({},off);assert(off.fragmentShader.includes('if (uDmgOn > 0.0)'));OW.awake=true;O.wakeSet(OW);assert.equal(one.toString(),key,'One-state key does not change on damage');
+const GW=O.waker(),glass=O.wrap(hook,'glass',U,GW,-1),gkey=glass.toString();GW.awake=true;O.wakeSet(GW);assert.notEqual(glass.toString(),gkey,'Keep intact window glass on its original asleep path');
 console.log('Scuff lite: shared variants/sampler, three grunge reads, simplified surface helpers, one-state key and identical window crack body passed.');
