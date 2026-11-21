@@ -650,12 +650,16 @@ const WATER = (() => {
         vec3 wDiff = material.diffuseContribution; material.diffuseColor = vec3(0.0); material.diffuseContribution = vec3(0.0);
         vec3 wUpN = wUpV * faceDirection;`)
       // LOOK-GLINT (GLINT above): wGR is 0 in the point and spot loops, the day's weight from the directional loop on
+      // NIGHT-SUN (21 Nov; the user: "crazy red reflections in the sea of a sun which is not there"): the visibility (uWGlint.x) was the day's
+      // alone - x mix(1, vis x gain, the day's weight): at night a moon behind the ridge, or under the horizon, kept its whole glitter path.
+      // It is the KEY light's now (app.js glintVis: the sun's, the moon's when the moon is the key; the terrain along the path x the disc's
+      // share over the water's horizon) and it holds at every hour; the day's weight keeps what is the day's look (the lobe, the gain)
       .replace('#include <lights_fragment_begin>', `
-        float wGR = 0.0, wGlR = wRough(0.003 + 0.00512 * uWWind.x), wGlK = uWGlint.x * uWGlint.y;
+        float wGR = 0.0, wGV = 1.0, wGlR = wRough(0.003 + 0.00512 * uWWind.x);   // (NIGHT-SUN: wGV the key light's visibility from the path, at every hour - 1 in the point and spot loops)
 ` + (typeof THREE !== 'undefined' && THREE.ShaderChunk && THREE.ShaderChunk.lights_fragment_begin || '')
-        .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight ); wGR = uWGlint.w;')
+        .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight ); wGR = uWGlint.w; wGV = uWGlint.x;')
         .replace(/RE_Direct\( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight \);/g,
-          '{ float wR0 = material.roughness; vec3 wDS0 = reflectedLight.directSpecular; material.roughness = mix(wR0, max(wR0, wGlR), wGR); RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight ); reflectedLight.directSpecular = wDS0 + (reflectedLight.directSpecular - wDS0) * mix(1.0, wGlK, wGR); material.roughness = wR0; } reflectedLight.directDiffuse += directLight.color * saturate(dot(wUpN, directLight.direction)) * BRDF_Lambert(wDiff);'))
+          '{ float wR0 = material.roughness; vec3 wDS0 = reflectedLight.directSpecular; material.roughness = mix(wR0, max(wR0, wGlR), wGR); RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight ); reflectedLight.directSpecular = wDS0 + (reflectedLight.directSpecular - wDS0) * (wGV * mix(1.0, uWGlint.y, wGR)); material.roughness = wR0; } reflectedLight.directDiffuse += directLight.color * saturate(dot(wUpN, directLight.direction)) * BRDF_Lambert(wDiff);'))
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         reflectedLight.indirectDiffuse += (irradiance + iblIrradiance) * BRDF_Lambert(wDiff);`)
       // the debug views are the LAST word: a plain value, no light, no tone map, no AP (the rig reads them back)
@@ -775,7 +779,7 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
-      uWGlint: { value: new THREE.Vector4(1, 1, 0, 0) },   // LOOK-GLINT (frame()): x the sun's visibility from the glint, y gain, z the hidden sun's cap (r3), w the day's weight
+      uWGlint: { value: new THREE.Vector4(1, 1, 0, 0) },   // LOOK-GLINT (frame()): x the key light's visibility from the glint (NIGHT-SUN: at every hour), y gain, z the hidden sun's cap (r3), w the day's weight
       uWStretch: { value: 0 }, uWStar: { value: new THREE.Vector4(0, 0, 0, 0) }, uWStar2: { value: new THREE.Vector4(1, 25, 0, 0) }, uWStrL: { value: new THREE.Vector2(1, 1) }, uWMirMax: { value: 1e9 }, uWDirN: { value: new THREE.Vector4(0, 150, 600, 0) },   // NIGHT-SHINE (frame())
       uWLampP: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampC: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampK: { value: v4(0) },   // NIGHT-SHINE: lamps()
       uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
@@ -1865,7 +1869,10 @@ const WATER = (() => {
       const kE = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
       // LOOK-GLINT r4 (t53 17:54: the column stood under the hidden sun at every cap and with the mirror off): the day's weight is 1 - the DEEP
       // night's ramp tS - on the sheen's tN (from dusk) the golden hour was half night, the path half hidden and half its old sharp lobe
-      if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : GLINT.vis, GLINT_OFF ? 1 : GLINT.gain, GLINT.cap, GLINT_OFF ? 0 : 1 - tS);
+      // NIGHT-SUN: x is the KEY light's visibility from its glitter path and the direct highlight takes it at every hour (the shader: wGV);
+      // under ?nightsun=0 it is folded with the day's weight here, which is what master's shader did (the night untouched)
+      const nsOff = typeof ATMO !== 'undefined' && ATMO.NIGHTSUN_OFF, wDay = GLINT_OFF ? 0 : 1 - tS;
+      if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : (nsOff ? 1 - wDay + GLINT.vis * wDay : GLINT.vis), GLINT_OFF ? 1 : GLINT.gain, GLINT.cap, wDay);
       if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; if (U.uWStrL) U.uWStrL.value.set(NIGHT_SEA.slod, NIGHT_SEA.rmip);
         // STAR-DIRECT: the reflected stars' light = the dome's level x the mirror's starsK x the dome's scale x dK; the moon's wash as the dome's
         const AU = typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.stars && ATMO.U.scale ? ATMO.U : null;

@@ -296,9 +296,13 @@
   // azimuth (the water's level: the first water out along it, to 24 km); from there and at D/2 and 2D (on water only) the terrain's profile is
   // walked toward the sun (20 m, x1.55, 16 steps: to 14 km). No water toward the sun, or no sample on water: 1 (nothing to judge).
   // A sun behind the ridge draws no path. Eased (0.15 a frame) so a crest crossing the disc fades the path, never blinks it
-  function glintVis(c, d, v) {
+  // NIGHT-SUN (21 Nov, atmo.js THE LIGHT SEEN): d is the KEY light's direction (the moon's at night) and the answer holds at every
+  // hour (water.js: the visibility is no longer the day's alone); hor = the share of its disc over the WATER's horizon (ATMO.discOver
+  // at the sea's level): a light under it draws no path - it used to answer 1 there ("nothing to hide")
+  function glintVis(c, d, v, hor) {
     const hz = Math.hypot(d.x, d.z);
-    if (d.y <= 0 || hz < 1e-4) return v + (1 - v) * 0.15;   // (no sun: nothing to hide; the shader's day weight is 0 at night)
+    if (hor != null && hor <= 0) return v - v * 0.15;
+    if (d.y <= 0 || hz < 1e-4) return v + ((hor != null ? hor : 1) - v) * 0.15;   // (the light on the horizon's line, or overhead: the disc's share alone)
     const ax = d.x / hz, az = d.z / hz, wet = (x, z) => { const h = world.waterH(x, z); return Number.isFinite(h) && h > world.terrainH(x, z) ? h : NaN; };
     let wy = NaN;
     for (let t = 0; t <= 24000 && !Number.isFinite(wy); t = t ? t * 1.35 : 8) wy = wet(c.x + ax * t, c.z + az * t);   // (a ridge 800 m up sees its path 16 km out)
@@ -312,19 +316,20 @@
       for (let i = 0; i < 16; i++) { if (world.terrainH(px + d.x * t, pz + d.z * t) > hw + 0.5 + d.y * t) { clear = 0; break; } t *= 1.55; }
       seen += clear;
     }
-    return v + ((n ? seen / n : 1) - v) * 0.15;
+    return v + ((n ? seen / n : 1) * (hor != null ? hor : 1) - v) * 0.15;
   }
   // LOOK-HALO (13 Nov, atmo.js uApK.y): the share of the sun the TERRAIN hides from the eye - three rays (the centre and half a degree
   // over and under), the profile walked from the eye (15 m, x1.35, 26 steps: to 37 km). The craft and the shed are not occluders here
   // (the air beyond a strut is lit). Eased 0.1 a frame, as the glare's
-  let eyeHide = 0;
+  let eyeHide = 0, eyeHideRaw = 0;   // (NIGHT-SUN: eyeHideRaw the frame's own answer, un-eased - the reflection probe's, which fades on its own)
   function sunHiddenEye(c, d, v) {
-    if (d.y <= -0.02) return v - v * 0.1;
+    if (d.y <= -0.02) { eyeHideRaw = 0; return v - v * 0.1; }
     let hid = 0;
     for (const dy of [0, 0.0087, -0.0087]) {
       const yy = d.y + dy; let t = 15;
       for (let i = 0; i < 26; i++) { if (world.terrainH(c.x + d.x * t, c.z + d.z * t) > c.y + yy * t) { hid++; break; } t *= 1.35; }
     }
+    eyeHideRaw = hid / 3;
     return v + (hid / 3 - v) * 0.1;
   }
   // THE COCKPIT (the panel arc, session 4): cockpit.js's one instance —
@@ -21885,11 +21890,16 @@
         const mT = Math.max(L.T[0], L.T[1], L.T[2], 1e-6);
         // the clouds between the eye and the sun dim the flare (C2: the CPU column, the same field the shadow bakes)
         const cT = (!inShed && typeof CLOUDS !== 'undefined' && CLOUDS.sunT && !L.isMoon) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
-        SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, isMoon: L.isMoon, phase: L.phase,
+        // NIGHT-SUN: x the share of the disc over the EYE's horizon (atmo.js seen()) - the flare's own rays know the terrain, not the Earth: over the
+        // sea a light under the horizon kept its glow
+        const hE = window.ATMO && ATMO.seen && !ATMO.NIGHTSUN_OFF ? (L.isMoon ? ATMO.seen().moon.hor : ATMO.seen().sun.hor) : 1;
+        SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, seen: hE, isMoon: L.isMoon, phase: L.phase,
                                              aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
         SKY_GLARE.render(renderer);
-        if (!inShed && window.WATER && WATER.glint && typeof world.waterH === 'function' && typeof world.terrainH === 'function') WATER.glint.vis = glintVis(camera.position, glareDir, WATER.glint.vis);   // LOOK-GLINT
-        if (window.ATMO && ATMO.sunHidden) { eyeHide = (inShed || L.isMoon || typeof world.terrainH !== 'function') ? 0 : sunHiddenEye(camera.position, glareDir, eyeHide); ATMO.sunHidden(eyeHide); }   // LOOK-HALO
+        // NIGHT-SUN: the key light's disc over the WATER's horizon (the path's) - the moon's at night, as the terrain's share below
+        const NS = window.ATMO && ATMO.discOver && !ATMO.NIGHTSUN_OFF ? ATMO : null, horW = NS ? NS.discOver(glareDir.y, 0, L.isMoon ? NS.P.moonRad : NS.P.sunRad) : null;
+        if (!inShed && window.WATER && WATER.glint && typeof world.waterH === 'function' && typeof world.terrainH === 'function') WATER.glint.vis = glintVis(camera.position, glareDir, WATER.glint.vis, horW);   // LOOK-GLINT
+        if (window.ATMO && ATMO.sunHidden) { eyeHide = (inShed || (L.isMoon && !NS) || typeof world.terrainH !== 'function') ? (eyeHideRaw = 0) : sunHiddenEye(camera.position, glareDir, eyeHide); ATMO.sunHidden(eyeHide, eyeHideRaw); }   // LOOK-HALO (NIGHT-SUN: the moon's too, when it is the key)
       }
     }
     if (photoGrab && framePresented) { const g = photoGrab; photoGrab = null; try { g(renderer.domElement); } catch (e) { console.warn('flyDiy: the photo -', e && e.message); } }   // G3741

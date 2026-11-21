@@ -212,7 +212,8 @@ var FMIST = (function () {
     L[51] = S.elong; L[47] = st.wind ? Math.atan2(st.wind[1], st.wind[0]) : (S._windA || 0);
     if (L.length >= 52 && day && ATMO.sunTransmittance) {
       const key = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon) ? day.moon : day.sun;
-      const up = key[1] > -0.02 ? 1 : 0, Tk = ATMO.sunTransmittance(0.15, Math.max(0.01, key[1]), st._T || (st._T = [0, 0, 0]));
+      // (NIGHT-SUN, atmo.js THE LIGHT SEEN: the beam goes with the share of the key's disc over the pockets' horizon - it was whole down to -1.15 deg, then cut)
+      const up = ATMO.discOver && !ATMO.NIGHTSUN_OFF ? ATMO.discOver(key[1], 0.15, key === day.moon ? ATMO.P.moonRad : ATMO.P.sunRad) : (key[1] > -0.02 ? 1 : 0), Tk =ATMO.sunTransmittance(0.15, Math.max(0.01, key[1]), st._T || (st._T = [0, 0, 0]));
       const moonK = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon && ATMO.U.eMoon) ? ATMO.U.eMoon.value : 1;
       const sc = ATMO.U.scale.value * up * moonK * S.sunK;
       L[48] = Tk[0] * sc; L[49] = Tk[1] * sc; L[50] = Tk[2] * sc;

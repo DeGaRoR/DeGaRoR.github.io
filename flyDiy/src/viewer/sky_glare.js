@@ -91,7 +91,8 @@ var SKY_GLARE = (function () {
     }
     return true;
   }
-  // update(camera, dir (THREE.Vector3 world unit vector), o: { lum (the light's transmittance, 0..1), isMoon, phase, aspect })
+  // update(camera, dir (THREE.Vector3 world unit vector), o: { lum (the light's transmittance, 0..1), isMoon, phase, aspect,
+  //   seen (NIGHT-SUN: the share of the disc over the eye's horizon, atmo.js discOver - 1 when left out) })
   function update(camera, dir, o) {
     if (!init() || !camera) return;
     if (_ray.o) _ray.o.camera = camera;   // G439: sprites (the CG/NP posts) raycast against the camera; without it they threw
@@ -113,7 +114,7 @@ var SKY_GLARE = (function () {
       vis += (target - vis) * 0.134;   // 1 - (1 - 0.35)^(1/3)
     } else vis *= 0.8;
     const aspect = o.aspect || 1;
-    const I = (S.on ? 1 : 0) * vis * (o.isMoon ? 0.18 * (o.phase || 0) : 1) * Math.pow(Math.max(0.03, Math.min(1, lum)), 0.6);
+    const I = (S.on ? 1 : 0) * vis * (o.seen != null ? Math.max(0, Math.min(1, o.seen)) : 1) * (o.isMoon ? 0.18 * (o.phase || 0) : 1) * Math.pow(Math.max(0.03, Math.min(1, lum)), 0.6);
     // the tint: the light's transmitted colour
     for (const g of quads) {
       const gain = g.kind === 1 ? S.ghosts : g.kind === 2 ? S.streak : S.glow;

@@ -241,8 +241,55 @@ var ATMO = (function () {
     }
     return out;
   }
+  // ---- THE LIGHT SEEN (NIGHT-SUN, 21 Nov 2026) --------------------------------
+  // The user: "In the midst of an aurora night (preset), I can still see crazy red reflections in the sea of a sun which is
+  // not there, and the horizon keeps showing a huge red halo. I have the feeling the fix we applied for disabling reflections
+  // when hidden by the terrain would deserve more focus to be really generic and physically correct."
+  // LOOK-HALO and LOOK-GLINT hid the SUN, by DAY, behind the TERRAIN. A light is hidden by three things, and both of the
+  // sky's lights (the sun and the moon) are hidden the same way at every hour:
+  //   the EARTH    discOver(): the share of the light's disc over the horizon of the model's own sphere, from the eye's (or
+  //                the water's) height - the dip of the horizon included. A set disc gives no corona, no flare, no glitter
+  //                path, no forward peak in the mist, and is not in the reflection probe.
+  //   the TERRAIN  the rays app.js walks (the eye's: sunHidden(); the glitter path's: water.js GLINT.vis), for the KEY
+  //                light - the sun, and the moon when the moon is the key (sky_light's hysteresis).
+  //   the DEPTH    twilight(): the SUN's light in the sky through the astronomical twilight - whole down to TWILIGHT.from,
+  //                none under TWILIGHT.to (-18 deg: where the astronomical twilight ends, by definition the depth at which
+  //                the sun adds nothing to the night sky). The model's own tail there is single scatter along rays that
+  //                graze the ground for a thousand kilometres: a pure red residual (red / blue over 100) the real sky does
+  //                not show, which the night's exposure (x 200 000) drew as a red band on the horizon and the sea mirrored.
+  //                It weighs the sun's illuminance in the sky-view and aerial-perspective tables, and every CPU reader
+  //                of the sun's sky irradiance (the hemisphere, the mist, the clouds' ambient, the probe's cap).
+  // seen() holds the frame's answer; the dome reads it (uSeen: the screen's dome leaves its discs to the terrain drawn
+  // over them, the probe's - a scene with no terrain in it - takes the eye's whole answer, and re-bakes when it moves).
+  // OFF SWITCH: ?nightsun=0 = master to the bit (a rig's A/B); ATMO.TWILIGHT live.
+  const NIGHTSUN_OFF = typeof location !== 'undefined' && /[?&]nightsun=0/.test(location.search || '');
+  const TWILIGHT = { from: -12, to: -18 };
+  function twilight(elDeg) {
+    if (NIGHTSUN_OFF || !(TWILIGHT.from > TWILIGHT.to)) return 1;
+    const t = clamp((elDeg - TWILIGHT.to) / (TWILIGHT.from - TWILIGHT.to), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+  // the share of a disc of angular radius `rad` over the horizon, for a light at sin(elevation) seen from altKm
+  // (the circular segment's area; the horizon's dip is acos(Rg / r))
+  function discOver(sinEl, altKm, rad) {
+    if (NIGHTSUN_OFF) return 1;
+    const r = P.Rg + Math.max(0, altKm || 0);
+    const x = (Math.asin(clamp(sinEl, -1, 1)) + Math.acos(clamp(P.Rg / r, -1, 1))) / Math.max(1e-6, rad || P.sunRad);
+    if (x >= 1) return 1; if (x <= -1) return 0;
+    return 0.5 + (x * Math.sqrt(1 - x * x) + Math.asin(x)) / Math.PI;
+  }
+  // SEEN: the frame's answer (update() writes it) - hor: the disc's share over the eye's horizon; ter: the share the terrain
+  // leaves (the key light only: 1 for the other; the frame's own, un-eased - the land's haze and the mist take the eased
+  // one, uApK.y); eye = hor x ter; keyMoon: which light the terrain share is of
+  const SEEN = { sun: { hor: 1, ter: 1, eye: 1 }, moon: { hor: 1, ter: 1, eye: 1 }, keyMoon: false, tw: 1 };
+  // the terrain's share as app.js walked it this frame, un-eased (thirds: three rays), and when it last moved: the probe takes it
+  // once it has held for PROBE_TER_MS (a crest crossing the disc is not three bakes), and fades on its own
+  let terRaw = 0, terRawAt = 0; const PROBE_TER_MS = 600;
+  const nowT = () => (typeof performance !== 'undefined') ? performance.now() : 0;
   // the sky's irradiance on an upward-facing surface (cosine-weighted, 8 azimuths x 4 elevations), E_sun = 1
-  function skyIrradiance(altKm, sun, out) {
+  // (NIGHT-SUN: E, the light's illuminance - the sun's readers pass twilight(el); 1 when left out)
+  function skyIrradiance(altKm, sun, out, E) {
+    if (E != null && !(E > 0)) { out = out || [0, 0, 0]; out[0] = out[1] = out[2] = 0; return out; }
     const r = P.Rg + Math.max(R_MIN, altKm); out = out || [0, 0, 0]; out[0] = out[1] = out[2] = 0;
     const L = [0, 0, 0];
     let wsum = 0;
@@ -254,7 +301,7 @@ var ATMO = (function () {
         out[0] += L[0] * w; out[1] += L[1] * w; out[2] += L[2] * w; wsum += w;
       }
     }
-    const k = Math.PI / wsum;       // integral over the hemisphere of cos = pi
+    const k = Math.PI / wsum * (E != null ? E : 1);       // integral over the hemisphere of cos = pi
     out[0] *= k; out[1] *= k; out[2] *= k;
     return out;
   }
@@ -346,11 +393,12 @@ var ATMO = (function () {
     uniform float uR;            // the camera's radius (km)
     uniform vec3 uSun, uMoon;    // unit vectors
     uniform float uEMoon;        // the moon's illuminance (sun = 1)
+    uniform float uESun;         // NIGHT-SUN: the sun's (1; the twilight's weight under -12 deg, 0 from -18: atmo.js twilight())
     varying vec2 vUv2;
     void main() {
       vec3 d = skyDir(vUv2);
       vec3 Tp;
-      vec3 L = skyRadiance(uR, d, uSun, 1.0, 32, Tp);
+      vec3 L = skyRadiance(uR, d, uSun, uESun, 32, Tp);
       if (uEMoon > 0.0) { vec3 Tm; L += skyRadiance(uR, d, uMoon, uEMoon, 12, Tm); }
       gl_FragColor = vec4(L * uLutGain, Tp.g);
     }`;
@@ -376,7 +424,7 @@ var ATMO = (function () {
   // texture does not link, measured G424). A texel is (top, density x, H, -) in WORLD METRES.
   const MIST_MAP = 256, MIST_X = AP_TILE, MIST_Y = AP_TILE_Y;
   const AP_FRAG = GLSL_LIB + `
-    uniform float uR, uEMoon, uDmax;
+    uniform float uR, uEMoon, uDmax, uESun;
     uniform vec3 uSun, uMoon;
     varying vec2 vUv2;
     void main() {
@@ -400,7 +448,7 @@ var ATMO = (function () {
           vec3 sR, e; float sM; medium(h, sR, sM, e);
           float muS = dot(p, uSun) / rr;
           float shadow = raySphere(rr, muS, Rg) >= 0.0 ? 0.0 : 1.0;
-          vec3 S = (sR * pRs + vec3(sM * pMs)) * T(rr, muS) * shadow + (sR + vec3(sM)) * MS(rr, muS);
+          vec3 S = uESun * ((sR * pRs + vec3(sM * pMs)) * T(rr, muS) * shadow + (sR + vec3(sM)) * MS(rr, muS));
           if (uEMoon > 0.0) { float muM = dot(p, uMoon) / rr; float shm = raySphere(rr, muM, Rg) >= 0.0 ? 0.0 : 1.0;
             S += uEMoon * ((sR * pRm + vec3(sM * pMm)) * T(rr, muM) * shm + (sR + vec3(sM)) * MS(rr, muM)); }
           vec3 seg = (1.0 - exp(-e * dt)) / max(vec3(1e-9), e);
@@ -792,6 +840,7 @@ ${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-
     uniform vec4 uStarMag; uniform float uStarA; uniform float uStarPts, uSkyA; // STAR-SKY: uStarA the counts' slope N(>F) ~ F^-a (a < 1: the light in the few bright stars, the many faint ones under the eye's threshold); x the flux range Fmax/Fmin, y the disc's growth r ~ f^y, z the Milky Way's glow (1 = the field's mean radiance at the core), w its dust (0 = a smooth band)
     uniform vec2 uStarK;   // STAR-LOVE: x the star disc's radius in pixels' footprints (the mirror's pass sets its own), y its least radius, radians
     uniform float uGlare, uEyeY, uLutGain;                // the corona's strength (S7); the eye's height for the mist; the tables' gain (A6)
+    uniform vec4 uSeen;   // NIGHT-SUN (atmo.js THE LIGHT SEEN): x / y the sun's / the moon's disc seen (the screen: 1, the terrain is drawn over it; the probe: the eye's terrain share), z / w their coronas' (x the disc's share over the horizon)
     // THE VEIL (CLOUDS C4): cirrus / cirrostratus - a 2D noise sheet at uVeil.w metres, its coverage
     // uVeil.x (a threshold on the noise like the weather map's), drifted by uVeil.yz, optically thin:
     // L += (sun x T at the sheet x a forward phase + the sky's radiance there) x (1 - exp(-tau))
@@ -843,7 +892,7 @@ ${STAR_FIELD_GLSL}
         float edge = 1.0 - smoothstep(sr * 0.96, sr * 1.04, ang);
         vec3 Tsun = texture2D(uT2, tUV2(uR, uSun.y)).rgb;
         float above = raySphere2(uR, d.y, uAtm2.x) < 0.0 ? 1.0 : 0.0;
-        L += Tsun * limb * edge * above / (3.14159265 * sr * sr);
+        L += Tsun * limb * edge * above * uSeen.x / (3.14159265 * sr * sr);
       }
       // the moon: a sphere lit by the sun, albedo 0.12, its own transmittance
       float cm = dot(d, uMoon), mr = uAtm2.w;
@@ -857,7 +906,7 @@ ${STAR_FIELD_GLSL}
         vec3 Tm = texture2D(uT2, tUV2(uR, uMoon.y)).rgb;
         float above = raySphere2(uR, d.y, uAtm2.x) < 0.0 ? 1.0 : 0.0;
         // the disc's radiance = albedo/pi x (sun on the moon) - the sun's illuminance at the moon is 1: E_moon on us = albedo/pi x omega
-        L += Tm * 0.12 / 3.14159265 * lit * edge * above * 1.0;
+        L += Tm * 0.12 / 3.14159265 * lit * edge * above * uSeen.y;
       }
       // the stars: a hashed field, hidden by the sky's own light and the path's transmittance.
       // IN THE SUN'S UNITS: the whole starry sky is ~2e-9 of the sun's illuminance - anything brighter blurs into a glow in the reflection probe (measured: a white night)
@@ -888,8 +937,9 @@ ${STAR_FIELD_GLSL}
         vec3 Tsun = texture2D(uT2, tUV2(uR, uSun.y)).rgb;
         float above = raySphere2(uR, d.y, uAtm2.x) < 0.0 ? 1.0 : 0.0;
         float a = max(ang, sr);
-        L += Tsun * uGlare * above * 0.02 / (1.0 + pow(a / 0.02, 2.0)) * smoothstep(-0.05, 0.02, uSun.y);
-        if (uEMoon > 0.0) L += texture2D(uT2, tUV2(uR, uMoon.y)).rgb * uEMoon * uGlare * above * 0.4 / (1.0 + pow(max(angm, mr) / 0.02, 2.0)) * smoothstep(-0.05, 0.02, uMoon.y);
+        // (NIGHT-SUN: the corona is the eye's scatter of a disc it SEES - it went through the horizon on a 4 deg ramp of its own, half there with the sun a degree under)
+        L += Tsun * uGlare * above * 0.02 / (1.0 + pow(a / 0.02, 2.0)) * uSeen.z;
+        if (uEMoon > 0.0) L += texture2D(uT2, tUV2(uR, uMoon.y)).rgb * uEMoon * uGlare * above * 0.4 / (1.0 + pow(max(angm, mr) / 0.02, 2.0)) * uSeen.w;
       }
       // the mist over the sky itself: a ray above the horizon leaves the layer (the integral converges)
       L = mistApply(L * uScale, d, 60000.0, uEyeY) / max(1e-9, uScale);
@@ -904,6 +954,8 @@ ${STAR_FIELD_GLSL}
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
     sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } }, starM: { value: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]) }, starMag: { value: { x: 1e5, y: 0.3, z: 8, w: 1 } }, starA: { value: 0.8 }, starPts: { value: 1 }, skyA: { value: 1 },
     glare: { value: 1 }, eyeY: { value: 0 },
+    eSun: { value: 1 },                                                       // NIGHT-SUN: the sun's illuminance in the tables (twilight())
+    seenEye: { value: new Float32Array([1, 1, 1, 1]) }, seenProbe: { value: new Float32Array([1, 1, 1, 1]) },   // NIGHT-SUN: uSeen, the screen's dome and the probes' (update())
     lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
   };
@@ -939,7 +991,7 @@ ${STAR_FIELD_GLSL}
     G.rtSky = new THREE.WebGLRenderTarget(192, 108, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
     G.rtSky.texture.wrapS = THREE.RepeatWrapping; G.rtSky.texture.wrapT = THREE.ClampToEdgeWrapping;
     G.atmU = atmUniforms();
-    G.skyMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon }, G.atmU),
+    G.skyMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uESun: U.eSun }, G.atmU),
       vertexShader: QUAD_VERT, fragmentShader: SKYVIEW_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
     G.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), G.skyMat); G.quad.frustumCulled = false;
     G.scene = new THREE.Scene(); G.scene.add(G.quad);
@@ -947,7 +999,7 @@ ${STAR_FIELD_GLSL}
     // the aerial-perspective atlas and its pass
     G.rtAP = new THREE.WebGLRenderTarget(AP_N * AP_W, AP_ATLAS_H, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
     G.rtAP.texture.wrapS = THREE.ClampToEdgeWrapping; G.rtAP.texture.wrapT = THREE.ClampToEdgeWrapping;
-    G.apMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uDmax: { value: AP_DMAX } }, G.atmU),
+    G.apMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uESun: U.eSun, uDmax: { value: AP_DMAX } }, G.atmU),
       vertexShader: QUAD_VERT, fragmentShader: AP_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
     apUniforms.uApAtlas.value = G.rtAP.texture;
     G.enabled = true;
@@ -1137,6 +1189,22 @@ ${STAR_FIELD_GLSL}
     if (day && day.geo && day.jdn != null) starMatrix(day.jdn, day.utc, day.geo.lat, day.geo.lon, day.geo.convergenceDeg, U.starM.value);   // STAR-SKY: the sky turns
     U.eMoon.value = day ? ((typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.moonE) ? LIGHT_RIG.moonE(day.moonPhase) : 2.5e-6 * day.moonPhase) : 0;   // G2600: the phase law (light_rig)
     U.r.value = P.Rg + Math.max(R_MIN, (camAltM || 0) / 1000);
+    // NIGHT-SUN (THE LIGHT SEEN, above): the sun's light through the astronomical twilight, each disc's share over the eye's
+    // horizon, the terrain's share for the key light (sunHidden(): app.js walked it last frame) - the dome's uSeen
+    {
+      const altKm = Math.max(0, (camAltM || 0) / 1000), keyMoon = !!(typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon), ter = 1 - terRaw;
+      SEEN.tw = U.eSun.value = day ? twilight(day.sunEl) : 1;
+      SEEN.keyMoon = keyMoon;
+      SEEN.sun.hor = discOver(s[1], altKm, P.sunRad); SEEN.sun.ter = keyMoon ? 1 : ter; SEEN.sun.eye = SEEN.sun.hor * SEEN.sun.ter;
+      SEEN.moon.hor = discOver(m[1], altKm, P.moonRad); SEEN.moon.ter = keyMoon ? ter : 1; SEEN.moon.eye = SEEN.moon.hor * SEEN.moon.ter;
+      const se = U.seenEye.value, sp = U.seenProbe.value;
+      se[0] = 1; se[1] = 1; se[2] = SEEN.sun.hor; se[3] = SEEN.moon.hor;
+      sp[0] = SEEN.sun.ter; sp[1] = SEEN.moon.ter; sp[2] = SEEN.sun.eye; sp[3] = SEEN.moon.eye;
+      if (NIGHTSUN_OFF) {   // master to the bit: every disc whole, the coronas on their old ramp through the horizon
+        const sm = y => { const t = clamp((y + 0.05) / 0.07, 0, 1); return t * t * (3 - 2 * t); };
+        se[2] = sp[2] = sm(s[1]); se[3] = sp[3] = sm(m[1]); sp[0] = sp[1] = 1;
+      }
+    }
     // THE NIGHT'S GAIN (A6, the playtest: "white bands on the night horizon"): the tables are HalfFloat and a
     // night sky is ~1e-6 of the sun - under 6e-5 a half float is subnormal and steps in 6e-8: at the night's
     // x43 000 exposure those steps were the bands. The tables hold radiance x 2^(the exposure's stops) (the
@@ -1174,13 +1242,24 @@ ${STAR_FIELD_GLSL}
         console.warn('ATMO: day.mistRho0 is undefined - this is not a 07_day day, so the mist is off. That is a bug, not a setting.'); }
       MIST.rhoDay = day.mistRho0 != null ? day.mistRho0 : 0;
       const km = MIST.top / 1000, T = [0, 0, 0], E = [0, 0, 0], Em = [0, 0, 0];
-      sunTransmittance(km, day.sun[1], T); skyIrradiance(km, day.sun, E);
+      sunTransmittance(km, day.sun[1], T); skyIrradiance(km, day.sun, E, SEEN.tw);
       const sy = Math.max(0, day.sun[1]);
+      const lumS = lum3(E);   // (NIGHT-SUN: the sun's share of the sky's light on the mist, for the moon's forward peak below)
       if (U.eMoon.value > 0 && day.moon[1] > 0) { skyIrradiance(km, day.moon, Em); const mE = U.eMoon.value; E[0] += Em[0] * mE; E[1] += Em[1] * mE; E[2] += Em[2] * mE; }
       const S = U.scale.value * 0.9 / Math.PI;
       mistScalars[0] = MIST.rho0; mistScalars[1] = MIST.top; mistScalars[2] = MIST.H; mistScalars[3] = MIST.on ? 1 : 0;
-      mistScalars[4] = S * (0.5 * T[0] * sy + E[0]); mistScalars[5] = S * (0.5 * T[1] * sy + E[1]); mistScalars[6] = S * (0.5 * T[2] * sy + E[2]); mistScalars[7] = MIST.fwd;
-      mistScalars[8] = day.sun[0]; mistScalars[9] = day.sun[1]; mistScalars[10] = day.sun[2]; mistScalars[11] = 0;
+      mistScalars[4] = S * (0.5 * T[0] * sy + E[0]); mistScalars[5] = S * (0.5 * T[1] * sy + E[1]); mistScalars[6] = S * (0.5 * T[2] * sy + E[2]);
+      // NIGHT-SUN: THE FORWARD PEAK IS THE KEY LIGHT'S, and a set light has none. It was the sun's at every hour: at night the mist
+      // (and the land's haze, the splice's sunward lobe) glowed toward a sun twenty degrees under the horizon. By day it is the sun's
+      // x its disc's share over the horizon (1 with the sun up: nothing moves); with the moon as the key it turns to the moon,
+      // x its disc's share x the moon's share of the light the mist holds (none at dusk, the whole of it in the deep night)
+      {
+        const kl = SEEN.keyMoon ? day.moon : day.sun, lumA = lum3(E);
+        const kf = NIGHTSUN_OFF ? 1 : (SEEN.keyMoon ? SEEN.moon.hor * (lumA > 0 ? Math.max(0, 1 - lumS / lumA) : 0) : SEEN.sun.hor);
+        const kd = NIGHTSUN_OFF ? day.sun : kl;
+        mistScalars[7] = MIST.fwd * kf;
+        mistScalars[8] = kd[0]; mistScalars[9] = kd[1]; mistScalars[10] = kd[2]; mistScalars[11] = 0;
+      }
       mistScalars[12] = MIST.on ? MIST.cloud.rho : 0; mistScalars[13] = MIST.cloud.base; mistScalars[14] = MIST.cloud.top; mistScalars[15] = 0;
       // F2's lanes: the eye, the field's rect, and the patches' drift. The march is OFF unless a
       // field is baked AND relief is asked for - a missing field must never take the march path.
@@ -1227,12 +1306,12 @@ ${STAR_FIELD_GLSL}
     return true;
   }
   // the dome material: one program serves the screen and the reflection probe
-  function domeMat(extra, frameYaw) {
+  function domeMat(extra, frameYaw, seen) {   // seen: the uSeen uniform (NIGHT-SUN) - the screen's by default, U.seenProbe for a probe's dome
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
                   uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uStarM: U.starM, uStarMag: U.starMag, uStarA: U.starA, uStarPts: U.starPts, uSkyA: U.skyA, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
-                  uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
+                  uGlare: U.glare, uEyeY: U.eyeY, uSeen: seen || U.seenEye, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
                   // F2: MIST_GLSL samples the mist's field from the atlas, so the dome - which carries
                   // that block verbatim - needs the sampler too (it is the same texture it helps fill)
                   uApAtlas: apUniforms.uApAtlas },
@@ -1289,9 +1368,9 @@ ${STAR_FIELD_GLSL}
   const lum3 = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   function groundIrradiance(day) {              // the ground's irradiance relative to the alps anchor (0..~1.2)
     const T = [0, 0, 0], E = [0, 0, 0];
-    const Eg = v => { sunTransmittance(0, v[1], T); skyIrradiance(0, v, E); return Math.max(0, v[1]) * lum3(T) + lum3(E); };
-    const ref = Eg([0, Math.sin(33.4 * D2R), Math.cos(33.4 * D2R)]);
-    return Math.min(1.5, Eg(day ? day.sun : [0, 1, 0]) / Math.max(1e-9, ref));
+    const Eg = (v, tw) => { sunTransmittance(0, v[1], T); skyIrradiance(0, v, E, tw); return Math.max(0, v[1]) * lum3(T) + lum3(E); };
+    const ref = Eg([0, Math.sin(33.4 * D2R), Math.cos(33.4 * D2R)], 1);
+    return Math.min(1.5, Eg(day ? day.sun : [0, 1, 0], day ? twilight(day.sunEl) : 1) / Math.max(1e-9, ref));   // (NIGHT-SUN: the sun's sky light through the twilight)
   }
   const probes = [];   // every probe made (aurora.js adds its sphere to their bake scenes)
   function makeProbe(renderer, o) {
@@ -1300,7 +1379,7 @@ ${STAR_FIELD_GLSL}
     const pmrem = new THREE.PMREMGenerator(renderer);
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
-    es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0)));
+    es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0, U.seenProbe)));   // NIGHT-SUN: the discs the EYE sees (no terrain stands in this scene)
     const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });  // pre-ok: its colour x P at every bake (o.pre)
     const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45);
     const gb = o.gb != null ? o.gb : 1;      // the occlusion every ambient-from-below carries (LIGHT_RIG.groundBounce)
@@ -1310,6 +1389,10 @@ ${STAR_FIELD_GLSL}
     es.add(new THREE.Mesh(new THREE.SphereGeometry(19.5, 24, 12, 0, 6.2832, Math.PI / 2, Math.PI / 2), capMat));
     if (o.decorate) o.decorate(es);          // CLOUDS C3: the layer's sphere over the dome (the water reflects the clouds)
     let rt = null, bakedSun = null, bakedVer = -1, bakes = 0, lastMs = 0, lastBake = -1e9;
+    // NIGHT-SUN: the discs' shares the cube was shot with; a quarter's move of either (a ridge taking the sun, the moon setting) is a re-bake,
+    // on the clouds' gap (o.minGapMs) and through the fade. Only a disc that matters: the sun's while it is the key, the moon's while it is
+    const bakedSeen = [1, 1];
+    const seenMoved = () => { const sp = U.seenProbe.value; return nowT() - terRawAt > PROBE_TER_MS && (SEEN.keyMoon ? Math.abs(sp[1] - bakedSeen[1]) > 0.25 : Math.abs(sp[0] - bakedSeen[0]) > 0.25); };
     let shown = null, prevRt = null, fadeK = 1, fadeLast = 0;   // G1351: what the materials read; the bake it fades from; how far
     const nowMs = () => (typeof performance !== 'undefined') ? performance.now() : 0;
     const canFade = () => !!(THREE.WebGLRenderTarget && THREE.ShaderMaterial && THREE.CubeUVReflectionMapping && typeof MATLIB !== 'undefined' && MATLIB.make);
@@ -1343,7 +1426,7 @@ ${STAR_FIELD_GLSL}
           }
           if (o.onSwap) o.onSwap(shown.texture);
         }
-        bakedSun = day ? day.sun.slice() : [0, 1, 0]; bakedVer = day ? day.version : 0;
+        bakedSun = day ? day.sun.slice() : [0, 1, 0]; bakedVer = day ? day.version : 0; bakedSeen[0] = U.seenProbe.value[0]; bakedSeen[1] = U.seenProbe.value[1];
         lastBake = (typeof performance !== 'undefined') ? performance.now() : 0;
         if (o.baked) o.baked();
         return probe.texture;
@@ -1368,6 +1451,7 @@ ${STAR_FIELD_GLSL}
         if (moved || day.version !== bakedVer) return probe.bake(day);
         const now = (typeof performance !== 'undefined') ? performance.now() : 0;
         if (now - lastBake > (o.minGapMs || 4000) && ((o.dirty && o.dirty()) || (o.cap && capMoved()))) return probe.bake(day);
+        if (now - lastBake > (o.minGapMs || 4000) && seenMoved()) return probe.bake(day);   // NIGHT-SUN: the key light's disc taken or given back by the terrain
         return null;
       },
     };
@@ -1379,7 +1463,8 @@ ${STAR_FIELD_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    sunHidden: h => { if (h != null) apK_[1] = HALO_OFF ? 0 : Math.max(0, Math.min(1, +h) || 0); return apK_[1]; },   // LOOK-HALO (app.js, every frame)
+    sunHidden: (h, raw) => { if (h != null) { apK_[1] = HALO_OFF ? 0 : Math.max(0, Math.min(1, +h) || 0); const r = HALO_OFF ? 0 : Math.max(0, Math.min(1, raw != null ? +raw || 0 : apK_[1])); if (r !== terRaw) { terRaw = r; terRawAt = nowT(); } } return apK_[1]; },   // LOOK-HALO (app.js, every frame); NIGHT-SUN: the KEY light's (the moon's at night)
+    twilight, discOver, TWILIGHT, seen: () => SEEN, NIGHTSUN_OFF,   // NIGHT-SUN: THE LIGHT SEEN
     install, inject, setAP, apK, HAZE, hazeK, bakeField, blit, mistODcpu, seeT, seeRange,
     // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
