@@ -33,7 +33,8 @@
 //        a program nobody polls has no bracket, and says so (a status poll of its own changed the benchmark it
 //        measured: Codex, reports/PERFORMANCE-REPORT.md). A blocking wait (the first LINK_STATUS / info-log query,
 //        the recorder's 'linkwait') ends the bracket too, with its milliseconds.
-//      - FIRST DRAWN: the first gl.useProgram of it (three calls it on a program SWITCH, not a draw). A program whose
+//      - FIRST DRAWN: the first gl.useProgram of it (three calls it on a program SWITCH, not a draw), and what that
+//        first use COST: from the first status query three makes of it to the switch (the uniforms read back). A program whose
 //        readiness was first learnt by a status query that WAITED held that frame (`blocked`, with the ms); one never
 //        drawn was warmed for nothing.
 //      - WHAT IT IS: three's type and name, the hash of its cache key, the hash and the size of its final vertex and
@@ -134,7 +135,11 @@
     } catch (e) {}
     function used(r) {
       r.useT = clock(); r.useCtx = ctxNow();
-      event('proguse', r.useT, null, r.n);
+      // THE FIRST USE'S OWN COST: three's first use of a program asks its info log and link status (the wait on its link,
+      // if it is still linking), then reads every uniform and attribute back from the driver, then switches to it - one
+      // synchronous run from the first of those queries (fu0, waited()) to this call. Its ms is the event's.
+      if (r.fu0 !== null && r.useT - r.fu0 < 60000) r.firstUseMs = r.useT - r.fu0;
+      event('proguse', r.useT, r.firstUseMs, r.n);
     }
 
     // compile(): the Set of materials it keyed is three's own answer to "who asked for these programs"
@@ -207,7 +212,7 @@
           fp: vs && fs && MODE === 2 ? hex(vs.h) + hex(fs.h) : null, vsLen: vs ? vs.len : null, fsLen: fs ? fs.len : null,
           defs: vs && fs && vs.defs ? merge(vs.defs, fs.defs) : null,
           ctx: ctxNow(), step: bootStep(), rt: null, owners: [], mats: [], objs: [], open: false, found: false,
-          polls: 0, pendT: null, readyT: null, via: null, waitMs: null, useT: null, useCtx: null, blocked: false, relink: byGL.has(p) };
+          polls: 0, pendT: null, readyT: null, via: null, waitMs: null, fu0: null, firstUseMs: null, useT: null, useCtx: null, blocked: false, relink: byGL.has(p) };
         rows.push(r); byGL.set(p, r);
       },
       // three made a WebGLProgram (renderer.info.programs.push): its .program is the GL object just linked
@@ -231,7 +236,7 @@
       waited(p, t, ms) {
         const r = byGL.get(p);
         if (r === undefined) return null;
-        r.waitMs = (r.waitMs || 0) + ms;
+        r.waitMs = (r.waitMs || 0) + ms; if (r.fu0 === null) r.fu0 = t;
         // nobody's poll had seen it ready: the page learnt it by WAITING (three's first use of a program asks its link
         // status, and that query blocks until the link is done) - over 1 ms, the draw was held on this program
         if (r.readyT === null) { if (ms > 1) r.blocked = true; r.readyT = t + ms; r.via = 'status'; event('progready', t + ms, t + ms - r.t, [r.n, r.pendT === null ? null : r1(r.pendT), 'status', r.polls]); }
@@ -265,7 +270,7 @@
         return rows.map(r => {
           const o = { n: r.n, id: r.id, name: r.name, type: r.type, own: r.owners.slice(), mat: r.mats.slice(), obj: r.objs.slice(), key: r.key, keyLen: r.keyLen, fp: r.fp, vs: r.vsLen, fs: r.fsLen,
             defs: r.defs, ctx: r.ctx, step: r.step, rt: r.rt, t: r1(r.t), linkMs: r.linkMs === null ? null : r1(r.linkMs), polls: r.polls, pendT: r.pendT === null ? null : r1(r.pendT),
-            readyT: r.readyT === null ? null : r1(r.readyT), via: r.via, waitMs: r.waitMs === null ? null : r1(r.waitMs), useT: r.useT === null ? null : r1(r.useT), useCtx: r.useCtx,
+            readyT: r.readyT === null ? null : r1(r.readyT), via: r.via, waitMs: r.waitMs === null ? null : r1(r.waitMs), useT: r.useT === null ? null : r1(r.useT), useCtx: r.useCtx, firstUseMs: r.firstUseMs === null ? null : r1(r.firstUseMs),
             blocked: r.blocked, relink: r.relink, three: r.id !== null };
           const h = holders && holders.get(r);
           if (h) { o.held = h.n; o.heldNames = [...h.names]; o.heldOwners = [...h.owners]; o.heldUnowned = h.unowned; }

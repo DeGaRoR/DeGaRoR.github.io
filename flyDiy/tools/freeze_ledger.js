@@ -92,6 +92,32 @@ function ledger(log, opt) {
     // (a) the loop, slot by slot, over its usual cost
     let loopExcess = 0; const slots = {};
     for (const k of SL) { const v = p[k]; if (!(v >= 0.5)) continue; slots[k] = r1(v); const x = v - (M[k] || 0); if (x >= 2) { loopExcess += x; parts.push({ what: 'loop: ' + k, ms: x, kind: 'loop' }); } }
+    // WHAT ARRIVED IN THIS FRAME AND WHAT ITS FIRST DRAW COST (PERF-LEAD, 22 Nov: the table the coordinator is built on).
+    // The render slot's excess is split: the GPU data created in the loop (the recorder's 'gpuup': textures, buffers,
+    // mipmaps - timed calls), the programs first used in it ('proguse': the first use's whole cost, less the link wait
+    // the shader slot already holds), and what is left is the draws themselves. The streamers' own word ('deliver'
+    // events: FLIGHT_REC.event('deliver', ms, { s, n, what })) says who brought it, where a streamer says so.
+    const EA = evIn(t0, t1);
+    const ups = EA.filter(e => e.kind === 'gpuup' && e.d && e.d.at === 'loop' && e.t <= loopEnd + 1), upMs = ups.reduce((a, e) => a + (e.ms || 0), 0);
+    const sumA = (k, i) => ups.reduce((a, e) => a + ((e.d[k] || [])[i] || 0), 0);
+    const uploads = ups.length ? { ms: r1(upMs), textures: sumA('tex', 0), textureMs: r1(sumA('tex', 1)), megapixels: r1(sumA('tex', 2)), compressedKB: sumA('tex', 3), buffers: sumA('buf', 0), bufferMs: r1(sumA('buf', 1)), bufferKB: sumA('buf', 2),
+      updates: sumA('sub', 0), updateKB: sumA('sub', 1), mipmaps: sumA('mip', 0), mipmapMs: r1(sumA('mip', 1)), newGeometries: ups.reduce((a, e) => a + (e.d.geo || 0), 0), newTextures: ups.reduce((a, e) => a + (e.d.texNew || 0), 0) } : null;
+    const uses = EA.filter(e => e.kind === 'proguse' && e.t >= t0 && e.t <= loopEnd + 1).map(e => ({ n: e.d, owner: (typeof e.d === 'number' && owner(e.d)) || 'a program the log does not name', ms: e.ms == null ? null : r1(e.ms) }));
+    const useMs = uses.reduce((a, u) => a + (u.ms || 0), 0);
+    const deliveries = EA.filter(e => e.kind === 'deliver' && e.d).map(e => ({ streamer: e.d.s || '?', n: e.d.n == null ? null : e.d.n, what: e.d.what || null, ms: r1(e.ms), inLoop: e.t < loopEnd }));
+    {
+      const ri = parts.findIndex(x => x.what === 'loop: render');
+      if (ri >= 0 && (upMs >= 1 || useMs >= 1)) {
+        const R0 = parts[ri]; let left = R0.ms;
+        const waitIn = EA.filter(e => e.kind === 'linkwait' && e.t < loopEnd).reduce((a, e) => a + (e.ms || 0), 0);
+        const a = Math.min(left, upMs); left -= a;
+        const b = Math.min(left, Math.max(0, useMs - waitIn)); left -= b;
+        parts.splice(ri, 1);
+        if (a >= 1) parts.push({ what: 'loop: render: new GPU data (' + [uploads.textures ? uploads.textures + ' texture calls, ' + uploads.megapixels + ' MP' + (uploads.compressedKB ? ' + ' + uploads.compressedKB + ' KB compressed' : '') : '', uploads.buffers ? uploads.buffers + ' buffers, ' + uploads.bufferKB + ' KB' : '', uploads.mipmaps ? uploads.mipmaps + ' mipmap builds' : ''].filter(Boolean).join('; ') + ')', ms: a, kind: 'loop', group: 'loop: render: new GPU data' });
+        if (b >= 1) parts.push({ what: 'loop: render: first use of ' + uses.length + ' program(s): ' + [...new Set(uses.map(u => u.owner))].slice(0, 3).join(', '), ms: b, kind: 'loop', group: 'loop: render: first use of programs' });
+        if (left >= 1) parts.push({ what: 'loop: render: the draws themselves', ms: left, kind: 'loop', group: 'loop: render: the draws themselves' });
+      }
+    }
     // what the `shader` slot was: the links and the waits inside the loop, by owner
     const E = evIn(t0, t1), inLoop = e => e.t < loopEnd;
     const linkNames = (list) => { const by = new Map(); for (const e of list) { const n = typeof e.d === 'number' ? e.d : null, w = (n != null && owner(n)) || 'a program the log does not name'; by.set(w, (by.get(w) || 0) + (e.ms || 0)); }
@@ -104,6 +130,8 @@ function ledger(log, opt) {
       if (e.kind === 'linkwait') add(e, 'draw/compile held on a link: ' + ((typeof e.d === 'number' && owner(e.d)) || 'a program the log does not name'), 'link');
       else if (e.kind === 'link') add(e, 'shader link call: ' + ((typeof e.d === 'number' && owner(e.d)) || 'a program the log does not name'), 'link');
       else if (e.kind === 'gtask') add(e, 'garage task: ' + e.d, 'script');
+      else if (e.kind === 'gpuup' && e.d && e.d.at === 'out') { const c = clip(e.t - (e.ms || 0), e.t, loopEnd, t1); if (c) named.push({ iv: c, what: 'GPU data made between frames (textures / buffers)', kind: 'script' }); }
+      else if (e.kind === 'deliver' && e.ms) add(e, 'streamer delivered: ' + ((e.d && e.d.s) || '?'), 'script');
       else if (e.kind === 'prem') add(e, 'premises built' + (e.d ? ': ' + String(typeof e.d === 'string' ? e.d : JSON.stringify(e.d)).slice(0, 60) : ''), 'script');
       else if (e.kind === 'edit') add(e, 'editor action' + (e.d ? ': ' + String(typeof e.d === 'string' ? e.d : (e.d.a || e.d.k || JSON.stringify(e.d))).slice(0, 60) : ''), 'script');
       else if (e.kind === 'loaf') { let at = Math.max(e.t, loopEnd);
@@ -141,9 +169,10 @@ function ledger(log, opt) {
       t: r1(r.t), s: r1(r.t / 1000), ms: r1(r.dt), ctx: r.ctx, class: cls, refreshesLate: slip, seg: segAt(r.t), over: r.dt > HARD ? 250 : r.dt > FREEZE ? 100 : 50,
       where: r.ctx === 'world' ? { x: r1(p.x), y: r1(p.y), z: r1(p.z), agl: r1(p.agl), spd: r1(p.spd), phase: phaseName(p.phase), cam: camName(p.cam) } : null,
       budget: r1(budget), excess: r1(excess), cause: parts.length ? parts[0].what : 'UNATTRIBUTED', confidence: conf,
-      parts: parts.map(x => ({ what: x.what, ms: r1(x.ms), kind: x.kind })),
+      parts: parts.map(x => ({ what: x.what, ms: r1(x.ms), kind: x.kind, group: x.group || x.what })),
       loop: { work: r1(work), usual: r1(M.work || 0), slots }, outside: { ms: r1(outside), named: r1(namedMs), tasks: r1(taskOnly), display: r1(display), unattributed: r1(un) },
       shaderInLoop: (waitsIn.length || linksIn.length) ? { waits: linkNames(waitsIn), links: linkNames(linksIn) } : null,
+      arrived: (uploads || uses.length || deliveries.length) ? { uploads, firstUse: uses.length ? uses : null, deliveries: deliveries.length ? deliveries : null } : null,
       programsMade: made.length ? made : null, shaderslow: slow.length ? slow : null, gc: gc.length ? gc : null,
       gpuMs: p.gpu === p.gpu ? r1(p.gpu) : null, draws: p.calls === p.calls ? p.calls : null,
     });
@@ -161,9 +190,13 @@ function ledger(log, opt) {
       if (b.ms >= BLOCK) { blocks.push(b); b = { ms: 0, orange: 0, over50: 0, red: 0, hard: 0, worst: 0, t: r.t }; } }
     if (b.ms >= BLOCK / 2) blocks.push(b);
     const nb = blocks.length, withO = blocks.filter(x => x.orange).length, withR = blocks.filter(x => x.red).length;
+    // ... and THE 120-FRAME METER WINDOWS (tools/perf_trace.js targets.meterWindows; Codex's flightlog_evidence rule): the
+    // SAME 35 ms line over sliding windows of 120 frames (2-4 s each) - a different window, so a different share. Both
+    // are printed by name so that the two tools agree; the user's table (row 9) is the 20-second blocks.
+    let mw = 0, mwO = 0; { let run = 0, orIn = 0; for (let i = 0; i < R.length; i++) { run++; if (R[i].dt > ORANGE) orIn++; if (run > 120 && R[i - 120].dt > ORANGE) orIn--; if (run >= 120) { mw++; if (orIn) mwO++; } } }
     const E = entries.filter(e => e.ctx === c);
     const byCause = new Map();
-    for (const e of E) for (const part of e.parts) { const k = part.kind === 'loop' || part.kind === 'none' || part.kind === 'task' ? part.what : part.what; let g = byCause.get(k); if (!g) byCause.set(k, g = { what: k, kind: part.kind, ms: 0, frames: 0, freezes: 0, worst: 0 });
+    for (const e of E) for (const part of e.parts) { const k = part.group || part.what; let g = byCause.get(k); if (!g) byCause.set(k, g = { what: k, kind: part.kind, ms: 0, frames: 0, freezes: 0, worst: 0 });
       g.ms += part.ms; g.frames++; if (e.ms > FREEZE) g.freezes++; if (part.ms > g.worst) g.worst = part.ms; }
     const exAll = E.reduce((a, e) => a + e.excess, 0), unAll = E.reduce((a, e) => a + e.outside.unattributed, 0);
     contexts[c] = {
@@ -173,6 +206,7 @@ function ledger(log, opt) {
       worstMs: r1(Math.max(...R.map(r => r.dt))), timeInLongFramesPct: pct(over(LONG).reduce((a, r) => a + r.dt, 0), total),
       blocks: { seconds: BLOCK / 1000, n: nb, withOrange: withO, withOrangePct: pct(withO, nb), with50: blocks.filter(x => x.over50).length, withFreeze: withR, withFreezePct: pct(withR, nb), with250: blocks.filter(x => x.hard).length,
         list: blocks.map(x => ({ s: r1(x.t / 1000), orange: x.orange, over50: x.over50, red: x.red, worst: r1(x.worst) })) },
+      meterWindows: { framesPerWindow: 120, eligible: mw, withOrange: mwO, withOrangePct: pct(mwO, mw), note: 'perf_trace.js targets.meterWindows: sliding 120-frame windows, the same 35 ms line' },
       classes: ['overrun', 'spike', 'outside'].map(k => { const X = E.filter(e => e.class === k); return { class: k, frames: X.length, over100: X.filter(e => e.ms > FREEZE).length, excessMs: Math.round(X.reduce((a, e) => a + e.excess, 0)), medianMs: r1(median(X.map(e => e.ms))) }; }),
       usualLoopMs: r1((med[c] || {}).work || 0), capFps: median(R.map(r => r.cap).filter(x => x > 0)) || null,
       attribution: { excessMs: Math.round(exAll), unattributedMs: Math.round(unAll), unattributedPct: pct(unAll, exAll), confirmed: E.filter(e => e.confidence === 'confirmed').length, partial: E.filter(e => e.confidence === 'partial').length, open: E.filter(e => e.confidence === 'open').length },
@@ -224,6 +258,7 @@ function text(R, show) {
   L.push('  ' + pad('', 9) + lp('frames', 8) + lp('s', 8) + lp('>35', 7) + lp('>50', 6) + lp('>100', 6) + lp('>250', 6) + lp('worst', 8) + lp('excess>50', 10) + lp('blocks', 7) + lp('orange', 7) + lp('%', 6) + lp('red', 5) + lp('unattr %', 9));
   for (const c of Object.keys(R.contexts)) { const C = R.contexts[c];
     L.push('  ' + pad(c, 9) + lp(C.frames, 8) + lp(C.seconds, 8) + lp(C.over35.n, 7) + lp(C.over50.n, 6) + lp(C.over100.n, 6) + lp(C.over250.n, 6) + lp(C.worstMs, 8) + lp(C.over50.excessMs, 10) + lp(C.blocks.n, 7) + lp(C.blocks.withOrange, 7) + lp(C.blocks.withOrangePct, 6) + lp(C.blocks.withFreeze, 5) + lp(C.attribution.unattributedPct, 9)); }
+  L.push('  (blocks = the official row 9: 20-second blocks. The same 35 ms line over perf_trace.js\'s sliding 120-frame meter windows: ' + Object.keys(R.contexts).map(c => c + ' ' + R.contexts[c].meterWindows.withOrangePct + ' % of ' + R.contexts[c].meterWindows.eligible).join(', ') + ')');
   for (const c of Object.keys(R.contexts)) { const C = R.contexts[c]; if (!C.causes.length) continue;
     L.push(''); L.push(c.toUpperCase() + ': the loop usually takes ' + C.usualLoopMs + ' ms' + (C.capFps ? ' at a ' + C.capFps + ' fps cap (' + r1(1000 / C.capFps) + ' ms a frame)' : '') + '. The frames over ' + R.limits.listedOverMs + ' ms: ' +
       C.classes.map(k => k.frames + ' ' + k.class.toUpperCase() + ' (median ' + k.medianMs + ' ms, ' + k.over100 + ' over 100, ' + k.excessMs + ' ms of excess)').join('; '));
@@ -236,6 +271,11 @@ function text(R, show) {
   for (const e of E) {
     L.push('  ' + lp(e.s, 8) + ' s ' + lp(e.ms, 8) + ' ms  ' + pad(e.ctx, 8) + pad(e.class, 8) + pad(e.confidence, 10) + (e.seg ? '[' + e.seg + '] ' : '') + (e.where ? (e.where.phase || '') + ' agl ' + e.where.agl + ' m at ' + e.where.x + ',' + e.where.z + '  ' : '') + (e.gpuMs != null ? 'gpu ' + e.gpuMs + ' ms' : ''));
     L.push('  ' + ' '.repeat(24) + e.parts.slice(0, 4).map(p => r1(p.ms) + ' ' + p.what).join('; ') + (e.outside.display ? '; ' + e.outside.display + ' display wait' : ''));
+    if (e.arrived) { const A = e.arrived, bits = [];
+      if (A.deliveries) bits.push('delivered: ' + A.deliveries.map(d => d.streamer + (d.n != null ? ' x' + d.n : '') + (d.ms ? ' ' + d.ms + ' ms' : '')).join(', '));
+      if (A.uploads) bits.push('GPU data ' + A.uploads.ms + ' ms (' + A.uploads.textures + ' tex ' + A.uploads.megapixels + ' MP, ' + A.uploads.buffers + ' buf ' + A.uploads.bufferKB + ' KB, +' + A.uploads.newGeometries + ' geometries, +' + A.uploads.newTextures + ' textures)');
+      if (A.firstUse) bits.push('first use: ' + A.firstUse.slice(0, 3).map(u => u.owner + (u.ms != null ? ' ' + u.ms + ' ms' : '')).join(', ') + (A.firstUse.length > 3 ? ' +' + (A.firstUse.length - 3) : ''));
+      if (bits.length) L.push('  ' + ' '.repeat(24) + 'arrived: ' + bits.join('; ')); }
     if (e.shaderInLoop && (e.shaderInLoop.waits.length || e.shaderInLoop.links.length)) L.push('  ' + ' '.repeat(24) + 'in the loop\'s shader slot: ' + e.shaderInLoop.waits.map(w => 'held ' + w.ms + ' ms on ' + w.owner).concat(e.shaderInLoop.links.map(w => 'linked ' + w.owner)).slice(0, 3).join('; '));
   }
   return L.join('\n');

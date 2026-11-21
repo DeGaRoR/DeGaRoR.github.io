@@ -142,6 +142,27 @@
     // a frame whose shader time (its slot, or the waits held since the last frame - a wait outside the open frame counts)
     // passes WATCH_MS is an event 'shaderslow' naming them (the user's 79 s frames had a 54 ms slot and 79 s of waits)
     const WATCH_MS = 50, NP = { list: [], more: 0, waitMs: 0, last: new Map() };
+    // PERF-TRACE (22 Nov): WHAT THE RENDER SLOT CARRIED. The 18 Nov journey's ledger gave half of the world's freeze time
+    // to `render` and nothing said why. New data for the GPU is the usual reason a draw is slow once. So, per frame:
+    // the texture and buffer CREATION calls are timed and sized (wrapGL: texImage / texSubImage / compressedTex* /
+    // texStorage in megapixels and compressed KB, bufferData in KB, generateMipmap), bufferSubData - the per-frame
+    // updates - is only COUNTED and sized (no clock on it), and three's own counts of geometries and textures are read
+    // at the frame's end. A frame (or the time before it) that spent 1 ms or more creating GPU data, or updated 1 MB or
+    // more, is an event 'gpuup': ms, { at: 'loop' | 'out', tex: [calls, ms, megapixels, compressed KB], buf: [calls, ms,
+    // KB], sub: [calls, KB], mip: [calls, ms], geo: new geometries, texNew: new textures }. The GL is asked nothing.
+    // tools/freeze_ledger.js reads it with the programs FIRST USED in the frame ('proguse': its ms is the first use's
+    // whole cost) and the streamers' deliveries (any module's FLIGHT_REC.event('deliver', ms, { s: 'cover', n, what })).
+    const UP = { ms: 0, n: 0, texN: 0, texMs: 0, texPx: 0, cmpB: 0, bufN: 0, bufMs: 0, bufB: 0, subN: 0, subB: 0, mipN: 0, mipMs: 0, geo: -1, tex: -1 };
+    const r1e = x => Math.round(x * 10) / 10;
+    function upFlush(t, where) {
+      let dg = 0, dx = 0;
+      const M = rec.renderer && rec.renderer.info && rec.renderer.info.memory;
+      if (M) { if (UP.geo >= 0) { dg = M.geometries - UP.geo; dx = M.textures - UP.tex; } UP.geo = M.geometries; UP.tex = M.textures; }
+      if (UP.n === 0 && UP.subN === 0) return;
+      if (UP.ms >= 1 || UP.subB >= 1048576) event('gpuup', t, UP.ms, { at: where, tex: [UP.texN, r1e(UP.texMs), r1e(UP.texPx / 1e6), Math.round(UP.cmpB / 1024)], buf: [UP.bufN, r1e(UP.bufMs), Math.round(UP.bufB / 1024)],
+        sub: [UP.subN, Math.round(UP.subB / 1024)], mip: [UP.mipN, r1e(UP.mipMs)], geo: dg, texNew: dx });
+      UP.ms = 0; UP.n = 0; UP.texN = 0; UP.texMs = 0; UP.texPx = 0; UP.cmpB = 0; UP.bufN = 0; UP.bufMs = 0; UP.bufB = 0; UP.subN = 0; UP.subB = 0; UP.mipN = 0; UP.mipMs = 0;
+    }
     function newProgram(p) {
       const name = (p && p.name) || '', key = String((p && p.cacheKey) || ''), prev = NP.last.get(name);
       let why = 'first of its name';
@@ -218,6 +239,7 @@
       samp = fi % 17 === 3; if (samp) { V[SAMP] = 0; V[SAMP_GL] = 0; }
       for (let i = 0; i < NS; i++) acc[i] = 0;
       owed = pc && typeof pc.steps === 'number' ? pc.steps : 0;
+      if (UP.n !== 0) upFlush(t, 'out');             // (GPU data made between the frames: a timer's, a compile step's)
       const tsN = typeof ts === 'number' ? ts : t;
       const j = (fi & (N - 1)) * NC;
       ringT[fi & (N - 1)] = tsN;
@@ -255,6 +277,8 @@
       { const sh = Math.max(acc[S.shader], NP.waitMs);   // G1340: the watchdog
         if (sh > WATCH_MS) event('shaderslow', t, sh, NP.list.join(' | ') + (NP.more ? ' | +' + NP.more + ' more' : '') || '(no new program: waits on programs made earlier)');
         NP.list.length = 0; NP.more = 0; NP.waitMs = 0; }
+      if (UP.n !== 0 || UP.subB >= 1048576 || (fi & 15) === 0) upFlush(t, 'loop');   // PERF-TRACE: the frame's GPU data (three's counts re-read every 16th frame)
+      else { UP.subN = 0; UP.subB = 0; }
       if (!rendered) fl |= F.noRender;
       if (rec.gpu.foreignF >= fi - 1) fl |= F.gpuForeign;
       const P = probeOut;
@@ -468,6 +492,26 @@
         if (pn === DONE && PID) PID.polled(p, r, clock());   // three asked whether the link is done: its answer, and when
         return r;
       };
+      // PERF-TRACE: the creation calls of textures and buffers, timed and sized (see UP). `arguments` is passed through
+      // whole: these calls are overloaded by their argument COUNT, and they are rare (a frame that makes no new GPU data
+      // calls none). bufferSubData - every frame's updates - gets no clock: a count and its bytes, on the two forms three calls
+      const dim = o => (o && o.width && o.height) ? o.width * o.height : 0, blen = o => (o && o.byteLength) || 0;
+      const SIZE = { texImage2D: a => (a.length >= 9 ? a[3] * a[4] : dim(a[5])), texSubImage2D: a => (a.length >= 9 ? a[4] * a[5] : dim(a[6])), texImage3D: a => a[3] * a[4] * a[5],
+        texSubImage3D: a => a[5] * a[6] * a[7], texStorage2D: a => a[3] * a[4], texStorage3D: a => a[3] * a[4] * a[5] };
+      const upTex = name => { const f = gl[name], sz = SIZE[name], cmp = /^compressed/.test(name); if (typeof f !== 'function') return;
+        gl[name] = function () { const t = clock(); try { return f.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.texN++; UP.texMs += d;
+          if (cmp) UP.cmpB += blen(arguments[arguments.length - 1]) || blen(arguments[arguments.length - 3]); else { const px = sz ? sz(arguments) : 0; if (px === px) UP.texPx += px; } } }; };
+      try {
+        for (const n of ['texImage2D', 'texSubImage2D', 'texImage3D', 'texSubImage3D', 'compressedTexImage2D', 'compressedTexSubImage2D', 'compressedTexImage3D', 'compressedTexSubImage3D', 'texStorage2D', 'texStorage3D']) upTex(n);
+        const bd = gl.bufferData, gm = gl.generateMipmap, bs = gl.bufferSubData;
+        if (typeof bd === 'function') gl.bufferData = function (a, b) { const t = clock(); try { return bd.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.bufN++; UP.bufMs += d; UP.bufB += typeof b === 'number' ? b : blen(b); } };
+        if (typeof gm === 'function') gl.generateMipmap = function (a) { const t = clock(); try { return gm.call(gl, a); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.mipN++; UP.mipMs += d; } };
+        if (typeof bs === 'function') gl.bufferSubData = function (a, b, c, d, e) {
+          UP.subN++;
+          if (arguments.length > 3) { UP.subB += e ? e * ((c && c.BYTES_PER_ELEMENT) || 1) : blen(c); return bs.call(gl, a, b, c, d, e); }
+          UP.subB += blen(c); return bs.call(gl, a, b, c);
+        };
+      } catch (e) {}
       // the GPU timer: ours, and a watch on everyone else's
       let ext = null;
       try { if (!NOGPU && !opt.noGpu) ext = gl.getExtension('EXT_disjoint_timer_query_webgl2'); } catch (e) {}
@@ -570,7 +614,11 @@
       // PERF-TRACE: the programs' table (program_id.js: owner, fingerprint, sizes, #defines, the readiness bracket) - asked
       // FIRST: it closes the rows still waiting for their owner, which are events
       let progs = null; try { progs = rec.pid ? rec.pid.table(true) : null; } catch (e) {}
-      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + '}');
+      // ... and THE NETWORK, as the browser timed it (resource timing: [name, start ms, end ms, KB, kind]) - the loading
+      // timeline's lane (tools/load_timeline.js), on this log's own clock. Read here, at the save; nothing during the frames
+      let resrc = null; try { resrc = perf.getEntriesByType ? perf.getEntriesByType('resource').map(r => [String(r.name).replace(/^https?:\/\/[^/]+\//, '').replace(/\?.*$/, '').slice(-90),
+        Math.round(r.startTime), Math.round(r.responseEnd), Math.round((r.transferSize || r.encodedBodySize || 0) / 1024), r.initiatorType || '']) : null; } catch (e) {}
+      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)
@@ -694,6 +742,8 @@
     W.addEventListener('unhandledrejection', e => { if (++errs <= 200) ev('err', null, null, 'rejection: ' + String(e && e.reason && (e.reason.message || e.reason)).slice(0, 200)); });
     W.addEventListener('pagehide', () => { ev('pagehide', null, null, null); if (STORE) STORE.flush(true); });
   }
+  // PERF-TRACE: the browser keeps 250 resource timings by default and a load fetches more: room for all of them (the log's `resources`)
+  try { if (!OFF && perf.setResourceTimingBufferSize) perf.setResourceTimingBufferSize(4000); } catch (e) {}
   ev('script', null, null, 'flight_recorder.js');
   // the server's build (version.json, uncached) for the header, beside the page's own FLYDIY_BUILD
   let REC_VERSION = null;

@@ -36,6 +36,9 @@ function boot(opt) {
   // the first query of a program still linking (three's first use asks its info log, then its link status): the driver
   // holds the page until the link is done (40 ms here)
   over.set('getProgramInfoLog', p => { count('getProgramInfoLog'); if ((pend.get(p) || 0) > 0) { count('blockingStatus'); T.now += 40; pend.set(p, 0); } return ''; });
+  // a buffer's creation takes the driver `upMs` (the recorder's 'gpuup': the render slot's new GPU data)
+  const baseBuf = base.bufferData;
+  over.set('bufferData', function () { count('bufferData'); if (opt.upMs) T.now += opt.upMs; return baseBuf.apply(null, arguments); });
   over.set('useProgram', p => { count('useProgram'); return baseUse ? baseUse(p) : undefined; });
   over.set('getError', () => { count('getError'); return 0; });
   const gl = new Proxy(base, { get(t, p) { return over.has(p) ? over.get(p) : t[p]; }, set(t, p, v) { over.set(p, v); return true; },
@@ -189,6 +192,21 @@ function run(ok) {
     ok(drawn.length >= 8 && drawn.every(r => r.blocked && r.via === 'status' && r.waitMs === 40 && r.readyT === r.useT) && rc.filter(r => r.useT === null).every(r => !r.blocked)
        && lw.length === drawn.length && lw.every(e => drawn.some(r => r.n === e[3])),
        '6f a program a draw WAITED on is flagged with the ms, its readiness ended by that status query, and the recorder\'s linkwait event names it', drawn.length + ' held draws, ' + (drawn[0] ? drawn[0].waitMs : '?') + ' ms each');
+  }
+  // ---- 6h: what a frame's first draw cost: the first use of a program, the new GPU data ---------------------
+  {
+    const C = boot({ pendPolls: 1e9, upMs: 2 }), Wc = world(C, true);
+    C.renderer.compile(Wc.sc, Wc.cam); C.T.now += 50;
+    C.REC.begin(C.T.now, null); C.renderer.render(Wc.sc, Wc.cam); C.REC.end(true, null);
+    const rc = C.PROGRAMS.table(), drawn = rc.filter(r => r.useT !== null), uses = C.REC.events.filter(e => e[1] === 'proguse');
+    ok(drawn.length >= 8 && drawn.every(r => r.firstUseMs >= 40) && uses.length === drawn.length && uses.every(e => e[2] >= 40),
+       '6h a program\'s FIRST USE has its cost: from three\'s first status query of it to the switch (here the 40 ms its link held the draw)', drawn.length + ' first uses, ' + (drawn[0] ? drawn[0].firstUseMs : '?') + ' ms');
+    const up = C.REC.events.filter(e => e[1] === 'gpuup');
+    ok(up.length === 1 && up[0][3].at === 'loop' && up[0][3].buf[0] >= 2 && up[0][3].buf[1] === up[0][3].buf[0] * 2 && up[0][3].buf[2] > 0 && up[0][2] === up[0][3].buf[1] && C.calls.bufferData === up[0][3].buf[0],
+       '6h the frame\'s new GPU data is an event: the buffers created, their ms and KB (the calls themselves unchanged)', up[0] ? JSON.stringify(up[0][3]) : 'no gpuup event');
+    // a frame that creates nothing says nothing
+    const n0 = C.REC.events.length; C.T.now += 16; C.REC.begin(C.T.now, null); C.renderer.render(Wc.sc, Wc.cam); C.REC.end(true, null);
+    ok(C.REC.events.slice(n0).every(e => e[1] !== 'gpuup' && e[1] !== 'proguse' && e[1] !== 'prog'), '6h the next frame, which makes nothing new, logs no program and no GPU-data event');
   }
   // ---- 6g: the cost -----------------------------------------------------------------------------------------
   {

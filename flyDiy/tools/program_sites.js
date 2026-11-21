@@ -5,7 +5,7 @@
 //
 // A material is where a WebGL program comes from. This reads src/ for every site that makes one:
 //     new THREE.<X>Material( ... )      (and the aliases T. / TH. / THREE_.)
-//     MATLIB.make( ... ) / MATLIB.shared( ... )
+//     MATLIB.make( ... ) / MATLIB.shared( ... ) / MATLIB.arr.material({ ..., owner: '...' })
 // and holds each to ONE of the accepted declarations of its owner ('feature / system / variant'):
 //   inline    `progOwner` inside the call's own arguments:  new THREE.MeshBasicMaterial({ userData: { progOwner: '...' }, ... })
 //             or MATLIB.make / shared's owner argument (matlib.js writes userData.progOwner, outside the share signature)
@@ -24,7 +24,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const SRC = path.join(__dirname, '..', 'src');
-const SITE = /\bnew\s+(?:THREE_?|TH|T)\.(\w*Material)\s*\(|\bMATLIB\.(make|shared)\s*\(/g;
+const SITE = /\bnew\s+(?:THREE_?|TH|T)\.(\w*Material)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(/g;
 
 function walk(dir, out) {
   for (const f of fs.readdirSync(dir)) { const p = path.join(dir, f), st = fs.statSync(p);
@@ -66,7 +66,7 @@ function scanFile(file) {
     const args = close > open ? src.slice(open + 1, close) : '';
     const kind = m[1] ? m[1] : 'MATLIB.' + m[2];
     let how = null, owner = null;
-    const own = /progOwner\s*:\s*(['"`])((?:(?!\1).)*)\1/.exec(args) || /progOwner\s*:\s*([^,}\n]+)/.exec(args);
+    const own = /(?:progOwner|\bowner)\s*:\s*(['"`])((?:(?!\1).)*)\1/.exec(args) || /(?:progOwner|\bowner)\s*:\s*([^,}\n]+)/.exec(args);
     if (own) { how = 'inline'; owner = own[2] !== undefined ? own[2] : '(' + own[1].trim() + ')'; }
     // MATLIB's owner argument: make(THREE, shape, params, owner) / shared(THREE, shape, params, scope, owner): a last string argument
     if (!how && m[2]) { const tail = /,\s*(['"`])((?:(?!\1).)*? \/ (?:(?!\1).)*)\1\s*$/.exec(args); if (tail) { how = 'inline'; owner = tail[2]; } }
