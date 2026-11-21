@@ -52,7 +52,7 @@ function ROCK_BIAS(Hf, sea, N, hx0, hz0, hdx, hdz, gx0, gz0, cs, W2, H2) {
 // the job: { done, out, onDone } - the worker fills it and calls onDone (the tint's late write); ROCK_STATS { biasWorkerMs (inside
 // the worker), biasMainMs (the post here + the copy back), biasWorker: true }. null = no worker (the step makes it on the main thread)
 function rockBiasStart(world, BUD) {
-  try { if (/[?&](?:rocks=0|perftrim=1)(?:&|$)/.test(location.search)) return null; } catch (e) {}
+  try { if (!/[?&]rocks=1(?:&|$)/.test(location.search)) return null; } catch (e) {}   // ROCKS DORMANT (the user, 21 Nov): ?rocks=1 wakes them
   if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
   const I = world.island, g = world.hydro && world.hydro.grids;
   if (!I || !I.albedo || !I.grid || !I.tint || !g || !g.H || !g.N) return null;
@@ -1998,7 +1998,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const rockBias = () => {
         if (rockBiasA) return rockBiasA;
         if (rockLate) return null;   // (in flight: the neutral alpha meanwhile - tintRGBA)
-        try { if (/[?&](?:rocks=0|perftrim=1)(?:&|$)/.test(location.search)) return null; } catch (e) {}
+        try { if (!/[?&]rocks=1(?:&|$)/.test(location.search)) return null; } catch (e) {}   // ROCKS DORMANT (the user, 21 Nov): ?rocks=1 wakes them
         const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
         rockBiasA = (typeof ROCK_RING_CORE !== 'undefined' && ROCK_RING_CORE.bakeIsland && ISLA.ttype)   // (no Worker: the island's macro bake here - v1's field, the shader's encoding)
@@ -6305,14 +6305,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
                                                     ttypeAt, codeAt, forestHere, openHere, edgeD, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
-          if (!(typeof location !== 'undefined' && /[?&]perftrim=1(?:&|$)/.test(location.search)) && typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
+          if (!(typeof location !== 'undefined' && !/[?&]rocks=1(?:&|$)/.test(location.search)) && typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
           // ROCK-STUDY: THE ISLAND'S ROCK AS GEOMETRY (rock_ring.js): the outcrops round the eye, built in a worker from the ground's
           // own heights, the map's types and NDVI and the drainage (the bias worker's D8), with the 'rocks' collection's boulders
           // seated on them; their own material (the splat's arrays). ?rocks=0 none, ?ring=0 the ring off (the cost A/B)
           if (typeof ROCK_RING !== 'undefined' && world.island && groundApi.splatFull && groundApi.splatFull()) {
-            let rocksOn = true; try { if (/[?&](?:rocks=0|perftrim=1)(?:&|$)/.test(location.search)) rocksOn = false; } catch (e) {}
+            let rocksOn = true; try { if (!/[?&]rocks=1(?:&|$)/.test(location.search)) rocksOn = false; } catch (e) {}
             if (rocksOn) try {
               const kit = null;   // (the boulders are the PROCEDURAL kit, closed rocks - rock_ring_core procKit; the pack's scans are open shells)
               let flowSync = null;

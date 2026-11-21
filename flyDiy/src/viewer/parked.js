@@ -126,7 +126,7 @@
   const W = (typeof window !== 'undefined') ? window : globalThis;
   // Audit-only: frozen shipped props. Container and manifest signatures must
   // agree, but these fixed assets deliberately bypass the running-build key.
-  const STATIC_TRIO = !!(W.location && /[?&](?:parktrio=1|perftrim=1)(?:&|$)/.test(W.location.search || ''));
+  const STATIC_TRIO = !!(W.location && !/[?&]parktrio=0(?:&|$)/.test(W.location.search || ''));   // DEFAULT (the user, 21 Nov: player bakes deferred); ?parktrio=0 the player-derived props
   // Matching diagnostic control: retain player props, load the frozen stock
   // packs exactly as the published build did, despite the audit build hash.
   const FROZEN_STOCK = STATIC_TRIO || !!(W.location && /[?&]parkstock=1(?:&|$)/.test(W.location.search || ''));

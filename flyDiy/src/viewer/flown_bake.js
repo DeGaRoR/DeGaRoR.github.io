@@ -65,7 +65,8 @@
   const W = (typeof window !== 'undefined') ? window : globalThis;
   // Benchmark trim: park the implementation before allocating shader strings,
   // rest-position copies, atlases, workers or cache state. The live model flies.
-  if (W.location && /[?&]perftrim=1(?:&|$)/.test(W.location.search || '')) {
+  // DEFERRED (the user, 21 Nov): off in the browser unless ?flownbake=1; node gates keep exercising it.
+  if (W.location && !/[?&]flownbake=1(?:&|$)/.test(W.location.search || '')) {
     W.FLYDIY_FLOWN_BAKE = 0;
     W.FLOWN_BAKE = null;
     return;
