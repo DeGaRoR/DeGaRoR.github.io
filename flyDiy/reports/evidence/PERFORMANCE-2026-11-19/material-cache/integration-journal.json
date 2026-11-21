@@ -172,6 +172,27 @@
       "status": "All five load cases valid; active patch GPU improvement; startup benefit modest/unresolved; opt-in only",
       "observation": "Build290bbbf690ea with approved mist B and accepted cliff/runtime-bake cuts only: original-scuff opening141.954s, two-state lite140.720s, shared-state126.007s, closing original128.126s, shared-state repeat124.677s. Controls drift13.828s: do not claim16s causal saving. All cases normal ready/GL0/20s garage soak, peak87C maximum. Four real Cub material classes:224 GPU patch queries valid, active simplified damage37–52% cheaper than original, computed mud active, damage-on/off nonzero, intact images pixel-identical. Shared-state inactive code adds~1–30% relative patch cost (~0.001–0.017ms/draw); no native full-flight result for scuff candidate. Window crack body unchanged; glass stays asleep/awake. Fine procedural scratch/gouge/fray detail visibly simplified; no appearance approval yet.",
       "action": "Keep candidate flags off by default. Two-state lite is the lower-risk active-damage rendering candidate; shared-state stays experimental. Next substantial loading target: duplicated lighting-state program preparation (native B night→noon164 additional links,38.440s rollout gate), then~32s terrain/roads/aerodromes and~15s nearby scenery fill. Updated comparison and current waterfall distinguish native versus diagnostic clocks. Visual QA initially missed isolated iframe contexts and a missing per-frame error array; corrected tool passes desktop/narrow initial/changed states. Windows chart validation needed UTF8 and a temporary executable alias; no game change. No raw/private save or generated main output committed."
+    },
+    {
+      "id": "Native terrain weather cache 2026-11-21",
+      "status": "Exact values preserved; no meaningful whole-loading gain; OFF",
+      "observation": "Native buildfdee1a3aa420 controls123.110/129.240s, candidate126.057s. Only5705 weather-base hits out of597674 reads; extra16KiB. All normal/GL0/20s soak; peaks85C or lower. Do not pursue the22M terrain-miss count as if all misses were recoverable weather reads.",
+      "action": "Preserve exact tests and failed cache evidence; no default adoption.",
+      "evidence": "PERFORMANCE-2026-11-21/terrain-weather-base/analysis.json"
+    },
+    {
+      "id": "Current CPU profile and exact pavement prototypes 2026-11-21",
+      "status": "CPU avoidance validated; isolated load unchanged; candidates OFF",
+      "observation": "Inclusive overlapping sampled CPU: vegetation7.94s, airfieldstrips6.63s, roads6.02s, terrainpatches5.67s; pavement queries5.85s nested. Bounds avoid10952548 of13528786 exact polygon checks (~81%);167356 full-result equivalence checks pass. Native opening123.485s/candidate123.466s; closing reference excludedGL1281. Refinement height reuse retains attribute/index bytes on actual wavy strip/curved-road fixtures, skipping1066/5872 and659/3372 height calls. Combined laterbuild458534f65c13 single startup120.4975s, normal/native/GL0/zero null program queries,20s soakmax17ms/zero longtasks,peak77C. Not an isolated cumulative saving or full-flight/full-map parity proof.",
+      "action": "Keep pavepolybound/pavereuse OFF until repeatable total or flight benefit and full-map validation. No geometry resolution or visual cuts.",
+      "evidence": "PERFORMANCE-2026-11-21/geometry-current/control/cpu-summary.json; pavement-polygon-bounds/analysis.json; geometry-combined/analysis.json"
+    },
+    {
+      "id": "Lighting signatures and intermittent graphics-error diagnosis 2026-11-21",
+      "status": "164 noon variants classified; compact loops no major win; GL1281 unresolved",
+      "observation": "Compact loop12links/2orders: only~0.2–1.0s on representative night sources; uniform-bound pavement reverses direction. First cycle stopped by expression-evaluator script mistake; retry departureGL1281 excluded. Added getError boundary polling stalledrenderer>150s; diagnostic excluded. Passive native saved-night/noon stress clean: nightadds0, noonadds164;114 match outside pointlightsections/countguards/materialpresenceguard,50 byte-identical sourcepairs alreadyexisted. Night10pointlights vsday2; timingnotexclusivecompilerbill.109651 validated draw/buffer calls after attachment, no badargs/nullqueries; peak88C. Healthytrace does not fix intermittenterror.",
+      "action": "Stop error-polling probes/heavyblind retries. Guard ordinary readiness against native null programquery returns without extraGLcalls. Next distinct leads: initial pavement shader~27s isolatedlink and recurring town-light signature variants. Any possible rendering change requires matchedscreenshots/nativeFPS/memorychecks; no paddedlight default adoption.",
+      "evidence": "PERFORMANCE-2026-11-21/gl-invalid-origin/passive-transitions/lighting-analysis.json; point-light-loop/results/results.json"
     }
   ]
 }

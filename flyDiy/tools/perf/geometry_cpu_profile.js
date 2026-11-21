@@ -15,7 +15,7 @@ const init=`(()=>{const D=window.__GEOMETRY_DIAG={scopes:{},slices:[],wrapped:fa
  },10);setTimeout(()=>clearInterval(timer),130000);
 })();`;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-(async()=>{try{await PR.start({name:'geometry-cpu-profile',headed:true,size:'5120x1271',q:query,seed,init,cap:150,boot:130,onNavigate:async r=>{
+(async()=>{try{await PR.start({name:'geometry-cpu-profile',headed:true,live:process.argv.includes('--live'),size:'5120x1271',q:query,seed,init,cap:150,boot:130,onNavigate:async r=>{
  await r.cmd('Profiler.enable');await r.cmd('Profiler.setSamplingInterval',{interval:1000});
  const before=await r.ev('performance.now()');const start=await r.cmd('Profiler.start');if(start.error)throw Error(JSON.stringify(start.error));
  const phases=[],end=Date.now()+125000;let prev='';
@@ -25,7 +25,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  }
  const stopped=await r.cmd('Profiler.stop');if(stopped.error||!stopped.result.profile)throw Error('No Chrome CPU profile');
  fs.writeFileSync(path.join(out,'chrome.cpuprofile'),JSON.stringify(stopped.result.profile));
- const data=await r.J('({t:performance.now(),build:window.FLYDIY_BUILD,bootT0:BOOT.t0,log:BOOT.log,diag:__GEOMETRY_DIAG,settle:window.FLYDIY_WORLD_SETTLE,scopes:FLIGHT_REC.S})');
+ const data=await r.J('({t:performance.now(),build:window.FLYDIY_BUILD,bootT0:BOOT.t0,log:BOOT.log,diag:__GEOMETRY_DIAG,settle:window.FLYDIY_WORLD_SETTLE,clock:window.FLYDIY_PACE&&FLYDIY_PACE.state(),terrainMemo:FLIGHT_PROBE.world().terrainMemo(),scopes:FLIGHT_REC.S})');
  data.profileStartBeforeMs=before;data.query=query;data.phases=phases;data.gpu=r.gpu;data.errors=r.errors;data.stageOnly=true;
  fs.writeFileSync(path.join(out,'stage-data.json'),JSON.stringify(data,null,2));
  console.log('CPU_PROFILE_COMPLETE');throw Error('CPU_PROFILE_COMPLETE');

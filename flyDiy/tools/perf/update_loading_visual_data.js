@@ -15,6 +15,13 @@ for(const dir of ['mist-scuff-optimization','mist-scuff-optimization-final','mis
 }
 if(trials.length>38)throw Error('Split history rather than drop rows');
 const mist=chart('loading-history-mist-trials','Earlier mist/scuff trials','Valid runs only. Thermal/sensor stops, loader failures and graphics errors excluded. Full finish-class specialization did not repeat its early saving; approved mist B remains. Different builds and prototype combinations are labeled.',trials);
+const terrainStudy=read(path.join(base,'terrain-weather-base/analysis.json'));
+const geometryStudy=read(path.join(base,'geometry-combined/analysis.json'));
+const polygonStudy=read(path.join(base,'pavement-polygon-bounds/analysis.json'));
+const geometryRows=(polygonStudy?.runs||[]).filter(r=>r.valid).map(r=>[r.label,r.seconds,'Build122b7038117c, native clock, approved B/original scuff. Closing control excluded after GL1281; no measured total-loading gain.','evidence/PERFORMANCE-2026-11-21/pavement-polygon-bounds/'+r.folder+'/summary.json']);
+if(geometryStudy?.valid)geometryRows.push(['Polygon bounds + refinement height reuse',geometryStudy.seconds,'Build'+geometryStudy.build+'; single native smoke test, not an isolated saving. Both candidates OFF by default; all runway detail retained.','evidence/PERFORMANCE-2026-11-21/geometry-combined/candidate/summary.json']);
+const geometry=chart('loading-history-geometry','Pavement CPU work — native-player clock','Bounds remove about81% of exact polygon-distance queries. The isolated load pair is effectively unchanged; the combined run is one later-build observation. No causal cumulative gain or flight/visual acceptance claimed. Candidates remain OFF.',geometryRows);
+const terrain=chart('loading-history-terrain','Terrain/weather cache — native-player clock','Same buildfdee1a3aa420, saved night, original scuff and approved mist B. Controls bracket the cache candidate. No meaningful whole-loading gain; the candidate stays OFF. Identical coordinate heights and live weather relief, all scenery/runway cues retained.',(terrainStudy?.runs||[]).filter(r=>r.valid).map(r=>[r.label,r.seconds,'Native clock;20s soak/GL0. '+(r.id==='candidate'?'Static weather-strip base caching; weather still live.':'Original weather-strip bypass.')+' World generation '+r.stages.world.toFixed(3)+'s; nearby queues '+r.stages.settle.toFixed(3)+'s.','evidence/PERFORMANCE-2026-11-21/terrain-weather-base/'+r.folder+'/summary.json']));
 const history=path.join(vis,'loading-measurement-history.html');let html=fs.readFileSync(history,'utf8');
 html=html.replace(/(<script type="application\/json" data-viz-chart data-group="progress">)([\s\S]*?)(<\/script>)/,(_,a,json,b)=>{
  const p=JSON.parse(json);p.rows=p.rows.filter(row=>!String(row[2]).startsWith('21 Nov update:'));
@@ -25,7 +32,10 @@ html=html.replace(/(<script type="application\/json" data-viz-chart data-group="
  p.description='Individual full-hangar observations across builds, diagnostic startup clock. Approved mist B retains all seven systems and original runway detail/cues. New simplified-scuff tests remain opt-in; controls drift, so bars are not cumulative causal savings. Native-player results are in their separate group.';
  p.height=Math.min(800,50+29*p.rows.length);return a+JSON.stringify(p).replace(/</g,'\\u003c')+b;
 });
-for(const [group,config]of [['latest',latest],['native',native],['misttrials',mist]]){
+html=html.replace(/\s*<option value="geometry">[^<]*<\/option>/g,'');
+html=html.replace('<option value="terrain">','<option value="geometry">Latest pavement CPU tests</option>\n        <option value="terrain">');
+html=html.replace(/select.value = configs.has\(initial\) \? initial : "[^"]+";/,'select.value = configs.has(initial) ? initial : "geometry";');
+for(const [group,config]of [['latest',latest],['native',native],['misttrials',mist],['terrain',terrain],['geometry',geometry]]){
  const node='<script type="application/json" data-viz-chart data-group="'+group+'">'+JSON.stringify(config).replace(/</g,'\\u003c')+'</script>';
  const re=new RegExp('<script type="application/json" data-viz-chart data-group="'+group+'">[\\s\\S]*?</script>');
  html=re.test(html)?html.replace(re,()=>node):html.replace('  <div data-viz-container></div>','  <div data-viz-container></div>\n  '+node);
@@ -46,5 +56,8 @@ function add(id,label,log,description,folder,navTime){
 }
 const approved=nr.find(x=>x.id==='current');if(approved)add('approved-native','Approved B / original scuff — native player clock',approved.r.boot,'Build73f492674f4c. Accepted cuts only; all runway cues and seven systems retained.',null,approved.r.loadMs);
 for(const r of study?.runs||[])if(r.valid){const folder=path.join(base,'scuff-lite-integrated',r.folder||r.id),s=read(path.join(folder,'summary.json'));add(r.id,r.label+' — diagnostic startup clock',s.garage.boot.log,'Build'+r.build+'. '+(r.id.startsWith('control')?'Original scuff.':'Simplified scuff test, opt-in.'),folder,s.garage.t);}
+for(const r of terrainStudy?.runs||[])if(r.valid){const s=read(path.join(base,'terrain-weather-base',r.folder,'summary.json'));add('terrain-'+r.id,r.label+' — native player clock',s.garage.boot.log,'Build'+r.build+'. Approved B/original scuff; all scenery and full runway cues. Cache candidate remains off.',null,s.garage.t);}
+for(const r of polygonStudy?.runs||[])if(r.valid){const s=read(path.join(base,'pavement-polygon-bounds',r.folder,'summary.json'));add('polygon-'+r.id,r.label+' — native player clock',s.garage.boot.log,'Build'+r.build+'. Bounds candidate OFF; closing control excluded after graphics error.',null,s.garage.t);}
+if(geometryStudy?.valid){const s=read(path.join(base,'geometry-combined/candidate/summary.json'));add('geometry-combined','Bounds + height reuse — single native smoke test',s.garage.boot.log,'Build'+geometryStudy.build+'. Both exact-math CPU candidates OFF; no isolated loading/FPS claim.',null,s.garage.t);}
 const waterfall=path.join(vis,'garage-waterfall-current.html');let wh=fs.readFileSync(waterfall,'utf8');wh=wh.replace(/(<script type="application\/json" data-waterfall-runs>)[\s\S]*?(<\/script>)/,(_,a,b)=>a+JSON.stringify(runs).replace(/</g,'\\u003c')+b);fs.writeFileSync(waterfall,wh);
-console.log(JSON.stringify({historyGroups:8,latest:latest.rows.length,native:native.rows.length,mistTrials:trials.length,waterfallRuns:runs.length,spans:runs.reduce((n,r)=>n+r.spans.length,0)}));
+console.log(JSON.stringify({historyGroups:10,geometry:geometryRows.length,latest:latest.rows.length,native:native.rows.length,mistTrials:trials.length,terrain:terrain.rows.length,waterfallRuns:runs.length,spans:runs.reduce((n,r)=>n+r.spans.length,0)}));

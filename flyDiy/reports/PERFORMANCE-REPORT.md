@@ -1,6 +1,6 @@
 # Wingsmith performance — consolidated living report
 
-Updated: 2026-11-21T12:32:41.009Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+Updated: 2026-11-21T13:33:49.239Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
 
 ## Latest lighting and terrain investigation
 
@@ -27,11 +27,56 @@ Same build, fresh visible Chrome profiles, native-player clock verified, private
 
 | Case | Garage(s) | World generation(s) | Nearby queues(s) | Height misses | Cached weather hits | Peak CPU°C |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Original weather-strip cache bypass — incomplete/excluded | — | — | — | — | — | — |
-| Cache static base, keep live weather — incomplete/excluded | — | — | — | — | — | — |
-| Repeated original cache bypass — incomplete/excluded | — | — | — | — | — | — |
+| Original weather-strip cache bypass | 123.110 | 32.576 | 15.200 | 22228245 | 0 | 79 |
+| Cache static base, keep live weather | 126.057 | 32.084 | 14.087 | 22197675 | 5705 | 85 |
+| Repeated original cache bypass | 129.240 | 32.758 | 15.360 | 22232310 | 0 | 85 |
 
 Only the static composed height is cached. Every cache hit on a weather strip still calls wearDelta with current soil/weather; no frozen rung, height approximation, runway relief reduction or new GPU texture. Extra cache-tag storage16KiB, same16,384 coordinate slots. Focused checks compare exact Float64 answers across14,607 reads, changing weather without invalidation, rebuild invalidation, lakes and lazy-build bypass; prior140,000 terrain-hash checks also pass. A targeted1,000 repeated weather reads avoids1,000 base recomputations while preserving every dynamic answer. Default OFF during the study.
+
+Result: controls123.110/129.240s (mean126.175s), candidate126.057s; a0.117s difference against the bracketing mean is not a meaningful loading saving. Candidate reuses only5,705 of597,674 weather-strip reads (<1%); the larger22M-miss count was not primarily recoverable weather-strip work. World generation32.576→32.084s and nearby queues15.200→14.087s do not establish a total gain; later first-draw/quiet-frame timing varies. All cases normal native readiness/GL0/20s soak, peaks≤85°C. Park OFF; no larger-cache or other speculative rollout on this evidence.
+
+### Refreshed current-world CPU profile
+
+Native-player, same private Cub/hangar/accepted cuts; original scuff, approved mist B. Stage-only diagnostic stops after geometry/nearby queues, before the long shader gate. Profile includes sampling/scope overhead and is not a delivered loading measurement. Selected geometry/streamer stacks contain43.40s sampled CPU out of70.51s total profile. The following inclusive scopes overlap and must NOT be added.
+
+| Scope | Sampled inclusive CPU(s) |
+| --- | ---: |
+| Vegetation fill |7.94|
+| Airfield strips |6.63|
+| Road builders |6.02|
+| Terrain patch builder |5.67|
+| Pavement-overlap queries (nested in callers above) |5.85|
+| Polygon edge distance (nested) |3.89|
+
+Robust2D norm hyp2 alone accounts for3.52s self time. This points toward avoiding unnecessary polygon-distance work rather than changing geometry resolution or replacing stable numerical math. Peak85°C.
+
+## Conservative pavement-polygon query bounds
+
+Same build122b7038117c, fresh native-player Chrome profiles, saved Cub/full hangar/5120x1271/DPR1, saved night/30fps. Approved mist B/original scuff. All seven systems,town,full high-poly runway geometry/cues retained; only accepted cliff/runtime-aircraft-bake cuts. Failed terrain-weather-base cache OFF, experimental GPU caches OFF.20s garage soak; no day change or departure. Controls bracket the exact query optimization. Driver cache not erased; no world FPS claim.
+
+| Case | Garage(s) | World generation(s) | Nearby queues(s) | Exact polygon queries | Distant queries skipped | Peak CPU°C |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original polygon edge queries | 123.485 | 32.982 | 15.449 | 13528786 | 0 | 79 |
+| Reject unreachable pavement polygons | 123.466 | 30.664 | 16.200 | 2576118 | 10952548 | 81 |
+| Repeated original polygon queries — incomplete/excluded | — | — | — | — | — | 86 |
+
+A polygon outside the caller’s finite reach cannot contribute. Reject it using its existing bounding box plus a1µm safety halo; all near-polygon distances retain the original arithmetic and record ordering. Unbounded road-end connectivity checks are untouched. No mesh, texture, vegetation distribution, climate, relief or visual setting changes. Actual composed-fixture test:167,356 complete output comparisons match exactly across23,908 random/edge/threshold points and seven pavement/cover query modes. Four alternating-order micro runs cut representative pavedAt query time~52→27–28ms; these are not game-loading savings. Candidate remains opt-in during testing.
+
+Actual candidate rejects10,952,548 polygon queries, reducing full distance evaluations13,528,786→2,576,118 (~81%). World generation32.982→30.664s in the valid opening pair; nearby queues15.449→16.200s. Whole loading123.485→123.466s is effectively unchanged. Later shader/first-draw work masks the CPU-stage reduction. Closing original-control observation122.291s is EXCLUDED: GL1281 at readiness, not a faster valid run. Do not claim a repeated loading gain; keep opt-in pending validation-fault diagnosis and combined real-world testing.
+
+Refinement height reuse is a separate opt-in source candidate (pavereuse=1), rebuilt locally in458534f65c13. It carries the existing refinement memo into final strip/road vertex emission. Focused real-builder tests keep all attributes/positions/normals/indices byte-identical and avoid1,066/5,872 strip height calls and659/3,372 curved-road calls on a wavy field. No lower resolution, field approximation or shader change. Retaining the memo longer can increase transient memory; full-map/flight validation remains pending, so it stays OFF. Initial test harness missed CORE_MATH initialization and compared separate function identities in metadata; fixed harness, geometry byte comparisons had passed. One build write encountered a transient Windows file-open error; immediate rebuild succeeded.
+
+Latest diagnostic blocker: a further original polygon-control boot reportsGL1281 and is excluded. Resource/render-boundary getError polling then stalled its diagnostic renderer for>150s; no timing accepted. New passive probe records native null query returns/deletions and existing getError results with ZERO added GL calls (unit verified). A clean passive startup and the following saved-night/noon transition stress did not reproduceGL1281. The fault remains unresolved; do not call it fixed. Normal benchmark capture now records null program-query returns without adding GL polling and rejects such runs. No visual reduction has been applied in these experiments; paired screenshots are required if a future change can alter rendering.
+
+### All164 noon programs now classified by source differences
+
+Clean passive native transition trace: saved-night departure adds0 programs; noon departure adds164. Of those,114 have the same vertex and fragment source outside the unshadowed point-light section, array/count guards, material light-presence guard and shader display name. The other50 are byte-identical source pairs that already existed. All new light-bearing programs use2 point lights instead of the night pool’s10. This isolates the repeated lighting-signature cost much more clearly than an unassigned world blob. Source normalization does not measure exclusive compiler time. The extra draw/buffer validator observed109,651 calls after attachment without bad arguments; no null query returns or malformed vector uploads. Peak88°C. Diagnostic departures are not added to the accepted loading comparison.
+
+Two distinct future targets: initial loading still pays for the heavy pavement cue shader (~27s isolated link); investigate pre-baked unit-shape fields that avoid runtime bake/upload duplication, retaining cues and testing memory/actual FPS/A-B screenshots. Separately, stable town-light signatures plus zero-intensity-light skipping could avoid the night/day variant burst; prior reflection-light padding did not establish a gain and is a different scope. Do not silently adopt padded lights or claim free FPS.
+
+### Combined exact-math pavement smoke test
+
+Build458534f65c13, both polygon bounds and refinement-height reuse explicitly enabled: 120.498s to normal native-player garage readiness. Original scuff/approved mist B, full town, seven scenery systems and full runway mesh/cues retained; only accepted advanced-cliff/runtime-aircraft-bake exclusions. GL0 at readiness and end, zero captured null program queries,20s soak with no100ms frame gaps or long tasks; peak77°C. Two known empty tree-impostor warnings remain. World generation31.061s, nearby queues16.111s, world shader gate41.208s. This single later-build observation is not an isolated/cumulative saving or flight/FPS acceptance. Both candidates remain OFF by default; exact fixture tests do not establish full-map visual parity. No new visual sacrifices.
 
 
 ## Latest validated native-player mist comparison
@@ -97,7 +142,7 @@ Active simplified patch cost is37–52% below original in this test, with comput
 
 Controlled forced-damage panel images: [original surface](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-originalDry.png), [simplified surface](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-liteDry.png), [simplified with computed mud](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-liteMud.png).
 
-Current interactive figures: [loading comparison](figures/loading-measurement-history.html), [current loading waterfall](figures/garage-waterfall-current.html). Eight comparison groups preserve historical and new valid measurements, with native/diagnostic clock modes separated. Waterfall unknown/zero-duration rows are hidden while gaps remain. Source-identified example program intervals are parallel observations, not exclusive costs; complete per-building/cloud/vegetation attribution is not claimed for the new captures. Desktop1024px/narrow320px and changed selections checked in an isolated browser. GPU-disabled screenshot rendering clipped waterfall text despite valid layout; normal graphics rendering plus font readiness produced readable labels. All five new load cases peaked≤87°C.
+Current interactive figures: [loading comparison](figures/loading-measurement-history.html), [current loading waterfall](figures/garage-waterfall-current.html). Comparison groups preserve historical and new valid measurements, with native/diagnostic clock modes separated. Waterfall unknown/zero-duration rows are hidden while gaps remain. Source-identified example program intervals are parallel observations, not exclusive costs; complete per-building/cloud/vegetation attribution is not claimed for the new captures. Earlier desktop1024px/narrow320px and changed selections checked in an isolated browser. GPU-disabled screenshot rendering clipped waterfall text despite valid layout; normal graphics rendering plus font readiness produced readable labels. All five simplified-scuff load cases peaked≤87°C.
 
 Branch checkpoints04411db93 (approved optimizations),5989b85c1 (sensor monitoring),bf1ba4408 (opt-in scuff prototypes). Generated main files, private save and raw flight logs excluded from commits. Under20s garage/under60s initial loading remain unmet.
 

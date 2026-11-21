@@ -367,7 +367,7 @@ const PAVEMENT = (() => {
   // game's premises) - the analytic world's strips keep their constant lift and their rows - and on a strip, or a road or a
   // polygon the caller marks (o.refine: render_premises, the aerodromes' own - within REFINE_NEAR of a runway); every
   // pavement refined cost 355 k triangles over Jolene's village roads and harbour aprons, for no wheel
-  const REFINE = { tol: 0.005, min: 0.75, roadV: false, poly: true };   // (roadV: a road's rows across too - 13 k more over Jolene for one 14 mm crease at HOME's lane: off)
+  const REFINE = { tol: 0.005, min: 0.75, roadV: false, poly: true, reuseHeight: typeof location !== 'undefined' && /[?&]pavereuse=1(?:&|$)/.test(location.search || '') };   // roadV stays off; height reuse is an opt-in experiment.
   // refineAxis(A, B, H, inside): A, B the two axes' stations (sorted); H(a, b) the ground at a on A's axis, b on B's;
   // inside(a, b) the point is paved. -> A with stations inserted
   // (DIRT-STRIP: `min` > 0 - a bush strip's bumps (26b_strip_micro) - the finest spacing, REFINE.min otherwise)
@@ -405,18 +405,20 @@ const PAVEMENT = (() => {
     const pinU = [0, len].concat(o.sinkD0 !== undefined && o.sinkD0 !== null && SINK.liftIn < len / 2 ? [SINK.liftIn, len - SINK.liftIn] : []);
     for (const p of pinU) if (!U.some(x => Math.abs(x - p) < 1e-6)) U.push(p);
     U.sort((a, b) => a - b);
+    let refinedHeight = null;
     if (o.heightAt && o.sinkD0 !== undefined && o.sinkD0 !== null && o.refine !== false) {   // G2115: the rows where the ground curves
       const H = memo2((u, v) => { const w = F.toWorld(u, v); return o.heightAt(w[0], w[1]); }), Hv = (v, u) => H(u, v);
       // (DIRT-STRIP) a bumpy strip (o.refineMin, render_world: STRIP_MICRO.has) earns rows down to its bumps' scale
       U = refineAxis(U, V, H, (u, v) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMin);
       V = refineAxis(V, U, Hv, (v, u) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMinV || o.refineMin);   // (DIRT-STRIP: finer across - a rut's wall)
+      if (o.reuseRefine !== undefined ? o.reuseRefine : REFINE.reuseHeight) refinedHeight = H;
     }
     const nV = V.length, nU = U.length, n = nU * nV;
     const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
     let k = 0;
     for (let i = 0; i < nU; i++) for (let j = 0; j < nV; j++, k++) {
       const u = U[i], v = V[j], w = F.toWorld(u, v);
-      const y = (o.heightAt ? o.heightAt(w[0], w[1]) : 0) + liftOf(o, lift, sdBox(u, v, halfL, halfW, len), w[0], w[1]);
+      const y = (refinedHeight ? refinedHeight(u, v) : o.heightAt ? o.heightAt(w[0], w[1]) : 0) + liftOf(o, lift, sdBox(u, v, halfL, halfW, len), w[0], w[1]);
       pos[k * 3] = w[0]; pos[k * 3 + 1] = y; pos[k * 3 + 2] = w[1];
       pav[k * 4] = u; pav[k * 4 + 1] = v; pav[k * 4 + 2] = sdBox(u, v, halfL, halfW, len); pav[k * 4 + 3] = shW;
       pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = halfL;
@@ -458,10 +460,12 @@ const PAVEMENT = (() => {
     for (const s of road.s) if (!S.some(x => Math.abs(x - s) < 1e-6)) S.push(s);   // the polyline's own nodes
     S.sort((a, b) => a - b);
     const tw = o.toWorld || ((x, z) => [x, z]);
+    let refinedHeight = null;
     if (o.heightAt && o.sinkD0 !== undefined && o.sinkD0 !== null && o.refine) {   // G2115: the stations and the rows where the ground curves
       const H = memo2((s, v) => { const A = road.at(s), wp = tw(A.p[0] + A.n[0] * v, A.p[1] + A.n[1] * v); return o.heightAt(wp[0], wp[1]); }), Hv = (v, s) => H(s, v);
       S = refineAxis(S, V, H, (s, v) => Math.abs(v) <= halfW);
       if (REFINE.roadV) V = refineAxis(V, S, Hv, (v, s) => Math.abs(v) <= halfW);   // (a taxiway's grade meeting a runway's crosses it: 4 m rows on a 24 m road)
+      if (o.reuseRefine !== undefined ? o.reuseRefine : REFINE.reuseHeight) refinedHeight = H;
     }
     const nV = V.length, nU = S.length, n = nU * nV;
     const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
@@ -473,7 +477,7 @@ const PAVEMENT = (() => {
       const tx = p1[0] - p0[0], tz = p1[1] - p0[1], tl = Math.hypot(tx, tz) || 1;
       for (let j = 0; j < nV; j++, k++) {
         const v = V[j], lp = [A.p[0] + A.n[0] * v, A.p[1] + A.n[1] * v], wp = tw(lp[0], lp[1]);
-        const y = (o.heightAt ? o.heightAt(wp[0], wp[1]) : 0) + liftOf(o, lift, halfW - Math.abs(v), wp[0], wp[1], tlM);
+        const y = (refinedHeight ? refinedHeight(S[i], v) : o.heightAt ? o.heightAt(wp[0], wp[1]) : 0) + liftOf(o, lift, halfW - Math.abs(v), wp[0], wp[1], tlM);
         pos[k * 3] = wp[0]; pos[k * 3 + 1] = y; pos[k * 3 + 2] = wp[1];
         pav[k * 4] = S[i]; pav[k * 4 + 1] = v; pav[k * 4 + 2] = halfW - Math.abs(v); pav[k * 4 + 3] = shW;
         pk[k * 4] = cls; pk[k * 4 + 1] = seed; pk[k * 4 + 2] = halfW; pk[k * 4 + 3] = L / 2;
