@@ -21,17 +21,18 @@ TEMP() { curl -s -m 5 localhost:8085/data.json | grep -o '"Text":"CPU Package","
 COOL() {    # start a load only under 80 C (A0's thermal rule, 22 Nov); no reading for 2 min = stop, never run blind
   local t n=0; while :; do t=$(TEMP); [ -n "$t" ] && [ "$t" -lt 80 ] && { echo $t; return 0; }
     n=$((n + 1)); [ -z "$t" ] && [ $n -ge 6 ] && return 1; [ $n -ge 45 ] && return 1; sleep 20; done; }
-# THE BOX'S CPU TOKENS (A0, 22 Nov: at most 2 CPU runs on the box, D:/Dev/flydiy-notes/cpu_token.sh). A TIMING run
-# holds BOTH for its whole window, so no other session starts a run beside it: two token files under this name,
+# THE BOX'S CPU TOKENS (A0, 22 Nov: at most 4 CPU runs on the box, D:/Dev/flydiy-notes/cpu_token.sh). A TIMING run
+# holds ALL of them for its whole window, so no other session starts a run beside it: NTOK token files under this name,
 # touched before every load (a token older than 45 min is ignored), removed on exit. It first waits (10 min at
 # most) for the runs other sessions already have going.
 TK="D:/Dev/flydiy-notes/cpu_tokens"; mkdir -p "$TK"
-HOLD() { for i in 1 2; do echo "PERF-LEAD $(date +%H:%M:%S) warm_cache_test (timing: both tokens)" > "$TK/PERF-LEAD_$i.tok"; done; }
-OTHERS() { local n=0 f a; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */PERF-LEAD_[12].tok) continue ;; esac
+NTOK=${CPU_TOKENS:-4}
+HOLD() { for i in $(seq 1 $NTOK); do echo "PERF-LEAD $(date +%H:%M:%S) warm_cache_test (timing: all tokens)" > "$TK/PERF-LEAD_$i.tok"; done; }
+OTHERS() { local n=0 f a; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */PERF-LEAD_[0-9].tok) continue ;; esac
   a=$(( ($(date +%s) - $(stat -c %Y "$f")) / 60 )); [ $a -le 45 ] && n=$((n + 1)); done; echo $n; }
 bash $B take gpu PERF-LEAD "warm-cache test, 6 loads" || { echo "no gpu lock"; exit 3; }
 SRV=
-trap '[ -n "$SRV" ] && kill $SRV 2>/dev/null; rm -f "$TK/PERF-LEAD_1.tok" "$TK/PERF-LEAD_2.tok"; bash $B drop gpu PERF-LEAD' EXIT
+trap '[ -n "$SRV" ] && kill $SRV 2>/dev/null; rm -f "$TK"/PERF-LEAD_[0-9].tok; bash $B drop gpu PERF-LEAD' EXIT
 HOLD
 for w in $(seq 1 30); do [ "$(OTHERS)" = 0 ] && break; echo "  $(OTHERS) other CPU run(s) still going: waiting"; sleep 20; done
 [ "$(OTHERS)" = 0 ] || echo "NOTE: $(OTHERS) other CPU run(s) beside these loads: the timings are not from a quiet box" | tee -a "$OUT/summary.txt"
