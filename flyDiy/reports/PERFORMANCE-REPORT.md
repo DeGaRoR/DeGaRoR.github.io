@@ -1,6 +1,38 @@
 # Wingsmith performance — consolidated living report
 
-Updated: 2026-11-21T04:46:35.204Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+Updated: 2026-11-21T12:32:41.009Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+
+## Latest lighting and terrain investigation
+
+Native lighting-cycle diagnostics: first garage source capture completed, but a test-script statement was sent through the expression-only evaluator, stopping transitions. Fixed evaluator calls; partial capture retained separately. Retry reached normal garage readiness, then surfaced the known intermittentGL1281 on the original saved-night departure. These are not accepted transition/loading comparisons. No lighting prototype was installed in the game. Do not rerun the same heavy diagnostic blindly. The earlier completed native C/B circuits remain the valid smoothness evidence.
+
+Code confirms an eight-point-light town pool arms at night and disarms in daytime, changing shader signatures. A compact-loop compiler experiment preserves the same light order and RE_Direct calls, excludes point-shadow programs, and compares constant/uniform-bound loops with originals. It does not pad/remove lights or change appearance.
+
+| Program / loop | Order1(s) | Reverse order(s) |
+| --- | ---: | ---: |
+| Coarse ground / original unrolled lights | 7.848 | 7.322 |
+| Coarse ground / compact point-light loop | 7.655 | 6.920 |
+| Coarse ground / uniform-bound compact loop | 7.783 | 6.935 |
+| Road/runway pavement / original unrolled lights | 27.837 | 27.191 |
+| Road/runway pavement / compact point-light loop | 27.010 | 26.161 |
+| Road/runway pavement / uniform-bound compact loop | 26.862 | 28.588 |
+
+All12 links pass with GL0, CPU peak75°C. Compact constant loops improve only~0.2–1.0s on representative programs; uniform-bound pavement reverses direction. No substantial compiler win or delivered loading gain; park the prototype rather than introduce runtime/visual risk. Sources are complete captured current night programs with ten point lights.
+
+Next concrete lead: previous current-build cold loads report~8.84M terrain memo hits and22.22M misses. Weather-sensitive runway points bypass caching entirely to keep changing relief current. New opt-in terrainwearmemo=1 caches only their static composed base, tags those slots, and still calls wearDelta with current soil on every hit. Same16,384 exact-coordinate slots; extra16KiB tag array, no GPU texture or approximate heights. Focused exact-value checks pass with changing weather and invalidation; a1,000-query repeated-weather test skips all1,000 base recomputations while matching every answer. Synthetic mixed-workload base computations fall9,343→5,204; this is not a measured game-loading saving. One initial test asserted an unjustified50% aggregate threshold and was corrected to test the actual repeated-point contract; equality checks had passed.
+
+## Exact base-height caching under weather-sensitive runways
+
+Same build, fresh visible Chrome profiles, native-player clock verified, private saved Cub/full hangar,5120x1271/DPR1,saved night/30fps. Approved mist B/original scuff; all seven systems,town,full high-poly runway geometry and cues retained. Only accepted cliffs/runtime-aircraft-bake cuts. Experimental shader/material caches off.20s garage soak, no departure or daytime change. Driver cache not erased. Controls bracket static-base memo candidate; compare geometry phases/cache misses as well as whole loading. Not a full-flight FPS result.
+
+| Case | Garage(s) | World generation(s) | Nearby queues(s) | Height misses | Cached weather hits | Peak CPU°C |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original weather-strip cache bypass — incomplete/excluded | — | — | — | — | — | — |
+| Cache static base, keep live weather — incomplete/excluded | — | — | — | — | — | — |
+| Repeated original cache bypass — incomplete/excluded | — | — | — | — | — | — |
+
+Only the static composed height is cached. Every cache hit on a weather strip still calls wearDelta with current soil/weather; no frozen rung, height approximation, runway relief reduction or new GPU texture. Extra cache-tag storage16KiB, same16,384 coordinate slots. Focused checks compare exact Float64 answers across14,607 reads, changing weather without invalidation, rebuild invalidation, lakes and lazy-build bypass; prior140,000 terrain-hash checks also pass. A targeted1,000 repeated weather reads avoids1,000 base recomputations while preserving every dynamic answer. Default OFF during the study.
+
 
 ## Latest validated native-player mist comparison
 

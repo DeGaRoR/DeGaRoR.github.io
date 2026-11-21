@@ -95,7 +95,7 @@ async function dump(name){
  for(let i=0;i<n;i+=2000000)chunks.push(await rig.ev(`__SHJSON.slice(${i},${i+2000000})`));
  fs.writeFileSync(path.join(out,name+'.json.gz'),zlib.gzipSync(chunks.join('')));
  const meta=await rig.J(`({build:window.FLYDIY_BUILD,t:performance.now(),bootT0:BOOT.t0,settle:window.FLYDIY_WORLD_SETTLE,programs:__SHC.programs.length,boot:BOOT.log,holds:window.FLYDIY_HOLDS?FLYDIY_HOLDS():null,
-  simT:window.FLIGHT_PROBE?FLIGHT_PROBE.sim().t:null,worker:window.FLYDIY_SIMW?FLYDIY_SIMW.state():null,
+  clock:window.FLYDIY_PACE&&FLYDIY_PACE.state(),simT:window.FLIGHT_PROBE?FLIGHT_PROBE.sim().t:null,worker:window.FLYDIY_SIMW?FLYDIY_SIMW.state():null,
   mode:window.FLYDIY_MODE,careerId:window.FLYDIY_CAREER_ID,studio:window.FLYDIY_STUDIO?FLYDIY_STUDIO.on():null,viewport:{w:innerWidth,h:innerHeight,dpr:devicePixelRatio},
   parked:window.PARKED?{staticTrio:PARKED.staticTrio,records:Object.values(PARKED.records).map(r=>({key:r.key,cooked:!!r.cooked,fleet:!!r.fleet})),pending:PARKED.pending.length,fleet:PARKED.fleet.stats}:null,
   town:(()=>{const w=window.FLIGHT_PROBE&&FLIGHT_PROBE.world(),r=w&&w.premises&&w.premises.overlay&&w.premises.overlay.records;
@@ -142,7 +142,7 @@ async function go(name){
  seed={...seed,'flydiy.garageStudio':studio?'1':'0'};
  if(careerId){if(!seed['flydiy.career.'+careerId])throw Error('Career not in private fixture');const ix=JSON.parse(seed['flydiy.careers']);ix.last=careerId;seed={...seed,'flydiy.careers':JSON.stringify(ix)};}
  fs.writeFileSync(path.join(out,'test-configuration.json'),JSON.stringify({query:process.argv[3]||'',headed:process.argv.includes('--headed'),garage:studio?'studio':'hangar',studioPreferenceOverridden:true,size,careerId,drawErrorTracing:process.argv.includes('--trace-gl-errors'),bootSeconds,observeSeconds},null,2));
- rig=await PR.start({name:'shader-bill',size,allowBootFailure:true,repo:arg('--repo',undefined),fallback:arg('--fallback',undefined),headed:process.argv.includes('--headed'),cap:Math.max(720,bootSeconds+observeSeconds+180),boot:bootSeconds,q:process.argv[3]||'',init,seed:process.argv.includes('--no-seed')?null:seed,onNavigate:async r=>{
+ rig=await PR.start({name:'shader-bill',size,live:process.argv.includes('--live'),allowBootFailure:true,repo:arg('--repo',undefined),fallback:arg('--fallback',undefined),headed:process.argv.includes('--headed'),cap:Math.max(720,bootSeconds+observeSeconds+180),boot:bootSeconds,q:process.argv[3]||'',init,seed:process.argv.includes('--no-seed')?null:seed,onNavigate:async r=>{
   let last='',lastAt=0;const end=Date.now()+bootSeconds*1000;
   while(Date.now()<end){const s=await r.J(`({t:performance.now(),phase:window.BOOT&&BOOT.current&&BOOT.current.id,state:window.BOOT&&BOOT.state,busy:window.BOOT&&BOOT.busy&&BOOT.busy(),n:window.__SHC?__SHC.programs.length:0})`);
    if(s.phase!==last||Date.now()-lastAt>30000){console.log(JSON.stringify(s));last=s.phase;lastAt=Date.now();}
@@ -152,6 +152,24 @@ async function go(name){
  await dump('garage');
  const health=rig.bootHealth||await rig.J(PR.BOOT_HEALTH);fs.writeFileSync(path.join(out,'boot-health.json'),JSON.stringify(health,null,2));
  if(!health.ok)process.exitCode=1;
+ if(process.argv.includes('--lighting-cycle')){
+  if(!health.ok)throw Error('Normal loader readiness required');
+  const clock=await rig.J('FLYDIY_PACE.state()');if(clock.legacy)throw Error('Lighting cycle requires native player clock');
+  const trips=[];
+  for(const preset of ['saved','noon','night']){
+   if(preset!=='saved')await rig.J(`(()=>{DAY_CLOCK.preset('${preset}');DAY_CLOCK.set({rate:0});return true;})()`);
+   const before=await rig.J('({t:performance.now(),n:__SHC.programs.length,keys:{...FLYDIY_TRIP_KEYS}})');
+   await rig.ev(`__SHC.stage='lighting-${preset}';true`);rig.flying=false;await rig.fly();
+   const after=await rig.J('({t:performance.now(),n:__SHC.programs.length,gl:FLYDIY_RENDERER.getContext().getError(),trips:FLYDIY_TRIPS.map(t=>({kind:t.kind,ms:t.ms,done:t.done,steps:t.steps.map(s=>({id:s.id,ran:s.ran,why:s.why,key:s.key}))}))})');
+   trips.push({preset,before,after});fs.writeFileSync(path.join(out,'lighting-cycle.json'),JSON.stringify(trips,null,2));
+   if(after.gl)throw Error('World draw error '+after.gl);
+   await dump('lighting-'+preset);
+   await rig.ev("FLYDIY_MENU.act('shed');true");let returned=false;
+   for(let i=0;i<240;i++){if(await rig.J("document.body.classList.contains('mode-ws')&&BOOT.state==='gone'&&!BOOT.busy()")){returned=true;break;}await sleep(250);}
+   if(!returned)throw Error('Garage return deadline');
+  }
+  fs.writeFileSync(path.join(out,'errors.json'),JSON.stringify(rig.errors,null,2));return;
+ }
  if(observeSeconds){const tail=[],end=Date.now()+observeSeconds*1000;while(Date.now()<end){const t=Date.now();const s=await rig.J(`({t:performance.now(),state:BOOT.state,busy:BOOT.busy(),programs:__SHC.programs.length,mode:window.FLYDIY_MODE,careerId:window.FLYDIY_CAREER_ID,parked:window.PARKED?{queued:PARKED.queued(),fleet:PARKED.fleet.stats}:null})`);tail.push({...s,probeRoundtripMs:Date.now()-t});console.log('post-ready',JSON.stringify(tail.at(-1)));await sleep(5000);}fs.writeFileSync(path.join(out,'post-ready-trace.json'),JSON.stringify(tail,null,2));await dump('garage-after-observation');}
  if(process.argv.includes('--boot-only')){
   const hooks=await rig.J(`(()=>{const mats=new Set(),out=[];if(!window.WORLD||!WORLD.scene)return {error:'no world scene'};

@@ -44,6 +44,7 @@ let text=`# Wingsmith performance — consolidated living report
 
 Updated: ${new Date().toISOString()}. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
 
+${require('./lighting_progress_report.js')(root)}
 ${require('./native_results_report.js')(root)}
 ${require('./scuff_smoothness_report.js')(root).replace('## Current scuff simplification and original/current smoothness comparison','## Earlier native-comparison plan (superseded by validated results above)')}
 ${decision&&decision.summary?'## Previous completed decision\n\n'+decision.summary+'\n':''}
