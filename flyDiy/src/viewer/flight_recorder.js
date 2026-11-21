@@ -401,7 +401,11 @@
         const orig = renderer.render;
         if (typeof orig === 'function' && renderer.info && renderer.info.render) {
           renderer.render = function (scene, camera) {
-            const r = orig.call(this, scene, camera);
+            // PERF-TRACE: the program registry (program_id.js) - a render that MADE programs (late ones) is asked whose they are
+            const PID = rec.pid;
+            let r;
+            if (PID) { PID.inRender++; try { r = orig.call(this, scene, camera); } finally { PID.inRender--; } PID.rendered(scene); }
+            else r = orig.call(this, scene, camera);
             if (open) { const I = renderer.info.render; calls += I.calls; tris += I.triangles; }
             return r;
           };
@@ -409,13 +413,13 @@
       } catch (e) {}
       try {   // G1340: every program three makes, for the watchdog
         const A = renderer.info && renderer.info.programs;
-        if (A && !A.__frw) { A.__frw = 1; const push = A.push; A.push = function (p) { try { newProgram(p); } catch (e) {} return push.apply(this, arguments); }; }
+        if (A && !A.__frw) { A.__frw = 1; const push = A.push; A.push = function (p) { try { newProgram(p); if (rec.pid) rec.pid.created(p); } catch (e) {} return push.apply(this, arguments); }; }
       } catch (e) {}
       try {
         const sm = renderer.shadowMap;
         if (sm && typeof sm.render === 'function') {
           const origS = sm.render;
-          sm.render = function (a, b, c) { push(S.shadow); try { return origS.call(this, a, b, c); } finally { pop(); } };
+          sm.render = function (a, b, c) { const PID = rec.pid; push(S.shadow); if (PID) PID.inShadow++; try { return origS.call(this, a, b, c); } finally { if (PID) PID.inShadow--; pop(); } };
         }
       } catch (e) {}
       try {
@@ -438,20 +442,32 @@
       } catch (e) { rec.gpuInfo = null; }
       // the shader links: the call, and the page held while three first asks for the link's status
       const link = gl.linkProgram, infoLog = gl.getProgramInfoLog, param = gl.getProgramParameter;
+      // PERF-TRACE (22 Nov): PROGRAM IDENTITY. program_id.js keeps one row a link - this link's number -> three's program ->
+      // its material's declared owner, and the bracket of its readiness as THREE'S OWN poll saw it (COMPLETION_STATUS_KHR
+      // through the wrapper below: no GL call is added). null under ?progid=0, and where the file is not loaded (a gate)
+      let PID = null;
+      try { PID = rec.pid = (W.PROGRAMS && W.PROGRAMS.hook && rec.renderer) ? W.PROGRAMS.hook(rec.renderer, gl, clock, event) : null; } catch (e) { PID = rec.pid = null; }
+      const DONE = 0x91B1;                             // KHR_parallel_shader_compile COMPLETION_STATUS_KHR (three's isReady)
       let linkN = 0;
       const waiting = new WeakSet();
       gl.linkProgram = function (p) {
         const t = clock(); push(S.shader);
-        try { return link.call(gl, p); } finally { pop(); const d = clock() - t; linkN++; waiting.add(p); event('link', t, d, linkN); }
+        try { return link.call(gl, p); } finally { pop(); const d = clock() - t; linkN++; waiting.add(p); event('link', t, d, linkN); if (PID) PID.linked(p, linkN, t, d); }
       };
       const held = (fn, p, a) => {
         if (!waiting.has(p)) return fn.call(gl, p, a);
         waiting.delete(p);
         const t = clock(); push(S.shader);
-        try { return fn.call(gl, p, a); } finally { pop(); const d = clock() - t; NP.waitMs += d; if (d > 1) event('linkwait', t, d, null); }
+        try { return fn.call(gl, p, a); } finally { pop(); const d = clock() - t; NP.waitMs += d; const n = PID ? PID.waited(p, t, d) : null; if (d > 1) event('linkwait', t, d, n); }
       };
       gl.getProgramInfoLog = function (p) { return held(infoLog, p); };
-      gl.getProgramParameter = function (p, pn) { return pn === gl.LINK_STATUS ? held(param, p, pn) : param.call(gl, p, pn); };
+      const LS = gl.LINK_STATUS;
+      gl.getProgramParameter = function (p, pn) {
+        if (pn === LS) return held(param, p, pn);
+        const r = param.call(gl, p, pn);
+        if (pn === DONE && PID) PID.polled(p, r, clock());   // three asked whether the link is done: its answer, and when
+        return r;
+      };
       // the GPU timer: ours, and a watch on everyone else's
       let ext = null;
       try { if (!NOGPU && !opt.noGpu) ext = gl.getExtension('EXT_disjoint_timer_query_webgl2'); } catch (e) {}
@@ -510,6 +526,7 @@
           endUsMean: selfN ? +(V[SELF_US] / selfN).toFixed(2) : null, endUsMax: +V[SELF_MAX].toFixed(1), frames: selfN },
         gpuTimer: rec.gpu.ext ? { ok: rec.gpu.ok, disjoint: rec.gpu.bad, foreignFrames: rec.gpu.foreign,
           requested: rec.gpu.req, coverage: rec.gpu.req ? +(rec.gpu.ok / rec.gpu.req).toFixed(3) : null, subsystemFrames: rec.gpu.subF, rogue: rec.gpu.rogue, nested: rec.gpu.nest } : null,
+        programs: rec.pid ? rec.pid.summary() : null,   // PERF-TRACE: the program registry's count (owned / unowned / seen ready / drawn) and its own cost
       };
       const R = rec.renderer;
       if (R && R.domElement) H.canvas = { w: R.domElement.width, h: R.domElement.height, cssW: R.domElement.clientWidth, cssH: R.domElement.clientHeight, pixelRatio: R.getPixelRatio ? R.getPixelRatio() : null };
@@ -550,7 +567,10 @@
       const parts = ['{"header":', JSON.stringify(header()), ',"frames":{'];
       parts.push('"n":' + (fi - a) + ',"first":' + a + ',');
       rowsJSON(a, fi, parts);
-      parts.push('},"events":' + JSON.stringify(events) + '}');
+      // PERF-TRACE: the programs' table (program_id.js: owner, fingerprint, sizes, #defines, the readiness bracket) - asked
+      // FIRST: it closes the rows still waiting for their owner, which are events
+      let progs = null; try { progs = rec.pid ? rec.pid.table(true) : null; } catch (e) {}
+      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)

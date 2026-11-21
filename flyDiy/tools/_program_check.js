@@ -267,5 +267,9 @@ function warmThenFrame(useOld) {
   } else ok(false, '5 patternVisFor function found for the real route-rebuild test');
 }
 
+// ---- 6. PROGRAM IDENTITY (PERF-TRACE, 22 Nov): every link tied to its three.js program and its declared owner ----
+// (tools/_progid_check.js: the recorder and src/viewer/program_id.js hooked as the page hooks them)
+require('./_progid_check.js').run(ok);
+
 console.log('GATE PROGRAMS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
