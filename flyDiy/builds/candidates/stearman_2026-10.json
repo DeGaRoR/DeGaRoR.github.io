@@ -623,6 +623,7 @@
    "bpInterAt": 0.62,
    "bpInterZ": 0,
    "bpWires": 1,
+   "bpWireSec": 1,
    "bpWireD": 5,
    "wingOn": 1,
    "wgSpan": 9.8,

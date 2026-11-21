@@ -782,7 +782,7 @@ const CAGE_PARTS = [
     sections: ['braceWire'],
     place: { type: 'bpWires', at: 'root to strut, both ways' },
     groups: [
-      ['wires', ['bpWires', 'bpWireD']],
+      ['wires', ['bpWires', 'bpWireD', 'bpWireSec']],
     ] },
 
   // =========================================================================
@@ -868,7 +868,7 @@ const CAGE_PARTS = [
       // the fin's outline laid flat — same corners, same order, "in / out"
       // where the fin says "up / down" (the stab IS the fin model laid flat)
       // the macro tier (P3), the fin's words laid flat
-      ['size', ['stSpan', 'stOver', 'stChord', 'stChordTip', 'stSweep', 'stHinge']],
+      ['size', ['stSpan', 'stOver', 'stChord', 'stChordTip', 'stSweep', 'stHinge', 'stBrace']],
       // EXPERT (P2), as the fin's: the cage's own vertices
       ['tip', ['stTipZ', 'stTipY', 'stShoulderZ', 'stShoulderY', 'stTopY'], EXPERT],
       ['tip-aft corner', ['stAftZ', 'stAftY'], EXPERT],

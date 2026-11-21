@@ -1942,14 +1942,18 @@ function genParams(S, fr, strips) {
   // apart. `braceDCdA` stays what its name says (the truss between the
   // planes, which a monoplane has none of, GATE HONEST's row); both are
   // paid into the same body drag area.
+  // ...AND THE WIRES ARE THE WIRES THE AEROPLANE HAS (PHYSICS-AUDIT step 2, 2026-11-21): a cantilever tailplane's
+  // brace wires are not `ext` (61_gen_frame, genTailBraced) and pay nothing; a biplane's flying wires pay a round
+  // cable's Cd (GEN_DRAG.wire.cdRound, the 1.0 they always paid) or a streamline wire's (bracing.wireSection)
   let braceDCdA = 0, tailBraceDCdA = 0;
   const tailEnd = b => /^HT|^FIN/.test(fr.nodes[b.a].tag || '') || /^HT|^FIN/.test(fr.nodes[b.b].tag || '');
+  const wireCd = S.bracing && S.bracing.wireSection === 'streamline' ? GEN_DRAG.wire.cdStream : GEN_DRAG.wire.cdRound;
   for (const b of fr.beams) {
     if (!b.ext) continue;
     if (b.cls === 'interplane' || b.cls === 'cabane') braceDCdA += 0.10 * b.L * GEN_RULES.strutT;
     else if (b.cls === 'wire') {
-      if (tailEnd(b)) tailBraceDCdA += 1.0 * b.L * GEN_RULES.wireD;
-      else braceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+      if (tailEnd(b)) tailBraceDCdA += GEN_DRAG.wire.cdRound * b.L * GEN_RULES.wireD;
+      else braceDCdA += wireCd * b.L * GEN_RULES.wireD;
     }
   }
   cda.fusCdA[0] += braceDCdA + tailBraceDCdA;

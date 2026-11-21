@@ -979,6 +979,10 @@ const GATES = [
   // fitting's own dimensions
   { id: 'STRUT', file: '_strut_check.js', tier: 'core' },
   { id: 'STRUTOPT', file: '_strutopt_check.js', tier: 'core' },   // STRUT-OPTIONS: the strut's section and jury strut
+  // WIRES (PHYSICS-AUDIT step 2, 21 Nov): the bracing wires' drag is the wires the aeroplane has - a stressed-skin
+  // tailplane pays no brace wires (by its skin, or as the row tail.brace states), a biplane's flying wires are round
+  // cable or streamline wire (bracing.wireSection); the structure the same either way, the rows absent at 0.
+  { id: 'WIRES', file: '_wires_check.js', tier: 'core', wall: 3 },
   // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
   // stand beside your build, held to their PUBLISHED span and length — every
   // measurement taken against a reference is worth exactly what that check is

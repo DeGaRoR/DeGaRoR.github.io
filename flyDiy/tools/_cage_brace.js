@@ -30,6 +30,7 @@ PAGE.defaults = Object.assign({
   // the biplane's truss: the interplane strut kind and station, its fore/aft
   // trim, and the wires (flying + landing, flying only, none) with their gauge
   bpInter: 0, bpInterAt: 0.62, bpInterZ: 0, bpWires: 1, bpWireD: 5,
+  bpWireSec: 0,   // PHYSICS-AUDIT step 2: the wires' section, 0 = round cable (every build before), 1 = streamline
   // HULL-B42 (the user, the Super Petrel: "the struts for the wings are much too big ... Can we set their size from the
   // editor? ... twice as slim"; "given the pylon, here we can delete the central struts ... even if we keep it in the
   // physical model, we should not draw them ... an option"): bpStrutK scales the drawn sections of the cabane and the
@@ -78,6 +79,10 @@ const BRACE_ITEMS = [
     ['bpWires', 'bracing wires', 0, 2, 1, ['none', 'flying + landing', 'flying only'], { when: onBip }],
     ['bpWireD', 'wire diameter', 3, 8, 0.5,
      { when: P => onBip(P) && Math.round(P.bpWires) > 0, dim: 'mm' }],
+    // PHYSICS-AUDIT step 2 (2026-11-21): the flying wires' SECTION is their drag - a round cable at Cd 1.0, a streamline
+    // (RAF) wire at 0.35 on the same thickness (GEN_DRAG.wire; a Tiger Moth's, a Stearman's). Absent at 0 (round)
+    ['bpWireSec', 'wire section', 0, 1, 1, ['round cable', 'streamline wire'],
+     { when: P => onBip(P) && Math.round(P.bpWires) > 0 }],
   ], { when: onBip }],
 ];
 {

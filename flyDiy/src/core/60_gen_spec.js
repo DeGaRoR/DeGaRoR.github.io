@@ -2095,7 +2095,27 @@ const GEN_DRAG = {
   // GEN_SURF_MATERIALS cd0 at or under smoothCd0, half of it: sailplanes hold 0.8-0.9 at aspect ratios of 15-25),
   // phased in over arLo..arHi
   span: { arLo: 6, arHi: 10, eInv: 0.95, kv: 0.007, kvSmooth: 0.0035, smoothCd0: 0.0006 },
+  // A BRACING WIRE'S DRAG ON ITS THICKNESS (PHYSICS-AUDIT step 2, 2026-11-21): a round cable across the flow, below the
+  // drag crisis, is the Cd 1.0 the truss always billed (Hoerner ch. 3: 1.0-1.2); a STREAMLINE wire - the lenticular
+  // "RAF wire" every wire-braced biplane from 1916 on flew, a Tiger Moth's and a Stearman's - is 0.3-0.4 on the same
+  // thickness (Hoerner ch. 6, lenticular and faired wire sections at a fineness of 3-4): 0.35
+  wire: { cdRound: 1.0, cdStream: 0.35 },
 };
+// THE TAIL'S BRACE WIRES ARE THE TAILPLANE'S CONSTRUCTION'S (PHYSICS-AUDIT step 2, 2026-11-21; GATE WIRES). The frame
+// braces every conventional stab's tips to the fin post with four tension wires (61_gen_frame, G233: the lattice's own
+// roll path; no layer draws them, G284), and the drag billed all four on every build - a 172's, a DC-3's, a sailplane's
+// cantilever tailplane paid for cables it does not carry. A FABRIC-COVERED stab (a Cub's, a Camel's: GEN_SURF_MATERIALS
+// fabric / steel / fabricAlu / aluFabric) is wire-braced; a STRESSED-SKIN one (alloy, carbon, glass, a D-tube) is a
+// cantilever. The row says otherwise when the aeroplane does: tail.brace 'wires' | 'none' (the stab layer's stBrace).
+// Read by the drag alone (62_gen_aero) and by the members' `ext` flag - the structure, its masses and its stiffness are
+// the same either way (a cantilever's wires stand for the spar the lattice does not have).
+const GEN_TAIL_CANTILEVER = { alloy: 1, carbon: 1, glass: 1, dtube: 1 };
+function genTailBraced(S) {
+  const b = S && S.tail && S.tail.brace;
+  if (b === 'wires') return true;
+  if (b === 'none') return false;
+  return !GEN_TAIL_CANTILEVER[genSurfKey(S, 'stab')];
+}
 
 // ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
 // I'd rather that be encoded in physics"; futureDesigns/ENGINE-COOLING-2026-11.md, its defaults ruled "OK"). The heat
@@ -3448,7 +3468,9 @@ function genEngPropD0(S, e0, PP0) {
 // (the Archaeopteryx branch's rows, each absent = this value = every build before it: the fin's rudder below the
 //  stab, the hub's pylon, the wingtip skid, the light control runs, the rod's own material and wall, the ultralight
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+// (PHYSICS-AUDIT step 2, 2026-11-21: the tailplane's bracing, stBrace 0 = by its skin, and the flying wires' section,
+//  bpWireSec 0 = round cable)
+const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
                                brkHold: 0, wgStrutSec: 0, wgJury: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
@@ -4225,6 +4247,9 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      step 1  the span efficiency of a wing of aspect ratio over 6-8 (62_gen_aero genOswald, GEN_DRAG.span): the polar
 //              of every such wing moves - its induced drag, its lift slope - and so its plaque and certificate; a wing
 //              at or under 6, and a fabric or metal one under 7.9, is as it was to the bit
+//      step 2  the bracing wires' drag (GEN_DRAG.wire, genTailBraced): a stressed-skin tailplane no longer pays four
+//              brace wires (every alloy and composite build: 0.02-0.07 m2 off its body row), a biplane's flying wires
+//              may be streamline; a fabric-tailed monoplane is as it was to the bit
 const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
@@ -6049,6 +6074,11 @@ function clampSpec(spec) {
   // at its default as null, so the garage's merge can take it off), is deleted: absent is the old bytes
   if (S.bracing.section !== 'tube') delete S.bracing.section;
   if (S.bracing.jury !== 'wing' && S.bracing.jury !== 'cabin') delete S.bracing.jury;
+  // PHYSICS-AUDIT step 2 (2026-11-21): the flying wires' section ('streamline'; absent = the round cable every build
+  // before had) and the tailplane's bracing ('wires' | 'none'; absent = by the stab's own skin, genTailBraced). Anything
+  // else, null included, is deleted: absent is the default
+  if (S.bracing.wireSection !== 'streamline') delete S.bracing.wireSection;
+  if (S.tail && S.tail.brace !== 'wires' && S.tail.brace !== 'none') delete S.tail.brace;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
