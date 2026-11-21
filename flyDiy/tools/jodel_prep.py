@@ -27,8 +27,9 @@ metal material").
 
     python tools/jodel_prep.py
 """
-from media_lib import write_media, prune_media, BASE_DECL
+from media_lib import write_media, write_media_named, prune_media, BASE_DECL
 import collections
+import hashlib
 import io
 import json
 import math
@@ -81,11 +82,13 @@ DEFAULT_FINISH = 'jojo_wood'
 #   'ceiling' centre x/z, raise max-y to 0 — it hangs BELOW its origin
 PIECES = [
     dict(key='airframe_jodel_body', label='Jodel DR1050 fuselage structure',
-         file='speedJojo_structurefuselageFull_optimized4.obj', place='floor',
+         file='speedJojo_structurefuselageFull_optimized4_ao.obj', place='floor',
+         ao='speedJojo_structurefuselageFull_optimized4_ao.png',
          note='the users own DR1050 body: 158 objects, spruce formers and '
               'longerons with a welded steel tube cockpit frame'),
     dict(key='airframe_jodel_wing', label='Jodel DR1050 wing structure',
-         file='speedJojo_structureAileFull_optimized.obj', place='ceiling',
+         file='speedJojo_structureAileFull_optimized_ao.obj', place='ceiling',
+         ao='speedJojo_structureAileFull_optimized_ao.png',
          note='the cranked DR1050 wing: 32 rib stations on two spars. Hung '
               'chord-up from the roof, which is how a wing waits for its '
               'covering when the floor is wanted for something else'),
@@ -98,13 +101,16 @@ IDX_CAP = 65536
 def read_obj(path):
     """-> V, VN, and faces grouped by (object, material). Vertices are shared
     across the file, which is how OBJ works and what the quantiser wants."""
-    V, VN, groups = [], [], collections.OrderedDict()
+    # (GARAGE-FIXES 21 Nov, the AO bake: tools/jodel_ao_bake.py writes <stem>_ao.obj WITH uv - 'vt' - for the baked AO map)
+    V, VN, VT, groups = [], [], [], collections.OrderedDict()
     obj, mtl = '(none)', DEFAULT_FINISH
     for line in io.open(path, encoding='utf-8', errors='replace'):
         if line.startswith('v '):
             p = line.split(); V.append((float(p[1]), float(p[2]), float(p[3])))
         elif line.startswith('vn '):
             p = line.split(); VN.append((float(p[1]), float(p[2]), float(p[3])))
+        elif line.startswith('vt '):
+            p = line.split(); VT.append((float(p[1]), float(p[2])))
         elif line.startswith('o '):
             obj = line[2:].strip()
         elif line.startswith('usemtl'):
@@ -115,15 +121,18 @@ def read_obj(path):
             for t in toks:
                 b = (t.split('/') + ['', ''])[:3]
                 vi = int(b[0]); vi = vi - 1 if vi > 0 else len(V) + vi
-                ni = None
+                ni = ti = None
                 if b[2]:
                     n = int(b[2]); ni = n - 1 if n > 0 else len(VN) + n
-                f.append((vi, ni))
+                if b[1]:
+                    t = int(b[1]); ti = t - 1 if t > 0 else len(VT) + t
+                f.append((vi, ti, ni))
             groups.setdefault((obj, mtl), []).append(f)
-    return np.asarray(V, np.float64), np.asarray(VN, np.float64) if VN else None, groups
+    return (np.asarray(V, np.float64), np.asarray(VN, np.float64) if VN else None,
+            np.asarray(VT, np.float64) if VT else None, groups)
 
 
-def pack_part(V, VN, faces, bb):
+def pack_part(V, VN, VT, faces, bb):
     """One material's triangles -> the codec's binary part. Vertices are
     de-duplicated on (position index, normal index): that is the OBJ's own
     split, so a hard edge stays hard and a smooth one stays smooth."""
@@ -166,17 +175,24 @@ def pack_part(V, VN, faces, bb):
     # the far corner of the model if the format had been unsigned.
     def q(v, lo, sc):
         return max(-32768, min(32767, int(round((v - lo) * sc)) - 32768))
-    for vi, _ in verts:
+    for vi, _, _ in verts:
         p = V[vi]
         out += struct.pack('<hhh', q(p[0], x0, sx), q(p[1], y0, sy), q(p[2], z0, sz))
-    for vi, ni in verts:
+    for vi, _, ni in verts:
         n = VN[ni] if (VN is not None and ni is not None and ni < len(VN)) else (0.0, 1.0, 0.0)
-        L = math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) or 1.0
+        L = math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2])
+        if L < 1e-6:   # (GARAGE-FIXES 21 Nov: Blender's export writes vn 0 0 0 on a near-degenerate face - up, as a missing normal is;
+            n, L = (0.0, 1.0, 0.0), 1.0   #  flat shading never reads it, GATE PROPS holds every normal to unit length)
         out += struct.pack('<bbb', *(max(-127, min(127, int(round(c / L * 127)))) for c in n))
-    # no uvs on these: flat colour, nothing samples them. The codec still wants
-    # the field, so it gets a degenerate range and zeros — 4 bytes a vertex that
-    # compress to nothing and keep ONE decoder for every prop in the game.
-    out += b'\x00\x00\x00\x00' * nv
+    # THE UV (GARAGE-FIXES 21 Nov): the baked AO's atlas, quantised over the PART's own range (the codec's uvMin / uvScl); props.js
+    # loads maps with flipY false - glTF's top-left origin - so the OBJ's bottom-left v is written as 1 - v. A piece with no vt
+    # keeps the old degenerate field
+    uvs = [((VT[ti][0], 1.0 - VT[ti][1]) if (VT is not None and ti is not None and ti < len(VT)) else (0.0, 0.0)) for _, ti, _ in verts]
+    u0 = min(u for u, _ in uvs) if uvs else 0.0; v0 = min(v for _, v in uvs) if uvs else 0.0
+    us = max(max(u for u, _ in uvs) - u0, 1e-9) if uvs else 1.0; vs = max(max(v for _, v in uvs) - v0, 1e-9) if uvs else 1.0
+    for u, v in uvs:
+        out += struct.pack('<HH', max(0, min(65535, int(round((u - u0) / us * 65535)))), max(0, min(65535, int(round((v - v0) / vs * 65535)))))
+    pack_part.uv = ([round(u0, 6), round(v0, 6)], [round(us, 6), round(vs, 6)])
     for t in tris:
         out += struct.pack('<HHH', *t)
     return bytes(out), nv, nt
@@ -184,7 +200,7 @@ def pack_part(V, VN, faces, bb):
 
 def bake(piece):
     path = os.path.join(SRC, piece['file'])
-    V, VN, groups = read_obj(path)
+    V, VN, VT, groups = read_obj(path)
 
     mn, mx = V.min(axis=0), V.max(axis=0)
     # the origin goes where the piece meets the world
@@ -204,15 +220,16 @@ def bake(piece):
     for mtl, faces in bymat.items():
         chunk, todo = [], list(faces)
         while todo:
-            blob, nv, nt = pack_part(V, VN, todo, bb)
+            blob, nv, nt = pack_part(V, VN, VT, todo, bb)
             if blob is None:
                 # over the uint16 cap: halve and try again. Splitting is not
                 # decimating — every triangle survives, in two parts.
                 half = len(todo) // 2
                 chunk.append(todo[half:]); todo = todo[:half]
                 continue
-            parts.append(dict(mat=mtl, nv=nv, nt=nt, uvMin=[0.0, 0.0],
-                              uvScl=[1.0, 1.0],
+            uvMin, uvScl = pack_part.uv
+            parts.append(dict(mat=mtl, nv=nv, nt=nt, uvMin=uvMin,
+                              uvScl=uvScl,
                               bytes=blob))   # -> off/len into the piece's bin (main)
             nvT += nv; ntT += nt
             todo = chunk.pop() if chunk else []
@@ -220,6 +237,21 @@ def bake(piece):
     for m in mats:
         mats[m]['col'] = list(mats[m]['col'])
         mats[m]['opacity'] = 1
+    # THE AO MAP (GARAGE-FIXES 21 Nov, the user: "bake AO on the wing and fuselage in construction ... the typical blender AO method
+    # and a proper UV unwrap"): Cycles' AO from jodel_ao_bake.py packed into the props' ONE data map, 'arm' (props.js: R = occlusion,
+    # G = roughness, B = metalness, each a multiplier of the material's scalar) - R the bake, G and B full, so the finishes' roughness
+    # and metalness stay exactly what FINISH says. One map a piece, every material of the piece reads it (aoMap on uv1 = uv)
+    tex = None
+    if piece.get('ao') and VT is not None:
+        from PIL import Image
+        g = Image.open(os.path.join(SRC, piece['ao'])).convert('L')
+        full = Image.new('L', g.size, 255)
+        arm = Image.merge('RGB', (g, full, full))
+        bio = io.BytesIO(); arm.save(bio, 'JPEG', quality=90, optimize=True, subsampling=0)
+        raw = bio.getvalue(); tid = hashlib.sha256(raw).hexdigest()[:12]
+        tex = (tid, write_media_named('tex/airframe', tid + '.jpg', raw))
+        for m in mats:
+            mats[m]['arm'] = tid; mats[m]['ao'] = 1
 
     return dict(key=piece['key'], group=GROUP[0], label=piece['label'],
                 place=piece['place'], note=piece['note'], bb=bb,
@@ -228,7 +260,7 @@ def bake(piece):
                 src=dict(dir='jodel_structure', title='Jodel DR1050 structure',
                          author='the author of this repository', lic='own work',
                          url=''),
-                mats=mats, parts=parts)
+                mats=mats, parts=parts, _tex=tex)
 
 
 def main():
@@ -256,17 +288,25 @@ def main():
         bin_rels.append(rec['bin'])
     prune_media('geo/airframe', bin_rels)
 
-    pack = dict(v=2, groups=[list(GROUP)], order=order, texs={}, props=props)
+    texs, tex_rels = {}, []
+    for rec in props.values():
+        t = rec.pop('_tex', None)
+        if t:
+            texs[t[0]] = t[1]; tex_rels.append(t[1])
+    prune_media('tex/airframe', tex_rels)
+    pack = dict(v=2, groups=[list(GROUP)], order=order, texs=texs, props=props)
     body = ('// GENERATED FILE - DO NOT EDIT. Built by tools/jodel_prep.py from\n'
             '// assets/jodel_structure/ (modelled by the author of this repo).\n'
             '// Group: airframes in build. Decoded by src/core/51_prop_codec.js,\n'
             '// built into three.js by src/viewer/props.js — the same path every\n'
-            '// other prop takes. Flat colours, no textures: the finishes are\n'
-            '// assigned in the baker because the MTL ships Kd 0 0 0.\n'
+            '// other prop takes. Flat colours (the finishes are assigned in the\n'
+            '// baker: the MTL ships Kd 0 0 0) over a baked AO map each piece\n'
+            '// (tools/jodel_ao_bake.py: Blender, Cycles AO on a smart-UV atlas).\n'
             '// Geometry in media/geo/airframe/ (per-piece bin, off/len parts);\n'
             '// B re-roots the paths for pages not at flyDiy/.\n'
             'registerPropPack((p => {\n'
             '  ' + BASE_DECL + '\n'
+            '  for (const k in p.texs) if (typeof p.texs[k] === \'string\') p.texs[k] = B + p.texs[k];\n'
             '  for (const k in p.props) if (p.props[k].bin) '
             'p.props[k].bin = B + p.props[k].bin;\n'
             '  return p;\n'
