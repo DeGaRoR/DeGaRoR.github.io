@@ -1910,7 +1910,9 @@ function make(THREE, scene, world, rec0, opts) {
     return m.filter(k => PR && PR.props[k]);
   };
   function syncTraffic() {
-    if (typeof location !== 'undefined' && /[?&]cars=0(?:&|$)/.test(location.search)) { stats.traffic = 0; return; }
+    // PERF-SIMPLIFY (the user 22 Nov: "We could also look at the car, I don't want its compilation to impact performance at this stage"): the road
+    // traffic is OFF by default - dormant behind ?cars=1 (or window.FLYDIY_CARS = true; the node gates, with no page, keep exercising them); the tow car is the drive pack's, lazy
+    if ((typeof location !== 'undefined' && !(typeof window !== 'undefined' && window.FLYDIY_CARS === true) && !/[?&]cars=1(?:&|$)/.test(location.search || ''))) { stats.traffic = 0; return; }
     const pp = typeof propPlace === 'function' ? propPlace : null, HG = window.HOUSE_GEN;
     const want = new Map();
     if (pp) for (const rd of O.roads) if (trafficOf(rd) > 0 && rd.pts.length >= 2) want.set(rd.id, rd);

@@ -131,6 +131,12 @@
   // packs exactly as the published build did, despite the audit build hash.
   const FROZEN_STOCK = STATIC_TRIO || !!(W.location && /[?&]parkstock=1(?:&|$)/.test(W.location.search || ''));
   const TRIO_KEYS = ['arch:cub', 'arch:c172', 'arch:jodel'];
+  // PERF-SIMPLIFY (the user 22 Nov: "For the based planes and the storage, I'd like to put this on hold. We can still load the
+  // client cub, but the idea of live baking planes and adding them to the world or the garage was a small feature with a big
+  // cost"): the player's planes based at an aerodrome (the apron fleet) and kept in a building (the garage's residents) are
+  // NOT drawn - ON HOLD, dormant behind ?based=1 (or window.FLYDIY_BASED = true). The ledger (where each plane is kept) is
+  // unchanged (the node gates, with no page, keep exercising the drawing); the story's client Cub still stands on HOME's apron as the offline Cub prop (fleet_stand.js `only`)
+  const based = () => { if (W.FLYDIY_BASED === true) return true; if (W.FLYDIY_BASED === false) return false; if (!W.location) return true; try { return !!(W.location && /[?&]based=1(?:&|$)/.test(W.location.search || '')); } catch (e) { return false; } };
   function staticKey(key) {
     if (!STATIC_TRIO) return key;
     if (/jodel/i.test(key)) return TRIO_KEYS[2];
@@ -1925,7 +1931,8 @@ self.onmessage = function (e) {
   try { if (W.location && /[?&]parkclean=0(?:&|$)/.test(W.location.search || '')) W.__parkClean0 = true; } catch (e) {}
   // G2226: ON by default (the user's ruling GQ9: the fleet visible everywhere; FLEET-PROPS B's timing) - off with ?fleet=0 or
   // window.FLYDIY_FLEET = false (the A/B and the gates' 'off' rows)
-  const fleetOn = () => { if (STATIC_TRIO) return false; if (W.FLYDIY_FLEET === false) return false; if (W.FLYDIY_FLEET === true) return true; try { return !(W.location && /[?&]fleet=0(?:&|$)/.test(W.location.search || '')); } catch (e) { return true; } };
+  const fleetOn = () => { if (STATIC_TRIO && !based()) return false;   // (PERF-SIMPLIFY: ?based=1 stands the fleet again - the static trio's stand-ins unless ?parktrio=0)
+     if (W.FLYDIY_FLEET === false) return false; if (W.FLYDIY_FLEET === true) return true; try { return !(W.location && /[?&]fleet=0(?:&|$)/.test(W.location.search || '')); } catch (e) { return true; } };
   const isMine = key => typeof key === 'string' && key.lastIndexOf('mine:', 0) === 0;
   // the game's state (app.js FLYDIY_HOLDS): no handle (a gate's vm) = a garage at rest
   const holds = () => { try { return W.FLYDIY_HOLDS ? W.FLYDIY_HOLDS() : null; } catch (e) { return null; } };
@@ -2178,7 +2185,7 @@ self.onmessage = function (e) {
                // the offline tool's door (cookPack) and the A/B's live twin (abLive)
                COOK, cookable, cookSig, cookEncode, cookDecode, cookRecord, cookLoad, cookAll, cookPack, abLive, bakeData, cutBaked,
                // G2220-G2224, the fleet: the rules, the state, the doors (the garage's queue, the roll-out's decode), the pure pick
-               resident, residentFill, residentDrop, residents: RESIDENT,   // G2315: the garage's residents (one rung, decode only)
+               based, resident, residentFill, residentDrop, residents: RESIDENT,   // G2315: the garage's residents (one rung, decode only)
                FLEET_DRAW, fleet: FLEET, fleetOn, fleetSig, fleetQueue, fleetStep, fleetBake, fleetLoad, fleetTouch, fleetEvict, fleetPick, fleetLadder, fleetCap, garageIdle, mayDecode,
                bakeClear: () => db().then(d => new Promise((res, rej) => { const tx = d.transaction('bake', 'readwrite'); tx.objectStore('bake').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })),
                // the record's far levels as the object holds them, for the gate's numbers

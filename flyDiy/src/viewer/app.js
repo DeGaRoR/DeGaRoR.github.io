@@ -1894,7 +1894,9 @@
     const max = Math.max(0, (S && isFinite(S.parked)) ? S.parked : 2);
     // G2690: the INSIDE slots, in slot order (then the floor's aeroplane when the stand holds another build) - a
     // long-term airframe is never drawn; a storage move re-plans from here, the props decoded from their bakes
-    const names = typeof playerResidentsShown === 'function' ? playerResidentsShown(d, id, stand, max)
+    // PERF-SIMPLIFY (the user 22 Nov: the based planes and the storage ON HOLD): no resident drawn unless ?based=1
+    const names = (window.PARKED.based && !window.PARKED.based()) ? []
+      : typeof playerResidentsShown === 'function' ? playerResidentsShown(d, id, stand, max)
       : playerResidents(d, id).filter(n => n !== stand).slice(0, max);
     const q = v => Math.round(v * 4) / 4, clr = typeof PARK_CLR === 'number' ? PARK_CLR : 0.5;
     const has = !!(bb && isFinite(bb.min.x) && bb.max.x > bb.min.x);
@@ -15608,8 +15610,14 @@
     } catch (e) { return []; }
   };
   const fleetCtx = () => { const d = playerLoad(); return { world, doc: d, flown: slotOnStand(), from: (CAREER_DEV && STORY_PAGE && storyFleetFrom()) || (inGarage ? rollFromId() : fromId),   // (G3585: the Cub waiting at HOME)
-                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6, inside: fleetInside(d) }; };
-  const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(); };
+                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6, inside: fleetInside(d), only: fleetOnly(d) }; };
+  // PERF-SIMPLIFY (the user 22 Nov: "We can still load the client cub"): with the based planes on hold the apron stands the
+  // story's client Cub alone (an offline prop, parked.js's static Cub) -> its slot, or null (the based planes drawn: no filter)
+  function fleetOnly(d) {
+    if (!(window.PARKED && PARKED.based) || PARKED.based()) return null;
+    try { const s = STORY_PAGE ? storyOf(d) : null, c = s && s.planes && s.planes.client; return c && d.fleet && d.fleet[c] ? [c] : []; } catch (e) { return []; }
+  }
+  const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(fleetCtx()); };   // (PERF-SIMPLIFY: the context carries `only`, the client Cub)
   const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };
   const fleetStand = () => {
     if (!FS_ON()) return null;
