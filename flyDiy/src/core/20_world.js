@@ -611,7 +611,10 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     return wear === null ? h : h + wear;
   }
   // a weather code's worn-relief scale now (07f GROUND_WX's rung off this world's soil)
-  function wearScale(code) { return typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(code, soilNow()).wear : 1; }
+  // PERF-WORLDBUILD (22 Nov): THE SCALES HELD - a thread that builds a weather strip's geometry for the page (the house worker,
+  // house_worker.js 'strips') is handed the page's scales for the job: its own day is not the page's. null = this world's soil
+  let wearHold = null;
+  function wearScale(code) { if (wearHold) { const v = wearHold[code]; return v === undefined ? 1 : v; } return typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(code, soilNow()).wear : 1; }
   const wearOf = (x, z) => { if (!(PM && PM.wearDelta)) return 0; const d = PM.wearDelta(x, z, wearScale); return d === null ? 0 : d; };
 
   // G1406 (METLA-LOAD): THE BUILD READ - the composed ground for a ONE-OFF read (a mesh's vertices, a road's samples, a
@@ -1356,6 +1359,8 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
     // (SNOW-MUD LADDER: the soil's water this world reads, a weather code's rung now, the dev override - 07f GROUND_WX)
     soilNow, surfaceNow, setGround, setGroundLadder, get groundForce() { return groundForce; },
+    // (PERF-WORLDBUILD: the weather codes' worn-relief scales now; held for a job - wearHold above)
+    wearScales: () => ({ 20: wearScale(20), 21: wearScale(21), 22: wearScale(22) }), setWearScales: o => { wearHold = o || null; },
     wxAt: (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(s, soilNow()) : null; },   // a weather strip's rung here (null off one)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, marginGrassAt, settlements: SET.settlements,   // marginGrassAt: GRASS-ON-GREEN (16 Nov) the margin gives way

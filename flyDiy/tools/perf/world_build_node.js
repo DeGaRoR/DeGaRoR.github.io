@@ -14,7 +14,7 @@
 // IndexedDB): then what the browser runs off the main thread is off it here too.
 //
 //   nice -n 19 node --max-old-space-size=6144 tools/perf/world_build_node.js --out <dir> [--query 'town=1'] [--workers]
-//                   [--no-prof] [--census] [--drain] [--label before]
+//                   [--no-prof] [--census] [--drain] [--units] [--wx] [--label before]
 // Writes <dir>/world_build_<label>.json (+ .cpuprofile) and prints the tables. One node process (+1 thread with --workers).
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -22,7 +22,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const has = k => argv.includes('--' + k);
 const OUT = path.resolve(opt('out', path.join(os.tmpdir(), 'world_build_node'))), LABEL = opt('label', 'run');
-const QUERY = opt('query', ''), WORKERS = has('workers'), PROF = !has('no-prof'), CENSUS = has('census'), DRAIN = has('drain');
+const QUERY = opt('query', ''), WORKERS = has('workers'), PROF = !has('no-prof'), CENSUS = has('census'), DRAIN = has('drain'), UNITSON = has('units'), WXON = has('wx');
 const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's clock
 
 (async () => {
@@ -33,6 +33,8 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   // ---- the windows: [t0, t1, key] on the machine's clock; the boot's steps, and the world step's slices by label
   const WIN = { boot: [], world: [], settle: [] };
   const STEP = {};           // world label -> { n, ms, max }
+  const UNITS = [], STRIPSEQ = [];   // --units: every pavement geometry built (strip / road / paved polygon); the 'strip*' slices in order
+  const COMPOSE = [];   // every composition of the premises record: the boot step it ran in, its ms
   const LONG = [];           // every slice over 50 ms: { label, ms, step }
   const SETTLE = { n: 0, ms: 0, max: 0, over50: 0, over100: 0 };
   let bootCur = null, bootAt = 0;
@@ -51,6 +53,7 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
           const k = String(label).replace(/[0-9]+/g, '#'), e = STEP[k] || (STEP[k] = { n: 0, ms: 0, max: 0 });
           e.n++; e.ms += d; if (d > e.max) e.max = d; WIN.world.push([t, t1, k]);
           if (d > 50) LONG.push({ label: String(label), ms: +d.toFixed(1), step: bootCur });
+          if (/^strips?( |$)/.test(String(label))) STRIPSEQ.push({ after: String(label), ms: +d.toFixed(1) });
           if (!r.done && r.value !== undefined) label = r.value;
           return r; },
         return(v) { return g.return ? g.return(v) : { done: true, value: v }; }, throw(e) { return g.throw(e); },
@@ -68,6 +71,20 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
         FC.bootMark.close = function () { bootOpen(null); return c.apply(this, arguments); };
         bootOpen('garage:scripts'); }
       if (typeof W.buildWorldSceneSteps === 'function') wrapGen(W);
+      // the record's compositions (PREMISES_GEN.compose: makeWorld's at the boot's scripts, the renderer's at its make, an edit's)
+      if (W.PREMISES_GEN && !W.PREMISES_GEN.__wbc) { const PG = W.PREMISES_GEN, c0 = PG.compose; PG.__wbc = true;
+        PG.compose = function () { const t = now(); try { return c0.apply(this, arguments); } finally { COMPOSE.push({ at: bootCur || '?', ms: +(now() - t).toFixed(1), opts: arguments[2] ? Object.keys(arguments[2]).sort().join(',') : '' }); } }; }
+      // --units: PAVEMENT's three geometry builders, a call a row - its ms, its vertices, where it lies; and the same call
+      // WITHOUT its refinement (the regular rows: G2115's bisection and a bumpy strip's fine rows off), built beside it and
+      // thrown away: what a coarse form of the same strip or road would cost and weigh
+      if (UNITSON && W.PAVEMENT && !W.PAVEMENT.__wb) { const PAV = W.PAVEMENT; PAV.__wb = true;
+        for (const [fn, kind] of [['stripGeometry', 'strip'], ['roadGeometry', 'road'], ['polyGeometry', 'pave']]) { const f = PAV[fn]; if (typeof f !== 'function') continue;
+          PAV[fn] = function (T, o) { const t = now(), g = f.apply(this, arguments), ms = now() - t;
+            const u = { kind, ms: +ms.toFixed(1), verts: 0, x: NaN, z: NaN, len: kind === 'strip' ? o.len : (o.road && o.road.length) || null, wid: o.wid || o.w || null, micro: o.refineMin > 0, refine: kind === 'strip' ? o.refine !== false && o.sinkD0 != null : !!o.refine, step: bootCur };
+            try { const pa = g.attributes.position; u.verts = pa.count; if (!g.boundingSphere) g.computeBoundingSphere(); u.x = +g.boundingSphere.center.x.toFixed(1); u.z = +g.boundingSphere.center.z.toFixed(1); u.r = Math.round(g.boundingSphere.radius);
+              if (kind === 'strip') { u.cx = o.cx; u.cz = o.cz; }
+              if (u.refine) { const t2 = now(), g2 = f.call(this, T, Object.assign({}, o, { refine: false, refineMin: 0, refineMinV: 0 })); u.coarseMs = +(now() - t2).toFixed(1); u.coarseVerts = g2.attributes.position.count; g2.dispose(); } } catch (e) { u.err = String(e && e.message); }
+            UNITS.push(u); return g; }; } }
       // --census: the geometry's arrays kept after upload (GPU_ONLY_GEO a no-op), so the families can be sized and hashed
       if (CENSUS && typeof W.GPU_ONLY_GEO === 'function' && !W.GPU_ONLY_GEO.__keep) { W.GPU_ONLY_GEO = function () {}; W.GPU_ONLY_GEO.__keep = true; }
     },
@@ -84,6 +101,17 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   await P.until(() => { wrapUpdate(); return W.BOOT && W.BOOT.state === 'gone'; }, 3600000);
   FC.bootMark.close();
   const wall = Date.now() - t00;
+  // the composed-terrain raster's own counters (27_premises grStats: tiles baked / decoded / evicted, the cache's bytes)
+  const rasterStat = () => { try { const w = W.FLIGHT_PROBE.world(), O = w.premises && w.premises.overlay; return O && O.raster ? Object.assign({}, O.raster) : null; } catch (e) { return null; } };
+  const rasterEnd = rasterStat();
+  // ---- --wx: A WEATHER CHANGE ON THE MAIN THREAD (render_world wxGroundFrame: a weather strip's row re-applied, a bumpy
+  // one RE-DRAPED - y per vertex, then computeVertexNormals). The world's update at the stand timed twice as it is (the
+  // floor), then once after each change of the ground's rung (world.setGround): the difference is the re-drape's
+  let wx = null;
+  if (WXON && W.WORLD && W.WORLD.worldUpdate && W.FLIGHT_PROBE) { const world = W.FLIGHT_PROBE.world(); let st = null; try { st = W.FLYDIY_TOWN_AT(); } catch (e) { st = null; }
+    if (world && world.setGround && st) { const cg = [st[0], st[1] + 1.5, st[2]], one = () => { const t = now(); try { W.WORLD.worldUpdate(cg); } catch (e) { return -1; } return +(now() - t).toFixed(1); };
+      wx = { floor: [one(), one(), one()], steps: [] };
+      for (const level of ['soft', 'dry', 'firm', 'soft', null]) { world.setGround(level); wx.steps.push({ level: String(level), scales: world.wearScales ? world.wearScales() : null, ms: one(), again: one() }); } } }
   // ---- --drain: THE PREMISES' STREAM, ITEM BY ITEM (the en-route freeze, PERF-REPORT-1: "1 built, 123 queued", 1.40 s).
   // The stream as the flight runs it (render_premises stream: the house worker generates, the page places), from every
   // aerodrome in turn, ONE item a call (the bank emptied before each: the page's clock is virtual here), each call timed
@@ -141,12 +169,29 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
       if (g.index && g.index.array) { const a = g.index.array; e.bytes += a.byteLength; h.update(Buffer.from(a.buffer, a.byteOffset, a.byteLength)); }
       e.parts.push(h.digest('hex').slice(0, 16)); });
     for (const k of Object.keys(census)) { const e = census[k]; e.digest = crypto.createHash('sha256').update(e.parts.sort().join(',')).digest('hex').slice(0, 16); delete e.H; delete e.parts; e.tris = Math.round(e.tris); e.MB = +(e.bytes / 1048576).toFixed(1); } }
+  // ---- --units: the table by unit and by distance from the stand ---------------------------------------------------
+  let units = null;
+  if (UNITSON) { let st = null; try { st = W.FLYDIY_TOWN_AT ? W.FLYDIY_TOWN_AT() : null; } catch (e) { st = null; }
+    const world = W.FLIGHT_PROBE && W.FLIGHT_PROBE.world ? W.FLIGHT_PROBE.world() : null, AD = (world && world.aerodromes) || [];
+    const dist = (x, z) => (st ? Math.round(Math.hypot(x - st[0], z - st[2])) : null);
+    for (const u of UNITS) { u.d = dist(u.x, u.z); if (u.kind === 'strip') { let best = null, bd = 1e9; for (const a of AD) { const d = Math.hypot(a.x - u.cx, a.z - u.cz); if (d < bd) { bd = d; best = a; } } u.id = best && bd < 5 ? best.id : '?'; } }
+    const BANDS = [[0, 1500], [1500, 3000], [3000, 6000], [6000, 1e9]], bandOf = d => BANDS.findIndex(b => d >= b[0] && d < b[1]);
+    const by = {}; for (const u of UNITS) { const k = u.kind, b = bandOf(u.d == null ? 1e8 : u.d), e = (by[k] || (by[k] = BANDS.map(() => ({ n: 0, ms: 0, verts: 0, coarseMs: 0, coarseVerts: 0 }))))[b]; e.n++; e.ms += u.ms; e.verts += u.verts; e.coarseMs += u.coarseMs !== undefined ? u.coarseMs : u.ms; e.coarseVerts += u.coarseVerts !== undefined ? u.coarseVerts : u.verts; }
+    // the patch: its blocks (a THREE.LOD each), the near level's vertices by band; its time shared by them
+    const patch = BANDS.map(() => ({ blocks: 0, verts0: 0, vertsAll: 0 }));
+    if (W.WORLD && W.WORLD.scene) W.WORLD.scene.traverse(o => { if (!o.isLOD || o.name !== 'premises:patch' || !o.levels) return; const b = bandOf(dist(o.position.x, o.position.z) || 0), e = patch[b]; e.blocks++;
+      o.levels.forEach((L, i) => { const pa = L.object && L.object.geometry && L.object.geometry.attributes.position; if (!pa) return; if (!i) e.verts0 += pa.count; e.vertsAll += pa.count; }); });
+    const pMs = ['patch ground', 'patch block', 'ground under the premises'].reduce((a, k) => a + (STEP[k] ? STEP[k].ms : 0), 0), pV = patch.reduce((a, e) => a + e.verts0, 0) || 1;
+    for (const e of patch) e.ms = Math.round(pMs * e.verts0 / pV);
+    const hw = W.HOUSE_WORKER && W.HOUSE_WORKER.stats ? W.HOUSE_WORKER.stats() : null;
+    units = { stand: st ? [Math.round(st[0]), Math.round(st[2])] : null, bands: BANDS.map(b => b[0] + '-' + (b[1] > 1e8 ? '' : b[1])), by, patch, list: UNITS.slice().sort((a, b) => b.ms - a.ms), stripSeq: STRIPSEQ,
+      aerodromes: AD.map(a => ({ id: a.id, kind: a.kind, len: a.len, wid: a.wid, d: dist(a.x, a.z), premises: !!a.premises })), houseWorker: hw }; }
   const boot = {}; for (const w of WIN.boot) if (w[2]) boot[w[2]] = (boot[w[2]] || 0) + (w[1] - w[0]);
   const round = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'number' ? Math.round(v) : { n: v.n, ms: Math.round(v.ms), max: Math.round(v.max) }]));
   const worldMs = Object.values(STEP).reduce((s, e) => s + e.ms, 0);
   const res = { label: LABEL, query: QUERY, workers: WORKERS, build: W.FLYDIY_BUILD || null, node: process.version, cpus: os.cpus()[0].model, wall,
     boot: round(boot), world: { ms: Math.round(worldMs), slices: W.__WORLD_SLICES || null, steps: round(STEP), long: LONG.sort((a, b) => b.ms - a.ms) },
-    settle: Object.assign(round({ x: SETTLE }).x, { over50: SETTLE.over50, over100: SETTLE.over100, state: W.FLYDIY_WORLD_SETTLE || null }), census, drain, top,
+    settle: Object.assign(round({ x: SETTLE }).x, { over50: SETTLE.over50, over100: SETTLE.over100, state: W.FLYDIY_WORLD_SETTLE || null }), census, drain, units, compose: COMPOSE, raster: rasterEnd, wx, stripw: W.FLYDIY_STRIPW ? Object.assign({}, W.FLYDIY_STRIPW, { jobs: undefined }) : null, top,
     errors: P.errors.slice(0, 10) };
   fs.writeFileSync(path.join(OUT, 'world_build_' + LABEL + '.json'), JSON.stringify(res, null, 1));
   // ---- the tables ---------------------------------------------------------------------------------------------
@@ -158,11 +203,24 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   for (const [k, v] of Object.entries(res.world.steps).sort((a, b) => b[1].ms - a[1].ms)) if (v.ms >= 10) console.log('  ' + pad(k, 34) + num(v.ms, 8) + num(v.n, 7) + num(v.max, 8) + (top.world && top.world[k] ? '   ' + top.world[k].slice(0, 3).map(f => f[0].split(' ')[0] + ' ' + f[1]).join(', ') : ''));
   console.log('\nSLICES OVER 50 ms IN THE WORLD STEP: ' + LONG.length + (LONG.length ? ' - ' + LONG.slice(0, 25).map(l => l.label + ' ' + Math.round(l.ms)).join(', ') : ''));
   console.log('\nSETTLE: ' + JSON.stringify(res.settle));
+  console.log('COMPOSITIONS: ' + JSON.stringify(COMPOSE));
+  console.log('RASTER (at the garage): ' + JSON.stringify(rasterEnd));
+  if (res.stripw) console.log('STRIP WORKER: ' + JSON.stringify(res.stripw) + ' | house worker ' + JSON.stringify(W.HOUSE_WORKER && W.HOUSE_WORKER.stats ? W.HOUSE_WORKER.stats() : null));
+  if (wx) console.log('WEATHER CHANGE (ms a world update): ' + JSON.stringify(wx));
   if (census) { console.log('\nGEOMETRY BY FAMILY (raw bytes of every attribute + index; the digest of all its meshes)');
     for (const [k, e] of Object.entries(census).sort((a, b) => b[1].bytes - a[1].bytes)) console.log('  ' + pad(k, 18) + num(e.meshes, 6) + ' meshes' + num(e.verts, 10) + ' v' + num(e.tris, 10) + ' t' + num(e.MB, 8) + ' MB  ' + e.digest); }
   if (drain) { console.log(String.fromCharCode(10) + 'THE PREMISES STREAM, ONE ITEM A CALL: ' + drain.built + ' placed in ' + drain.calls + ' calls, ' + drain.left + ' left; by kind ' + JSON.stringify(drain.byKind));
     for (const r of drain.worst.slice(0, 25)) console.log('  ' + num(r.ms, 8) + ' ms  ' + pad(r.kind + (r.here ? ' (here)' : ''), 16) + pad(r.id, 28) + ' from ' + r.at + ', ' + r.left + ' left');
     if (drain.odd.length) console.log('  odd: ' + JSON.stringify(drain.odd)); }
+  if (units) { const NL = String.fromCharCode(10);
+    console.log(NL + 'BY UNIT (--units): the stand at ' + JSON.stringify(units.stand) + '; bands (m from the stand) ' + units.bands.join(' | '));
+    for (const k of Object.keys(units.by)) console.log('  ' + pad(k, 7) + units.by[k].map(e => e.n + ' u ' + Math.round(e.ms) + ' ms ' + e.verts + ' v (coarse ' + Math.round(e.coarseMs) + ' ms ' + e.coarseVerts + ' v)').join(' | '));
+    console.log('  ' + pad('patch', 7) + units.patch.map(e => e.blocks + ' blocks ' + e.ms + ' ms ' + e.verts0 + ' v at 2 m (' + e.vertsAll + ' all levels)').join(' | '));
+    console.log('  the dearest units:');
+    for (const u of units.list.slice(0, 30)) console.log('    ' + pad(u.kind + (u.id ? ' ' + u.id : ''), 20) + num(u.ms, 8) + ' ms' + num(u.verts, 9) + ' v  ' + num(u.d, 6) + ' m  len ' + Math.round(u.len || 0) + (u.micro ? ' bumpy' : '') + (u.coarseMs !== undefined ? '  coarse ' + u.coarseMs + ' ms ' + u.coarseVerts + ' v' : ''));
+    console.log('  the strip slices in order (work filed under the label BEFORE it): ' + units.stripSeq.map(q => q.after + ' ' + Math.round(q.ms)).join(', '));
+    console.log('  aerodromes: ' + units.aerodromes.map(a => a.id + ' ' + a.d + ' m').join(', '));
+    console.log('  house worker: ' + JSON.stringify(units.houseWorker)); }
   if (res.errors.length) console.log('\nPAGE ERRORS: ' + res.errors.join(' || ').slice(0, 1200));
   process.exit(0);
 })().catch(e => { console.log('FAIL ' + (e && e.stack || e)); process.exit(1); });

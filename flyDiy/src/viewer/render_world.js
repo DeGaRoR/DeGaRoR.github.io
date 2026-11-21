@@ -564,6 +564,75 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const pavSeed = id => { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 37; };
   const pavLookOf = a => { if (!PGm) return null; if (a.premises && a.look) return PGm.RUNWAY_LOOKS[a.look] || null; const k = a.surface === world.SURFACE.PAVED ? 'asphalt' : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass'; return PGm.RUNWAY_LOOKS[k]; };
   const pavRec = () => (world.premises && world.premises.rec) || null;
+  // PERF-WORLDBUILD (22 Nov 2026): THE STRIPS' GEOMETRY OFF THE MAIN THREAD. PAVEMENT.stripGeometry was 11.9 s of the world
+  // step (node), one uninterruptible task a strip - 4.7 s the dearest: the rows bisected where the ground curves, a bumpy
+  // strip's down to its ruts. The house worker holds the page's composed ground bit for bit, so the build asks it for every
+  // pavement strip as soon as the premises' patch knows its chunks (stripsAsk: nearest the stand first), goes on with the
+  // patch and the roads, and at the 'strips' stage stands each geometry from the arrays that came back (PAVEMENT.stripUnpack)
+  // - waiting for one still in the worker through the host's sleep (window.FLYDIY_WORLD_WAIT, app.js buildWorldSliced). A
+  // strip whose answer is missing, late (STRIPW.patience), stale (its options or the soil's scales moved since the ask) or
+  // refused is built here, as before; so is every strip of a build no host sleeps for (buildWorldScene: the rigs, the gates),
+  // of a live edit's repaint, and of a page without the worker. OPT-IN while it is measured: ?stripw=1 (the default is the
+  // inline build). GATE STRIPWORKER: the worker's arrays are the inline build's, byte for byte.
+  const STRIPW = { on: typeof location !== 'undefined' && /[?&]stripw=1(?:&|$)/.test(location.search || ''), jobs: new Map(), seq: 0, asked: 0, used: 0, inline: 0, missed: 0,
+    workerMs: 0, waitMs: 0, patience: 120000, why: null };
+  if (typeof window !== 'undefined') window.FLYDIY_STRIPW = STRIPW;
+  const stripwHost = () => (typeof window !== 'undefined' && window.HOUSE_WORKER && window.HOUSE_WORKER.ok() ? window.HOUSE_WORKER : null);
+  // a pavement strip's builder options, as standStrip resolves them (null: not a pavement strip). `data` is numbers only -
+  // what the worker is sent; the two closures (heightAt, liftAt) are made from micro / lift on whichever thread builds
+  function stripSpec(a) {
+    const LKp = PAV ? pavLookOf(a) : null; if (!PAV || !LKp || !LKp.cls) return null;
+    const onPatch = !!(premisesR && premisesR.patchCovers && premisesR.patchCovers(a.x, a.z));
+    const RS = PAV.resolve(a.premises ? a : null, a.premises ? pavRec() : null, LKp), shW = PAV.shoulderFor(RS.band, RS.recipe);
+    const micro = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id), lift = !!(onPatch && a.premises && premisesR.pavedAt && PAV.liftOver);
+    const data = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), lift: 0.07, resU: 6, resV: 3,
+      sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
+      refineMin: micro ? STRIP_MICRO.REFINE_MIN : 0, refineMinV: micro ? STRIP_MICRO.REFINE_MIN_V : 0 };
+    return { LKp, RS, shW, onPatch, micro, lift, data };
+  }
+  const stripKey = SP => JSON.stringify([SP.data, SP.micro, SP.lift, world.wearScales ? world.wearScales() : null, PAV.recipe ? PAV.recipe.fadeW : null]);
+  const stripWanted = a => !(a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises));
+  // the ask: every pavement strip's job, nearest the stand first, in ONE message behind the worker's composition
+  function stripsAsk() {
+    if (STRIPW.asked) return;
+    STRIPW.asked = 1;
+    const HWK = stripwHost(), HQ = premisesR && premisesR.hw;
+    if (!STRIPW.on) { STRIPW.why = 'off'; return; }
+    if (!(typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true)) { STRIPW.why = 'no host to wait'; return; }
+    if (!HWK || !HQ || !(HQ.epoch >= 0) || HQ.dead || !PAV || !PAV.stripUnpack || !world.wearScales) { STRIPW.why = 'no worker'; return; }
+    let at = null; try { at = window.FLYDIY_TOWN_AT ? window.FLYDIY_TOWN_AT() : null; } catch (e) { at = null; }
+    const wear = world.wearScales(), jobs = [];
+    for (const a of world.aerodromes) {
+      if (!stripWanted(a)) continue;
+      let SP = null; try { SP = stripSpec(a); } catch (e) { SP = null; }
+      if (!SP) continue;
+      const seq = ++STRIPW.seq, d = at && isFinite(at[0]) ? Math.hypot(a.x - at[0], a.z - at[2]) : 0;
+      STRIPW.jobs.set(a.id, { seq, key: stripKey(SP), r: null, done: false, miss: null, t0: performance.now(), ms: 0 });
+      // (the recipe's fade and the refinement's reuse flag are the PAGE's: named, where the builder reads its own module's)
+      jobs.push({ seq, id: a.id, d, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) });
+    }
+    if (!jobs.length) { STRIPW.why = 'no strip'; return; }
+    jobs.sort((p, q) => p.d - q.d);
+    HWK.onStrip = m => { for (const [, J] of STRIPW.jobs) if (J.seq === m.seq) { J.done = true; J.r = m.r || null; J.miss = m.miss || null; J.ms = m.ms || 0; STRIPW.workerMs += J.ms; } };
+    if (!HWK.post({ cmd: 'strips', epoch: HQ.epoch, wear, jobs })) { STRIPW.jobs.clear(); STRIPW.why = 'post failed'; return; }
+    STRIPW.asked = jobs.length; STRIPW.why = 'asked';
+  }
+  // a strip's geometry: the worker's when its answer is in and still the strip's (the same options, the same scales), else built here
+  function stripGeoOf(a, SP, sd) {
+    const J = STRIPW.jobs.get(a.id);
+    if (J) {
+      STRIPW.jobs.delete(a.id);
+      if (J.done && J.r && J.key === stripKey(SP)) {
+        try { const g = PAV.stripUnpack(THREE, sd, J.r); STRIPW.used++;
+          if (typeof window !== 'undefined' && typeof window.FLYDIY_STRIPW_TAP === 'function') window.FLYDIY_STRIPW_TAP(a.id, sd, g);   // (GATE STRIPWORKER's read)
+          return g; }
+        catch (e) { console.warn('strip worker: ' + a.id + ' did not stand (' + (e && e.message) + ') - built here'); }
+      } else if (J.miss) console.warn('strip worker: ' + a.id + ' (' + J.miss + ') - built here');
+      STRIPW.missed++;
+    }
+    STRIPW.inline++;
+    return PAV.stripGeometry(THREE, sd);
+  }
   let pavLibShared = null;
   const pavLib = keys => (pavLibShared = PAV.sharedLib(THREE, keys));
   // THE STONES: the rock pack's subjects, their coarsest rung; the scatter reads the strip's field (the band's
@@ -7680,7 +7749,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       });
       yield 'premises made';
       if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
-      if (premisesR.rebuildSteps) yield* premisesR.rebuildSteps(); else premisesR.rebuild();   // G680: the rebuild in its own slices
+      // G680: the rebuild in its own slices (PERF-WORLDBUILD: ...and the strips asked of the house worker as soon as the patch
+      // knows its chunks - a strip's options read patchCovers - so the worker builds them under the patch and the roads)
+      if (premisesR.rebuildSteps) { const gR = premisesR.rebuildSteps(); for (;;) { const rR = gR.next(); if (rR.done) break; if (!STRIPW.asked && premisesR.patchActive && premisesR.patchActive()) stripsAsk(); yield rR.value; } }
+      else premisesR.rebuild();
       if (typeof renderer.compileAsync !== 'function' || !premisesR.prewarm) { if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4); }   // G562 / G591: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
       yield 'premises ground';
@@ -7841,16 +7913,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (PAV && LKp && LKp.cls) {
         // THE PAVEMENT STRIP (v1.16): the class from the look, the recipe resolved with the premises',
         // the band beside it, the markings recorded off sitePaintStrip, the rocks along the band
-        const RS = PAV.resolve(a.premises ? a : null, a.premises ? pavRec() : null, LKp);
-        const shW = PAV.shoulderFor(RS.band, RS.recipe);
+        const SP = stripSpec(a), RS = SP.RS, shW = SP.shW;   // (PERF-WORLDBUILD: the options resolved in one place - the worker's ask reads the same)
         // G660: on the premises' patch the ground is sunk under the strip's opaque interior, and the strip is
         // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
-        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.stoneH && typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH, lift: 0.07, resU: 6, resV: 3,
-          sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
-          liftAt: onPatch && a.premises && premisesR.pavedAt && PAV.liftOver ? PAV.liftOver(premisesR.pavedAt, a.id) : null,   // G2115: no lift over another pavement
-          refineMin: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN : 0,
-          refineMinV: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN_V : 0 };   // (and 5 cm across: the ruts' walls)   // DIRT-STRIP: a bumpy strip's rows down to its bumps
-        const pgeo = PAV.stripGeometry(THREE, sd);
+        // (stripSpec's data: sinkD0 - the ground is sunk under it; refineMin / refineMinV - DIRT-STRIP, a bumpy strip's rows down to
+        // its bumps, 5 cm across: the ruts' walls)
+        const sd = Object.assign({}, SP.data, { heightAt: world.stoneH && SP.micro ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH,
+          liftAt: SP.lift ? PAV.liftOver(premisesR.pavedAt, a.id) : null });   // G2115: no lift over another pavement
+        const pgeo = stripGeoOf(a, SP, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
         // G664: the side is cut per pixel over every other strip's surface (the game's strips never had the
@@ -7906,11 +7976,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // a WATER lane stands nothing (a decal under the sea and a windsock in it, G434)
     for (const a of world.aerodromes) {
       if (a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises)) continue;
+      // (PERF-WORLDBUILD) its geometry asked of the house worker and not in yet: the host sleeps on the worker's next message
+      { const J = STRIPW.jobs.get(a.id);
+        if (J && !J.done) { const tW = performance.now();
+          while (!J.done && stripwHost() && performance.now() - J.t0 < STRIPW.patience) { window.FLYDIY_WORLD_WAIT = stripwHost().next(); yield 'strip ' + a.id + ': its geometry'; }
+          STRIPW.waitMs += performance.now() - tW; } }
       standStrip(a);
       // Let the host's existing slice budget run between strips. Building the
       // entire island here was one measured 7.2-second, uninterruptible task.
       yield 'strip ' + a.id;
     }
+    STRIPW.jobs.clear();   // (an answer nobody stood: a strip the loop skipped)
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
     // every premises strip are taken away and stood again from the registry as it is now
     // (G3008) A REPAINT ONLY WHEN A STRIP IS CONCERNED: every edit of the premises (a road's, a site's, an area's) stood

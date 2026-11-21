@@ -887,25 +887,33 @@
   function buildWorldSliced() {
     if (WF) return;
     if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
+    // PERF-WORLDBUILD (22 Nov): THE BUILD MAY SLEEP ON A WORKER. A stage whose input is still in a worker (a strip's geometry,
+    // render_world stripsAsk) sets window.FLYDIY_WORLD_WAIT to a promise and yields: the slice ends there and the next one
+    // starts when it settles (or 250 ms later: a wake that never comes costs a look again, G1180's rule). FLYDIY_WORLD_ASYNC
+    // tells the build this host can sleep - a synchronous build (buildWorldScene) has none and asks no worker
+    window.FLYDIY_WORLD_ASYNC = true; window.FLYDIY_WORLD_WAIT = null;
     const g = buildWorldSceneSteps(scene, world, renderer, camera, worldShed());
     let n = 0, worst = 0;
     const t00 = performance.now();
     return new Promise(res => {
       const tick = () => {
-        if (WF) { res(); return; }   // built meanwhile by a synchronous door (none today: the screen owns the first build)
+        if (WF) { window.FLYDIY_WORLD_ASYNC = false; res(); return; }   // built meanwhile by a synchronous door (none today: the screen owns the first build)
         const t0 = performance.now(); let r = null, lab = '';
-        try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && performance.now() - t0 < 40); }
-        catch (e) { console.error('world build:', e); res(); return; }
+        try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && !window.FLYDIY_WORLD_WAIT && performance.now() - t0 < 40); }
+        catch (e) { console.error('world build:', e); window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null; res(); return; }
         worst = Math.max(worst, performance.now() - t0);
         geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
         if (r.done) {
+          window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null;
           worldBuilt(r.value);
           if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
           window.__WORLD_SLICES = { n, worst: Math.round(worst), ms: Math.round(performance.now() - t00) };
           res(); return;
         }
         BOOT.phase('world', 'laying out the world' + (lab ? ': ' + lab : ''), Math.min(0.95, n / WORLD_YIELDS));
-        setTimeout(tick, 0);
+        const wt = window.FLYDIY_WORLD_WAIT; window.FLYDIY_WORLD_WAIT = null;
+        if (wt && typeof wt.then === 'function') Promise.race([wt, new Promise(r2 => setTimeout(r2, 250))]).then(() => setTimeout(tick, 0));
+        else setTimeout(tick, 0);
       };
       tick();
     });
