@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path'),src=fs.readFileSync(path.join(__dirname,'../src/viewer/skin_scuff.js'),'utf8');
+function load(mode){const c={module:{exports:{}},URLSearchParams,location:{search:'?scuffopt='+mode}};vm.createContext(c);vm.runInContext(src,c);return c.module.exports;}
+const image={},hook=function(sh){sh.fragmentShader='uniform sampler2D tGrunge;\n'+sh.fragmentShader;sh.uniforms.tGrunge={value:image};};
+function shader(){return{uniforms:{},vertexShader:'#include <common>\nvoid main(){#include <begin_vertex>}',fragmentShader:'#include <common>\nvoid main(){#include <lights_physical_fragment>}'};}
+const L=load('lite'),W=L.waker(),U={tDmgG:{value:image}},a=L.wrap(hook,'live',U,W,0),b=L.wrap(hook,'live',U,W,1);
+assert.equal(L.OPT.specialize,false);assert.equal(L.OPT.sharedGrunge,true);assert.equal(L.OPT.simplify,true);assert.equal(a.toString(),b.toString());W.pre++;L.wakeSet(W);assert.equal(a.toString(),b.toString(),'No finish-class variant multiplication');
+const s=shader();a.call({},s);assert(!s.fragmentShader.includes('GD_OFF'));assert(!s.fragmentShader.includes('dmgCell'));assert(!s.fragmentShader.includes('dmgStroke'));assert(!s.fragmentShader.includes('dmgScrPat'));assert.equal((s.fragmentShader.match(/textureGrad\(/g)||[]).length,3);assert.equal((s.fragmentShader.match(/uniform sampler2D tGrunge;/g)||[]).length,1);assert(s.fragmentShader.includes('float cr ='));assert(s.fragmentShader.includes('tb ='));assert(s.fragmentShader.includes('uDmgCol[1]'));assert(s.fragmentShader.includes('buckle.yzw'));assert.strictEqual(s.uniforms.tGrunge.value,image);
+const D=load(''),dg=shader(),lg=shader();D.wrap(hook,'glass',U).call({},dg);L.wrap(hook,'glass',U).call({},lg);assert.equal(lg.fragmentShader.slice(lg.fragmentShader.indexOf('void main')),dg.fragmentShader.slice(dg.fragmentShader.indexOf('void main')),'Window crack body remains identical');
+assert(!lg.fragmentShader.includes('dmgStroke'));assert(lg.fragmentShader.includes('vec3 dmgCell'));
+const O=load('liteone'),OW=O.waker(),one=O.wrap(hook,'live',U,OW,0),key=one.toString(),off=shader();one.call({},off);assert(off.fragmentShader.includes('if (uDmgOn > 0.0)'));OW.awake=true;O.wakeSet(OW);assert.equal(one.toString(),key,'One-state key does not change on damage');
+console.log('Scuff lite: shared variants/sampler, three grunge reads, simplified surface helpers, one-state key and identical window crack body passed.');

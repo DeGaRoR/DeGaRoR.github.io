@@ -47,7 +47,7 @@
   'use strict';
   let optMode = '';
   try { optMode = new URLSearchParams(location.search).get('scuffopt') || ''; } catch (e) {}
-  const OPT = { sharedGrunge: optMode === '1' || optMode === 'share', specialize: optMode === '1' || optMode === 'class' };
+  const OPT = { sharedGrunge: ['1','share','lite','liteone'].includes(optMode), specialize: optMode === '1' || optMode === 'class', simplify: optMode === 'lite' || optMode === 'liteone', always:optMode === 'liteone' };
   // ---- THE TABLE (every number the drawing reads off the physics) ----
   const SC = {
     eps0: 0.008,      // crush: a member's equivalent plastic strain where the paint starts to craze (0.8 %: a SET member,
@@ -715,6 +715,70 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
     }
   }
 `;
+  // Simplified surface test: one buckle field and three reads of the existing
+  // packed grunge, shared across all finish classes. Keep recorded crush,
+  // directional abrasion, stains, exposed substrate and ragged torn edges.
+  // Fine cellular paint cracks / separate millimetre stroke lattices are
+  // replaced by filtered texture detail. Window cracks below are unchanged.
+  const AERO_DMG_SURF_LITE_FS = `
+  if (uDmgOn > 0.0) {
+    vec3 dP = DMG_P * uDmgM;
+    vec3 dPx = dFdx(dP), dPy = dFdy(dP);
+    vec4 dR = vDmg;
+    if (max(max(dR.x, dR.y), dR.z) > 0.004) {
+      float dCls = mod(vDmgD.w, 8.0);
+      float dMet = 1.0 - step(0.5, dCls);
+      float dFab = step(0.5, dCls) * (1.0 - step(1.5, dCls));
+      float dWood = step(1.5, dCls) * (1.0 - step(2.5, dCls));
+      int dCi = int(min(dCls, 3.0) + 0.5);
+      vec3 dSub = uDmgSub[dCi].rgb, dN = normalize(DMG_N);
+      vec3 dD = vDmgD.xyz;
+      float dDl = length(dD);
+      dD = dDl > 0.004 ? dD / dDl : vec3(1.0, 0.0, 0.0);
+      vec3 dA1 = normalize(cross(dD, abs(dD.y) < 0.8 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+      vec3 dA2 = cross(dD, dA1);
+      vec3 dw = vec3(dot(dN,dD), dot(dN,dA2), dot(dN,dA1));
+      dw *= dw; dw *= dw; dw /= max(dot(dw,vec3(1.0)),1e-6);
+      vec2 uv0 = vec2(dot(dP,dA1),dot(dP,dA2));
+      vec2 uv1 = vec2(dot(dP,dD),dot(dP,dA1)), uv2 = vec2(uv1.x,dot(dP,dA2));
+      vec2 ux0 = vec2(dot(dPx,dA1),dot(dPx,dA2)), uy0 = vec2(dot(dPy,dA1),dot(dPy,dA2));
+      vec2 ux1 = vec2(dot(dPx,dD),dot(dPx,dA1)), uy1 = vec2(dot(dPy,dD),dot(dPy,dA1));
+      vec2 ux2 = vec2(ux1.x,dot(dPx,dA2)), uy2 = vec2(uy1.x,dot(dPy,dA2));
+      vec2 dk = vec2(0.8, 35.0);
+      vec4 pat = textureGrad(tDmgG,uv0*dk,ux0*dk,uy0*dk)*dw.x
+               + textureGrad(tDmgG,uv1*dk,ux1*dk,uy1*dk)*dw.y
+               + textureGrad(tDmgG,uv2*dk,ux2*dk,uy2*dk)*dw.z;
+      vec4 buckle = dmgVN(dP*7.0);
+      float cr = clamp(dR.x*uDmgK.x,0.0,1.0), sc = clamp(dR.y*uDmgK.y,0.0,1.0), tb = clamp(dR.z*uDmgK.z,0.0,1.0);
+      vec3 col = diffuseColor.rgb;
+      float rgh = roughnessFactor, met = metalnessFactor;
+      float crease = (1.0-abs(2.0*buckle.x-1.0))*cr;
+      col *= 1.0 - crease*(0.10+0.18*dFab);
+      float flake = smoothstep(0.65,0.9,cr)*smoothstep(0.60,0.78,pat.b+0.15*(buckle.x-0.5));
+      col = mix(col,dSub,flake);
+      met = mix(met,uDmgSub[dCi].a,flake);
+      float coh = smoothstep(0.30,0.75,dDl)*(1.0-dw.x);
+      float band = smoothstep(0.70-0.14*sc,0.76-0.14*sc,pat.a)*sc*coh;
+      float scratch = band*smoothstep(0.58,0.86,pat.r);
+      col = mix(col,mix(col,dSub,0.45),band*0.45);
+      col = mix(col,mix(dSub*1.15,vec3(0.50,0.45,0.34),dFab+dWood),scratch*0.7);
+      float dirt = sc*(0.15+0.35*dR.w)*smoothstep(0.3,0.8,pat.g);
+      col = mix(col,mix(uDmgCol[1].rgb,uDmgCol[2].rgb,dR.w*pat.b),max(dirt,band*pat.b*0.45));
+      float edge = smoothstep(0.55,0.92,tb+0.18*(pat.g-0.5));
+      col = mix(col,mix(dSub*1.15,vec3(0.50,0.45,0.34),dFab),edge);
+      col *= 1.0 - tb*(1.0-edge)*0.18;
+      rgh = mix(rgh,max(rgh,0.88),max(cr,max(sc,tb)));
+      rgh = mix(rgh,uDmgSub2[dCi].x,flake*dMet);
+      met = mix(met,uDmgSub[dCi].a,edge*dMet);
+      met *= 1.0 - max(dirt,band*0.6);
+      vec3 grad = buckle.yzw*7.0*(0.010*smoothstep(0.0,0.30,cr)*(dMet+0.6*dFab)+0.0015*tb*dWood);
+      vec3 gv = normalMatrix*grad*uDmgK.w;
+      normal = normalize(normal-(gv-normal*dot(gv,normal)));
+      diffuseColor.rgb = col;roughnessFactor = clamp(rgh,0.02,1.0);metalnessFactor = clamp(met,0.0,1.0);
+      dmgCov = max(dmgCov,max(cr*0.6,max(sc*0.8,tb)));
+    }
+  }
+`;
   // THE GLASS'S BLOCK: an acrylic crack from the pane's impact point - radial cracks (one a sector, a jittered angle, a
   // wobble along it, a fork), arcs of crazing round the point, the crack's stress-whitening; the lines are a pale film
   // in the add pass (the multiply pass is left alone: a crack does not block the light, it scatters it)
@@ -803,8 +867,9 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
     return true;
   }
   function wrap(h, kind, U, W, classHint) {
+    const simplify = !!OPT.simplify, sharedEnabled = OPT.sharedGrunge, always = !!OPT.always;
     const specialized = OPT.specialize && kind !== 'baked' && kind !== 'glass' && Number.isInteger(classHint) && classHint >= 0 && classHint <= 3;
-    const optKey = (OPT.sharedGrunge ? '|shared-grunge-v1' : '') + (OPT.specialize ? '|class:' + (specialized ? classHint : 'general') : '');
+    const optKey = (sharedEnabled ? '|shared-grunge-v1' : '') + (OPT.specialize ? '|class:' + (specialized ? classHint : 'general') : '') + (simplify ? '|surface-lite-v1' : '') + (always ? '|one-state-v1' : '');
     const baseKey = kind + '|' + (h ? h.toString() : '');
     const key = baseKey + optKey;
     const C = W ? W.wraps : WRAPS;
@@ -814,19 +879,20 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
       if (h) h.call(this, sh, r);
       // (the uniforms asleep too: a program found in the material's map keeps the LAST compile's uniforms object)
       for (const k in U) sh.uniforms[k] = U[k];
-      if (W) { W.mats.add(this); if (!W.on) return; }
+      if (W) { W.mats.add(this); if (!always && !W.on) return; }
       const obj = kind !== 'baked';
       // (GD_OFF, GROUND-FX 17 Nov: the live mud / rain term's two 3-D samplers took the scuffed program past the GPU's 16
       // texture units - the 16:05 re-shoot's link error, VALIDATE_STATUS false; compiled out here, the unit count is
       // master's again: a scuffed part draws no computed mud or rain)
-      const shared = OPT.sharedGrunge && sh.fragmentShader.includes('uniform sampler2D tGrunge;');
+      const shared = sharedEnabled && sh.fragmentShader.includes('uniform sampler2D tGrunge;');
       let pars = AERO_DMG_FS_PARS;
+      if (simplify) pars = pars.slice(0,pars.indexOf(kind === 'glass' ? 'float dmgH2(' : '// cells in 3-D:'));
       if (shared) {
         sh.fragmentShader = sh.fragmentShader.replace('uniform sampler2D tGrunge;', '');
         pars = pars.replace('uniform sampler2D tDmgG;', 'uniform sampler2D tGrunge;\n#define tDmgG tGrunge');
       }
       const def = '#define DMG_SCUFF 1\n' + (shared ? '' : '#define GD_OFF 1\n') + (obj ? '#define DMG_OBJ 1\n' : '');
-      const surf = specialized ? AERO_DMG_SURF_FS.replace('float dCls = mod(vDmgD.w, 8.0);', 'float dCls = ' + classHint.toFixed(1) + ';') : AERO_DMG_SURF_FS;
+      const surf = simplify ? AERO_DMG_SURF_LITE_FS : specialized ? AERO_DMG_SURF_FS.replace('float dCls = mod(vDmgD.w, 8.0);', 'float dCls = ' + classHint.toFixed(1) + ';') : AERO_DMG_SURF_FS;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', def + AERO_DMG_VS_PARS + '#include <common>')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + AERO_DMG_VS_MAIN);
@@ -836,7 +902,7 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
         .replace('#include <lights_physical_fragment>', (kind === 'glass' ? AERO_DMG_GLASS_FS : surf)
                  + '#include <lights_physical_fragment>\n' + AERO_DMG_CC_FS);
     };
-    w.toString = W ? () => 'dmg.scuff|' + (W.on ? key : 'asleep|' + baseKey) : () => 'dmg.scuff|' + key;
+    w.toString = W && !always ? () => 'dmg.scuff|' + (W.on ? key : 'asleep|' + baseKey) : () => 'dmg.scuff|' + key;
     w.scuffKind = kind;
     C.set(key, w);
     return w;
