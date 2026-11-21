@@ -360,14 +360,41 @@ var AUDIO = (function () {
     L.threshold.value = -1; L.knee.value = 0; L.ratio.value = 20; L.attack.value = 0.002; L.release.value = 0.12;
     N.fade = g(); N.fade.gain.value = 1;
     for (const b of BUSES) N[b] = g();
-    N.master.connect(N.fade); N.fade.connect(L); L.connect(ctx.destination);
-    N.out = L;   // the last node before the speakers (AUDIO.record taps it)
+    N.master.connect(N.fade); N.fade.connect(L);
+    // AUDIO-ROBUST 2 (22 Nov 2026, the user: "huge saturation"): THE CEILING. The DynamicsCompressor above is not a
+    // brick wall: ratio 20 above -1 dBFS lets 1/20 of an overshoot through, its 2 ms attack lets a transient's first
+    // milliseconds through, and the browser adds its own makeup gain on top (Chrome: (1 / full-range gain)^0.6 = +0.57 dB
+    // here) - a hot burst left the page above 0 dBFS and the output CLIPPED (the harsh, square saturation). The ceiling
+    // after it is a WaveShaper on the audio thread: the identity up to -1 dBFS (CEIL_K: everything the measured mix plays,
+    // GATE MIXLEAD's peaks, passes unchanged but for the oversampling filter's ripple), above it a tanh knee that reaches full scale only at +6 dBFS in (CEIL_IN):
+    // whatever arrives, the speakers get a round, never a clipped, wave. 2x oversampled (the knee's harmonics folded
+    // back would be heard). ?audiorobust=0: no ceiling (the before).
+    if (ROBUST && ctx.createWaveShaper) {
+      const C = N.ceiling = ctx.createWaveShaper(), pre = N.ceilIn = ctx.createGain();
+      pre.gain.value = 1 / CEIL_IN;   // the shaper's domain [-1, 1] is the signal's [-CEIL_IN, +CEIL_IN]
+      C.curve = ceilingCurve(); C.oversample = '2x';
+      L.connect(pre); pre.connect(C); C.connect(ctx.destination);
+      N.out = C;   // the last node before the speakers (AUDIO.record taps it)
+    } else { L.connect(ctx.destination); N.out = L; }
     N.aircraft.connect(N.master);
     // G1720: the interior side through its own trim (MIX.interior; the viewpoint fader stays a pure equal-power pair)
     N.intTrim = g(); N.intTrim.gain.value = MIXK.interior;
     N['aircraft.ext'].connect(N.aircraft); N['aircraft.int'].connect(N.intTrim); N.intTrim.connect(N.aircraft);
     N.ambience.connect(N.master); N.music.connect(N.master); N.ui.connect(N.master);
     tgt.fill(-1); XF[0] = -1;
+  }
+  // THE CEILING's curve (above): x in [-1, 1] is the signal u = CEIL_IN x (the gain before it); y = u for |u| <= CEIL_K, else
+  // CEIL_K + (1 - CEIL_K) tanh((|u| - CEIL_K) / (1 - CEIL_K)) - continuous in value and slope at the knee, 1.0 at CEIL_IN
+  // (tanh of 10: 1 - 4e-9). A WaveShaper interpolates the curve linearly, so the identity part is a straight line.
+  const CEIL_K = Math.pow(10, -1 / 20), CEIL_IN = 2, CEIL_N = 8193;
+  function ceilingCurve() {
+    const c = new Float32Array(CEIL_N);
+    for (let i = 0; i < CEIL_N; i++) {
+      const u = CEIL_IN * (2 * i / (CEIL_N - 1) - 1), a = u < 0 ? -u : u;
+      const y = a <= CEIL_K ? a : CEIL_K + (1 - CEIL_K) * Math.tanh((a - CEIL_K) / (1 - CEIL_K));
+      c[i] = u < 0 ? -y : y;
+    }
+    return c;
   }
   function close() {
     clearSuspend(); stopPump();

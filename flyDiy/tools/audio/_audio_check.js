@@ -702,6 +702,49 @@ function checkStall(S) {
   return F;
 }
 
+// AUDIO-ROBUST 2 (22 Nov 2026, the user: "huge saturation"): CEILING - the WaveShaper after the limiter.
+//   the curve: odd, monotone, the identity (to 1e-6) up to -1 dBFS, |y| <= 1 everywhere and >= 0.999 at +6 dBFS in, its
+//   slope continuous at the knee (within 2 %); 2x oversampled; the shaper is the last node (it, not the limiter, feeds the
+//   speakers; AUDIO.record taps it) behind a 1/2 gain (its domain is +-6 dBFS); ?audiorobust=0 makes none (the before).
+function checkCeiling(S) {
+  const F = [];
+  const mk = search => {
+    const R = { shapers: [] };
+    const pg = makePage(S, { quiet: true, store: {}, search, ctx: (proto, C) => {
+      proto.createWaveShaper = function () { C.nodes++; const ctx = this, n = { curve: null, oversample: 'none', to: [],
+        connect(d) { this.to.push(d === ctx.destination ? 'destination' : d); }, disconnect() {} }; R.shapers.push(n); return n; };
+    } });
+    pg.gesture();
+    return Object.assign(R, { pg });
+  };
+  const R = mk('');
+  if (R.shapers.length !== 1) { F.push('the ceiling: ' + R.shapers.length + ' WaveShaper(s) made (want 1)'); return F; }
+  const sh = R.shapers[0], c = sh.curve, n = c ? c.length : 0, IN = 2, K = Math.pow(10, -1 / 20);
+  if (!c || n < 4097 || n % 2 !== 1) { F.push('the ceiling curve has ' + n + ' points (want odd, >= 4097)'); return F; }
+  if (sh.oversample !== '2x') F.push('the ceiling is oversampled ' + sh.oversample + ' (want 2x)');
+  if (sh.to.length !== 1 || sh.to[0] !== 'destination') F.push('the ceiling does not feed the speakers (' + sh.to.length + ' connection(s))');
+  let mono = true, odd = true, idErr = 0, top = 0;
+  for (let i = 0; i < n; i++) {
+    const u = IN * (2 * i / (n - 1) - 1), y = c[i];
+    if (i && y < c[i - 1]) mono = false;
+    if (Math.abs(y + c[n - 1 - i]) > 1e-7) odd = false;
+    if (Math.abs(u) <= K) idErr = Math.max(idErr, Math.abs(y - u));
+    top = Math.max(top, Math.abs(y));
+  }
+  if (!mono) F.push('the ceiling curve is not monotone');
+  if (!odd) F.push('the ceiling curve is not odd');
+  if (!(idErr < 1e-6)) F.push('the ceiling is not the identity under -1 dBFS (off by ' + idErr + ')');
+  if (!(top <= 1)) F.push('the ceiling reaches ' + top + ' (want <= 1: full scale, never past it)');
+  if (!(c[n - 1] >= 0.999)) F.push('the ceiling at +6 dBFS in gives ' + c[n - 1] + ' (want >= 0.999)');
+  const ik = Math.ceil(((K / IN) + 1) / 2 * (n - 1)) + 1, du = 2 * IN / (n - 1), slope = (c[ik + 1] - c[ik]) / du;
+  if (!(Math.abs(slope - 1) < 0.02)) F.push('the ceiling\'s slope just past the knee is ' + slope.toFixed(4) + ' (want 1: no kink)');
+  const pre = R.pg.params.filter(p => Math.abs(p.value - 1 / IN) < 1e-9).length;
+  if (pre < 1) F.push('no 1/2 gain before the ceiling (its domain is +-6 dBFS)');
+  const O = mk('?audiorobust=0');
+  if (O.shapers.length !== 0) F.push('?audiorobust=0 still makes the ceiling (the before is lost)');
+  return F;
+}
+
 function checkSources(S) {
   const F = [], pg = livePage(S), A = pg.A;
   const go = () => A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, false, pg.world);
@@ -4830,7 +4873,7 @@ function checkCrash(S, report) {
   return F;
 }
 
-const CHECKS = { STALL: checkStall, MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
+const CHECKS = { STALL: checkStall, CEILING: checkCeiling, MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
@@ -4983,6 +5026,11 @@ const MUT = [
   ['no stall frame after a gap', 'audio', 'pumping || t0 - LAST[0] > STALL_GAP_S * 1000) ? 1 : 0;', 'pumping) ? 1 : 0;', 'STALL'],
   ['the listener velocity not held', 'space', 'if (T[7] > 0 && L[15] > 0 && !cut) {', 'if (false) {', 'STALL'],
   ['the ring velocity not held', 'space', 'if (T[7] > 0 && R.n[0] > 1) {', 'if (false) {', 'STALL'],
+  ['no ceiling', 'audio', 'if (ROBUST && ctx.createWaveShaper) {', 'if (false) {', 'CEILING'],
+  ['the ceiling clips hard', 'audio', 'const y = a <= CEIL_K ? a : CEIL_K + (1 - CEIL_K) * Math.tanh((a - CEIL_K) / (1 - CEIL_K));', 'const y = a <= CEIL_K ? a : CEIL_K;', 'CEILING'],
+  ['the ceiling squeezes the mix', 'audio', 'const CEIL_K = Math.pow(10, -1 / 20), CEIL_IN = 2', 'const CEIL_K = Math.pow(10, -6 / 20), CEIL_IN = 2', 'CEILING'],
+  ['the ceiling past the speakers', 'audio', 'L.connect(pre); pre.connect(C); C.connect(ctx.destination);', 'L.connect(pre); pre.connect(C); L.connect(ctx.destination);', 'CEILING'],
+  ['the ceiling aliased', 'audio', "C.curve = ceilingCurve(); C.oversample = '2x';", "C.curve = ceilingCurve(); C.oversample = 'none';", 'CEILING'],
   ['a stall frame advances the space clock', 'space', '(stl && dt > 1 / 60 ? 1 / 60 : dt)', '(dt)', 'STALL'],
   ['the pump outlives the context', 'audio', 'clearSuspend(); stopPump();', 'clearSuspend();', 'MIX'],
   ['the garage setting ignored', 'music', 'if (garage) return musicGarage ? C_GARAGE : C_NONE;', 'if (garage) return C_GARAGE;', 'MUSIC_CTX'],
