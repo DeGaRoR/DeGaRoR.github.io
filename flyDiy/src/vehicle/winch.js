@@ -139,10 +139,14 @@ function makeWinchLine(sim, W, o) {
 // attitude off the ground to 8 m, then the full climb - `maxPitch` (42 deg) reached by height, eased whenever the speed
 // falls under 1.1 x vMin (the stall's margin: a winch climb flown slow is the classic accident) and over the top of the
 // launch as the line steepens; released, the glide's attitude
+// WINCH-LAND (22 Nov): the pitch hold carries a TRIM (an integral, the elevator the airframe needs to hold the
+// attitude): proportional only, master's heavier motorglider (276 kg, 249 on 13 Nov) held its nose at 4 deg against the
+// 7 deg wanted under 8 m (the elevator 0.18 for a 3 deg error) and flew the whole cable level at 1-9 m (GATE WINCH LAUNCH)
 function makeWinchHands(sim, o) {
   o = o || {};
   const g0 = o.ground || 0, maxP = o.maxPitch ?? 42, vMin = o.vMin || 20;
   const cl = (x, m) => Math.max(-m, Math.min(m, x));
+  let trim = 0;   // (the pitch hold's integral: the elevator held, per deg x s of error; zeroed on the ground run)
   // (the signs are tow.js's, flown: bank + = the right wing down, a negative aileron rolls it up; the nose left of the
   //  line +, a negative rudder yaws it right)
   return (line, dt) => {
@@ -153,7 +157,7 @@ function makeWinchHands(sim, o) {
     if (line && line.on) { const dx = line.carP[0] - cg[0], dz = line.carP[2] - cg[2], l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l;
       headL = Math.atan2(fx * uz - fz * ux, fx * ux + fz * uz) * 57.3; }
     const onG = sim.wheelsOnGround() > 0;
-    if (onG && V < 15) sim.ctl.de = 0;
+    if (onG && V < 15) { sim.ctl.de = 0; trim = 0; }
     else {
       let want;
       if (!line || !line.on) want = o.glidePitch ?? 0;
@@ -164,7 +168,9 @@ function makeWinchHands(sim, o) {
         if (line.angle > 45) want = Math.min(want, maxP - (line.angle - 45) * 0.9);   // the top: flatten as the line steepens
         want = Math.max(2, want);
       }
-      sim.ctl.de = cl(0.06 * (want - pitch), 0.8);
+      const pe = 0.06 * (want - pitch), u = pe + trim;
+      if (Math.abs(u) < 0.8 || (u > 0) !== (want > pitch)) trim = cl(trim + 0.02 * (want - pitch) * dt, 0.5);   // (no wind-up while the elevator is at its stop)
+      sim.ctl.de = cl(pe + trim, 0.8);
     }
     sim.ctl.da = cl(-0.03 * bankR + 0.02 * headL, 0.7);
     sim.ctl.dr = cl(-0.04 * headL, 0.7);
