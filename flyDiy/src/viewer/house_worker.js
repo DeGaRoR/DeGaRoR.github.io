@@ -49,7 +49,9 @@ const HW_FILES = [['HOUSE_TEX_SETS', 'src/viewer/house_tex.js'], ['GROUND_TEX', 
   ['HANGAR_GEN', 'tools/_hangar_gen.js'], ['TOWER_GEN', 'tools/_tower_gen.js'], ['TRAM_GEN', 'tools/_tram_gen.js'], ['TOTEM_GEN', 'tools/_totem_gen.js'],
   ['VILLAGE_GEN', 'tools/_village_gen.js'], ['PREMISES_BUILD', 'src/viewer/premises_build.js'],
   // (C3c, G861) a kit plot's lot (Metlakatla on the kit): the job kind 'kit' - imported whatever the page has loaded
-  ['KIT_LOT', 'src/viewer/kit_lot.js']];
+  ['KIT_LOT', 'src/viewer/kit_lot.js'],
+  // (PERF-WORLDBUILD, 22 Nov) the strips' geometry: PAVEMENT.stripGeometry on the worker's composed ground ('strips' below)
+  ['PAVEMENT', 'src/viewer/pavement.js']];
 const HW_LAZY = [['SPORT_GEN', 'tools/_sport_gen.js'], ['MARINE_GEN', 'tools/_marine_gen.js'], ['NAVAID_GEN', 'tools/_navaid_gen.js'], ['METEO_GEN', 'tools/_meteo_gen.js']];
 const HW_DB = 'flydiy-houses';
 
@@ -216,6 +218,31 @@ function houseWorkerBody(G, port) {
     port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
       mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0 } });
   }
+  // PERF-WORLDBUILD (22 Nov): THE STRIPS' GEOMETRY (render_world.js stripsAsk). A job is a strip's builder options as the
+  // page resolved them (j.sd: numbers only), whether it is a bumpy strip (j.micro: the drawn ground is terrainH less the
+  // stones) and whether its lift reads the other pavements (j.lift); m.wear the page's worn-relief scales by weather code
+  // (20_world wearScales: this world's day is not the page's). Built by the page's own builder (pavement.js) on this world's
+  // composed ground - the page's, bit for bit - and posted as stripPack's arrays, transferred. No cache: a strip is a
+  // function of the ground under it and of the day's rung, and the page asks once a loading.
+  function strips(m) {
+    const PAV = G.PAVEMENT, W = st.world;
+    for (const j of m.jobs) {
+      if (m.epoch !== st.epoch || !st.O || !PAV || !PAV.stripPack) { port.post({ cmd: 'strip', epoch: m.epoch, seq: j.seq, id: j.id, miss: !PAV || !PAV.stripPack ? 'no pavement' : 'stale' }); continue; }
+      const t0 = now();
+      try {
+        if (m.wear && !W.setWearScales) throw new Error('no wear hook');
+        if (W.setWearScales) W.setWearScales(m.wear || null);
+        const O = st.O, o = Object.assign({}, j.sd, { heightAt: j.micro && W.stoneH ? (x, z) => W.terrainH(x, z) - W.stoneH(x, z) : W.terrainH,
+          liftAt: j.lift && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, j.id) : null });
+        const p = PAV.stripPack(PAV.stripGeometry(G.THREE, o)), ms = now() - t0;
+        st.stripMs = (st.stripMs || 0) + ms; st.strips = (st.strips || 0) + 1; st.bytes += sizeOf(p.tr);
+        send({ cmd: 'strip', epoch: m.epoch, seq: j.seq, id: j.id, r: p.r, ms }, p.tr);
+      } catch (e) { port.post({ cmd: 'strip', epoch: m.epoch, seq: j.seq, id: j.id, miss: 'error: ' + (e && e.message) }); }
+      finally { if (W.setWearScales) W.setWearScales(null); }
+    }
+    port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
+      mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0, strips: st.strips || 0, stripMs: Math.round(st.stripMs || 0) } });
+  }
   // every array a packed result holds (the page takes them: nothing is copied back)
   function transfers(r) {
     const tr = [], seen = new Set();
@@ -227,7 +254,7 @@ function houseWorkerBody(G, port) {
   // returned promise is the harness's (tools/_page_node.js acks a message when it settles), a browser ignores it
   let chain = Promise.resolve();
   port.on(m => {
-    chain = chain.then(() => (m.cmd === 'init' ? init(m) : m.cmd === 'compose' ? compose(m) : m.cmd === 'jobs' ? jobs(m) : null))
+    chain = chain.then(() => (m.cmd === 'init' ? init(m) : m.cmd === 'compose' ? compose(m) : m.cmd === 'jobs' ? jobs(m) : m.cmd === 'strips' ? strips(m) : null))
       .catch(e => { st.err = String(e && e.message || e); port.post({ cmd: 'fail', why: st.err, stack: String(e && e.stack || '') }); });
     return chain;
   });
@@ -242,7 +269,7 @@ function houseWorkerSource(url) {
 // ---- THE PAGE'S SIDE ---------------------------------------------------------------------------------------------------
 const HOUSE_WORKER = (() => {
   const S = { on: false, why: 'not started', w: null, ready: false, failed: false, epoch: 0, composed: -1, stats: {}, got: 0, bytes: 0, initMs: 0, composeMs: 0, t0: 0 };
-  let onResult = null, onFail = null, waiters = [];
+  let onResult = null, onFail = null, onStrip = null, waiters = [];
   const W = typeof window !== 'undefined' ? window : {};
   const wake = () => { const w = waiters; waiters = []; for (const f of w) f(); };
   function off(why) { S.on = false; S.why = why; return null; }
@@ -294,6 +321,7 @@ const HOUSE_WORKER = (() => {
     else if (m.cmd === 'stats') S.stats = m.stats;
     else if (m.cmd === 'fail') { fail('the worker: ' + m.why); return; }
     else if (m.cmd === 'result') { S.got++; if (onResult) onResult(m); }
+    else if (m.cmd === 'strip') { if (onStrip) onStrip(m); }   // (PERF-WORLDBUILD: a strip's geometry, render_world's)
     wake();
   }
   // the renderer's side: its composition (a new epoch), its batches of work, its results
@@ -307,7 +335,7 @@ const HOUSE_WORKER = (() => {
   const api = {
     start, compose, post,
     ok: () => S.on && !S.failed,
-    set onResult(f) { onResult = f; }, set onFail(f) { onFail = f; },
+    set onResult(f) { onResult = f; }, set onFail(f) { onFail = f; }, set onStrip(f) { onStrip = f; },
     // a promise that settles on the worker's next message (the town step waits on it instead of spinning)
     next: () => new Promise(res => { if (!S.on) res(); else waiters.push(res); }),
     stats: () => Object.assign({ on: S.on, why: S.why, ready: S.ready, failed: S.failed, results: S.got, initMs: Math.round(S.initMs), composeMs: Math.round(S.composeMs) }, S.stats),

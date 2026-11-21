@@ -581,6 +581,9 @@ const GATES = [
   // the default; the island built with them and without (?pavepolybound=0&pavereuse=0) is the same patch, strips, roads, aprons,
   // rails, poles and far terrain byte for byte. Two page processes one after the other
   { id: 'PAVEXACT', file: '_pavexact_check.js', tier: 'core', wall: 300 },
+  // PERF-WORLDBUILD (22 Nov 2026): the strips' geometry built in the house worker (?stripw=1) is the inline build's, byte for
+  // byte, on every pavement strip of Jolene and at two more soil rungs; none built on the page's thread; arrays transferred
+  { id: 'STRIPWORKER', file: '_stripworker_check.js', tier: 'core', wall: 240 },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s

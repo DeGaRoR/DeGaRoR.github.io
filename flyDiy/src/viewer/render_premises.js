@@ -5172,6 +5172,7 @@ function make(THREE, scene, world, rec0, opts) {
     },
     pavedAt: (x, z, reach, skip) => (O.pavedAt ? O.pavedAt(x, z, reach, skip) : null),       // G660: the patch is sunk under a pavement's opaque interior by it (G2115: reach, skip passed on)
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
+    patchActive: () => !!patchAct,   // (PERF-WORLDBUILD: the patch's active set is known - patchCovers answers)
     patchDepth, ringSink, tuck: PATCH_TUCK,   // G752: metres inside the patch (0 outside); the rings' sink by it (0 at the border); the two laws' dials
     patchBounds: () => (patch ? extentWorld() : null),
     // PERF-WORLDBUILD (22 Nov): what the premises still owe besides their queue - the far town's cells to merge, the obstacles
