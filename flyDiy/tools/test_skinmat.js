@@ -2099,6 +2099,12 @@ function kitGate() {
   check(/rot: \(\+D\.wregRot \|\| 0\) \+ AERO_WREG_TURN/.test(wregPush) && /const AERO_WREG_TURN = Math\.PI;/.test(SRC),
     'wing reg: the letters lost their half turn - their tops face the trailing edge again (the user 16 Nov: ' +
     '"It looked wrong")');
+  // REG-TURN-MIRROR (the user 21 Nov): the turn takes the face's own mirror sign, in the shader and in quickshot's port
+  const QS = fs.readFileSync(path.join(__dirname, 'quickshot.js'), 'utf8');
+  check(/float dsg = mix\(mix\(mir, smir, step\(0\.5, mode\)\), pmir, step\(1\.5, mode\)\);\s*\n\s*float cr = cos\(uDecC\[di\]\.x\), sr = sin\(uDecC\[di\]\.x\) \* dsg;/.test(SRC) &&
+        /const sr = d\.sr \* sg;/.test(QS),
+    'a turned registration: the far flank / the underside must turn the other way (the face\'s mirror sign), else the two ' +
+    'faces lean opposite ways in space (the user 21 Nov: "they drift in orientation")');
 
   // 9 — THE CACHE COVERS THE WHOLE RECIPE. A page is redrawn only when its
   //     signature changes; a field the draw reads and the signature omits is a

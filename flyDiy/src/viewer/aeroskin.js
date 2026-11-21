@@ -4351,7 +4351,12 @@ const AERO_ALBEDO_FS = `
       vec2 dd = boxC;
       if (mode < 0.5) onMe = 0.0;
     #endif
-    float cr = cos(uDecC[di].x), sr = sin(uDecC[di].x);
+    // REG-TURN-MIRROR (the user 21 Nov: "For the 2 sides registration, the turn parameter should be applied the other
+    // direction to the other face, otherwise they drift in orientation"): a mirrored face (the far flank, the underside)
+    // lays the letters along a negated axis, so the same turn tilts them the other way in space - one rising aft, the
+    // other fore. The turn takes the face's own mirror sign (the one its coordinate used); paint (noMirror) keeps 1.
+    float dsg = mix(mix(mir, smir, step(0.5, mode)), pmir, step(1.5, mode));
+    float cr = cos(uDecC[di].x), sr = sin(uDecC[di].x) * dsg;
     dd = vec2(dd.x * cr - dd.y * sr, dd.x * sr + dd.y * cr);
     vec2 q = dd / uDecA[di].zw * 0.5 + 0.5;
     vec2 ib = step(vec2(0.0), q) * step(q, vec2(1.0));
