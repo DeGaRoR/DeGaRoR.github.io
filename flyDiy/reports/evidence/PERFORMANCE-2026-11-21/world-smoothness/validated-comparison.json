@@ -1,0 +1,463 @@
+{
+  "scope": "One matched pair, corrected build, same accepted cuts. Saved night cold load; noon after timing. Private save omitted.",
+  "runs": [
+    {
+      "id": "mist-control",
+      "build": "73f492674f4c",
+      "loadMs": 151460.5,
+      "normalReady": true,
+      "legacy": false,
+      "ok": true,
+      "steps": [
+        {
+          "name": "board",
+          "frames": null,
+          "glError": 0
+        },
+        {
+          "name": "start-up",
+          "frames": {
+            "n": 1718,
+            "p50": 33.4,
+            "p90": 33.5,
+            "p99": 116.7,
+            "max": 2251,
+            "deliveredFps": 26.5,
+            "over50": 68,
+            "over100": 19,
+            "freeze250": 9,
+            "over1000": 1
+          },
+          "glError": 0
+        },
+        {
+          "name": "dry taxi chase",
+          "frames": {
+            "n": 338,
+            "p50": 33.4,
+            "p90": 50,
+            "p99": 50.1,
+            "max": 100,
+            "deliveredFps": 28,
+            "over50": 30,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "dry taxi cockpit",
+          "frames": {
+            "n": 340,
+            "p50": 33.4,
+            "p90": 33.4,
+            "p99": 50.1,
+            "max": 683.7,
+            "deliveredFps": 28.2,
+            "over50": 4,
+            "over100": 1,
+            "freeze250": 1,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "taxi to the hold",
+          "frames": {
+            "n": 4281,
+            "p50": 33.4,
+            "p90": 33.5,
+            "p99": 50.1,
+            "max": 100,
+            "deliveredFps": 29,
+            "over50": 138,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "take-off",
+          "frames": {
+            "n": 722,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 66.7,
+            "max": 83.4,
+            "deliveredFps": 26.3,
+            "over50": 84,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "climb to 150 m",
+          "frames": {
+            "n": 1277,
+            "p50": 33.4,
+            "p90": 33.5,
+            "p99": 50.1,
+            "max": 66.8,
+            "deliveredFps": 29.1,
+            "over50": 29,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "dry airborne chase",
+          "frames": {
+            "n": 361,
+            "p50": 33.5,
+            "p90": 50.1,
+            "p99": 66.8,
+            "max": 116.8,
+            "deliveredFps": 23.9,
+            "over50": 83,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "dry airborne cockpit",
+          "frames": {
+            "n": 451,
+            "p50": 33.3,
+            "p90": 33.4,
+            "p99": 33.5,
+            "max": 50.1,
+            "deliveredFps": 30,
+            "over50": 1,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "active mist chase",
+          "frames": {
+            "n": 348,
+            "p50": 49.9,
+            "p90": 50.1,
+            "p99": 83.3,
+            "max": 100,
+            "deliveredFps": 23.1,
+            "over50": 67,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "active mist cockpit",
+          "frames": {
+            "n": 354,
+            "p50": 49.9,
+            "p90": 50.1,
+            "p99": 66.7,
+            "max": 66.7,
+            "deliveredFps": 23.3,
+            "over50": 69,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "restore saved weather",
+          "frames": {
+            "n": 72,
+            "p50": 49.9,
+            "p90": 66.7,
+            "p99": 83.3,
+            "max": 83.3,
+            "deliveredFps": 23.2,
+            "over50": 18,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "the circuit to the final",
+          "frames": {
+            "n": 2640,
+            "p50": 33.4,
+            "p90": 50,
+            "p99": 66.7,
+            "max": 116.7,
+            "deliveredFps": 27.3,
+            "over50": 227,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "land and stop on HOME",
+          "frames": {
+            "n": 4457,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 66.8,
+            "max": 216.8,
+            "deliveredFps": 25.2,
+            "over50": 656,
+            "over100": 6,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        }
+      ],
+      "finalGL": 0,
+      "drawErrors": [],
+      "knownWarnings": [
+        "ERR impostor bake: birch|Birch2_21 snag sheet EMPTY (drawn 0.46 %, mean byte 49.6)",
+        "ERR impostor bake: pine_lampi.glb|bark04_0 snag sheet EMPTY (drawn 0.50 %, mean byte 65.4)"
+      ]
+    },
+    {
+      "id": "current",
+      "build": "73f492674f4c",
+      "loadMs": 130560.40000000596,
+      "normalReady": true,
+      "legacy": false,
+      "ok": true,
+      "steps": [
+        {
+          "name": "board",
+          "frames": null,
+          "glError": 0
+        },
+        {
+          "name": "start-up",
+          "frames": {
+            "n": 1475,
+            "p50": 33.4,
+            "p90": 33.5,
+            "p99": 116.6,
+            "max": 483.7,
+            "deliveredFps": 27.2,
+            "over50": 71,
+            "over100": 15,
+            "freeze250": 7,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "dry taxi chase",
+          "frames": {
+            "n": 332,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 50.2,
+            "max": 100.1,
+            "deliveredFps": 27.5,
+            "over50": 35,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "dry taxi cockpit",
+          "frames": {
+            "n": 350,
+            "p50": 33.4,
+            "p90": 33.4,
+            "p99": 50,
+            "max": 316.7,
+            "deliveredFps": 29.1,
+            "over50": 2,
+            "over100": 1,
+            "freeze250": 1,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "taxi to the hold",
+          "frames": {
+            "n": 4266,
+            "p50": 33.4,
+            "p90": 33.5,
+            "p99": 50.1,
+            "max": 83.4,
+            "deliveredFps": 28.9,
+            "over50": 161,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "take-off",
+          "frames": {
+            "n": 725,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 66.7,
+            "max": 83.4,
+            "deliveredFps": 26.2,
+            "over50": 89,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "climb to 150 m",
+          "frames": {
+            "n": 1271,
+            "p50": 33.4,
+            "p90": 50,
+            "p99": 50.1,
+            "max": 66.8,
+            "deliveredFps": 29,
+            "over50": 62,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "dry airborne chase",
+          "frames": {
+            "n": 359,
+            "p50": 33.5,
+            "p90": 50.1,
+            "p99": 83.4,
+            "max": 116.8,
+            "deliveredFps": 23.8,
+            "over50": 68,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "dry airborne cockpit",
+          "frames": {
+            "n": 451,
+            "p50": 33.3,
+            "p90": 33.4,
+            "p99": 33.5,
+            "max": 50.1,
+            "deliveredFps": 30,
+            "over50": 2,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "active mist chase",
+          "frames": {
+            "n": 386,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 66.7,
+            "max": 83.5,
+            "deliveredFps": 25.6,
+            "over50": 42,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "active mist cockpit",
+          "frames": {
+            "n": 406,
+            "p50": 33.4,
+            "p90": 50,
+            "p99": 50.2,
+            "max": 83.3,
+            "deliveredFps": 26.8,
+            "over50": 35,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "restore saved weather",
+          "frames": {
+            "n": 73,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 100.1,
+            "max": 100.1,
+            "deliveredFps": 23.5,
+            "over50": 14,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "the circuit to the final",
+          "frames": {
+            "n": 2631,
+            "p50": 33.4,
+            "p90": 50,
+            "p99": 66.7,
+            "max": 100.2,
+            "deliveredFps": 27.1,
+            "over50": 238,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        },
+        {
+          "name": "land and stop on HOME",
+          "frames": {
+            "n": 4431,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 66.8,
+            "max": 183.5,
+            "deliveredFps": 25.1,
+            "over50": 684,
+            "over100": 6,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "glError": 0
+        }
+      ],
+      "finalGL": 0,
+      "drawErrors": [],
+      "knownWarnings": [
+        "ERR impostor bake: birch|Birch2_21 snag sheet EMPTY (drawn 0.46 %, mean byte 49.6)",
+        "ERR impostor bake: pine_lampi.glb|bark04_0 snag sheet EMPTY (drawn 0.50 %, mean byte 65.4)"
+      ]
+    }
+  ]
+}

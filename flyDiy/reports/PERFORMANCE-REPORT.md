@@ -1,8 +1,96 @@
 # Wingsmith performance — consolidated living report
 
-Updated: 2026-11-20T23:50:41.399Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+Updated: 2026-11-21T04:21:31.819Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
 
-## Current decision
+## Latest validated native-player mist comparison
+
+User selected original mist C versus approved B on the corrected build, with the same accepted cliff/runtime-aircraft-bake cuts. Both completed14/14 circuit steps; all seven scenery systems, town and original high-poly runway geometry/cues retained. Experimental ground/runway caches off; original scuff unchanged. Same private saved Cub/full hangar,5120×1271/DPR1,30fps cap, fresh visible Chrome profiles, normal player clock verified. Driver cache not erased.
+
+| Build73f492674f4c | Original mist C | Approved mist B |
+| --- | ---: | ---: |
+| Garage observed, saved night (s) | 151.460 | 130.560 |
+| dry taxi chase: rendered FPS / p99 gap(ms) | 28 / 50.1 | 27.5 / 50.2 |
+| dry taxi cockpit: rendered FPS / p99 gap(ms) | 28.2 / 50.1 | 29.1 / 50 |
+| dry airborne chase: rendered FPS / p99 gap(ms) | 23.9 / 66.8 | 23.8 / 83.4 |
+| dry airborne cockpit: rendered FPS / p99 gap(ms) | 30 / 33.5 | 30 / 33.5 |
+| active mist chase: rendered FPS / p99 gap(ms) | 23.1 / 83.3 | 25.6 / 66.7 |
+| active mist cockpit: rendered FPS / p99 gap(ms) | 23.3 / 66.7 | 26.8 / 50.2 |
+| the circuit to the final: rendered FPS / p99 gap(ms) | 27.3 / 66.7 | 27.1 / 66.7 |
+| land and stop on HOME: rendered FPS / p99 gap(ms) | 25.2 / 66.8 | 25.1 / 66.8 |
+
+One matched pair: no sustained dry-flight slowdown; active mist improves23.1→25.6fps outside and23.3→26.8fps in cockpit. This does not prove every world/weather/crash. Both report GL0 at garage/all steps/final and zero post-circuit draw errors. Same two known birch/pine impostor snag-sheet warnings remain. Peak85°C(C)/86°C(B). First cockpit use still hitches684ms(C)/317ms(B); steady-flight samples have no≥250ms gaps. C departure includes a2251ms stall; cover transitions are not steady airborne samples.
+
+Cold garage timing151.461→130.560s:20.900s/13.8% shorter in this pair. BOOT gone stamps150.541/130.249s; table consistently uses the later observer timestamp. WorldCompile63.477→38.755s, partly offset by quiet-frame step6.146→14.223s. These stages overlap GPU/background work; do not add deltas as exclusive shader bills.
+
+**Departure correction:** both native circuits change saved night to noon AFTER garage timing. B submits164 additional shader links and spends38.440s in rollout preparation. Its54s departure therefore includes a lighting change and cannot be attributed just to the native clock or compared with earlier9s unchanged-night trips. Repeated preparation across lighting signatures is a substantial next target. Earlier page_rig disables vsync/frame limiting and uses port0, selecting the legacy diagnostic clock; its FPS is not native-player evidence.
+
+Untouched published original attempt1 reached241.680s with GL1282, then dashboard-monitor timeout; excluded. Attempt2 failed its own normal loader watchdog near258s; no FPS accepted. User selected corrected C/B after these two misses. First corrected-C attempt (~163s garage) was falsely stopped by the old eight-poll flight observer despite advancing simulation; excluded. Native observer now requires two advancing samples, never reclicks during active cinematic, and passes long-reveal/stopped-simulation unit checks. Retry completed; taxi camera aligned at simulation8.2s. No game watchdog extended. Direct read-only CPU sensors replace full hardware-dashboard polling; missing/invalid readings still fail closed. No fan/power/hardware changes.
+
+### Simplified scuff: preliminary evidence and next validation
+
+Lite uses one analytic buckle field and three filtered reads of the existing grunge texture; dents, directional abrasion/stains, exposed substrate, ragged torn edges and computed mud remain. Window crack body unchanged. Liteone also shares intact/damaged opaque surface programs; glass retains original asleep/awake paths. Both opt-in pending integrated loading, active image and GPU checks.
+
+Two opposite-order compiler screens link12/12 with GL0, peak63°C. Representative surface original3.405/3.322s, full shared-mud3.955/3.540s, lite2.258/2.088s (~35% below original). Window~0.46s unchanged. Screen predates final material-class guards: preliminary, not a whole-game loading or FPS saving.
+
+## Simplified surface damage: integrated loading and controlled rendering
+
+Fresh visible Chrome profiles, saved Cub/full hangar,5120x1271/DPR1. Legacy diagnostic-clock startup measurements; native-player mist/FPS circuit reported separately. Mist B, all seven scenery systems and original full runway geometry/cues retained. Accepted advanced-cliff/runtime-aircraft-bake cuts only. Experimental caches off. Original-scuff controls bracket lite candidates;20s garage soak; no world departure in loading cases. Controlled damage/deposit images and GPU patches follow cold timing and are excluded from loading. Window crack body unchanged; shared-state candidate applies only to opaque surfaces. Driver cache not erased.
+
+| Case | Garage (s) | Shorter than reference (s) | Submitted links | Awake damage links | Peak CPU (°C) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Approved mist B, original scuff — incomplete/excluded | — | — | — | — | — |
+| Simplified scuff, two states — incomplete/excluded | — | — | — | — | — |
+| Simplified scuff, shared surface state — incomplete/excluded | — | — | — | — | — |
+| Repeated original-scuff reference — incomplete/excluded | — | — | — | — | — |
+
+These are independent loading observations. Lite replaces fine procedural damage networks with three filtered reads of the existing grunge texture while keeping dents, directional abrasion, exposed substrate, torn edges and computed mud. Window crack body remains unchanged. Liteone additionally shares intact/damaged opaque surface programs, with a possible intact-frame overhead that requires measurement. Glass keeps the original asleep/awake paths. Candidates remain opt-in until loading, image activity and GPU costs are reviewed.
+
+Branch checkpoints04411db93 (approved optimizations),5989b85c1 (sensor monitoring),bf1ba4408 (opt-in scuff prototypes). Generated main files, private save and raw flight logs excluded from commits. Under20s garage/under60s initial loading remain unmet.
+
+
+## Earlier native-comparison plan (superseded by validated results above)
+
+User requests all defect types retained, simplified where necessary: mud, surface damage and window cracks. Simplified surface prototype scuffopt=lite uses one analytic buckle field and three reads of the existing grunge texture for dents, directional abrasion/stains, exposed substrate and ragged torn edges. Fine3D cellular paint networks and independent millimetre stroke lattices are replaced with filtered texture detail; window crack shader body remains unchanged. Shared grunge preserves computed mud; no finish-class shader multiplication. Test remains OFF pending loading/active-render/visual checks. Original/full, shared-sampler-only and lite are separate candidates, not one assumed improvement.
+
+### Measurement correction
+
+Earlier page_rig FPS used disabled vsync/frame limiting and port0, which Chrome can identify as automated. The game then uses its diagnostic legacy clock. Those numbers do not establish native-player FPS or a smoothness regression. New live:true mode uses a nonzero debugging port without the uncapped flags, visible Chrome, the same private Cub/full-hangar save,5120×1271/DPR1 and saved30fps cap. It verifies webdriver false and clock.legacy false. The established flight_script runner now samples changes in renderer frame count rather than counting every screen callback, and records delivered FPS/p90/p99/hitches/freezes per step. The route includes taxi, take-off, climb, chase/cockpit, forced-active mist, approach and landing. Full flight logs retain CPU/GPU splits. Intrusive draw diagnosis runs only AFTER timed circuit steps.
+
+### Code-based runtime risk assessment
+
+- Exact terrain/road memoization and avoiding repeated preparation should reduce work without adding render passes; equivalence tests do not substitute for player-clock profiling.
+- Advanced-cliff fallback and runtime aircraft-bake/fleet removal are the accepted cuts; they can reduce geometry/memory, but the original-versus-current comparison therefore has a declared visual/content difference.
+- Approved mist B moves density sampling from ordinary surface shaders into the cloud pass. It removes repeated work but changes GPU sampling/integration: active weather and camera views must be measured.
+- Restoring computed mud adds volume-texture reads to awakened damage materials. Sharing the same grunge sampler prevents exceeding sampler limits; it is not by itself an FPS saving.
+- Full class specialization multiplied damaged program instances6→18 and failed loading. It stays off; the lite candidate shares the existing class-general variants.
+- Experimental ground/runway caches add sampling/passes/memory and previously showed runtime risks. They remain off in the current comparison.
+- Correcting old shadow-sampler bindings can make previously failed draws execute. The original native-clock garage reported GL1282, so raw original FPS may include missing graphics; draw diagnostics/screenshots are required before treating it as an equal-rendering control.
+
+| Native-player run | Garage reached (s) | Clock | Circuit status |
+| --- | ---: | --- | --- |
+| original | — | not verified | Pending |
+| current | 130.560 | normal player | Complete |
+| ↳ board | — | — rendered FPS | p99 —ms; max —ms; >100ms — |
+| ↳ start-up | — | 27.2 rendered FPS | p99 116.6ms; max 483.7ms; >100ms 15 |
+| ↳ dry taxi chase | — | 27.5 rendered FPS | p99 50.2ms; max 100.1ms; >100ms 1 |
+| ↳ dry taxi cockpit | — | 29.1 rendered FPS | p99 50ms; max 316.7ms; >100ms 1 |
+| ↳ taxi to the hold | — | 28.9 rendered FPS | p99 50.1ms; max 83.4ms; >100ms 0 |
+| ↳ take-off | — | 26.2 rendered FPS | p99 66.7ms; max 83.4ms; >100ms 0 |
+| ↳ climb to 150 m | — | 29 rendered FPS | p99 50.1ms; max 66.8ms; >100ms 0 |
+| ↳ dry airborne chase | — | 23.8 rendered FPS | p99 83.4ms; max 116.8ms; >100ms 1 |
+| ↳ dry airborne cockpit | — | 30 rendered FPS | p99 33.5ms; max 50.1ms; >100ms 0 |
+| ↳ active mist chase | — | 25.6 rendered FPS | p99 66.7ms; max 83.5ms; >100ms 0 |
+| ↳ active mist cockpit | — | 26.8 rendered FPS | p99 50.2ms; max 83.3ms; >100ms 0 |
+| ↳ restore saved weather | — | 23.5 rendered FPS | p99 100.1ms; max 100.1ms; >100ms 1 |
+| ↳ the circuit to the final | — | 27.1 rendered FPS | p99 66.7ms; max 100.2ms; >100ms 1 |
+| ↳ land and stop on HOME | — | 25.1 rendered FPS | p99 66.8ms; max 183.5ms; >100ms 6 |
+
+Attempt original-attempt-1 reached241.680s in native-player mode, GL1282, then stopped on LHM dashboard timeout just after departure. Entire attempt excluded from completed comparisons; no flight smoothness verdict. Monitoring discovered read-only Core Max/Package sensor IDs once, then polls Sensor?action=Get (7–16ms in preflight) instead of rebuilding the83KB hardware dashboard each second. Missing/invalid readings still stop the owned process tree; temperature limits are not relaxed. No CPU/fan/power or monitor configuration change. [API source](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/master/LibreHardwareMonitor.Windows.Forms/Utilities/HttpServer.cs).
+
+Checkpoint04411db93 preserves completed approved-mist/performance work. Reconstructed index/dev/flight_core/sw/version outputs and private save remain excluded from commits. New benchmark harness and simplified scuff are separate phases to commit after validation. No original/current native smoothness conclusion is established until both runs complete and rendering correctness is qualified.
+
+
+## Previous completed decision
 
 User explicitly approved mist B after seeing two daylight A/B views: softer cloud-pass haze preferred over original bright surface pockets. Build73f492674f4c makes cloud-pass mist the ordinary default when clouds are enabled; cloudless presets retain the original veil. Live mist off/on updates all techniques, and crossing cloudless/cloud-pass settings reloads into the correct compiled method. Focused tests cover saved/explicit settings, preset/profile/welcome/software selection and live switches. Scuff specialization/shared-grunge prototype and experimental runway/ground/mist caches remain OFF by default. All seven prioritized scenery systems, town and original high-poly runway geometry/cues remain in benchmark; ONLY advanced cliffs and runtime player-derived aircraft bakes excluded via perftrim=1. Latest valid observations: Original veil mist / original scuff 181.188s (buildca358c1224b4, peak78C); Original veil mist / specialized scuff + live mud 167.714s (buildca358c1224b4, peak83C); Cloud-pass pocket mist / specialized scuff + live mud 138.327s (buildca358c1224b4, peak86C); Cloud-pass mist / full-detail specialized scuff + live mud 133.775s (build83ba2179d8e5, peak86C); Cloud-pass mist / full-detail specialized scuff + live mud 134.003s (build83ba2179d8e5, peak89C); Original surface-veil mist and scuff 161.865s (build83ba2179d8e5, peak86C); Original mist / full-detail optimized scuff + live mud 199.560s (build83ba2179d8e5, peak90C); Approved mist B / original scuff, actual default 131.625s (build73f492674f4c, peak87C). Latest same-build83ba2179d8e5: original methods161.865s, combined mist B/scuff134.003s, scuff-only199.560s. The earlier scuff181.188→167.714 screening pair did not establish a repeatable gain. New cold damaged shader instances increased6→18 (all links563→574); default scuff remains unchanged. Controlled actual fabric/steel/ply parts with damage-on/off activity checks now show pixel-identical general-vs-specialized results, with mud active; computed mud restoration changes pixels versus old GD_OFF. These are synthetic material probes, not a physical crash or full-fleet visual acceptance. Empty images from a local/world camera mismatch and nonempty-but-damage-inactive comparisons caused by live-frame uniform resets are rejected; corrected tests explicitly reapply damage/grid uniforms before synchronous draws. Mist hash atlas/compact-loop caches failed consistent compile gains; parked OFF. GL1281 remains intermittent/unidentified: failures and instrumented timings excluded; subsequent ordinary runs passed. Loader quiet-frame handoff watchdog recognizes landing progress without extending any threshold. Current thermal policy matches updated user steering: brief95C peaks allowed, no sustained90C; first94C stop or3s90C+,1Hz/fail-closed monitoring. Earlier conservative thermal stops remain excluded, never retroactively accepted. GFX gate has one pre-existing device-probe whitelist failure in unchanged perf_bench.js (also in HEAD); other assertions pass and focused new mist tests pass. No publication or commit of generated main files. Under20s garage remains unmet. Approved actual-default run:131.625s garage, no fmist/scuffopt override, GL zero and normal readiness, garage20s soak median9.8/p99 12.8/max27.2ms with no100ms gaps or long tasks. Unchanged-design departures9.456/9.364s, returns0.636/0.317s, peak87C. This is30.241s/18.7% shorter than the latest161.865s original-method reference from the preceding build; not a repeated same-build causal estimate. World stand samples still about43ms/~23fps; first had one147.6ms hitch, second max47.5ms. No claim of smooth crashes, edited-aircraft readiness or full scripted-circuit acceptance.
 
