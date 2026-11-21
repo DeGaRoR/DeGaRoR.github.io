@@ -18,14 +18,16 @@ const { PLANES, REFS } = RC;
 
 // THE STAGES, cumulative. I = how the aeroplane is READ (no model change); M = a model change
 const STAGES = [
-  { id: 'today', label: 'today (real_check --quick)', protos: [] },
-  { id: 'I', label: 'I: read right (wheels up, the row\'s altitude and power)', protos: ['gearup', 'alt', 'power'] },
-  { id: 'M2', label: '+ M2 span efficiency above AR 8', protos: ['gearup', 'alt', 'power', 'oswald'] },
-  { id: 'M4', label: '+ M4 wires (streamline flying wires, no tail wires on a cantilever tail)', protos: ['gearup', 'alt', 'power', 'oswald', 'wires'] },
-  { id: 'M1', label: '+ M1 propeller (fixed pitch by its design speed and material; constant speed on the actuator disc)', protos: ['gearup', 'alt', 'power', 'oswald', 'wires', 'prop'] },
-  { id: 'M3', label: '+ M3 the idle propeller in a FLOWN glide row (the 172R\'s and the Velis\'s handbooks)', protos: ['gearup', 'alt', 'power', 'oswald', 'wires', 'prop', 'idleprop'] },
-  { id: 'M5t', label: 'TARGET, not a prototype: + M5 the drag rows brought to the parent\'s implied drag area (9 planes, physics_audit_proto.js TARGET_F)', protos: ['gearup', 'alt', 'power', 'oswald', 'wires', 'prop', 'idleprop', 'targetf'] },
+  { id: 'today', label: 'today (real_check --quick, master 9349a62c1, PHYSICS_V 9)', protos: [] },
+  { id: 'I', label: 'I: read right, no model change (wheels up, the row\'s altitude, the row\'s power)', protos: ['gearup', 'alt', 'power'] },
+  { id: 'M2', label: '+ M2 the span efficiency above aspect ratio 8', protos: ['gearup', 'alt', 'power', 'oswald'] },
+  { id: 'M4', label: '+ M4 the wires (streamline flying wires on a biplane, no brace wires on a cantilever tail)', protos: ['gearup', 'alt', 'power', 'oswald', 'wires'] },
+  { id: 'M1a', label: '+ M1a the fixed-pitch propeller (its design speed, its blade material, the actuator disc\'s cap)', protos: ['gearup', 'alt', 'power', 'oswald', 'wires', 'propfp'] },
+  { id: 'M3', label: '+ M3 the idle propeller in a FLOWN glide row (the 172R\'s and the Velis\'s handbooks) = THE PROTOTYPED PLAN', protos: ['gearup', 'alt', 'power', 'oswald', 'wires', 'propfp', 'idleprop'] },
+  { id: 'M5t', label: '+ M5 as a TARGET, not a prototype: the drag rows brought to the parent\'s implied drag area (9 planes, physics_audit_proto.js TARGET_F)', protos: ['gearup', 'alt', 'power', 'oswald', 'wires', 'propfp', 'idleprop', 'targetf'] },
+  { id: 'M1b', label: '+ M1b the constant-speed propeller on the actuator disc (the PC-6s, the DC-3) = THE WHOLE PLAN', protos: ['gearup', 'alt', 'power', 'oswald', 'wires', 'prop', 'idleprop', 'targetf'] },
 ];
+const I_PLAN = 5;       // the stage the 'move' column judges: the prototyped plan
 // a glide row that is a COMPUTED clean polar (Loftin's (L/D)max, a maker's drag polar, a glider): no propeller in it
 // A FLOWN glide row with the propeller idling: the two handbooks that state it. Every other glide row is read CLEAN, as
 // today: a computed polar (Loftin's (L/D)max for the Cub and the DC-3, the Ruckus maker's drag polar), a glider, or a
@@ -68,8 +70,8 @@ function run() {
     });
     const m = aud.mtow || aud.typ;
     res.push({ key, ref: rc.ref, refName: rc.refName, rows, notes: m.protos[STAGES.length - 1].notes, base: { CdS: m.CdS, CD0: m.CD0, e: m.e, CLmax: m.CLmax, CLmaxTrim: m.CLmaxTrim, etaVy: m.fig.etaVy, etaVmax: m.fig.etaVmax, mass: m.mass, S: m.S, AR: m.AR, drag: m.drag, empty: m.empty },
-               plan: { etaVy: m.protos[STAGES.length - 2].fig.etaVy, etaVmax: m.protos[STAGES.length - 2].fig.etaVmax, rollRatio: m.protos[STAGES.length - 2].fig.rollRatio,
-                       Vy: m.protos[STAGES.length - 2].fig.Vy, Vbg: m.protos[STAGES.length - 2].fig.Vbg, sink: m.protos[STAGES.length - 2].fig.sink },
+               plan: { etaVy: m.protos[I_PLAN].fig.etaVy, etaVmax: m.protos[I_PLAN].fig.etaVmax, rollRatio: m.protos[I_PLAN].fig.rollRatio,
+                       Vy: m.protos[I_PLAN].fig.Vy, Vbg: m.protos[I_PLAN].fig.Vbg, sink: m.protos[I_PLAN].fig.sink },
                today: { Vy: m.fig.Vy, Vx: m.fig.Vx, Vbg: m.fig.Vbg, sink: m.fig.sink, Vms: m.fig.Vms, VsTrim: m.figT.Vs, Vs: m.fig.Vs, Vs0: m.Vs0, Vs0Trim: m.Vs0Trim } });
     console.log(key + ' done');
   }
@@ -82,7 +84,7 @@ function run() {
   const tally = { stays: 0, toward: 0, away: 0, into: 0, out: 0 };
   for (const p of res) for (const id of Object.keys(p.rows)) {
     const r = p.rows[id]; if (r.st.length < STAGES.length) continue;
-    const d = DEC[id] || 0, a = r.st[0], z = r.st[r.st.length - 2];      // the move: today -> the prototyped plan (M3); the target column is beside it
+    const d = DEC[id] || 0, a = r.st[0], z = r.st[I_PLAN];      // the move: today -> the prototyped plan (M3); the target and the whole plan are beside it
     const cell = s => f(mid(s.ours), d) + ' (' + (s.err >= 0 ? '+' : '') + f(100 * s.err, 0) + ' %)' + mark[s.verdict];
     const same = Math.abs(z.err - a.err) < 0.005;
     const mv = same ? '=' : (a.verdict === 'inside' && z.verdict === 'inside') ? 'stays in' : (a.verdict !== 'inside' && z.verdict === 'inside') ? 'INTO the band'

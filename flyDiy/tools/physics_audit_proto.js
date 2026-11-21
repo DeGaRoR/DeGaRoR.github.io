@@ -21,8 +21,9 @@
 //                stays matched, which no quadratic through two points can follow (it over-reads the climb by 7-23 %)
 //                (first cut, REJECTED and kept in propSynth2 for the record: the static thrust from the match too -
 //                it took 12 % off the 172's static thrust and 27 % onto its roll)
-//   M2 oswald    the span efficiency above aspect ratio 8: 1 / (1/0.95 + pi AR kv) where Raymer's straight-wing fit
-//                (valid to AR ~10) falls away; kv by the surface (a smooth composite 0.0035, else 0.007)
+//   M2 oswald    the span efficiency above aspect ratio 8 (below it: today's, untouched): the larger of today's and
+//                1 / (1/0.95 + pi AR kv), where Raymer's straight-wing fit (valid to AR ~10) falls away; kv by the
+//                surface (a smooth composite 0.0035, else 0.007)
 //   M3 idleprop  the propeller at idle in the glide: a windmilling fixed-pitch disc CdA = 0.10 A (an electric's 0.03 A)
 //   M5 targetf   NOT a prototype - a TARGET: the parasite drag area set to what the parent's own figures imply
 //                (TARGET_F, from tools/physics_audit_refs.js), to show where the roster would read if the drag-row
@@ -77,6 +78,7 @@ function physE(AR, kv) { return 1 / (1 / 0.95 + Math.PI * AR * kv); }
 function apply(names, ctx) {
   const has = n => names.includes(n) || (names.includes('all') && n !== 'targetf') || (names.includes('instr') && /^(gearup|alt|power|trim)$/.test(n))
                    || (names.includes('model') && /^(prop|oswald|idleprop|wires)$/.test(n));
+  if (names.includes('all') && !names.includes('prop')) names = names.concat(['prop']);
   const { def, sim, S, W, nE, key, R, P } = ctx;
   const g = def.params.gen, sp = def.spec, eng = def.params.engine || {}, pr = def.params.prop || {};
   const notes = {};
@@ -103,7 +105,7 @@ function apply(names, ctx) {
     const surf = (sp.wings[0] && (sp.wings[0].material || sp.wings[0].surf)) || sp.material;
     const smooth = /glass|carbon|dtube/.test(String(surf)) || /glass|carbon|softShell/.test(String(sp.material));
     const r = physE(ARw, smooth ? 0.0035 : 0.007) / raymerE(ARw);
-    if (r > 1) { const eNew = Math.min(0.95, eOld * r); dK = (1 / eNew - 1 / eOld) / (Math.PI * ARw); notes.oswald = { eOld, eNew }; }
+    if (ARw > 8 && r > 1) { const eNew = Math.min(0.95, eOld * r); dK = (1 / eNew - 1 / eOld) / (Math.PI * ARw); notes.oswald = { eOld, eNew }; }
   }
   // M5: the target drag area (the clean aeroplane's, wheels up)
   if (has('targetf') && TARGET_F[key] != null) {
@@ -120,8 +122,10 @@ function apply(names, ctx) {
   const ATM = C.ATMOS_ISA;
   // M1: the propeller
   let thrust = ctx.thrust, thrustAt = (V, h) => sim.thrustAt(V, 0, h);
-  if (has('prop') && pr.Tstatic > 0 && eng.powerW > 0) {
-    const cs = !!eng.cs || !!CS_BY_KEY[key];
+  const isCS = !!eng.cs || !!CS_BY_KEY[key];
+  // ('propfp': the fixed-pitch half alone - M1a; 'prop': both halves)
+  if ((has('prop') || (names.includes('propfp') && !isCS)) && pr.Tstatic > 0 && eng.powerW > 0) {
+    const cs = isCS;
     const mat = (sp.prop && sp.prop.material) || 'wood';
     const o = { P: eng.powerW, D: pr.D, blades: (sp.prop && sp.prop.blades) || 2, cs, etaB: ETA_BLADE[mat] || 0.79 };
     // the design speed: the aeroplane's own top speed on this propeller (a fixed point, five passes)
