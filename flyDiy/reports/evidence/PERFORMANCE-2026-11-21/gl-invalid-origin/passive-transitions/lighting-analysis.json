@@ -1,0 +1,2732 @@
+{
+  "scope": "Diagnostic-only native saved-night/noon transition; no accepted loading/FPS estimate. Matches retain exact vertex and fragment source outside the unshadowed point-light section/array/count guards, material light-presence guard and display name; not an exclusive cost attribution.",
+  "trips": [
+    {
+      "preset": "saved",
+      "start": 142561.79999999702,
+      "linksBefore": 561,
+      "worldAt": 154410.09999999404,
+      "linksAfter": 561,
+      "glError": 0,
+      "returnAt": 154987.70000000298
+    },
+    {
+      "preset": "noon",
+      "start": 154988.59999999404,
+      "linksBefore": 564,
+      "worldAt": 210863.70000000298,
+      "linksAfter": 728,
+      "glError": 0,
+      "returnAt": 211130.59999999404
+    }
+  ],
+  "newLinks": 164,
+  "exactDuplicateSources": 50,
+  "matchedOutsidePointSection": 114,
+  "counts": {
+    "0": 50,
+    "2": 114
+  },
+  "nullQueries": 0,
+  "uniformShapes": [],
+  "checkedDrawAndBufferCalls": 109651,
+  "glTrace": [],
+  "rows": [
+    {
+      "id": 564,
+      "count": 0,
+      "exactSourceBefore": [
+        23,
+        129,
+        292,
+        351
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "c3bd2e5d:4765",
+        "a1ea4a38:5258"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 565,
+      "count": 0,
+      "exactSourceBefore": [
+        24
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "dcea51c3:5836",
+        "9eadf77:8284"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 566,
+      "count": 0,
+      "exactSourceBefore": [
+        29,
+        500,
+        533,
+        558
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "b5a0365e:1802",
+        "b3717c4a:26533"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 567,
+      "count": 0,
+      "exactSourceBefore": [
+        30
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "7435a94d:1705",
+        "90a3eb56:5778"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 568,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 19,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "fe27c4e8:20604",
+        "7a7d9b51:182027"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 569,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 20,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "de9536bd:21401",
+        "a901a129:154655"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 570,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 31,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "11b8ecc6:21862",
+        "8aece246:149464"
+      ],
+      "name": "water",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 571,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 32,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "bcfe8431:21843",
+        "6c9bca59:149445"
+      ],
+      "name": "water",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 572,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 33,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "8580c68f:19973",
+        "b221a228:97371"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 573,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 120,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "a005e549:21263",
+        "a948fe49:100102"
+      ],
+      "name": "M_Branch.007",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 574,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 121,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "44569491:21048",
+        "dff9eae2:99644"
+      ],
+      "name": "M_Bark.007",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 575,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 34,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "11cde8bd:20113",
+        "a624cd5b:97423"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 576,
+      "count": 0,
+      "exactSourceBefore": [
+        35
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "faa7bcc1:9679",
+        "a8bf03a9:18341"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 577,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 36,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "e122f12c:20581",
+        "a31a0292:100565"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 578,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 37,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "e122f12c:20581",
+        "8edecbfe:102094"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 579,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 38,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "f04a1633:20448",
+        "16886a9e:102012"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 580,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 39,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "d58a69d7:20602",
+        "a7cc5c4d:102115"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 581,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 40,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "3a0810f0:20467",
+        "32a6ab0f:102031"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 582,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 28,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "b6c02cd6:19939",
+        "6c425ad6:97355"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 583,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 41,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "2a3de78c:20414",
+        "ba5fdac9:101531"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 584,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 42,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "8eda4721:20529",
+        "e100a70:102069"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 585,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 43,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "8eda4721:20529",
+        "db522435:102054"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 586,
+      "count": 0,
+      "exactSourceBefore": [
+        44
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "e5638cdb:17969",
+        "72468671:24343"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 587,
+      "count": 0,
+      "exactSourceBefore": [
+        45
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "7b427294:17950",
+        "bda4f196:24324"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 588,
+      "count": 0,
+      "exactSourceBefore": [
+        46
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "ca712546:17920",
+        "2b0e0f71:23526"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 589,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 47,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "91696680:19978",
+        "fbd97bc2:97394"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 590,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 66,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "4ab851c9:20078",
+        "66f66c1b:97611"
+      ],
+      "name": "matlib:arr",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 591,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 76,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "a3385f5b:20252",
+        "983a7980:97523"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 592,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 65,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "d7110fac:20057",
+        "8c818f4e:97590"
+      ],
+      "name": "matlib:arr",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 593,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 21,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "739cb2cf:21335",
+        "3f8078fc:149932"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 594,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 122,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "824c2752:20473",
+        "4f4039a4:101137"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 595,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 123,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "148caaf7:20435",
+        "399fa62c:100023"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 596,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 124,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "8580c68f:19973",
+        "73d7e6a0:97393"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 597,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 125,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "5f2062c7:20055",
+        "66f66c1b:97611"
+      ],
+      "name": "matlib:arr",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 598,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 147,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "dc72cdd3:20671",
+        "a5501320:101652"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 599,
+      "count": 0,
+      "exactSourceBefore": [
+        163
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "c2c8c784:17853",
+        "93269cd5:23463"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 600,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 52,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "b03003c6:20034",
+        "8c818f4e:97590"
+      ],
+      "name": "matlib:arr",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 601,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 187,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "25d0ac:20260",
+        "284bf780:97575"
+      ],
+      "name": "parked:baked",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 602,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 59,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "6e05c797:20217",
+        "44729603:97517"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 603,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 188,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "a12634b0:20267",
+        "f6ef80ba:97541"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 604,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 189,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "205468a9:20215",
+        "afc48658:97500"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 605,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 190,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "639b3452:20196",
+        "6d654381:97481"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 606,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 191,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "c9ff55d1:21045",
+        "62bb718b:103213"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 607,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 192,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "2b1f3e49:21104",
+        "ee47a34c:101905"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 608,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 193,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "5b480080:21066",
+        "2af62826:103234"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 609,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 194,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "51b1e3ae:20470",
+        "75de83d:97991"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 610,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 195,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "81393bd2:20645",
+        "d26c89bd:103120"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 611,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 196,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "5c1bf544:20704",
+        "71eaa14e:101812"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 612,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 197,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "d72200db:20666",
+        "a66da956:103141"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 613,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 198,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "524f782f:20086",
+        "c02d638:97918"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 614,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 199,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "624479ff:20784",
+        "3d7b8e7e:102177"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 615,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 49,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "94d43bd7:19957",
+        "ff770b5:97373"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 616,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 200,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "8ee3689c:20532",
+        "fa5b5bb5:102595"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 617,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 201,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "524f782f:20086",
+        "b6c67450:97896"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 618,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 202,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "dc37d36c:20052",
+        "918f2192:97880"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 619,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 203,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "2a3de78c:20414",
+        "4b95823:100002"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 620,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 204,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "559f55bd:19958",
+        "f1e9be30:97359"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 621,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 205,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "b6c02cd6:19939",
+        "f3e601d9:97340"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 622,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 57,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "383336d3:20310",
+        "dfd6ff58:99130"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 623,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 50,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "e5af4b6:20106",
+        "e71e488:97453"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 624,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 48,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "47869af1:20427",
+        "a16ae40a:99187"
+      ],
+      "name": "stick_05",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 625,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 22,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "4b8b778:20390",
+        "d389b906:186561"
+      ],
+      "name": "pavement",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 626,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 51,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "bbdb9de5:20109",
+        "a714a643:97006"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 627,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 53,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "d1c08c57:20092",
+        "8bb54cc0:97466"
+      ],
+      "name": "animal:elk:Chifre",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 628,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 54,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "a1958505:20111",
+        "26c17d07:97464"
+      ],
+      "name": "animal:elk:Head",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 629,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 55,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "7b616f68:20034",
+        "ddcd4484:97411"
+      ],
+      "name": "animal:elk:material",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 630,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 56,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "f9f1d493:20013",
+        "ddcd4484:97411"
+      ],
+      "name": "animal:elk:material",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 631,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 58,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "297c3d0e:20025",
+        "8faa9914:97403"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 632,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 60,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "f02d7f53:20259",
+        "a96c67e8:97538"
+      ],
+      "name": "animal:whale:lambert1",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 633,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 61,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "1bbfa6a0:20076",
+        "66f66c1b:97611"
+      ],
+      "name": "matlib:arr",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 634,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 207,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "cef001eb:20107",
+        "28c07964:97629"
+      ],
+      "name": "matlib:arr",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 635,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 208,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "393492fb:20074",
+        "cfa25ab2:97426"
+      ],
+      "name": "life:kit",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 636,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 206,
+          "count": 10
+        },
+        {
+          "id": 551,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "800bcf0a:19962",
+        "6c425ad6:97355"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 637,
+      "count": 0,
+      "exactSourceBefore": [
+        62
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "7318a8b0:17937",
+        "1b3b4748:23501"
+      ],
+      "name": "premises:carprint",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 638,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 63,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "462580b6:21814",
+        "cb355cd4:103204"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 639,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 64,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "66aefe31:21943",
+        "d9abe2b7:101896"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 640,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 67,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "92165bed:20238",
+        "afc48658:97500"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 641,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 68,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "a9096a46:20219",
+        "6d654381:97481"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 642,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 69,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "5fdd1990:20604",
+        "8edecbfe:102094"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 643,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 70,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "44250cfd:20598",
+        "2e5d9cf0:97987"
+      ],
+      "name": "city:lot:cracked",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 644,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 71,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "a9fc75cc:20290",
+        "f6ef80ba:97541"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 645,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 72,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "cc2c369e:20015",
+        "76cdaee2:97375"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 646,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 73,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "7a501e23:19996",
+        "6f85b5db:97356"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 647,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 74,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "584db540:20119",
+        "77e80f3c:97425"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 648,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 75,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "45531ea5:20100",
+        "33564f35:97406"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 649,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 77,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "fd869802:20200",
+        "dba23d2e:97482"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 650,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 78,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "f18716a7:20181",
+        "86097:97463"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 651,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 79,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "71940341:19981",
+        "f1e9be30:97359"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 652,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 80,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "800bcf0a:19962",
+        "f3e601d9:97340"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 653,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 95,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "36080f9f:20062",
+        "6e53a142:97416"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 654,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 96,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "26002c28:20043",
+        "f958bf7b:97397"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 655,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 97,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "c6425c3c:20096",
+        "afcdd7c8:97432"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 656,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 98,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "3604cc51:20077",
+        "86222bf1:97413"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 657,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 111,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "22de7cac:20631",
+        "f8b0d617:65733"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 658,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 112,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "76eaec4d:20652",
+        "fea3e3da:65754"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 659,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 211,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "4e21d1c6:22026",
+        "59da6691:98183"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 660,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 212,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "c0fc4b8a:22461",
+        "c2900079:99733"
+      ],
+      "name": "BirchBranchAtlas",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 661,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 213,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "52586396:22242",
+        "b6ceb3f0:99271"
+      ],
+      "name": "CommonBark",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 662,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 214,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "8204607b:22084",
+        "6e0a31d9:97524"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 663,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 215,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "4bda8b28:22041",
+        "426f53e5:97453"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 664,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 209,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "4e21d1c6:22026",
+        "72a6c5b4:98107"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 665,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 210,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "3daa6067:22417",
+        "d50bf782:99719"
+      ],
+      "name": "Material",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 666,
+      "count": 0,
+      "exactSourceBefore": [
+        216
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "a082cb19:17888",
+        "2c56c27b:23494"
+      ],
+      "name": "rocks:ring",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 667,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 217,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "4e9e382e:20097",
+        "4ea0fbc5:97460"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 668,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 218,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "9f15bdf5:21788",
+        "f1d5fae:105249"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 669,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 119,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "cd88bbb7:20875",
+        "9db249d8:181995"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 670,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 219,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "11a29a00:20025",
+        "428be868:97408"
+      ],
+      "name": "scar:decal",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 671,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 220,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "6f1dfae9:28394",
+        "a65828f:187391"
+      ],
+      "name": "dmglook:pool",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 672,
+      "count": 0,
+      "exactSourceBefore": [
+        221
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "567aadc1:9810",
+        "caf374ba:18926"
+      ],
+      "name": "dust",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 673,
+      "count": 0,
+      "exactSourceBefore": [
+        222
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "47ca6595:17878",
+        "f9150f40:23507"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 674,
+      "count": 0,
+      "exactSourceBefore": [
+        223
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "e1159fc2:8084",
+        "96d525bb:18745"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 675,
+      "count": 0,
+      "exactSourceBefore": [
+        224
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "ac6a3d6c:17881",
+        "e359420e:23525"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 676,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 225,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "20e39143:22058",
+        "7cca0dbf:145320"
+      ],
+      "name": "aeroskin:scuff",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 677,
+      "count": 0,
+      "exactSourceBefore": [
+        179,
+        226,
+        273,
+        435
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "60269ecc:2043",
+        "5ed70d40:3017"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 678,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 227,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "1bf961d5:22027",
+        "9b0dc773:186940"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 679,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 228,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "5429f1a2:22077",
+        "63ec3f2c:187012"
+      ],
+      "name": "aeroskin:scuff",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 680,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 229,
+          "count": 10
+        },
+        {
+          "id": 235,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "5adc8764:22098",
+        "6d233e4a:187033"
+      ],
+      "name": "aeroskin:scuff",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 681,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 230,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "d3e43ba5:22098",
+        "b2b1c689:187033"
+      ],
+      "name": "aeroskin:scuff",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 682,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 231,
+          "count": 10
+        },
+        {
+          "id": 232,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "b45b6704:22062",
+        "66d94068:186975"
+      ],
+      "name": "aeroskin:scuff",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 683,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 231,
+          "count": 10
+        },
+        {
+          "id": 232,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "30c6c4b1:22048",
+        "b117a8a3:186961"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 684,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 233,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "f8d4a317:22082",
+        "fa848b8f:187017"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 685,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 234,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "775be210:22048",
+        "7d40bd70:186961"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 686,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 229,
+          "count": 10
+        },
+        {
+          "id": 235,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "48337fa9:22084",
+        "a9a04291:187019"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 687,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 236,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "f2610dc0:19999",
+        "90e2bfe6:97404"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 688,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 237,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "eef220fa:19986",
+        "b367793a:97402"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 689,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 238,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "f2610dc0:19999",
+        "14d56119:97282"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 690,
+      "count": 0,
+      "exactSourceBefore": [
+        239
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "cb997726:17913",
+        "84fbcdae:23505"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 691,
+      "count": 0,
+      "exactSourceBefore": [
+        240
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "513b1d5:17879",
+        "d434ac3c:23489"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 692,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 241,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "5ba3ab6d:19965",
+        "97cbe70d:97381"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 693,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 242,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "c48fe037:20018",
+        "93f17ac1:97401"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 694,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 243,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "f2610dc0:19999",
+        "42b7241a:97382"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 695,
+      "count": 2,
+      "exactSourceBefore": [],
+      "matchingBefore": [
+        {
+          "id": 244,
+          "count": 10
+        }
+      ],
+      "sourceIds": [
+        "502755d4:20258",
+        "a47fb62c:99109"
+      ],
+      "name": "char:ch20:Ch20_body",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 696,
+      "count": 0,
+      "exactSourceBefore": [
+        245,
+        272,
+        466,
+        523
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "8ccd3f14:10524",
+        "b84c5d4c:19847"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 697,
+      "count": 0,
+      "exactSourceBefore": [
+        25
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "a229d93:17853",
+        "547f915c:23482"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 698,
+      "count": 0,
+      "exactSourceBefore": [
+        26
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "a1f0cf2:17834",
+        "93269cd5:23463"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 699,
+      "count": 0,
+      "exactSourceBefore": [
+        27
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "3d8c1fa5:17834",
+        "e80413ec:23463"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 700,
+      "count": 0,
+      "exactSourceBefore": [
+        165
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "83b80873:15380",
+        "2677e0f0:12761"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 701,
+      "count": 0,
+      "exactSourceBefore": [
+        164
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "5c23a825:15378",
+        "9cdf4d7a:12737"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 702,
+      "count": 0,
+      "exactSourceBefore": [
+        393,
+        469,
+        476,
+        526
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "1fc94969:14912",
+        "a2b881cb:12630"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 703,
+      "count": 0,
+      "exactSourceBefore": [
+        394,
+        470,
+        477,
+        527
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "857c8223:14914",
+        "ac4d5885:12632"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 704,
+      "count": 0,
+      "exactSourceBefore": [
+        395,
+        471,
+        478,
+        528
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "6205da10:14893",
+        "f25d8adc:12611"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 705,
+      "count": 0,
+      "exactSourceBefore": [
+        387,
+        468,
+        479,
+        525
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "495ba3b0:14878",
+        "43812f6d:12614"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 706,
+      "count": 0,
+      "exactSourceBefore": [
+        480
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "6b380638:14903",
+        "63cb27b:12616"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 707,
+      "count": 0,
+      "exactSourceBefore": [
+        481
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "f34eee35:14937",
+        "ac4d5885:12632"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 708,
+      "count": 0,
+      "exactSourceBefore": [
+        482
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "440dd8da:14901",
+        "43812f6d:12614"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 709,
+      "count": 0,
+      "exactSourceBefore": [
+        386,
+        467,
+        483,
+        524,
+        563
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "afc2f452:14880",
+        "63cb27b:12616"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 710,
+      "count": 0,
+      "exactSourceBefore": [
+        475,
+        484,
+        532,
+        536
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "1fc94969:14912",
+        "efc00b63:12652"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 711,
+      "count": 0,
+      "exactSourceBefore": [
+        485
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "1b89d9af:14935",
+        "a2b881cb:12630"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 712,
+      "count": 0,
+      "exactSourceBefore": [
+        396,
+        472,
+        486,
+        529,
+        562
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "2b68051a:14935",
+        "ac4d5885:12632"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 713,
+      "count": 0,
+      "exactSourceBefore": [
+        487
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "45191a45:14901",
+        "63cb27b:12616"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 714,
+      "count": 0,
+      "exactSourceBefore": [
+        488
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "ac8d9412:14932",
+        "7e9fd760:12634"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 715,
+      "count": 0,
+      "exactSourceBefore": [
+        489
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "84b1f215:14968",
+        "16d7b17b:12640"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 716,
+      "count": 0,
+      "exactSourceBefore": [
+        490
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "67b3bbf1:16320",
+        "1cbbfc1f:13212"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 717,
+      "count": 0,
+      "exactSourceBefore": [
+        491
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "e21b1180:15002",
+        "b013d569:12678"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 718,
+      "count": 0,
+      "exactSourceBefore": [
+        492
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "7d7fd2e2:15000",
+        "e55772bf:12654"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 719,
+      "count": 0,
+      "exactSourceBefore": [
+        493
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "f2650e3a:14973",
+        "a2b881cb:12630"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 720,
+      "count": 0,
+      "exactSourceBefore": [
+        494
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "3631f641:15816",
+        "822e1e3e:13589"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 721,
+      "count": 0,
+      "exactSourceBefore": [
+        397,
+        473,
+        496,
+        530
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "53f71bbf:14859",
+        "53f8b68e:12595"
+      ],
+      "name": "unnamed/shared",
+      "phase": "worldCompile"
+    },
+    {
+      "id": 722,
+      "count": 0,
+      "exactSourceBefore": [
+        552
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "9e56a30:17905",
+        "284711b1:23496"
+      ],
+      "name": "unnamed/shared",
+      "phase": "frames"
+    },
+    {
+      "id": 723,
+      "count": 0,
+      "exactSourceBefore": [
+        553
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "c2c8c784:17853",
+        "7485ff72:23478"
+      ],
+      "name": "unnamed/shared",
+      "phase": "frames"
+    },
+    {
+      "id": 724,
+      "count": 0,
+      "exactSourceBefore": [
+        554
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "44752acc:17876",
+        "7485ff72:23478"
+      ],
+      "name": "unnamed/shared",
+      "phase": "frames"
+    },
+    {
+      "id": 725,
+      "count": 0,
+      "exactSourceBefore": [
+        555
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "a6ace559:17941",
+        "96601892:23502"
+      ],
+      "name": "unnamed/shared",
+      "phase": "frames"
+    },
+    {
+      "id": 726,
+      "count": 0,
+      "exactSourceBefore": [
+        556
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "22c65d0b:17914",
+        "7485ff72:23478"
+      ],
+      "name": "unnamed/shared",
+      "phase": "frames"
+    },
+    {
+      "id": 727,
+      "count": 0,
+      "exactSourceBefore": [
+        557
+      ],
+      "matchingBefore": [],
+      "sourceIds": [
+        "3d1e240f:17874",
+        "7485ff72:23478"
+      ],
+      "name": "unnamed/shared",
+      "phase": "frames"
+    }
+  ]
+}

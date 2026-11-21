@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('assert'),vm=require('vm'),{BOOT_HEALTH}=require('./page_rig.js');
+const run=B=>vm.runInNewContext(BOOT_HEALTH,{window:{BOOT:B}});
+const boot=(log,busy=false,state='gone')=>({log,busy:()=>busy,state});
+assert(run(boot([{k:'ready'},{k:'gone'}])).ok);
+assert(!run(boot([{k:'fail',reason:'hard timeout'},{k:'gone'}])).ok);
+assert(!run(boot([{k:'ready'},{k:'error',id:'compile'},{k:'gone'}])).ok);
+assert(!run(boot([{k:'ready'},{k:'gone'}],true)).ok);
+assert(!run(boot([{k:'gone'}])).ok);
+assert(!run(boot([{k:'ready'}],false,'landing')).ok);
+assert(!run(null).ok);
+console.log('BOOT HEALTH: PASS (normal readiness, timeout, failed step, unfinished chain, missing evidence, state, missing loader)');
