@@ -7496,13 +7496,23 @@ function cageInterior(m, S) {
           const nl = Math.hypot(n2[0], n2[1], n2[2]) || 1;
           n2 = [n2[0] / nl, n2[1] / nl, n2[2] / nl];
           const away = [cen[0], cen[1] - yAxR(cen[2]), 0];
-          if (n2[0] * away[0] + n2[1] * away[1] < 0)
+          // TAPER-PANELS (the user 21 Nov, the Chinook: "one is constantly shaded ... none of them joins really properly
+          // with its structure"): the normal was turned outward but the WINDING was not - the -x sides and the belly
+          // showed their back face outside, which the cabin's shading darkens whatever the sun. The winding turns with it
+          if (n2[0] * away[0] + n2[1] * away[1] < 0) {
             n2 = [-n2[0], -n2[1], -n2[2]];
+            pts = [pts[0], pts[3], pts[2], pts[1]];
+          }
           const th = 0.004;
+          // ...and the edge sits ON its tubes: a fixed inset of a tube's radius toward the centre, not 6 % of the panel
+          // (4 cm of gap at each tube on the user's 0.65 m taper)
+          const INSET = 0.012;
           const at = (p, s) => {
-            const p2 = [p[0] + (cen[0] - p[0]) * 0.06,
-                        p[1] + (cen[1] - p[1]) * 0.06,
-                        p[2] + (cen[2] - p[2]) * 0.06];
+            const dc = Math.hypot(cen[0] - p[0], cen[1] - p[1], cen[2] - p[2]) || 1;
+            const kIn = Math.min(0.06, INSET / dc);
+            const p2 = [p[0] + (cen[0] - p[0]) * kIn,
+                        p[1] + (cen[1] - p[1]) * kIn,
+                        p[2] + (cen[2] - p[2]) * kIn];
             return [p2[0] + n2[0] * (TR + s), p2[1] + n2[1] * (TR + s),
                     p2[2] + n2[2] * (TR + s)];
           };
@@ -7523,7 +7533,14 @@ function cageInterior(m, S) {
         if (A.w && A.b) panel([A.w, A.b, cp(2.356, 1), cp(1.571, 1)]);
         if (B.t && B.w) panel([B.t, B.w, cp(1.571, -1), cp(0.785, -1)]);
         if (B.w && B.b) panel([B.w, B.b, cp(2.356, -1), cp(1.571, -1)]);
-        if (A.t && B.t) panel([B.t, A.t, cp(0.785, 1), cp(0.785, -1)]);
+        // TAPER-PANELS: THE TOP IN TWO HALVES MEETING AT THE CROWN - the top tubes (the ceiling corners and the roof's
+        // middle to the rod's crown) rise above a flat top laid to the collar's 45 deg points and came through it
+        // (the user's "square shaded different in the middle"); each half now carries its tubes on its own face
+        if (A.t && B.t) {
+          const crown = cp(0, 1), topMid = [(A.t[0] + B.t[0]) / 2, (A.t[1] + B.t[1]) / 2 + 0.03, (A.t[2] + B.t[2]) / 2];
+          panel([topMid, A.t, cp(0.785, 1), crown]);
+          panel([B.t, topMid, crown, cp(0.785, -1)]);
+        }
         if (A.b && B.b) panel([B.b, A.b, cp(2.356, 1), cp(2.356, -1)]);
       }
     })();
@@ -9898,6 +9915,8 @@ const CAGE_DEFAULT_ABSENT = { rodOn: 1, spinOn: 1,   // (CAR-1: the rod's tube a
   acc_gpsAerial_sL: 0, acc_gpsAerial_lv: 0, acc_eltAerial_sL: 0, acc_eltAerial_lv: 0,
   // C172-CLIP part 2 (9 Nov): the elevators' own end inset (_cage_hinge.js hgOutSt), 0 = the surfaces' hgOut
   hgOutSt: 0,
+  // SEAT-WIDTH / SIT-OFFSET (the user 21 Nov): the seat's width x and the crew's bottom on the seat
+  seatW: 1, pilSitZ: 0, pilSitY: 0, paxSitZ: 0, paxSitY: 0,
   // ENGINE-DIALS (9 Nov): the engine's tune and build (eng_bmepK, eng_massK: 1), the reduction's ratio (1), the maximum
   // rpm (0 = rated) and the constant-speed propeller (0) - applyEngPreset writes every engine row, so without this a
   // save would carry them into every cage

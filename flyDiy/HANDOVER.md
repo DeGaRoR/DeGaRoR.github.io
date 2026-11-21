@@ -319213,3 +319213,35 @@ THE PERF CHECK (PERF-LEAD, 15:10-15:40, headed 5120x1440, quiet; evidence perf-c
 L40J. Cold 114-120 s / 453-463 programs (L40J 119-127 s / 451), returning 103 s, Go 2.5 s (11.5 s with the shot). The journey's
 first 8 min: 54.9 % of seconds at 29+ fps, 17 frames over 100 ms (L40J 31), the page never shown. The crash: the page 6.7 s
 (unchanged: the fix is L40M's perf-lead-1 + Deform's wreck-clear).
+## USER-FIXES 21 NOV - the user's bug list via A0 (FLAGSHIP, Sun 22 Nov 2026; claude/ready/user-fixes-1121 on chinook-user, on one-cessna-4)
+
+1. "the dashboard of the velis electro does not show": the dash builder (_cage_gen.js, I2) walked the windscreen base
+   from the FIRST loose end the map met. The Electric trainer's base is a 9-point chain plus two 2-point stubs at the
+   waist (an edge the band leaves out), so it took a stub (< 5 points) and drew no dash. Every chain is walked now, the
+   longest kept, and a stub within 8 cm of its end joined (DASH-CHAIN). The trainer: 920 dash + 140 face-plate faces
+   across the glass (x +-0.54); the Cessna's base is one chain - unchanged (728 / 108).
+2. "Seats lack a width setting": seatW, the preset's calibrated width x (0.60-1.60, every seat aboard; the cabin's room
+   still caps it - _seat_gen.js stance). Absent at 1 (CAGE_DEFAULT_ABSENT): no saved build moves.
+3. "seat the pilot correctly in any seat, the position of his bottom": pilSitZ / pilSitY (the pilot, the pilot pose
+   group) and paxSitZ / paxSitY (the co-pilot and every passenger, the passenger pose group), metres fore/aft and
+   up/down on the seat (_cage_crew.js seatOccupant); hands and feet IK onto the controls after it. Absent at 0. Drawing
+   only: the crew's mass stations are the seats', unchanged.
+4. The user's modified Chinook: its own ready, claude/ready/chinook-user (see CHINOOK-USER above); this branch sits on it.
+5. The Chinook's taper panels (_cage_gen.js, rod mode taperPanels): (a) "one is constantly shaded" - the normal was
+   turned outward and the winding was not, so the -x sides and the belly showed their back face outside, which the
+   cabin's shading darkens whatever the sun: the winding turns with the normal; (b) "a square shaded different in the
+   middle" - the top tubes (ceiling corners and the roof's middle to the rod's crown) rose through the flat top: the top
+   is two halves meeting at the crown; (c) "none of them joins properly" - each corner was pulled 6 % to the centre
+   (4 cm on a 0.65 m taper): a fixed 1.2 cm inset now (a tube's radius). Every taperPanels build moves (the Chinooks, the
+   birdman copies, the career's twin floatplane).
+6. "The propeller check ... 5 cm discrepancy on the station, tilting is different": the garage's Prop clearance circle
+   (app.js buildAids) stood on aidMap - the LOADED mains - while the aeroplane is drawn from the firewall ring on the
+   sim's raw axes: a spring leg's give moved the circle off the propeller; and it was drawn square to the body axis,
+   never the shaft. Now: aidMapBody (the model's own placement, def.refs.origin / sim.bodyOrigin / sim.axes) and the
+   circle square to the drawn shaft (CAGE_ENG units' propAxis -> genAidPropOff -> thrust/prop .dir). The ground posts keep
+   aidMap.
+NOT VERIFIED IN GAME (A0: no GPU / box runs while the user takes screenshots; the thermal rule): the dash, the panels and
+the prop circle are checked headless only (face counts, boxes) - A0's in-game round owed.
+TAILWHEEL E + I (down & out) on master since L40H: the twin-boom fixture flies the E-811, now 53 kg installed (the user's
+"modify the existing E-811"); it falls 20 m low on the slope at 80 m and goes around twice ("unstabilised approach"), out
+of circuit time; with the old 30 kg it lands. Routed to Pilot via A0 (power up when low on the slope); not touched here.

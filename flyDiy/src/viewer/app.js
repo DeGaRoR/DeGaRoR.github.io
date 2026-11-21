@@ -14412,6 +14412,20 @@
     const y = [z[1] * xA[2] - z[2] * xA[1], z[2] * xA[0] - z[0] * xA[2], z[0] * xA[1] - z[1] * xA[0]];
     return q => [0, 1, 2].map(k => Ms[k] + xA[k] * (q[0] - Md[0]) + y[k] * (q[1] - Md[1]) + z[k] * (q[2] - Md[2]));
   }
+  // PROP-CHECK (the user 21 Nov: "the propeller check is sometimes quite different from the actual propeller; sometimes 5 cm
+  // discrepancy on the station, tilting is different too"): THE DRAWN AEROPLANE'S OWN PLACEMENT - the firewall ring
+  // (def.refs.origin, sim.bodyOrigin) on the sim's raw axes, z = x cross y, the basis the model's matrix is made of
+  // (posePlane). aidMap stands on the LOADED mains, so a spring leg's give moved the disc off the drawn propeller; the
+  // posts that stand on the ground keep aidMap, the propeller's circle takes this
+  function aidMapBody() {
+    const ids = def && def.refs && (def.refs.origin || def.refs.noseFrame);
+    if (!ids || !ids.length || !sim || !sim.bodyOrigin || !sim.axes) return null;
+    const Od = [0, 0, 0];
+    for (const i of ids) { const n = def.nodes[i]; if (!n) return null; for (let k = 0; k < 3; k++) Od[k] += n.p[k] / ids.length; }
+    const Os = sim.bodyOrigin(), [xA, yU] = sim.axes();
+    const z = [xA[1] * yU[2] - xA[2] * yU[1], xA[2] * yU[0] - xA[0] * yU[2], xA[0] * yU[1] - xA[1] * yU[0]];
+    return q => [0, 1, 2].map(k => Os[k] + xA[k] * (q[0] - Od[0]) + yU[k] * (q[1] - Od[1]) + z[k] * (q[2] - Od[2]));
+  }
   function buildAids(bal, lin) {
     if (!AID_KEYS) return;
     aidsClear();
@@ -14519,15 +14533,20 @@
     }
     if (want.indexOf('prop') >= 0 && A.prop) {
       const r = row('aid.prop'), col = lvlC(r);
+      // PROP-CHECK: the circle in the blades' own plane - square to the SHAFT (p.dir: the engine's tilt, from the
+      // editor's drawn unit), not to the body axis - and placed as the aeroplane is (aidMapBody)
+      const MB = aidMapBody() || M;
+      const segB = (p, q, col2) => { const a = MB(p), b = MB(q); V.push(a[0], a[1], a[2], b[0], b[1], b[2]); for (let i = 0; i < 2; i++) Cc.push(col2[0], col2[1], col2[2]); };
       for (const p of A.prop) {
-        const c = p.at, N = 36;
-        for (let i = 0; i < N; i++) {
-          const a0 = i / N * 2 * Math.PI, a1 = (i + 1) / N * 2 * Math.PI;
-          seg([c[0], c[1] + p.R * Math.cos(a0), c[2] + p.R * Math.sin(a0)], [c[0], c[1] + p.R * Math.cos(a1), c[2] + p.R * Math.sin(a1)], col);
-        }
+        const c = p.at, N = 36, d = Array.isArray(p.dir) ? p.dir : [-1, 0, 0];
+        // the disc's two in-plane axes: lateral (design z) and its "up", square to the shaft
+        const ul = [0, 0, 1], up0 = [d[1] * ul[2] - d[2] * ul[1], d[2] * ul[0] - d[0] * ul[2], d[0] * ul[1] - d[1] * ul[0]];
+        const upL = Math.hypot(up0[0], up0[1], up0[2]) || 1, up = up0.map(v => v / upL * (up0[1] < 0 ? -1 : 1));
+        const at = a => [0, 1, 2].map(k => c[k] + p.R * (Math.cos(a) * up[k] + Math.sin(a) * ul[k]));
+        for (let i = 0; i < N; i++) segB(at(i / N * 2 * Math.PI), at((i + 1) / N * 2 * Math.PI), col);
         if (p.hit) rod([c[0], p.hit[1], p.hit[2]], p.hit, col, 0.025, false);
         const gy = p.ground != null ? c[1] - p.R - p.ground : p.water != null ? c[1] - p.R - p.water : null;
-        if (gy != null) seg([c[0], c[1] - p.R, c[2]], [c[0], gy, c[2]], col);
+        if (gy != null) segB([c[0], c[1] - p.R, c[2]], [c[0], gy, c[2]], col);
         label([c[0], c[1] + p.R + 0.3, c[2]], 'prop ' + (p.struct != null ? Math.round(p.struct * 100) + ' cm from ' + p.who.replace(/^the /, '') : 'clear of the structure'), col,
               p.ground != null ? Math.round(p.ground * 100) + ' cm over the ground' : p.water != null ? Math.round(p.water * 100) + ' cm over the water at gross' : '');
       }

@@ -3873,9 +3873,14 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const recline = clamp((SP.rake - 7) + (pose || POSE_PILOT).recline, -10, 55);
     applyPose(occ.bones,
               seatedPose(recline, !(stick || thr || pedals), SP.tilt));
+    // SIT-OFFSET (the user 21 Nov: "additional controls to seat the pilot correctly in any seat, the position of his
+    // bottom"): the bottom's fore/aft and up/down on the seat - the pilot's own pair, everyone else's (co-pilot,
+    // passengers) the other; absent = 0, every saved build seats its crew where it did. The hands and feet IK onto the
+    // controls after this, so they follow
+    const sitZ = +(role === 'pilot' ? P.pilSitZ : P.paxSitZ) || 0, sitY = +(role === 'pilot' ? P.pilSitY : P.paxSitY) || 0;
     occ.fig.position.set(seat.x,
-                         seat.panY + 0.03 + (0.085 + CH.rig.hipDrop) * s,
-                         seat.zBack + 0.095 * s + 0.02);
+                         seat.panY + 0.03 + (0.085 + CH.rig.hipDrop) * s + sitY,
+                         seat.zBack + 0.095 * s + 0.02 + sitZ);
     occ.fig.updateMatrixWorld(true);
     // FEET WITHOUT PEDALS (G205, the user: 'sliders for controlling the feet
     // position of the passengers. Something like the pedals for the pilots,
