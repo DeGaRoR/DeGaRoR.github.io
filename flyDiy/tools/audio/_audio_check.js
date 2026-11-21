@@ -633,6 +633,75 @@ function checkMix(S) {
   return F;
 }
 
+// AUDIO-ROBUST (22 Nov 2026, the user: "huge saturation, slow-down and speeds up, pitch variation" in lags and freezes).
+// STALL: A MAIN-THREAD BLOCK IS NOT A FRAME.
+//   PUMP   a frame from the loop, then a 1.15 s block: the first task after it is the 4 Hz timer, LATE - it must not run
+//          update() (the old one fired dt 0.5 on the held flight); three on-time ticks with no frame (the loop gone:
+//          holdRender) do run it; a gap past 0.3 s marks the next update a STALL frame (api.stall), the frame after not;
+//          ?audiorobust=0 is the old pump (the before).
+//   SPACE  the Cub flies toward a still listener at 50 m/s, 40 m off its track, from 350 m out (a doppler of ~15 %); 4 s in
+//          comes the old pump's frame (dt 0.5 after a 1 s gap, the aeroplane held - PACE holds the flight), then 1.5 s of
+//          flight (the retarded instant crosses the stall: ~0.45 s of sound in flight). Against the SAME run with an
+//          ordinary frame there (16 ms, the aeroplane held), frame by frame, the engine group's doppler must stay within
+//          0.3 % (a held note); the same pair with ?audiorobust=0 must differ by more than 1 % (the swoop: the before,
+//          printed). In the chase camera and the cockpit the listener rides along and the two velocities drag together:
+//          this still listener (a tower, a fly-by camera) is where the stale frame was loudest.
+const STALL_REPORT = [];
+function checkStall(S) {
+  const F = [];
+  { const iv = [], T = { ms: 0 }, pg = makePage(S, { quiet: true, store: {}, interval: iv, clock: () => T.ms }), A = pg.A;
+    pg.gesture();
+    const tick = ms => { T.ms = ms; for (const x of iv) if (x.fn) x.fn(); };
+    T.ms = 100; A.update(null, null, 1 / 60, null, null, false, null);   // the loop draws
+    tick(1250);                                                           // a 1.15 s block ends: the timer comes late
+    if (A.pumped !== 0) F.push('a pump tick late after a block ran update() (pumped ' + A.pumped + '): the stale frame');
+    if (!(A.stalls[0] === 1)) F.push('the late tick was not counted (' + A.stalls[0] + ')');
+    tick(1500); tick(1750);
+    if (A.pumped !== 0) F.push('the pump ran on the 2nd on-time tick with the loop gone (want the 3rd)');
+    tick(2000);
+    if (A.pumped !== 1) F.push('three on-time ticks with no frame did not pump (' + A.pumped + ')');
+    T.ms = 2017; A.update(null, null, 1 / 60, null, null, false, null);
+    T.ms = 3200; A.update(null, null, 1 / 60, null, null, false, null);
+    if (A.stall[0] !== 1) F.push('the frame after a 1.18 s gap is not a stall frame');
+    T.ms = 3217; A.update(null, null, 1 / 60, null, null, false, null);
+    if (A.stall[0] !== 0) F.push('the frame 17 ms later is still a stall frame');
+    A.enable(false); }
+  { const iv = [], T = { ms: 0 }, pg = makePage(S, { quiet: true, store: {}, interval: iv, clock: () => T.ms, search: '?audiorobust=0' }), A = pg.A;
+    pg.gesture();
+    T.ms = 100; A.update(null, null, 1 / 60, null, null, false, null);
+    T.ms = 1250; for (const x of iv) if (x.fn) x.fn();
+    if (A.pumped !== 1) F.push('?audiorobust=0 is not the old pump (pumped ' + A.pumped + ' after a block)');
+    A.enable(false); }
+  const run = (search, stale) => {
+    const pg = spacePage(S, { search }), A = pg.A, T = { ms: 0 };
+    pg.win.performance.now = () => T.ms;
+    pg.place(0, 0, 0);
+    // the listener still, 40 m off the track, the identity orientation; the aeroplane flies along its nose at 50 m/s
+    const e = pg.camera.matrixWorld.elements; e[0] = 1; e[1] = 0; e[2] = 0; e[4] = 0; e[5] = 1; e[6] = 0; e[8] = 0; e[9] = 0; e[10] = 1;
+    const side = [pg.fwd[2], 0, -pg.fwd[0]], sl = Math.hypot(...side);
+    pg.camera.position.x = pg.org[0] + side[0] / sl * 40; pg.camera.position.y = pg.org[1]; pg.camera.position.z = pg.org[2] + side[2] / sl * 40;
+    const p = pg.sim.p, n = p.length / 3, mv = d => { for (let j = 0; j < n; j++) for (let k = 0; k < 3; k++) p[j * 3 + k] += pg.fwd[k] * d; };
+    mv(-350);
+    const fr = (dt, gapMs, move) => { T.ms += gapMs; if (move) mv(50 * dt); A.ctx.currentTime += gapMs / 1000; A.update(pg.sim, pg.camera, dt, pg.def, pg.cam, false, { surface: () => 0 }); };
+    for (let i = 0; i < 240; i++) fr(1 / 60, 1000 / 60, true);   // 4 s: 150 m out, closing
+    const k0 = A.space.frame[8], ks = [];
+    if (stale) fr(0.5, 1000, false); else fr(1 / 60, 1000 / 60, false);   // the old pump's frame after a 1 s block | an ordinary one; the flight held
+    ks.push(A.space.frame[8]);
+    for (let i = 0; i < 90; i++) { fr(1 / 60, 1000 / 60, true); ks.push(A.space.frame[8]); }
+    return { k0, ks };
+  };
+  const diff = (a, b) => { let w = 0; for (let i = 0; i < a.ks.length; i++) w = Math.max(w, Math.abs(a.ks[i] / b.ks[i] - 1)); return w; };
+  const now = { k0: 0, worst: 0 }, old = { k0: 0, worst: 0 };
+  { const a = run('', true), b = run('', false); now.k0 = a.k0; now.worst = diff(a, b); }
+  { const a = run('?audiorobust=0', true), b = run('?audiorobust=0', false); old.k0 = a.k0; old.worst = diff(a, b); }
+  STALL_REPORT.length = 0;
+  STALL_REPORT.push('doppler across a 1 s block (50 m/s toward a still listener, 40 m off): x' + now.k0.toFixed(4) + '; vs the same flight with no block, before swung ' + (old.worst * 100).toFixed(2) + ' %, now within ' + (now.worst * 100).toFixed(3) + ' %');
+  if (!(now.k0 > 1.02)) F.push('the pass reads no doppler before the stall (x' + now.k0.toFixed(4) + '): the test is blind');
+  if (!(now.worst < 0.003)) F.push('the doppler moved ' + (now.worst * 100).toFixed(2) + ' % across a 1 s block (want < 0.3 %: a held note)');
+  if (!(old.worst > 0.01)) F.push('?audiorobust=0 no longer shows the swoop (' + (old.worst * 100).toFixed(2) + ' %): the before is lost');
+  return F;
+}
+
 function checkSources(S) {
   const F = [], pg = livePage(S), A = pg.A;
   const go = () => A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, false, pg.world);
@@ -2686,7 +2755,7 @@ function spacePage(S, opt) {
                  'flydiy-electric': prD.X.parameterDescriptors, 'flydiy-airframe': afD };
   const idle = [];
   const shed = o.shed || { dims: { HW: 15, HD: 12.5, EAVE: 7 }, shell: 'club' };
-  const win = { location: { search: '' }, localStorage: { getItem: k => (o.store && k in o.store ? o.store[k] : null), setItem() {} },
+  const win = { location: { search: o.search || '' }, localStorage: { getItem: k => (o.store && k in o.store ? o.store[k] : null), setItem() {} },
     performance: { now: (() => { let k = 0; return () => ++k; })() }, addEventListener() {}, removeEventListener() {},
     document: { hidden: false, hasFocus: () => true, addEventListener() {}, removeEventListener() {} },
     requestIdleCallback: fn => { idle.push(fn); return idle.length; },
@@ -4761,7 +4830,7 @@ function checkCrash(S, report) {
   return F;
 }
 
-const CHECKS = { MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
+const CHECKS = { STALL: checkStall, MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
@@ -4906,8 +4975,15 @@ const MUT = [
   ['the engine\'s frame tau ignored', 'engine', 'const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;', 'const tau = TAU;', 'MIX'],
   ['the prop\'s frame tau ignored', 'srcprop', 'const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;   // G1724', 'const tau = TAU;   // G1724', 'MIX'],
   ['the frame tau never comes back', 'audio', 'TAU_S[1] += (d - TAU_S[1]) * 0.25;', 'TAU_S[1] = Math.max(TAU_S[1], d);', 'MIX'],
-  ['the pump never runs', 'audio', 'if (el < PUMP_STALL_S || hidden) return;', 'return;', 'MIX'],
-  ['the pump runs over the loop', 'audio', 'if (el < PUMP_STALL_S || hidden) return;', 'if (hidden) return;', 'MIX'],
+  ['the pump never runs', 'audio', 'if (el < PUMP_STALL_S || hidden) { LAST[3] = 0; return; }', 'return;', 'MIX'],
+  ['the pump runs over the loop', 'audio', 'if (el < PUMP_STALL_S || hidden) { LAST[3] = 0; return; }', 'if (hidden) { LAST[3] = 0; return; }', 'MIX'],
+  // AUDIO-ROBUST (22 Nov 2026): a block is not a frame
+  ['a late pump tick fires the stale frame', 'audio', 'if (late) { LAST[3] = 0; STALLS[0]++; return; }', 'if (false) { LAST[3] = 0; STALLS[0]++; return; }', 'STALL'],
+  ['the pump never believes the loop gone', 'audio', 'if (++LAST[3] < PUMP_GONE_TICKS) return;', 'return;', 'STALL'],
+  ['no stall frame after a gap', 'audio', 'pumping || t0 - LAST[0] > STALL_GAP_S * 1000) ? 1 : 0;', 'pumping) ? 1 : 0;', 'STALL'],
+  ['the listener velocity not held', 'space', 'if (T[7] > 0 && L[15] > 0 && !cut) {', 'if (false) {', 'STALL'],
+  ['the ring velocity not held', 'space', 'if (T[7] > 0 && R.n[0] > 1) {', 'if (false) {', 'STALL'],
+  ['a stall frame advances the space clock', 'space', '(stl && dt > 1 / 60 ? 1 / 60 : dt)', '(dt)', 'STALL'],
   ['the pump outlives the context', 'audio', 'clearSuspend(); stopPump();', 'clearSuspend();', 'MIX'],
   ['the garage setting ignored', 'music', 'if (garage) return musicGarage ? C_GARAGE : C_NONE;', 'if (garage) return C_GARAGE;', 'MUSIC_CTX'],
   ['the loading button never shown', 'music', 'b.hidden = false;   // shown: the sound is built', 'b.hidden = true;   // shown: the sound is built', 'MUSIC_WIRING'],
@@ -5244,7 +5320,7 @@ if (!ONLY_SELFTEST) {
     say(!res[k].length, k + (res[k].length ? ': ' + res[k].length + ' failure(s)' : ''));
     for (const f of res[k]) console.log('         ' + f);
   }
-  for (const r of report.concat(MUSIC_REPORT, SP_REPORT)) console.log('  info ' + r);
+  for (const r of report.concat(MUSIC_REPORT, SP_REPORT, STALL_REPORT)) console.log('  info ' + r);
   for (const b of FLOWN) {
     const AP = loadParams(SRC0.params), o = AP.audioParamsBlock();
     AP.audioParams(b.sim, { mode: 'chase' }, b.def, o, null, 1 / 60);

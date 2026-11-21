@@ -124,6 +124,7 @@ var AUDIO = (function () {
       update() {}, bus() { return null; }, addSource() { return null; }, onEvent() {}, emit() {},
       module() { return Promise.resolve(false); }, get: k => readSetting(k), set() {}, lagS: null, space: null,
       stateLine: () => 'off', unlock() {}, addRows() {}, shutter: () => false, inGarage: false, welcome: false,
+      stallTest: () => Promise.resolve(null), record: { start: () => Promise.resolve(false), stop: () => Promise.resolve(null) },
       enable(on) { if (on && query !== '0') prefSet(PREF, '1'); },
       mount(body, kit) { mountRows(stub, body, kit, true); } };
     return stub;
@@ -282,12 +283,16 @@ var AUDIO = (function () {
     W.removeEventListener('pointerdown', unlock, true);
     W.removeEventListener('keydown', unlock, true);
   }
+  // AUDIO-ROBUST: the output buffer stays 'interactive' (PERF-LEAD 22 Nov: a bigger one adds latency to every engine
+  // response); ?audiolat=balanced|playback|<seconds> is the measured A/B (under-runs before/after, AUDIO.record's playout)
+  const LAT_HINT = (() => { let v = null; try { v = new URLSearchParams(W.location ? W.location.search : '').get('audiolat'); } catch (e) {}
+    if (v === 'balanced' || v === 'playback' || v === 'interactive') return v; const x = +v; return v && x > 0 && x < 1 ? x : 'interactive'; })();
   function unlock() {
     if (ctx || api.state === 'off') { disarm(); return; }
     disarm();
     const AC = W.AudioContext || W.webkitAudioContext;
     if (!AC) { api.state = 'unsupported'; return; }
-    try { ctx = new AC({ latencyHint: 'interactive' }); }
+    try { ctx = new AC({ latencyHint: LAT_HINT }); }
     catch (e) { api.state = 'failed'; console.warn('flyDiy audio: no context', e); return; }
     api.ctx = ctx;
     build();
@@ -311,21 +316,44 @@ var AUDIO = (function () {
   // on. Once the context exists, a 4 Hz timer looks: no update() for PUMP_STALL_S -> it runs update() itself, with the
   // last frame's sim, camera and aeroplane (the sources keep their last numbers; the music's clocks and the loading
   // screen's context move). A frame from the loop makes it idle again. Never before the gesture; gone with the context.
-  const PUMP_MS = 250, PUMP_STALL_S = 0.4, LAST = new Float64Array(2);   // [0] the last update's clock (ms), [1] pumped
+  // AUDIO-ROBUST (22 Nov 2026, the user: "huge saturation, slow-down and speeds up, pitch variation" in lags and freezes).
+  // A MAIN-THREAD BLOCK IS NOT A FRAME. The 4 Hz timer is a task like any other: after a 1 s block it is the FIRST task to
+  // run, sees no update for 1 s and used to fire update(dt 0.5) on the last sim - while PACE holds the flight across the
+  // same stall (app.js G1365: the next real frame is dt 1/60). The space's clocks then read half a second of an aeroplane
+  // standing still (its velocity, the doppler, dragged toward 0) and snapped back over the next frames: a pitch swoop on
+  // every voice. Now (ROBUST) a pump tick that itself came LATE (the timer starved: the thread was blocked) is a block's
+  // end, not an absence: it does nothing, the loop's own frame comes next. The pump still runs where it is for - a loading
+  // screen (BOOT up), a loop gone for good (three on-time ticks with no frame: holdRender) - and every update that follows
+  // a gap (STALL_GAP_S) or comes from the pump is a STALL frame (api.stall[0] = 1): the space holds its velocities and
+  // its doppler across it (space.js). ?audiorobust=0 = the old behaviour, for the before/after recordings.
+  const ROBUST = (() => { try { return new URLSearchParams(W.location ? W.location.search : '').get('audiorobust') !== '0'; } catch (e) { return true; } })();
+  const STALL_GAP_S = 0.3, PUMP_LATE_MS = 150, PUMP_GONE_TICKS = 3;
+  const PUMP_MS = 250, PUMP_STALL_S = 0.4, LAST = new Float64Array(5);   // [0] the last update's clock (ms), [1] pumped, [2] the last pump tick (ms), [3] on-time ticks with no frame, [4] the last update was the pump's (1)
   let pumpId = 0, lastDef = null, lastCam = null;
   function startPump() {
     if (pumpId || typeof setInterval !== 'function') return;
-    LAST[0] = now();
+    LAST[0] = now(); LAST[2] = LAST[0]; LAST[3] = 0; LAST[4] = 1;   // (no loop frame yet: before the first light the pump runs freely)
     pumpId = setInterval(pump, PUMP_MS);
   }
   function stopPump() { if (pumpId && typeof clearInterval === 'function') clearInterval(pumpId); pumpId = 0; }
   function pump() {
     if (!ctx) { stopPump(); return; }
-    const el = (now() - LAST[0]) / 1000;
-    if (el < PUMP_STALL_S || hidden) return;   // (a hidden tab: the sound is silent and suspended anyway)
+    const tn = now(), el = (tn - LAST[0]) / 1000, late = tn - LAST[2] > PUMP_MS + PUMP_LATE_MS;
+    LAST[2] = tn;
+    if (el < PUMP_STALL_S || hidden) { LAST[3] = 0; return; }   // (a hidden tab: the sound is silent and suspended anyway)
+    if (ROBUST && !welcomeNow() && LAST[4] === 0) {
+      // the loop drew last and no loading screen is up: a late tick is a block's end (the loop's frame is next), an on-time
+      // one counts toward 'the loop is gone' (holdRender), which only PUMP_GONE_TICKS in a row believe
+      if (late) { LAST[3] = 0; STALLS[0]++; return; }
+      if (++LAST[3] < PUMP_GONE_TICKS) return;
+    }
     LAST[1]++;
-    update(api.sim, api.camera, Math.min(0.5, el), lastDef, lastCam, garage === 1, api.world);
+    pumping = 1;
+    try { update(api.sim, api.camera, Math.min(0.5, el), lastDef, lastCam, garage === 1, api.world); } finally { pumping = 0; }
   }
+  // the stall counters (typed): [0] late pump ticks swallowed, [1] stall frames handed to the sources
+  const STALLS = new Float64Array(2), STALL = new Float64Array(1);
+  let pumping = 0;
   function build() {
     const g = () => ctx.createGain();
     const L = N.limiter = ctx.createDynamicsCompressor();
@@ -333,6 +361,7 @@ var AUDIO = (function () {
     N.fade = g(); N.fade.gain.value = 1;
     for (const b of BUSES) N[b] = g();
     N.master.connect(N.fade); N.fade.connect(L); L.connect(ctx.destination);
+    N.out = L;   // the last node before the speakers (AUDIO.record taps it)
     N.aircraft.connect(N.master);
     // G1720: the interior side through its own trim (MIX.interior; the viewpoint fader stays a pure equal-power pair)
     N.intTrim = g(); N.intTrim.gain.value = MIXK.interior;
@@ -491,6 +520,12 @@ var AUDIO = (function () {
   function update(sim, camera, dt, def, cam, inGarage, world) {
     if (!ctx) return;
     const t0 = now();
+    // AUDIO-ROBUST: a frame after a gap (a block, a lag past STALL_GAP_S) or from the pump is a STALL frame (above)
+    STALL[0] = ROBUST && (pumping || t0 - LAST[0] > STALL_GAP_S * 1000) ? 1 : 0;
+    if (STALL[0]) STALLS[1]++;
+    LAST[4] = pumping;
+    if (!pumping) LAST[3] = 0;
+    TR.gap[0] = t0 - LAST[0];
     LAST[0] = t0; lastDef = def || null; lastCam = cam || null;
     CAM.mode = cam ? cam.mode : null;
     CAM.inGarage = !!inGarage;
@@ -520,7 +555,102 @@ var AUDIO = (function () {
     }
     const ms = now() - t0;
     ST[0]++; ST[1] += (ms - ST[1]) * 0.02; if (ms > ST[2]) ST[2] = ms;
+    if (TR.on) trace(t0, dt);
   }
+
+  // ---- AUDIO-ROBUST: THE PROOF TOOLS (22 Nov 2026) - nothing runs, nothing is built until a rig or a dev calls them ------
+  // AUDIO.record.start({ mono, decim }) / AUDIO.record.stop() -> { sr, ch, frames, peak, clipped, pcm (Int16Array) }: the
+  //   page's OWN output (the last node before the speakers), tapped by a tiny AudioWorklet on the audio thread (a Blob
+  //   module, made on the first call), so a main-thread block is recorded as it is heard. ~2 KB of code, no load cost.
+  // AUDIO.stallTest({ seconds, blocks: [[atS, ms], ...], lag: [atS, durS, frameMs] }) -> the recording + the frame trace
+  //   (every update: wall ms, gap, dt, pumped, stall, the engine's rpm, the space's doppler and lag, the frame tau) - the
+  //   scripted 300 ms and 1 s main-thread blocks the user listens to, before (?audiorobust=0) and after.
+  const TR = { on: 0, rows: null, n: 0, gap: new Float64Array(1) };
+  const TR_W = 10, TR_MAX = 6000;
+  function trace(t0, dt) {
+    if (TR.n >= TR_MAX) return;
+    const r = TR.rows, o = TR.n++ * TR_W, sp = api.space, fr = sp && sp.frame;
+    r[o] = t0; r[o + 1] = ctx.currentTime; r[o + 2] = TR.gap[0]; r[o + 3] = dt; r[o + 4] = pumping; r[o + 5] = STALL[0];
+    r[o + 6] = P && P.rpmEng ? +P.rpmEng[0] || 0 : 0; r[o + 7] = fr ? fr[8] : 1; r[o + 8] = api.lagS[0]; r[o + 9] = TAU_S[0];
+  }
+  const TAP_SRC = "registerProcessor('flydiy-tap', class extends AudioWorkletProcessor {" +
+    "constructor(o) { super(); const p = o.processorOptions || {}; this.mono = !!p.mono; this.dec = p.decim > 1 ? p.decim | 0 : 1;" +
+    " this.ch = this.mono ? 1 : 2; this.buf = new Float32Array(this.ch * 8192); this.n = 0; this.on = true; this.ph = 0; this.blocks = 0;" +
+    " this.port.onmessage = e => { if (e.data === 'stop') { this.flush(); this.port.postMessage({ end: 1, blocks: this.blocks }); this.on = false; } }; }" +
+    "flush() { if (this.n) { this.port.postMessage(this.buf.slice(0, this.n * this.ch)); this.n = 0; } }" +
+    "process(inp) { if (!this.on) return false; this.blocks++; const a = inp[0] || [], L = a[0], R = a[1] || L, ch = this.ch;" +
+    " for (let k = 0; k < 128; k++) { if (++this.ph < this.dec) continue; this.ph = 0;" +
+    "  const l = L ? L[k] : 0, r = R ? R[k] : 0, o = this.n * ch;" +
+    "  if (ch === 1) this.buf[o] = 0.5 * (l + r); else { this.buf[o] = l; this.buf[o + 1] = r; }" +
+    "  if (++this.n * ch >= this.buf.length) this.flush(); }" +
+    " return true; } });";
+  let tapMod = null;
+  const REC = { node: null, chunks: null, done: null, opt: null };
+  function recStart(o) {
+    o = o || {};
+    if (!ctx || !N.out || !ctx.audioWorklet || REC.node) return Promise.resolve(false);
+    if (!tapMod) {
+      const url = URL.createObjectURL(new Blob([TAP_SRC], { type: 'application/javascript' }));
+      tapMod = ctx.audioWorklet.addModule(url);
+    }
+    return tapMod.then(() => {
+      const node = new AudioWorkletNode(ctx, 'flydiy-tap', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1],
+        channelCount: 2, channelCountMode: 'explicit', processorOptions: { mono: !!o.mono, decim: o.decim || 1 } });
+      REC.node = node; REC.chunks = []; REC.opt = { mono: !!o.mono, decim: o.decim > 1 ? o.decim | 0 : 1, t0: ctx.currentTime, wall: now() };
+      REC.done = new Promise(res => { node.port.onmessage = e => { if (e.data && e.data.end) res(e.data.blocks); else REC.chunks.push(e.data); }; });
+      N.out.connect(node); node.connect(ctx.destination);   // (its output is silence: connected so the graph pulls it)
+      return true;
+    });
+  }
+  function recStop() {
+    if (!REC.node) return Promise.resolve(null);
+    const node = REC.node, opt = REC.opt;
+    node.port.postMessage('stop');
+    return REC.done.then(blocks => {
+      try { N.out.disconnect(node); } catch (e) {} try { node.disconnect(); } catch (e) {}
+      const ch = opt.mono ? 1 : 2; let len = 0; for (const c of REC.chunks) len += c.length;
+      const pcm = new Int16Array(len); let peak = 0, clipped = 0, i = 0;
+      for (const c of REC.chunks) for (let k = 0; k < c.length; k++) {
+        const v = c[k], a = v < 0 ? -v : v; if (a > peak) peak = a; if (a >= 0.999) clipped++;
+        pcm[i++] = Math.max(-32768, Math.min(32767, Math.round(v * 32767)));
+      }
+      REC.node = null; REC.chunks = null;
+      const ps = ctx.playbackStats || ctx.playoutStats || null;   // Chrome's under-run counters, when this browser has them
+      let play = null;
+      try { if (ps) play = { fallbackFramesEvents: ps.fallbackFramesEvents, fallbackDuration: ps.fallbackDuration, underrunEvents: ps.underrunEvents, underrunDuration: ps.underrunDuration, totalFramesDuration: ps.totalFramesDuration, averageLatency: ps.averageLatency }; } catch (e) {}
+      return { sr: ctx.sampleRate / opt.decim, ch, frames: len / ch, peak, clipped, blocks, wallS: (now() - opt.wall) / 1000, ctxT0: opt.t0,
+               ctxS: ctx.currentTime - opt.t0, baseLatency: ctx.baseLatency, outputLatency: ctx.outputLatency, playout: play,
+               robust: ROBUST, latencyHint: LAT_HINT, pcm };
+    });
+  }
+  const busy = ms => { const e = now() + ms; while (now() < e) { /* the scripted block: the main thread held */ } };
+  function stallTest(o) {
+    o = o || {};
+    const secs = o.seconds || 12, blocks = o.blocks || [[3, 300], [7, 1000]], lag = o.lag || null;
+    return recStart(o).then(ok => {
+      if (!ok) return null;
+      TR.rows = new Float64Array(TR_MAX * TR_W); TR.n = 0; TR.on = 1;
+      const s0 = STALLS[0], s1 = STALLS[1];
+      const marks = [];
+      for (const [at, ms] of blocks) setTimeout(() => { marks.push({ kind: 'block', ms, ctxT: ctx.currentTime, wall: now() }); busy(ms); }, at * 1000);
+      if (lag && typeof requestAnimationFrame === 'function') {
+        const tA = now() + lag[0] * 1000, tB = tA + lag[1] * 1000;
+        const f = () => { const t = now(); if (t > tB) return; if (t >= tA) busy(lag[2]); requestAnimationFrame(f); };
+        requestAnimationFrame(f);
+        marks.push({ kind: 'lag', at: lag[0], dur: lag[1], frameMs: lag[2] });
+      }
+      return new Promise(res => setTimeout(res, secs * 1000)).then(recStop).then(r => {
+        TR.on = 0;
+        r.trace = Array.from(TR.rows.subarray(0, TR.n * TR_W)); r.traceW = TR_W;
+        r.traceCols = ['wallMs', 'ctxT', 'gapMs', 'dt', 'pumped', 'stall', 'rpmEng0', 'kDop0', 'lagS', 'tauS'];
+        r.marks = marks; r.lateTicks = STALLS[0] - s0; r.stallFrames = STALLS[1] - s1;
+        return r;
+      });
+    });
+  }
+  api.record = { start: recStart, stop: recStop };
+  api.stallTest = stallTest;
+  api.stall = STALL; api.stalls = STALLS; api.robust = ROBUST;
 
   arm();
   // G1730: the shot on photo mode's own event (GAME-MENUS G3744 fires 'flydiy:shutter' at the take: the round shutter and
