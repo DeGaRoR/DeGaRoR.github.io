@@ -393,9 +393,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   function floorsChanged(f) {
     for (const r of [coverRing, grassField, lawnField, rockLayer]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
-  // ROCK-STUDY: rockExpoAt(x, z) - the island's baked exposure at a point, for the planters (MOUNTAIN-VEG, 17 Nov: no tree on bare rock):
-  // 0..1 as the ground thresholds v1's field (without its per-pixel noise), -1 while the bake is in flight, 0 with no rock within ~30 m
-  let rockExpoAt = () => 0;
+  // ROCK-STUDY, for the planters (MOUNTAIN-VEG, 17 Nov - the user: no tree directly ON the rock, no larger exclusion; bushes in the
+  // rock's greenery): rockExpoAt(x, z) the stone's share at the point, rockGreenAt(x, z) the green between the stones in a rock zone -
+  // both exact (v1's law at full detail, the pattern the ground draws), -1 while the bake is in flight, 0 with no rock within ~30 m
+  let rockExpoAt = () => 0, rockGreenAt = () => 0;
   let rockRing = null, rockGroundMat = null;   // ROCK-STUDY: (rockGroundMat: the near ring's material - the relief wears it)
   // the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
   let rockLayer = null;   // MOUNTAIN-VEG 17 Nov: the rocks' own ring (cover_ring.js layer 'rocks': the bigger rocks further out)
@@ -2017,13 +2018,18 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         else tintTex.image.data = tintRGBA();
         tintTex.needsUpdate = true;
         if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasLateMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0) }); };
-      rockExpoAt = (x, z) => {   // (bilinear over the bake's bytes as the shader's linear read: byte (field + 0.3) / 1.5, 0 = none)
-        const a = rockBiasA; if (!a) return rockLate ? -1 : 0;
+      // the baked field at a point: bilinear over the bake's bytes as the shader's linear read (byte (field + 0.3) / 1.5, 0 = none)
+      const rockFieldAt = (x, z) => {
+        const a = rockBiasA; if (!a) return null;
         const cs = IG.cell * (IHALF ? 2 : 1), fx = (x - IG.x0) / cs - 0.5, fz = (z - IG.z0) / cs - 0.5, i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
         const b = (ii, jj) => a[Math.min(H2 - 1, Math.max(0, jj)) * W2 + Math.min(W2 - 1, Math.max(0, ii))];
         const q = ((b(i, j) * (1 - u) + b(i + 1, j) * u) * (1 - v) + (b(i, j + 1) * (1 - u) + b(i + 1, j + 1) * u) * v) / 255;
-        if (q < 0.004) return 0;
-        const t = Math.min(1, Math.max(0, (q * 1.5 - 0.3 - 0.40) / 0.12)); return t * t * (3 - 2 * t); };
+        return q < 0.004 ? -9 : q * 1.5 - 0.3; };
+      // the STONE at the point (v1's fine terms and joints included: 1 on the slab, 0 in a joint or a fleck of green between)
+      rockExpoAt = (x, z) => { const E = rockFieldAt(x, z); if (E === null) return rockLate ? -1 : 0; if (E < 0.05) return 0; return ROCK_RING_CORE.expoAt(x, z, E)[0]; };
+      // THE GREENERY OVER THE ROCK (the user, 17 Nov: "so bushes can grow there"): inside a rock zone, the green between the stones -
+      // the joints' soil, the speckles, the mottle's holes; 0 off the rock zones (the open hillside is the planters' own)
+      rockGreenAt = (x, z) => { const E = rockFieldAt(x, z); if (E === null) return rockLate ? -1 : 0; if (E < 0.05) return 0; const r = ROCK_RING_CORE.expoAt(x, z, E); return r[1] * (1 - r[0]); };
       function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
       // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
       const W_SLOTS = [{ 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }, { 60: 0, 80: 1, 90: 2, 100: 3 }];
@@ -5823,6 +5829,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const fh = forestHere(x, z);
           if (!fh && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
           if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
+          if (rockExpoAt(x, z) > 0.5) continue;   // MOUNTAIN-VEG 18 Nov, the user's yes (via ROCK-STUDY): no tree directly ON the stone (no larger zone; -1 while the bake runs = as today)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
@@ -5911,7 +5918,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           for (let rp = 0; rp < reps; rp++) {
           const jx = rp ? ix + 977 : ix, jz = rp ? iz + 541 : iz;
           const x = rp ? x0r + (hsh(ix + 71, iz + 73) - 0.5) * spc * 0.9 : x0r, z = rp ? z0r + (hsh(ix + 79, iz + 83) - 0.5) * spc * 0.9 : z0r;
-          if (rp && (premTreeEx(x, z) || world.treeAeroBlocked(x, z) || !(forestHere(x, z) || (BIO && openHere(x, z))))) continue;   // the second tree's own spot: the runways' clearances and the ground's rule, as its lattice point (GATE RWYTREES 7)
+          if (rp && (premTreeEx(x, z) || rockExpoAt(x, z) > 0.5 || world.treeAeroBlocked(x, z) || !(forestHere(x, z) || (BIO && openHere(x, z))))) continue;   // the second tree's own spot: the runways' clearances and the ground's rule, as its lattice point (GATE RWYTREES 7)
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
           const sp = (ti >= 0 && hsh(jx + 3, jz + 5) < 0.88) ? world.trees[ti].sp
@@ -6250,7 +6257,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             return SPA.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, edgeD, lakeSD: (x, z) => drawnLakeSD(x, z), waterY: (x, z) => waterDrawY(x, z), owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
+            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, edgeD, rockExpoAt: (x, z) => rockExpoAt(x, z), lakeSD: (x, z) => drawnLakeSD(x, z), waterY: (x, z) => waterDrawY(x, z), owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;

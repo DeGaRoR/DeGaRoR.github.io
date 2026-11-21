@@ -153,3 +153,18 @@ SwiftShader with the study bench's light, the lean ground program.
 - The rock a touch whiter and less green than v1 on the slopes.
 - The rock ring's link time is unmeasured.
 - The boulders' draw and triangle budget wants the perf round.
+
+## 17 Nov, in the game (r1 = 2bb678080)
+
+- **The desktop's plain faces (the cause of the "pale wash"):** on the full path (far1: gamer, ultra) the cliff code 12 was split
+  off the rock BEFORE R1's exposure, so every face over ~50 deg kept its whole share as the plain face tile, with no mosaic and no
+  green (Skyline's dark slab, the summit's bowl). The exposure now takes 6 + 12 whole, then splits by slope, as the lean path does.
+  The bench is lean, so it never showed it; SwiftShader cannot draw the full path (context lost), so only the box sees it.
+- **The far detail:** v1's stone is polygons, its exposure cut by a dense joint network (four sets, 5-38 m) and mottled by 3-octave
+  fbm down to 1-2 m. Past the macro texture's 1 m level the game had soft blotches. The shader now draws v1's own noise bit for bit
+  (rock_ring_core's hh / vn2 / fbm / jset in uint), each octave and line fading to its mean under the pixel; joints to 3 km.
+- **Checked:** the exposure FIELD matches v1's (the bench patch's bake against v1's macro_rock.png: mean 0.298 against 0.304, the
+  same pattern). What still differs far away is the VALUE: on the bench light the rock reads darker than the grass (v1: twice as
+  light). The bench's light is not the game's, so the value is to be judged on the box's frames, not tuned here.
+- **Tools:** ?gstrip=trdbg (R exposure, G the grass inside the rock, B the far tier); rockExpoAt(x, z) in render_world for the
+  planters; ring setting softGate; the bench's ?rs=; v1's own bench renders at the same eyes (claude/rock-study-2026-11's bench.js).

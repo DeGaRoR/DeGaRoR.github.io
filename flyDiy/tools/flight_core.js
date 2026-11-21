@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a87b875c2c110698
+// body-sha256: 865dec5c9b4bb26d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -736,9 +736,14 @@ const POWERPLANTS = {
     engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2400 },
     prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 1264, kV2: 0.1756 },
   },
+  // ELECTRIC-TRAINER (18 Nov; the user: "the radiators, the pumps, the coolant, everything, the cabling ... should just be
+  // part of the engine"; "we have to modify the existing E811"): the E-811 AS INSTALLED - motor 23 kg + H300C controller
+  // 8.1 kg + the motor and battery coolant loops (6.3 L, two radiators, two pumps, tanks, hoses) + the HV junction box and
+  // cabling (POH-128 7-12..7-17; the loops and cabling DERIVED): 53 kg, liquid (was 30 kg, air: the motor and controller
+  // only). The cards that carry it: the LS4 (unpowered: engOn 0, no mass), the e-trainer archetype (follows)
   e811_velis: {
-    price: 28000,
-    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
+    price: 31500,
+    engine: { name: 'Pipistrel E-811 (certified)', mass: 53.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'liquid', rpm: 2500 },
     prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
   },
   sp260d_class: {
@@ -814,7 +819,10 @@ const POWERPLANTS = {
 const GEN_ENG_THERMO = {
   four:     { sfcKgKWh: 0.30, eta: null, cool: { air: 0.45, liquid: 0.42 } },
   two:      { sfcKgKWh: 0.50, eta: null, cool: { air: 0.55, liquid: 0.50 } },
-  electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.11 } },
+  // (VELIS-INSTALL, proto 17 Nov, the user: "a simple yet accurate thermal model for the electric engine ... mostly a kW
+  // load"): an air-cooled motor rejects its own and its controller's loss, 11 % of the shaft (the E-811's 89 %, POH-128
+  // 7-12); a LIQUID-cooled drive's loops also carry the packs' - ~2 % of a ~64 kW draw at take-off, 1.3 kW - 15 %
+  electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.15 } },
   // A TURBINE (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §1): a PT6
   // burns 0.33-0.37 kg/kWh at rated power (the classic 0.55-0.60 lb/shp-h);
   // the heat leaves BY THE PIPE and the cowl only cools the oil — ~5 % of
@@ -3006,9 +3014,7 @@ var GROUND_WX = (function () {
 //   R coverage   0..1 — the fraction of the column the cloud fills, 0 = clear
 //   G height     0.5..1 — the column's own top as a fraction of the layer's
 //   B lumpiness  0..1 — a second noise the GLSL uses to vary the profile
-//   A rain       0..1 - the column's rain POTENTIAL (RAIN, 16 Nov 2026): where this deck rains when the day rains.
-//                The day's d.rain multiplies it at use (CLOUD_FIELD.rainAt, the march's uniform), so the map stays a
-//                pure function of (seed, cover, type): a dry day is bit-identical, a rain change never re-fits the map
+//   A wetness    reserved (precipitation is its own session)
 // The coverage's threshold is the (1 − cover) QUANTILE of the noise, so the
 // covered fraction of the map IS the day's cloudCover — exactly, not by eye
 // (GATE CLOUD holds it within 5 % after the soft edge).
@@ -3045,15 +3051,6 @@ var CLOUD_FIELD = (function () {
   const MAX_LAYERS = 3;                   // the low deck + two upper decks (the cirrus veil is the dome's, not a layer)
   const LAYER_GAP = 150;                  // m of clear air between one deck's top and the next one's base
   const typeOf = t => TYPES[t] ? t : 'cu';
-  // RAIN (16 Nov 2026; the user: "a proper, very optimized job"; RAIN-STUDY-2026-11-16 section 3.0): which decks rain and how.
-  //   'conv' (cu, cb): the dense, tall columns rain (Nubis: "high densities precipitate") - smoothstep(lo, hi, coverage x height)
-  //   'strat' (st, sc, as): broad, even rain under the sheet - the coverage x k (st a drizzle, sc light)
-  //   cuh (fair-weather cumulus) and ac never rain
-  const RAIN_OF = Object.freeze({ st: { k: 0.6 }, sc: { k: 0.8 }, as: { k: 1 }, cu: { lo: 0.45, hi: 0.85 }, cb: { lo: 0.3, hi: 0.7 } });
-  function rainPotential(type, c, h) {
-    const R = RAIN_OF[type]; if (!R || !(c > 0)) return 0;
-    return R.k != null ? R.k * c : smooth(R.lo, R.hi, c * h);
-  }
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
@@ -3104,7 +3101,7 @@ var CLOUD_FIELD = (function () {
       data[k * 4] = c;
       data[k * 4 + 1] = T.hsMin + (1 - T.hsMin) * clamp(0.6 * Math.sqrt(c) + 0.4 * C.h2[k], 0, 1);   // bigger columns stand taller
       data[k * 4 + 2] = C.l2[k];
-      data[k * 4 + 3] = rainPotential(type, c, data[k * 4 + 1]);
+      data[k * 4 + 3] = 0;
     }
     return { N, span: SPAN, data, cover, type, seed, lo, hi };
   }
@@ -3188,20 +3185,7 @@ var CLOUD_FIELD = (function () {
     if (out[i]) Object.assign(out[i], patch);
     return out;
   }
-  // rainAt(map, lay, x, z, h, o) -> the rain rate 0..1 at a point (RAIN 16 Nov): o.rain (the day's d.rain; 0 or missing = 0,
-  // nothing sampled), o.drift (the deck's), o.wind [wx, wz] m/s and o.vFall (m/s, default VFALL): below the base the rain left
-  // the base (base - h) / vFall seconds ago, so it is read UP-WIND by wind x that time - the shafts slant. Inside the deck the
-  // potential itself; above the deck's top none.
-  const VFALL = 6.5;   // m/s - a 2 mm drop (Gunn & Kinzer 1949, read off the curve)
-  const _r4 = [0, 0, 0, 0];
-  function rainAt(map, lay, x, z, h, o) {
-    const rain = o && +o.rain > 0 ? Math.min(1, +o.rain) : 0;
-    if (!rain || !map || !lay || !RAIN_OF[lay.type] || h > lay.top) return 0;
-    const t = Math.max(0, lay.base - h) / Math.max(0.5, o.vFall || VFALL), w = o.wind || null;
-    const sx = w ? x - w[0] * t : x, sz = w ? z - w[1] * t : z;
-    return rain * sample(map, sx, sz, o.drift, _r4)[3];
-  }
-  const API = { SPAN, RAIN_OF, VFALL, rainPotential, rainAt, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, LOW_EFF_STEP, typeOf, weatherMap, sample, coverFraction, profile, lowOf, layer, layers, upperWith, columnOD, vnoise, fbm };
+  const API = { SPAN, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, LOW_EFF_STEP, typeOf, weatherMap, sample, coverFraction, profile, lowOf, layer, layers, upperWith, columnOD, vnoise, fbm };
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLOUD_FIELD;
@@ -52553,9 +52537,16 @@ function genWingInto(def, out) {
         const linR = PP.xRat(zs0) + (PP.xRat(zs1) - PP.xRat(zs0)) * t;
         pF[0] += PP.xFat(z) - lin; pR[0] += PP.xRat(z) - linR;
       }
+      // TIP-TE (proto 17 Nov): the bow's chord closes from the leading edge only - both spar points slid aft along the
+      // chord by tipTE x (1 - sparF) x (the joint's chord - this one), so the trailing edge holds its line to the tip
+      const cZ = PP.chordAt(z);
+      if (W.tipTE > 0 && W.tipR > 1e-6 && z > W.tipZ + 1e-6) {
+        const cJ = PP.chordAt(W.tipZ), d = genV3.norm(genV3.sub(pR, pF)), s2 = W.tipTE * (1 - sparF) * (cJ - cZ);
+        for (const q of [pF, pR]) { q[0] += d[0] * s2; q[1] += d[1] * s2; q[2] += d[2] * s2; }
+      }
       return { pF, pR,
                wF: [[F0, 1-t], [F1, t]], wR: [[R0, 1-t], [R1, t]],
-               chord: PP.chordAt(z) };
+               chord: cZ };
     };
     const secAt = (z, a, b, n, pts) => {
       const f = frameAt(z);

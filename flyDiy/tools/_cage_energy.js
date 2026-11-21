@@ -2975,7 +2975,7 @@ PAGE.post = ctx => {
   // the game seeds through applySpec; a bench reload seeds from its memory;
   // a first build with neither carries the default
   if (!seeded) {
-    if (inGame() && window.GARAGE_SPEC) {
+    if ((inGame() || window.QS_SEED_ENERGY) && window.GARAGE_SPEC) {   // (QS_SEED_ENERGY: proto 17 Nov, quickshot draws the build's own packs)
       try { const S0 = window.GARAGE_SPEC.get(); fromSpec(S0.energy, S0); } catch (e) {}
     }
     if (!seeded && !loadPrefs()) fromSpec(null);

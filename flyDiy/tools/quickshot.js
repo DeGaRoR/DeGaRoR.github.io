@@ -121,8 +121,9 @@ else if (argv.includes('--crew') || CUT_K) SH.context({ include: ['_cage_crew.js
 // --level n: the sheet's subdivision (the garage draws 2, the drafting table measures its draft at 0)
 const LEVEL = opt('level', null) != null ? { level: +opt('level') } : {};
 const S = PARTS ? SH.sceneBuild(spec, Object.assign({ over, garage: spec }, LEVEL)) : await SH.sceneBuildWhole(spec, Object.assign({ over, garage: spec }, LEVEL));
+if (process.env.QS_VESSELS) { try { const E = SH.context().ctx.CAGE_ENERGY; const R = (E && E.results ? E.results() : null) || []; for (const r of R) console.log('QSV', JSON.stringify({ ok: r.ok, why: r.why, c: r.c, e: r.e, along: r.along, lv: r.lv, sL: r.sL, bay: r.v && r.v.bay, fits: r.fitsSkin, oSkin: r.outsideSkin, oBay: r.outsideBay, clear: r.clear }, (k, v) => typeof v === 'number' ? +v.toFixed(3) : v)); const B = E.bays ? E.bays() : null; if (B) for (const k in B) { const b = B[k]; if (b && (k === 'nose' || k === 'aftCabin' || k === 'cabin')) console.log('QSB', k, JSON.stringify(b, (kk, v) => typeof v === 'number' ? +v.toFixed(3) : (Array.isArray(v) && v.length > 8 ? '[' + v.length + ']' : v)).slice(0, 400)); } } catch (e) { console.log('QSV err', e.message); } }
 if (S.errors.length) console.log('layer errors: ' + S.errors.length + ' ' + S.errors[0].split('\n')[0]);
-const THREE = SH.context().THREE;
+const THREE = SH.context().THREE; if (process.env.QS_VESSELS) SH.context().QS_SEED_ENERGY = true;
 const A = !PARTS && S.W.AEROSKIN;
 
 // ---- the triangles, world metres, with a colour --------------------------------------------------------------
@@ -179,7 +180,7 @@ const NOSE_DECK = OPEN && +P.noseDeck && CG2W && CG2W.cageNoseDeck ? CG2W.cageNo
 // the sheet's paint (the whole view): each section by the garage's own rule (_scene_headless secPaint = _cage_ui matOf)
 const sheetCol = {}, sheetPaint = m => {
   if (sheetCol[m]) return sheetCol[m];
-  const glass = GLASS.has(m) || GLASS_RE.test(m);
+  const glass = GLASS.has(m) || (GLASS_RE.test(m) && !/^pillar/.test(m));   // (proto 17 Nov: 'pillarWindow' is the pillar, not glass)
   if (glass) { const G = A && A.aeroGlassSpec ? A.aeroGlassSpec(spec) : {}; return (sheetCol[m] = { col: hex(G.tint != null ? G.tint : 0x6f8fa8), al: 0.32, glass: 1 }); }
   const pt = S.secPaint ? S.secPaint(m, null, true) : null;
   return (sheetCol[m] = { col: hex(pt ? pt.hex : 0xb8bcc2), al: 1, ok: A && A.aeroDecOk ? A.aeroDecOk(m) : 1 });
@@ -297,7 +298,7 @@ S.scene.traverse(o => {
   // (the vessels and the fuel are inside, the tank tools' job; edCrewPick is the crew's invisible pick box)
   // --crew (the user 10 Nov: "render the seat"): the crew layer's meshes (the seat, the pilot) drawn in --parts too; the
   // whole view draws the crew always (QUICKSHOT-ONE), so there --crew changes nothing
-  if (o.visible === false || /^edVessel_|^edFuel_/.test(o.name || '') || (!(PARTS && CREW) && /^edCrew/.test(o.name || ''))) return;
+  if (o.visible === false || (!process.env.QS_VESSELS && /^edVessel_|^edFuel_/.test(o.name || '')) || (!(PARTS && CREW) && /^edCrew/.test(o.name || ''))) return;
   let hidden = false; for (let q = o; q; q = q.parent) if (q.visible === false) hidden = true;
   if (hidden) return;
   // THE CABIN'S WHOLE ITEMS (a cut never slices them): the pilot, the occupants, the seats, the controls, the consoles,

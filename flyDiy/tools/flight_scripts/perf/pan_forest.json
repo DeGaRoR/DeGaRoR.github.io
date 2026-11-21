@@ -1,0 +1,26 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_pan_forest",
+ "what": "THE USER'S 360 PANS (l.11): a full turn of the camera at w1 (forest), on the ground, the scene settled",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "w1",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "settle (forest)",
+   "do": "start",
+   "until": {
+    "s": 20
+   },
+   "capS": 60
+  },
+  {
+   "name": "pan 360 (forest)",
+   "do": "camera",
+   "view": "pan360",
+   "sweep": 360,
+   "s": 30
+  }
+ ]
+}

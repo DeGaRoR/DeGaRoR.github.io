@@ -318156,6 +318156,42 @@ KNIFE corpus re-recorded (A0, L40e's one new red): IDENTITY moved on the Cub fam
 
 **THROTTLE-SHOULDER (PROPER-COWLS, the user 16 Nov: "the throttle should be placed through the shoulder, and it currently can't do that properly, the big panel sticks out" - then "Yes" to fixing it and moving the Cubs).** (1) _cage_gen.js: the throttle's request (ctlThr 4/5) carries the crew's station in metres (0.45 + seatZ + thrZ over planeScale; the 0.05 was added in cage units, 1.6 cm off at planeScale 0.68) and the ring it stands off: a rear-seat pilot's bay-1 aft ring (crewPilotRear's rule), else pilCabB as before. (2) _shoulder_gen.js: the slot lever's length is the thrLen row's (pivot to knob, at least the old 45 mm through the face); absent = the old fixed reach. (3) _cage_crew.js: ctlThr 4 seats its flange at the cage pass's own measured height and station (plateY / plateZ, less the rows' shift the crew adds itself); with no shoulder at the station (4 or 5) the wall lever stands on its flange only, never the 20 x 13 cm cast plate that stood through the Cubs' skin, and the page warns. (4) _cage_crew.js wallUnder: the trim wheel's and the fuel selector's wall plates seat on the innermost wall over their footprint, 3 mm in (the trim plate stood 1 mm proud of the Carbon Cub's lower wall: the user's circled black corner; now 7 mm inside). The STOL Cub (stol_cub_showcase) ctlThr 0 -> 5; the certified J-3-chord card and the stock Piper Cub keep 0 (ctlThr is in the certificate). Physics unchanged (STOL Cub: same numbers, same spec hash). NOTE the cause of the user's "big panel": the garage page I published loaded tools/_cage8.html's old list, without _shoulder_gen.js, so every ctlThr 5 fell back to the cast plate; the page now loads build.js's own editor list. SHOULDER CREWSEATS CREWLOAD DASH PANEL CABIN EDBUGS SKIN FRAMES DMGMEMBERS COMMITHYGIENE green (CREWLOAD's retry clock red once under 4 jobs, green alone); PARTS CANDIDATES JOINPARITY ENGCONFIG fail as on the base (digests line for line).
 
+## ELECTRIC-TRAINER - the official Electric trainer (FLAGSHIP, 17-18 Nov 2026, claude/ready/electric-trainer off master 5f33d6bb7 = L40G)
+
+The user (17 Nov): "send this as-is ... for inclusion as an official plane. We'll call it the electric trainer. We'll do the
+thermal engine version later." No real names on it (the user). Plane-list row 61, reproduction, F-WETR,
+`builds/candidates/electric_trainer.json`: a Virus-type two-seat electric trainer, the outside fitted on the drafting table
+to the type's three-view at level 2 (the blueprint is private), the drive, packs, cabin and lights (none) from the type's
+electric flight manual. Its reference block (`ref`) carries the figures and their sources.
+
+THE GENERATOR ROWS IT NEEDS (each absent / 0 at its default - no other build moves - except where said):
+`frLeanCap`; `boomRound` / `boomRoundAt`; `wsStraight` (the glass's centre line straight base -> top; `wsBaseCrown` unused);
+`finVentralLand` / `finVentralSweep` (a ventral without floats / twin booms); `s2Inline` (the steered nose oleo's fork in the
+strut's line, its shroud stopped above the tyre / spat); `wgTipTE` (the tip bow's trailing edge straight); `seatStickCut`
+(the carbon bucket's stick notch); `dashBack`'s range to 0.80.
+THE E-811 IS THE INSTALLED MOTOR (the user, 18 Nov: "we have to modify the existing E811"): `e811_velis` 30 -> 53 kg,
+liquid (motor + controller + both coolant loops + HV cabling, POH-128 7-12..7-17; its dial point re-pinned). It also
+rides the LS4 (unpowered, engOn 0: no mass, measured unchanged) and the e-trainer archetype (follows; the archetypes go).
+CHANGES THAT MOVE OTHER BUILDS: BEAM-FLAT (every beam leg: the blade thin from the front, wide from the side - the user,
+"fixed once and for all"; drawing only); the electric liquid loop's heat share 0.11 -> 0.15 (the packs; liquid electrics
+only - none flew before this one); DASH-BAND (a `wsToWaist`
+build whose glass base bows high now gets its dash - the trace widens to two fifths only when the fifth finds < 4 edges);
+LINER-NGON (the composite liner lines the knife's n-gons round a drawn window - it stopped in steps).
+TOOLS: `perf_study --build=... --door` loads the build through `_load_build` (WITHOUT IT A DRAFTING-TABLE FILE FLIES ITS
+STALE SAVED WING - this card flew the base's 9.0 m wing until found), a `velis` reference row; quickshot `QS_VESSELS=1`
+draws the build's packs; quickshot no longer paints `pillarWindow` as glass; the liquid electric drive draws its radiator
+(the `rad*` rows), pumps and HV box on the stand.
+
+WHERE IT STANDS (bench at 600 kg, --door): empty 420 / 428 kg, CG 28 % MAC (25.2-32.6), margin 21 %, stall 90 / 94 km/h,
+Vs0 83 / 83, climb 3.5 / 3.3 m/s, 75 % level speed 173 / 170 km/h, take-off roll 232 (flown 283) / 240 m, endurance at
+20 kW ~64 / 62 min, cooling climb margin 1.8 (front ring + chin scoop).
+OWED, NAMED: (1) THE WING BUCKLES at 3.5 g in the sandbag test (the front spar kinks; 4.2 g in carbon) against +4 limit /
+6 ultimate: the cantilever box is not sized to its root moment - the same gap breaks the Tiger Moth (5.3 g), Stearman
+(4.0), motorglider (5.25) archetypes (REF_MATCH section 7, OPEN). It flies circuits; hard manoeuvres break it.
+(2) THE LANDING ROLL is long: 443 m flown (normal pilot) / 183 POH; the short-field pass does not finish its landing.
+(3) glide 12.4 / 15 (parasite CdS 0.41, the bare main gear the largest share); (4) no continuous rpm limit (top speed
+193 / 172; REF_MATCH section 7); (5) the windscreen base arc has small kinks (few control points). The thermal variant later.
+
 ## L40g BONUS (A0, Tue 17 Nov 22:15 train, pushed ~01:10 Wed; after the L40f scenery train, the user: autopilot/crash/planes as a bonus)
 TAKEN (14): tutorial-menu-click, mission-feas, tow-launch-l40f-2 (on afb-0220-b3-2), controls-strip, pilot-dare-2 (ALTI-TOP + no altiport decline + COMMITTED + ALTI-ROUGH + no polite divert + uphill + tail-down taxi), flight-script-page, deform-l40a-reds, joint-tether, dmg-upload, flagship-tools, pc6-l40f (tail gear sourced, alu prop, gear lever + amphibian floats, PLANES.pc6f), carbon-cub-final-2, throttle-shoulder, reg-jost (Jost Bold + reg placement).
 DROPPED -> L40h: ls4-2 (real conflict with tow-launch in 60_gen_spec.js / _cage_gen.js / _gear_page.js: REAL-FIGURES re-merges on master).
@@ -318168,3 +318204,60 @@ NEW REDS (named; owners fix next):
 - SLOPE: the user's Cub at tw_ski 280 x 6 off-strip (the 6 m roll-out: Pilot's ROLL-OUT TRACKING, owed).
 - TERRAINMATCH: potato tier pavement within 3 km +2 % (tow's joined roads) - TOW-LAUNCH.
 - TOW: the archaeopteryx circuit row (the card's pitch instability, its owner's).
+
+## PERF-BENCH - THE IN-GAME BENCHMARK BUTTON (Game, 17 Nov 2026; PERF-WEEK-METHOD-2026-11-14 line 18; claude/bench-button)
+- The game menu's "Benchmark" row opens a card (src/viewer/perf_bench.js, window.FLYDIY_PERFBENCH): Pilot's scenarios
+  (tools/flight_scripts/index.json {name, what, file}, else the library) run IN THE PAGE with flight_script.js runPage's
+  rules and Pilot's step kinds (skip, camera orbit/pan360/chase/cockpit/free, weather, time, dest, shed, rollout, wait with
+  until.s; minimap and load said skipped until the page has their API); the plane seeded as the working build (flydiy.wip)
+  and the page reloaded with the run armed in sessionStorage, so the boot is timed (the loading screen's frames, long
+  tasks, the first contact to the garage); the garage steps (the editor's sliders input-to-frame, every game-menu row opened
+  and closed); an optional crash lag (2 m under the ground, 6 s of frames). The phone profile runs the garage steps.
+- ONE LOG (Pilot's PERF-TRACE-FORMAT.md): every step is FLIGHT_REC.mark('seg:<name>'), 'seg:end' at the end, the run said
+  once as FLIGHT_REC.event('bench', ...runner 'ingame'), and FLIGHT_REC.save() downloads the recorder's log; Pilot's
+  tools/perf_trace.js makes the report. With ?rec=0 the summary JSON is downloaded instead. The card keeps the last summary.
+- THE LOADS (the user via A0): TIME-TO-GARAGE (the welcome menu's click, else the page load -> the garage), TIME-TO-WORLD (Go ->
+  flying, the world settled: the roll-out screen gone and 2 s of frames under 100 ms), WORLD-TO-GARAGE (the shed -> the garage up),
+  COLD then WARM (a second launch, the cache kept; the source recorded), each split off BOOT.log: shaders (steps + programs
+  linked), assets (resource timings: count, KB, span, cached share), world, settle, impostors, other; targets ~20 s / 30 s max.
+- GATE PERFBENCH (25 checks, --selftest 6 breaks red; the frame counts on the meter's lines from Codex's flightlog_evidence.js).
+  GPU CHECK (18 Nov, RTX 3080, gamer): 03:45 one miss (the menu step clicked update/clean rows that reload the page: now an
+  allowlist; the progress kept in sessionStorage). 06:00: the card, the menu row and the WHOLE garage run (two launches, sliders,
+  menu rows, the marks seg:*, the bench event, the log saved) checked; the scenario run reached its garage steps when the slot's
+  cap came - its flight is NOT GPU-checked yet. First numbers: TIME-TO-GARAGE 129 s cold / 149 s warm (shaders 61 s, 583
+  programs; world 34 s; settle 15 s), TIME-TO-WORLD 8 s; garage sliders 400-530 ms input-to-frame (target 100); the menu's
+  Studio row 5.6 s. WORLD-TO-GARAGE read 125 s = a timeout (the run waited on body.garage; fixed: body.mode-ws) - re-measure.
+## SCUFF-WING - the Cub's wing panels drawn WHITE after a slide: the scuff's fabric scrape overreaches (Deform, 17 Nov 2026)
+The user (17 Nov, on the joint-tether stills, circled): "some part of your wings there on the cub have become completely
+white ... there's no way a panel would have been stripped clean of its paint like this over the whole surface."
+Measured (GPU slot 18:20, page_rig, joint-tether 68762a9b9, the Cub nose-down and the tree at 100 km/h, the same wreck
+and eyes three ways - flydiy-notes/evidence/scuff-white-2026-11-17/cub_nosedown_scuff_ab.jpg): ALL ON - the wings white
+/ silver; FLYDIY_SCUFF_SHOW(false) - yellow again; the crash-look cut copies hidden as well - no further change. It is
+the SCUFF (skin_scuff.js), not the cut copies, and it is master's (the 17 Nov master stills show it too).
+Why: a node's scrape sI = 1 - exp(-slideWork / scrapeW 60 J) saturates past ~25 cm of slide, so a wing that slid
+metres puts every node at 1; a place takes its nodes' weighted scrape (only the facing gates it), so the whole panel
+reads full; at full the shader's chips merge (bareCov) and the EXTREME streaks (gOff) cover it - on fabric the silver
+dope (0.42 grey, near white in sun) over the entire surface.
+OWED (Deform, L40g): fabric is never stripped whole - its bare dope only along the slide's streaks and gouges and over
+the structure it rides on (the ribs / stringers press the cloth into the ground), the rest scuffed and soiled; no
+chip-merging cover on fabric. Then the same three-way stills to the user before the ready.
+THE USER'S DIRECTION (17 Nov, after the A/B): "the real thing is the dents and the dirt and everything that would scratch
+it would probably leave dark marks, and not simply a scratch off hyper clean like this ... it tries to do too much. It
+gets too much coverage. What we really needed was some streaks to show that a part which has been thrown on the ground
+would have like dark streaks." So the scuff's REDESIGN (L40g): DARK STREAKS along the slide on the side that touched
+(asphalt / rubber / soil / grime ground in), their density with the slide's work, never a whole panel; no stripping to
+silver dope, primer or bare alloy (at most a few thin bright scratches inside the dark streaks on metal); the dents, the
+fabric's creases, the torn band and the soft ground's soil / grass stain kept; the chip-merging cover and the EXTREME
+layer gone. Stills (same wreck, before / after) to the user before the ready.
+
+SHIPPED as is (the user 18 Nov: "I don't mind the bar code so much ... scratched metal does look like that ... probably the best version we had so far, so maybe roll out"); OWED after the credit reset: the blocky stepped brown patches on the cowl (the crush flake - pre-existing, not this change).
+
+## L40h (A0, Wed 18 Nov 2026, 14:00 train, pushed ~17:00)
+TAKEN (6): rock-study f67f07629 (rockExpoAt / rockGreenAt), world-rail-veg 23c10ee40 (no trees on stone, bushes in the rock's greenery), perf-bench f35df6861 (Pilot's 21 scenarios + perf_trace + PERF-TRACE-FORMAT.md), bench-button 03286b9fa (Game's in-game Benchmark: cold/warm loads with phases, sliders, menus), electric-trainer-2 5cf093fc8 (row 61 F-WETR, official; e811_velis = the installed 53 kg motor), scuff-wing a8dbd4afe (the scuff redesign, the user: as is).
+DROPPED -> L40i 20:00: ls4-2, pc6-liveries, one-cessna-2 (real conflicts with electric-trainer-2 in plane_lists.json / candidates index.json / _gear_gen.js / realband_baseline; owners rebase on this master). rain-2 not ready.
+BATTERY: 301 PASS / 61 FAIL. FIXED vs L40g: COMMITHYGIENE.
+NEW REDS (named):
+- GFX: "no device test outside welcome.js": src/viewer/perf_bench.js reads the device (its job: the benchmark's machine row) - Game to add it to the allowed list with the reason.
+- MONOWHEEL: E, parked on the wheel + nose skid + one wingtip skid - FLAGSHIP (the E811 change / electric trainer) to check.
+- TAILWHEEL: I, down & out lands HOME at 22.57 m/s, roll-out 0 deg - Pilot / FLAGSHIP to check against the E811 change.
+NAMED for list:50 (rides L40i): DMGCERT BROKE UP with no BROKE AT (18 wing members kink at 7.4 g, nothing detaches).

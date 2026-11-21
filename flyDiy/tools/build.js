@@ -737,6 +737,9 @@ const MANIFEST = {
               'dmg_glass.js',
               'skin_scuff.js',          // G2000 (DMG-SCUFF): the damage drawn - after skin_break.js, before app.js
               'world_boot.js', 'app.js',
+              // PERF-BENCH (17 Nov, PERF-WEEK-METHOD line 18): the in-game benchmark - the game menu's row, Pilot's scenarios in the
+              // page, one JSON trace by a download; after app.js (it waits for FLYDIY_MENU / FLIGHT_PROBE), its frames from eval
+              'perf_bench.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
   // THE EDITOR (G35): the cage bench, embedded — the game's editor since the
