@@ -246,7 +246,7 @@ console.log(`TERRAIN MATCH ${PRESET}: ${gated.length - bad.length} of ${gated.le
 // stand: tools/terrain_still.js shoots it on the water)
 const WHEELS = [];
 if (!argv.includes('--nowheels')) {
-  const BUILDS = { cub: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), jodel: path.join(ROOT, 'builds', 'jodel_2026-09-20_corrected.json'), cessna: path.join(ROOT, 'bugReports', 'cessnaMetal (1).json') };
+  const BUILDS = { cub: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), jodel: path.join(ROOT, 'builds', 'jodel_2026-09-20_corrected.json'), cessna: path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json') };
   const BJ = require(path.join(T, 'ground_gap.js')).BJ;   // (the editor's bake of a build, as ground_drawn --stands)
   for (const [key, file] of Object.entries(BUILDS)) {
     const raw = JSON.parse(fs.readFileSync(file, 'utf8')), spec = BJ.bakeJoined(raw.spec || raw).spec;

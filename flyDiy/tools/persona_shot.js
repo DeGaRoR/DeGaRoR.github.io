@@ -20,7 +20,7 @@ const PORT = +opt('port', 8131);
 let pw;
 try { pw = require('playwright'); } catch (e) { pw = require(path.join(cp.execSync('npm root -g').toString().trim(), 'playwright')); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const WIP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_cub_wip.json'), 'utf8');
+const WIP = fs.readFileSync(path.join(__dirname, 'fixtures', 'test_copies', 'garage_lag_cub_wip.json'), 'utf8');
 const NOGL = process.argv.includes('--nogl');
 const QS = opt('qs', '');   // e.g. --qs=?simw=0 (the inline pilot)
 

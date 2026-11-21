@@ -236,8 +236,8 @@ async function pool(jobs, n) {
   { const SH = require(path.join(T, '_scene_headless.js')), PH = require(path.join(T, '_pose_headless.js'));
     const W = SH.context().ctx, THREE = SH.context().THREE;
     for (const dirI of [0, 1, 2, 3])
-    for (const f of ['fixtures/build_v8_twin-boom_2026-09-11.json', 'fixtures/Twin_busher_floats_2.json',
-                     'fixtures/build_v10_engcfg_pushpull_2026-10-22.json']) {
+    for (const f of ['fixtures/test_copies/build_v8_twin-boom_2026-09-11.json', 'fixtures/test_copies/Twin_busher_floats_2.json',
+                     'fixtures/test_copies/build_v10_engcfg_pushpull_2026-10-22.json']) {
       const IVT = { stMount: 4, stIvDir: dirI, stCant: 35, stX: 0, stY: 0, stZ: 0, stIvGap: 0.30, finOn: 0 };   // the Empennage tiles' write
       const fx = SH.loadFixture(path.join(T, f)), S = SH.sceneBuild(fx.spec || fx, { over: IVT });
       S.scene.updateMatrixWorld(true);

@@ -204,8 +204,10 @@ if (SELF) {
   red('a map row without its picture', () => sourceRows(Object.assign({}, S, { map: S.map.replace("planeIc('design:' + L.design, ", "planeIc('', ") })));
   red('the Fleet pool group gone', () => sourceRows(Object.assign({}, S, { fleet: S.fleet.replace("'Candidates: built here, not yet certified'", "''") })));
   red('the core names the pool', () => sourceRows(Object.assign({}, S, { core: S.core + "\nconst X = 'builds/candidates/a.json';" })));
-  red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(R.files)[0], name: 'x' }); return reviewRows(R, JSON.stringify(o)); });
-  red('a review plane with no REVIEW.md row', () => reviewRows({ files: R.files, md: '' }, P.index));
+  // (CANON-CLEAN 13 Nov: review/ may hold no plane - the breaks then run on a stand-in, so they are never inert)
+  const RS = Object.keys(R.files).length ? R : { files: { 'stand_in.json': P.files[first] }, md: R.md + '\n| stand_in.json | a stand-in |\n' };
+  red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(RS.files)[0], name: 'x' }); return reviewRows(RS, JSON.stringify(o)); });
+  red('a review plane with no REVIEW.md row', () => reviewRows({ files: RS.files, md: '' }, P.index));
   red('a pool tile without its picture', () => sourceRows(Object.assign({}, S, { fleet: S.fleet.replace("thumb: key", 'thumb: null') })));   // PLANE-LIST: no stock shelf, its break retired
   red('no export all button', () => sourceRows(Object.assign({}, S, { body: S.body.replace('<button id="gExportAll"', '<button id="gX"') })));
 }
