@@ -208,6 +208,8 @@ var CLOUDS = (function () {
     float gPix = 0.0, gFullJ = 0.0, gTm = 0.0;   // gFullJ: the history is on: a whole step's jitter, per frame, at every distance; gTm: out: the cloud's mean distance (m)
     ${DENSITY_GLSL}
     ${ATMO_GLSL()}
+    // RAIN 13: the light falling on a full deck's top, as a grey (the sun x its height / pi + the sky); x 1 / (1 + 0.75 tau (1 - g)) below it
+    float ovcTop() { vec3 E = uSunCol * (max(uSun.y, 0.0) * 0.3183099) + uAmbTop; return dot(E, vec3(0.2126, 0.7152, 0.0722)); }
     float hg(float c, float g) { float g2 = g * g; return (1.0 - g2) / (12.5663706 * pow(1.0 + g2 - 2.0 * g * c, 1.5)); }
     float phase(float c, float g) { return 0.7 * hg(c, g) + 0.3 * hg(c, -0.3 * g); }
     // the light march: optical depth toward the sun from p, within deck li (its self-shadow)
@@ -270,17 +272,18 @@ var CLOUDS = (function () {
         if (float(i) >= ns || T < 0.01) break;
         float t = r0 + (float(i) + j) * dt;
         vec3 p = o + d * t;
-        float A = 0.0, cov = 0.0;
+        float A = 0.0, cov = 0.0, ovR = 0.0, thR = 0.0;
         for (int li = 0; li < MAXL; li++) {
           if (uLayerA[li].z < 0.5 || p.y >= uLayerA[li].x) continue;
           vec3 ps = p - vec3(uRainW.x, 0.0, uRainW.y) * (uLayerA[li].x - p.y);
           vec4 w = weather(li, ps);
-          if (w.w > A) { A = w.w; cov = w.x; }
+          if (w.w > A) { A = w.w; cov = w.x; ovR = ovcOf(li); thR = uLayerA[li].y; }
         }
         if (A <= 0.0) continue;
         float R = 12.0 * pow(A * uRain.x, 1.5), ext = 0.00025 * pow(R, 0.63) * uRain.y;
         float Tstep = exp(-ext * dt), a = 1.0 - Tstep;
         vec3 Ls = mix(uAmbBot, uAmbTop, 0.5) * uRainW.z + uSunCol * phase(cosT, 0.5) * exp(-cov * 3.0) * step(-0.05, uSun.y);
+        if (ovR > 0.0) Ls = mix(Ls, vec3(ovcTop() / (1.0 + 0.1125 * uGlob.x * uShape.w * thR)), ovR);   // RAIN 13b: under a full deck the veil is lit by its diffused light
         col += T * Ls * a; tw += T * a * t; tsum += T * a; T *= Tstep;
       }
     }
@@ -363,8 +366,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
           float ovG = ovcOf(li);
           vec3 ambL = mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z));
           if (ovG > 0.0) { float tauA = uGlob.x * uShape.w * uLayerA[li].y * (1.0 - h);
-            vec3 Etop = uSunCol * (max(uSun.y, 0.0) * 0.3183099) + uAmbTop;
-            ambL = mix(ambL, vec3(dot(Etop, vec3(0.2126, 0.7152, 0.0722)) / (1.0 + 0.1125 * tauA)), ovG); }
+            ambL = mix(ambL, vec3(ovcTop() / (1.0 + 0.1125 * tauA)), ovG); }
           Ls += ambL;
           float a = 1.0 - Tstep;
           col += T * Ls * a;
@@ -385,8 +387,11 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
       // sky's blue in-scatter of kilometres of air was laid over a cloud that IS that air. The clear air ends at the deck: on a full deck
       // (ovcOf) the haze is taken at the first deck's entry (after gTm: the history keeps the cloud's mean distance). Every fair and
       // broken sky keeps the mean distance, exactly as it was
-      if (n > 0) { float ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }
-      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001)); c = c * ap.a + ap.rgb; c = mistApply(c * uScale, d, tm, o.y) / uScale; }
+      float ovA = 0.0;
+      if (n > 0) { ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }
+      // (RAIN 13b) and the air under a full deck is lit by the deck, not by the sun and the blue dome: there the haze's in-scatter takes
+      // the cloud's own neutral light (its transmittance kept) - the 18 Nov read: the blue the eye saw was this in-scatter
+      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001)); c = c * ap.a + mix(ap.rgb, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))) * (1.0 - ap.a), ovA); c = mistApply(c * uScale, d, tm, o.y) / uScale; }
       return vec4(c * uScale, alpha);
     }`;
   // the fullscreen march: the ray from the inverse projection, the scene's depth from the resolve target

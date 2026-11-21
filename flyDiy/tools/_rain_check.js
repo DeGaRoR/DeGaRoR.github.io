@@ -168,9 +168,11 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   const WR = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
   ok(WR.indexOf("cs('overcast')") > 0 && WR.indexOf("overcast: 'overcast'") > 0, '11c the dial is in the world editor\'s rain block and THE LOOK');
   { const tr = tau => 1 / (1 + 0.75 * tau * (1 - 0.85)), sg = 0.08, rho = 0.35;
-    ok(C.indexOf('ambL = mix(ambL, vec3(dot(Etop, vec3(0.2126, 0.7152, 0.0722))') > 0 && /ovcRho: 0\.35/.test(C) && Math.abs(tr(sg * rho * 300) - 0.513) < 0.01 && Math.abs(tr(sg * rho * 4000) - 0.0735) < 0.005,
+    ok(C.indexOf('ambL = mix(ambL, vec3(ovcTop() / (1.0 + 0.1125 * tauA)), ovG); }') > 0 && C.indexOf('float ovcTop() { vec3 E = uSunCol * (max(uSun.y, 0.0) * 0.3183099) + uAmbTop;') > 0 && /ovcRho: 0\.35/.test(C) && Math.abs(tr(sg * rho * 300) - 0.513) < 0.01 && Math.abs(tr(sg * rho * 4000) - 0.0735) < 0.005,
        '11d the overcast\'s light is neutral and its law reads right: a 300 m stratus passes ' + tr(sg * rho * 300).toFixed(3) + ', a 4 km storm ' + tr(sg * rho * 4000).toFixed(3) + ' of the light on its top'); }
-  ok(C.indexOf('if (n > 0) { float ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }') > C.indexOf('gTm = tm;') && C.indexOf('gTm = tm;') > 0 && C.indexOf('if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }\n      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001));') > 0,
+  ok(C.indexOf('c = c * ap.a + mix(ap.rgb, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))) * (1.0 - ap.a), ovA);') > 0 && C.indexOf('if (ovR > 0.0) Ls = mix(Ls, vec3(ovcTop() / (1.0 + 0.1125 * uGlob.x * uShape.w * thR)), ovR);') > 0,
+     '11g under a full deck the air is lit by the deck: the haze before the cloud and the rain veil take its diffused neutral light, not the clear sky\'s blue (RAIN 13b)');
+  ok(C.indexOf('if (n > 0) { ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }') > C.indexOf('gTm = tm;') && C.indexOf('gTm = tm;') > 0 && C.indexOf('if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001));') > C.indexOf('if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }'),
      '11e on a full deck the haze is taken at the deck\'s entry, not kilometres inside it (the opaque storm deck read blue, 18:05 shoot); a fair sky keeps the mean distance'); }
 
 console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
