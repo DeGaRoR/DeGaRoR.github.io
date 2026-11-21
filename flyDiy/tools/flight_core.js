@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 865dec5c9b4bb26d
+// body-sha256: 01089b78fad5c396
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37595,6 +37595,12 @@ const GEN_DRAG = {
   junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003 },
   // an exhaust stack in the wind
   exhStack: 0.003,
+  // THE SPAN EFFICIENCY OF A SLENDER WING (PHYSICS-AUDIT step 1, 2026-11-21; 62_gen_aero genOswald): the inviscid span
+  // loading of a straight tapered wing (eInv) and the profile drag's growth with CL^2 (kv: a turbulent riveted or
+  // fabric surface 0.007 - with it the law meets Raymer's fit at an aspect ratio of 7.9; a smooth composite skin,
+  // GEN_SURF_MATERIALS cd0 at or under smoothCd0, half of it: sailplanes hold 0.8-0.9 at aspect ratios of 15-25),
+  // phased in over arLo..arHi
+  span: { arLo: 6, arHi: 10, eInv: 0.95, kv: 0.007, kvSmooth: 0.0035, smoothCd0: 0.0006 },
 };
 
 // ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
@@ -39720,7 +39726,12 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      (genHarnessKg: the starter cable, the charging lead, a run per powered load, the outside lights over the span and
 //      the tail arm) where it was 1.2 kg + 0.15 kg per item - every aeroplane with a bus weighs a little more (the Cub
 //      +1.7 kg empty, MASS-BUDGET.md)
-const PHYSICS_V = 9;
+//  10  2026-11-21, PHYSICS-AUDIT (reports/PHYSICS-AUDIT-2026-11-21.md; the user: "I'm OK with the plan and you may
+//      proceed"), its steps 1-4 on one bump:
+//      step 1  the span efficiency of a wing of aspect ratio over 6-8 (62_gen_aero genOswald, GEN_DRAG.span): the polar
+//              of every such wing moves - its induced drag, its lift slope - and so its plaque and certificate; a wing
+//              at or under 6, and a fabric or metal one under 7.9, is as it was to the bit
+const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -49185,8 +49196,22 @@ const GEN_KVISC = 0.845;
 
 // Oswald efficiency, Raymer's straight-wing estimate, times a bracing penalty
 // (a strut and its fairing spoil the span loading near the attach).
-function genOswald(AR, strut, tipE) {
-  const e = 1.78 * (1 - 0.045 * CORE_MATH.pow(AR, 0.68)) - 0.64;
+// ABOVE ASPECT RATIO 6-8 (PHYSICS-AUDIT step 1, 2026-11-21; reports/PHYSICS-AUDIT-2026-11-21.md): Raymer's fit is of
+// conventional aeroplanes and is good to an aspect ratio of about 10 - past it it falls away (0.71 at 12, 0.68 at 13,
+// under the 0.55 floor at 21) where a clean cantilever wing holds 0.8 and more: the Archaeopteryx flew a span
+// efficiency of 0.62 and the LS4 0.52, half of their missing glide. What limits a slender wing is its inviscid span
+// loading and the profile drag that grows with CL^2:  e = 1 / (1 / eInv + pi AR kv)  (GEN_DRAG.span: eInv 0.95, kv by
+// the surface's own finish - a smooth composite skin 0.0035, a riveted or fabric one 0.007). Taken where it is the
+// LARGER of the two, phased in between arLo and arHi so no slider meets a step: at or below arLo (6) every wing is
+// Raymer's, to the bit; a fabric or metal wing's two laws cross at 7.9, so it is Raymer's to there.
+function genOswald(AR, strut, tipE, matCd0) {
+  let e = 1.78 * (1 - 0.045 * CORE_MATH.pow(AR, 0.68)) - 0.64;
+  const SP = GEN_DRAG.span;
+  if (SP && AR > SP.arLo) {
+    const kv = matCd0 != null && matCd0 <= SP.smoothCd0 ? SP.kvSmooth : SP.kv;
+    const e2 = 1 / (1 / SP.eInv + Math.PI * AR * kv);
+    if (e2 > e) e += Math.min(1, (AR - SP.arLo) / (SP.arHi - SP.arLo)) * (e2 - e);
+  }
   // the tip treatment multiplies span efficiency BEFORE the cap: a winglet on
   // an already-efficient wing cannot conjure e past the Raymer ceiling
   return Math.min(0.95, Math.max(0.55, e * (strut ? 0.90 : 1.0) * (tipE || 1)));
@@ -49203,7 +49228,7 @@ function genPolar(naca, AR, strut, matCd0, clmaxK, sweepDeg, tipE) {
   // free way to move the CG.
   const cosL = CORE_MATH.cos((sweepDeg || 0) * Math.PI / 180);
   const a0 = 2 * Math.PI * GEN_KVISC * (1 + 0.77 * t) * cosL;
-  const eAR = Math.PI * genOswald(AR, strut, tipE) * AR;
+  const eAR = Math.PI * genOswald(AR, strut, tipE, matCd0) * AR;
   const a3d = 1 / (1 / a0 + 1 / eAR);
   const Cl0 = a3d * (-aL0);
   const ClMax = (1.38 + 5.0 * m + 1.2 * (t - 0.12)) * clmaxK * cosL;
