@@ -8736,6 +8736,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
     ringReady: (cg, reach, loose) => fillApi ? fillApi.ringReady(cg, reach, loose) : true,   // (B9: the reach passed through - it was dropped here)
     ringStat: () => fillApi ? fillApi.ringStat() : null,
+    // PERF-WORLDBUILD (22 Nov): WHAT EACH STREAMER STILL OWES, COUNTED BY THE STREAMER ITSELF (the settle gate's ledger, app.js
+    // worldAtRest - a report: the gate's own rule is unchanged). 0 = that streamer is at rest. prem: the premises' entries
+    // within the stream's reach; geo: the town's patch and roads owed; fill: the forest's queue, the whole ring (R_ACT, ~9 km);
+    // fillNear: 1 while the forest within `reach` of cg (the 'ring' step's own test) does not stand; cover / grass / lawn /
+    // rocks: each ring's cells queued + blocks to rebuild; rockRing: its chunks queued + in flight in its worker; cards: the
+    // stand-in cards' chunks to make; hlod / hit / life: the premises' far-town cells to merge, its obstacles to register,
+    // its life's stand. geo is the town's geometry waiting for the eye to near it (G2063): a state, not work the gate owes
+    settleStat: (cg, reach) => {
+      const q = r => { if (!r || !r.stat) return 0; let s = null; try { s = r.stat(); } catch (e) { return 0; } return (s.queued || 0) + (s.dirty || 0) + (s.inflight || 0); };
+      const rs = fillApi ? fillApi.ringStat() : null;
+      return { prem: premisesR && premisesR.streamState ? (premisesR.streamState.near || 0) : 0,
+        geo: premisesR && premisesR.geoPending && premisesR.geoPending() ? 1 : 0,
+        fill: rs ? (rs.queued || 0) + (rs.busy && !rs.queued ? 1 : 0) : 0,
+        fillNear: fillApi && cg && !fillApi.ringReady(cg, reach, true) ? 1 : 0,
+        cover: q(coverRing), grass: q(grassField), lawn: q(lawnField), rocks: q(rockLayer), rockRing: q(rockRing), cards: q(standCards),
+        ...(premisesR && premisesR.owed ? premisesR.owed() : {}) };
+    },
     // REVEAL-HITCH (19 Oct): the grass field's and the cover ring's cells round each eye [x, y, z, rad], planted now (cover_ring
     // plantNear; rad in metres, or 'reach': the ring's whole) - app.js hands it the reveal's eyes. `ms` for the call; { built, done }
     coverPlant: (eyes, ms) => {

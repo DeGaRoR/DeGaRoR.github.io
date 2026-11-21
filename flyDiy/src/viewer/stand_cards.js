@@ -269,7 +269,7 @@ const STAND_CARDS = (() => {
           c.stale = true; n++; if (job && job.k === k) job = null; }
         if (n) tick = 0;   // the want list at the next update
         STAT.restaled = (STAT.restaled || 0) + n; return n; },
-      stat: () => Object.assign({}, STAT),
+      stat: () => Object.assign({}, STAT, { queued: queue.length + (job ? 1 : 0) }),   // (PERF-WORLDBUILD: the chunks still to make - the settle gate's ledger)
       has: (x, z) => !!chunks.get(Math.floor(x / S.cell) + ',' + Math.floor(z / S.cell)),
       atlas: () => proto && proto.atlas,
     };
