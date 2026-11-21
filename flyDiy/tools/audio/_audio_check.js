@@ -1292,7 +1292,7 @@ function musicPage(S, o) {
   const st = { made: 0, plays: 0, srcs: [], els: [], durOf: u => (o.durs || SYN_DUR)[u] || 60 };
   const store = o.store || {};
   if (!o.factory && !('flydiy.audio.musicGarage' in store)) store['flydiy.audio.musicGarage'] = '1';
-  if (!o.factory && !('flydiy.audio.musicLoading' in store)) store['flydiy.audio.musicLoading'] = '1';   // (off by default since 2026-10-05, like the garage's)
+  if (!o.factory && !('flydiy.audio.musicLoading' in store)) store['flydiy.audio.musicLoading'] = '1';   // (on by default since 22 Nov; written for the checks written before)
   // ...and they were written on lo-fi (the shipped start is Radio Jolene since 2026-10-05: o.factory checks it)
   if (!o.factory && !('flydiy.audio.station' in store)) store['flydiy.audio.station'] = 'lofi';   // the shipped default is OFF (2026-10-04): the music checks turn it on
   const pg = makePage(S, { quiet: true, store, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook, interval: o.interval,
@@ -1675,16 +1675,29 @@ function checkMusicWiring(S) {
   if (S.engine.indexOf("A.emit('engine', 'start')") < 0 || S.engine.indexOf("A.emit('engine', 'catch')") < 0) F.push('src_engine.js emits no engine start / catch for the music to duck under');
   const pg = makePage(S, { quiet: true }), row = pg.A.SETTINGS.find(r => r[0] === 'musicGarage');
   if (!row || row[1] !== 0 || row[2] !== 'bool') F.push('the settings have no "music in the garage" (off by default: the user, 2026-10-04)');
-  { const fb = { state: 'landing' }, fp = musicPage(S, { factory: true, boot: fb }); fp.F.run(2); fb.state = 'gone'; fp.F.garage = true; fp.F.run(4);
-    if (fp.M.context !== 'none' || fp.F.streaming() !== 0 || fp.F.starts.length) F.push('a fresh player hears music (' + fp.M.context + ', ' + fp.F.starts.length + ' starts): the shipped default is music OFF'); }
+  // RE-PINNED (AUDIO-ROBUST 3, 22 Nov 2026): the user's official performance table (21 Nov) asks for "Music and radio Jolene
+  // during loading screens" (audible, uninterrupted) and A0 relayed it as on by default - so a fresh player now hears the
+  // LOADING SCREEN's music (it was silent: the 2026-10-05 "off for now, for the dev process"), and still nothing in the
+  // shed once the loading screen is gone (the garage's music stays off by default: 2026-10-04)
+  { const fb = { state: 'landing' }, fp = musicPage(S, { factory: true, boot: fb }); fp.F.run(2);
+    if (fp.M.context !== 'welcome' || fp.F.streaming() !== 1) F.push('a fresh player loading screen is ' + fp.M.context + ' with ' + fp.F.streaming() + ' streaming (want its song: on by default since 22 Nov)');
+    fb.state = 'gone'; fp.F.garage = true; fp.F.run(8);
+    if (fp.M.context !== 'none' || fp.F.streaming() !== 0) F.push('a fresh player hears music in the shed (' + fp.M.context + ', ' + fp.F.streaming() + ' streaming): the garage default is OFF');
+    // the loading screen is read NOW (BOOT's state), not off the last frame: a screen that just came up is a loading screen
+    fb.state = 'loading';
+    if (fp.A.welcome !== true) F.push('a loading screen just up reads welcome ' + fp.A.welcome + ' before the next frame (want true: read now)'); }
+  // ...and the player who turned it off (the button: flydiy.audio.musicLoading = 0) hears nothing on a loading screen
+  { const fb = { state: 'landing' }, fp = musicPage(S, { factory: true, boot: fb, store: { 'flydiy.audio.musicLoading': '0' } }); fp.F.run(2);
+    if (fp.M.context !== 'none' || fp.F.streaming() !== 0) F.push('the loading music turned off still plays (' + fp.M.context + ', ' + fp.F.streaming() + ' streaming)'); }
   // THE LOADING SCREENS' BUTTON (#bootMusic, the user 2026-10-05): shown when the sound is built, off by default, both ways
   { const pb = musicPage(S, { factory: true, store: {}, beforeWin: w => { const e = w.document.createElement('button'); e.id = 'bootMusic'; e.hidden = true; w.document.body.appendChild(e); } });
     const b = pb.win.document.getElementById('bootMusic');
     if (!b || b.hidden) F.push('the loading screens’ music button stays hidden');
     else {
-      if (pb.A.get('musicLoading') !== 0 || !/off/.test(b.textContent)) F.push('the loading music is not off by default (' + b.textContent + ')');
-      b.onclick(); if (pb.A.get('musicLoading') !== 1 || !/on/.test(b.textContent)) F.push('the button did not turn the loading music on (' + b.textContent + ')');
-      b.onclick(); if (pb.A.get('musicLoading') !== 0) F.push('the button did not turn the loading music off again');
+      // (on by default since AUDIO-ROBUST 3, 22 Nov 2026 - the user's table; it was off since 2026-10-05)
+      if (pb.A.get('musicLoading') !== 1 || !/on/.test(b.textContent)) F.push('the loading music is not on by default (' + b.textContent + ')');
+      b.onclick(); if (pb.A.get('musicLoading') !== 0 || !/off/.test(b.textContent)) F.push('the button did not turn the loading music off (' + b.textContent + ')');
+      b.onclick(); if (pb.A.get('musicLoading') !== 1) F.push('the button did not turn the loading music on again');
     } }
   // THE SHIPPED START (the user, 2026-10-05): Radio Jolene, a new deal each launch, joined partway into the track
   { const firsts = new Set();

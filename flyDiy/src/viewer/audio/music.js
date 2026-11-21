@@ -274,7 +274,7 @@ var AUDIO_MUSIC = (function () {
   // (`flight` is 1 anywhere out of the shed and past the loading screen: G1723 - no dwell, no height, no flaps)
   function contextOf(welcome, photo, garage, musicGarage, musicFlight, flight, musicLoading) {
     if (photo) return C_PHOTO;
-    if (welcome) return musicLoading ? C_WELCOME : C_NONE;   // a loading screen: its own switch (off by default)
+    if (welcome) return musicLoading ? C_WELCOME : C_NONE;   // a loading screen: its own switch (on by default since 22 Nov, AUDIO-ROBUST 3)
     if (garage) return musicGarage ? C_GARAGE : C_NONE;
     return musicFlight && flight ? C_CRUISE : C_NONE;
   }

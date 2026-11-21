@@ -75,7 +75,10 @@ var AUDIO = (function () {
     ['muteUnfocused', 1, 'bool', 'mute when unfocused', 'silent while another window has the focus'],
     ['headset', 0, 'bool', 'headset', 'in the cockpit, the way a pilot hears it: ~15 dB quieter'],
     ['musicFlight', 0, 'bool', 'music in flight', 'the music plays in the shed; in the air only with this on'],
-    ['musicLoading', 0, 'bool', 'music while loading', 'a random song on every loading screen'],   // the user, 2026-10-05: off by default while the game is developed
+    // the user, 2026-10-05: off by default "for now, for the dev process"; ON since AUDIO-ROBUST 3 (the user's official
+    // performance table, 21 Nov: "Music and radio Jolene during loading screens" - audible, uninterrupted; A0 22 Nov: on by
+    // default). The button on the loading screen (#bootMusic, music.js) still turns it off, and the choice is kept
+    ['musicLoading', 1, 'bool', 'music while loading', 'a random song on every loading screen'],
     ['musicGarage', 0, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js); OFF by default (the user, 2026-10-04: test sessions)
     // G1643 (SND-SPACE, space.js): the headset's kind, and the outside sounds placed for headphones
     ['headsetAnr', 0, 'bool', 'headset: noise cancelling', 'with the headset on: the active kind - the engine\'s drone goes first'],
