@@ -44,6 +44,7 @@ let text=`# Wingsmith performance — consolidated living report
 
 Updated: ${new Date().toISOString()}. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
 
+${require('./final_delivery_report.js')(root)}
 ${require('./pavement_bake_progress_report.js')(root)}
 ${require('./lighting_progress_report.js')(root)}
 ${require('./native_results_report.js')(root)}

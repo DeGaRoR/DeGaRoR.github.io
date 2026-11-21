@@ -1,6 +1,82 @@
 # Wingsmith performance — consolidated living report
 
-Updated: 2026-11-21T14:07:51.927Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+Updated: 2026-11-21T20:50:58.041Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+
+## Final delivery — 21 November 2026
+
+**Branch:** `codex/wingsmith-performance-audit` (local audit worktree). **Generated game build:** `47a1bd547eb4`. Game source checkpoint: `3c8e9a3c6`; subsequent report/tooling commits do not enable the experiments. `master` is the GitHub Pages branch and has not been changed or published.
+
+**Delivered configuration:** approved mist B and the retained source optimizations. Use the playtest URL below for the accepted advanced-cliff/runtime-aircraft-bake exclusions and static Cub/C172/Jodel. Town, animals, sub-alpine vegetation, extra forest edge, dust/spray, traffic, damage/scuff/cracks, original high-poly runway geometry and its cues remain. Original scuff stays selected. Compact runway bakes, simplified scuff and unproven CPU/cache prototypes stay OFF. Their code is parked for inspection.
+
+### Clear latest figures
+
+| Observation | Menu → garage readiness(s) | Protocol and interpretation |
+| --- | ---: | --- |
+| Historical original full hangar |243.853| Earlier diagnostic startup clock; original cliffs/runtime bakes. Historical context, not a matched native-player gain. |
+| Earlier validated approved mist B |130.560| Native player clock, saved Cub/full hangar; completed14-step circuit. Corrected original mist reference151.461s, same corrected build. |
+| Latest delivered-setting reference | 124.074 | Normal native readiness;9/9 taxi/climb steps;No graphics errors at recorded checkpoints. Same final build; experimental runway bakes OFF. |
+| Latest experimental compact runway bake | 227.923 | Normal native readiness;9/9 taxi/climb steps;No graphics errors at recorded checkpoints. Slow observation retained; not adopted. Browser focus was changed after loading, and the runs were separated by hours. This does not isolate the bake’s effect. |
+
+The 20s garage and 30s first-world targets remain unmet. Do not add independent experimental deltas, equate isolated compiler time with total startup, or present the rejected95.740s visual-cut minimum as delivered quality. The final runway experiment has **no demonstrated end-to-end loading win**.
+
+Latest replay start-up/departure observer interval: control 57.6s; candidate 52.3s. This includes native departure readiness and engine startup after a night→noon change; it is not a pure Go-click stopwatch. Unchanged-night departures9.456/9.364s and returns0.636/0.317s belong to the earlier approved-build diagnostic run; return time was not remeasured in this final taxi/climb test.
+
+### Final native rendering comparison
+
+Same saved Cub/full hangar,5120×1271/DPR1, gamer settings and30fps cap; saved-night cold load, noon selected afterwards. Standard flight-script procedure shortened to taxi/takeoff/climb and chase/cockpit samples:9 steps, not a complete circuit or crash test. Initial world preparation/start-up is distinct from steady flight.
+
+| Segment | Reference FPS / worst gap(ms) | Candidate FPS / worst gap(ms) |
+| --- | ---: | ---: |
+| dry taxi chase | 27.6 / 100.2 | 27.6 / 100.1 |
+| dry taxi cockpit | 29.2 / 300.1 | 28.5 / 383.5 |
+| taxi to the hold | 28.7 / 99.9 | 28.6 / 100 |
+| take-off | 25.8 / 83.5 | 25.2 / 83.4 |
+| climb to 150 m | 28.9 / 66.9 | 28.7 / 100.1 |
+| dry airborne chase | 23.6 / 116.6 | 23.7 / 116.7 |
+| dry airborne cockpit | 30 / 50.1 | 29.8 / 66.7 |
+
+CPU peaks: control 86°C; candidate 89°C. Direct LHM monitoring, no sustained90°C allowed; thermal stops invalidate runs. Single observations cannot establish a small FPS regression or improvement; first cockpit/world hitches remain visible in the data. The delivered default has these runway experiments OFF.
+
+Recorded JavaScript-heap snapshots, garage→after climb: control 3.212→3.838GiB; candidate 3.045→4.089GiB. These are snapshots, not peak process/GPU memory, and differences cannot be assigned solely to the bake. Their large size makes memory/garbage-collection profiling a useful future lead.
+
+### Experimental cost and screenshot evidence
+
+Candidate allocations: 65.125MiB extra GPU texture storage plus approximately the same retained CPU backing (excluding transient bake arrays/driver overhead). Fields 64.000MiB; curves 1.000MiB; descriptors 0.125MiB. Generation 756.800 + 12.500 + 1.100ms. Smaller than the old128MiB GPU field bake, but not free.
+
+Controlled actual-material patch GPU median: 8.453→6.583ms at5120×1271. This is not whole-world FPS. Matched sRGB dry/wet images use identical geometry/camera/lighting and forced puddle capacity0.9 in both methods; they are material probes, not a full-world appearance approval.
+
+- Dry: [original](evidence/PERFORMANCE-2026-11-21/runway-compact-bakes/candidate/compact-0-reference.png), [compact bake](evidence/PERFORMANCE-2026-11-21/runway-compact-bakes/candidate/compact-0-cached.png); mean pixel-byte difference 0.039, maximum 3.
+- Wet: [original](evidence/PERFORMANCE-2026-11-21/runway-compact-bakes/candidate/compact-0.8-reference.png), [compact bake](evidence/PERFORMANCE-2026-11-21/runway-compact-bakes/candidate/compact-0.8-cached.png); mean pixel-byte difference 0.038, maximum 8.
+
+### Branch, physical files and update instructions
+
+The canonical report is physically saved at `C:/Users/denis/.codex/worktrees/wingsmith-performance-audit/DeGaRoR.github.io/flyDiy/reports/PERFORMANCE-REPORT.md`. All earlier observations, unsuccessful attempts and source records follow below. Figures are physically under `flyDiy/reports/figures/`. Private browser saves and raw flight logs are not committed.
+
+From PowerShell, work in this existing worktree (the branch is already checked out here):
+
+```powershell
+Set-Location "C:/Users/denis/.codex/worktrees/wingsmith-performance-audit/DeGaRoR.github.io"
+git branch --show-current
+node flyDiy/tools/build.js
+node flyDiy/tools/perf/runway_native_report.js flyDiy/reports/evidence/PERFORMANCE-2026-11-21/runway-compact-bakes
+node flyDiy/tools/perf/update_report.js
+node flyDiy/tools/_serve.js 8125 . --fallback D:/Dev/DeGaRoR.github.io --localhost
+```
+
+The local-only preview is running on port8125 for this delivery. If already running, reuse it instead of launching the serve command twice. Playtest retained quality at `http://localhost:8125/flyDiy/index.html?mode=sandbox&parkstock=1&perftrim=1&groundcache=0&pace=8`. Check the displayed build against `flyDiy/version.json`. The automated measurements use the private saved Cub fixture; a different browser origin does not automatically inherit the GitHub Pages save. Use the same saved aircraft/settings for manual comparisons.
+
+Do not enable `pavfields=byte`, `pavstatic=1`, `pavways=1`, `scuffopt`, `terrainwearmemo`, `pavepolybound` or `pavereuse` for the delivered reference. The opt-in runway combination can be reviewed by adding `&pavfields=byte&pavstatic=1&pavways=1`; it is a parked experiment, not the recommended build.
+
+After reviewing/merging or cherry-picking source commits into another local branch, rebuild there. Generated `flyDiy/index.html`, `dev.html`, `sw.js`, `version.json` and `tools/flight_core.js` are reconstructed locally and deliberately not committed by this audit. This branch has not been pushed; `git pull` is not how to obtain its local changes. Keep `master`/Pages publication as a separate reviewed action. To refresh this single document, rerun the report commands above; the generators preserve the historical record.
+
+### Next priorities, not part of this delivery
+
+1. Standardize foreground-window checks before any future native load comparison; preserve the slow228s observation and investigate its117.755s world-generation step rather than attributing it to0.757s of bake work.
+2. Address repeated town-light signatures: the clean diagnostic identified164 new noon programs,114 differing around light sections and50 byte-identical source pairs. No exclusive time saving is yet measured.
+3. Profile the large retained JavaScript/geometry/texture memory footprint; avoid assuming the65MiB experimental cache explains multi-gigabyte heaps.
+4. Separate usable garage readiness from world preparation. The current whole-world CPU/shader gate prevents a20s garage; architecture is needed alongside shader work. No background-loading implementation was delivered here.
+5. Review simplified scuff imagery separately before adoption; retain mud, dents/tears and window cracks. Its active patch GPU improvement has not established a repeatable large loading gain.
+
 
 ## Runway baking rework — current experiments
 
@@ -1483,6 +1559,18 @@ Correction / next action: Keep pavepolybound/pavereuse OFF until repeatable tota
 Compact loop12links/2orders: only~0.2–1.0s on representative night sources; uniform-bound pavement reverses direction. First cycle stopped by expression-evaluator script mistake; retry departureGL1281 excluded. Added getError boundary polling stalledrenderer>150s; diagnostic excluded. Passive native saved-night/noon stress clean: nightadds0, noonadds164;114 match outside pointlightsections/countguards/materialpresenceguard,50 byte-identical sourcepairs alreadyexisted. Night10pointlights vsday2; timingnotexclusivecompilerbill.109651 validated draw/buffer calls after attachment, no badargs/nullqueries; peak88C. Healthytrace does not fix intermittenterror.
 
 Correction / next action: Stop error-polling probes/heavyblind retries. Guard ordinary readiness against native null programquery returns without extraGLcalls. Next distinct leads: initial pavement shader~27s isolatedlink and recurring town-light signature variants. Any possible rendering change requires matchedscreenshots/nativeFPS/memorychecks; no paddedlight default adoption.
+
+### Compact runway baking rework 2026-11-21 — Compiler benefit consistent; native loading/FPS/image comparison in progress; OFF
+
+User selected runway baking. Small way curve bake:122.175→120.090s single native pair, GL0/normalready/smooth20s soak, peaks78/84C;2MiB GPU plus2MiB CPU,17.1ms generation. Patch GPU median11.553→11.849ms (~2.6%slower); dry/wet maximum pixel delta1byte. Park standalone candidate. Static descriptors match5604holes/128hazards from actual STRIP_MICRO across80fields, but isolated compiler gain small. Uniform-bound loops likewise small; not integrated. Broader compact unit relief/curvature bake:445136 bounded packing comparisons pass; Float32 live coefficients/weather retained,8-bit fields approximate stored values. Same full captured source:original28.504/26.093s vscompact21.482/21.464s vscombinedcompact/holes/ways20.309/21.161s;6/6linksGL0,peak67C. First extraction appendedreaderaftermain and failedcompile; fixedtoolordering, failedprobeexcluded/preserved. Actual native build47a1bd547eb4 control/candidate test uses abbreviated standard taxi/climb with chase/cockpit snapshots; fullhigh-polycontactgeometry/allscenery retained. No defaultadoption.
+
+Correction / next action: Complete matched nativeplayer loading/renderedframes/GLvalidation; capture actualmaterial dry/wet A/B with forcedpuddlecapacityequalinbothmethods and measureGPU/memory. Keep approximation opt-in until scoped appearance and performance acceptable. Preserve failed experiments; no claiming compilerseconds as deliveredloadseconds.
+
+### Final delivery 2026-11-21 — Build47a1bd547eb4 delivered; no new runway bake adopted; all experiments documented
+
+Native finalbuild control124.074s, candidate227.923s; both9/9standard taxi/climb steps,GL0recordedcheckpoints,no nullprogramqueries. Peaks86/89C,no sustained90C. Candidatewas unfocused when inspected and broughttofront aftercoldload; runs separated6h28m. Worldgeneration32.350→117.755s whilebytefieldgeneration0.757s; causeunresolved, do noterase slowobservation or assign it whollytobake. Worldshadergate41.755→35.321s, notexclusivecompiler CPU. Candidate65.125MiB GPU+similarCPU backing. ControlledactualmaterialGPU8.453→6.583ms(~22.1%faster),12validqueries;dry/wetmeanpixeldelta0.039/0.038bytes,max3/8,p99onebyte;sRGBmatchedimageswithforcedpuddlecapacity0.9 equallybothmethods. Nativeairchase23.6→23.7fps,cockpit30→29.8;firstcockpit300.1→383.5ms,steady taxi/takeoff/climb no250ms gaps. Baselineheap3.212→3.838GiB,candidate3.045→4.089GiB snapshots,notpeaksorwholeprocessmemory. FinalrebuildfirsthittransientWindows indexopenUNKNOWN;immediate retry passedsamebuild47a1bd547eb4.11chartpayloads/14waterfallschecked;desktop/narrowselectionbrowserQA passed.
+
+Correction / next action: Deliver approved mistB/retained optimizations,accepted cliff/runtime-bake cuts viaexactURL,statictrio,all other systems/fullrunwaygeometry+cues. Originalscuff;newrunway/CPU/scuff experimentsOFF. Final report containsbranch/worktree/build/update/servecommands andalllatestdata;localonlyreviewserver8125,nopublication,no generatedmainfiles/privatefixture/rawflightlogscommitted. Stopnewinvestigationsforthisdelivery.
 
 ## Matched integration comparison and post-ready behaviour
 

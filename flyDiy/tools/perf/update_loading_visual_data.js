@@ -18,6 +18,10 @@ const mist=chart('loading-history-mist-trials','Earlier mist/scuff trials','Vali
 const terrainStudy=read(path.join(base,'terrain-weather-base/analysis.json'));
 const geometryStudy=read(path.join(base,'geometry-combined/analysis.json'));
 const polygonStudy=read(path.join(base,'pavement-polygon-bounds/analysis.json'));
+const compactStudy=read(path.join(base,'runway-compact-bakes/analysis.json'));
+const bakeRows=(read(path.join(base,'runway-way-curves/analysis.json'))?.runs||[]).filter(r=>r.valid).map(r=>['Track curves: '+(r.id==='control'?'reference':'baked'),r.seconds,'Build971cc0bd2ef9; single native pair. Track-only GPU patch slightly slower; candidate OFF.','evidence/PERFORMANCE-2026-11-21/runway-way-curves/'+r.id+'/summary.json']);
+for(const r of compactStudy?.runs||[])if(r.valid)bakeRows.push([r.id==='control'?'Final reference — bakes OFF':'Compact bake — slow run, not adopted',r.seconds,'Build'+r.build+'; native9-step taxi/climb;GL0 checkpoints. '+(r.id==='candidate'?'Unfocused window inspected; foreground intervention after loading. Long interval from reference; no causal loading estimate.':'Delivered settings and accepted cuts only.'),'evidence/PERFORMANCE-2026-11-21/runway-compact-bakes/'+r.id+'/summary.json']);
+const bakes=chart('loading-history-bakes','Final runway investigations — native-player clock','All normal-readiness observations retained, including the slow candidate. Compiler gains did not establish an integrated loading win. New bake options remain OFF. Different builds and browser circumstances are described in each bar.',bakeRows);bakes.spec={...spec,xDomain:[0,260]};
 const geometryRows=(polygonStudy?.runs||[]).filter(r=>r.valid).map(r=>[r.label,r.seconds,'Build122b7038117c, native clock, approved B/original scuff. Closing control excluded after GL1281; no measured total-loading gain.','evidence/PERFORMANCE-2026-11-21/pavement-polygon-bounds/'+r.folder+'/summary.json']);
 if(geometryStudy?.valid)geometryRows.push(['Polygon bounds + refinement height reuse',geometryStudy.seconds,'Build'+geometryStudy.build+'; single native smoke test, not an isolated saving. Both candidates OFF by default; all runway detail retained.','evidence/PERFORMANCE-2026-11-21/geometry-combined/candidate/summary.json']);
 const geometry=chart('loading-history-geometry','Pavement CPU work — native-player clock','Bounds remove about81% of exact polygon-distance queries. The isolated load pair is effectively unchanged; the combined run is one later-build observation. No causal cumulative gain or flight/visual acceptance claimed. Candidates remain OFF.',geometryRows);
@@ -33,9 +37,11 @@ html=html.replace(/(<script type="application\/json" data-viz-chart data-group="
  p.height=Math.min(800,50+29*p.rows.length);return a+JSON.stringify(p).replace(/</g,'\\u003c')+b;
 });
 html=html.replace(/\s*<option value="geometry">[^<]*<\/option>/g,'');
+html=html.replace(/\s*<option value="bakes">[^<]*<\/option>/g,'');
 html=html.replace('<option value="terrain">','<option value="geometry">Latest pavement CPU tests</option>\n        <option value="terrain">');
-html=html.replace(/select.value = configs.has\(initial\) \? initial : "[^"]+";/,'select.value = configs.has(initial) ? initial : "geometry";');
-for(const [group,config]of [['latest',latest],['native',native],['misttrials',mist],['terrain',terrain],['geometry',geometry]]){
+html=html.replace('<option value="geometry">','<option value="bakes">Final runway investigations</option>\n        <option value="geometry">');
+html=html.replace(/select.value = configs.has\(initial\) \? initial : "[^"]+";/,'select.value = configs.has(initial) ? initial : "bakes";');
+for(const [group,config]of [['latest',latest],['native',native],['misttrials',mist],['terrain',terrain],['geometry',geometry],['bakes',bakes]]){
  const node='<script type="application/json" data-viz-chart data-group="'+group+'">'+JSON.stringify(config).replace(/</g,'\\u003c')+'</script>';
  const re=new RegExp('<script type="application/json" data-viz-chart data-group="'+group+'">[\\s\\S]*?</script>');
  html=re.test(html)?html.replace(re,()=>node):html.replace('  <div data-viz-container></div>','  <div data-viz-container></div>\n  '+node);
@@ -59,5 +65,7 @@ for(const r of study?.runs||[])if(r.valid){const folder=path.join(base,'scuff-li
 for(const r of terrainStudy?.runs||[])if(r.valid){const s=read(path.join(base,'terrain-weather-base',r.folder,'summary.json'));add('terrain-'+r.id,r.label+' — native player clock',s.garage.boot.log,'Build'+r.build+'. Approved B/original scuff; all scenery and full runway cues. Cache candidate remains off.',null,s.garage.t);}
 for(const r of polygonStudy?.runs||[])if(r.valid){const s=read(path.join(base,'pavement-polygon-bounds',r.folder,'summary.json'));add('polygon-'+r.id,r.label+' — native player clock',s.garage.boot.log,'Build'+r.build+'. Bounds candidate OFF; closing control excluded after graphics error.',null,s.garage.t);}
 if(geometryStudy?.valid){const s=read(path.join(base,'geometry-combined/candidate/summary.json'));add('geometry-combined','Bounds + height reuse — single native smoke test',s.garage.boot.log,'Build'+geometryStudy.build+'. Both exact-math CPU candidates OFF; no isolated loading/FPS claim.',null,s.garage.t);}
+for(const r of compactStudy?.runs||[])if(r.valid)add('compact-'+r.id,r.id==='control'?'Final reference — native clock, bakes OFF':'Compact bake — slow observation, not adopted',r.boot,'Build'+r.build+'. '+(r.id==='candidate'?'Focus intervention after loading; not a controlled causal comparison.':'Delivered settings;9-step taxi/climb completed.'),null,r.seconds*1000);
+runs.sort((a,b)=>a.id==='compact-control'?-1:b.id==='compact-control'?1:0);
 const waterfall=path.join(vis,'garage-waterfall-current.html');let wh=fs.readFileSync(waterfall,'utf8');wh=wh.replace(/(<script type="application\/json" data-waterfall-runs>)[\s\S]*?(<\/script>)/,(_,a,b)=>a+JSON.stringify(runs).replace(/</g,'\\u003c')+b);fs.writeFileSync(waterfall,wh);
-console.log(JSON.stringify({historyGroups:10,geometry:geometryRows.length,latest:latest.rows.length,native:native.rows.length,mistTrials:trials.length,terrain:terrain.rows.length,waterfallRuns:runs.length,spans:runs.reduce((n,r)=>n+r.spans.length,0)}));
+console.log(JSON.stringify({historyGroups:11,bakes:bakeRows.length,geometry:geometryRows.length,latest:latest.rows.length,native:native.rows.length,mistTrials:trials.length,terrain:terrain.rows.length,waterfallRuns:runs.length,spans:runs.reduce((n,r)=>n+r.spans.length,0)}));
