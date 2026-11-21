@@ -2666,7 +2666,10 @@ function editorInit(api) {
   function hookXray() {
     if (xrayHooked) return;
     const c = $('xray');
-    if (c) { c.addEventListener('change', syncQuick); xrayHooked = true; }
+    if (c) { c.addEventListener('change', syncQuick); xrayHooked = true;
+      // PERF-TRACE (22 Nov): THE USER'S OBJECTIVE 6, MARKED - the interior (see-through) view asked for, as an 'act' event
+      // BEFORE the page's own handler runs (capture): tools/freeze_ledger.js reads click -> drawn against 2 s, no frame over 100 ms
+      c.addEventListener('change', () => { const FR = window.FLIGHT_REC; if (FR && FR.event) FR.event('act', null, { a: 'interior-view', s: 1, on: !!c.checked }); }, true); }
   }
 
   // THE BUTTONS ARE REPAINTED, NEVER RE-WIRED. There are three: rewriting the

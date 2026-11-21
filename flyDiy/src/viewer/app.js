@@ -12397,6 +12397,11 @@
     if (!r.ok) return Promise.resolve({ ok: false, why: r.why, stand: null });
     player = r.doc; playerSave();
     baseId = player.sheds[player.here].base;
+    // PERF-TRACE (22 Nov): THE USER'S OBJECTIVES 5 AND 4, MARKED. The click and the arrival as 'act' events in the flight
+    // log: tools/freeze_ledger.js reads click -> first frame -> the last frame over 100 ms it caused, against the table
+    // (change garage < 5 s with no frame over 100 ms; world -> garage 3 s). Two events, nothing else.
+    const actFR = window.FLIGHT_REC && window.FLIGHT_REC.event ? window.FLIGHT_REC : null, actA = inGarage ? 'garage-change' : 'world-to-garage', actT = actFR ? performance.now() : 0;
+    if (actFR) actFR.event('act', null, { a: actA, s: 1, to: id });
     return new Promise(res => {
       const arrive = () => {
         try {
@@ -12410,6 +12415,7 @@
           } else if (!n) standEmptySet(standEmptyAt(playerLoad(), id));   // EMPTY-STAND: nothing in there - the stand empty
           storeChanged(); try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}   // (the base line follows)
         } catch (e) { console.warn('flyDiy: the garage could not take its plane -', e && e.message); }
+        if (actFR) actFR.event('act', performance.now() - actT, { a: actA, s: 0, to: id });
         res({ ok: true, why: '', stand: slotOnStand() || null });
       };
       if (inGarage) arrive();
