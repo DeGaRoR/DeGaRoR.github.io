@@ -323,7 +323,7 @@ async function runPage(S, opt) {
     card = JSON.stringify(j); say('  load: ' + pax + ' passenger(s), ' + PR0[1] + ' kg of baggage (' + (L.preset || 'given') + ') into the seeded card'); }
   const PR = require(path.join(T, 'page_rig.js'));
   const wall0 = Date.now();
-  const rig = await PR.start(Object.assign({ cap: o.cap || 900, size: o.size || '1600x900', seed: { 'flydiy.wip': card } }, o.repo ? { repo: o.repo } : {}, { log: o.quiet ? (() => {}) : (t => say('  rig ' + t)) }));
+  const rig = await PR.start(Object.assign({ cap: o.cap || 900, size: o.size || '1600x900', seed: { 'flydiy.wip': card } }, o.repo ? { repo: o.repo } : {}, o.q ? { q: o.q } : {}, { log: o.quiet ? (() => {}) : (t => say('  rig ' + t)) }));
   const R = { ok: false, steps: [], failed: null, t: 0, wall: 0, log: out };
   try {
     J({ type: 'run', scenario: S.name, what: S.what || null, runner: 'page', plane: P.name, build: P.file, from: S.from, to: S.to || S.from,
@@ -377,6 +377,7 @@ async function runPage(S, opt) {
       else if (st.do === 'start' || st.do === 'rollout') { rig.flying = false; await rig.fly(); s = await rig.J(ST); }
       else if (st.do === 'skip') say('  skip: ' + await rig.ev(`(() => { const b = document.getElementById('bSkip'); if (b && !b.hidden && !b.disabled) { b.click(); return 'skipped'; } return 'no skip offered'; })()`));
       else if (st.do === 'camera') { await rig.ev(`window.__FSB.sweep(${JSON.stringify(st.view || 'chase')}, ${+(st.sweep || 0)}, ${+(st.s || 5)}, ${st.dist == null ? 'null' : +st.dist})`, ((+(st.s || 5)) + 30) * 1000); }
+      else if (st.do === 'weather' && st.day && typeof st.day === 'object') say('  weather (a given day): ' + await rig.ev(`(() => { try { window.FLIGHT_PROBE.world().day.set(${JSON.stringify(st.day)}); return 'ok'; } catch (e) { return String(e); } })()`));   // (LOOK-1, RAIN 21 Nov: a given day, as the node runner takes - the storm day for the rain-vs-dry frames)
       else if (st.do === 'weather') say('  weather ' + st.cond + ': ' + await setSel('selCond', st.cond));
       else if (st.do === 'time') say('  time ' + st.hour + ' h: ' + await rig.ev(`(() => { try { window.DAY_CLOCK.set({ localHours: ${+st.hour} }); return 'ok'; } catch (e) { return String(e); } })()`));
       else if (st.do === 'dest') say('  destination ' + st.to + ': ' + await setSel('selDest', st.to));
@@ -471,7 +472,7 @@ if (require.main === module) {
   const bad = checkScenario(S);
   if (bad.length) { console.error('flight_script: bad scenario ' + S.name + ':\n  ' + bad.join('\n  ')); process.exit(2); }
   if (runner === 'page') {   // (A GPU RUN NEEDS A0's SLOT: boxlock.sh take gpu first, RIG-PROCEDURE 1)
-    runPage(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), cap: +opt('cap', 900), size: opt('size', undefined), repo: opt('repo', undefined) })
+    runPage(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), cap: +opt('cap', 900), size: opt('size', undefined), repo: opt('repo', undefined), q: opt('q', undefined) })
       .then(R => process.exit(R.ok ? 0 : 1), e => { console.error('flight_script (page): ' + (e && e.message || e)); process.exit(2); });
   } else {
     const R = runNode(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), every: opt('every', undefined) });
