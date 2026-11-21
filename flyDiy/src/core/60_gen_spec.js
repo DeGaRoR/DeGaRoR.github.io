@@ -2089,6 +2089,12 @@ const GEN_DRAG = {
   junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003 },
   // an exhaust stack in the wind
   exhStack: 0.003,
+  // THE SPAN EFFICIENCY OF A SLENDER WING (PHYSICS-AUDIT step 1, 2026-11-21; 62_gen_aero genOswald): the inviscid span
+  // loading of a straight tapered wing (eInv) and the profile drag's growth with CL^2 (kv: a turbulent riveted or
+  // fabric surface 0.007 - with it the law meets Raymer's fit at an aspect ratio of 7.9; a smooth composite skin,
+  // GEN_SURF_MATERIALS cd0 at or under smoothCd0, half of it: sailplanes hold 0.8-0.9 at aspect ratios of 15-25),
+  // phased in over arLo..arHi
+  span: { arLo: 6, arHi: 10, eInv: 0.95, kv: 0.007, kvSmooth: 0.0035, smoothCd0: 0.0006 },
 };
 
 // ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
@@ -4214,7 +4220,12 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      (genHarnessKg: the starter cable, the charging lead, a run per powered load, the outside lights over the span and
 //      the tail arm) where it was 1.2 kg + 0.15 kg per item - every aeroplane with a bus weighs a little more (the Cub
 //      +1.7 kg empty, MASS-BUDGET.md)
-const PHYSICS_V = 9;
+//  10  2026-11-21, PHYSICS-AUDIT (reports/PHYSICS-AUDIT-2026-11-21.md; the user: "I'm OK with the plan and you may
+//      proceed"), its steps 1-4 on one bump:
+//      step 1  the span efficiency of a wing of aspect ratio over 6-8 (62_gen_aero genOswald, GEN_DRAG.span): the polar
+//              of every such wing moves - its induced drag, its lift slope - and so its plaque and certificate; a wing
+//              at or under 6, and a fabric or metal one under 7.9, is as it was to the bit
+const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape

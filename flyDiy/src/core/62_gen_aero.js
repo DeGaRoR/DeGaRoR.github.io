@@ -41,8 +41,22 @@ const GEN_KVISC = 0.845;
 
 // Oswald efficiency, Raymer's straight-wing estimate, times a bracing penalty
 // (a strut and its fairing spoil the span loading near the attach).
-function genOswald(AR, strut, tipE) {
-  const e = 1.78 * (1 - 0.045 * CORE_MATH.pow(AR, 0.68)) - 0.64;
+// ABOVE ASPECT RATIO 6-8 (PHYSICS-AUDIT step 1, 2026-11-21; reports/PHYSICS-AUDIT-2026-11-21.md): Raymer's fit is of
+// conventional aeroplanes and is good to an aspect ratio of about 10 - past it it falls away (0.71 at 12, 0.68 at 13,
+// under the 0.55 floor at 21) where a clean cantilever wing holds 0.8 and more: the Archaeopteryx flew a span
+// efficiency of 0.62 and the LS4 0.52, half of their missing glide. What limits a slender wing is its inviscid span
+// loading and the profile drag that grows with CL^2:  e = 1 / (1 / eInv + pi AR kv)  (GEN_DRAG.span: eInv 0.95, kv by
+// the surface's own finish - a smooth composite skin 0.0035, a riveted or fabric one 0.007). Taken where it is the
+// LARGER of the two, phased in between arLo and arHi so no slider meets a step: at or below arLo (6) every wing is
+// Raymer's, to the bit; a fabric or metal wing's two laws cross at 7.9, so it is Raymer's to there.
+function genOswald(AR, strut, tipE, matCd0) {
+  let e = 1.78 * (1 - 0.045 * CORE_MATH.pow(AR, 0.68)) - 0.64;
+  const SP = GEN_DRAG.span;
+  if (SP && AR > SP.arLo) {
+    const kv = matCd0 != null && matCd0 <= SP.smoothCd0 ? SP.kvSmooth : SP.kv;
+    const e2 = 1 / (1 / SP.eInv + Math.PI * AR * kv);
+    if (e2 > e) e += Math.min(1, (AR - SP.arLo) / (SP.arHi - SP.arLo)) * (e2 - e);
+  }
   // the tip treatment multiplies span efficiency BEFORE the cap: a winglet on
   // an already-efficient wing cannot conjure e past the Raymer ceiling
   return Math.min(0.95, Math.max(0.55, e * (strut ? 0.90 : 1.0) * (tipE || 1)));
@@ -59,7 +73,7 @@ function genPolar(naca, AR, strut, matCd0, clmaxK, sweepDeg, tipE) {
   // free way to move the CG.
   const cosL = CORE_MATH.cos((sweepDeg || 0) * Math.PI / 180);
   const a0 = 2 * Math.PI * GEN_KVISC * (1 + 0.77 * t) * cosL;
-  const eAR = Math.PI * genOswald(AR, strut, tipE) * AR;
+  const eAR = Math.PI * genOswald(AR, strut, tipE, matCd0) * AR;
   const a3d = 1 / (1 / a0 + 1 / eAR);
   const Cl0 = a3d * (-aL0);
   const ClMax = (1.38 + 5.0 * m + 1.2 * (t - 0.12)) * clmaxK * cosL;
