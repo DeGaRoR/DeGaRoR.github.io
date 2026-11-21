@@ -198,7 +198,8 @@ if (SELF) {
   red('a plaque', () => { const o = JSON.parse(P.files[first]); o.plaque = { ok: true }; return poolRows({ index: P.index, files: Object.assign({}, P.files, { [first]: JSON.stringify(o) }) }).bad; });
   red('not a build', () => poolRows({ index: P.index, files: Object.assign({}, P.files, { [first]: '{"what":"x"}' }) }).bad);
   red('a path in the index', () => { const o = JSON.parse(P.index); o.planes[0].file = '../' + o.planes[0].file; return poolRows({ index: JSON.stringify(o), files: P.files }).bad; });
-  red('the candidate opened with its plaque', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("loadSpec(g.spec, '')", 'loadSpec(g.spec, c.name, g.plaque, g.log)') })));
+  // (PC6-LIVERIES: the opener passes the card's liveries now - the break plants the plaque into that call)
+  red('the candidate opened with its plaque', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("loadSpec(g.spec, '', null, null, null, lvOf(g))", 'loadSpec(g.spec, c.name, g.plaque, g.log, null, lvOf(g))') })));
   red("a career's row keeps the note", () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("note: dev ? c.note : ''", 'note: c.note') })));
   red('a tooltip reads the file', () => sourceRows(Object.assign({}, S, { np: S.np.replace('b.title = c.tip;', 'b.title = c.file;') })));
   red('a map row without its picture', () => sourceRows(Object.assign({}, S, { map: S.map.replace("planeIc('design:' + L.design, ", "planeIc('', ") })));
