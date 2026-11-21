@@ -16111,6 +16111,13 @@
     let n = 0, last = -1, still = 0; const t00 = performance.now();
     // the parked aeroplanes the stream places meanwhile are captured a step a task, as under the roll-out screen
     const PK = PK_ASYNC() ? window.PARKED : null; if (PK) PK.async = true;
+    // PERF-WORLDBUILD (22 Nov) ?settle=near, OPT-IN (the default is the rule as it was): the gate ends once every streamer's
+    // own count is 0 round the stand for three looks - the premises' stream, the forest within RING_REACH (the 'ring' step's
+    // reach), the cover's rings, the rocks, the stand cards, the far-town merges, the obstacles, the life - and the forest's
+    // FAR queue (1.5 - 9 km, the fill's 4 ms a frame) goes on arriving in flight, as it already does past the 1 500-update
+    // cap. A VISIBLE choice (stand-in cards for longer past 1.5 km): shown to the user before it is ever a default
+    const SETTLE_NEAR = !!WF.settleStat && typeof location !== 'undefined' && /[?&]settle=near(?:&|$)/.test(location.search || '');
+    const nearOwed = () => { const s = WF.settleStat(cg, RING_REACH); let n = 0; for (const k in s) if (k !== 'fill' && k !== 'geo') n += s[k] > 0 ? s[k] : 0; return n; };
     const idle = () => (!ST || !(ST.near > 0)) && !(WF.ringStat && WF.ringStat() && WF.ringStat().busy);
     // G1075 (LOAD-SETTLE): THE SLICE'S CLOCK, HONOURED INSIDE THE CALL. The 40 ms slice was only checked between two
     // worldUpdate calls, and ONE call could hold ~1.1 s: a premises build, an HLOD cell's merge, a stand-card chunk and
@@ -16119,11 +16126,20 @@
     // stand-card chunk builds by rows against it; the work is the same, it no longer bunches. Flight has no slice: its
     // builders keep their own per-frame budgets.
     const SL = { until: 0 };
+    // PERF-WORLDBUILD (22 Nov): THE GATE'S LEDGER - which streamer holds readiness, by its own count (render_world
+    // settleStat), looked at once a slice. `held` = the looks each one still owed work at; `last` = [updates, ms] of the last
+    // such look (when it came to rest); `count` = the looks the idle scene's object count still moved at; `naps` = the waits
+    // on the house worker. A REPORT ONLY: the rule below (idle + the count still three looks, or 1 500 updates, or 45 s) is
+    // as it was. Codex's finding (20 Nov): the gate ends on its 1 500-update cap with the forest's far queue still busy
+    const LG = { looks: 0, naps: 0, held: {}, last: {}, end: null };
+    const ledger = () => { if (!WF.settleStat) return; let s = null; try { s = WF.settleStat(cg, RING_REACH); } catch (e) { return; }
+      LG.looks++; const at = [n, Math.round(performance.now() - t00)];
+      for (const k in s) if (s[k] > 0) { LG.held[k] = (LG.held[k] || 0) + 1; LG.last[k] = at; } LG.end = s; };
     return new Promise(res => {
       const tick = () => {
         // G830: the premises' stream waiting on the house worker - wait for its answer, not in updates
         const hw = WF.premises && WF.premises.hwWait ? WF.premises.hwWait() : null;
-        if (hw) { workerNap(hw).then(() => setTimeout(tick, 0)); return; }
+        if (hw) { LG.naps++; workerNap(hw).then(() => setTimeout(tick, 0)); return; }
         const t0 = performance.now();
         const keep = inGarage ? camera.position.clone() : null;
         if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
@@ -16132,10 +16148,13 @@
         catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
         finally { window.FLYDIY_SLICE = null; if (keep) camera.position.copy(keep); }
         geoFlush();   // G1230
-        if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; } } else still = 0;
+        ledger();
+        if (SETTLE_NEAR) { if (nearOwed() === 0) still++; else still = 0; }
+        else if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; LG.held.count = (LG.held.count || 0) + 1; LG.last.count = [n, Math.round(performance.now() - t00)]; } } else still = 0;
         const done = still >= 3 || n >= 1500 || performance.now() - t00 > 45000;
         BOOT.phase('settle', 'the world settling round the stand' + (ST ? ' · ' + (ST.near || 0) + ' to build' : ''), done ? 1 : Math.min(0.95, n / 600));
-        if (done) { if (typeof window !== 'undefined') window.FLYDIY_WORLD_SETTLE = { n, ms: Math.round(performance.now() - t00), rest: still >= 3, near: ST ? ST.near : null, fill: WF.ringStat ? WF.ringStat() : null };
+        if (done) { if (typeof window !== 'undefined') window.FLYDIY_WORLD_SETTLE = { n, ms: Math.round(performance.now() - t00), rest: still >= 3, near: ST ? ST.near : null, fill: WF.ringStat ? WF.ringStat() : null,
+            why: still >= 3 ? 'rest' : n >= 1500 ? 'cap 1500 updates' : '45 s', rule: SETTLE_NEAR ? 'near' : 'all', looks: LG.looks, naps: LG.naps, held: LG.held, last: LG.last, end: LG.end };   // (PERF-WORLDBUILD: the ledger)
           if (PK && PK.whenIdle) PK.whenIdle().then(() => { if (inGarage) PK.async = false; res(); }); else res(); }
         else setTimeout(tick, 0);
       };
