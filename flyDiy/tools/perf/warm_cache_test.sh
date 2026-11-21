@@ -21,9 +21,21 @@ TEMP() { curl -s -m 5 localhost:8085/data.json | grep -o '"Text":"CPU Package","
 COOL() {    # start a load only under 80 C (A0's thermal rule, 22 Nov); no reading for 2 min = stop, never run blind
   local t n=0; while :; do t=$(TEMP); [ -n "$t" ] && [ "$t" -lt 80 ] && { echo $t; return 0; }
     n=$((n + 1)); [ -z "$t" ] && [ $n -ge 6 ] && return 1; [ $n -ge 45 ] && return 1; sleep 20; done; }
+# THE BOX'S CPU TOKENS (A0, 22 Nov: at most 2 CPU runs on the box, D:/Dev/flydiy-notes/cpu_token.sh). A TIMING run
+# holds BOTH for its whole window, so no other session starts a run beside it: two token files under this name,
+# touched before every load (a token older than 45 min is ignored), removed on exit. It first waits (10 min at
+# most) for the runs other sessions already have going.
+TK="D:/Dev/flydiy-notes/cpu_tokens"; mkdir -p "$TK"
+HOLD() { for i in 1 2; do echo "PERF-LEAD $(date +%H:%M:%S) warm_cache_test (timing: both tokens)" > "$TK/PERF-LEAD_$i.tok"; done; }
+OTHERS() { local n=0 f a; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */PERF-LEAD_[12].tok) continue ;; esac
+  a=$(( ($(date +%s) - $(stat -c %Y "$f")) / 60 )); [ $a -le 45 ] && n=$((n + 1)); done; echo $n; }
 bash $B take gpu PERF-LEAD "warm-cache test, 6 loads" || { echo "no gpu lock"; exit 3; }
+SRV=
+trap '[ -n "$SRV" ] && kill $SRV 2>/dev/null; rm -f "$TK/PERF-LEAD_1.tok" "$TK/PERF-LEAD_2.tok"; bash $B drop gpu PERF-LEAD' EXIT
+HOLD
+for w in $(seq 1 30); do [ "$(OTHERS)" = 0 ] && break; echo "  $(OTHERS) other CPU run(s) still going: waiting"; sleep 20; done
+[ "$(OTHERS)" = 0 ] || echo "NOTE: $(OTHERS) other CPU run(s) beside these loads: the timings are not from a quiet box" | tee -a "$OUT/summary.txt"
 nice -n 19 node "$T/_serve.js" $PORT "$DIR" > "$OUT/srv.log" 2>&1 & SRV=$!
-trap 'kill $SRV 2>/dev/null; bash $B drop gpu PERF-LEAD' EXIT
 sleep 3
 SHA=$(git -C "$DIR" rev-parse --short HEAD 2>/dev/null)
 echo "warm_cache_test $SHA $(date '+%a %d %b %H:%M')" | tee "$OUT/summary.txt"
@@ -39,9 +51,10 @@ run() {     # series, n, profile, extra flags...
   local S=$1 N=$2 UDD=$3; shift 3
   local t; t=$(COOL) || { echo "$S$N: NOT RUN - the package stayed at 80 C or more for 15 min, or the sensor feed is gone" | tee -a "$OUT/summary.txt"; exit 4; }
   local L="$OUT/${S}${N}.log"
+  HOLD
   timeout 330 node "$T/boot_perf.js" --url http://localhost:$PORT/flyDiy/dev.html --udd "$UDD" --secs 240 --tag ${S}${N} --out "$OUT/${S}${N}.json" "$@" > "$L" 2>&1 || mine "$UDD"
   local g=$(grep -o 'overlay gone [0-9]*' "$L" | awk '{printf "%.1f", $3/1000}')
-  echo "$S$N: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | start ${t} C | $(sizes "$UDD")" | tee -a "$OUT/summary.txt"
+  echo "$S$N: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | package ${t} C at the start, $(TEMP) C at the end | $(sizes "$UDD")" | tee -a "$OUT/summary.txt"
 }
 BIG="--chrome --gpu-program-cache-size-kb=1048576 --chrome --gpu-disk-cache-size-kb=1048576"
 case "$SERIES" in *P*) P="$OUT/profile_P"; rm -rf "$P"; for n in 1 2 3; do run P $n "$P"; done ;; esac
