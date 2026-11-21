@@ -1080,9 +1080,8 @@ function make(THREE, host) {
   function set(c) {
     const was = JSON.stringify(cfg);
     cfg = Object.assign({}, DEF, c || {});
-    // PERF-SIMPLIFY (the user 22 Nov: "We could also look at the car, I don't want its compilation to impact performance at this stage"): the parked
-    // scenery cars and the road traffic are OFF by default - dormant behind ?cars=1 (or window.FLYDIY_CARS = true; the node gates, with no page, keep exercising them)
-    if ((typeof location !== 'undefined' && !(typeof window !== 'undefined' && window.FLYDIY_CARS === true) && !/[?&]cars=1(?:&|$)/.test(location.search || ''))) { cfg.cars = 0; cfg.traffic = 0; }
+    // Cost diagnostic: both parked scenery cars and procedural road traffic.
+    if (typeof location !== 'undefined' && /[?&]cars=0(?:&|$)/.test(location.search)) { cfg.cars = 0; cfg.traffic = 0; }
     stats.on = !!cfg.on;
     root.visible = !!cfg.on;
     if (JSON.stringify(cfg) === was) return;
