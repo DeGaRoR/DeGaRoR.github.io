@@ -4929,7 +4929,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='48a71176c5a6';window.FLYDIY_BUILD_DATE='2026-11-18T13:04:28.325Z';</script>
+<script>window.FLYDIY_BUILD='e24c51222d9b';window.FLYDIY_BUILD_DATE='2026-11-21T22:05:52.041Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -11889,7 +11889,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 <script>
 (function () {
   window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };
-  var SRC = window.FLYDIY_CAREER_SRC = "career_core.ffc8bd92.js";
+  var SRC = window.FLYDIY_CAREER_SRC = "career_core.84ac2f05.js";
   var mode = window.FLYDIY_WELCOME ? Promise.resolve(window.FLYDIY_WELCOME).then(null, function () {}) : Promise.resolve();
   var load = window.FLYDIY_CAREER_LOAD = mode.then(function () {
     if (!window.FLYDIY_CAREER_WANT()) return false;
@@ -53466,6 +53466,9 @@ function clampSpec(spec) {
   // had) and its jury strut ('wing' | 'cabin'; absent = none). Anything else, null included (the join STATES a row back
   // at its default as null, so the garage's merge can take it off), is deleted: absent is the old bytes
   if (S.bracing.section !== 'tube') delete S.bracing.section;
+  // STRUT-FOOT (16 Nov, the 172): the lift strut's foot at its own station, metres aft of the firewall (absent: its ring)
+  if (S.bracing.strutFoot != null && Number.isFinite(+S.bracing.strutFoot) && +S.bracing.strutFoot > 0)
+    S.bracing.strutFoot = genClamp(+S.bracing.strutFoot, 0.05, 8); else delete S.bracing.strutFoot;
   if (S.bracing.jury !== 'wing' && S.bracing.jury !== 'cabin') delete S.bracing.jury;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
@@ -57693,7 +57696,30 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
     const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
     const iStrutRing = strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox);
-    const strutRoot = F[iStrutRing][opposeTag + sd];
+    let strutRoot = F[iStrutRing][opposeTag + sd];
+    // A-POST STRUT (16 Nov, the 172, the user: "the anchor of the strut on the body should be at the base of the cabin
+    // pillar ... that has the windscreen ... a very valid place to put a strut"): S.bracing.strutFoot (metres aft of the
+    // firewall - the join writes the A post's station when the strut is picked onto it) stands the foot at its own
+    // station on the lower longeron - a node between the two rings around it, tied to both and to the upper longeron
+    // of the aft one (stand-ins: no mass, the longeron already bills its tube). Absent: the ring, as always
+    const SFT = S.bracing && S.bracing.strutFoot > 0 ? +S.bracing.strutFoot : 0;
+    if (SFT > 0) {
+      let i0 = 0;
+      ST.forEach((s2, i) => { if (s2.x <= SFT) i0 = i; });
+      const i1 = Math.min(ST.length - 1, i0 + 1), la = F[i0][opposeTag + sd], lb = F[i1][opposeTag + sd];
+      const tt = ST[i1].x > ST[i0].x ? Math.max(0, Math.min(1, (SFT - ST[i0].x) / (ST[i1].x - ST[i0].x))) : 0;
+      if (tt < 0.03) strutRoot = la;
+      else if (tt > 0.97) strutRoot = lb;
+      else {
+        const pa = P[la], pb = P[lb];
+        const nf = N(pa[0] + (pb[0] - pa[0]) * tt, pa[1] + (pb[1] - pa[1]) * tt, pa[2] + (pb[2] - pa[2]) * tt, 'SFT' + sd);
+        const up = F[i1][(opposeTag === 'B' ? 'T' : 'B') + sd];
+        B(nf, la, 'fus', false, 'inner', false, { noMass: true });
+        B(nf, lb, 'fus', false, 'inner', false, { noMass: true });
+        if (up != null) B(nf, up, 'fus', false, 'inner', false, { noMass: true });
+        strutRoot = nf;
+      }
+    }
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
@@ -66238,6 +66264,15 @@ function genShakedown(def, opts) {
   // the autopilot reads it from there, never probing at the roll's start (~0.1 s). Only a wing with a stall-angle device
   // gets the key; every other shakedown is the same object as before
   if (!(opts && opts.slim)) { const sg = genStolGain(def); if (sg) out.stolGain = sg; }
+  // FLAPLESS-SAID (FLAGSHIP 13 Nov, A0: genTrim's own words above - "say so in the shakedown rather than ship an aeroplane
+  // that cannot be landed" - and nothing did: landsFlapless / apprTrimFail reached the autopilot and the machine sheet only).
+  // HOW IT LANDS when genTrim could not land it as built: on no flap (the flap will not trim or flare), on a partial notch,
+  // or with its approach trim out of the elevator's reach. Only such a build gets the key
+  { const L = {};
+    if (g.landsFlapless) L.flapless = true;
+    if (g.landsPartialFlap != null) { L.partial = g.landsPartialFlap; L.full = g.flapLdgFull; }
+    if (g.apprTrimFail != null) L.trimFail = g.apprTrimFail;
+    if (Object.keys(L).length) out.landing = L; }
   return out;
 }
 
@@ -69645,11 +69680,15 @@ function genFicheDestroy(def0, opts) {
                 destroy: true, ult: 3 * U, rampS: 4 * 3 };
   const rig = makeLoadTest(sim, def, cfg);
   if (!rig.state.ok) return { ok: false, why: rig.state.why };
-  let base = null, atBreak = null, frames = 0;
+  // ONE-CESSNA (18 Nov, GATE PHYSPAGES): the shape is taken when a part LETS GO (brokeAt); a wing that breaks members
+  // and keeps every part (the refitted 172: 18 members kink at 7.40 g, nothing detaches - BROKE UP, no group) is drawn
+  // at its FIRST BREAK instead (breakAt). An aeroplane that loses a part is drawn exactly as before
+  let base = null, atBreak = null, atKink = null, frames = 0;
   while (!rig.state.done && frames < 60 * 120) {
     const ph = rig.state.phase; rig.step(1 / 60); frames++;
     if (ph === 'settle' && rig.state.phase !== 'settle') base = genFicheSnap(sim);
     if (!atBreak && rig.state.brokeAt != null) atBreak = genFicheSnap(sim);
+    if (!atKink && rig.state.breakAt != null) atKink = genFicheSnap(sim);
   }
   const st = rig.state, D = sim.damage();
   const yielded = [], broken = [];
@@ -69659,7 +69698,7 @@ function genFicheDestroy(def0, opts) {
            firstBreak: D.firstBreak ? { beam: D.firstBreak.beam, how: D.firstBreak.how, seam: D.firstBreak.seam, cls: D.firstBreak.cls } : null,
            firstYield: D.firstYield && typeof D.firstYield === 'object' ? { beam: D.firstYield.beam, cls: D.firstYield.cls } : null,
            groups: (D.groups || []).map(G => ({ key: G.key, seam: G.seam })), broken, yielded,
-           shape: atBreak && base ? genFicheShape(sim, def, base, atBreak) : null, frames };
+           shape: (atBreak || atKink) && base ? genFicheShape(sim, def, base, atBreak || atKink) : null, frames };
 }
 
 // THE DRAG: the rows, the gear's terms, each one's km/h
@@ -73130,7 +73169,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='865dec5c9b4b';window.FLYDIY_BUILD='48a71176c5a6';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=d627c4b0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='c2d790d51e89';window.FLYDIY_BUILD='e24c51222d9b';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=d627c4b0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -73743,7 +73782,7 @@ const CAGE_PARTS = [
       // "the bubble sliders should be part of the windshield selection")
       // (the window ring and cabin pillar offsets, and the cabin pillar's
       // lean, are the door-post and cabin FRAMES' rows under Fuselage, T2.1)
-      ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
+      ['pillars', ['pillarW', 'cabPillarW', 'pillarFollow'], EXPERT],
       // G3511: THE PILOT'S SECTION OPEN AT THE TOP, and the rows every
       // opening shares (the coaming is the window joints' strip, the screens
       // are glazing: their sections stay those parts')
@@ -73788,17 +73827,17 @@ const CAGE_PARTS = [
     groups: [
       ['row 1', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch', 'paxWinY', 'paxWinW',
                  'paxWinH', 'paxWinTopK', 'paxWinSkew', 'paxWinR', 'paxWinR1', 'paxWinR2',
-                 'paxWinR3', 'paxWinR4', 'paxWinDepth', 'paxWinBulge',
+                 'paxWinR3', 'paxWinR4', 'paxWinDepth', 'paxWinBulge', 'paxWinProj',
                  'paxWinQ1Z', 'paxWinQ1Y', 'paxWinQ2Z', 'paxWinQ2Y', 'paxWinQ3Z', 'paxWinQ3Y', 'paxWinQ4Z', 'paxWinQ4Y', 'paxWinQ5On', 'paxWinQ5Z', 'paxWinQ5Y', 'paxWinR5']],
       ['row 2', ['win2N', 'win2Shape', 'win2Z', 'win2Pitch', 'win2Y', 'win2W', 'win2H',
-                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth', 'win2Bulge',
+                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth', 'win2Bulge', 'win2Proj',
                  'win2Q1Z', 'win2Q1Y', 'win2Q2Z', 'win2Q2Y', 'win2Q3Z', 'win2Q3Y', 'win2Q4Z', 'win2Q4Y', 'win2Q5On', 'win2Q5Z', 'win2Q5Y', 'win2R5']],
       ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
-                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth', 'win3Bulge',
+                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth', 'win3Bulge', 'win3Proj',
                  'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y', 'win3Q5On', 'win3Q5Z', 'win3Q5Y', 'win3R5']],
       // (11 Nov: rows 4-6, win4*-win6*, row 3's controls)
       ...[4, 5, 6].map(n => ['row ' + n, ['N', 'Shape', 'Z', 'Pitch', 'Y', 'W', 'H', 'TopK', 'Skew', 'R', 'R1', 'R2', 'R3', 'R4',
-        'Depth', 'Bulge', 'Q1Z', 'Q1Y', 'Q2Z', 'Q2Y', 'Q3Z', 'Q3Y', 'Q4Z', 'Q4Y', 'Q5On', 'Q5Z', 'Q5Y', 'R5'].map(k => 'win' + n + k)]),
+        'Depth', 'Bulge', 'Proj', 'Q1Z', 'Q1Y', 'Q2Z', 'Q2Y', 'Q3Z', 'Q3Y', 'Q4Z', 'Q4Y', 'Q5On', 'Q5Z', 'Q5Y', 'R5'].map(k => 'win' + n + k)]),
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
@@ -73949,7 +73988,7 @@ const CAGE_PARTS = [
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
       ['boom frame', ['aftRoofY', 'frBoomWaistW', 'aftKeelY']],
-      ['boom frame, detail', ['frBoomWaistY', 'frBoomTopW', 'frBoomBotW',
+      ['boom frame, detail', ['frBoomWaistY', 'aftFloorDy', 'frBoomTopW', 'frBoomBotW',
                               'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ'], EXPERT],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch', 'boomMidPinchW']],
     ] },
@@ -74018,7 +74057,7 @@ const CAGE_PARTS = [
       ['covering', ['skinOn', 'skinT', 'shellT']],
       // G214: the skin's screws along the rings and rails
       ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
-      ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
+      ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ', 'bulkAt']],
       // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
       ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
       // CAR-3/4: the rear wall seen from OUTSIDE - its cut windows and its bas-relief (rear doors included)
@@ -74326,7 +74365,7 @@ const CAGE_PARTS = [
       // rendered twice
       ['turbine', ['eng_tStyle', 'eng_tCanD', 'eng_tCanL', 'eng_gearK',
                    'eng_flatK', 'eng_tRpm', 'eng_stackStyle', 'eng_stackOut', 'eng_stackLen', 'eng_stackFlat', 'eng_stackR', 'eng_stackDrop', 'eng_stackSplit']],
-      ['cylinder dress', ['eng_finN', 'eng_finR', 'eng_headFins',
+      ['cylinder dress', ['eng_finN', 'eng_finR', 'eng_cylK', 'eng_headFins',
                           'eng_rockerW', 'eng_rockerH', 'eng_rockerR',
                           'eng_rockerBoss', 'eng_rockerBossW',
                           'eng_rodPos', 'eng_finShape', 'eng_rockerSpan',
@@ -74506,7 +74545,7 @@ const CAGE_PARTS = [
       ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
                    's1Steer', 's1Sink', 's1Ul', 'towHook']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
-                   's1FairW', 's1LegFair']],
+                   's1FairW', 's1FairNose', 's1FairH', 's1FairStyle', 's1FairKick', 's1LegFair', 's1LegFairTo']],
       ['blade', ['s1_beamAng', 's1_beamW', 's1_beamT', 's1_beamTaper',
                  's1_beamBow', 's1_beamRake']],
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
@@ -74565,7 +74604,7 @@ const CAGE_PARTS = [
       ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Root', 's2Brake',
                    's2Steer', 's2Sink', 's2Nose']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
-                   's2FairW', 's2LegFair']],
+                   's2FairW', 's2FairNose', 's2FairH', 's2FairStyle', 's2FairKick', 's2LegFair', 's2LegFairTo']],
       ['blade', ['s2_beamAng', 's2_beamW', 's2_beamT', 's2_beamTaper',
                  's2_beamBow', 's2_beamRake']],
       ['linkage', ['s2_linkAng', 's2_linkSwing', 's2_linkArmW',
@@ -74677,7 +74716,7 @@ const CAGE_PARTS = [
     when: P => +P.intOn,
     place: { on: 'hdlOn', at: 'the cabin ceiling and its walls above the sill' },
     groups: [
-      ['headliner', ['hdlOn', 'wallTrimOn', 'ohConsoleOn']],
+      ['headliner', ['hdlOn', 'hdlDepth', 'wallTrimOn', 'ohConsoleOn']],
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
@@ -74710,7 +74749,7 @@ const CAGE_PARTS = [
       ['inside (dimmers)', ['li_flood', 'li_instr', 'li_pedal', 'li_pax']],
       // the wing bay is the lights' own geometry: where it is cut, how big it
       // is, how deep the box behind it goes, and how big the lamp in it is
-      ['the wing bay', ['li_plane', 'li_bayFrac', 'li_bayHalf', 'li_bayChord',
+      ['the wing bay', ['li_plane', 'li_baySide', 'li_bayFrac', 'li_bayHalf', 'li_bayChord',
                         'li_bayDepth', 'li_lampSize']],
       ['lamp fairings', ['li_podLen', 'li_podGirth', 'li_reflect']],
       ['the navigation lights', ['li_navSpan', 'li_navChord', 'li_navRise']],
@@ -81328,6 +81367,8 @@ const winRowMore = (n) => {
     rad('R1', 'fwd top'), rad('R2', 'aft top'), rad('R3', 'aft bottom'), rad('R4', 'fwd bottom'),
     [pre + 'Depth', 'reveal depth',    0.0, 0.03, 0.001, Object.assign({ when: on, dim: 'len' }, ab('Depth'))],
     [pre + 'Bulge', 'bubble',          0.0, 0.2, 0.005, { when: on, absent: 0, dim: 'len' }],
+    // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+    [pre + 'Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => on(P) && Math.round(+P[pre + 'Shape']) !== 2, absent: 0 }],
   ], {}];
 };
 // AFT-BULKHEAD (3 Nov): the aft wall's rows show with the panel on; the wall's own rows give way to the sling, which
@@ -81601,6 +81642,10 @@ window.CAGE_PAGE = {
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', follow: 'boom.waistY' }],
         ['aftKeelY',     'bottom height',   -1.40, 0.60, 0.005,
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len' }],
+        // BOOM-CORNER (the user, 15 Nov, the 172: the boom's bottom rounds differently from the cabin's): the boom frame's
+        // bottom corner (its floor level) moved off the template's fraction, so its corner can match the cabin's. Absent = 0
+        ['aftFloorDy',   'bottom corner height', -0.80, 0.80, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', absent: 0 }],
         ['frBoomTopW',   'top half-width',   0.00, 1.20, 0.005,
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn) && !(+P.topRound >= 1), dim: 'len', follow: 'boom.topW' }],
         ['frBoomWaistW', 'waist half-width', 0.00, 1.20, 0.005,
@@ -81765,6 +81810,10 @@ window.CAGE_PAGE = {
         // 0 where it has always sat, +1 the aft face.
         ['bulkZ',     'bulkhead station', -1, 1, 0.05,
          { when: P => +P.intOn && +P.intBulk }],
+        // BULK-AT (the user 15 Nov, the C172 refit): the wall on the passengers' aft pillar (as always) or on the
+        // taper's aft pillar - the baggage bay through the taper section. Absent at 0: no build changes
+        ['bulkAt',    'bulkhead at',      0, 1, 1, ["the passengers' aft pillar", "the taper's aft pillar"],
+         { when: P => +P.intOn && +P.intBulk, absent: 0 }],
         // AFT-BULKHEAD (the user 3 Nov: "focus on the aft bulkhead ... design interesting aft bulkheads"): the aft
         // wall's own rows (_cage_gen.js bulkWall; the lamp is _cage_light.js's). NOT IN THE DEFAULTS TABLE (G3570):
         // a build that never sets one saves no key and draws the plain panel as before
@@ -82056,6 +82105,7 @@ window.CAGE_PAGE = {
       // NOT IN THE DEFAULTS TABLE (G3570, as floorUp): a build that never turns one on saves no key and draws as before
       ['headliner', [
         ['hdlOn',       'headliner',        0, 1, 1, { when: P => +P.intOn, absent: 0 }],
+        ['hdlDepth',    'headliner depth (padded, m; 0 = the skin)', 0, 0.15, 0.005, { when: P => +P.intOn && +P.hdlOn, absent: 0, dim: 'len' }],   // CAR-3
         ['wallTrimOn',  'upper wall trim',  0, 1, 1, { when: P => +P.intOn, absent: 0 }],
         ['ohConsoleOn', 'overhead console', 0, 1, 1,
          { when: P => +P.crewOn && Math.round(+P.canopy || 0) === 0, absent: 0 }],
@@ -82342,6 +82392,8 @@ window.CAGE_PAGE = {
         ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['paxWinBulge', 'bubble',          0.0, 0.2, 0.005, { when: P => +P.paxWinN > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['paxWinProj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.paxWinN > 0 && Math.round(+P.paxWinShape) !== 2, absent: 0 }],
       ], 'open'],
       ['row 2', [
         ['win2N',     'windows',         0, 4, 1,
@@ -82372,6 +82424,8 @@ window.CAGE_PAGE = {
         ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['win2Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win2N > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['win2Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.win2N > 0 && Math.round(+P.win2Shape) !== 2, absent: 0 }],
       ], {}],
       ['row 3', [
         ['win3N',     'windows',         0, 4, 1,
@@ -82402,6 +82456,8 @@ window.CAGE_PAGE = {
         ['win3Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win3N > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['win3Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win3N > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['win3Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.win3N > 0 && Math.round(+P.win3Shape) !== 2, absent: 0 }],
       ], {}],
       winRowMore(4), winRowMore(5), winRowMore(6),
     ]],
@@ -82687,6 +82743,10 @@ window.CAGE_PAGE = {
       ['pillarW',   'pillar width',    0.00, 0.30, 0.005],
       ['cabPillarW','cabin pillar',    0.02, 0.30, 0.005],
       ['paxPillarW','pax pillar',      0.02, 0.30, 0.005],
+      // PILLAR-FOLLOW (the user 15 Nov, the C172 refit: "the pillars stay straight whatever, even though they're part
+      // of a curved profile ... an option so they too follow nicely the curvature, so they don't generate steps"):
+      // each pillar's section held at its centre, its two rings on the runs to their neighbours. Absent at 0
+      ['pillarFollow', 'pillars follow the profile', 0, 1, 1, ['straight (as built)', 'follow the profile'], { absent: 0 }],
       ['apilW',     'A-pillar w ×',    0.20, 3.00, 0.01],
       ['apilPerp',  'A-pillar perp',   0, 1, 0.05],
       ['pfW',       'front pillar ×',  0.30, 3.00, 0.01],
@@ -87515,16 +87575,26 @@ function panelBuild(mesh, spec, opt) {
   const parts = [];
   // the doors: key x side, from the door's own skin faces (as-built)
   const doors = new Map();
+  // CESSNA-REFIT (16 Nov, the user: "the inside structure is not cut by the new pilot window"): a window DRAWN on the
+  // door (the knife's pane, faceClass null - it is not the band glass) is a pane the panel must stop under too. The
+  // shoulder's leg sits at the old band's sill, above a drawn window that reaches lower, and the panel covered the pane
+  // from inside. Collected apart (the skin and glass lists, which the edges and the sampler read, are as before); a door
+  // without a drawn pane builds the same panel.
+  const panes = new Map();
   mesh.F.forEach(f => {
-    if (!f.doorKey || f.shoulder || f.doorPanel || faceClass(f) === null) return;
+    if (!f.doorKey || f.shoulder || f.doorPanel) return;
+    const knifePane = f.knife && GLASS.has(f.m) && !f.att && !f.paneEdge;
+    if (!knifePane && faceClass(f) === null) return;
     const P = asBuilt(mesh.V, f);
     let sx = 0; for (const p of P) sx += p[0];
     const side = sx >= 0 ? 1 : -1;
     const k = f.doorKey + ':' + side;
+    if (knifePane) { let lo = 1e9; for (const p of P) lo = Math.min(lo, p[1]); panes.set(k, Math.min(panes.has(k) ? panes.get(k) : 1e9, lo)); return; }
     if (!doors.has(k)) doors.set(k, { key: f.doorKey, side, skin: [], glass: [], cutOff: f.cutOff || null });
     const d = doors.get(k);
     (faceClass(f) === 'G' ? d.glass : d.skin).push(P);
   });
+  for (const [k, lo] of panes) if (doors.has(k)) doors.get(k).paneLo = lo;
   const shParts = (mesh.shoulder && mesh.shoulder.parts) || [];
   const DASH = { z: null, y: null };
   if (doors.size) for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
@@ -87544,6 +87614,7 @@ function panelBuild(mesh, spec, opt) {
       let g = 1e9; for (const P of d.glass) for (const p of P) g = Math.min(g, p[1]);
       yTop = (g < 1e8 ? g : y1) - o.margin;
     }
+    if (d.paneLo != null) yTop = Math.min(yTop, d.paneLo - o.margin);   // a drawn pane on the door (see above)
     const yBot = y0 + o.margin;
     if (yTop - yBot < 0.08) continue;
     // THE DOOR'S EDGES AT A HEIGHT, conservatively: the extent of the door's
@@ -88889,6 +88960,42 @@ function cageResolve(S) {
   }
   }
   frameZ(false);
+  // PILLAR-FOLLOW (the user 15 Nov, the C172 refit: "the pillars stay straight whatever, even though they're part of a
+  // curved profile ... an option so they too follow nicely the curvature, so they don't generate steps in a profile"):
+  // a pillar is a ring pair of one frame section, so the band between them runs flat whatever the bays either side do
+  // and the profile steps at every pillar. On: the section is held at the pillar's CENTRE station and each of its two
+  // rings takes its place on the straight run from that centre to the ring beyond it on its own side - x and y of every
+  // level move, z stays (the frames' fore/aft above is kept). A neighbour across another pillar, a non-full ring or a
+  // ring outside the run leaves that side as built. Off / absent: nothing here runs (fit identity).
+  if (S.pillarFollow && !MIR) {
+    const zOf = r => (r.lv.waist || r.lv.roof).z;
+    const snap = rings.map(r => ({ name: r.name, kind: r.kind, lv: JSON.parse(JSON.stringify(r.lv)) }));
+    const setXY = (r, src) => {
+      for (const k in r.lv) {
+        const l = r.lv[k], s = src.lv[k];
+        if (!s) continue;
+        l.x = s.x; l.y = s.y;
+        if (l.yC != null && s.yC != null) l.yC = s.yC;
+      }
+    };
+    for (let i = 0; i + 1 < rings.length; i++) {
+      const bay = bays[i];
+      if (!bay || !isPillarMat(bay.mat)) continue;
+      const A = snap[i], B = snap[i + 1];
+      if (A.kind !== 'full' || B.kind !== 'full') continue;
+      const C = lerpRing(A, B, 0.5, 'pilC'), c = 0.5 * (zOf(A) + zOf(B));
+      const side = (ri, ni, bi) => {
+        if (ni < 0 || ni >= rings.length || !bays[bi] || isPillarMat(bays[bi].mat)) return;
+        const N = snap[ni];
+        if (N.kind !== 'full') return;
+        const t = (zOf(snap[ri]) - c) / (zOf(N) - c);
+        if (!(t > 0 && t < 1)) return;
+        setXY(rings[ri], lerpRing(C, N, t, rings[ri].name));
+      };
+      side(i, i - 1, i - 1);
+      side(i + 1, i + 2, i + 1);
+    }
+  }
   openBays();
 
   // (the G16 bubble-canopy repositioning experiment lived here — DELETED
@@ -92649,9 +92756,15 @@ function cageInterior(m, S) {
   if (I.bulk) (() => {
     // group pillarPassenger faces into bands; the aft-most band is the
     // pilPaxA station (pax mid pillars share the material)
+    // BULK-AT (the user 15 Nov, the C172 refit: "an option for bringing the aft bulkhead from the passengers aft pillar
+    // to the taper aft pillar, that would be more accurate here"): bulkAt 1 builds the same wall from the TAPER's aft
+    // pillar (pilTaperA, the pillarTaper band) - the baggage bay then runs through the taper section. No taper pillar
+    // (no taper, a rod's truss): the passengers' aft pillar, as before. Absent / 0: every build as it was, to the bit.
+    const atTaper = +I.bulkAt > 0 && F.some(f => f.m === 'pillarTaper' && f.v.length === 4);
+    const BMAT = atTaper ? 'pillarTaper' : 'pillarPassenger';
     const idx = [];
     F.forEach((f, i) => {
-      if (f.m === 'pillarPassenger' && f.v.length === 4) idx.push(i);
+      if (f.m === BMAT && f.v.length === 4) idx.push(i);
     });
     if (!idx.length) return;
     const byIdx = new Map(idx.map((fi, k) => [fi, k]));
@@ -92728,7 +92841,7 @@ function cageInterior(m, S) {
     // cycle it is built from does not exist. `room` is the half-pillar less
     // the panel's own thickness (BTH, 5 mm, declared below where it is used)
     // and the 10 mm base setback, so the slider's ends stay INSIDE the band.
-    const PW = Math.max(0, I.paxPillarW || 0);
+    const PW = Math.max(0, (atTaper ? I.taperPillarW : I.paxPillarW) || 0);   // (BULK-AT: the bounding pillar's own width)
     const bz = Math.max(-1, Math.min(1, +I.bulkZ || 0));
     const room = Math.max(0, PW * 0.5 - 0.005 - 0.010);
     const SETB = 0.010 + bz * room;
@@ -95749,6 +95862,45 @@ function cageInterior(m, S) {
       for (const f of F) if (SIDEG.has(f.m)) for (const vi of f.v) zA = Math.min(zA, V[vi][2]);
       if (!(zA < 1e8)) zA = zCab0;
     }
+    // THE PADDED HEADLINER (CAR-3, 13 Nov; the user: "a real liner engulfs the pillar structure, and adds 5-10 cm of
+    // depth ... model the roof liner, because this one does nothing"): hdlDepth > 0 - the cabin's ceiling skin (its
+    // inward normal at least 0.8 down, between zA and the windscreen) extruded INTO the cabin as a closed slab hdlDepth
+    // deep, starting on the shell's inner face (the composite's skin liner, skinT), in the headliner's material - the
+    // roof's hoops and the pillars' heads inside it, its edge a padded step down to the wall trim. Absent / 0 = the
+    // recoloured skin liner, as before
+    if (I.hdl && I.hdlD > 0) {
+      const GLH = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows', 'joint', 'doorSeal']);
+      const t0 = I.pillars ? (I.skinT > 0 ? I.skinT : (I.shellT || 0.035) * 0.35) : 0;
+      const sel = [], hoop = [];
+      F.forEach((f, i) => {
+        if (f.v.length !== 4 || GLH.has(f.m) || f.paneEdge || f.capFace || f.doorKey) return;
+        const p = f.v.map(k => V[k]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]], w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
+        const cz = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4, cy = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4;
+        // the skin's outward normal points UP on the roof: the cabin sees it from below
+        if (cz < zA || cz >= zNose0 || cy < S.bandY) return;
+        if (ny / (Math.hypot(nx, ny, nz) || 1) >= 0.8) sel.push(i);
+        else if (f.m === 'ceilingLoop' || PM.has(f.m)) hoop.push([i, cy]);
+      });
+      // the roof hoops' own steps (their sides, near the crown) join the slab: it runs on over each hoop as a padded rib
+      // instead of breaking at it - the break left a black slit over every hoop. Below that, THE PILLARS (the user: "a
+      // real liner engulfs the pillar structure ... I want to stop seeing the bare metal pillars"): the hoops' descent
+      // and the pillar bands from the sill up, a moulded trim (the upper wall trim's material) min(hdlDepth, 5 cm) deep
+      let crown = -1e9; for (const i of sel) for (const k of F[i].v) crown = Math.max(crown, V[k][1]);
+      const pil = [];
+      for (const [i, cy] of hoop) (cy > crown - 0.12 ? sel : pil).push(i);
+      if (pil.length) { const n1 = add.length;
+        liner(pil, t0 + Math.min(I.hdlD, 0.05), () => 'cabWall', t0);
+        for (let k = n1; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'cabWall') { f.v = f.v.slice().reverse(); f.back = 1; } } }
+      if (sel.length) {
+        const n0 = add.length;
+        liner(sel, t0 + I.hdlD, () => 'headliner', t0);
+        // the slab's UNDERSIDE drawn as the skin liner's copies are (LINER-BACK): the skin's winding, flagged back - the
+        // headliner's lit path (a front-facing underside took the interior's shade unlit: a black ceiling)
+        for (let k = n0; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'headliner') { f.v = f.v.slice().reverse(); f.back = 1; } }
+      }
+    }
     for (const f of add) {
       if (!f.lin || !LINM.has(f.m) || f.v.length !== 4) continue;
       const p = f.v.map(i => V[i]);
@@ -97487,6 +97639,10 @@ function cageSpec(P) {
         // BUBBLE-WINDOWS: the blister's height, absent unless set (an unset row leaves the window as it was)
         if (+Pw[pre + 'Bulge'] > 0) w.bulge = +Pw[pre + 'Bulge'];
         if (quad) Object.assign(w, cageQuadWindow(Pw, pre, i));
+        // WIN-TOP (16 Nov, the 172's rear windows, the user: "project the aft ones (in the taper section) from the top"):
+        // the row drawn in PLAN - its station along the body, its width along the body, its height ACROSS it, its
+        // height row (Y) the window's lateral centre - and cut straight down onto the roof. Absent: from the side
+        if (+Pw[pre + 'Proj'] > 0 && !quad) w.proj = 'top';
         // (12 Nov) a fifth corner takes its own radius (R5; absent / < 0: the row's)
         if (quad && w.q && w.q.length === 5) {
           const v5 = Pw[pre + 'R5'];
@@ -97542,6 +97698,7 @@ function cageSpec(P) {
           for (let j = 0; j < i; j++) {
             if (S.windows[i].refused) break;            // WINDOWS-FREE: a quad refused for its shape
             if (S.windows[j].refused) continue;
+            if ((S.windows[i].proj || '') !== (S.windows[j].proj || '')) continue;   // WIN-TOP: a plan outline and a side one are not in one view
             if (!sep(polys[i], polys[j])) {
               S.windows[i].refused = 'overlaps row ' + S.windows[j].row + ' window ' + (S.windows[j].i + 1);
               break;
@@ -97699,6 +97856,8 @@ function cageSpec(P) {
   S.aft.floorYB = ap(fr(T.aft.floorYB, T.waistY, T.aft.keelYB),
                      P.waistY, P.aftKeelY);
   S.aft.keelYA = S.aft.keelYB + aLean.keel;
+  // BOOM-CORNER (15 Nov): the boom frame's bottom corner moved off its template seat (absent = as it always was)
+  if (+P.aftFloorDy) S.aft.floorYB += +P.aftFloorDy;
   S.aft.floorYA = S.aft.floorYB + aLean.floor;
 
   S.tail.len = P.tailLen;
@@ -97956,6 +98115,9 @@ function cageSpec(P) {
                  // the aft bulkhead's own station, and the pillar that bounds
                  // it — the panel needs BOTH, and the width is resolved above
                  bulkZ: P.bulkZ || 0, paxPillarW: S.paxPillarW,
+                 // BULK-AT (15 Nov): the wall at the taper's aft pillar instead (absent: 0), and that pillar's width
+                 // (the taper pillar is pillarW wide, paxPillarW when pillarW is unset - the generator's tpW)
+                 bulkAt: +P.bulkAt > 0 ? 1 : 0, taperPillarW: S.pillarW > 0 ? S.pillarW : S.paxPillarW,
                  skinT: skinTv,
                  cons: consG,
                  // the SECTION MODEL: one technique per {boom|pax|
@@ -97971,6 +98133,7 @@ function cageSpec(P) {
                  shellT: Math.max(0.005, P.shellT || 0.035),
                  // CABIN-INTERIOR (T1/T2): the headliner / the upper wall trim - keys only when on (absent rows)
                  ...(+P.hdlOn ? { hdl: 1 } : {}), ...(+P.wallTrimOn ? { wall: 1 } : {}),
+                 ...(+P.hdlOn && +P.hdlDepth > 0 ? { hdlD: +P.hdlDepth } : {}),   // CAR-3: the padded headliner's depth
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease,
@@ -99165,6 +99328,17 @@ function cageRearRelief(m, S) {
   if (add.length) m.F = F.concat(add);
   return m;
 }
+// one drawn window cut on one flank: from the side (as always), or - WIN-TOP (16 Nov) - laid in plan and cut straight
+// down (the knife's frame: n0 up, t1 along the body, t2 across; the faces under the cabin's waist are not the roof's)
+function cageKnifeWin(KG, s, w, side) {
+  if (w.proj !== 'top') return KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal' });
+  // the row's "top" is OUTBOARD on both flanks: the port pane is the starboard one mirrored across the centreline
+  // (v -> -v, re-wound counter-clockwise), so a pane rounded on its outer side stays rounded outboard on both
+  let outline = KG.knifeOutline(Object.assign({}, w, { z: 0, y: 0 }));
+  if (side < 0) outline = outline.map(p => [p[0], -p[1]]).reverse();
+  return KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal', outline, yMin: 0,
+                             frame: { n0: [0, 1, 0], c0: [side * w.y, 0, w.z], t1: [0, 0, 1], t2: [1, 0, 0] } });
+}
 function cageSheetKept(spec, step, L) {
   const memo = {};
   const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
@@ -99192,8 +99366,7 @@ function cageSheetKept(spec, step, L) {
       s.N = KG.knifeNormals(s);
       for (const w of S.windows) {
         if (w.refused) continue;
-        for (const side of [1, -1])
-          s = KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal' });
+        for (const side of [1, -1]) s = cageKnifeWin(KG, s, w, side);
       }
     }
     if (KG && S.rearWin) s = cageRearCut(s, S, KG);
@@ -99252,9 +99425,7 @@ function cageSheet(P, opts) {
       s.N = KG.knifeNormals(s);
       for (const w of spec.windows) {
         if (w.refused) continue;                    // T2.2: an overlapping window is never cut
-        for (const side of [1, -1])
-          s = KG.knifeCut(s, w, { side, depth: w.depth,
-                                  paneMat: 'drawnPane', wallMat: 'reveal' });
+        for (const side of [1, -1]) s = cageKnifeWin(KG, s, w, side);
       }
       // G316: the drawn panes explode as parts — one part per pane (the
       // knife's copies are per window, a pane's polygons share them and
@@ -111275,9 +111446,17 @@ function spat(bags, hub, axis, R, o) {
     up = nrm(add(mul(up, cR), mul(fwd, sR)));
     fwd = f2;
   }
-  const zN = R * 1.62, zT = R * 2.45 * tail;     // nose ahead, tail behind
-  const Hm = R * 1.20, Wm = R * 0.62 * wid;      // depth and half width
+  // SPAT-NOSE-DEPTH (15 Nov, the 172's wheel pants from its blueprint): the nose's reach ahead of the axle and the
+  // shell's depth, as multiples of the tyre (absent 1: the shell as it always was)
+  const noseK = clamp(O.nose || 1, 0.70, 1.80), depK = clamp(O.depth || 1, 0.70, 1.50);
+  const zN = R * 1.62 * noseK, zT = R * 2.45 * tail;     // nose ahead, tail behind
+  const Hm = R * 1.20 * depK, Wm = R * 0.62 * wid;      // depth and half width
   const yCut = -R * clamp((full ? 0.80 : 0.48) + (O.skirt || 0), 0.30, 0.92);
+  // FAIR-FACET (16 Nov, the 172's wheel pants, the user: "more pointy at the front and the back ... a polygonal shape
+  // with beveled edges ... alternative wheel fairings"): style 1 = a pointed nose and tail and an octagonal section (a
+  // box with its four long edges bevelled); `kick` (x R) sweeps the tail up behind the tyre (clear of a tail-down
+  // rotation). Absent: the rounded shell, level, as it always was
+  const style = Math.round(O.style || 0) === 1 ? 1 : 0, kick = clamp(O.kick || 0, 0, 0.8);
   const NT = 30, NA = 22;
   // THE FAIRING IS THE GREATER OF TWO SHAPES. Streamline alone is
   // shallower than the tyre at the front and back of the wheel, and the
@@ -111285,9 +111464,32 @@ function spat(bags, hub, axis, R, o) {
   // and it encloses the wheel AND runs out to a fine tail.
   const gap = R * 0.07;
   const env = z => Math.abs(z) < R ? Math.sqrt(Math.max(0, R * R - z * z)) : 0;
-  const stream = z => z >= 0
-    ? Hm * Math.sqrt(Math.max(0, 1 - (z / zN) * (z / zN)))
-    : Hm * Math.pow(Math.max(0, 1 - Math.pow(-z / zT, 1.85)), 0.62);
+  const stream = style === 1
+    ? (z => z >= 0 ? Hm * Math.max(0, 1 - Math.pow(z / zN, 1.6))
+                   : Hm * Math.max(0, 1 - Math.pow(-z / zT, 1.35)))
+    : (z => z >= 0
+      ? Hm * Math.sqrt(Math.max(0, 1 - (z / zN) * (z / zN)))
+      : Hm * Math.pow(Math.max(0, 1 - Math.pow(-z / zT, 1.85)), 0.62));
+  // the section point at angle an (0 crown, pi keel): the ellipse, or (style 1) the bevelled box - the ray from the
+  // centre to the octagon |x| <= 1, |y| <= 1, |x| + |y| <= 2 - BEV (the bevel cuts BEV off each corner)
+  const BEV = 0.62;
+  const sec = (an, Hh, Ww) => {
+    const ux = Math.sin(an), uy = Math.cos(an);
+    if (style !== 1) return [Ww * ux, Hh * uy];
+    const r = 1 / Math.max(Math.abs(ux), Math.abs(uy), (Math.abs(ux) + Math.abs(uy)) / (2 - BEV), 1e-9);
+    return [Ww * r * ux, Hh * r * uy];
+  };
+  // where the section meets the cut, measured from the crown (the octagon's y falls monotonically with an)
+  const aCut = Hh => {
+    if (style !== 1) return Math.acos(clamp(yCut / Hh, -1, 1));
+    if (sec(Math.PI, Hh, 1)[1] >= yCut) return Math.PI;
+    let lo = 0, hi = Math.PI;
+    for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (sec(m, Hh, 1)[1] > yCut) lo = m; else hi = m; }
+    return 0.5 * (lo + hi);
+  };
+  // the tail's sweep up, from just behind the axle to the tip (a parabola: level where it leaves the tyre)
+  const z0K = -R * 0.6;
+  const kickAt = z => kick > 0 && z < z0K ? kick * R * Math.pow((z0K - z) / Math.max(1e-6, zT + z0K), 2) : 0;
   const Hat = z => Math.max(stream(z), env(z) > 0 ? env(z) + gap : 0);
   const Wat = z => {
     // full width wherever the tyre is, easing out just past it
@@ -111297,18 +111499,23 @@ function spat(bags, hub, axis, R, o) {
   };
   const bag = bags.fair;
   const rows = [], edges = [[], []];
+  // FAIR-FACET (16 Nov, the user: "cut clean and straight, just in the last little portion"): the faceted shell stops
+  // short of its point (CUT of the tail's run) and is closed by a flat end; the rounded one runs to its tip as always
+  const CUT = style === 1 ? 0.86 : 1, endPts = [];
   for (let i = 0; i <= NT; i++) {
     const t = i / NT;
-    const z = zN - t * (zN + zT);
+    const z = zN - t * (zN + zT * CUT);
     const Hh = Math.max(1e-4, Hat(z)), Ww = Math.max(1e-4, Wat(z));
-    // where the ellipse meets the cut, measured from the crown
-    const c = clamp(yCut / Hh, -1, 1);
-    const aMax = Math.acos(c);                   // 0 = crown, pi = keel
+    // where the section meets the cut, measured from the crown
+    const aMax = aCut(Hh);                       // 0 = crown, pi = keel
+    const yK = kickAt(z);
     const row = [];
     for (let j = 0; j <= NA; j++) {
       const an = -aMax + 2 * aMax * j / NA;
-      const y = Hh * Math.cos(an), x = Ww * Math.sin(an);
-      row.push(bag.v(add(hub, add(mul(fwd, z), add(mul(up, y), mul(ax, x))))));
+      const [x, y] = sec(an, Hh, Ww);
+      const pp = add(hub, add(mul(fwd, z), add(mul(up, y + yK), mul(ax, x))));
+      row.push(bag.v(pp));
+      if (i === NT && CUT < 1) endPts.push(pp);
     }
     rows.push(row);
     // THE BEAD RUNS WHERE THE OPENING IS (A7, 2026-09-21, the user of
@@ -111320,8 +111527,8 @@ function spat(bags, hub, axis, R, o) {
     // with a pinch where they parted at the opening's ends. The edges stop
     // at the last open station; the closed run-out is plain shell.
     if (aMax < Math.PI - 1e-3) {
-      const pE = an2 => add(hub, add(mul(fwd, z),
-        add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
+      const pE = an2 => { const q = sec(an2, Hh, Ww);
+        return add(hub, add(mul(fwd, z), add(mul(up, q[1] + yK), mul(ax, q[0])))); };
       edges[0].push(pE(-aMax));
       edges[1].push(pE(aMax));
     }
@@ -111343,6 +111550,15 @@ function spat(bags, hub, axis, R, o) {
       bag.quad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]);
     else
       bag.quad(rows[i][j + 1], rows[i][j], rows[i + 1][j], rows[i + 1][j + 1]);
+  }
+  // the faceted shell's flat end: a fan from its centre, every face turned to look aft
+  if (CUT < 1 && endPts.length > 2) {
+    const cc = endPts.reduce((a, q) => add(a, mul(q, 1 / endPts.length)), [0, 0, 0]), ic = bag.v(cc), last = rows[NT];
+    const aft = mul(fwd, -1);
+    for (let j = 0; j < NA; j++) {
+      const nn = crs(sub(endPts[j], cc), sub(endPts[j + 1], cc));
+      if (dot(nn, aft) >= 0) bag.tri(ic, last[j], last[j + 1]); else bag.tri(ic, last[j + 1], last[j]);
+    }
   }
   // the rolled edge bead down both sides of the opening
   for (const e of edges)
@@ -112051,12 +112267,16 @@ function legShroud(bag, path, yStop, chord, thick) {
 //   turning fork, and the housing's own height is exactly where the turning
 //   part begins (CASTOR_HOUSE, the profile castorUnit revolves).
 const CASTOR_HOUSE = 0.062;
+// LEG-FAIR-TO (the user 15 Nov, the C172 refit: the main legs' fairings "look broke now, spending only half/a third of the
+// total arm length"): with a wheel pant on (fair 1) and legFairTo set, the leg's shroud runs on INTO the pant - its end
+// hidden in the pant's inboard face, 0.4 tyre radii over the axle - as a spring-steel leg's fairing meets the spat on the
+// real aeroplane. Absent / no pant: it stops above the tyre as it always has.
 // (INLINE-FORK, proto 17 Nov: the inline fork's wheel is ON the leg's axle - no castor below it - so its shroud stops
 // clear of the tyre and of the spat's crown, the user: "it should stop short of the fairing and the wheel")
 const fairStopY = (st, axleY) =>
   st.inline ? axleY + st.R * (st.fair ? 1.3 : 1.08)
   : (st.steer > 0 && st.x <= 0.01) ? axleY + CASTOR_HOUSE
-                                 : axleY + st.R * 1.04;
+                                 : axleY + st.R * (st.legFairTo && st.fair === 1 ? 0.4 : 1.04);
 
 // the STUB AXLE: from where the leg ends, out through the hub and a
 // little past it — the piece that was missing when legs ran to the
@@ -113778,7 +113998,8 @@ function legTailwheel(bags, AF, P, st) {
   if (st.fair) {
     spat(bags.castorBags || bags, u.hub, u.axis, st.R,
          { full: st.fair === 2, skirt: st.fairSkirt, tail: st.fairTail,
-           rake: st.fairRake, width: st.fairW });
+           rake: st.fairRake, width: st.fairW, nose: st.fairNose, depth: st.fairH,
+           style: st.fairStyle, kick: st.fairKick });
     if (st.fair === 2)
       legShroud(bags.fair, path, tip[1] + 0.02,
                 Math.max(0.10, P.twSpringW * 2.2),
@@ -114347,7 +114568,13 @@ const gearStations = P => {
                fairTail: +P['s' + i + 'FairTail'] || 1,
                fairRake: +P['s' + i + 'FairRake'] || 0,
                fairW: +P['s' + i + 'FairW'] || 1,
+               fairNose: +P['s' + i + 'FairNose'] || 1,   // SPAT-NOSE-DEPTH (15 Nov): absent 1
+               fairH: +P['s' + i + 'FairH'] || 1,
+               fairStyle: Math.round(+P['s' + i + 'FairStyle'] || 0),   // FAIR-FACET (16 Nov): absent 0
+               fairKick: +P['s' + i + 'FairKick'] || 0,
                legFair: Math.round(P['s' + i + 'LegFair'] || 0),
+               // LEG-FAIR-TO (15 Nov): the leg fairing runs down into the wheel pant (absent: stops above the wheel)
+               legFairTo: Math.round(+P['s' + i + 'LegFairTo'] || 0),
                steer: Math.round(P['s' + i + 'Steer']), P: gearLegP(P, i) });
   }
   return out;
@@ -115558,7 +115785,8 @@ if (typeof window !== 'undefined') window.FIT_SITE = API;
 // strut's foot 0.15 m ahead of its node, on the pilot door's bottom; the float strut roots 0.4 m and 0.2 m from theirs,
 // one of them on the pilot door's skin). A foot drawn on the pillar rides the node it loads (app.js nearNode): WYSIWYG.
 // A mid pillar (M<i>) and the windscreen post (A) have no frame ring: they are sites for hardware (a handle's latch,
-// a step, a strap), not for a primary load, and `frame` says so.
+// a step, a strap), not for a primary load, and `frame` says so - except the A post a lift strut is PICKED onto
+// (windscreenPost: A-POST STRUT, 16 Nov), which the frame gives the strut's own node.
 'use strict';
 (function () {
 
@@ -115688,6 +115916,20 @@ function pillarsOf(mesh, R, FS) {
   return v;
 }
 
+// A-POST STRUT (16 Nov, the 172, the user: "there is a structural pillar over there. It's the one that is doing the A
+// pillar of the window ... a very valid place to put a strut"): the windscreen post off the windscreen frame's own ring
+// pair (wsAft -> wsFront, at the waist), carrying the lift strut's own frame node (61_gen_frame: bracing.strutFoot, the
+// join's) - read only when a strut is PICKED onto the A post, so every other record stays as it was. -> the record, or null
+function windscreenPost(R, FS) {
+  FS = FS || 1;
+  const { by } = bandsOf(R);
+  const za = ringZ(by.wsAft), zb = ringZ(by.wsFront);
+  if (za == null || zb == null || !(Math.abs(zb - za) > 1e-4)) return null;
+  const ya = ringYs(by.wsAft) || [0, 0], yb = ringYs(by.wsFront) || ya;
+  const z0 = Math.min(za, zb) * FS, z1 = Math.max(za, zb) * FS, zc = 0.5 * (z0 + z1);
+  return { key: 'A', label: 'windscreen (A) post', z0, z1, zc, zNode: zc, rings: ['wsAft', 'wsFront'], frame: 'A',
+           yLo: Math.min(ya[0], yb[0]) * FS, yHi: Math.max(ya[1], yb[1]) * FS };
+}
 // the pillar a station stands on, or the nearest one within `reach` (metres); `frame` true: only a pillar with a
 // physics ring (a primary load's)
 function onPillar(PS, z, opt) {
@@ -116153,7 +116395,7 @@ function swingLine(d) {
          (on.length ? ', on the closed door: ' + on.join(', ') : '');
 }
 
-const API = { SWING_CATS, SWING_RED_MM, SWING_STOP, inDoorZY, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };
+const API = { windscreenPost, SWING_CATS, SWING_RED_MM, SWING_STOP, inDoorZY, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PILLAR_SITE = API;
 })();
@@ -121899,7 +122141,7 @@ const isPiston = p => p.arch !== 'electric' && p.arch !== 'turbine';
 // key is in NO default dict, so applyEngPreset never writes them and no saved build, preset or join gains a key; the
 // mesh reads an absent key as the drawing before the row existed. These are the values their sliders SHOW while absent
 // (the cage's `absent` row option, the bench page's own state). A key is written only when a page changes it.
-const LATENT = { stackOut: 1, stackLen: 1, stackFlat: 0, stackR: 1, stackDrop: 0, stackSplit: 0 };
+const LATENT = { stackOut: 1, stackLen: 1, stackFlat: 0, stackR: 1, stackDrop: 0, stackSplit: 0, cylK: 1.85 };
 const ENG_GROUPS = [
   // THE TURBOPROP (2026-09-05, TURBOPROP §3): its own keys, so no row is
   // rendered twice; NO aim row — a PT6's two stacks are left and right by
@@ -122024,6 +122266,10 @@ const ENG_GROUPS = [
   ['cylinder dress', [
     ['finN',     'barrel fins', 4, 18, 1],
     ['finR',     'fin dia /b',  1.1, 1.7, 0.01],
+    // CYL-REACH (16 Nov, the 172, the user: "modify the geometry of the engine a tad"): how far a cylinder stands out
+    // beyond its stroke, x the bore (the drawing and the garage envelope; mass, power and the CG do not read it) -
+    // the generic 1.85 draws an IO-360 0.98 m across, the real one is 0.85 m (latent: absent = 1.85, as drawn before)
+    ['cylK',     'cylinder reach /b', 1.2, 2.2, 0.01],
     ['headFins', 'head fins',   0, 10, 1],
     ['rockerW',  'rocker w /b', 0.6, 1.2, 0.01],
     ['rockerH',  'rocker h /b', 0.4, 0.9, 0.01],
@@ -122197,7 +122443,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, keelLevel:0, deckLevel:0, deckFall:0, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // PROPER-COWLS: the side gills (the Carbon Cub's): off by default
   // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
   // two-row radial's rear row; null = lobeT)
@@ -122480,10 +122726,11 @@ function prepareLid(){
   // one recipe, used for the deck and the keel with their own scale and sweep
   // (q1 / q2: this line's own shoulder and fullness - the keel's may differ from the rest, see keelShoulder)
   // (level: the line leaves z0 LEVEL - the fuselage's own bottom carried on - rather than on the barrel's taper)
-  const half=(k,sweep,end,q1,q2,level)=>{
+  // (lvl: KEEL-LEVEL, 16 Nov - the slope the line leaves z0 on when `level`, so it can cancel the spine's climb)
+  const half=(k,sweep,end,q1,q2,level,lvl)=>{
     const a1c=q1!=null?q1:c1, a2c=q2!=null?q2:c2;
     const z0=cl-clamp(sweep,0,0.95)*cl, Lh=ze-z0;
-    const v0=k*lerp(h0,h1,z0/cl), sv=level?0:sh*k;
+    const v0=k*lerp(h0,h1,z0/cl), sv=level?(lvl||0):sh*k;
     return {z0, k, c:mkCurve([z0, z0+Lh*a1c, ze-Lh*0.05, ze],
                              [v0, v0+sv*Lh*a1c, end+(v0-end)*a2c, end])};
   };
@@ -122500,8 +122747,34 @@ function prepareLid(){
   const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
   // PROPER-COWLS V5 (the user, 8 Nov: "you are drawing the top side completely straight ... a little taper ... so that
   // you come and kiss better the top of the prop"): the top line's own bend, as the keel's (absent = the bowl's pair)
+  // DECK-LEVEL (16 Nov, the 172, the user: "the cowl does not start straight ... a little band next to the firewall
+  // which is smaller, and breaks the continuity"): the keel's KEEL-LEVEL for the top line - it leaves the firewall
+  // level AS SEEN (the spine climbs by lidRise over the barrel, so the top's own half-height shrinks at that rate) and
+  // the barrel no longer climbs over the fuselage's deck in its first centimetres. Absent: the taper's slope, as always
   const T=half(kT, P.deckSweep, lidRT()+fr,
-               P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1));
+               P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1),
+               +P.deckLevel>0, +P.deckLevel>0 ? -(+P.lidRise||0)/cl - (+P.deckFall||0) : 0);
+  // (and the stretch BEHIND the bend - the last sweep share by the firewall - carries the same level line, not the
+  // taper's: else the top still climbs in its first centimetres, the very band the user saw)
+  // DECK-FALL (16 Nov, the 172, the user: "this one dips towards the propeller, and ours don't dip enough"): with deckLevel,
+  // the top line falls by deckFall (m a metre, as seen) toward the nose instead of leaving level - the three-view's
+  // straight descent from the firewall to the nose bowl. Absent 0: level, as deckLevel drew it
+  if(+P.deckLevel>0){ const z0=T.z0; T.lin={ v0:T.c.at(z0), sv:-(+P.lidRise||0)/cl-(+P.deckFall||0), z0 }; }
+  // DECK-FALL AS ONE CONVEX LINE (16 Nov, the 172, the user: "we need to get rid of the little hump close to the nose to get a
+  // purely monotonous curve"). The bowl's bend was aimed at the firewall's height (fullness measured from v0), so a top
+  // that already falls toward the nose dipped under the bend's second point and climbed back to it: a hump. With a fall the
+  // line is drawn AS SEEN (the spine's climb taken out): straight on the fall to the shoulder, then the bowl - its second
+  // point between the chord to the ring (deckRound 0) and the fall carried on (1) - so the control polygon is convex and
+  // the line only ever steepens into the face. Absent (deckFall 0): the bend as it was, to the bit
+  if(+P.deckLevel>0&&+P.deckFall>0){
+    const z0=T.z0, Lh=ze-z0, fall=+P.deckFall, lr=+P.lidRise||0;
+    const s0=T.c.at(z0)+lr*z0/cl, sE=lidRT()+lr+(+P.faceRise||0);            // seen heights: the line's start, the ring's top
+    const line=z=>s0-fall*(z-z0);
+    const z1=z0+Lh*clamp(P.deckShoulder==null?c1:+P.deckShoulder,0,0.92), z2=ze-Lh*0.05, v1=line(z1);
+    const chord=v1+(sE-v1)*(z2-z1)/Math.max(ze-z1,1e-6), r=clamp(P.deckRound==null?c2:+P.deckRound,0,1);
+    const v2=Math.max(chord+(Math.max(line(z2),chord)-chord)*r, sE);
+    T.seen=mkCurve([z0,z1,z2,ze],[s0,v1,v2,sE]);
+  }
   // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
   // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
   // carry the barrel late (shoulder 0.88) bent its bottom late and sharp too. keelShoulder / keelRound give the bottom
@@ -122510,7 +122783,12 @@ function prepareLid(){
   // Absent (null) = the bowl's pair, to the bit.
   const K=half(kB, P.keelSweep, lidRB()-fr,
                P.keelShoulder==null?null:clamp(+P.keelShoulder,0,0.92), P.keelRound==null?null:clamp(+P.keelRound,0,1),
-               P.keelShoulder!=null);   // its own bend leaves the firewall level and rounds up into the face
+               P.keelShoulder!=null,    // its own bend leaves the firewall level and rounds up into the face
+               // KEEL-LEVEL (16 Nov, the 172, the user: "this gentle, easing curve, where the tangent aligns at the firewall
+               // bottom with the fuselage, then curves upwards"): level as SEEN - the line is drawn about the spine, which
+               // climbs over the barrel (lidRise), so it leaves on the spine's own slope and stays level in the side view.
+               // Absent: level along the spine, as always
+               +P.keelLevel>0 ? (+P.lidRise||0)/cl : 0);
   // PROPER-COWLS (2026-11-08): `waistF` - THE WIDEST LINE'S HEIGHT AT THE BARREL END, as a fraction of the front's
   // half-height. A straight cowl's front is centred on the thrust line and shorter than the firewall, so a waist held at
   // ONE fraction of the height would fall or climb along the barrel; with waistF the widest line runs straight from the
@@ -122559,7 +122837,9 @@ function sectionAtZ(z){
     nB=sqExp(lerp(P.sqFrontBot,P.lidSqBot,u));
   }
   const hLin=lerp(P.aftH,P.aftH*P.taperH,clamp(z/cl,0,1));
-  let bT = z<=LID.T.z0 ? LID.T.k*hLin : Math.max(LID.T.c.at(z),0.003);
+  let bT = z<=LID.T.z0 ? (LID.T.lin ? Math.max(LID.T.lin.v0+LID.T.lin.sv*(z-LID.T.lin.z0),0.003) : LID.T.k*hLin) : Math.max(LID.T.c.at(z),0.003);
+  // (DECK-FALL: the seen line less the local spine - the bowl's own lift taken back below, as for every shaped ring)
+  if(LID.T.seen&&z>LID.T.z0) bT=Math.max(LID.T.seen.at(z)-(z>cl&&lidShaped()?P.lidRise:cy),0.003)+(z>cl&&lidShaped()?cy-P.lidRise:0);
   let bB = z<=LID.K.z0 ? LID.K.k*hLin : Math.max(LID.K.c.at(z),0.003);
   let yw = z<=LID.W.z0 ? (LID.W.kF==null ? LID.W.k*hLin : lerp(LID.W.yA,LID.W.yF,clamp(z/cl,0,1))) : LID.W.c.at(z);
   if(z>cl&&lidShaped()){ const sh=cy-P.lidRise; bT=Math.max(bT-sh,0.003); bB=Math.max(bB+sh,0.003); if(z>LID.W.z0) yw-=sh; }
@@ -124577,6 +124857,12 @@ const COWL_ROWS = [
     // PROPER-COWLS V4: the bottom's own bend (absent = the bowl's shoulder and fullness)
     { k: 'keelShoulder', label: 'bottom line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
     { k: 'keelRound', label: 'bottom line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
+    // KEEL-LEVEL (16 Nov, the 172): the bottom leaves the firewall level as SEEN from the side (the axis's climb cancelled)
+    { k: 'keelLevel', label: 'bottom line: leaves the firewall level (as seen)', lo: 0, hi: 1, step: 1 },
+    // DECK-LEVEL (16 Nov): the same for the top line (absent 0)
+    { k: 'deckLevel', label: 'top line: leaves the firewall level (as seen)', lo: 0, hi: 1, step: 1 },
+    // DECK-FALL (16 Nov): with the line level, how much it falls toward the nose, as seen (absent 0)
+    { k: 'deckFall', label: 'top line: falls toward the nose (m per m, as seen)', lo: 0, hi: 0.5, step: 0.005, when: 'P.deckLevel>0' },
     // PROPER-COWLS V5: the top line's own bend (absent = the bowl's pair)
     { k: 'deckShoulder', label: 'top line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
     { k: 'deckRound', label: 'top line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
@@ -131396,9 +131682,14 @@ const wingPost = ctx => {
     // by the SIGN of the span coordinate gives each side its own hole, its own
     // lens and its own bound — and makes the two switchable apart, which the
     // single class could never be.
+    // CESSNA-REFIT (16 Nov, the user: "an option for having a single one, because I think that's what the Cessna has"):
+    // li_baySide picks the wing the bay is cut in - 0 (absent) both, 1 the R bay alone (+x: the PORT wing), 2 the L (starboard); the other
+    // wing keeps its skin (and the light layer, placing a lamp per bay it finds, fits none there)
     if (bayRows && vs && bayRows.has(Math.round(az * 1e4)) &&
-        uOf(vs) < BAY.chord)
-      return toBody(cen)[2] >= 0 ? 'lampR' : 'lampL';
+        uOf(vs) < BAY.chord) {
+      const sdB = toBody(cen)[2] >= 0 ? 'lampR' : 'lampL', one = Math.round(+P.li_baySide || 0);
+      if (!(one === 1 && sdB === 'lampL') && !(one === 2 && sdB === 'lampR')) return sdB;
+    }
     if (az <= zRoot + 1e-3) return 'centre';
     if (tipOn && az >= tipZ - 1e-3) return 'tip';
     return 'main';
@@ -132149,7 +132440,10 @@ const wingPost = ctx => {
         // the join writes that ring's station into bracing.strutAt and the frame roots the strut there (WYSIWYG
         // still: the drawing and the load on the one ring). 0 = auto: the frame's own rule, read back
         const pick = ['', 'A', 'B', 'C'][Math.round(+P.wgStrutPil || 0)] || '';
-        const picked = pick ? PSx.pillars.find(q => q.key === pick && q.frame) : null;
+        let picked = pick ? PSx.pillars.find(q => q.key === pick && q.frame) : null;
+        // A-POST STRUT (16 Nov, the 172): the A post off the windscreen frame's rings, a structural pillar - its own
+        // frame node (the join writes its station into bracing.strutFoot; 61_gen_frame stands the node there)
+        if (!picked && pick === 'A' && PSm.windscreenPost) picked = PSm.windscreenPost(CG2.cageResolve(spec), FS);
         if (pick && !picked) pilWhy = 'the ' + pick + ' pillar carries no frame ring here - auto';
         if (picked) { pil = picked; STRUT_PIL = { key: picked.key, zNode: picked.zNode }; }
         else {
@@ -133271,6 +133565,12 @@ const station = (i, name) => [name, [
   ['s' + i + 'FairTail', 'tail droplet ×', 0.70, 1.60, 0.01, fairOn(i)],
   ['s' + i + 'FairRake', 'fairing rake °', -25, 25, 1, fairOn(i)],
   ['s' + i + 'FairW',   'fairing width ×', 0.80, 1.50, 0.01, fairOn(i)],
+  // SPAT-NOSE-DEPTH (15 Nov, the 172): the nose's reach ahead of the axle and the shell's depth (absent 1: as built)
+  ['s' + i + 'FairNose', 'fairing nose length ×', 0.70, 1.80, 0.01, Object.assign({ absent: 1 }, fairOn(i))],
+  ['s' + i + 'FairH',    'fairing depth ×',       0.70, 1.50, 0.01, Object.assign({ absent: 1 }, fairOn(i))],
+  // FAIR-FACET (16 Nov, the 172): the alternative shell - pointed and bevelled - and the tail swept up behind the tyre
+  ['s' + i + 'FairStyle', 'fairing style', 0, 1, 1, ['rounded', 'faceted, pointed'], Object.assign({ absent: 0 }, fairOn(i))],
+  ['s' + i + 'FairKick',  'tail upsweep (× tyre radius)', 0, 0.8, 0.01, Object.assign({ absent: 0 }, fairOn(i))],
   // the leg's own streamline shroud, without buying the wheel a spat.
   // Hidden on trousers (they already shroud the leg) and on the castor
   // (its spring shroud is the trouser state's own).
@@ -133278,6 +133578,10 @@ const station = (i, name) => [name, [
    { when: P => +P['s' + i + 'On'] && noRet(P)
              && (Math.round(P['s' + i + 'Fair'] || 0) < 2 || !noLever(P, i))
              && !(i === 2 && Math.round(P.s2Leg) === 3) }],
+  // LEG-FAIR-TO (the user 15 Nov, the C172 refit): the leg fairing down into the wheel pant, as on the real spring-steel
+  // gear (with a pant only). Absent at 0: above the wheel, as before
+  ['s' + i + 'LegFairTo', 'leg fairing reaches', 0, 1, 1, ['above the wheel', 'into the wheel pant'],
+   { when: P => +P['s' + i + 'On'] && noRet(P) && Math.round(+P['s' + i + 'LegFair'] || 0) > 0 && Math.round(+P['s' + i + 'Fair'] || 0) === 1, absent: 0 }],
   ...legRows(i),
 ]];
 
@@ -135806,6 +136110,42 @@ const dispose = o => {
   if (o.parent) o.parent.remove(o);
 };
 
+// NOSE-ON-COWL (15 Nov): the airframe contract ahead of the body, read off the cowl layer's drawn shells
+// (window.CAGE_COWL_SHELLS, built by _cage_cowl.js's post just before this one): every mesh under them, in the scene's
+// frame (metres, the frame the body table is in), sliced like the body (GEAR_GEN.meshAirframe). The composite answers
+// with the cowl for a station ahead of the body's front, the body otherwise; null pieces give the body back unchanged.
+function cowlTable() {
+  const sh = typeof window !== 'undefined' && window.CAGE_COWL_SHELLS;
+  if (!sh || !sh.length || !GG.meshAirframe || typeof THREE === 'undefined') return null;
+  const V = [], F = [], q = new THREE.Vector3();
+  for (const s of sh) {
+    if (!s || !s.traverse) continue;
+    let root = s; while (root.parent) root = root.parent;
+    root.updateMatrixWorld(true);
+    s.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      const pos = o.geometry.attributes.position, base = V.length, idx = o.geometry.index;
+      for (let i = 0; i < pos.count; i++) { q.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); V.push([q.x, q.y, q.z]); }
+      if (idx) for (let i = 0; i + 2 < idx.count; i += 3) F.push([base + idx.getX(i), base + idx.getX(i + 1), base + idx.getX(i + 2)]);
+      else for (let i = 0; i + 2 < pos.count; i += 3) F.push([base + i, base + i + 1, base + i + 2]);
+    });
+  }
+  return F.length ? GG.meshAirframe(V, F) : null;
+}
+let cowlAF = null;
+function withCowl(AF) {
+  if (!AF) return AF;
+  if (cowlAF === null) cowlAF = cowlTable() || false;
+  const AC = cowlAF;
+  if (!AC || !(AC.z1 > AF.z1 + 1e-3)) return AF;
+  const pick = z => (z > AF.z1 ? AC : AF);
+  return Object.assign(Object.create(AF), {
+    z1: AC.z1,
+    surf: (z, a) => pick(z).surf(z, a), keelAt: z => pick(z).keelAt(z), halfWAt: z => pick(z).halfWAt(z),
+    heightAt: z => pick(z).heightAt(z), cyAt: z => pick(z).cyAt(z), nrmAt: (z, a) => pick(z).nrmAt(z, a),
+    solidAt: (z, a) => (z > AF.z1 ? true : AF.solidAt(z, a)),
+  });
+}
 const prevPost = PAGE.post;
 // WILGA-GEAR: THE LEG FAIRING'S ROOT, FITTED TO THE BODY (the user, 10 Nov: "where the leg meets the fuselage, to have a
 // fairing that fits" - as the engine's and the cabane's pylons do): the boot (_gear_gen leverBoot) trims itself on the
@@ -135825,10 +136165,18 @@ PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
+  cowlAF = null;                                     // (NOSE-ON-COWL: this build's cowl, read fresh)
   if (!P.gearOn) return;
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
-  const AF = GG.cageAirframe(mesh, FS);
+  const AFbody = GG.cageAirframe(mesh, FS);
+  // NOSE-ON-COWL (the user 15 Nov, the C172 refit: "I'm not sure that a front wheel can anchor on a cowl now. We would need
+  // that. Real aircrafts would actually anchor it on the firewall and let it through the cowl. I think we can simply fit
+  // to the cowl for now, ensure that the fixations can stick to it"): AHEAD OF THE BODY'S FRONT (the firewall) the airframe
+  // is the cowl's drawn shells (the cowl layer's post runs first and publishes them), so a leg standing there roots on the
+  // cowl's skin instead of on the body's clamped end section. Behind the firewall the body's table answers, to the bit; no
+  // cowl drawn or nothing ahead of the body: the body alone, as before.
+  const AF = withCowl(AFbody);
   if (!AF) { if (stat) stat.textContent += '  ·  gear: no skin to stand on'; return; }
   // THE LEGS STAND ON THE DRAWN SKIN (G304, the fitment study P2): the
   // table the contract interpolates is ±3.5 mm off across a crease (the
@@ -135837,7 +136185,9 @@ PAGE.post = ctx => {
   // the whole body — the same contract with an exact radius — is what the
   // leg builders draw against; the table is still what is PUBLISHED
   // (CAGE_GEAR.AF: solidAt, open, the fitting sites every other layer asks).
-  const AFx = GG.exactAirframe ? GG.exactAirframe(AF) : AF;
+  // (NOSE-ON-COWL: the exact skin is the body's - strutSkin runs over the body mesh - and the cowl's table serves ahead of it)
+  const AFx = AF === AFbody ? (GG.exactAirframe ? GG.exactAirframe(AF) : AF)
+    : withCowl(GG.exactAirframe ? GG.exactAirframe(AFbody) : AFbody);
 
   group = new THREE.Group();
   // NAMED for the editor (G76/G77): the part table says which layer a
@@ -136293,7 +136643,8 @@ PAGE.post = ctx => {
       const wu = wheelProxy(st.leg === 3 ? null : lb);
       // the fairing's instruments ride the station (G133)
       const fOpt = { full: st.fair === 2, skirt: st.fairSkirt,
-                     tail: st.fairTail, rake: st.fairRake, width: st.fairW };
+                     tail: st.fairTail, rake: st.fairRake, width: st.fairW, nose: st.fairNose, depth: st.fairH,
+                     style: st.fairStyle, kick: st.fairKick };
       // NEW-SHAPES-1 (the Camel, 27 Oct): a biplane's V bolts to the fuselage's lower longerons, ahead of and under
       // the lower plane - the low-wing rule below would root it on that plane. `s<i>Root` 1 says the fuselage.
       const bm = boomMount(st, sgn);             // G3800: a twin boom's tailwheel on its boom
@@ -142241,6 +142592,8 @@ const items = [
   ['the wing bay', [
     ['li_plane', 'tip lights on which wing', 0, 1, 1, ['first', 'second'],
      { when: P => +P.lightOn && !!+P.w2On }],
+    // CESSNA-REFIT (16 Nov): the bay in both wings or in one (absent 0: both, as every build before it)
+    ['li_baySide', 'cut in', 0, 2, 1, ['both wings', 'one: the port (left) wing', 'one: the starboard (right) wing']],
     ['li_bayFrac', 'station (semispan)', 0.10, 0.80, 0.01],
     // THE RANGE HAS TO REACH THE NEXT ROW. The cut snaps to the loft's own
     // spanwise rows, which on this wing are 0.735 m apart — so a slider that
@@ -143091,6 +143444,8 @@ function sites(scene, group, P) {
     if (pR || pL) {
       if (pR) out.wingLampR = pR;
       if (pL) out.wingLampL = pL;
+      // ONE BAY (li_baySide 2, the starboard bay alone; the R bay is the PORT one, +x): the landing lamp - the R bay's - goes in it, and no taxi lamp
+      if (!pR && pL && Math.round(+P.li_baySide || 0) === 2) { out.wingLampR = pL; delete out.wingLampL; }
     } else {
       // NO BAY, NO LAMP (G304, the fitment study P2). The fallback put a
       // proud housing 10 mm BEHIND the leading edge, inside the D-nose —
@@ -143997,7 +144352,7 @@ PAGE.post = (ctx) => {
   if (S.beacon && fit('beacon')) lamp('beacon', S.beacon);
   if (S.beacon2 && fit('beacon')) lamp('beacon', S.beacon2);         // G267: the other fin's
   if (S.wingLampR) {
-    if (fit('taxi')) lamp('taxi', S.wingLampL);
+    if (fit('taxi') && S.wingLampL) lamp('taxi', S.wingLampL);   // (one bay, li_baySide: no second lamp)
     if (fit('land')) lamp('land', S.wingLampR);
   }
   // ---- INSIDE -------------------------------------------------------------
@@ -152970,12 +153325,23 @@ function cageJoinSpec(P, M, T) {
   // PILLAR-ANCHORS P4: a picked strut pillar's station; a pick returned to auto CLEARS the one the game's spec holds
   // (the garage's merge keeps a key the export leaves out). A build that never picked states nothing: its spec is
   // byte for byte what it was
+  // ONE-CESSNA (18 Nov, GATE PILLAR IDENTITY): only a pick RETURNED TO AUTO clears. A pick still set whose drawing did
+  // not run this time (the pillar snap off: the pick is read through it) keeps the station its build states - the
+  // flown spec is the build's own with the snap on or off (the 172 states its A post's strutFoot 0.6851 in its file)
+  const pilPicked = Math.round(+P.wgStrutPil || 0) > 0;
   if (spec.bracing) {
     if (typeof M.strutAt === 'number' && isFinite(M.strutAt)) spec.bracing.strutAt = M.strutAt;
-    else {
+    else if (!pilPicked) {
       let had = false;
       try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutAt != null); } catch (e) {}
       if (had) spec.bracing.strutAt = null;
+    }
+    // A-POST STRUT (16 Nov): the A post's station, stated and cleared the same way
+    if (typeof M.strutFoot === 'number' && isFinite(M.strutFoot)) spec.bracing.strutFoot = M.strutFoot;
+    else if (!pilPicked) {
+      let had = false;
+      try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutFoot != null); } catch (e) {}
+      if (had) spec.bracing.strutFoot = null;
     }
   }
   // ...and each seat's mass (SEATS, 2026-11-02), written only when a drawn seat weighs other than the outfit's row:
@@ -153971,7 +154337,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // the foot on it; the frame roots the strut on the ring nearest it)
       {
         const CW = window.CAGE_WING;
-        if (fwOk && CW && CW.strutPil && isFinite(CW.strutPil.zNode)) M.strutAt = +(zFw - CW.strutPil.zNode).toFixed(4);
+        if (fwOk && CW && CW.strutPil && isFinite(CW.strutPil.zNode)) {
+          // A-POST STRUT (16 Nov, the 172): the A post carries no cabin ring - its station is the strut's OWN node's
+          // (bracing.strutFoot), not a ring the frame snaps to (strutAt)
+          if (CW.strutPil.key === 'A') M.strutFoot = +(zFw - CW.strutPil.zNode).toFixed(4);
+          else M.strutAt = +(zFw - CW.strutPil.zNode).toFixed(4);
+        }
       }
       // PILLAR-ANCHORS (2026-11-02): THE DOOR-SWING CHECK'S ANSWER, a note per door that is RED (under 20 mm of
       // clearance somewhere in its 0-90 deg swing). The sweep is ~1 s a door, so the join never runs it (export is
@@ -213441,6 +213812,12 @@ function garageInit(api) {
       let s = null; try { s = window.FLYDIY_POD && FLYDIY_POD.shake ? FLYDIY_POD.shake() : null; } catch (e) { s = null; }
       if (!s) s = genShakedown(buildGen(genMigrateSpec(spec)), { corners: false });
       data.specs = { empty: s.empty, allUp: s.mass, Vs: s.Vs, VCruise: s.VCruise, climb: s.climbRate, TORun: s.TORun, engine: s.engineName, propD: s.propD, propBlades: s.propBlades };
+      // FLAGSHIP 13 Nov (FLAPLESS-SAID): how it lands, when genTrim could not land it as built (the shakedown's landing key)
+      if (s.landing) {
+        if (s.landing.flapless) data.specs.landing = 'without its flap (the flap will not trim)';
+        else if (s.landing.partial != null) data.specs.landing = Math.round(s.landing.partial * 100) + ' % flap (more will not trim)';
+        if (s.landing.trimFail != null) data.specs.trimFail = 'out of reach';
+      }
       // FLAGSHIP 10 Nov (A0: the Twin's fiche said 1151 m): A SEAPLANE'S TAKE-OFF IS ITS WATER RUN. TORun is the analytic
       // LAND roll, the floats rolled as wheels (800-1557 m on every float card), so on floats or a hull the row is the
       // bench's Hydroplane test: its lift-off distance when settled and ok, its verdict when not, never the land figure
@@ -213921,6 +214298,7 @@ function garageInit(api) {
     return [['span', num(D.span, 'm', 2)], ['length', num(D.length, 'm', 2)], ['height', num(D.height, 'm', 2)],
             ['empty', num(s.empty, 'kg')], ['all up', num(s.allUp, 'kg')], ['stall', kmh(s.Vs)], ['cruise', kmh(s.VCruise)],
             ['climb', num(s.climb, 'm/s', 1)], ['take-off run', s.TOWater ? 'on water: ' + s.TOWater : num(s.TORun, 'm') + (d.sea && s.TORun != null ? ' on water' : '')],
+            ...(s.landing ? [['lands', s.landing]] : []), ...(s.trimFail ? [['approach trim', s.trimFail]] : []),
             ['engine', s.engine || d.engine || '—'], ['propeller', s.propD ? (+s.propD).toFixed(2) + ' m' + (s.propBlades ? ', ' + s.propBlades + ' blades' : '') : '—'],
             ['seats', d.seats != null ? String(d.seats) : '—']];
   }
@@ -216819,6 +217197,10 @@ const PLAQUE_WHY = {
     fix: 'this is power against weight: a bigger engine, a coarser propeller, '
       + 'less structure, or more wing area. Check the empty weight first - '
       + 'covering and fittings add up faster than they look.' },
+  'landing flaps': { what: 'how much of its flap it can land on: the shakedown tried the full notch and could not trim it on the approach or flare it, so it lands on less, or on none at the clean stall.',
+    fix: 'move the CG forward, give the tail more area or the elevator more travel - or a smaller flap that the elevator can hold.' },
+  'approach trim': { what: 'the elevator the approach needs, against what the trim and the stick can hold.',
+    fix: 'out of reach means the CG is too far from where the tail can balance it: move the CG, or a bigger tail or elevator.' },
   'take-off run': { what: 'ground roll plus the climb to the 15 m screen.',
     fix: 'more power or less weight shortens it; so does more wing area and a '
       + 'flap that actually lifts (a plain flap does little). A fine-pitch '
@@ -265409,6 +265791,13 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     R('cruise', n1(s.VCruise * 3.6, 0) + ' km/h');
     R('climb', n1(s.climbRate, 2) + ' m/s', judge('climb', s.climbRate || 0));
     R('take-off run', n1(s.TORun, 0) + ' m', judge('take-off run', s.TORun || 0));
+    // FLAGSHIP 13 Nov (FLAPLESS-SAID): HOW IT LANDS, when genTrim could not land it as built (genShakedown.landing)
+    if (s.landing) {
+      const Lg = s.landing;
+      if (Lg.flapless) R('landing flaps', 'none: its flap will not trim or flare, it lands at the clean stall', 'bad');
+      else if (Lg.partial != null) R('landing flaps', Math.round(Lg.partial * 100) + ' % of its flap: more will not trim', 'warn');
+      if (Lg.trimFail != null) R('approach trim', 'out of reach: the elevator cannot hold the approach (' + n1(Lg.trimFail, 2) + ')', 'bad');
+    }
     // IN THIN AIR (G72) — only when its own bench test has been run on THIS
     // build, so the section is earned the same way the plaque is.
     const da = densAltIfRun();
