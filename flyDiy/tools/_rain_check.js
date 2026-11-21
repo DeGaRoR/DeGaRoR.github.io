@@ -120,9 +120,9 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   ok(SRC.indexOf('side: THREE.DoubleSide,') > 0, '7h the streak quads are drawn DOUBLE-SIDED: their winding follows the streak on screen (a falling drop winds clockwise - FrontSide culled every one, 17 Nov)');
   // 7f LAZY: the page makes it only when the eye's rain is above 0 and the tier is not off; ?rain=0 never makes it
   const sy = APP.slice(APP.indexOf('function syncRainFx(dt) {'), APP.indexOf("window.RAIN_LIVE ="));
-  const guard = sy.indexOf("if (!(R > 0) || tier === 'off'"), make = sy.indexOf('RAIN_FX.make(THREE)');
+  const guard = sy.indexOf("if (!(R > 0 || dayRains) || tier === 'off'"), make = sy.indexOf('RAIN_FX.make(THREE)');
   ok(guard > 0 && make > guard && sy.indexOf("RAIN_Q === 0 ? 'off'") > 0 && APP.indexOf('if (!inGarage) syncRainFx(running ? fdt : 0);') > 0,
-     '7f the program is made the first time it rains near the eye, never on a dry day or under ?rain=0; synced each frame out of the shed'); }
+     '7f the program is made on a day that rains (since 21 Nov: ahead of the shower, linked off the frame - 12), never on a dry day or under ?rain=0; synced each frame out of the shed'); }
 
 // 8 THE WORLD EDITOR (the user: every new world setting in F9): a "rain" block in air & map with every numeric LOOK key, kept in THE LOOK
 { const fsx = require('fs'), px = require('path'), RF = require('../src/viewer/rain.js'), WR = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
@@ -174,6 +174,14 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
      '11g under a full deck the air is lit by the deck: the haze before the cloud and the rain veil take its diffused neutral light, not the clear sky\'s blue (RAIN 13b)');
   ok(C.indexOf('if (n > 0) { ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }') > C.indexOf('gTm = tm;') && C.indexOf('gTm = tm;') > 0 && C.indexOf('if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001));') > C.indexOf('if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }'),
      '11e on a full deck the haze is taken at the deck\'s entry, not kilometres inside it (the opaque storm deck read blue, 18:05 shoot); a fair sky keeps the mean distance'); }
+
+// 12 NO FREEZE WHEN THE FIRST SHOWER COMES (21 Nov; the user's performance table rows 8-9): the streaks' program is made on a day that
+// rains somewhere, linked off the frame (compileAsync), and nothing draws it before the link lands; a dry day never makes it
+{ const fsx = require('fs'), px = require('path'), A12 = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  ok(A12.indexOf('const dayRains = !!(world && world.day && +world.day.rain > 0);') > 0 && A12.indexOf('if (!(R > 0 || dayRains) || tier === \'off\'') > 0,
+     '12a the streaks are made on a day that rains somewhere (while it is still dry here), never on a dry day');
+  ok(/renderer\.compileAsync\(fx\.mesh, camera, scene\)\.then\(\(\) => \{ fx\.linked = true;/.test(A12) && A12.indexOf("if (!rainFx.linked) { rainFx.mesh.visible = false; RAIN_ST.why = 'linking'; return; }") > 0,
+     '12b linked off the frame (compileAsync), hidden until the link lands - no draw links it in the frame'); }
 
 console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

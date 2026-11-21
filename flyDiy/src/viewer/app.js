@@ -8467,12 +8467,22 @@
     const pick = RAIN_Q === 0 ? 'off' : ((G && G.rain) || 'auto');
     const tier = pick === 'auto' ? (G && /^(laptop|potato|retro)$/.test(G.preset || '') ? 'lean' : 'full') : pick;   // auto: lean on the light presets
     glassRainFrame(dt, R, RAIN_Q === 0);   // the drops on the glass (the streaks' tier does not switch them; ?rain=0 does)
+    // NO FREEZE WHEN THE FIRST SHOWER COMES (RAIN, 21 Nov; the user's table rows 8-9: no frame over 100 ms in flight): the streaks'
+    // one program is made on a day that RAINS SOMEWHERE (the day's rain > 0, ~23 % of the plan's days) while it is still dry here, and
+    // linked off the frame (renderer.compileAsync, the prop disc's way); a dry day never makes it. Until the link lands the streaks
+    // stay hidden (a shower's first fraction of a second without them) - a draw would have linked it synchronously in the frame
+    const dayRains = !!(world && world.day && +world.day.rain > 0);
     if (!rainFx) {
-      if (!(R > 0) || tier === 'off' || typeof RAIN_FX === 'undefined' || !THREE.InstancedBufferGeometry) { RAIN_ST.why = R > 0 ? 'off (' + tier + ')' : 'dry'; return; }
+      if (!(R > 0 || dayRains) || tier === 'off' || typeof RAIN_FX === 'undefined' || !THREE.InstancedBufferGeometry) { RAIN_ST.why = R > 0 ? 'off (' + tier + ')' : 'dry'; return; }
       rainFx = RAIN_FX.make(THREE); scene.add(rainFx.mesh);
       RAIN_ST.vp = new THREE.Vector2(); RAIN_ST.cabInv = new THREE.Matrix4();
       RAIN_ST.light = { sunCol: new THREE.Color(), skyCol: new THREE.Color() };
+      rainFx.linked = typeof renderer.compileAsync !== 'function';
+      if (!rainFx.linked) { const fx = rainFx; RAIN_ST.linkT0 = performance.now(); fx.mesh.visible = true;
+        renderer.compileAsync(fx.mesh, camera, scene).then(() => { fx.linked = true; RAIN_ST.linkMs = performance.now() - RAIN_ST.linkT0; }, () => { fx.linked = true; });
+        fx.mesh.visible = false; }
     }
+    if (!rainFx.linked) { rainFx.mesh.visible = false; RAIN_ST.why = 'linking'; return; }
     camera.updateMatrixWorld();
     const me = camera.matrixWorld.elements, p = [me[12], me[13], me[14]], S = RAIN_ST;
     if (dt > 0) {
