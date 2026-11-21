@@ -1,6 +1,6 @@
 # Wingsmith performance — consolidated living report
 
-Updated: 2026-11-21T04:44:06.014Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+Updated: 2026-11-21T04:46:35.204Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
 
 ## Latest validated native-player mist comparison
 
@@ -64,6 +64,8 @@ Four actual Cub material classes,512² offscreen patches, synthetic uniform dama
 Active simplified patch cost is37–52% below original in this test, with computed mud restored. Keeping the damage code present when inactive adds~0.001–0.017ms/draw on these patches (~1–30% relative, depending finish); that is the shared-state tradeoff. Ordinary two-state lite keeps original asleep shaders for intact surfaces. Fine scratch/gouge/fray patterns are visibly simplified; images are controlled material tests, not a physical crash validation. Window crack body is unchanged by source equivalence test; glass remains two-state.
 
 Controlled forced-damage panel images: [original surface](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-originalDry.png), [simplified surface](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-liteDry.png), [simplified with computed mud](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-liteMud.png).
+
+Current interactive figures: [loading comparison](figures/loading-measurement-history.html), [current loading waterfall](figures/garage-waterfall-current.html). Eight comparison groups preserve historical and new valid measurements, with native/diagnostic clock modes separated. Waterfall unknown/zero-duration rows are hidden while gaps remain. Source-identified example program intervals are parallel observations, not exclusive costs; complete per-building/cloud/vegetation attribution is not claimed for the new captures. Desktop1024px/narrow320px and changed selections checked in an isolated browser. GPU-disabled screenshot rendering clipped waterfall text despite valid layout; normal graphics rendering plus font readiness produced readable labels. All five new load cases peaked≤87°C.
 
 Branch checkpoints04411db93 (approved optimizations),5989b85c1 (sensor monitoring),bf1ba4408 (opt-in scuff prototypes). Generated main files, private save and raw flight logs excluded from commits. Under20s garage/under60s initial loading remain unmet.
 
