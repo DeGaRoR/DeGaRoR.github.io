@@ -1,6 +1,53 @@
 # Wingsmith performance — consolidated living report
 
-Updated: 2026-11-21T13:33:49.239Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+Updated: 2026-11-21T14:07:51.927Z. Branch: codex/wingsmith-performance-audit. This is the single report to read and update for subsequent sessions. It includes observations, analysis, successes, failed attempts, measurement corrections and data references. The current summary takes precedence over historical next-step/status statements reproduced below.
+
+## Runway baking rework — current experiments
+
+User selected runway baking before the studio/world split. All prototypes remain OFF; no additional visual cuts or resolution reduction. The original high-detail physical runway mesh is unchanged.
+
+Longitudinal way-curve bake: native pair122.175→120.090s, normal ready/GL0/20s smooth garage soak, peaks78/84°C. Single pair, not repeatable causal proof.12 fields,2MiB GPU texture plus2MiB CPU backing,17.1ms generation. Controlled5120×1271 actual-material patch GPU median 11.553→11.849ms (~2.6% slower). Dry/wet maximum pixel error1 byte, p99 zero; negative control confirms ways are active. These patch PNGs were linear-target captures and appear dark; subsequent compact-field comparisons use an sRGB target consistently for display. Park this isolated candidate rather than accept an FPS risk for an unproven2s load signal. No native full-flight scuff/runway acceptance follows from patch timings.
+
+Static hole/hazard descriptor cache stores centres, radii, rotation, probability and unit depth, while the shader retains irregular outline noise, analytic bowls, live wear/depth, fill and damp rings.5,604 holes/128 hazards compared against actual STRIP_MICRO across80 fields; Float32 packing checked.80-field synthetic cache524,288 bytes, not the actual map allocation. No full-game timing or GPU appearance acceptance for this standalone candidate.
+
+### Small descriptor compiler pair
+
+| Order | Program | Link(s) | Valid |
+| --- | --- | ---: | --- |
+| 0 | Original complete pavement program | 28.688 | yes |
+| 0 | Static hole and hazard descriptors | 26.647 | yes |
+| 0 | Descriptors plus one-dimensional way curves | 25.498 | yes |
+| 1 | Descriptors plus one-dimensional way curves | 27.242 | yes |
+| 1 | Static hole and hazard descriptors | 25.484 | yes |
+| 1 | Original complete pavement program | 25.722 | yes |
+
+Compiler wall time of complete source pairs only; not delivered loading savings or exclusive CPU attribution. Completed.
+
+### Uniform loop diagnostic (one order only)
+
+| Order | Program | Link(s) | Valid |
+| --- | --- | ---: | --- |
+| 0 | Original complete pavement program | 28.955 | yes |
+| 0 | Uniform-bound original hole/way loops | 26.408 | yes |
+| 0 | Small descriptor bakes with uniform loops | 25.147 | yes |
+
+Compiler wall time of complete source pairs only; not delivered loading savings or exclusive CPU attribution. Completed.
+
+### Compact relief/curvature bake, corrected extraction
+
+| Order | Program | Link(s) | Valid |
+| --- | --- | ---: | --- |
+| 0 | Original complete pavement program | 28.504 | yes |
+| 0 | Compact relief and curvature fields | 21.482 | yes |
+| 0 | Compact fields plus hole and way descriptors | 20.309 | yes |
+| 1 | Compact fields plus hole and way descriptors | 21.160 | yes |
+| 1 | Compact relief and curvature fields | 21.463 | yes |
+| 1 | Original complete pavement program | 26.093 | yes |
+
+Compiler wall time of complete source pairs only; not delivered loading savings or exclusive CPU attribution. Completed.
+
+Compact fields use bounded RGBA8 storage instead of RGBA16F, retaining separate unit coefficients for live wear/weather. All445,136 packing checks pass within quantization plus HalfFloat-reference rounding. Hard concrete/asphalt rows are skipped because their material branch never uses these fields. Quantization can change appearance, so matched screenshots are mandatory. Extra GPU/CPU storage and actual flight rendering still require measurement. Initial compiler extraction incorrectly appended its field-reader declaration after main; shader link rejected immediately. Corrected source ordering; failed diagnostic retained separately and excluded, no game-loader bypass.
+
 
 ## Latest lighting and terrain investigation
 
@@ -77,6 +124,12 @@ Two distinct future targets: initial loading still pays for the heavy pavement c
 ### Combined exact-math pavement smoke test
 
 Build458534f65c13, both polygon bounds and refinement-height reuse explicitly enabled: 120.498s to normal native-player garage readiness. Original scuff/approved mist B, full town, seven scenery systems and full runway mesh/cues retained; only accepted advanced-cliff/runtime-aircraft-bake exclusions. GL0 at readiness and end, zero captured null program queries,20s soak with no100ms frame gaps or long tasks; peak77°C. Two known empty tree-impostor warnings remain. World generation31.061s, nearby queues16.111s, world shader gate41.208s. This single later-build observation is not an isolated/cumulative saving or flight/FPS acceptance. Both candidates remain OFF by default; exact fixture tests do not establish full-map visual parity. No new visual sacrifices.
+
+### Small longitudinal runway-curve bake
+
+Static centre-line wander, depth factors and sub-centimetre jitter sampled every0.125m, HalfFloat; transverse trough/berm profiles stay analytic, with live rut amplitude, mud and water. Geometry/contact and all other relief cues remain unchanged. Numerical20,000-point check: centre drift≤0.244mm, depth-factor error≤0.051%, fine jitter drift≤1.23mm on the test seed; not a universal error bound or GPU acceptance.
+
+Compiler opposite orders: original29.860/26.630s, baked26.037/27.601s. The reversal prevents a reliable compiler-win claim. Original runway way curves: 122.175s native garage; Baked longitudinal way curves: 120.090s native garage. Both flags remain OFF. Matched dry/wet actual-material patch images, GPU timings and memory statistics captured in runway-way-curves/analysis.json; these are not world FPS or full-world appearance acceptance.
 
 
 ## Latest validated native-player mist comparison
@@ -1412,6 +1465,24 @@ Correction / next action: Keep approved mist B default and original scuff. Next 
 Build290bbbf690ea with approved mist B and accepted cliff/runtime-bake cuts only: original-scuff opening141.954s, two-state lite140.720s, shared-state126.007s, closing original128.126s, shared-state repeat124.677s. Controls drift13.828s: do not claim16s causal saving. All cases normal ready/GL0/20s garage soak, peak87C maximum. Four real Cub material classes:224 GPU patch queries valid, active simplified damage37–52% cheaper than original, computed mud active, damage-on/off nonzero, intact images pixel-identical. Shared-state inactive code adds~1–30% relative patch cost (~0.001–0.017ms/draw); no native full-flight result for scuff candidate. Window crack body unchanged; glass stays asleep/awake. Fine procedural scratch/gouge/fray detail visibly simplified; no appearance approval yet.
 
 Correction / next action: Keep candidate flags off by default. Two-state lite is the lower-risk active-damage rendering candidate; shared-state stays experimental. Next substantial loading target: duplicated lighting-state program preparation (native B night→noon164 additional links,38.440s rollout gate), then~32s terrain/roads/aerodromes and~15s nearby scenery fill. Updated comparison and current waterfall distinguish native versus diagnostic clocks. Visual QA initially missed isolated iframe contexts and a missing per-frame error array; corrected tool passes desktop/narrow initial/changed states. Windows chart validation needed UTF8 and a temporary executable alias; no game change. No raw/private save or generated main output committed.
+
+### Native terrain weather cache 2026-11-21 — Exact values preserved; no meaningful whole-loading gain; OFF
+
+Native buildfdee1a3aa420 controls123.110/129.240s, candidate126.057s. Only5705 weather-base hits out of597674 reads; extra16KiB. All normal/GL0/20s soak; peaks85C or lower. Do not pursue the22M terrain-miss count as if all misses were recoverable weather reads.
+
+Correction / next action: Preserve exact tests and failed cache evidence; no default adoption.
+
+### Current CPU profile and exact pavement prototypes 2026-11-21 — CPU avoidance validated; isolated load unchanged; candidates OFF
+
+Inclusive overlapping sampled CPU: vegetation7.94s, airfieldstrips6.63s, roads6.02s, terrainpatches5.67s; pavement queries5.85s nested. Bounds avoid10952548 of13528786 exact polygon checks (~81%);167356 full-result equivalence checks pass. Native opening123.485s/candidate123.466s; closing reference excludedGL1281. Refinement height reuse retains attribute/index bytes on actual wavy strip/curved-road fixtures, skipping1066/5872 and659/3372 height calls. Combined laterbuild458534f65c13 single startup120.4975s, normal/native/GL0/zero null program queries,20s soakmax17ms/zero longtasks,peak77C. Not an isolated cumulative saving or full-flight/full-map parity proof.
+
+Correction / next action: Keep pavepolybound/pavereuse OFF until repeatable total or flight benefit and full-map validation. No geometry resolution or visual cuts.
+
+### Lighting signatures and intermittent graphics-error diagnosis 2026-11-21 — 164 noon variants classified; compact loops no major win; GL1281 unresolved
+
+Compact loop12links/2orders: only~0.2–1.0s on representative night sources; uniform-bound pavement reverses direction. First cycle stopped by expression-evaluator script mistake; retry departureGL1281 excluded. Added getError boundary polling stalledrenderer>150s; diagnostic excluded. Passive native saved-night/noon stress clean: nightadds0, noonadds164;114 match outside pointlightsections/countguards/materialpresenceguard,50 byte-identical sourcepairs alreadyexisted. Night10pointlights vsday2; timingnotexclusivecompilerbill.109651 validated draw/buffer calls after attachment, no badargs/nullqueries; peak88C. Healthytrace does not fix intermittenterror.
+
+Correction / next action: Stop error-polling probes/heavyblind retries. Guard ordinary readiness against native null programquery returns without extraGLcalls. Next distinct leads: initial pavement shader~27s isolatedlink and recurring town-light signature variants. Any possible rendering change requires matchedscreenshots/nativeFPS/memorychecks; no paddedlight default adoption.
 
 ## Matched integration comparison and post-ready behaviour
 

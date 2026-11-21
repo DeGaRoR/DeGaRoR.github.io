@@ -51,8 +51,13 @@ const PAVEMENT = (() => {
   const NOISE_U = { value: null }; let noiseCache = null, noiseReference = false;
   const noiseActive = () => !!(NOISE_ON && !noiseReference && noiseCache && noiseCache.valid);
   const noiseKey = () => NOISE_ON ? (noiseActive() ? ':noise-lattice-v1' : ':noise-fallback-v1') : '';
-  const FIELD_ON = MICRO_SHADER_ON && typeof location !== 'undefined' && /[?&]pavfields=1(?:&|$)/.test(location.search || '') && !/[?&]pave=old(?:&|$)/.test(location.search || '');
+  const FIELD_BYTE = typeof location !== 'undefined' && /[?&]pavfields=byte(?:&|$)/.test(location.search || '');
+  const FIELD_ON = MICRO_SHADER_ON && typeof location !== 'undefined' && /[?&]pavfields=(?:1|byte)(?:&|$)/.test(location.search || '') && !/[?&]pave=old(?:&|$)/.test(location.search || '');
   const FIELD_U = { value: null }; let fieldCache = null, fieldReference = false;
+  const WAY_ON = MICRO_SHADER_ON && typeof location !== 'undefined' && /[?&]pavways=1(?:&|$)/.test(location.search || '') && !/[?&]pave=old(?:&|$)/.test(location.search || '');
+  const WAY_U = { value: null }; let wayCache = null, wayReference = false;
+  const STATIC_ON = MICRO_SHADER_ON && typeof location !== 'undefined' && /[?&]pavstatic=1(?:&|$)/.test(location.search || '') && !/[?&]pave=old(?:&|$)/.test(location.search || '');
+  const STATIC_U = { value: null }; let staticCache = null, staticReference = false;
   if (FIELD_ON && NOISE_ON) throw Error('Use one runway cache experiment at a time');
   const CLASSES = ['concrete', 'asphalt', 'gravel', 'dirt', 'sand', 'grass', 'snow', 'mud'];   // (SNOW-MUD: snow 6, mud 7 - the shader reads the index)
   // what each class reaches for in the library (keys of PAVEMENT_TEX_SETS), and its own numbers.
@@ -1878,6 +1883,8 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd', 'uMicro', 'uMicro2', 'uMicro3', 'uLookS', 'uLookG'];   // (uMicro: DIRT-STRIP's puddles, a row's last)
   if (NOISE_ON) PV_VEC.push('uMicroCache');
   if (FIELD_ON) PV_VEC.push('uMicroField');
+  if (WAY_ON) PV_VEC.push('uMicroWay');
+  if (STATIC_ON) PV_VEC.push('uMicroStatic');
   const PV = { K: PV_VEC.length, N: PV_VEC.length + 1, G: PV_VEC.length + 2 };
   PV.T = PV.G + 8; PV.KA = PV.T + 8; PV.KB = PV.KA + NKEEP; PV.S = PV.KB + NKEEP; PV.SK = PV.S + NSEG; PV.MR = PV.SK + NSEG; PV.MK = PV.MR + NMARK; PV.W = PV.MK + NMARK;
   // ?pave=old: every pavement its own material and mesh, as shipped before G925 (the A/B); default: the table
@@ -1887,16 +1894,22 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   function tableGLSL() {
     const cachedNoise = noiseActive();
     const cachedFields = FIELD_ON && !fieldReference;
-    if (GLSLT && GLSLT.cachedNoise === cachedNoise && GLSLT.cachedFields === cachedFields) return GLSLT;
+    const cachedWays = WAY_ON && !wayReference;
+    const cachedStatic = STATIC_ON && !staticReference;
+    if (GLSLT && GLSLT.cachedNoise === cachedNoise && GLSLT.cachedFields === cachedFields && GLSLT.cachedWays === cachedWays && GLSLT.cachedStatic === cachedStatic) return GLSLT;
     const T = {}, miss = [];
     T.cachedNoise = cachedNoise;
     T.cachedFields = cachedFields;
+    T.cachedWays = cachedWays;
+    T.cachedStatic = cachedStatic;
     const rep = (s, a, b) => { if (s.indexOf(a) < 0) { miss.push(a.slice(0, 80)); return s; } return s.split(a).join(b); };
     T.vertex = rep(rep(GLSL.vertex, 'attribute vec4 aPavK;', 'attribute float aPavId;'), 'varying vec4 vPavK;', 'flat varying float vPavId;');
     T.vertexBody = rep(GLSL.vertexBody, 'vPavK = aPavK;', 'vPavId = aPavId;');
     let c = cachedNoise ? PAVEMENT_NOISE_CACHE.patch(GLSL.common) : GLSL.common;
     if (cachedNoise) c = c.replace('\nuniform vec4 uMicroCache;', '');
-    if (cachedFields) c = PAVEMENT_FIELD_CACHE.common(c).replace('\nuniform vec4 uMicroField;', '');
+    if (cachedFields) c = PAVEMENT_FIELD_CACHE.common(c,{bytes:FIELD_BYTE}).replace('\nuniform vec4 uMicroField;', '');
+    if (cachedWays) c = PAVEMENT_WAY_CACHE.patch(c).replace('\nuniform vec4 uMicroWay;', '');
+    if (cachedStatic) c = PAVEMENT_STATIC_CACHE.patch(c).replace('\nuniform vec4 uMicroStatic;', '');
     // THE ROW'S VALUES ARE READ WHERE THEY ARE USED: each former uniform vec4 is a macro for its texel (#define uLane
     // PVT(6)), the grade/tint rows are read inside pvFetch - nothing held in a register across the chain. (Loaded once
     // into globals at the top, ~30 vec4 stayed live through the whole shader: measured +0.3 ms of pavement GPU at the
@@ -2230,10 +2243,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     const L = SHARED;
     const m = pavMat(THREE);
     m.name = 'pavement';
-    m.uniforms = { uPavA: { value: L ? L.texA : null }, uPavN: { value: L ? L.texN : null }, uPavOn: { value: L && (L.ready || L.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uPavT: { value: TAB.tex }, uPavNoise: NOISE_U, uPavField: FIELD_U };
+    m.uniforms = { uPavA: { value: L ? L.texA : null }, uPavN: { value: L ? L.texN : null }, uPavOn: { value: L && (L.ready || L.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uPavT: { value: TAB.tex }, uPavNoise: NOISE_U, uPavField: FIELD_U, uPavWays: WAY_U, uPavStatic: STATIC_U };
     m.userData.pavTable = true;
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hookT(sh); if (PT.frag) sh.fragmentShader = PT.frag(sh.fragmentShader); };
-    m.customProgramCacheKey = () => 'pavement:T' + hookT.toString().length + PT.key + MICRO_KEY + noiseKey() + (FIELD_ON ? (fieldReference ? ':shape-reference' : ':shape-fields-v1') : '');
+    m.customProgramCacheKey = () => 'pavement:T' + hookT.toString().length + PT.key + MICRO_KEY + noiseKey() + (FIELD_ON ? (fieldReference ? ':shape-reference' : FIELD_BYTE ? ':shape-byte-v1' : ':shape-fields-v1') : '') + (WAY_ON ? (wayReference ? ':way-reference' : ':way-curves-v1') : '') + (STATIC_ON ? (staticReference ? ':static-reference' : ':static-descriptors-v1') : '');
     m.heavyLink = true;   // BOOT-PROGRAMS: the boot's heaviest link (34 s cold, 10 Nov naming run) - paced links key it first
     if (PT.want && !PT.scene) m.onBeforeRender = PT.catch;
     return (TAB.mat = m);
@@ -2439,6 +2452,8 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavWx = +o.wx || 0; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 12) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
     if (NOISE_ON) m.uniforms.uMicroCache = { value: new THREE.Vector4(-1, 0, 0, 0) };
     if (FIELD_ON) m.uniforms.uMicroField = { value: new THREE.Vector4() };
+    if (WAY_ON) m.uniforms.uMicroWay = { value: new THREE.Vector4() };
+    if (STATIC_ON) m.uniforms.uMicroStatic = { value: new THREE.Vector4() };
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     if (table) {
       // THE ROW: cls, seed, halfW, halfL off the geometry's aPavK (constant over a part), the row id on every vertex
@@ -2450,9 +2465,19 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         if (q && q[7] > .5 && cls !== 'grass') m.uniforms.uMicroCache.value.x = noiseCache.register(q[0], m.pk[3] * 2, m.pk[2]);
       }
       if (FIELD_ON) {
-        if (!fieldCache) fieldCache = PAVEMENT_FIELD_CACHE.create(THREE, FIELD_U);
+        if (!fieldCache) fieldCache = PAVEMENT_FIELD_CACHE.create(THREE, FIELD_U,{bytes:FIELD_BYTE});
         const q = m.userData.pavMicro;
-        if (q && q[7] > .5 && cls !== 'grass') m.uniforms.uMicroField.value.fromArray(fieldCache.register(q[0], m.pk[3] * 2, m.pk[2]));
+        if (q && q[7] > .5 && cls !== 'grass' && (!FIELD_BYTE || (cls !== 'concrete' && cls !== 'asphalt'))) m.uniforms.uMicroField.value.fromArray(fieldCache.register(q[0], m.pk[3] * 2, m.pk[2]));
+      }
+      if (WAY_ON) {
+        if (!wayCache) wayCache = PAVEMENT_WAY_CACHE.create(THREE, WAY_U);
+        const q = m.userData.pavMicro;
+        if (q && q[7] > .5 && q[8] > 0 && cls !== 'grass' && cls !== 'concrete' && cls !== 'asphalt') m.uniforms.uMicroWay.value.fromArray(wayCache.register(q[0], m.pk[3] * 2));
+      }
+      if (STATIC_ON) {
+        if (!staticCache) staticCache = PAVEMENT_STATIC_CACHE.create(THREE, STATIC_U);
+        const q = m.userData.pavMicro;
+        if (q && q[7] > .5 && cls !== 'grass' && cls !== 'concrete' && cls !== 'asphalt') m.uniforms.uMicroStatic.value.fromArray(staticCache.register(q[0], m.pk[3] * 2, m.pk[2], q[5]));
       }
       m.row = rowAlloc(THREE);
       g.setAttribute('aPavId', new THREE.BufferAttribute(new Float32Array(n).fill(m.row), 1));
@@ -2702,6 +2727,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     microNoiseStats: () => ({ reference: noiseReference, enabled: noiseActive(), requested: !!NOISE_ON, ...(noiseCache ? noiseCache.stats : {}) }),
     microFieldStats: () => ({ enabled: FIELD_ON && !fieldReference, reference: fieldReference, ...(fieldCache ? fieldCache.stats : {}) }),
     microFieldReference: on => { fieldReference = !!on; GLSLT = null; if (TAB.mat) TAB.mat.needsUpdate = true; },
+    microWayStats: () => ({ enabled: WAY_ON && !wayReference, reference: wayReference, ...(wayCache ? wayCache.stats : {}) }),
+    microWayReference: on => { wayReference = !!on; GLSLT = null; if (TAB.mat) TAB.mat.needsUpdate = true; },
+    microStaticStats: () => ({ enabled: STATIC_ON && !staticReference, reference: staticReference, ...(staticCache ? staticCache.stats : {}) }),
+    microStaticReference: on => { staticReference = !!on; GLSLT = null; if (TAB.mat) TAB.mat.needsUpdate = true; },
     setSoilWet, WET, PV, PV_VEC, MODE, TAB, BATCH, tableGLSL, hookT, tableMat, isTable, pack, merge, mergeSteps, onRebuild, ab, census, get table() { return MODE.table; } };
   return api;
 })();
