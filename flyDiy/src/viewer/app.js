@@ -1419,7 +1419,7 @@
       }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome, aprons: hoAprons(),   // HANGAR-OUTDOORS: the world's aprons (the premises' paved surface polygons) for the room's wide apron
-          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
+          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shedOmit(shed), workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
       hviewAttach();   // G3630 (HANGAR-VIEW): the world's view out of the door, if one of this room stands
       hangarScene.background = hangar.background;
@@ -1522,6 +1522,14 @@
   // the live sky and clouds; ?hview=1 keeps the capture as an opt-in for tests only
   // HANGAR-OUTDOORS (the user 17 Nov via A0): the room's outdoors take the world's aprons (the island record's paved surface
   // polygons, world metres) and, once the world's trees are baked, its impostor sheets as tree cards (hangar.treesFrom)
+  // GARAGE-FIXES (21 Nov): the props / recipes a shed leaves out - its own record's AND its plot's offer today (BASE_OFFERS), so
+  // a plot's newer omit (the Shed's wings, the user 21 Nov) reaches a shed bought before it, with no save migration
+  function shedOmit(shed) {
+    const out = new Set(shed && Array.isArray(shed.omit) ? shed.omit : []);
+    try { const id = roomId(), base = shed && typeof shed.base === 'string' ? shed.base : 'HOME', P = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[base] ? BASE_OFFERS[base].plots[id] : null;
+      if (P && Array.isArray(P.omit) && P.shells && P.shells.includes(shed.shell)) for (const k of P.omit) out.add(k); } catch (e) {}
+    return out.size ? [...out] : undefined;
+  }
   function hoAprons() {
     try { const L = world && world.premises && world.premises.rec && world.premises.rec.layers;
       return ((L && L.surface) || []).filter(e => e && (e.apron || e.surface === 5) && Array.isArray(e.poly) && e.poly.length > 2).map(e => e.poly); } catch (e) { return []; }
