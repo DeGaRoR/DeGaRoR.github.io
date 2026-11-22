@@ -177,7 +177,16 @@ function report(log, opt) {
     longestPending: rows.filter(r => r.readyT != null).sort((a, b) => (b.readyT - b.t) - (a.readyT - a.t)).slice(0, TOP).map(brief),
     owners, unowned: unowned.map(brief), rawGL: raw.map(brief),
     late: rows.filter(r => r.ctx && r.ctx !== 'compile').map(brief), waited: rows.filter(r => r.waitMs > 1).sort((a, b) => b.waitMs - a.waitMs).slice(0, TOP).map(brief),
-    neverDrawn: rows.filter(r => r.useT == null).map(r => ({ n: r.n, who: who(r), kb: r.vs != null ? Math.round((r.vs + r.fs) / 1024) : null, shareS: s1(r.share) })),
+    neverDrawn: rows.filter(r => r.useT == null).map(r => ({ n: r.n, who: who(r), kb: r.vs != null ? Math.round((r.vs + r.fs) / 1024) : null, shareS: s1(r.share), step: r.step, rt: r.rt })),
+    // LINKED AND NEVER DRAWN IN THIS LOG, by owner, by the step that compiled them and by the target they were keyed for:
+    // what a load could stop compiling up front and leave to the draw guard. "Never drawn" = no gl.useProgram of it in
+    // THIS log (this state, this run's minutes): read it on the longest run you have.
+    neverDrawnBy: (() => { const U = rows.filter(r => r.three && r.useT == null), grp = (key) => { const m = new Map();
+        for (const r of U) for (const k of key(r)) { let g = m.get(k); if (!g) m.set(k, g = { key: k, programs: 0, kb: 0, shareS: 0 }); g.programs++; g.kb += r.vs != null ? (r.vs + r.fs) / 1024 : 0; g.shareS += (r.share || 0) / 1000; }
+        return [...m.values()].map(g => ({ key: g.key, programs: g.programs, kb: Math.round(g.kb), shareS: r1(g.shareS) })).sort((a, b) => b.shareS - a.shareS || b.kb - a.kb); };
+      const all = rows.filter(r => r.three);
+      return { programs: U.length, of: all.length, kb: Math.round(U.reduce((a, r) => a + (r.vs != null ? (r.vs + r.fs) / 1024 : 0), 0)), shareS: r1(U.reduce((a, r) => a + (r.share || 0), 0) / 1000),
+        byOwner: grp(r => (r.own && r.own.length ? r.own : ['(UNOWNED)'])), byStep: grp(r => [r.step || '?']), byTarget: grp(r => [r.rt || '?']) }; })(),
     multiName, sizes: rows.map(r => [r.n, r.vs, r.fs]),
     largest: rows.filter(r => r.vs != null).sort((a, b) => (b.vs + b.fs) - (a.vs + a.fs)).slice(0, 10).map(brief),
   };
@@ -214,6 +223,11 @@ function text(R) {
   tab('UNOWNED (' + R.unowned.length + ')', R.unowned.slice(0, 60));
   tab('MADE OUTSIDE A COMPILE STEP (' + R.late.length + ')', R.late.slice(0, 40));
   tab('A DRAW WAITED ON THESE', R.waited);
+  if (R.neverDrawnBy && R.neverDrawnBy.programs) { const N = R.neverDrawnBy, line = g => '  ' + lp(g.programs, 6) + lp(g.kb, 8) + lp(g.shareS, 9) + '  ' + g.key;
+    L.push(''); L.push('LINKED AND NEVER DRAWN IN THIS LOG: ' + N.programs + ' of ' + N.of + ' programs, ' + N.kb + ' KB of GLSL, ' + N.shareS + ' s of pending share (no gl.useProgram of them in this run: what the load could leave to the draw guard)');
+    L.push('  by the target they were keyed for'); L.push('  ' + lp('progs', 6) + lp('KB', 8) + lp('share s', 9)); for (const g of N.byTarget.slice(0, 8)) L.push(line(g));
+    L.push('  by the step that compiled them'); for (const g of N.byStep.slice(0, 10)) L.push(line(g));
+    L.push('  by owner (the 30 largest)'); for (const g of N.byOwner.slice(0, 30)) L.push(line(g)); }
   if (R.multiName.length) { L.push(''); L.push('ONE PROGRAM, SEVERAL MATERIAL NAMES (three writes the FIRST requester\'s name into the source: #define SHADER_NAME)');
     for (const m of R.multiName.slice(0, 40)) L.push('  #' + m.n + ' ' + m.kb + ' KB  source name "' + (m.name || '') + '"  held as: ' + m.names.map(x => '"' + x + '"').join(', ')); }
   return L.join('\n');

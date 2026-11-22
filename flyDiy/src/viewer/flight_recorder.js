@@ -136,7 +136,7 @@
         day: D ? { cloudCover: D.cloudCover, cloudType: D.cloudType, upper: D.cloudUpper ? D.cloudUpper.length : 0 } : null,
         aa: AA && AA.report ? (r => ({ tier: r.tier, able: r.able, samples: r.samples, target: T ? T.width + 'x' + T.height : null }))(AA.report()) : null }); } catch (e) {} }
     function revealSky() { sky('reveal'); setTimeout(() => sky('reveal+10s'), 10000); }
-    function reveal(how) { const t = clock(); if (t - lastReveal < 2000) return; lastReveal = t; revealAt = t; event('reveal', t, null, how || 'the flight'); revealSky(); }
+    function reveal(how) { const t = clock(); if (t - lastReveal < 2000) return; lastReveal = t; revealAt = t; event('reveal', t, null, how || 'the flight'); revealSky(); if (rec.traffic) rec.traffic.reset(); }
     // G1340 THE SHADER WATCHDOG: the programs three made since the last frame closed (name + what changed in its key against
     // the last program of that name: three's key is comma-joined, '#i:a>b' per differing field) and the link waits since;
     // a frame whose shader time (its slot, or the waits held since the last frame - a wait outside the open frame counts)
@@ -153,13 +153,18 @@
     // tools/freeze_ledger.js reads it with the programs FIRST USED in the frame ('proguse': its ms is the first use's
     // whole cost) and the streamers' deliveries (any module's FLIGHT_REC.event('deliver', ms, { s: 'cover', n, what })).
     const UP = { ms: 0, n: 0, texN: 0, texMs: 0, texPx: 0, cmpB: 0, bufN: 0, bufMs: 0, bufB: 0, subN: 0, subB: 0, mipN: 0, mipMs: 0, geo: -1, tex: -1 };
+    // THE STEADY TRAFFIC IS A TOTAL, NOT AN EVENT (the 07:00 captures, 22 Nov: in flight the game updates ~4 MB of buffers
+    // and makes ~70 texture and ~54 buffer calls EVERY frame - the event fired on 4 929 of 5 788 frames). The run's totals
+    // go to the header (`gpuData`); the event is for a frame that spent 1 ms or more CREATING GPU data.
+    const UPT = new Float64Array(10);   // frames, tex calls, tex ms, megapixels, compressed bytes, buffer calls, buffer ms, buffer bytes, update calls, update bytes
     const r1e = x => Math.round(x * 10) / 10;
     function upFlush(t, where) {
       let dg = 0, dx = 0;
       const M = rec.renderer && rec.renderer.info && rec.renderer.info.memory;
       if (M) { if (UP.geo >= 0) { dg = M.geometries - UP.geo; dx = M.textures - UP.tex; } UP.geo = M.geometries; UP.tex = M.textures; }
       if (UP.n === 0 && UP.subN === 0) return;
-      if (UP.ms >= 1 || UP.subB >= 1048576) event('gpuup', t, UP.ms, { at: where, tex: [UP.texN, r1e(UP.texMs), r1e(UP.texPx / 1e6), Math.round(UP.cmpB / 1024)], buf: [UP.bufN, r1e(UP.bufMs), Math.round(UP.bufB / 1024)],
+      UPT[0]++; UPT[1] += UP.texN; UPT[2] += UP.texMs; UPT[3] += UP.texPx / 1e6; UPT[4] += UP.cmpB; UPT[5] += UP.bufN; UPT[6] += UP.bufMs; UPT[7] += UP.bufB; UPT[8] += UP.subN; UPT[9] += UP.subB;
+      if (UP.ms >= 1) event('gpuup', t, UP.ms, { at: where, tex: [UP.texN, r1e(UP.texMs), r1e(UP.texPx / 1e6), Math.round(UP.cmpB / 1024)], buf: [UP.bufN, r1e(UP.bufMs), Math.round(UP.bufB / 1024)],
         sub: [UP.subN, Math.round(UP.subB / 1024)], mip: [UP.mipN, r1e(UP.mipMs)], geo: dg, texNew: dx });
       UP.ms = 0; UP.n = 0; UP.texN = 0; UP.texMs = 0; UP.texPx = 0; UP.cmpB = 0; UP.bufN = 0; UP.bufMs = 0; UP.bufB = 0; UP.subN = 0; UP.subB = 0; UP.mipN = 0; UP.mipMs = 0;
     }
@@ -292,8 +297,7 @@
         if (sh > WATCH_MS) event('shaderslow', t, sh, NP.list.join(' | ') + (NP.more ? ' | +' + NP.more + ' more' : '') || '(no new program: waits on programs made earlier)');
         NP.list.length = 0; NP.more = 0; NP.waitMs = 0; }
       if (acc[S.prem] >= 60) premSlow(t, acc[S.prem], false); else if ((fi & 63) === 16) premSlow(t, 0, true);   // (the tail kept in step, quietly)
-      if (UP.n !== 0 || UP.subB >= 1048576 || (fi & 15) === 0) upFlush(t, 'loop');   // PERF-TRACE: the frame's GPU data (three's counts re-read every 16th frame)
-      else { UP.subN = 0; UP.subB = 0; }
+      if (UP.n !== 0 || UP.subN !== 0 || (fi & 15) === 0) upFlush(t, 'loop');   // PERF-TRACE: the frame's GPU data (three's counts re-read every 16th frame)
       if (!rendered) fl |= F.noRender;
       if (rec.gpu.foreignF >= fi - 1) fl |= F.gpuForeign;
       const P = probeOut;
@@ -327,6 +331,7 @@
       ringF[j + C.cap] = cap;
       if ((fi & 63) === 0) heapSample(t);
       ringF[j + C.heap] = V[HEAP];
+      if (rec.traffic) rec.traffic.frameEnd(fi);
       fi++;
       if ((fi & (CHUNK - 1)) === 16 && fi > CHUNK) chunkDone((fi >> Math.log2(CHUNK)) - 1);   // a chunk full (16 frames on, for the GPU's late results)
       const d = clock() - t;
@@ -436,6 +441,8 @@
                    rec.flight = probe.flight || null; rec.spec = probe.spec || null; }   // G3322: the flight's description, the build's spec
       if (!renderer || rec.renderer) return api;
       rec.renderer = renderer;
+      // PERF-TRACE: the uploads' diagnostic (?recup=1, program_id.js section 3): whose buffers and textures are marked for the GPU each frame
+      try { rec.traffic = (W.PROGRAMS && W.PROGRAMS.traffic && W.PROGRAMS.trafficOn && W.THREE) ? W.PROGRAMS.traffic(W.THREE, () => fi) : null; } catch (e) { rec.traffic = null; }
       try {
         const orig = renderer.render;
         if (typeof orig === 'function' && renderer.info && renderer.info.render) {
@@ -586,6 +593,9 @@
         gpuTimer: rec.gpu.ext ? { ok: rec.gpu.ok, disjoint: rec.gpu.bad, foreignFrames: rec.gpu.foreign,
           requested: rec.gpu.req, coverage: rec.gpu.req ? +(rec.gpu.ok / rec.gpu.req).toFixed(3) : null, subsystemFrames: rec.gpu.subF, rogue: rec.gpu.rogue, nested: rec.gpu.nest } : null,
         programs: rec.pid ? rec.pid.summary() : null,   // PERF-TRACE: the program registry's count (owned / unowned / seen ready / drawn) and its own cost
+        // PERF-TRACE: the GPU data of the whole run - the frames (and gaps) that made or updated any, and the totals
+        gpuData: { frames: UPT[0], texCalls: UPT[1], texMs: Math.round(UPT[2]), megapixels: Math.round(UPT[3]), compressedMB: Math.round(UPT[4] / 1048576), bufferCalls: UPT[5], bufferMs: Math.round(UPT[6]),
+          bufferMB: Math.round(UPT[7] / 1048576), updateCalls: UPT[8], updateMB: Math.round(UPT[9] / 1048576) },
         seen: typeof VIS !== 'undefined' ? { start: VIS.start, now: seenNow(), hidden: VIS.hidden, blurs: VIS.blur } : null,   // PERF-TRACE: the page's visibility and focus
       };
       const R = rec.renderer;
@@ -630,12 +640,13 @@
       // PERF-TRACE: the programs' table (program_id.js: owner, fingerprint, sizes, #defines, the readiness bracket) - asked
       // FIRST: it closes the rows still waiting for their owner, which are events
       let progs = null; try { progs = rec.pid ? rec.pid.table(true) : null; } catch (e) {}
+      let upl = null; try { upl = rec.traffic && W.PROGRAMS && W.PROGRAMS.uploads ? W.PROGRAMS.uploads() : null; } catch (e) {}
       let prem = null; try { const ST = W.WORLD && W.WORLD.premises && W.WORLD.premises.streamState; if (ST) prem = { slow: ST.slow || null, worst: ST.worst || null }; } catch (e) {}
       // ... and THE NETWORK, as the browser timed it (resource timing: [name, start ms, end ms, KB, kind]) - the loading
       // timeline's lane (tools/load_timeline.js), on this log's own clock. Read here, at the save; nothing during the frames
       let resrc = null; try { resrc = perf.getEntriesByType ? perf.getEntriesByType('resource').map(r => [String(r.name).replace(/^https?:\/\/[^/]+\//, '').replace(/\?.*$/, '').slice(-90),
         Math.round(r.startTime), Math.round(r.responseEnd), Math.round((r.transferSize || r.encodedBodySize || 0) / 1024), r.initiatorType || '']) : null; } catch (e) {}
-      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + '}');
+      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + ',"uploads":' + JSON.stringify(upl) + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)
