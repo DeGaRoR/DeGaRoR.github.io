@@ -1,0 +1,350 @@
+{
+ "key": "carboncubss",
+ "stamp": {
+  "build": {
+   "file": "builds/candidates/carbon_cub_ss.json",
+   "blob": "f442f51c6a5864d8e27edd13c7e675410f83d19b"
+  },
+  "core": "b6ad7d0b11e36932",
+  "harness": "306b51676ce17954476cbd320783170c3ffc428e",
+  "ref": {
+   "key": "carboncub",
+   "hash": "f8692b8afe5b5a57"
+  },
+  "plane": {
+   "key": "carboncubss",
+   "hash": "5327f2961b1e1e02"
+  },
+  "at": "2026-11-22T18:45:30.889Z"
+ },
+ "label": "Carbon Cub SS (CC340, built to the type)",
+ "file": "builds/candidates/carbon_cub_ss.json",
+ "ref": "carboncub",
+ "refName": "CubCrafters Carbon Cub SS (CC340 180 hp)",
+ "official": false,
+ "engineNote": null,
+ "provisional": false,
+ "note": "REAL-FIGURES-3, the user 9 Nov: the CC340 built from the engine dials (the O-320 chassis on the CC340 stroke, 340 in3, 2700 rpm, the new tune 1.09 and build 0.88 dials: 180 hp, 120 kg), a 2-blade carbon 2.03 m, VGs only (no slot, droop or drooped tips), the new STOL flap (plain, to 50 deg), a Super Cub-sized tail, 29 in tundras, 91 L in the wing roots, one 7 in glass PFD/MFD with round ASI / ALT / VSI (builds/candidates/carbon_cub_ss.edits.json)",
+ "group": null,
+ "card": null,
+ "shape": {
+  "drawn": {
+   "span": 10.44,
+   "length": 7.050000000000001,
+   "height": 2.2672351452252286,
+   "heightLevel": 2.8600000000000003,
+   "deckDeg": 9.444925022221566,
+   "points": 55298
+  },
+  "dims": {
+   "span": 10.44,
+   "length": 7.050000000000001,
+   "height": 2.2672351452252286,
+   "S": 16.15461929829747,
+   "cRoot": 1.6,
+   "cTip": 1.6,
+   "hSpan": 3.1865959930419923,
+   "Sh": 2.7856667319093047,
+   "Sv": 0.9828581159674606,
+   "track": 1.78
+  },
+  "nodes": {
+   "span": 10.44,
+   "length": 6.890313067472311,
+   "height": 2.058474940088044
+  },
+  "specs": {
+   "engine": "custom Flat (boxer) 4-cyl 5.6 L",
+   "hp": 179.77680735402262,
+   "nE": 1,
+   "propD": 2.03,
+   "blades": 2,
+   "empty": 406.5625404592603,
+   "mtow": 642.0825404592604,
+   "fuelL": 91,
+   "seats": 2
+  }
+ },
+ "joinErrors": [],
+ "facts": {
+  "empty": 406.5625404592603,
+  "baked": 562.0825404592597,
+  "fuelKg": 65.52,
+  "seats": 2,
+  "occupied": [
+   true,
+   false
+  ],
+  "baggage": 10,
+  "engine": "custom Flat (boxer) 4-cyl 5.6 L",
+  "hp": 179.77680735402262,
+  "S": 16.15461929829747,
+  "flapsGame": {
+   "to": 0.25,
+   "ldg": 1
+  },
+  "landsFlapless": false,
+  "tail": {
+   "Sh": 2.7856667319093047,
+   "hSpan": 3.1865959930419923,
+   "Sv": 0.9828581159674606
+  }
+ },
+ "cases": [
+  {
+   "id": "min",
+   "label": "MIN: 70 kg pilot, 1/4 fuel",
+   "fuel": 0.25,
+   "mass": 492.9425404592603,
+   "W": 4835.766321905344,
+   "Vs": 57.17968028410871,
+   "VsTO": 50.782443794718915,
+   "Vs0": 51.218475166471684,
+   "V75": 171.46613013619418,
+   "Vmax": 193.45753949102792,
+   "roc": 9.891620336284618,
+   "Vy": 117.21834458242283,
+   "LD": 8.026319411149053,
+   "Vbg": 77.19256838354676,
+   "CdS": 1.0644379092162108,
+   "TOgrass": 43,
+   "T0": 2491.5308215141567,
+   "cgMAC": 16.488043463960253,
+   "sm": 28.265390636456022,
+   "stabTrim": -2.915182276296021,
+   "deAppr": 0.35628243609588256,
+   "deApprClean": 0.31555294615880064,
+   "flapLdg": 0.9,
+   "flapTO": 1
+  },
+  {
+   "id": "typ",
+   "label": "TYP: 80 kg pilot, 1/2 fuel",
+   "fuel": 0.5,
+   "mass": 519.3225404592603,
+   "W": 5094.554121905344,
+   "Vs": 58.68973650442438,
+   "VsTO": 52.12355561545704,
+   "Vs0": 52.57110212478835,
+   "V75": 171.1625326884197,
+   "Vmax": 193.2774939406858,
+   "roc": 9.29796013199391,
+   "Vy": 117.3794730088487,
+   "LD": 8.026319411149053,
+   "Vbg": 79.2311442809729,
+   "CdS": 1.0641754825957437,
+   "TOgrass": 45,
+   "T0": 2491.5308215141567,
+   "cgMAC": 17.14021309272548,
+   "sm": 27.57746013082365,
+   "stabTrim": -2.915182276296021,
+   "deAppr": 0.3230283188943355,
+   "deApprClean": 0.30566914192282896,
+   "flapLdg": 0.9,
+   "flapTO": 1
+  },
+  {
+   "id": "mtow",
+   "label": "MTOW 599 kg: every seat, full fuel, baggage to gross",
+   "fuel": 0.3424520686926177,
+   "mass": 599,
+   "W": 5876.1900000000005,
+   "Vs": 63.03140449982467,
+   "VsTO": 55.97947978040942,
+   "Vs0": 56.46013426520192,
+   "V75": 170.13410088811014,
+   "Vmax": 192.6462560595917,
+   "roc": 7.796628744516655,
+   "Vy": 116.60809832467565,
+   "LD": 8.026319411149055,
+   "Vbg": 85.09239607476331,
+   "CdS": 1.0639266497538538,
+   "TOgrass": 53,
+   "T0": 2491.5308215141567,
+   "cgMAC": 30.407200048002014,
+   "sm": 14.598221863630565,
+   "stabTrim": -2.915182276296021,
+   "deAppr": -0.486715998175943,
+   "deApprClean": 0.09354343517469159,
+   "flapLdg": 0.9,
+   "flapTO": 1
+  }
+ ],
+ "flights": {},
+ "sweep": null,
+ "water": {},
+ "t": {
+  "airframe": 31.465,
+  "total": 31.466
+ },
+ "verdicts": [
+  {
+   "k": "empty",
+   "src": "ledger",
+   "ref": [
+    408,
+    408
+   ],
+   "refBand": [
+    387.59999999999997,
+    428.40000000000003
+   ],
+   "kg": null,
+   "ours": [
+    406.5625404592603,
+    406.5625404592603
+   ],
+   "verdict": "inside",
+   "mAt": null
+  },
+  {
+   "k": "Vs1",
+   "src": "airframe",
+   "ref": [
+    64.82000000000001,
+    64.82000000000001
+   ],
+   "refBand": [
+    61.579,
+    68.061
+   ],
+   "kg": [
+    494.38,
+    599
+   ],
+   "ours": [
+    57.26196401121054,
+    63.03140449982467
+   ],
+   "verdict": "inside",
+   "extrap": false,
+   "mAt": 631.4049849040456,
+   "series": [
+    {
+     "m": 492.9425404592603,
+     "v": 57.17968028410871
+    },
+    {
+     "m": 519.3225404592603,
+     "v": 58.68973650442438
+    },
+    {
+     "m": 599,
+     "v": 63.03140449982467
+    }
+   ]
+  },
+  {
+   "k": "V75",
+   "src": "airframe",
+   "ref": [
+    177.02784000000003,
+    192.608
+   ],
+   "refBand": [
+    168.17644800000002,
+    202.2384
+   ],
+   "kg": [
+    494.38,
+    599
+   ],
+   "ours": [
+    170.13410088811014,
+    171.4495869577314
+   ],
+   "verdict": "inside",
+   "extrap": false,
+   "mAt": null,
+   "series": [
+    {
+     "m": 492.9425404592603,
+     "v": 171.46613013619418
+    },
+    {
+     "m": 519.3225404592603,
+     "v": 171.1625326884197
+    },
+    {
+     "m": 599,
+     "v": 170.13410088811014
+    }
+   ]
+  },
+  {
+   "k": "roc",
+   "src": "airframe",
+   "ref": [
+    7.62,
+    10.668000000000001
+   ],
+   "refBand": [
+    7.239,
+    11.201400000000001
+   ],
+   "kg": [
+    494.38,
+    599
+   ],
+   "ours": [
+    7.796628744516655,
+    9.859271491530441
+   ],
+   "verdict": "inside",
+   "extrap": false,
+   "mAt": 527.5740726232867,
+   "series": [
+    {
+     "m": 492.9425404592603,
+     "v": 9.891620336284618
+    },
+    {
+     "m": 519.3225404592603,
+     "v": 9.29796013199391
+    },
+    {
+     "m": 599,
+     "v": 7.796628744516655
+    }
+   ]
+  },
+  {
+   "k": "TO",
+   "src": "airframe (grass)",
+   "ref": [
+    40,
+    50
+   ],
+   "refBand": [
+    38,
+    52.5
+   ],
+   "kg": [
+    494.38,
+    599
+   ],
+   "ours": [
+    43.108981011428334,
+    53
+   ],
+   "verdict": "inside",
+   "extrap": false,
+   "mAt": 519.1227192981087,
+   "series": [
+    {
+     "m": 492.9425404592603,
+     "v": 43
+    },
+    {
+     "m": 519.3225404592603,
+     "v": 45
+    },
+    {
+     "m": 599,
+     "v": 53
+    }
+   ]
+  }
+ ],
+ "wall": 31.466
+}

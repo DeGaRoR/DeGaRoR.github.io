@@ -326,6 +326,87 @@ Monotonic both ways: more head in the wind, more drag and more cooling. The real
 figure. The card at 0.30 leaves a third of the head out because the drawn A-65 reaches 0.31 m from the centreline where
 the real one reaches 0.40: its cylinder rows are the next thing to true.
 
+### 7.2 Builds 5 to 10 (22 Nov evening): where the line stands
+
+| build | what | read from |
+|---|---|---|
+| 5 | cylinder heads that stand out of a cowl pay their drag; flank cut-outs in the cowl (7.1) | the join's measurement of the heads against the drawn cowl |
+| 6 | every gear leg billed as drawn: the third wheel's, a trailing link's | the gear rows |
+| 7 | the fiche's Drag page follows the new rows | - |
+| 8 | a fixed pitch can be cut for a stated speed (`cw_redKmh`, absent at 0) | one new cowl-page row |
+| 9 | **what sticks out**: every fitting by its form and drawn size, the hinges, horns and pushrods by the kit's counts; the drawing decides which heads are in the wind (pods and cheeks cover them) | the core's own fittings table (`GEN_ACCESS`), the hinge kit, the fittings page's family switches |
+| 10 | **each junction by its own root**: `c² (0.75 (t/c)³ - 0.0003)` (Hoerner ch. 8); a root-fillet row (`wgFillet`, absent at 0, not drawn yet) | the wing's root chord and section |
+
+**Every scored row, inside / near / outside its band** (`real_check --quick`, 17 planes; evidence
+`evidence/FUSELAGE-DRAG-2026-11-22/build10/`):
+
+| | inside | near | outside |
+|---|---|---|---|
+| the plan as built (physics-audit-1) | 61 | 14 | 18 |
+| builds 2-4 | 55 | 22 | 16 |
+| build 9 | 64 | 14 | 15 |
+| **build 10** | **61** | **17** | **15** |
+
+**What moved, the plan as built → build 10** (error against the book; `~` near, `!` outside):
+
+| plane | figure | book | the plan | build 10 |
+|---|---|---|---|---|
+| **Pilatus PC-6** | max cruise / climb | 232 / 5.13 | +23 ! / +28 ! | **+5 / +10 ~** |
+| PC-6 on floats | max cruise / climb | 232 / 5.13 | +12 ~ / +18 ! | +6 / +12 ~ |
+| **Super Petrel** | max cruise / glide | 185 / 10 | +12 ~ / +16 ~ | **+7 ~ / +6** |
+| | take-off roll | 80 | +21 ~ | +23 ! |
+| **Velis Electro** | glide / VH / take-off roll | 15 / 172 / 240 | -15 ~ / +5 / +2 | **-4 / +7 / -1** |
+| | climb at 48 kW | 3.29 | -3 | +10 ~ |
+| Archaeopteryx | glide | 28 | -41 ! | -28 ! |
+| Jodel D.112 | top speed / cruise / glide | 175-200 / 150-161 / 10 | -11 / -6 / -9 | **-7 / -1 / -4** |
+| Stearman | top speed / climb | 200-217 / 4.27 | -11 ~ / -6 ~ | **-7 / 0** |
+| PA-18 on floats | climb | 4.70 | -21 ! | -11 ~ |
+| Cessna 172 | top speed / cruise / climb / glide | 228 / 206 / 3.66 / 9.0 | +2 / 0 / -1 / +3 | 0 / -3 / -3 ~ / +1 |
+| Piper Cub | top speed / cruise / climb / glide | 140 / 119 / 2.29 / 9.5 | +1 / +3 / +4 / -1 | +3 / +5 / +7 ~ / 0 |
+| Chinook | top speed / glide | 153 / 10 | -1 / -8 | -9 ~ / -18 ~ |
+| Tiger Moth | top speed / climb | 172-175 / 2.5-3.4 | -1 / +2 | +4 / +11 |
+
+**Cards changed on the way (for the user's review):**
+
+| card | change | why |
+|---|---|---|
+| the client Cub | cowl narrowed 0.395 → 0.30 and cut, cheeks off (7.1) | the user, 22 Nov |
+| Tiger Moth, Camel | `s1LegFair 1` | their parents' gear struts are streamline sections |
+| Super Petrel V4_2 | `wgCons`, `w2Cons` 0 → 5 (aluminium tube + fabric) | the card's wings were moulded carbon by default and took a laminar credit; the real wing is tube spars, foam ribs and fabric |
+| Electric trainer | `cw_redKmh 130`; `accHandling 0` | its propeller is cut for the climb (POH-128: 90 KCAS on 35 kW, VH 93 KCAS: the propeller is past its limit at the top speed) - **identified against the handbook's rows, not a published pitch**; the parent has no steps or grab handles |
+| Archaeopteryx | `accHandling 0` | no steps or handles on the parent |
+| Jodel D.112 | `s1Fair 1`, `s1LegFair 1` | "a fixed, spatted undercarriage" (Wikipedia, Jodel D.11); **the leg fairing is read off photographs** |
+| DC-3 | `wgFillet 1` | its root fillets |
+
+**Examined and not built:**
+
+- **The body's drag in the propeller's slipstream.** The dynamic pressure behind the disc is higher by T / A; the
+  model bills the body at the free stream's. Prototyped on the 17 planes (scratch, nothing in the core). As a bare
+  addition it takes 4-12 % off every nose-engined plane's thrust and 15-20 points off every climb: the blade
+  efficiencies (0.79 wood, 0.84 metal) already carry an average installation loss. Re-normalised, no plane moves by
+  more than 2 % in speed. **But the roster now says the thrust is the next term:** power off, the planes read right
+  or low (Velis -4 %, 172 +1 %, Cub 0 %, Jodel -4 %); power on, most read a few per cent fast (Cub, PC-6, Tiger Moth,
+  Petrel, Velis climb). That wants its own study: the slipstream term with the blade efficiencies re-derived as
+  isolated-propeller figures.
+- **The exhaust by its own size.** By the rows (stacks, collector, expansion chamber, ejector stubs) the figure
+  moves by ± 0.005 m² around today's 0.006-0.012: kept as it is.
+
+**Still open:**
+
+- **Archaeopteryx, 20 of 28.** Its pod is a cloth tent with sharp creases on the card (body 0.106 of 0.24 m²). A
+  smooth, round fairing would read about 22. The claimed 28 needs a total of 0.14 m²: laminar flow over the pod and
+  half the wing. A source for the clad pod's shape and skin is wanted before the card moves.
+- **Chinook, glide 8.2 of 10.** Its pod ends in a blunt base (0.45 m²) and steps; the 10 is the maker's figure.
+- **The RV-alike archetype** (GATE DRAG's one red): its derived cowl leaves 58 % of its cylinders outside the drawn
+  skin, and the drawing is billed. The card wants a cowl fit.
+- **PA-18 on floats and the Carbon Cub**: the float Cub's drawing shows its heads through the cowl's front flank
+  (0.026 m²): its cylinder-reach rows or its cowl.
+- **The root fillet is not drawn** (a row with physics and no picture: a garage gap).
+- Before this is a ready: `PHYSICS_V` and its history line, a gate of its own (the laws' monotonic properties: a
+  sharper corner costs more, a pod that closes gently costs less, a covered head costs nothing, a fillet helps, a
+  family switched off is not paid; the core's fittings-family map against the fittings page's), REALBAND re-written,
+  GATE STOL's fixture re-captured, the fiche's physics re-baked, the flown `real_check --all`.
+
 ## 8. Limits
 
 - The constants are handbook orders of magnitude from memory (Hoerner's fuselage and windscreen chapters, the usual
