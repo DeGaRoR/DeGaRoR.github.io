@@ -2856,7 +2856,11 @@ function areaLabel(a) {
 function compose(rec0, world, opts) {
   const o = opts || {};
   const boundedRoads = o.boundedRoads !== false;
-  const boundedPolys = o.boundedPolys !== undefined ? !!o.boundedPolys : typeof location !== 'undefined' && /[?&]pavepolybound=1(?:&|$)/.test(location.search || '');
+  // PERF-WORLDBUILD (22 Nov 2026): THE POLYGON BOUND IS THE DEFAULT. Codex's exact short-cut of 20 Nov (dEdgeOf: a paved polygon
+  // whose box lies beyond the caller's finite reach is not measured) was opt-in while its proof was a fixture's points; GATE
+  // PAVEXACT holds the whole island built with and without it byte for byte (every patch, strip, road and apron vertex).
+  // ?pavepolybound=0 (or o.boundedPolys: false): every polygon measured, as before - the gate's old side.
+  const boundedPolys = o.boundedPolys !== undefined ? !!o.boundedPolys : !(typeof location !== 'undefined' && /[?&]pavepolybound=0(?:&|$)/.test(location.search || ''));
   const polyBoundsStats = { checks: 0, rejected: 0, exact: 0 };
   // THE STAGES (v1.33): the record as it stands at `o.tracks` (absent: the sandbox, every track at its max) - an
   // unstaged record is untouched, and a staged one composes exactly as its stageView would
