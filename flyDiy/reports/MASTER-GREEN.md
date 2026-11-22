@@ -22,6 +22,15 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
   on the trunk, drawn"; "nothing broken ...: no payload, no release, no strike"), **DMGWALL** (metal: "places past 8
   slots" on four cases), **DMGLOOK** (metal trunk-0, "c. the plan ... worst plan 2.00 ms": a per-event time, which the
   8 Nov cloud sweep already read as this box's speed - treat DMGLOOK as TIME, not as a red).
+- **21:35 UTC - seven more NEW names (266 of 364 gates in), sorted:**
+  - `one-cessna-4` again: **LIVERYSET** dies on `ENOENT ... bugReports/cessnaMetal (1).json` (the candidate deletes
+    that file and the gate still opens it); **FIN** "§10: cessna fin sheet folds over itself (5 faces)"; **GEOPARITY**
+    "cessna: ... fin mean dx +0.056; fin worst dx +0.188"; **FRAMES** IDENTITY moved on builds/cessna172r_2026-11-08.json
+    (tailCap.band) - and on builds/chinook_2026-09-21_corrected.json (pilPaxA.band: `chinook-user`).
+  - the candidate commit itself: **COMMITHYGIENE** "built file(s) in source commit f80229d71 'train L40J CANDIDATE
+    (built + premises cook)'" - the packaging of the candidate, gone when the train lands with its own (built) commit.
+  - THIS BOX'S SPEED, not reds: **BENCHTIME** (the bench check 7.0 s / 8.7 s against 6 s) and **SCENERYED** row 20b
+    (3251 ms against 2500 ms); both were already read as time budgets of a cloud CPU in the 8 Nov sweep.
 - **20:05 UTC - A SECOND GROUP IN THE NEW LIST, NOT THE CESSNA: "nothing broken" is no longer nothing.** Five damage
   gates fail on the same kind of row - with no break, the candidate records or sends something master does not:
   DMGSKIN ("nothing broken ...: no payload, no byte, no key in the meta"), DMGWRECK ("nothing broken (a FAR 23.473 drop,
