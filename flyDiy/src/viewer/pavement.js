@@ -2297,6 +2297,25 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     return (TAB.mat = m);
   }
   const isTable = m => !!(m && m.userData && m.userData.pavTable);
+  // PERF-WORLDBUILD (22 Nov 2026, with PERF-LEAD's ?pavefirst=1): THE TABLE PROGRAM'S STAND-IN. The load ended ~12 s after
+  // the pavement's program was ready, and that program (the boot's heaviest link) was first keyed at the town step, ~42 s
+  // in - yet its key holds NOTHING of the strips: this module's flags and hook, and three's part off the scene (the fog,
+  // the environment, the lights), the mesh (receiveShadow) and the geometry's attribute NAMES as make() leaves them
+  // (position, normal, aPav, aPavT, aPavId: aPavK and uv are deleted there). warmMesh is the one material on one
+  // degenerate triangle with exactly those attributes, flagged as a strip's mesh is (render_world.js: receiveShadow,
+  // renderOrder 3, not culled): what a host hands to the compiler as soon as the world's lights stand (the generator's
+  // 'pavement program' yield). Never added to a scene here; the same object on every call; null on the old per-strip path
+  // (?pave=old: a material per strip, no one program to key).
+  let WARM = null;
+  function warmMesh(THREE) {
+    if (!MODE.table || !THREE.DataTexture || THREE.FloatType === undefined) return null;
+    if (WARM) return WARM;
+    const g = new THREE.BufferGeometry();
+    for (const [k, n] of [['position', 3], ['normal', 3], ['aPav', 4], ['aPavT', 3], ['aPavId', 1]]) g.setAttribute(k, new THREE.BufferAttribute(new Float32Array(3 * n), n));
+    const m = new THREE.Mesh(g, tableMat(THREE));
+    m.name = 'pavement:warm'; m.receiveShadow = true; m.renderOrder = 3; m.frustumCulled = false;
+    return (WARM = m);
+  }
   // the hook: ONE function, its source the program's key; the uniforms ride in on sh._pavU
   const hook = sh => {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
@@ -2764,7 +2783,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   }
   function merge(THREE, parts, o) { const out = [], it = mergeSteps(THREE, parts, o, out); while (!it.next().done); return out; }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, stripPack, stripUnpack, pavPack, pavUnpack, roadGeometry, polyGeometry, field, opaqueDepth, setGroundWx, groundWxTick, groundWxMult, groundWxColor, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
+    stripGeometry, stripPack, stripUnpack, pavPack, pavUnpack, warmMesh, roadGeometry, polyGeometry, field, opaqueDepth, setGroundWx, groundWxTick, groundWxMult, groundWxColor, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
     // G925-G928: the table, the one material, the merge, the A/B
     // G1390-G1393: the runway look (per surface type), its live overlay, the alpha's CPU twin
     LOOK_GROUPS, LOOK_KEYS, LOOK_WEAR, groupOf, lookOf, look, tintRGB, alphaTwin, twinNoise: { hash: tHash, noise: tNoise, fbm: tFbm },
