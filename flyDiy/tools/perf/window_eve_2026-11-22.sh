@@ -31,9 +31,18 @@ say "window start, $MIN min, lab $(head -1 "$LAB/LAB-BUILD.txt" 2>/dev/null | cu
 # 0. the smoke load: every new switch on, a departure 8 s after the reveal
 say "part 0: smoke"
 LM_HELD=1 LM_STOP_FIRST=1 LM_AFTER=8 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=12 bash tools/perf/load_matrix.sh tools/perf/rows/smoke-eve.txt "$OUT/smoke" 6 2>&1 | tee -a "$LOG"
-[ "${PIPESTATUS[0]}" = 5 ] && { say "ABORT: the smoke load did not load; the box is freed, nothing else runs"; exit 5; }
+if [ "${PIPESTATUS[0]}" = 5 ]; then
+  # THE SAFETY NET: the build this one replaced stands beside it (lab_build.sh keeps it as -prev: the 17:06 build, without
+  # the pavement hand-over and the far terrain's dial). It takes the place of a build that does not load, once.
+  if [ -d "$LAB-prev" ]; then say "FALLBACK: the smoke load failed on the lab build; the previous build takes its place"
+    mv "$LAB" "$LAB-failed" && mv "$LAB-prev" "$LAB" || { say "ABORT: the folders could not be swapped"; exit 5; }
+    LM_HELD=1 LM_STOP_FIRST=1 LM_AFTER=8 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=12 bash tools/perf/load_matrix.sh tools/perf/rows/smoke-eve.txt "$OUT/smoke_prev" 6 2>&1 | tee -a "$LOG"
+    [ "${PIPESTATUS[0]}" = 5 ] && { say "ABORT: the smoke load did not load on the previous build either; the box is freed"; exit 5; }
+    mkdir -p "$OUT/smoke"; cp "$OUT/smoke_prev/summary.txt" "$OUT/smoke/summary.txt"
+  else say "ABORT: the smoke load did not load; the box is freed, nothing else runs"; exit 5; fi
+fi
 grep -q "^SMOKE_NEW \[" "$OUT/smoke/summary.txt" 2>/dev/null || { say "ABORT: no smoke row in the summary; the box is freed"; exit 5; }
-grep "^SMOKE_NEW" "$OUT/smoke/summary.txt" | grep -o '"farslots":{[^}]*}\|"bg":{[^}]*}\|"mirror":{[^}]*}\|"roadw":{[^}]*}\|rollout: [^|]*' | tee -a "$LOG"
+grep "^SMOKE_NEW" "$OUT/smoke/summary.txt" | grep -o '"farslots":{[^}]*}\|"bg":{[^}]*}\|"mirror":{[^}]*}\|"roadw":{[^}]*}\|"pave":{[^}]*}\|rollout: [^|]*' | tee -a "$LOG"
 
 # 1. latelinks=bg (45 s in the garage, then Go), then the worst case (Go after 6 s)
 P1=${EVE_P1_MIN:-15}; [ $(left) -lt $(( P1 + 2 )) ] && P1=$(( $(left) - 2 ))
