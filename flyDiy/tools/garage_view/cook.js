@@ -83,7 +83,20 @@ const FAR = FARG.length >= 6 ? { R: FARG[0].near, eye: FARG[0].eye } : null;
 // ================= THE GROUND =================================================================================================
 const GJ = GDIR && fs.existsSync(path.join(GDIR, 'ground.json')) ? JSON.parse(fs.readFileSync(path.join(GDIR, 'ground.json'), 'utf8')) : null;
 const mos = tag => GJ ? GJ.mosaics.find(m => m.tag === tag) : null;
-const copyTex = (key, file) => { fs.copyFileSync(path.join(GDIR, file), path.join(OUT, file)); SCENE.textures[key] = { file, srgb: true }; return key; };
+// THE FOREST'S FLOOR IS NOT A HOLE (the user, 22 Nov, on the large hangar's back window: "a gap in terrain ... we need to patch that hole"): under a
+// canopy the game darkens its ground to near black - with the trees hidden for the picture that black is what the tiles hold, and between
+// the cards, from a high window, it read as a pit. In the mid and wide pictures a texel darker than a floor in shade goes toward the land's
+// own mean colour x 0.6 (a shaded floor), and a texel no tile covered takes it whole (a steep site leaves some: 14 % at the Cabin Strip).
+const liftFloor = file => { const I = PNG.decode(fs.readFileSync(path.join(GDIR, file))), d = I.data, ch = I.ch, n = I.w * I.h, sum = [0, 0, 0]; let m = 0, lifted = 0;
+  const lum = o => 0.2126 * d[o] + 0.7152 * d[o + 1] + 0.0722 * d[o + 2];
+  for (let i = 0; i < n; i += 5) { const o = i * ch; if (lum(o) > 46 && (ch < 4 || d[o + 3] > 200)) { sum[0] += d[o]; sum[1] += d[o + 1]; sum[2] += d[o + 2]; m++; } }
+  if (!m) return null; const f = sum.map(v => v / m * 0.6);
+  for (let i = 0; i < n; i++) { const o = i * ch, a = ch < 4 ? 1 : d[o + 3] / 255, t = Math.max(1 - a, Math.max(0, Math.min(1, (36 - lum(o)) / 22)));
+    if (t > 0.004) { d[o] += (f[0] - d[o]) * t; d[o + 1] += (f[1] - d[o + 1]) * t; d[o + 2] += (f[2] - d[o + 2]) * t; if (ch === 4) d[o + 3] = 255; if (t > 0.5) lifted++; } }
+  return { png: PNG.encode(I.w, I.h, ch, d), lifted: +(lifted / n).toFixed(3), floor: f.map(v => Math.round(v)) }; };
+const copyTex = (key, file) => { const lf = /^ground_(mid|wide)$/.test(key) && !argv.includes('--nolift') ? liftFloor(file) : null;
+  if (lf) { fs.writeFileSync(path.join(OUT, file), lf.png); (SCENE.stats.floor = SCENE.stats.floor || {})[key] = { lifted: lf.lifted, floor: lf.floor }; } else fs.copyFileSync(path.join(GDIR, file), path.join(OUT, file));
+  SCENE.textures[key] = { file, srgb: true }; return key; };
 // the frames, the ones ground_merge.js draws its mosaics in (kept in step by ground.json when it is there)
 const MU = SITE.mid.u, MV = SITE.mid.v, MO = SITE.mid.out;
 const F_MID = mos('mid') || { o: [M.mid.x + d0[0] * (MO - MU / 2) - t0[0] * MV / 2, M.mid.z + d0[1] * (MO - MU / 2) - t0[1] * MV / 2], eu: d0, ev: t0, U: MU, V: MV };

@@ -191,9 +191,13 @@ const PAGE = `(() => {
       const doc0 = await JJ('JSON.stringify(window.FLYDIY_PLAYER ? FLYDIY_PLAYER.doc() : null)');
       const FIELD = (M.site && M.site.field) || 'HOME';
       const roomAt = async (id, shell) => JJ(`(async () => { try { const P = window.FLYDIY_PLAYER, id = ${JSON.stringify(id)}, shell = ${JSON.stringify(shell)}, field = ${JSON.stringify(FIELD)}; let d = P.doc();
-          if (!d.sheds[id]) { d.wallet = Math.max(+d.wallet || 0, 1e8); const r = typeof playerAcquire === 'function' ? playerAcquire(d, field, id, shell) : null;
-            if (r && !r.ok) return JSON.stringify({ ok: false, why: 'acquire: ' + r.why });
-            if (r) d = r.doc; else d.sheds[id] = { shell, kits: [], base: field, tenure: 'own', price: 0, since: 0 };
+          if (!d.sheds[id]) {
+            // (the plot's shed as playerAcquire writes it - the shell's dims with the plot's own over them, its kits - WITHOUT the price book:
+            //  playerAcquire's plotPrice calls econShellPrice, the career's, which the sandbox page does not define - 22 Nov, every room but HOME refused)
+            const O = typeof BASE_OFFERS !== 'undefined' ? BASE_OFFERS[field] : null, PL = O && O.plots ? O.plots[id] : null, SH = typeof SHELLS !== 'undefined' ? SHELLS[shell] : null;
+            if (!PL || !SH) return JSON.stringify({ ok: false, why: 'no offer for ' + field + ' / ' + id + ', or no shell ' + shell });
+            d.sheds[id] = { shell, kits: (PL.kits || (typeof HANGAR_KITS_DEFAULT !== 'undefined' ? HANGAR_KITS_DEFAULT : [])).slice(), base: field, tenure: 'own',
+              dims: Object.assign({}, SH.dims, (PL.dims && PL.dims[shell]) || {}), price: 0, since: Math.round(d.clock || 0) };
             P.set(d); }
           if (P.doc().here !== id) { const g = await P.gotoGarage(id); if (!g.ok && g.why !== 'you are there') return JSON.stringify({ ok: false, why: 'goto: ' + g.why }); }
           const sh = P.doc().sheds[id]; let set = '';
