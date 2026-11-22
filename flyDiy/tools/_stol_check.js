@@ -322,7 +322,12 @@ console.log('3. THE PHYSICS (the Savannah-alike, as baked)');
   ok(Math.abs((slot.aSt - base.aSt) - deg(C.GEN_SLATS.slot.dAs)) < 2.5, `...its stall attitude moves by its dAs (${(slot.aSt - base.aSt).toFixed(2)} deg, ${deg(C.GEN_SLATS.slot.dAs).toFixed(1)} declared)`);
   ok(r(auto.Vs, base.Vs) < r(slot.Vs, base.Vs), 'the automatic slat out-lifts the fixed slot once it is out (Vs ' + r(auto.Vs, base.Vs).toFixed(3) + ')');
   ok(slot.D2 > base.D2 * 1.02, `the fixed slot pays its gap drag at cruise (D x${r(slot.D2, base.D2).toFixed(3)} at 2 deg)`);
-  ok(auto.D2 < slot.D2 && auto.D2 > base.D2 && auto.D2 < base.D2 * 1.01, `the automatic slat pays only its seam at cruise (D x${r(auto.D2, base.D2).toFixed(4)})`);
+  // (re-pinned 2026-11-22, PHYSICS-AUDIT step 2: the bound was 1 % of the clean Savannah's drag at 2 deg, 4.09 N of master's
+  //  409.3 N; the seam itself costs 4.0-4.1 N on both trees. The clean aeroplane lost 10.6 N - its alloy tailplane no
+  //  longer pays for four brace wires it does not carry (GATE WIRES) - so the same seam is x1.0102 of 398.7 N. The bound
+  //  follows the base: 1.05 %, 4.19 N. The seam stays a tenth of the fixed slot's gap drag, which the line below holds.)
+  ok(auto.D2 < slot.D2 && auto.D2 > base.D2 && auto.D2 < base.D2 * 1.0105, `the automatic slat pays only its seam at cruise (D x${r(auto.D2, base.D2).toFixed(4)})`);
+  ok((auto.D2 - base.D2) < 0.12 * (slot.D2 - base.D2), `...a seam that is a tenth of the fixed slot's gap drag (${(auto.D2 - base.D2).toFixed(1)} N of ${(slot.D2 - base.D2).toFixed(1)} N)`);
   ok(r(vg.Vs, base.Vs) < 0.98 && r(vg.Vs, base.Vs) > 0.92, `VGs: Vs x${r(vg.Vs, base.Vs).toFixed(3)} (the kit sheets' 3-5 mph on a Cub: 0.92..0.98)`);
   ok(vg.D2 > base.D2 && vg.D2 < base.D2 * 1.02, `...for under 2 % of cruise drag (x${r(vg.D2, base.D2).toFixed(4)})`);
   ok(cuff.Vs <= base.Vs * 1.0001 && cuff.CL8 > base.CL8, `the cuff: no worse a stall (x${r(cuff.Vs, base.Vs).toFixed(3)}) and its nose camber lifts below it`);

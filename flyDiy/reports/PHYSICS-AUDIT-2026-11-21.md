@@ -400,6 +400,33 @@ Moth 1.12 → 1.05, Camel 1.18 → 1.11, Stearman 1.31 → 1.21, Petrel 0.65 →
 | Ruckus Solo: TO roll | -39 → -60 % | 43 m against a sheet that is a calculation (107 m), on a card 36 % heavy empty. | none; the sheet row could be dropped |
 | Tiger Moth: cruise 75 % | +3 → +7 %, inside | streamline wires | none |
 
+### The PC-6, in plain words (the user, 22 Nov: "why are we so wrong on the PC6?")
+
+The model builds the Porter as a big Cessna 172: 0.98 m², the 172R's own coefficient (0.032 against 0.031). The real one
+is about twice that.
+
+- **Two book figures agree.** The 125 kt maximum on 550 shp needs 1.7 m² at sea level (more at 10,000 ft). The climb
+  (5.13 against the model's 6.57 m/s) needs the same missing 0.7 m² at climb speed. So it is drag: to explain the cruise
+  with power instead, the engine would have to give about 300 shp.
+- **Why it read better before.** The old law was too weak for a governed propeller (the DC-3 lost 8 % to it). On the PC-6
+  that hid part of the missing drag (+16 %). With the propeller right the whole gap shows (+23 %, +28 %).
+- **Ruled out.** The propeller (the same law lands the DC-3 at -2 %); lift and mass (stall -2 %, empty -6 %); the row's
+  altitude (at 10,000 ft the gap is larger: the engine is derated from 680 shp and holds its 550 while the air thins);
+  gear legs sized by the wheel (+0.05 m², tried in step 5).
+
+| the model's 0.98 m² | m² | what the real aeroplane carries that is not billed (handbook orders of magnitude, not measured) | m² |
+|---|---|---|---|
+| landing gear | 0.36 | a tripod of exposed struts a side, a long-stroke leg, soft tyres, brakes | +0.1 to +0.2 |
+| wing, tail, struts | 0.33 | full-span slotted flaps and drooping ailerons on external hinge arms, their slots open | +0.1 to +0.2 |
+| fuselage | 0.23 | a square box, a flat upright windscreen, a flat belly, an abrupt taper (billed nearly as a streamlined body) | +0.1 to +0.25 |
+| the small rows | 0.06 | beaded control skins, stiffeners, door rails, steps; exhaust stubs, intake, tail struts, antennas | +0.15 to +0.2 |
+| **total** | **0.98** | **reaches 1.4 to 1.8** | **+0.45 to +0.85** |
+
+**Proposed:** check the card against the three-view for what is drawn (the tripod, the hinge arms, the tail struts); add
+the missing items as garage rows, each billed by what is drawn; get the flight manual's cruise chart (speed against
+torque and altitude) to pin the power at 125 kt. No single "utility aeroplane" factor: it would fix the number without
+the model knowing why.
+
 ### Still open (the model's range, honestly)
 
 - **The clean end.** The Archaeopteryx glides 16.6 against 28, the LS4 (its branch, not re-measured) about 25 against
