@@ -1,4 +1,4 @@
-FAIL (20 of 108 gates run; PARTIAL: 6 of 23 chunks, 256 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H]
+FAIL (22 of 113 gates run; PARTIAL: 7 of 23 chunks, 251 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H]
 NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE
 L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
@@ -1375,6 +1375,214 @@ GATE DMGCERT: FAIL
   ok    a load member draws no wire
   17/17 checks
 GATE GEARFALL: PASS
+######## chunk 06 of 23 (5 gates) ########
+=== WILGAGEAR ===
+1. the geometry as researched (GEN_RULES.lever: the Wilga 80 off the Aerofly FS4 model, held to the TCDS)
+  ok    the arm 0.400 m, extended 62 deg below level, full stroke 12 deg (the study §2.2-§3)
+  ok    the wheel travels 270.0 mm on 115.0 mm of strut (the study: 270 / 115 mm)
+  ok    the stroke rises through the whole travel and the linkage toggles 91.5 deg into the swing, 41.5 deg past full stroke (30 at least)
+  ok    the motion ratio falls 0.69 -> 0.29 (the strut sees the wheel's load over it)
+  ok    the host's frame stands the pivot, the horn and the strut's eye on the reference's points (7.9e-17 m)
+  ok    the host stands on the Wilga's 2.83 m track and 500 mm tyres
+2. the static deflection at gross
+  ok    L: at 1009 kg the wheel stands 69.4 mm up from full extension (the study: 70.0 mm +-10), the strut 49.1 mm in
+  ok    R: at 1009 kg the wheel stands 69.9 mm up from full extension (the study: 70.0 mm +-10), the strut 49.3 mm in
+  ok    the charge: 17.3 bar extended, 53.9 bar static on its 45 mm piston (a light oleo's 40-120), stage 2 at 120 bar
+  ok    it stands on its three wheels
+3. a FAR 23.725-style limit drop (the 23.473(d) limit sink 2.53 m/s on this host - the Wilga's own 2.73), no wing lift
+  ok    absorbed without bottoming: the strut 109.2 mm of its 115.0 mm (95 %), its force 38.7 kN at most
+  ok    the reserve drop (1.2 x, 23.727): it bottoms on the steel stop (618 / 635 substeps held) and stands again on its gear, the strut back to 49.1 mm, the arm whole
+4. no pogo after a firm landing (1.5 m/s at 0.8 Vs)
+  ok    the wheels stay on the ground (the longest lift 0 ms, 150 at most)
+  ok    no pogo: after one compression and one rebound the strut turns round 0 times past 1 s (2 at most) and in the last 1.5 s it follows the wing's unloading to 0.2 mm (under 1)
+5. the wheel's path is the trailing arc
+  ok    the axle stays on its circle about the pivot: the arm 0.481 m to 0.0 mm
+  ok    as it rises it moves AFT (trailing: 24 of 24 rising samples)
+  ok    the axle stands where the kinematics put it for the strut's stroke (58 samples, 0.6 mm at worst)
+6. a broken leg drops (damage on, the certificate stamped)
+  ok    each leg is one breakable part (gearL:gear 9, gearR:gear 9, tw:gear 6), no group issue
+  ok    rolling at 15 m/s nothing breaks
+  ok    one joint member let go (AXLEPIL-S0BL): the leg's part comes off, "the landing gear broke"
+  ok    and DROPS: the left tip 2.330 -> -0.002 m (on the ground), the leg 1.554 m away from its fitting
+7. the drawn leg = the physics leg (the game's load chain: the garage draws, the join measures)
+  ok    the Cub with the mains' leg set to the trailing link: the join writes suspension 'lever' and the drawn leg (0 layer errors)
+  ok    the frame stands its pivot, horn and strut eye on the drawn points (6.1e-17 m)
+  ok    the garage turns the drop red when the tyre meets the body at full stroke (a 0.35 m half track: "at full stroke the tyre meets the body (a longer leg, or less swing)") and not on the Cub's own track
+  ok    through a limit drop (72 frames, the strut to 252.8 mm) the drawn arm and horn sit on the physics nodes to 0.4 mm
+7b. the fairing (the user: "an elegant fairing ... that hides a bit of this huge mechanics"; "only a fairing for the leg, not the wheel"; "the little proper cuts so the wheel articulation can move freely")
+  ok    the Cub, tapered: the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 0, 232 cut edges, 65 screws, chord 0.219 -> 0.661 m; plain root)
+  ok    the Cub, tapered: through the whole stroke (13 poses a side, 141258 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 10.9 mm (the arm at 0.33 of the stroke)
+  ok    the Cub, trailing (the default): the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 2, 214 cut edges, 80 screws, tube r 0.114 m; plain root)
+  ok    the Cub, trailing (the default): through the whole stroke (13 poses a side, 141258 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 11.1 mm (the arm at 0.50 of the stroke)
+  ok    the Wilga-class host, tapered: the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 0, 248 cut edges, 67 screws, chord 0.214 -> 0.657 m; plain root)
+  ok    the Wilga-class host, tapered: through the whole stroke (13 poses a side, 152698 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 9.1 mm (the arm at 0.92 of the stroke)
+  ok    the Wilga-class host, tapered: and the boot still hides the strut's cylinder at rest, above its floor, from either side, ahead and behind (100 % of 122 points; below the floor - its foot and gaiter, bare as on the Wilga - 0 of 338 show)
+  ok    the host, flared: the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 1, 184 cut edges, 91 screws, chord 0.990 -> 0.215 m; plain root)
+  ok    the host, flared: through the whole stroke (13 poses a side, 152698 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 10.4 mm (the arm at 0.25 of the stroke)
+  ok    the host, trailing (the default): the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 2, 200 cut edges, 79 screws, tube r 0.101 m; plain root)
+  ok    the host, trailing (the default): through the whole stroke (13 poses a side, 152698 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 11.0 mm (the arm at 0.67 of the stroke)
+  ok    the host, trailing, fitting low (50 deg): the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 2, 220 cut edges, 66 screws, tube r 0.103 m; plain root)
+  ok    the host, trailing, fitting low (50 deg): through the whole stroke (13 poses a side, 152698 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 14.4 mm (the cylinder at 1.00 of the stroke)
+  ok    the host, trailing, fitting high (110 deg): the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 2, 202 cut edges, 85 screws, tube r 0.101 m; plain root)
+  ok    the host, trailing, fitting high (110 deg): through the whole stroke (13 poses a side, 152698 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 10.9 mm (the arm at 0.08 of the stroke)
+  ok    the host, trailing, the short strut (v1: mount 0.13): the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 2, 160 cut edges, 86 screws, tube r 0.109 m; plain root)
+  ok    the host, trailing, the short strut (v1: mount 0.13): through the whole stroke (13 poses a side, 152698 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 8.1 mm (the arm at 0.00 of the stroke)
+  ok    the host, trailing, the mount half-way (0.40): the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (style 2, 200 cut edges, 85 screws, tube r 0.108 m; plain root)
+  ok    the host, trailing, the mount half-way (0.40): through the whole stroke (13 poses a side, 152698 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest 7.7 mm (the arm at 0.00 of the stroke)
+  FAIL  the host, trailing, root fitted to the body (lvJoint 1): the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed ()
+  FAIL  the host, trailing, root fitted to the body (lvJoint 1): through the whole stroke (13 poses a side, 0 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest > 20.0 mm
+  FAIL  the Cub, trailing, root fitted to the body (lvJoint 1): the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed ()
+  FAIL  the Cub, trailing, root fitted to the body (lvJoint 1): through the whole stroke (13 poses a side, 0 points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest > 20.0 mm
+  ok    the ground: at full stroke on a tyre flat to 0.6 R, level or 10 deg nose-down, every boot stays 78.9 mm or more above it (the least: the host, trailing, fitting low (50 deg))
+  ok    the boot is cached on its inputs and replayed: a second build draws the same 2233 vertices, to the bit
+  ok    clampSpec: a trailing link asking for a spat flies with none, its leg fairing kept (none / fair)
+7c. the strut's mount up the leg (lvTop, a share of the leg - the user: "how far on the leg does the shock mount ... definitely V2"): the default 0.72, the photographs' long strut, and the slider's range
+  ok    the default (0.72): 1.250 m eye to eye, 268.7 mm of stroke, 7.4 / 24.1 bar; stands 67.8 mm deflected (70 +-10); the limit drop (2.53 m/s) on 90 % of its stroke, no bottoming, 3.19 g at the CG
+  ok    mount 0.13: 0.501 m eye to eye, 123.1 mm of stroke, 16.9 / 52.8 bar; stands 68.1 mm deflected (70 +-10); the limit drop (2.53 m/s) on 91 % of its stroke, no bottoming, 4.57 g at the CG
+  ok    mount 0.40: 0.820 m eye to eye, 237.5 mm of stroke, 8.5 / 27.6 bar; stands 67.8 mm deflected (70 +-10); the limit drop (2.53 m/s) on 89 % of its stroke, no bottoming, 3.22 g at the CG
+  ok    mount 0.85: 1.430 m eye to eye, 273.6 mm of stroke, 7.2 / 23.6 bar; stands 67.8 mm deflected (70 +-10); the limit drop (2.53 m/s) on 90 % of its stroke, no bottoming, 3.18 g at the CG
+  ok    the long strut lands softer: 3.19 g against the short strut's 4.57 (its leverage near constant over the stroke; the wheel's 270 mm stays the energy budget)
+  ok    the default: a firm landing (1.5 m/s at 0.8 Vs) does not bounce - 0.00 s off the ground at most
+8. nothing else moved
+  ok    a build without the leg carries no lever key, node or member (its bit-identity: GATE BUILD / JOINPARITY and the study's §8)
+  ok    and its solver runs no oleo pass
+55 ok, 4 failed
+GATE WILGAGEAR: FAIL
+(exit code 1)
+=== SKIS ===
+1 ABSENT IS AS TODAY (the core before the skis, to the bit)
+  FAIL builds/cub_2026-09-20_corrected.json: def 43eb58815c55, sheet f78d8e461f04, 300 steps ad8f08d2a7c6 (base b4e1cd06bbbb / 0bb2d356194d / ad8f08d2a7c6)
+  ok   builds/cub_2026-09-20_corrected.json: no ski key, no parts.ski
+  FAIL builds/jodel_2026-09-20_corrected.json: def ed001b4b28ce, sheet e7c0108f3ef2, 300 steps b8f978a94328 (base c14c1a3de222 / 0c86bafeadd5 / b8f978a94328)
+  ok   builds/jodel_2026-09-20_corrected.json: no ski key, no parts.ski
+  FAIL bugReports/cessnaMetal (1).json: def undefined, sheet undefined, 300 steps undefined (base f1b5d089bca2 / 7d84db242bc1 / 5cddbb102aef) Command failed: /opt/node22/bin/node /tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_skis_bytes.js bugReports/cessnaMetal (1).json
+node:fs:440
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/bugReports/cessnaMetal (1).json'
+    at Object.readFileSync (node:fs:440:20)
+    at rawOf (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_load_build.js:85:48)
+    at Object.loadBuild (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_load_build.js:119:13)
+    at Object.<anonymous> (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_skis_bytes.js:17:105)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/bugReports/cessnaMetal (1).json'
+}
+
+Node.js v22.23.5
+
+  FAIL bugReports/cessnaMetal (1).json: no ski key, no parts.ski
+  FAIL bugReports/cessnaFloatsWOrks.json: def 4ed41a4bfed1, sheet adfc62c6254d, 300 steps 37a24324f81a (base 5d75a11f0af4 / 0b2004839e88 / 37a24324f81a)
+  ok   bugReports/cessnaFloatsWOrks.json: no ski key, no parts.ski
+  FAIL tools/fixtures/build_v7_ultralight_2026-09-05.json: def fad8c9b539f9, sheet 4c4b3095b3b9, 300 steps 697dcd96ca67 (base 3ae5ed756987 / 30d11f2496d5 / 697dcd96ca67)
+  ok   tools/fixtures/build_v7_ultralight_2026-09-05.json: no ski key, no parts.ski
+  FAIL builds/candidates/superpetrel_V4_1.json: def undefined, sheet undefined, 300 steps undefined (base 3bd0d3827b05 / 2ce04a6e2562 / 72e1a8ea9db0) Command failed: /opt/node22/bin/node /tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_skis_bytes.js builds/candidates/superpetrel_V4_1.json
+node:fs:440
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/builds/candidates/superpetrel_V4_1.json'
+    at Object.readFileSync (node:fs:440:20)
+    at rawOf (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_load_build.js:85:48)
+    at Object.loadBuild (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_load_build.js:119:13)
+    at Object.<anonymous> (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_skis_bytes.js:17:105)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/builds/candidates/superpetrel_V4_1.json'
+}
+
+Node.js v22.23.5
+
+  FAIL builds/candidates/superpetrel_V4_1.json: no ski key, no parts.ski
+  FAIL builds/candidates/carbon_cub_ss.json: def 547baf0401f9, sheet 97d6f9a9d9e5, 300 steps 82c2c9dfab57 (base 6bdb9564bf26 / 7a234296cec4 / c3927c0d945e)
+  ok   builds/candidates/carbon_cub_ss.json: no ski key, no parts.ski
+2 THE SPEC: where a ski can be, its bounds, the latent rows
+  ok   a taildragger keeps its plain ski
+  ok   floats: the ski key dropped
+  ok   a merge's null: no key
+  ok   an unknown kind is plain, the bounds hold (L 6 / W 0.08 / ped kept, prot and drop are not a plain ski's): {"kind":"plain","L":6,"W":0.08,"ped":0.3,"third":{"L":0.2}}
+  ok   a wheel-ski: drop and cycle bounded, prot kept, no pedestal row
+  ok   normalising a normalised ski changes nothing
+  ok   the join's nulls drop: {"kind":"plain","L":1.7,"W":0.3}
+  ok   a ski wears no spat (the drawn skis have none)
+  ok   genStolCageOff: the ski rows at "no skis" and the preview are absent (s1R)
+  ok   a ski build keeps its rows, never its preview (gearSki,skiL,s1R)
+  ok   the cage saves no ski row at its default (CAGE_DEFAULT_ABSENT) and never the preview (cageToSpec)
+3 MASS, PRICE AND DRAG PAID
+  ok   plain < penetration < wheel-ski: 13.9 / 18.9 / 29.1 kg, $3890 / 7598 / 17851, CdA 0.114 / 0.131 / 0.173 m2
+  ok   a plain ski replaces its wheel: gear 40.0 kg -> 34.2 (two 9.3 kg tundras off, two 5.6 kg skis on, the tail ski)
+  ok   a wheel-through ski adds to its wheel: gear 59.4 kg
+  ok   the price paid: gear $3848 -> plain $4952, wheel-ski $21732
+  ok   the flown CdA: 0.7814 -> plain 0.6603 (the tundras' drag off) / penetration 0.9120 / wheel-ski 0.9546 m2
+  ok   the aeroplane: 562.1 kg -> plain 555.7, wheel-ski 595.2
+  ok   the PC-6's wheel-ski kit: 145.8 kg (the references: 100-150 kg), $56736
+  ok   an unsized ski is the SS2300 scaled to bear its share at 8000 Pa: 1.21 x 0.275 m, 0.312 m2 bearing, for ~553 kg
+4 WHAT IS DRAWN FLIES (the game's load door: the editor draws, the join measures)
+  ok   the Carbon Cub: the SS2300 as drawn, a wheel-ski - its tyre through the cutout ({"kind":"retract","L":2.007,"W":0.457,"tip":0.09,"at":0.585,"inc":3,"skin":0.051,"skinL":0.025,"beam":0.57,"notchAt":0.49,"mat":null,"ped":null,"prot":0.03,"drop":0.06,"time":15,"third":{"L":0.6,"W":0.17,"tip":0.027,"at":0.55,"skin":0.02,"skinL":0.01,"prot":0.06}})
+  ok   the Carbon Cub: the tyre (0.74 x 0.34 m) passes the cutout at its lowest with 1.5 cm to the outline (the cutout from 39 % of the length, the tyre 0.266 m off the shell's centreline)
+  ok   the PC-6: the tyre (0.69 x 0.29 m) passes the cutout at its lowest with 1.5 cm to the outline (the cutout from 44 % of the length, the tyre 0.275 m off the shell's centreline)
+  ok   the SS2300 weighs its 27 lb with rigging on its own outline (0.930 m2 of skins, fixed beside its wheel); as the Cub's wheel-ski (its slide and jack, the cutout grown for the 31" tyre: 0.889 m2) 15.43 kg a ski
+  ok   the PC-6: a wheel-ski as drawn, its tail ski through its wheel ({"kind":"retract","L":2.9,"W":0.66,"tip":0.131,"at":0.585,"inc":3,"skin":0.07,"skinL":0.035,"beam":0.57,"notchAt":0.49,"mat":"alu","ped":null,"prot":0.03,"drop":0.06,"time":15,"third":{"L":0.95,"W":0.28,"tip":0.043,"at":0.55,"skin":0.02,"skinL":0.01,"prot":0.06}})
+  ok   the flown ski is the drawn one (length, toe)
+  ok   the drawn ski is a flown part (the join's edSki parts, app.js's ski rigs on the solver's pitch and selector)
+5 THE AREA SETS THE PRESSURE (a powder layer over HOME)
+  ok   the sinkage falls as the ski grows: 0.6 x 0.12 m 29.6 cm, 1.1 x 0.2 m 18.7 cm, 1.7 x 0.305 m 11.9 cm
+  ok   a well-sized ski sinks 11.9 cm (< 12), the 0.6 x 0.12 m ski 29.6 (the layer: 30 cm)
+  ok   the Carbon Cub on its drawn skis lifts off in 84 m (9.9 s)
+  ok   ...on 0.6 x 0.12 m skis it never leaves (ABORT at 8.0 s, 1.3 m moved)
+6 NO WHEEL BRAKES ON STRAIGHT SKIS
+  ok   a straight-ski slide-out on packed snow: 60.9 m with the brake held as without - to the bit
+  ok   a wheel-ski with its skis up keeps its wheel brakes: 59.3 m rolled free, 7.1 braked
+7 THE WHEEL-SKI'S SELECTOR
+  ok   unset, the selector follows the surface: skis up on grass, down on powder
+  ok   the drawn ski rides it: -0.090 m up on grass, 0.000 down
+  ok   the pilot lowers them on the grass: down in 15.02 s (the kit's 15 s cycle)
+  ok   ...and the axles rise onto them: +6.0 cm (the ski's 6 cm below the tyre)
+8 THE BELLY POD ON THE CARBON CUB, END TO END (the garage's ventral cargo pod: spec.pod)
+  ok   the pod survives the game's load door and resolves: 2.10 m, 116 L, rated 65 kg, from 1.07 to 3.17 m aft of the firewall
+  ok   mass and balance: the shell 9.77 kg ($2912), 562.1 -> 574.4 kg, CG 19.9 -> 21.7 % MAC, static margin 0.232
+  ok   the pod full (65 kg): CG 30.5 % MAC, static margin 0.147
+  ok   the drag: axial CdA 0.7814 -> 0.8037 m2 (the pod 0.0220), the range -0.0 %
+  ok   the garage's readout: no red, clearances [["level",0.67],["threePoint",0.29]]
+  ok   the freight: without the pod 6 of 8 placed, with it 7 (flat0, flat1 in the pod, 24 of 65 kg)
+  ok   ...strapped onto the pod's own four nodes (2: a pod torn off takes its freight with it)
+  ok   the pod and the skis together: no red ([["level",0.67],["threePoint",0.29]])
+9 ONE SOFT GROUND - SNOW-MUD'S (its SURFACE codes, GROUND_SOFT, GROUND_SKI_MU; no second version)
+  ok   no second soft ground: world.soft and SOFT_GROUND are gone, the skis call SNOW-MUD's groundSinkPlate / groundSinkWheel
+  ok   with no fresh layer the rut is SNOW-MUD's plate law: 7.86 cm, between groundSinkPlate's 7.09 at rest (2.49 kN on 0.86 m2) and 9.10 at the settle's peak (3.72 kN)
+  ok   SNOW-MUD's row drives it: its powder 4 x softer, the ski 24.25 cm deep (n 1.6: x 2.38 expected)
+  ok   the skis write SNOW-MUD's readouts: out.softZ 10.1 cm = the deepest ski's 10.1 (the frame's substeps against its end; the dust's plough reads it)
+  ok   the plume's data (SNOW-MUD owns the plume): def.refs.skis [[92,0.56,2.06,true,"plain"],[93,0.56,2.06,true,"plain"],[94,0.21,0.62,false,"plain"]] in out.skiSink's order; no key without skis
+  ok   the sole slides on GROUND_SKI_MU (the snow rows are GROUND_SOFT's own); no ski row on the mud (no ski belongs there: its selector stays up)
+GATE SKIS: FAIL (9)
+(exit code 1)
+=== DMGCERTCOST ===
+  ok   a corrupted record is refused and deleted
+  ok   a stale record (another GEN_CERT_V) is refused and deleted
+GATE DMGCERTCOST: PASS
+=== DMGWIND ===
+  --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): none of 19 break the mount
+  12/12 checks
+GATE DMGWIND: PASS
+=== DMGNOSE ===
+  --    REPORT metal Cessna: a nose-over at 4 m/s (DMG-DRIVE's): strike stoppage, the nose on the ground 15 cm (spinner, 1436 J, 14.0 kN), 0 broken
+  41/41 checks
+GATE DMGNOSE: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -1485,6 +1693,11 @@ DMGMEMBERS PASS    58.4 s
 DMGCERT   FAIL   762.1 s
 DMGGEAR   FAIL  1800.0 s
 GEARFALL  PASS   100.4 s
-wall (the chunks' own, summed) 13880.9 s  (jobs 4)
+WILGAGEAR FAIL   230.5 s
+SKIS      FAIL   152.5 s
+DMGCERTCOST PASS   318.4 s
+DMGWIND   PASS   920.7 s
+DMGNOSE   PASS   603.1 s
+wall (the chunks' own, summed) 15723.2 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 20 red (88 PASS, 20 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 22 red (91 PASS, 22 FAIL, 0 SKIP of 364)
