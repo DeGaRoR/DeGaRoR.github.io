@@ -175,7 +175,10 @@ if (PURE) { console.log((n - bad) + '/' + n + ' checks (--pure)'); console.log('
 (async () => {
   console.log('3. the captures (the page in node)');
   const { openPage } = require(path.join(T, '_page_node.js'));
-  const P = await openPage({ quiet: true, storage: {} });
+  // THE STATIC TRIO (the user 21 Nov: the player's bakes deferred) parks arch:cub/c172/jodel as FROZEN packs by default:
+  // capture() then hands back the shipped record, not a live capture. These rows check the live capture's shape, so the
+  // page runs ?parktrio=0 (the player-derived props, the path a player's own parked aeroplane takes)
+  const P = await openPage({ quiet: true, storage: {}, query: 'parktrio=0' });
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   const THREE = W.THREE, PK = W.PARKED, POB = require('vm').runInContext('OBSTACLES', W);   // a script's const: the page's lexical global
