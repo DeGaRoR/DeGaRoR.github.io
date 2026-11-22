@@ -51,3 +51,6 @@ BASED_1     ; D:/Dev/perf-lab-built ; based=1 ; new ; H5K ; -
 WARM_1      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
 WARM_2      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
 WARM_3      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; --rollout
+# WHAT THE RECORDING ITSELF COSTS (A0's captures, 07:00: garage 138 s with PERF-TRACE's registry on, 132 s with ?progid=0,
+# single runs): the registry off, against BASE. Every other row carries it, so an A/B on this build stays fair either way.
+PROGID0_1   ; D:/Dev/perf-lab-built ; progid=0 ; new ; H5K ; -
