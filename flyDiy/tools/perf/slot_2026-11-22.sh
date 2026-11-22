@@ -30,7 +30,7 @@ say "slot start, $MIN min, lab $LAB ($(cat "$LAB/flyDiy/version.json" 2>/dev/nul
 # 1. pass 1 (its own cap: what the journey, audio and a useful pass 2 leave it)
 P1=${SLOT_P1_MIN:-88}
 say "part 1: pass 1, cap $P1 min"
-LM_HELD=1 LM_DRY=$SLOT_DRY bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass1.txt" "$OUT/pass1" $P1 2>&1 | tee -a "$LOG"
+LM_HELD=1 LM_DRY=$SLOT_DRY LM_BRIEF_ARGS="${LM_BRIEF_ARGS:---steps compile,frames,worldCompile --miss 1}" LM_BRIEF_LINES=${LM_BRIEF_LINES:-40} bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass1.txt" "$OUT/pass1" $P1 2>&1 | tee -a "$LOG"
 
 # 2. the journey + the freeze ledger, run from the LAB build's own tools (page_rig serves the tree it runs in).
 #    PERF-TRACE's command (22 Nov); headed at the user's canvas is asked through page_rig's options in the script's env
@@ -38,9 +38,9 @@ JOURNEY_MIN=${SLOT_JOURNEY_MIN:-42}
 if [ $(left) -ge $(( JOURNEY_MIN + 5 )) ]; then
   say "part 2: the journey, cap $JOURNEY_MIN min"
   if [ -z "$SLOT_DRY" ]; then
-    ( cd "$LAB/flyDiy" && timeout $(( JOURNEY_MIN * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/main_journey.json --runner page --out "$OUT/journey" --cap 2400 ) 2>&1 | tail -40 | tee -a "$LOG"
+    ( cd "$LAB/flyDiy" && timeout $(( JOURNEY_MIN * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/main_journey.json --runner page --headed --live --size 5120x1271 --out "$OUT/journey" --cap 2400 ) 2>&1 | tail -40 | tee -a "$LOG"
     J=$(ls -t "$OUT"/journey/*.flightlog.json 2>/dev/null | head -1)
-    [ -n "$J" ] && ( cd "$LAB/flyDiy" && nice -n 19 node tools/freeze_ledger.js "$J" --md "$OUT/journey/freezes.md" ) 2>&1 | tail -20 | tee -a "$LOG"
+    [ -n "$J" ] && ( cd "$LAB/flyDiy" && nice -n 19 node tools/freeze_ledger.js "$J" --md "$OUT/journey/freezes.md" --show 60 ) 2>&1 | tail -20 | tee -a "$LOG"
   fi
 else say "part 2 SKIPPED: $(left) min left"; fi
 
@@ -54,6 +54,6 @@ else say "part 3 not run (no SLOT_AUDIO_CMD, or $(left) min left)"; fi
 # 4. pass 2, in what is left (it skips the rows that do not fit, in file order)
 R=$(( $(left) - 2 ))
 if [ $R -ge 6 ]; then say "part 4: pass 2, cap $R min"
-  LM_HELD=1 LM_DRY=$SLOT_DRY bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass2.txt" "$OUT/pass2" $R 2>&1 | tee -a "$LOG"
+  LM_HELD=1 LM_DRY=$SLOT_DRY LM_BRIEF_ARGS="${LM_BRIEF_ARGS:---steps compile,frames,worldCompile --miss 1}" LM_BRIEF_LINES=${LM_BRIEF_LINES:-40} bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass2.txt" "$OUT/pass2" $R 2>&1 | tee -a "$LOG"
 else say "part 4 SKIPPED: $R min left"; fi
 say "slot end"
