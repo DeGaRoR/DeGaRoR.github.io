@@ -401,7 +401,7 @@ C.missionPackUse(mk({ jobs: 'none' }));
            '17 dev.html: the same rule (a player\'s career the story pack, the dev career none, the sandbox nothing), the boot\'s own value kept', J([D1, D2, D3])); }
       ok(/if \(!id && !CAREER_DEVFLAG\) try \{ id = window\.FLYDIY_PACK_ID \|\| null; \}/.test(APP), '17 app.js takes the loader\'s pack only outside the dev career');
       ok(/window\.localStorage\.setItem\('flydiy\.pack\.' \+ id, txt\); else txt = window\.localStorage\.getItem\('flydiy\.pack\.' \+ id\)/.test(APP), '17 ...keeps its text for a start with no network, and reads it back then');
-      ok(/if \(CAREER_DEV && STORY_PAGE && CAREER_PACK && CAREER_PACK\.ok && typeof careerPackAdopt === 'function'\) try \{\s+const a = careerPackAdopt\(player, CAREER_PACK\);/.test(APP), '17 the career adopts its pack at the load (a player\'s career only)');
+      ok(/if \(CAREER_DEV && STORY_PAGE && CAREER_PACK && CAREER_PACK\.ok && typeof careerPackAdopt === 'function'\) try \{\s+const a = CAREER_DEV \? careerPackAdopt\(player, CAREER_PACK\) : /.test(APP), '17 the career adopts its pack at the load (a player\'s career only)');
       ok(/\{ const pj = projectsNow\(d\); d = pj\.doc;/.test(APP) && /if \(pj\.events\.some\(e => e\.k === 'unlock'\)\) try \{ stageNote\(pj\.doc\); \}/.test(APP) && /player = projectsNow\(player\)\.doc;/.test(APP),
          '17 the projects meet the clock at a flight\'s end, at the load and on a wait; a step\'s world stage is noted for the next composition');
       finishGate();

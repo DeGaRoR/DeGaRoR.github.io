@@ -649,8 +649,8 @@
   // world stage noted for the next composition (stageNote), its machinery given. At a flight's end, at the load and
   // when the clock is saved on the ground with works due (a wait). -> the events' lines (the caller shows them or not)
   function projectsNow(d) {
-    if (!CAREER_DEV || !d || !d.career || !CAREER_PACK || !CAREER_PACK.ok || !CAREER_PACK.projects || !CAREER_PACK.projects.length) return { doc: d, lines: [] };
-    const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now), lines = [];
+    if (!d || !d.career || !CAREER_PACK || !CAREER_PACK.ok || !CAREER_PACK.projects || !CAREER_PACK.projects.length) return { doc: d, lines: [] };
+    if (!CAREER_DEV) return { doc: d, lines: [] }; const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now), lines = [];
     for (const e of pj.events) { const L = projectLine(e, now); if (L) lines.push(L); }
     // (at the load the stages' queue does not exist yet - it is made further down: the note is owed, paid there)
     if (pj.events.some(e => e.k === 'unlock')) try { stageNote(pj.doc); } catch (e) { projStageOwed = true; }
@@ -703,7 +703,7 @@
     // kits, an accepted mission the pack no longer holds dropped), then its projects meet the clock (works that came
     // ready while away)
     if (CAREER_DEV && STORY_PAGE && CAREER_PACK && CAREER_PACK.ok && typeof careerPackAdopt === 'function') try {
-      const a = careerPackAdopt(player, CAREER_PACK);
+      const a = CAREER_DEV ? careerPackAdopt(player, CAREER_PACK) : { doc: player, notes: [] };
       if (a.doc !== player) { player = a.doc; for (const n of a.notes) console.info('flyDiy (missions): ' + n); }
       player = projectsNow(player).doc;
     } catch (e) { console.warn('flyDiy (missions): the career did not adopt its pack -', e && e.message); }
