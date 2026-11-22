@@ -1,0 +1,44 @@
+{
+ "id": "club.pylons",
+ "kind": "challenge",
+ "verdict": "infeasible",
+ "plane": "Jodel D112",
+ "timeS": 1845,
+ "why": "no progress: pass g1: not flown yet",
+ "tried": [
+  "Piper Cub:infeasible",
+  "Jodel D112:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 922,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 923,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "0669aae4a4d8",
+ "where": "contract",
+ "pool": "validated",
+ "wallS": 3785
+}
