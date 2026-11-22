@@ -1,6 +1,6 @@
-FAIL (36 of 136 gates run; PARTIAL: 12 of 23 chunks, 228 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR
-L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
+FAIL (39 of 149 gates run; PARTIAL: 13 of 23 chunks, 215 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF
+L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
 A red marked [L40H] is in land_L40H_gates.log's FAIL list (master 9349a62c1, 61 reds); it may still fail on another check: compare the block. SKIP: none.
@@ -3252,6 +3252,775 @@ GATE DMGSCAR: FAIL (4 of 110)
          reported: noseover 0 (2 events, 15.0 s); drop6 0 (11 events, 12.1 s); stump 0 (16 events, 13.7 s)
 DMGGLASS wall: 144 s
 GATE DMGGLASS: PASS
+######## chunk 12 of 23 (13 gates) ########
+=== DMGOCCUPANT ===
+  Cub, the rear seat filled taxi: Unharmed | far473: Unharmed | trunk0: Pilot Fatal injuries | trunk25: Pilot Heavy injuries
+  (wall 314 s)
+GATE DMGOCCUPANT: PASS
+=== DMGDETERMINISM ===
+1. the core is fresh; a stale core is refused
+  ok    tools/flight_core.js is the core src/core builds (body-sha256 592165d5d4fc3bbc)
+  ok    a core whose header is not its sources' hash is refused (STALE CORE)
+2. the tiers (TurboFan, Maglev, --always-turbofan on every case; the interpreter, Sparkplug, --no-opt on the 30 m/s centrelines and the Jodel's flight)
+  ok    cub: the certificate under turbofan b1098db119771b0306072d6d, ignition b1098db119771b0306072d6d
+  ok    jodel: the certificate under turbofan 5297d0e613b533d4b7b34c74, ignition 5297d0e613b533d4b7b34c74
+  ok    metal: the certificate under turbofan 7e64fe3d22faf6c8e80c8081, ignition 7e64fe3d22faf6c8e80c8081
+  ok    cub/taxi/on: 0 broken, 0 J, one hash ac195f45c30e7ce1 under 3 tier sets
+  ok    cub/noseover/on: 24 broken, 9519.6 J, one hash 66a719801769a46f under 3 tier sets
+  ok    cub/trunk0/on: 115 broken, 32547.2 J, one hash 15a323f1d96a309f under 6 tier sets
+  ok    cub/trunk25/on: 51 broken, 14545.5 J, one hash 9d063f90e9cf6389 under 3 tier sets
+  ok    cub/trunk0/off: 0 broken, 0 J, one hash 6c48e1aa01ce4735 under 3 tier sets
+  ok    cub/flight/off: 0 broken, 0 J, one hash 5a6b007e2267ad2e under 3 tier sets
+  ok    jodel/taxi/on: 0 broken, 0 J, one hash 918c117e25563eeb under 3 tier sets
+  ok    jodel/noseover/on: 17 broken, 729.3 J, one hash 135de01b273dff6e under 3 tier sets
+  ok    jodel/trunk0/on: 135 broken, 17588.6 J, one hash f250a8e0839d497a under 6 tier sets
+  ok    jodel/trunk25/on: 67 broken, 3995 J, one hash 139f99c03b133f51 under 3 tier sets
+  ok    jodel/trunk0/off: 0 broken, 0 J, one hash a2263f7db6cf8337 under 3 tier sets
+  ok    jodel/flight/off: 0 broken, 0 J, one hash f6b685157ac0b338 under 6 tier sets
+  ok    metal/taxi/on: 0 broken, 0 J, one hash 699e7089cf311a0f under 3 tier sets
+  ok    metal/noseover/on: 11 broken, 3784.7 J, one hash 43a70e54393126ef under 3 tier sets
+  ok    metal/trunk0/on: 116 broken, 65657.7 J, one hash fb143aab250e0a32 under 6 tier sets
+  ok    metal/trunk25/on: 59 broken, 41502.5 J, one hash 9dede01e4963a89d under 3 tier sets
+  ok    metal/trunk0/off: 0 broken, 0 J, one hash ccacea152584e6ae under 3 tier sets
+  ok    metal/flight/off: 0 broken, 0 J, one hash bdb9ada601616948 under 3 tier sets
+4. the page (headless Chromium) against node; the page's Math untouched
+  ok    the sources: no `Math` binding in src/core (none) nor in the built page (none); CORE_MATH declared 1 x in the page, elsewhere in src/ nowhere
+  FAIL  the census: 534 sin / cos / pow sites in src/core on CORE_MATH, 24 kept the builtin (pow(x, 2 | 0.5), the GLSL text), 44 STRAY on the builtin: 00_registry.js:1197 groundSinkWheel pow, 00_registry.js:1198 groundSinkWheel pow, 00_registry.js:1200 groundSinkWheel pow, 00_registry.js:1201 groundSinkWheel pow, 00_registry.js:1236 groundSinkMatrix cos, 00_registry.js:1236 groundSinkMatrix sin, 00_registry.js:1236 groundSinkMatrix cos, 00_registry.js:1236 groundSinkMatrix sin, 00_registry.js:1266 groundSinkPlate pow, 00_registry.js:1269 groundSinkPlate pow, 07e_soil_wet.js:54 rainMm pow, 07e_soil_wet.js:67 hourWx sin, 26b_strip_micro.js:78 pick pow, 26b_strip_micro.js:102 hole cos, 26b_strip_micro.js:102 hole sin, 26b_strip_micro.js:137 holesAt cos, 26b_strip_micro.js:167 hazardsAt cos, 28c_biomes.js:190 at pow, 28c_biomes.js:190 at pow, 28c_biomes.js:191 at cos, 28c_biomes.js:191 at sin, 29_obstacles.js:691 lying cos, 29_obstacles.js:691 lying sin, 29c_ski.js:189 plate pow, 29c_ski.js:200 resist pow, 29c_ski.js:202 resist pow, 29c_ski.js:202 resist pow, 32_hydro.js:1957 volTo sin, 32_hydro.js:1977 at cos, 32_hydro.js:1977 at sin, 32_hydro.js:1988 arm cos, 32_hydro.js:1988 arm sin, 32_hydro.js:1995 arm sin, 32_hydro.js:1995 arm cos, 43_pilot.js:5018 gTerr cos, 60_gen_spec.js:3194 run cos, 60_gen_spec.js:3194 run sin, 60_gen_spec.js:3246 yt sin, 60_gen_spec.js:3246 yt cos, 62_gen_aero.js:768 air pow, 62_gen_aero.js:768 air pow, 62_gen_aero.js:872 genCoolOilC pow, 62c_gear_mech.js:27 gearRot cos, 62c_gear_mech.js:27 gearRot sin (node tools/_core_math_sites.js --apply)
+  ok    the parity script in node: the Jodel's centreline f250a8e0839d497a = the library's f250a8e0839d497a
+  ok    THE PAGE'S Math UNTOUCHED after the core loads: `Math` is the page's own object (globalThis.Math too), Math.sin === the builtin true, Math.pow === the builtin true, 45 of 45 properties unchanged; CORE_MATH the core's own (frozen; its sin / pow not the builtins)
+  FAIL  cub/taxi/on: Chromium 157.0.8103.78 127bafa970d31654 (0 broken, 0.0 J) - node ac195f45c30e7ce1 (0)
+  FAIL  cub/noseover/on: Chromium 157.0.8103.78 b1f9628ba455a037 (24 broken, 9519.6 J) - node 66a719801769a46f (24)
+  FAIL  cub/trunk0/on: Chromium 157.0.8103.78 3d110de6054a35f7 (114 broken, 32548.2 J) - node 15a323f1d96a309f (115)
+  FAIL  cub/trunk25/on: Chromium 157.0.8103.78 a3bf115640718442 (46 broken, 14505.2 J) - node 9d063f90e9cf6389 (51)
+  FAIL  cub/trunk0/off: Chromium 157.0.8103.78 9b0358d50e34ff0f (0 broken, 0.0 J) - node 6c48e1aa01ce4735 (0)
+  FAIL  cub/flight/off: Chromium 157.0.8103.78 cd709820e0ba53ce (0 broken, 0.0 J) - node 5a6b007e2267ad2e (0)
+  FAIL  jodel/taxi/on: Chromium 157.0.8103.78 add7194c62cd3233 (0 broken, 0.0 J) - node 918c117e25563eeb (0)
+  FAIL  jodel/noseover/on: Chromium 157.0.8103.78 e63c94f788f1bac4 (17 broken, 729.3 J) - node 135de01b273dff6e (17)
+  FAIL  jodel/trunk0/on: Chromium 157.0.8103.78 7882dde3e07834b9 (135 broken, 17613.2 J) - node f250a8e0839d497a (135)
+  FAIL  jodel/trunk25/on: Chromium 157.0.8103.78 c6ac707e20ea8ce5 (67 broken, 3995.0 J) - node 139f99c03b133f51 (67)
+  FAIL  jodel/trunk0/off: Chromium 157.0.8103.78 e9377b2221586550 (0 broken, 0.0 J) - node a2263f7db6cf8337 (0)
+  FAIL  jodel/flight/off: Chromium 157.0.8103.78 8039f9b625d632e2 (0 broken, 0.0 J) - node f6b685157ac0b338 (0)
+  FAIL  metal/taxi/on: Chromium 157.0.8103.78 ca888425bd7d017a (0 broken, 0.0 J) - node 699e7089cf311a0f (0)
+  FAIL  metal/noseover/on: Chromium 157.0.8103.78 01cb9ac16da52380 (11 broken, 3784.7 J) - node 43a70e54393126ef (11)
+  FAIL  metal/trunk0/on: Chromium 157.0.8103.78 241100df44cd861b (116 broken, 65813.8 J) - node fb143aab250e0a32 (116)
+  FAIL  metal/trunk25/on: Chromium 157.0.8103.78 22d59a7bdd25ffb7 (59 broken, 41415.1 J) - node 9dede01e4963a89d (59)
+  FAIL  metal/trunk0/off: Chromium 157.0.8103.78 cff89e58d89b0ef4 (0 broken, 0.0 J) - node ccacea152584e6ae (0)
+  FAIL  metal/flight/off: Chromium 157.0.8103.78 1b3604cbe6fd52d1 (0 broken, 0.0 J) - node bdb9ada601616948 (0)
+  REPORT  the BUILTINS, Chromium 157.0.8103.78 against node 12.4.254.21-node.57 (200 000 arguments each): sin 3335, cos 3310, tan 3746, atan 2566, atan2 35952, asin 11900, acos 15562, sqrt 0, hypot 0, pow 12807, exp 7875, log 5885, cbrt 16600, tanh 82 differ
+  FAIL  THE CORE'S Math in the page against node's builtins: sin 0, cos 0, tan 3746, atan 2566, atan2 35952, asin 11900, acos 15562, sqrt 0, hypot 0, pow 0, exp 7875, log 5885, cbrt 16600, tanh 82 differ
+  ok    the core's fsin / fcos / fpow against node's Math.sin / cos / pow: 0 of 300000 arguments (+ the specials) differ
+  27/47 checks, 1610 s
+GATE DMGDETERMINISM: FAIL
+(exit code 1)
+=== DMGSCUFF ===
+(113 s, 3 builds, damage on)
+Cub: the skin 11 meshes, 11830 vertices (genWing's groups, every member's tube, two panes)
+  an intact taxi at 5 m/s (nothing touches): 0 broken, 0 yields, 0 J plastic, 0 J slid; 0 payloads, 0 passes; crush 0 / scrape 0 (soil 0) / torn 0 of 0 vertices; panes  [3.3 s]
+  a 3 m/s taxi into a trunk: 0 broken, 0 yields, 0 J plastic, 1156 J slid; 6 payloads, 5 passes; crush 0 / scrape 145 (soil 0) / torn 0 of 11596 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [4.6 s]
+  ok    taxi-3: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    taxi-3: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a wing-low slide (rolled 25 deg or more left onto the tip, 15 m/s): 0 broken, 0 yields, 0 J plastic, 1341 J slid; 14 payloads, 7 passes; crush 0 / scrape 92 (soil 92) / torn 0 of 11596 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [6.8 s]
+  ok    slide-L: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    slide-L: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a nose-over (12 m/s into a 35 cm stump): 16 broken, 2480 yields, 13010 J plastic, 24284 J slid; 70 payloads, 32 passes; crush 1230 / scrape 1585 (soil 1027) / torn 306 of 11596 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0.044, set 0 mm) [9.4 s]
+  ok    noseover: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 1230)
+  ok    noseover: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    noseover: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    noseover: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    noseover: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  a trunk at 30 m/s, the centreline: 128 broken, 37310 yields, 64938 J plastic, 188239 J slid; 124 payloads, 68 passes; crush 7236 / scrape 4595 (soil 2382) / torn 7273 of 11596 vertices; panes windscreen 1 cracked (hit 1, set 820.6 mm), rearWindow 1 cracked (hit 1, set 556.6 mm) [8.3 s]
+  ok    trunk-0: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 7236)
+  ok    trunk-0: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    trunk-0: the windscreen cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    trunk-0: the rearWindow cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    trunk-0: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  ok    intact: no payload, no record, nothing drawn
+  ok    the wing-low slide leaves the high (right) wing clean: 92 vertices scraped, 0 beyond 1.17 m right (1341 J slid, rolled 25 deg)
+  ok    the wing-low slide: no scraped vertex faces up (0)
+  ok    the wing-low slide went one way: its scraped vertices' slide coherence along the skin averages 0.92 (streaked; the taxi's rub into a trunk 0.00)
+  ok    the slide on grass stains what it scraped (92 of 92)
+  ok    the slide without a yield crushes nothing
+  ok    a touch shows: the 3 m/s taxi into a trunk marks 145 vertices (1156 J at the bark, 0 yields)
+  ok    the 30 m/s trunk cracks the windscreen (1); the rear window as its nodes say (1 cracked)
+  ok    intact: no pane cracked
+  ok    slide-L: no pane cracked
+  ok    a reset after the crash: a payload, the fields zero, every record byte zero (0 non-zero)
+  ok    deterministic: the 30 m/s trunk twice, the same bytes (0db1f424 / 0db1f424)
+  ok    damage OFF, the 30 m/s trunk: no payload, no record, no slide array (0)
+  cost: 0.307 us a place (11830 places), the worst torn band 1.85 ms, a tick of 2000 places at worst 2.48 ms (8 ticks)
+  DMG-WALL (inherited, K = 8): slide-L crush 0 / scrape 92 / torn 0; noseover crush 720 / scrape 1183 / torn 288; trunk-0 crush 6048 / scrape 4037 / torn 7189
+  ok    cub, DMG-WALL: the records at K = 8 and bound by inheritance at the first break (nose-over, trunk)
+  ok    cub, DMG-WALL: every crushed vertex on an end of a member that took work, through the inherited weights (0 not, of 6768)
+  ok    cub, DMG-WALL: the wing-low slide leaves the high wing clean (92 / 0 on the right wing)
+  ok    cub, DMG-WALL: the torn band only where triangles went
+  ok    cub, DMG-WALL: every record's place list follows its welds after the inheritance split them
+  ok    cub, DMG-WALL: deterministic (8e948205 / 8e948205)
+  ok    the pass cut by the frame's time (0.05 ms a tick: 54 ticks) makes the same bytes
+  ok    the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)
+Jodel: the skin 10 meshes, 12562 vertices (genWing's groups, every member's tube, two panes)
+  an intact taxi at 5 m/s (nothing touches): 0 broken, 0 yields, 0 J plastic, 0 J slid; 0 payloads, 0 passes; crush 0 / scrape 0 (soil 0) / torn 0 of 0 vertices; panes  [4.9 s]
+  a 3 m/s taxi into a trunk: 0 broken, 0 yields, 0 J plastic, 1059 J slid; 6 payloads, 5 passes; crush 0 / scrape 148 (soil 0) / torn 0 of 12328 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [7.8 s]
+  ok    taxi-3: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    taxi-3: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a wing-low slide (rolled 25 deg or more left onto the tip, 15 m/s): 0 broken, 0 yields, 0 J plastic, 1315 J slid; 11 payloads, 8 passes; crush 0 / scrape 52 (soil 52) / torn 0 of 12328 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [8.9 s]
+  ok    slide-L: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    slide-L: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a nose-over (12 m/s into a 35 cm stump): 5 broken, 165 yields, 2461 J plastic, 18596 J slid; 22 payloads, 9 passes; crush 151 / scrape 1087 (soil 981) / torn 114 of 12328 vertices; panes windscreen 0.223 cracked (hit 0.223, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [12.4 s]
+  ok    noseover: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 151)
+  ok    noseover: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    noseover: the windscreen cracks exactly as its nodes and frame say (severity 0.223, the gate's 0.223)
+  ok    noseover: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    noseover: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  a trunk at 30 m/s, the centreline: 32 broken, 7327 yields, 6436 J plastic, 127079 J slid; 50 payloads, 31 passes; crush 1520 / scrape 1229 (soil 262) / torn 958 of 12328 vertices; panes windscreen 1 cracked (hit 1, set 226.5 mm), rearWindow 0 clean (hit 0, set 0 mm) [11.2 s]
+  ok    trunk-0: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 1520)
+  ok    trunk-0: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    trunk-0: the windscreen cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    trunk-0: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    trunk-0: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  ok    intact: no payload, no record, nothing drawn
+  ok    the wing-low slide leaves the high (right) wing clean: 52 vertices scraped, 0 beyond 0.96 m right (1315 J slid, rolled 25 deg)
+  ok    the wing-low slide: no scraped vertex faces up (0)
+  ok    the wing-low slide went one way: its scraped vertices' slide coherence along the skin averages 0.85 (streaked; the taxi's rub into a trunk 0.00)
+  ok    the slide on grass stains what it scraped (52 of 52)
+  ok    the slide without a yield crushes nothing
+  ok    a touch shows: the 3 m/s taxi into a trunk marks 148 vertices (1059 J at the bark, 0 yields)
+  ok    the 30 m/s trunk cracks the windscreen (1); the rear window as its nodes say (0 clean)
+  ok    intact: no pane cracked
+  ok    slide-L: no pane cracked
+  ok    a reset after the crash: a payload, the fields zero, every record byte zero (0 non-zero)
+  ok    deterministic: the 30 m/s trunk twice, the same bytes (1cbd4dbb / 1cbd4dbb)
+  ok    damage OFF, the 30 m/s trunk: no payload, no record, no slide array (0)
+  cost: 0.192 us a place (12562 places), the worst torn band 0.45 ms, a tick of 2000 places at worst 1.02 ms (9 ticks)
+  DMG-WALL (inherited, K = 8): slide-L crush 0 / scrape 52 / torn 0; noseover crush 90 / scrape 318 / torn 90; trunk-0 crush 1178 / scrape 901 / torn 471
+  ok    jodel, DMG-WALL: the records at K = 8 and bound by inheritance at the first break (nose-over, trunk)
+  ok    jodel, DMG-WALL: every crushed vertex on an end of a member that took work, through the inherited weights (0 not, of 1268)
+  ok    jodel, DMG-WALL: the wing-low slide leaves the high wing clean (52 / 0 on the right wing)
+  ok    jodel, DMG-WALL: the torn band only where triangles went
+  ok    jodel, DMG-WALL: every record's place list follows its welds after the inheritance split them
+  ok    jodel, DMG-WALL: deterministic (eae52777 / eae52777)
+  ok    the pass cut by the frame's time (0.05 ms a tick: 39 ticks) makes the same bytes
+  ok    the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)
+metal Cessna: the skin 11 meshes, 12238 vertices (genWing's groups, every member's tube, two panes)
+  an intact taxi at 5 m/s (nothing touches): 0 broken, 0 yields, 0 J plastic, 19 J slid; 1 payloads, 2 passes; crush 0 / scrape 88 (soil 88) / torn 0 of 12004 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [6.2 s]
+  ok    intact: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    intact: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a 3 m/s taxi into a trunk: 0 broken, 0 yields, 0 J plastic, 2706 J slid; 10 payloads, 8 passes; crush 0 / scrape 243 (soil 88) / torn 0 of 12004 vertices; panes windscreen 0 clean (hit 0.092, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [8.6 s]
+  ok    taxi-3: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    taxi-3: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a wing-low slide (rolled 25 deg or more left onto the tip, 15 m/s): 0 broken, 0 yields, 0 J plastic, 2291 J slid; 15 payloads, 9 passes; crush 0 / scrape 128 (soil 128) / torn 0 of 12004 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [9.4 s]
+  ok    slide-L: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    slide-L: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  a nose-over (12 m/s into a 35 cm stump): 57 broken, 3092 yields, 10640 J plastic, 69112 J slid; 115 payloads, 16 passes; crush 2485 / scrape 2250 (soil 1657) / torn 1411 of 12004 vertices; panes windscreen 0 clean (hit 0, set 0 mm), rearWindow 0 clean (hit 0, set 0 mm) [16.2 s]
+  ok    noseover: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 2485)
+  ok    noseover: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    noseover: the windscreen cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    noseover: the rearWindow cracks exactly as its nodes and frame say (severity 0, the gate's 0)
+  ok    noseover: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  a trunk at 30 m/s, the centreline: 97 broken, 20925 yields, 83151 J plastic, 267679 J slid; 53 payloads, 31 passes; crush 6811 / scrape 2058 (soil 954) / torn 7491 of 12004 vertices; panes windscreen 1 cracked (hit 1, set 218.9 mm), rearWindow 1 cracked (hit 1, set 316.1 mm) [12.1 s]
+  ok    trunk-0: every crushed vertex is bound to an end of a member that took plastic work (0 not, of 6811)
+  ok    trunk-0: the 50 most crushed vertices sit on the most strained members (50 of 50 on the top 20 by plastic strain)
+  ok    trunk-0: the windscreen cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    trunk-0: the rearWindow cracks exactly as its nodes and frame say (severity 1, the gate's 1)
+  ok    trunk-0: the torn band only where triangles were removed or torn, full only at their edge (0 / 0 off)
+  FAIL  intact: no payload, no record, nothing drawn
+  FAIL  the wing-low slide leaves the high (right) wing clean: 128 vertices scraped, 92 beyond 1.32 m right (2291 J slid, rolled 25 deg)
+  ok    the wing-low slide: no scraped vertex faces up (0)
+  ok    the wing-low slide went one way: its scraped vertices' slide coherence along the skin averages 0.80 (streaked; the taxi's rub into a trunk 0.30)
+  ok    the slide on grass stains what it scraped (128 of 128)
+  ok    the slide without a yield crushes nothing
+  ok    a touch shows: the 3 m/s taxi into a trunk marks 243 vertices (2706 J at the bark, 0 yields)
+  ok    the 30 m/s trunk cracks the windscreen (1); the rear window as its nodes say (1 cracked)
+  ok    intact: no pane cracked
+  ok    slide-L: no pane cracked
+  ok    a reset after the crash: a payload, the fields zero, every record byte zero (0 non-zero)
+  ok    deterministic: the 30 m/s trunk twice, the same bytes (e5086fba / e5086fba)
+  ok    damage OFF, the 30 m/s trunk: no payload, no record, no slide array (0)
+  cost: 0.229 us a place (12238 places), the worst torn band 2.22 ms, a tick of 2000 places at worst 3.06 ms (9 ticks)
+  DMG-WALL (inherited, K = 8): slide-L crush 0 / scrape 128 / torn 0; noseover crush 2097 / scrape 2072 / torn 1098; trunk-0 crush 5730 / scrape 1924 / torn 8151
+  ok    metal, DMG-WALL: the records at K = 8 and bound by inheritance at the first break (nose-over, trunk)
+  ok    metal, DMG-WALL: every crushed vertex on an end of a member that took work, through the inherited weights (0 not, of 7827)
+  FAIL  metal, DMG-WALL: the wing-low slide leaves the high wing clean (128 / 92 on the right wing)
+  ok    metal, DMG-WALL: the torn band only where triangles went
+  ok    metal, DMG-WALL: every record's place list follows its welds after the inheritance split them
+  ok    metal, DMG-WALL: deterministic (cae0c642 / cae0c642)
+  ok    the pass cut by the frame's time (0.05 ms a tick: 47 ticks) makes the same bytes
+  ok    the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)
+  ok    asleep: the wrapper hands three the hook's own source (no attribute, no varying, no branch) under its own key (dmg.scuff|asleep|live|own.hook)
+  ok    awake: the key flips, the material it compiled bumped once, the block spliced (dmg.scuff|live|own.hook)
+  ok    the roll-out's prelink holds it awake, and it sleeps again after (a reset sleeps it too)
+  ok    without a waker (the bench's legacy) the wrapper is always awake
+  ok    app.js reaches skin_scuff.js only inside its DMG-SCUFF block (0 outside)
+  ok    buildModel: scuffMat hands back the material it was given unless the layer is on (scuffFor)
+  ok    scuffFrame returns on its first test with the layer off (no model.scuff)
+  ok    the attributes are attached only with the layer on (scuffAttach behind SCUFF)
+  ok    the roll-out links the awake programs (compileCraftLinks -> scuffPrelink, nothing with the layer off); the block wakes with the first damage drawn
+  ok    flown_bake.js: the baked band keeps a wrapper only a damage material carries (scuffRe)
+  ok    the solver records the slide only behind DMG_ON (3 call sites)
+(115/118 checks, 113 s)
+GATE DMGSCUFF: FAIL
+(exit code 1)
+=== GFX ===
+  ok   G3360: FLYDIY_CAREER_ID / _NAME are written by welcome.js alone (src/viewer/welcome.js)
+  ok   no device test outside welcome.js beyond the six of 6 Oct (rigs, records, the pill's CSS)
+GATE GFX: PASS
+=== BACKGUARD ===
+  ok   with card_drag.js on the page: FLYDIY_DRAG.card(box, 'backGuard', its title line)
+  ok   no device test in the module (it asks WELCOME.RIG and html.phone - GATE GFX's rule)
+GATE BACKGUARD: PASS
+=== PROGRAMS ===
+  ok   5 pattern overlay rebuilds retain their warmed programs  (3 / 3 / 3 / 3)
+  ok   5 control: releasing every pattern holder makes the same programs link again  (3)
+GATE PROGRAMS: PASS
+=== COVER ===
+  ok   12 THE WATER PLANTS: the lily pads stand on the lake, 1-14 m out from the drawn line within their depth, at the water's level - none on the land  (3996 pads, x 61.0..74.0, y 0.000..0.000)
+  ok   13 THE ROCKS’ OWN RING: it plants the rocks at least rockSplit m tall (no debris), the cover ring the smaller ones - together exactly the cover ring’s rocks alone  (alone 2738 | small 1364 + big 1374, twice 0, lost 0, extra 0, debris 885 / 0)
+GATE COVER: PASS
+=== WORLDRAIL ===
+  ok   a full import without them resets to the shipped  (subH0 420, alpha 0.3)
+  ok   the export names where they go  (2 changes)
+GATE WORLDRAIL: PASS
+=== TREEPACKJS ===
+GATE TREEPACKJS - the page's tree pack is the json's
+  ok   src/viewer/trees_pack.js is what tools/tree_pack_js.py writes from src/core/trees_pack.json (fix: python tools/tree_pack_js.py)  (trees_pack.js matches trees_pack.json)
+GATE TREEPACKJS: PASS
+=== GRASSSIDES ===
+  ok   7e look only: past the edge the surface is never the strip's (the wheels read the ground)
+  ok   8 town plots: the lawn by default (townLawn 1); townLawn 0 none on 92 %), the street verge keeps its cut grass (1866 points), townLawn 1 the lawn back (99 %)  (22707 points on 120 plots)
+GATE GRASSSIDES: PASS
+=== GREENGRASS ===
+  ok   11 a TALL cut stands at tallH (0.4 m), a lawn at the shortest grass (minH 0.3 m, the user: "no grass should be smaller than 30 cm")  (lawn h 0.3, tall h 0.4)
+  ok   11b minH 0: the lawn back at cutH (0.08 m)  (h 0.08)
+GATE GREENGRASS: PASS
+=== LAWN ===
+  ok   10b the rungs: D 300 / 10 cm / 20 m, B 150 / 8 cm / 40 m, the phone nearer than D, off  ({"D":{"off":false,"dens":300,"cutH":0.1,"reach":20,"near":6,"cell":4,"block":8,"lean":1},"B":{"off":false,"dens":150,"cutH":0.08,"reach":40,"near":10,"cell":8,"block":4,"lean":1},"phone":{"off":false,"dens":300,"cutH":0.1,"reach":12,"near":4,"cell":4,"block":8,"lean":1}})
+  ok   10c the row is free with 'auto' its default (the desktop presets as train 31 shipped them)
+GATE LAWN: PASS
+=== FRAMECOST ===
+GATE FRAMECOST
+  ok   S3 source: a side hangar is HOME's build - merged by material, its coarse rung and LOD (shedNodeAt), ~ the club shed's draws each
+  ok   S3 source: at most two side sheds, never HOME's twice
+  ok   S3 source: a shed is built again only when its place, dims, shell or dress change (nothing per frame)
+  ok   S3 source: nothing of it runs in the frame loop
+  ok   S3 source: no resident is drawn by the world's sheds (shut doors: premResidentsDrawn is FLEET-PROPS' to call)
+  ok   cub: the page booted, rolled out and rendered its views  (garage 180.4 s, roll-out 46.1 s, total 251.9 s wall; 528 programs; page errors 58)
+       memory after the roll-out (MiB, reported): {"heapUsed":807.4,"arrayBuffers":2538.6,"external":2605.7,"rss":3921.2}; at the end {"heapUsed":809.5,"arrayBuffers":2551.2,"external":2618.3,"rss":3928.9}
+       reads (reported): garage 1382 fetches 206.3 MiB, 259 images 54.7 MiB, canvas drawImage 387 / getImageData 356 (389.2 MiB); roll-out 0 fetches 0.0 MiB, 1 images 0.4 MiB, canvas drawImage 1 / getImageData 0 (0.0 MiB)
+       KTX2 (reported): ground packs 3 KTX2 (90 planes transcoded, 0 lent, 21.3 MiB) / 0 raw; fallbacks 0; target format 36492, 890 worker messages
+       crew (reported, AS6): 1 character(s) (ch20), 1 materials (1 on the budget set), 2 textures (2 KTX2, 0 images, 0 pending): 2.7 MiB on the GPU (ch20 2.7)
+  ok   cub: both views measured (stand, taxi)  (taxi at 263.5 727.6 0.716 route 4.3 m off)
+  info cub stand: the aeroplane draws 253 main + 0 shadow + 0 other (1 skinned), 148 materials, 17 programs, 279 meshes
+  info cub taxi: the aeroplane draws 253 main + 0 shadow + 0 other (1 skinned), 148 materials, 17 programs, 279 meshes
+  ok   cub: the scene is the page's - Jolene, its premises composed with Metlakatla cut, the ground raster on  (world jolene, premises true, 220 mk_ entries cut, raster true, depth reversed)
+  ok   cub: graphics gamer, shadows full  ({"preset":"gamer","shadows":"full"})
+  ok   cub: the island textures keep no CPU copy after upload, the class weights are unbuilt, a lost context re-derives every one (G906)  ({"n":4,"big":4,"heldAfterRollout":0,"classWeights":false,"rederived":4,"heldAfterRestore":4,"heldAfterReupload":0})
+  ok   cub: no script, timer or frame of the page threw
+  ok   cub: no draw samples a texture attached to the framebuffer it draws into (a feedback loop: GL_INVALID_OPERATION, nothing drawn - G1532)  (0 feedback draws, first [])
+  ok   cessna: the page booted, rolled out and rendered its views  (garage 215.2 s, roll-out 93.5 s, total 324.5 s wall; 560 programs; page errors 58)
+       memory after the roll-out (MiB, reported): {"heapUsed":866.3,"arrayBuffers":2537.8,"external":2604.8,"rss":3989.9}; at the end {"heapUsed":868.2,"arrayBuffers":2550.7,"external":2617.8,"rss":4029.6}
+       reads (reported): garage 1387 fetches 210.9 MiB, 256 images 54.5 MiB, canvas drawImage 376 / getImageData 360 (405.2 MiB); roll-out 0 fetches 0.0 MiB, 1 images 0.4 MiB, canvas drawImage 1 / getImageData 0 (0.0 MiB)
+       KTX2 (reported): ground packs 3 KTX2 (90 planes transcoded, 0 lent, 21.3 MiB) / 0 raw; fallbacks 0; target format 36492, 898 worker messages
+       crew (reported, AS6): 2 character(s) (ch20, ch22), 3 materials (3 on the budget set), 6 textures (6 KTX2, 0 images, 0 pending): 8.0 MiB on the GPU (ch20 2.7, ch22 5.3)
+  ok   cessna: both views measured (stand, taxi)  (taxi at 263.5 727.6 0.716 route 4 m off)
+  info cessna stand: the aeroplane draws 264 main + 0 shadow + 0 other (7 skinned), 152 materials, 21 programs, 290 meshes
+  info cessna taxi: the aeroplane draws 264 main + 0 shadow + 0 other (7 skinned), 152 materials, 21 programs, 290 meshes
+  ok   cessna: the scene is the page's - Jolene, its premises composed with Metlakatla cut, the ground raster on  (world jolene, premises true, 220 mk_ entries cut, raster true, depth reversed)
+  ok   cessna: graphics gamer, shadows full  ({"preset":"gamer","shadows":"full"})
+  ok   cessna: the island textures keep no CPU copy after upload, the class weights are unbuilt, a lost context re-derives every one (G906)  ({"n":4,"big":4,"heldAfterRollout":0,"classWeights":false,"rederived":4,"heldAfterRestore":4,"heldAfterReupload":0})
+  ok   cessna: no script, timer or frame of the page threw
+  ok   cessna: no draw samples a texture attached to the framebuffer it draws into (a feedback loop: GL_INVALID_OPERATION, nothing drawn - G1532)  (0 feedback draws, first [])
+  ok   SELF-TEST a_onBeforeRender_x100 turns the gate red  (1 counters: cb.onBeforeRender 2 -> 102)
+  ok   SELF-TEST b_uniformPerFrame_x1011 turns the gate red  (3 counters: gl.uniform1f 428.5 -> 446; gl.uniform3f 119 -> 252; gl.uniform4fv 2037 -> 2113)
+  ok   SELF-TEST c_matrixAutoUpdate_x11418 turns the gate red  (16 counters: three.updateMatrix 4732 -> 9896)
+  cub · stand · per frame: counter, baseline, now
+    stand/bytes.bufferSubData                           544        768  ALLOW
+    stand/bytes.texSubImage2D                         54616    1809828  RED
+    stand/bytes.uniforms                             205152     428238  RED
+    stand/cb.onAfterRender                                1          2  
+    stand/cb.onBeforeRender                               1          2  
+    stand/draws.main                                    914       1168  RED
+    stand/draws.other                                    14         17  ALLOW
+    stand/draws.shadow                                169.5       93.5  down
+    stand/draws.total                                1119.5     1301.5  ALLOW
+    stand/gl.bindFramebuffer                             24         28  ALLOW
+    stand/gl.bindTexture                                809      760.5  down
+    stand/gl.bindVertexArray                           1039     1092.5  ALLOW
+    stand/gl.bufferSubData                                2          3  
+    stand/gl.calls                                   7803.5     9664.5  ALLOW
+    stand/gl.texSubImage2D                               82         97  ALLOW
+    stand/gl.uniform1f                                  327      428.5  ALLOW
+    stand/gl.uniform1fv                                  24         24  
+    stand/gl.uniform1i                                   10          2  down
+    stand/gl.uniform2f                                   49        114  ALLOW
+    stand/gl.uniform3f                                   74        119  ALLOW
+    stand/gl.uniform4f                                    6        171  RED
+    stand/gl.uniform4fv                                 741       2037  RED
+    stand/gl.uniformMatrix3fv                           375      237.5  down
+    stand/gl.uniformMatrix4fv                          1454     1662.5  ALLOW
+    stand/gl.useProgram                               217.5      197.5  down
+    stand/programs                                       98       98.5  
+    stand/three.frustumTests                         1352.5       1820  ALLOW
+    stand/three.renders                                  15         18  ALLOW
+    stand/three.updateMatrix                           3429       4732  ALLOW
+    stand/three.updateMatrixWorld                      8349      13935  ALLOW
+    stand/tris.main                                17487823   21992331  RED
+    stand/tris.other                                     28         34  ALLOW
+    stand/tris.shadow                             3205542.5  6568079.5  RED
+    stand/world.grHeight                                 17          4  down
+    stand/world.terrainH                                 65        137  RED
+  FAIL cub stand/bytes.texSubImage2D rose 54616 -> 1809828 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/bytes.uniforms rose 205152 -> 428238 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.main rose 914 -> 1168 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4f rose 6 -> 171 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4fv rose 741 -> 2037 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/tris.main rose 17487823 -> 21992331 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/tris.shadow rose 3205542.5 -> 6568079.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/world.terrainH rose 65 -> 137 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  cub · taxi (263.5, 727.6, 0.716, route 4.3 m off) · per frame: counter, baseline, now
+    taxi/bytes.bufferSubData                            544        768  ALLOW
+    taxi/bytes.texSubImage2D                         288108     223480  down
+    taxi/bytes.uniforms                              187496     473978  ALLOW
+    taxi/cb.onAfterRender                                 1          2  
+    taxi/cb.onBeforeRender                                1          2  
+    taxi/draws.main                                     844       1296  RED
+    taxi/draws.other                                     14         17  ALLOW
+    taxi/draws.shadow                                 100.5        197  RED
+    taxi/draws.total                                  980.5       1510  ALLOW
+    taxi/gl.bindFramebuffer                              24         28  ALLOW
+    taxi/gl.bindTexture                               763.5      982.5  ALLOW
+    taxi/gl.bindVertexArray                           905.5       1279  ALLOW
+    taxi/gl.bufferSubData                                 2          3  
+    taxi/gl.calls                                      7310    11451.5  ALLOW
+    taxi/gl.texSubImage2D                             141.5        115  down
+    taxi/gl.uniform1f                                   257        647  RED
+    taxi/gl.uniform1fv                                   24         24  
+    taxi/gl.uniform1i                                     6          4  
+    taxi/gl.uniform2f                                    45        173  RED
+    taxi/gl.uniform3f                                    62        137  ALLOW
+    taxi/gl.uniform4f                                     6        172  ALLOW
+    taxi/gl.uniform4fv                                  626       2171  ALLOW
+    taxi/gl.uniformMatrix3fv                            315      452.5  ALLOW
+    taxi/gl.uniformMatrix4fv                         1420.5     1918.5  ALLOW
+    taxi/gl.useProgram                                  164        214  ALLOW
+    taxi/programs                                      81.5       86.5  ALLOW
+    taxi/three.frustumTests                            1272       1884  ALLOW
+    taxi/three.renders                                   15         18  ALLOW
+    taxi/three.updateMatrix                            3803       4752  ALLOW
+    taxi/three.updateMatrixWorld                       8727      14013  ALLOW
+    taxi/tris.main                                 13043865   20154222  RED
+    taxi/tris.other                                      28         34  ALLOW
+    taxi/tris.shadow                                1782437  8046331.5  RED
+    taxi/world.grHeight                                  15          0  down
+    taxi/world.terrainH                                  70        141  ALLOW
+  FAIL cub taxi/draws.main rose 844 -> 1296 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.shadow rose 100.5 -> 197 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/gl.uniform1f rose 257 -> 647 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/gl.uniform2f rose 45 -> 173 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/tris.main rose 13043865 -> 20154222 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/tris.shadow rose 1782437 -> 8046331.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  cub · boot steps: counter, baseline, now
+    boot/garage:aircraft/gl.calls                         0          0  
+    boot/garage:aircraft/world.grHeight                 588        508  down
+    boot/garage:aircraft/world.terrainH                3105       2964  down
+    boot/garage:bake/bytes.bufferData             145814472       9504  down
+    boot/garage:bake/bytes.uniforms                 1482672        440  down
+    boot/garage:bake/draws.total                       1020         21  down
+    boot/garage:bake/gl.calls                         37263       2178  down
+    boot/garage:bake/links                               81        151  ALLOW
+    boot/garage:bake/three.frustumTests                   0         21  ALLOW
+    boot/garage:bake/three.updateMatrixWorld           1559         42  down
+    boot/garage:compile/bytes.bufferData            1519232    1686848  ALLOW
+    boot/garage:compile/bytes.uniforms              2156884    1226112  down
+    boot/garage:compile/draws.total                   14448       6697  down
+    boot/garage:compile/gl.calls                      93960      46307  down
+    boot/garage:compile/links                             5         38  RED
+    boot/garage:compile/three.frustumTests            32106      11006  down
+    boot/garage:compile/three.updateMatrixWorld       19455      17040  down
+    boot/garage:craft/bytes.bufferData             13118688          0  down
+    boot/garage:craft/bytes.uniforms                 370476     202380  down
+    boot/garage:craft/draws.total                       259        113  down
+    boot/garage:craft/gl.calls                        13391       4443  down
+    boot/garage:craft/links                               2          2  
+    boot/garage:craft/three.updateMatrixWorld         55274      53739  down
+    boot/garage:craft/world.terrainH                      0         15  ALLOW
+    boot/garage:editor/bytes.bufferData            22772608   23117604  ALLOW
+    boot/garage:editor/bytes.uniforms                 31976      32304  ALLOW
+    boot/garage:editor/gl.calls                        2424       2483  ALLOW
+    boot/garage:editor/three.updateMatrixWorld         3460       2516  down
+    boot/garage:firstFrame/bytes.bufferData        14966426   14794762  down
+    boot/garage:firstFrame/bytes.uniforms           1166132     687896  down
+    boot/garage:firstFrame/draws.total                 6994       4175  down
+    boot/garage:firstFrame/gl.calls                   68607      43420  down
+    boot/garage:firstFrame/links                          0          6  ALLOW
+    boot/garage:firstFrame/three.frustumTests          8871       4649  down
+    boot/garage:firstFrame/three.updateMatrixWorld       3136       2533  down
+    boot/garage:firstFrame/world.grHeight                 8          5  down
+    boot/garage:frames/bytes.bufferData           335680129  563796422  ALLOW
+    boot/garage:frames/bytes.uniforms                967588    2626112  ALLOW
+    boot/garage:frames/draws.total                     4677       9231  ALLOW
+    boot/garage:frames/gl.calls                       85575     135238  ALLOW
+    boot/garage:frames/links                              2          7  ALLOW
+    boot/garage:frames/three.frustumTests              7916      10896  ALLOW
+    boot/garage:frames/three.updateMatrixWorld        47807     184484  ALLOW
+    boot/garage:frames/world.grHeight                  5543      43776  ALLOW
+    boot/garage:frames/world.terrainH                  5927     104346  ALLOW
+    boot/garage:garage/gl.calls                        2080       2080  
+    boot/garage:garage/links                              2          2  
+    boot/garage:garage/three.updateMatrixWorld         3870       3235  down
+    boot/garage:images/gl.calls                          42         56  ALLOW
+    boot/garage:images/three.updateMatrixWorld            6        262  ALLOW
+    boot/garage:images/world.grHeight                    83         13  down
+    boot/garage:images/world.terrainH                    43         26  down
+    boot/garage:landing/bytes.bufferData                  0      83912  RED
+    boot/garage:landing/bytes.uniforms              3498036    1957508  down
+    boot/garage:landing/draws.total                   20982      12535  down
+    boot/garage:landing/gl.calls                     121508      61925  down
+    boot/garage:landing/links                             0          1  
+    boot/garage:landing/three.frustumTests            26613      13957  down
+    boot/garage:landing/three.updateMatrixWorld        9921      10154  ALLOW
+    boot/garage:landing/world.grHeight                   15          5  down
+    boot/garage:parked/gl.calls                           0          0  
+    boot/garage:parking/gl.calls                          0          0  
+    boot/garage:parking/three.updateMatrixWorld        3911       3008  down
+    boot/garage:recheck/bytes.uniforms                    0      14084  ALLOW
+    boot/garage:recheck/draws.total                       0       1519  ALLOW
+    boot/garage:recheck/gl.calls                          0       6573  ALLOW
+    boot/garage:recheck/three.updateMatrixWorld         777      17270  ALLOW
+    boot/garage:recheck/world.terrainH                    0          6  ALLOW
+    boot/garage:restore/gl.calls                          0          0  
+    boot/garage:restore/three.updateMatrixWorld         778        698  down
+    boot/garage:ring/bytes.uniforms                       0      32240  ALLOW
+    boot/garage:ring/draws.total                          0        240  ALLOW
+    boot/garage:ring/gl.calls                             0       1005  ALLOW
+    boot/garage:ring/three.frustumTests                   0        225  ALLOW
+    boot/garage:ring/three.updateMatrixWorld              0       6646  ALLOW
+    boot/garage:ring/world.grHeight                  729569     594729  down
+    boot/garage:ring/world.terrainH                  724259     947642  ALLOW
+    boot/garage:scripts/gl.calls                         39         39  
+    boot/garage:scripts/world.terrainH                 3106       2965  down
+    boot/garage:seed/gl.calls                             0          0  
+    boot/garage:seed/three.updateMatrixWorld          17652      26753  RED
+    boot/garage:settle/bytes.bufferData            19619220   17967664  down
+    boot/garage:settle/bytes.uniforms               1179552     555276  down
+    boot/garage:settle/draws.total                    13881       6379  down
+    boot/garage:settle/gl.calls                       85469      37914  down
+    boot/garage:settle/house.build0                       0          2  new
+    boot/garage:settle/house.build1                       0          2  new
+    boot/garage:settle/house.tris0                        0      34664  new
+    boot/garage:settle/house.tris1                        0       2936  new
+    boot/garage:settle/links                             22         17  down
+    boot/garage:settle/three.frustumTests              1055        223  down
+    boot/garage:settle/three.updateMatrixWorld        59279      33788  down
+    boot/garage:settle/world.grHeight              11095806    9085444  down
+    boot/garage:settle/world.terrainH               8905391    8169353  down
+    boot/garage:snapshot/bytes.bufferData              9504          0  down
+    boot/garage:snapshot/bytes.uniforms                 440          0  down
+    boot/garage:snapshot/draws.total                     21          0  down
+    boot/garage:snapshot/gl.calls                      1337        953  down
+    boot/garage:snapshot/links                           80         83  ALLOW
+    boot/garage:snapshot/three.frustumTests              21          0  down
+    boot/garage:snapshot/three.updateMatrixWorld      23325      35994  ALLOW
+    boot/garage:spec/bytes.bufferData                     0   32835936  ALLOW
+    boot/garage:spec/bytes.uniforms                   31912     239196  ALLOW
+    boot/garage:spec/draws.total                        238        353  ALLOW
+    boot/garage:spec/gl.calls                          2563      10752  ALLOW
+    boot/garage:spec/links                              139        154  ALLOW
+    boot/garage:spec/three.updateMatrixWorld           8345      60775  ALLOW
+    boot/garage:spec/world.grHeight                    2862       2722  down
+    boot/garage:spec/world.terrainH                    3105       2979  down
+    boot/garage:town/gl.calls                           780        948  ALLOW
+    boot/garage:town/house.build0                        86         32  down
+    boot/garage:town/house.build1                        96         43  down
+    boot/garage:town/house.tris0                    1092742     390364  down
+    boot/garage:town/house.tris1                     102536      38864  down
+    boot/garage:town/links                               41         53  ALLOW
+    boot/garage:town/three.updateMatrixWorld           6453       4111  down
+    boot/garage:treeBins/gl.calls                         0          0  
+    boot/garage:trees/gl.calls                            0          0  
+    boot/garage:upload/gl.calls                        3233       3745  ALLOW
+    boot/garage:world/bytes.bufferData            227693304  523895902  ALLOW
+    boot/garage:world/bytes.uniforms                1832544    2062924  ALLOW
+    boot/garage:world/draws.total                     10433      13196  ALLOW
+    boot/garage:world/gl.calls                       116397     164095  ALLOW
+    boot/garage:world/links                              13         17  ALLOW
+    boot/garage:world/three.frustumTests              10415      12079  ALLOW
+    boot/garage:world/three.updateMatrixWorld         76265     104590  ALLOW
+    boot/garage:world/world.grHeight                3974088   11176371  ALLOW
+    boot/garage:worldCompile/gl.calls                   124         96  down
+    boot/garage:worldCompile/links                        6          4  
+    boot/garage:worldCompile/three.updateMatrixWorld          6        262  ALLOW
+    boot/garage:worldCompile/world.grHeight              51         10  down
+    boot/garage:worldCompile/world.terrainH              42         26  down
+    boot/rollout:click/bytes.bufferData               28640     176304  ALLOW
+    boot/rollout:click/bytes.uniforms             329814648  335371912  ALLOW
+    boot/rollout:click/draws.total                  1748144     952062  down
+    boot/rollout:click/gl.calls                     9179824    6370893  down
+    boot/rollout:click/links                              0          3  ALLOW
+    boot/rollout:click/three.frustumTests           2803700     253333  down
+    boot/rollout:click/three.updateMatrixWorld      1726804    1924534  ALLOW
+    boot/rollout:click/world.grHeight                  3784       2618  down
+    boot/rollout:click/world.terrainH                  3376       5759  ALLOW
+    boot/rollout:landing/bytes.uniforms                   0      11040  RED
+    boot/rollout:landing/draws.total                      0         90  RED
+    boot/rollout:landing/gl.calls                         0       1164  RED
+    boot/rollout:landing/three.frustumTests               0         40  ALLOW
+    boot/rollout:landing/three.updateMatrixWorld          0       1844  RED
+    boot/rollout:landing/world.grHeight                   0     132113  ALLOW
+    boot/rollout:landing/world.terrainH                   0     219667  RED
+    boot/rollout:restore/gl.calls                         0         42  RED
+  FAIL cub boot/garage:compile/links rose 5 -> 38
+  FAIL cub boot/garage:landing/bytes.bufferData rose 0 -> 83912
+  FAIL cub boot/garage:seed/three.updateMatrixWorld rose 17652 -> 26753
+  FAIL cub boot/rollout:landing/bytes.uniforms rose 0 -> 11040
+  FAIL cub boot/rollout:landing/draws.total rose 0 -> 90
+  FAIL cub boot/rollout:landing/gl.calls rose 0 -> 1164
+  FAIL cub boot/rollout:landing/three.updateMatrixWorld rose 0 -> 1844
+  FAIL cub boot/rollout:landing/world.terrainH rose 0 -> 219667
+  FAIL cub boot/rollout:restore/gl.calls rose 0 -> 42
+  cessna · stand · per frame: counter, baseline, now
+    stand/bytes.bufferSubData                           544        768  ALLOW
+    stand/bytes.texSubImage2D                         61016    1816228  RED
+    stand/bytes.uniforms                             208782     458710  RED
+    stand/cb.onAfterRender                                1          2  
+    stand/cb.onBeforeRender                               1          2  
+    stand/draws.main                                    925       1181  RED
+    stand/draws.other                                    14         17  ALLOW
+    stand/draws.shadow                                176.5        187  ALLOW
+    stand/draws.total                                1137.5       1385  ALLOW
+    stand/gl.bindFramebuffer                             24         28  ALLOW
+    stand/gl.bindTexture                                813        784  down
+    stand/gl.bindVertexArray                           1057       1169  ALLOW
+    stand/gl.bufferSubData                                2          3  
+    stand/gl.calls                                     7929    10399.5  ALLOW
+    stand/gl.texSubImage2D                               83         98  ALLOW
+    stand/gl.uniform1f                                  337      455.5  ALLOW
+    stand/gl.uniform1fv                                  24         24  
+    stand/gl.uniform1i                                   10          2  down
+    stand/gl.uniform2f                                   55        121  ALLOW
+    stand/gl.uniform3f                                 76.5        125  ALLOW
+    stand/gl.uniform4f                                   12        173  RED
+    stand/gl.uniform4fv                                 753       2219  RED
+    stand/gl.uniformMatrix3fv                           381      270.5  down
+    stand/gl.uniformMatrix4fv                          1483       1726  ALLOW
+    stand/gl.useProgram                               219.5        211  down
+    stand/programs                                     96.5      104.5  ALLOW
+    stand/three.frustumTests                         1353.5       1843  ALLOW
+    stand/three.renders                                  15         18  ALLOW
+    stand/three.updateMatrix                           4782       6087  ALLOW
+    stand/three.updateMatrixWorld                      8902      14478  ALLOW
+    stand/tris.main                                17610628   22087260  RED
+    stand/tris.other                                     28         34  ALLOW
+    stand/tris.shadow                             3336196.5    6926516  RED
+    stand/world.grHeight                                 15          2  down
+    stand/world.terrainH                                 65        137  RED
+  FAIL cessna stand/bytes.texSubImage2D rose 61016 -> 1816228 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/bytes.uniforms rose 208782 -> 458710 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.main rose 925 -> 1181 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4f rose 12 -> 173 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4fv rose 753 -> 2219 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/tris.main rose 17610628 -> 22087260 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/tris.shadow rose 3336196.5 -> 6926516 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/world.terrainH rose 65 -> 137 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  cessna · taxi (263.5, 727.6, 0.716, route 4 m off) · per frame: counter, baseline, now
+    taxi/bytes.bufferSubData                            544        768  ALLOW
+    taxi/bytes.texSubImage2D                         294508     262648  down
+    taxi/bytes.uniforms                              190892     503670  RED
+    taxi/cb.onAfterRender                                 1          2  
+    taxi/cb.onBeforeRender                                1          2  
+    taxi/draws.main                                     854       1308  RED
+    taxi/draws.other                                     14       16.5  ALLOW
+    taxi/draws.shadow                                 106.5        197  RED
+    taxi/draws.total                                  996.5       1521  ALLOW
+    taxi/gl.bindTexture                               767.5        999  ALLOW
+    taxi/gl.bindVertexArray                           921.5       1290  ALLOW
+    taxi/gl.bufferSubData                                 2          3  
+    taxi/gl.calls                                      7423      11905  ALLOW
+    taxi/gl.texSubImage2D                             142.5        116  down
+    taxi/gl.uniform1f                                   267      671.5  RED
+    taxi/gl.uniform1fv                                   24         24  
+    taxi/gl.uniform1i                                     6          4  
+    taxi/gl.uniform2f                                    51        180  RED
+    taxi/gl.uniform3f                                    64        141  ALLOW
+    taxi/gl.uniform4f                                    12        174  ALLOW
+    taxi/gl.uniform4fv                                  638       2351  ALLOW
+    taxi/gl.uniformMatrix3fv                            320      474.5  ALLOW
+    taxi/gl.uniformMatrix4fv                         1446.5     1974.5  ALLOW
+    taxi/gl.useProgram                                  166        225  ALLOW
+    taxi/programs                                      80.5       91.5  ALLOW
+    taxi/three.frustumTests                          1260.5       1890  ALLOW
+    taxi/three.renders                                   15       17.5  ALLOW
+    taxi/three.updateMatrix                            5156     6104.5  ALLOW
+    taxi/three.updateMatrixWorld                       9280      14553  ALLOW
+    taxi/tris.main                                 13164382   20248781  RED
+    taxi/tris.other                                      28         33  ALLOW
+    taxi/tris.shadow                                1908541    8070302  RED
+    taxi/world.grHeight                                17.5          0  down
+    taxi/world.terrainH                                  70        141  ALLOW
+  FAIL cessna taxi/bytes.uniforms rose 190892 -> 503670 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.main rose 854 -> 1308 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.shadow rose 106.5 -> 197 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.uniform1f rose 267 -> 671.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.uniform2f rose 51 -> 180 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/tris.main rose 13164382 -> 20248781 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/tris.shadow rose 1908541 -> 8070302 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  cessna · boot steps: counter, baseline, now
+    boot/garage:aircraft/gl.calls                         0          0  
+    boot/garage:aircraft/world.grHeight                 716        528  down
+    boot/garage:aircraft/world.terrainH                3121       2984  down
+    boot/garage:bake/bytes.bufferData             156429024       9504  down
+    boot/garage:bake/bytes.uniforms                 1590108        440  down
+    boot/garage:bake/draws.total                       1092         21  down
+    boot/garage:bake/gl.calls                         39857       2288  down
+    boot/garage:bake/links                               81        161  ALLOW
+    boot/garage:bake/three.frustumTests                   0         21  ALLOW
+    boot/garage:bake/three.updateMatrixWorld           1826         42  down
+    boot/garage:compile/bytes.bufferData            1519232    1686848  ALLOW
+    boot/garage:compile/bytes.uniforms              2156820    1226112  down
+    boot/garage:compile/draws.total                   14448       6697  down
+    boot/garage:compile/gl.calls                      94028      46548  down
+    boot/garage:compile/links                             5         44  RED
+    boot/garage:compile/three.frustumTests            32106      11006  down
+    boot/garage:compile/three.updateMatrixWorld       22731      18398  down
+    boot/garage:craft/bytes.bufferData             19407480          0  down
+    boot/garage:craft/bytes.uniforms                 386180     226568  down
+    boot/garage:craft/draws.total                       279        119  down
+    boot/garage:craft/gl.calls                        14205       4852  down
+    boot/garage:craft/links                               2          2  
+    boot/garage:craft/three.updateMatrixWorld         56085      55470  down
+    boot/garage:craft/world.grHeight                      0          3  ALLOW
+    boot/garage:craft/world.terrainH                      0         15  ALLOW
+    boot/garage:editor/bytes.bufferData            22772608   23117604  ALLOW
+    boot/garage:editor/bytes.uniforms                 31976      32304  ALLOW
+    boot/garage:editor/gl.calls                        2424       2483  ALLOW
+    boot/garage:editor/three.updateMatrixWorld         3460       2516  down
+    boot/garage:firstFrame/bytes.bufferData        19653200   18884322  down
+    boot/garage:firstFrame/bytes.uniforms           1338360     709780  down
+    boot/garage:firstFrame/draws.total                 8296       4074  down
+    boot/garage:firstFrame/gl.calls                   85697      43655  down
+    boot/garage:firstFrame/links                          0          6  ALLOW
+    boot/garage:firstFrame/three.frustumTests         10442       4598  down
+    boot/garage:firstFrame/three.updateMatrixWorld       3889       2737  down
+    boot/garage:firstFrame/world.grHeight                 8          5  down
+    boot/garage:frames/bytes.bufferData           343598641  570711434  ALLOW
+    boot/garage:frames/bytes.uniforms                987752    2787420  ALLOW
+    boot/garage:frames/draws.total                     4804       9383  ALLOW
+    boot/garage:frames/gl.calls                       86462     138331  ALLOW
+    boot/garage:frames/links                              2          7  ALLOW
+    boot/garage:frames/three.frustumTests              7916      10896  ALLOW
+    boot/garage:frames/three.updateMatrixWorld        48485     186086  ALLOW
+    boot/garage:frames/world.grHeight                  5542      43286  ALLOW
+    boot/garage:frames/world.terrainH                  5927     101081  ALLOW
+    boot/garage:garage/gl.calls                        2080       2080  
+    boot/garage:garage/links                              2          2  
+    boot/garage:garage/three.updateMatrixWorld         3870       3235  down
+    boot/garage:images/gl.calls                          42         44  
+    boot/garage:images/three.updateMatrixWorld            6        531  ALLOW
+    boot/garage:images/world.grHeight                    83         13  down
+    boot/garage:images/world.terrainH                    43         26  down
+    boot/garage:landing/bytes.uniforms              4072036    1993700  down
+    boot/garage:landing/draws.total                   24888      12222  down
+    boot/garage:landing/gl.calls                     145893      60923  down
+    boot/garage:landing/three.frustumTests            31326      13794  down
+    boot/garage:landing/three.updateMatrixWorld       12693       9228  down
+    boot/garage:landing/world.grHeight                   15          5  down
+    boot/garage:parked/gl.calls                           0          0  
+    boot/garage:parking/gl.calls                          0          0  
+    boot/garage:parking/three.updateMatrixWorld        9543       3590  down
+    boot/garage:recheck/bytes.uniforms                    0      15052  ALLOW
+    boot/garage:recheck/draws.total                       0       1540  ALLOW
+    boot/garage:recheck/gl.calls                          0       6711  ALLOW
+    boot/garage:recheck/three.updateMatrixWorld        1134      19269  ALLOW
+    boot/garage:recheck/world.terrainH                    0          6  ALLOW
+    boot/garage:restore/gl.calls                          0          0  
+    boot/garage:restore/three.updateMatrixWorld        2269        796  down
+    boot/garage:ring/gl.calls                             0          0  
+    boot/garage:ring/world.grHeight                  729569     592009  down
+    boot/garage:ring/world.terrainH                  724259     944678  ALLOW
+    boot/garage:scripts/gl.calls                         39         39  
+    boot/garage:scripts/world.terrainH                 3106       2965  down
+    boot/garage:seed/gl.calls                             0          0  
+    boot/garage:seed/three.updateMatrixWorld          25365      24463  down
+    boot/garage:settle/bytes.bufferData            19619220   17967664  down
+    boot/garage:settle/bytes.uniforms               1179552     555276  down
+    boot/garage:settle/draws.total                    13881       6379  down
+    boot/garage:settle/gl.calls                       85469      37914  down
+    boot/garage:settle/house.build0                       0          2  new
+    boot/garage:settle/house.build1                       0          2  new
+    boot/garage:settle/house.tris0                        0      34664  new
+    boot/garage:settle/house.tris1                        0       2936  new
+    boot/garage:settle/links                             22         17  down
+    boot/garage:settle/three.frustumTests              1055        223  down
+    boot/garage:settle/three.updateMatrixWorld        59989      34233  down
+    boot/garage:settle/world.grHeight              11095806    9085444  down
+    boot/garage:settle/world.terrainH               8905391    8169353  down
+    boot/garage:snapshot/bytes.bufferData              9504          0  down
+    boot/garage:snapshot/bytes.uniforms                 440          0  down
+    boot/garage:snapshot/draws.total                     21          0  down
+    boot/garage:snapshot/gl.calls                      1337        942  down
+    boot/garage:snapshot/links                           80         82  
+    boot/garage:snapshot/three.frustumTests              21          0  down
+    boot/garage:snapshot/three.updateMatrixWorld      36344      40302  ALLOW
+    boot/garage:spec/bytes.bufferData                     0   31919424  ALLOW
+    boot/garage:spec/bytes.uniforms                   31912     263492  ALLOW
+    boot/garage:spec/draws.total                        238        359  ALLOW
+    boot/garage:spec/gl.calls                          2522      11512  ALLOW
+    boot/garage:spec/links                              135        172  ALLOW
+    boot/garage:spec/three.updateMatrixWorld          10567      63384  ALLOW
+    boot/garage:spec/world.grHeight                    2878       2742  down
+    boot/garage:spec/world.terrainH                    3121       2999  down
+    boot/garage:town/gl.calls                           780        948  ALLOW
+    boot/garage:town/house.build0                        86         32  down
+    boot/garage:town/house.build1                        96         43  down
+    boot/garage:town/house.tris0                    1092742     390364  down
+    boot/garage:town/house.tris1                     102536      38864  down
+    boot/garage:town/links                               41         53  ALLOW
+    boot/garage:town/three.updateMatrixWorld           7163       5855  down
+    boot/garage:treeBins/gl.calls                         0          0  
+    boot/garage:trees/gl.calls                            0          0  
+    boot/garage:upload/gl.calls                        3233       3748  ALLOW
+    boot/garage:world/bytes.bufferData            227693304  523895902  ALLOW
+    boot/garage:world/bytes.uniforms                1800632    2062924  ALLOW
+    boot/garage:world/draws.total                     10195      13196  ALLOW
+    boot/garage:world/gl.calls                       115403     164095  ALLOW
+    boot/garage:world/links                              13         17  ALLOW
+    boot/garage:world/three.frustumTests              10192      12079  ALLOW
+    boot/garage:world/three.updateMatrixWorld         92025     112761  ALLOW
+    boot/garage:world/world.grHeight                3973249   11176371  ALLOW
+    boot/garage:worldCompile/gl.calls                   124         85  down
+    boot/garage:worldCompile/links                        6          3  down
+    boot/garage:worldCompile/three.updateMatrixWorld          6        531  ALLOW
+    boot/garage:worldCompile/world.grHeight              51         10  down
+    boot/garage:worldCompile/world.terrainH              42         26  down
+    boot/rollout:click/bytes.bufferData               28640     176304  ALLOW
+    boot/rollout:click/bytes.uniforms             344873436  371339552  ALLOW
+    boot/rollout:click/draws.total                  1816754    1025354  down
+    boot/rollout:click/gl.calls                     9579905    6978804  down
+    boot/rollout:click/links                              0          3  ALLOW
+    boot/rollout:click/three.frustumTests           2856600     258783  down
+    boot/rollout:click/three.updateMatrixWorld      2251914    2395433  ALLOW
+    boot/rollout:click/world.grHeight                  3841       2637  down
+    boot/rollout:click/world.terrainH                  3395       5827  ALLOW
+    boot/rollout:landing/bytes.uniforms                   0      11040  RED
+    boot/rollout:landing/draws.total                      0         90  RED
+    boot/rollout:landing/gl.calls                         0       1164  RED
+    boot/rollout:landing/three.frustumTests               0         40  ALLOW
+    boot/rollout:landing/three.updateMatrixWorld          0       2386  RED
+    boot/rollout:landing/world.grHeight                   0     132012  ALLOW
+    boot/rollout:landing/world.terrainH                   0     219676  RED
+    boot/rollout:restore/gl.calls                         0         42  RED
+  FAIL cessna boot/garage:compile/links rose 5 -> 44
+  FAIL cessna boot/rollout:landing/bytes.uniforms rose 0 -> 11040
+  FAIL cessna boot/rollout:landing/draws.total rose 0 -> 90
+  FAIL cessna boot/rollout:landing/gl.calls rose 0 -> 1164
+  FAIL cessna boot/rollout:landing/three.updateMatrixWorld rose 0 -> 2386
+  FAIL cessna boot/rollout:landing/world.terrainH rose 0 -> 219676
+  FAIL cessna boot/rollout:restore/gl.calls rose 0 -> 42
+  ok   the baseline exists (tools/perf/framecost_baseline.json; --update writes it)
+  ratchet down: 150 counters fell below the baseline - run `node tools/_framecost_check.js --update` to keep the gain
+  ALLOWED: 183 rises admitted by the ALLOW list
+  wall 324.9 s
+  HINT: stand/taxi draws.shadow/main, uniforms up after an app.js / viewer edit? run `node tools/parked_cook.js --check` first - a STALE cook captures the parked aeroplanes live (re-cook with parked_cook.js; the train re-cooks on its final build)
+GATE FRAMECOST: FAIL (45)
+(exit code 1)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -3390,6 +4159,19 @@ DMGFABRIC FAIL   113.8 s
 DMGCOMPOSITE PASS   357.9 s
 DMGSCAR   FAIL   963.7 s
 DMGGLASS  PASS   144.0 s
-wall (the chunks' own, summed) 23979.7 s  (jobs 4)
+DMGOCCUPANT PASS   313.6 s
+DMGDETERMINISM FAIL  1610.0 s
+DMGSCUFF  FAIL   112.6 s
+GFX       PASS     1.2 s
+BACKGUARD PASS     0.1 s
+PROGRAMS  PASS     0.5 s
+COVER     PASS    22.4 s
+WORLDRAIL PASS     0.2 s
+TREEPACKJS PASS     0.3 s
+GRASSSIDES PASS    12.0 s
+GREENGRASS PASS    30.6 s
+LAWN      PASS    23.0 s
+FRAMECOST FAIL   325.0 s
+wall (the chunks' own, summed) 26228.2 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 36 red (100 PASS, 36 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 39 red (110 PASS, 39 FAIL, 0 SKIP of 364)
