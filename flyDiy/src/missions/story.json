@@ -2,7 +2,7 @@
   "what": "flydiy-missions",
   "v": 1,
   "id": "story",
-  "title": "Wingsmith",
+  "title": "ms.pack.story.title",
   "rules": {"jobs":"none","shady":false,"unflyable":"offer"},
   "start": {"sheds":{"HOME":{"without":["metal","wood"]},"w1":{"without":["metal","wood"]}}},
   "clients": [
@@ -357,6 +357,7 @@
     "ms.chapter.survey.orders": {"t":"Aircraft orders","draft":true},
     "ms.chapter.clients.work": {"t":"Work","draft":true},
     "ms.chapter.clients.orders": {"t":"Aircraft orders","draft":true},
-    "ms.chapter.aeroclub.events": {"t":"Events","draft":true}
+    "ms.chapter.aeroclub.events": {"t":"Events","draft":true},
+    "ms.pack.story.title": {"t":"Wingsmith: the story","draft":true}
   }
 }

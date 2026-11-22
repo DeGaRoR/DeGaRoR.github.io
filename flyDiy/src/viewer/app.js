@@ -624,6 +624,8 @@
     let txt = null;
     try { txt = id === 'draft' ? window.localStorage.getItem('flydiy.missionEditor.draft') : (window.FLYDIY_PACK_TEXT || null); } catch (e) { txt = null; }
     if (id !== 'draft') try { if (txt) window.localStorage.setItem('flydiy.pack.' + id, txt); else txt = window.localStorage.getItem('flydiy.pack.' + id) || null; } catch (e) {}
+    // (the editor keeps its draft as { file, pack }: the pack is what the game reads - before this the draft was never a pack)
+    else try { const j = JSON.parse(txt); if (j && j.pack && !j.what) txt = JSON.stringify(j.pack); } catch (e) {}
     if (!txt) { console.warn('flyDiy (missions): pack ' + id + ' - no pack text (not fetched, none kept, or no editor draft)'); return { id, ok: false }; }
     try {
       const r = missionPackUse(JSON.parse(txt));

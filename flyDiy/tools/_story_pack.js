@@ -406,7 +406,7 @@ for (const m of BUILTIN.missions) if (m.tutorial) missions.push(clone(m));
 // shop"): a career on this pack starts with no metal shop and no wood shop in either of its hangars; the old hangar's last
 // step gives the metal shop, the new cabin gives the wood shop (a PROPOSAL of this ladder: reports/STORY-REVAMP.md)
 const start = { sheds: { HOME: { without: ['metal', 'wood'] }, w1: { without: ['metal', 'wood'] } } };
-const pack = { what: 'flydiy-missions', v: 1, id: 'story', title: 'Wingsmith', rules: { jobs: 'none', shady: false, unflyable: 'offer' }, start,
+const pack = { what: 'flydiy-missions', v: 1, id: 'story', title: T('ms.pack.story.title', 'Wingsmith: the story'), rules: { jobs: 'none', shady: false, unflyable: 'offer' }, start,
   clients, campaigns, missions, projects, sites: [], text };
 
 // one mission, one project, one text key per line: the pack diffs by line

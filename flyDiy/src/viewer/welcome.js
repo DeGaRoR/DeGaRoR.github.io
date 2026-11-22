@@ -559,6 +559,11 @@
     // plane"): a light page of its own (drafting.html), so the game is left, not loaded - nothing heavy rides along
     row('drafting', '⌖', 'New reference plane', 'match a real aeroplane to its blueprints: the light drafting table', '',
       () => { try { location.href = 'drafting.html'; } catch (e) {} });
+    // THE MISSION EDITOR (STORY-REVAMP, the user 22 Nov: "I think there should be an in-game path for having it ... a start
+    // menu option even"): a light page of its own (tools/mission_editor.html), so the game is left, not loaded; its
+    // "← The game" brings back here, its "Try it in the game" opens a test career on the pack being written
+    row('missions', '✍', 'Mission editor', 'write the game: contracts, projects, club events - then try them', '',
+      () => { try { location.href = 'tools/mission_editor.html'; } catch (e) {} });
     const pre = presetNow(store, search(), API.pick);
     row('settings', '⚙', 'Settings', 'graphics: ' + (LABEL[pre] || pre || 'not chosen yet'), '', () => {
       o.remove();

@@ -409,8 +409,29 @@ C.missionPackUse(mk({ jobs: 'none' }));
   }
 }
 
+// ---- 18 THE MISSION EDITOR HAS A WAY IN, A WAY BACK AND A WAY TO TRY (the user 22 Nov: "there should be an in-game path") ----
+function editorRows() {
+  const WEL = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'welcome.js'), 'utf8'), ED = fs.readFileSync(path.join(T, 'mission_editor.html'), 'utf8'), APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  ok(/row\('missions', '[^']+', 'Mission editor', '[^']+', '',\s+\(\) => \{ try \{ location\.href = 'tools\/mission_editor\.html'; \}/.test(WEL), '18 the start menu has a "Mission editor" row that opens the editor (a light page: the game is left, not loaded)');
+  ok(/<a class="btn ghost" id="bGame" href="\.\.\/index\.html"/.test(ED), '18 the editor has a way back to the game');
+  ok(/\$\('bStory'\)\.onclick = \(\) => fetch\('\.\.\/src\/missions\/story\.json'\)/.test(ED), '18 ...opens the story pack with one button');
+  ok(/window\.open\('\.\.\/index\.html\?career=1&pack=draft', '_blank'\)/.test(ED), '18 ...and tries the pack being written in the game, on the TEST career (never a player\'s own)');
+  ok(/const j = JSON\.parse\(txt\); if \(j && j\.pack && !j\.what\) txt = JSON\.stringify\(j\.pack\);/.test(APP) && /store\.set\(JSON\.stringify\(\{ file: S\.file, pack: S\.pack \}\)\)/.test(ED),
+     '18 the game reads the editor\'s draft as the editor keeps it ({ file, pack }): before this ?pack=draft was handed a wrapper, never a pack');
+  // the draft as kept, through the game's own unwrap, is a pack the game takes
+  { const SPk = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8')); let txt = JSON.stringify({ file: 'story.json', pack: SPk });
+    const j = JSON.parse(txt); if (j && j.pack && !j.what) txt = JSON.stringify(j.pack);
+    const u = C.missionPackUse(JSON.parse(txt)); ok(u.ok && u.id === 'story', '18 ...and that draft, unwrapped the same way, is a pack the game puts in use', u.why); C.missionPackUse(B); }
+  for (const [what, re] of [['the pack\'s rules', /PACK_RULES_UI/], ['its clients', /function clientForm\(/], ['its projects', /function projectForm\(/], ['a project\'s steps', /function pstepForm\(/],
+                            ['what a career starts without', /What a career starts without/], ['a mission that comes back', /'Comes back'/], ['what is given', /giftOpts\(\)/]])
+    ok(re.test(ED), '18 the editor edits ' + what);
+  ok(contractTextOkLocal(), '18 the story pack\'s title is a text key the editor can show and edit');
+}
+function contractTextOkLocal() { const SPk = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8')); return !!(SPk.text[SPk.title] && SPk.text[SPk.title].t); }
+
 // ---- 7 the source (run last: section 17 is asynchronous) -----------------------------------------------------------------------
 function finishGate() {
+editorRows();
 const S74 = fs.readFileSync(path.join(ROOT, 'src', 'core', '74_career.js'), 'utf8');
 ok(/if \(!R \|\| R\.jobs !== 'none'\) for \(const j of contractJobs\(/.test(S74) && (S74.match(/contractJobs\(c\.seed/g) || []).length === 1,
    '7 the board draws jobs in one place, behind the rule');
