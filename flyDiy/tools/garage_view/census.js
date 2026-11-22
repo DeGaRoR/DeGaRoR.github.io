@@ -6,7 +6,8 @@
 // tree as the build stands it (species key, series, place, yaw, scale across / up, the model's height, its sink). This
 // boots the page in node (tools/_page_node.js: dev.html's own scripts, no GPU), rolls out, and asks for the rectangle.
 //
-//   node tools/garage_view/census.js [--out dir] [--half 1500] [--cx x --cz z]
+//   node tools/garage_view/census.js [--out dir] [--half 1500] [--cx x --cz z] [--site pack]
+//     (the middle is measure.json's when it stands in --out: run measure.js --site first; --site is named for the log only)
 //     -> <out>/census.json   { box, n, keys: [species key], trees: [ki, ser, x, y, z, yaw, s, sy, h, town, ...] flat }
 // ~5-10 min of one core (the node page's boot and roll-out). Run it through cpu_token.sh.
 'use strict';
@@ -51,7 +52,9 @@ fs.mkdirSync(OUT, { recursive: true });
   const w = W.FLIGHT_PROBE.world(), site = W.siteOf ? W.siteOf('HOME') : null;
   const H = site && site.hangar ? site.hangar : { x: -172.09, z: 640.58 };
   const P2 = site && site.plots ? site.plots.find(p => p.id === 'HOME.2') : null;
-  const cx = +opt('cx', P2 ? (H.x + P2.x) / 2 : H.x), cz = +opt('cz', P2 ? (H.z + P2.z) / 2 : H.z);
+  // the rectangle's middle: the measured site's (measure.json beside the output: its sheds' middle), else HOME's two sheds
+  const MJ = fs.existsSync(path.join(OUT, 'measure.json')) ? JSON.parse(fs.readFileSync(path.join(OUT, 'measure.json'), 'utf8')) : null;
+  const cx = +opt('cx', MJ ? MJ.mid.x : P2 ? (H.x + P2.x) / 2 : H.x), cz = +opt('cz', MJ ? MJ.mid.z : P2 ? (H.z + P2.z) / 2 : H.z);
   const list = W.TREE_FILL.census(cx - HALF, cz - HALF, cx + HALF, cz + HALF);
   const keys = [], ki = new Map(), flat = [];
   for (const t of list) {

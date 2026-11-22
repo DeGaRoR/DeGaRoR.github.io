@@ -721,6 +721,10 @@ const GATES = [
   // G3630 (HANGAR-VIEW): the view out of the garage door is the world - the capture's faces and the lookup one convention,
   // the distance resolve inverts three's depth, the boot / return / lights / outdoors seams, no GPU readback
   { id: 'HANGARVIEW', file: '_hangarview_check.js', tier: 'core', wall: 30 },
+  // GARAGE-VIEW (22 Nov): the cooked world out of a hangar's door is TODAY's world - every pack's sheds stand where the record
+  // puts them and its signature is the record's rev (a miss names the pack to cook again), the scene whole and under its budget,
+  // placed by the shed's true yaw, the room's hand-drawn outdoors down while it stands
+  { id: 'GARAGEVIEW', file: '_garageview_check.js', tier: 'core', wall: 15 },
   // G2111 (GARAGE-LAPTOP): the flown model hidden behind the editor's cage is not deformed in the garage - two deterministic
   // pages (the skip, the old every-frame pose) hold bit-identical skins when it is shown for a call and on the stand after
   // the roll-out; the idle garage uploads no more skin than before

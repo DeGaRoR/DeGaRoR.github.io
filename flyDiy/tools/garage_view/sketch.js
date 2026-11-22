@@ -175,7 +175,7 @@ function drawToday(RT, cam, S, Fm, labels) {
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const p = (a, b) => { const x = cx - FS / 2 + a * FS / n, z = cz - FS / 2 + b * FS / n; return [x, -0.10 + yR(x, z), z]; };
     quad(p(i, j), p(i + 1, j), p(i + 1, j + 1), p(i, j + 1), shade([118, 158, 74], 0.95 + 0.1 * hash(i, j))); }
   const flat = (P, y, col) => { for (let i = 1; i + 1 < P.length; i++) RT.tri(cam, [P[0][0], y + yR(P[0][0], P[0][1]), P[0][1]], [P[i][0], y + yR(P[i][0], P[i][1]), P[i][1]], [P[i + 1][0], y + yR(P[i + 1][0], P[i + 1][1]), P[i + 1][1]], col); };
-  const home = M.runways.find(r => r.id === 'HOME');
+  const home = M.runways.find(r => r.id === ((M.site && M.site.field) || 'HOME'));
   if (home) { // the 900 m of the strip nearest the shed
     const c = Math.cos(home.hdg), s = Math.sin(home.hdg), s0 = (S.x - home.c[0]) * c + (S.z - home.c[1]) * s, a = Math.max(-home.len / 2, s0 - 450), b = Math.min(home.len / 2, s0 + 450), hw = home.wid / 2;
     flat([[a, -hw], [b, -hw], [b, hw], [a, hw]].map(q => LP(home.c[0] + q[0] * c - q[1] * s, home.c[1] + q[0] * s + q[1] * c)), -0.085, [146, 144, 138]); labels.push(null); }

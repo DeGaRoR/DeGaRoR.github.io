@@ -17,6 +17,12 @@
 //   trees    the impostor sheets of the species the census found (albedo + normal), for the far trees' cards
 //   garage   TODAY'S GARAGE from the same eyes (before the flight: the page boots in the shed; FLYDIY_ROOM_EYE), the club
 //            and the large hangar (GARAGE_ENV.setShell), at each asked hour - the 'before' of every side by side
+//   slices   WHAT STANDS LOW BETWEEN THE APRON AND THE TREES, IN LAYERS: the shrubs, the ferns, the flowers, the rocks, the
+//            barrels, the fences, the lights - the cover ring and the small props, which no list exports - as the game draws
+//            them from the middle of the sheds, cut into rings of distance by the camera's near and far planes (60-95,
+//            95-135, 135-185, 185-250, 250-700 m). Each ring twice: with them, and with everything that stands hidden (the
+//            ground alone): the difference is the layer. Trees, buildings and vehicles are out of both (they are cards and
+//            real shapes). Under a covered sky, like the props, with their card.
 //   far      THE FAR WORLD AS A BAND: from the middle of the two sheds, all round, everything nearer than 700 m clipped
 //            away (the camera's near plane: the sky's dome goes with it), with and without the aerial perspective, and
 //            the same frames with the whole scene hidden (the background, to cut the band out); a 30 degree lens
@@ -33,7 +39,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const MDIR = opt('measure', path.join(T, 'perf', 'garage_view')), OUT = opt('out', path.join(MDIR, 'capture'));
 const DO = opt('do', 'refs,card,ground,props,trees,far').split(','), TIMES = opt('times', 'now,noon,golden,night').split(',');
 const CAP = +opt('cap', 1380);
-const TAG = opt('tag', 'today');   // the garage step's pictures: 'today' (the room as it is) or e.g. 'gview' (run with --q gview=1)
+const TAGS = opt('tag', 'today').split(',');   // the garage step's pictures: 'today' (the room as it is), 'gview' (the cooked scene switched on), or both in one boot
 const M = JSON.parse(fs.readFileSync(path.join(MDIR, 'measure.json'), 'utf8'));
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -63,23 +69,33 @@ const PAGE = `(() => {
   let lastPj = null;
   AA.render = function (s, cam) { const world = s && s.isScene && s !== (FLIGHT_PROBE.hangarScene && FLIGHT_PROBE.hangarScene()); if (world) scene = s;
     // a rig's lens for this frame only (GV.over = { near, fov }): set as the frame is drawn, put back after it
-    let sv = null; if (GV.over && world && cam && cam.isPerspectiveCamera) { sv = [cam.near, cam.fov]; if (GV.over.near) cam.near = GV.over.near; if (GV.over.fov) cam.fov = GV.over.fov; cam.updateProjectionMatrix(); lastPj = { pj: Array.from(cam.projectionMatrix.elements), fov: cam.fov, near: cam.near }; }
+    let sv = null; if (GV.over && world && cam && cam.isPerspectiveCamera) { sv = [cam.near, cam.fov, cam.far]; if (GV.over.near) cam.near = GV.over.near; if (GV.over.far) cam.far = GV.over.far; if (GV.over.fov) cam.fov = GV.over.fov; cam.updateProjectionMatrix(); lastPj = { pj: Array.from(cam.projectionMatrix.elements), fov: cam.fov, near: cam.near }; }
+    // THE HIDE, ENFORCED: what GV.hide named goes down for THIS draw and comes back after it (the fill's partition, the LODs and
+    // the thrift set .visible themselves every frame); the lights' shadows at strength 0 for the draw (a uniform: no program moves)
+    let en = null; const E = GV.enforce;
+    if (world && (E || GV.enforceSolo)) { en = [];
+      if (E && E.all) { for (const o of s.children) if (o.visible && !o.isLight) { o.visible = false; en.push(o); } }
+      else if (E) s.traverse(o => { if (o === s || !o.visible) return; const n = o.name || '';
+        if ((n && E.re.some(r => r.test(n))) || E.uds.some(k => o.userData && o.userData[k] !== undefined && (o.isMesh || o.isInstancedMesh))) { o.visible = false; en.push(o); const k = n.replace(/[:|].*/, ':') || ('(ud ' + o.type + ')'); E.by[k] = (E.by[k] || 0) + 1; } });
+      if (GV.enforceSolo) for (const o of GV.enforceSolo) if (o.visible) { o.visible = false; en.push(o); }
+      if (E && E.noShadow) s.traverse(o => { if (o.isLight && o.shadow && o.shadow.intensity !== undefined) { en.push([o, o.shadow.intensity]); o.shadow.intensity = 0; } });
+      if (E) E.frames++; }
     const r = prev.apply(this, arguments);
-    if (sv) { cam.near = sv[0]; cam.fov = sv[1]; cam.updateProjectionMatrix(); }
+    if (en) for (const x of en) { if (Array.isArray(x)) x[0].shadow.intensity = x[1]; else x.visible = true; }
+    if (sv) { cam.near = sv[0]; cam.fov = sv[1]; cam.far = sv[2]; cam.updateProjectionMatrix(); }
     return r; };
   const hidden = [];
   const GV = {
     scene: () => scene,
     cam: () => { const c = FLIGHT_PROBE.camera(); c.updateMatrixWorld(); const O = GV.over && lastPj ? lastPj : null; return { mw: Array.from(c.matrixWorld.elements), pj: O ? O.pj : Array.from(c.projectionMatrix.elements), fov: O ? O.fov : c.fov, aspect: c.aspect, near: O ? O.near : c.near, far: c.far, over: !!O,
       pos: [c.position.x, c.position.y, c.position.z], canvas: [FLYDIY_RENDERER.domElement.width, FLYDIY_RENDERER.domElement.height], exposure: FLYDIY_RENDERER.toneMappingExposure }; },
-    // hide every visible object whose name matches a pattern or whose userData carries a key; -> what went, by name
-    hide: (pats, uds) => { const re = (pats || []).map(p => new RegExp(p)), by = {}; if (!scene) return { error: 'no scene yet' };
-      scene.traverse(o => { if (!o.visible || o === scene) return; const n = o.name || '';
-        const hit = (n && re.some(r => r.test(n))) || (uds || []).some(k => o.userData && o.userData[k] !== undefined && (o.isMesh || o.isInstancedMesh));
-        if (hit) { o.visible = false; hidden.push(o); const k = n.replace(/[:|].*/, ':') || ('(ud ' + o.type + ')'); by[k] = (by[k] || 0) + 1; } });
-      return by; },
-    show: () => { const n = hidden.length; for (const o of hidden) o.visible = true; hidden.length = 0; return n; },
-    hideAll: () => { let n = 0; if (scene) for (const o of scene.children) if (o.visible && !o.isLight) { o.visible = false; hidden.push(o); n++; } return n; },
+    // hide what a name pattern or a userData key names, from now on, at every draw (the render wrap enforces it); a second call adds
+    // to the first. o.noShadow: the sun's shadows off too. -> the count so far by name (of the last frames drawn)
+    hide: (pats, uds, o) => { const E = GV.enforce || (GV.enforce = { re: [], uds: [], by: {}, frames: 0, noShadow: false, all: false });
+      for (const p of pats || []) E.re.push(new RegExp(p)); for (const k of uds || []) if (!E.uds.includes(k)) E.uds.push(k); if (o && o.noShadow) E.noShadow = true; E.by = {}; E.frames = 0; return { patterns: E.re.length, keys: E.uds.length, noShadow: E.noShadow }; },
+    hidden: () => { const E = GV.enforce; if (!E || !E.frames) return {}; const o = {}; for (const k of Object.keys(E.by)) o[k] = Math.round(E.by[k] / E.frames); return o; },
+    show: () => { GV.enforce = null; return 1; },
+    hideAll: () => { GV.enforce = { re: [], uds: [], by: {}, frames: 0, noShadow: false, all: true }; return 1; },
     craft: v => true,   // (never hidden: slot 1)
     graph: () => { const sig = o => { const m = Array.isArray(o.material) ? o.material[0] : o.material, g = o.geometry;
       return [o.name ? o.name.replace(/[:|].*/, ':*') : '-', o.type, o.isInstancedMesh ? 'inst' : '', m ? m.type + (m.name ? ':' + m.name : '') : '', g ? Object.keys(g.attributes || {}).sort().join('+') : '', Object.keys(o.userData || {}).slice(0, 6).join(','), 'ro' + (o.renderOrder || 0), o.visible ? '' : 'HIDDEN', m && m.transparent ? 'transp' : '', m && m.userData && m.userData.progOwner ? 'own=' + m.userData.progOwner : ''].join('|'); };
@@ -111,18 +127,24 @@ const PAGE = `(() => {
     // WHAT STANDS NEAR: the direct children of 'premises:houses' (a house's bag group, a prop's LOD, a parked aircraft) and the
     // world's own sheds, within r of (x, z) -> [{ i, name, c: [x, y, z] box centre, r: its radius, min, max }]
     things: (x, z, r) => { const out = [], B = new THREE.Box3(), C = new THREE.Vector3(), S3 = new THREE.Vector3(); GV._things = [];
-      const take = o => { B.setFromObject(o); if (B.isEmpty()) return; B.getCenter(C); B.getSize(S3); if (Math.hypot(C.x - x, C.z - z) > r) return;
+      const MB = new THREE.Box3();
+      const body = o => { B.makeEmpty(); const bag = !!(o.userData && o.userData.bagMeshes); o.updateMatrixWorld(true);
+        o.traverse(m => { if (!m.isMesh || !m.geometry || !m.geometry.attributes.position) return; const mat = Array.isArray(m.material) ? m.material[0] : m.material;
+          if (mat && (mat.transparent && !mat.alphaTest) && m.renderOrder > 0) return; if (bag && !(m.userData && m.userData.merged) && !m.visible) return;
+          if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); MB.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld); B.union(MB); }); };
+      const take = o => { body(o); if (B.isEmpty()) B.setFromObject(o); if (B.isEmpty()) return; B.getCenter(C); B.getSize(S3); if (Math.hypot(C.x - x, C.z - z) > r) return;
         GV._things.push(o); out.push({ i: GV._things.length - 1, name: o.name || (o.children[0] && o.children[0].name) || '', ud: Object.keys(o.userData || {}).slice(0, 5).join(','), c: C.toArray().map(v => +v.toFixed(2)), r: +(S3.length() / 2).toFixed(2), min: B.min.toArray().map(v => +v.toFixed(2)), max: B.max.toArray().map(v => +v.toFixed(2)) }); };
       scene.traverse(o => { if (o.name === 'premises:houses') for (const c of o.children) take(c); else if (/^shed:/.test(o.name || '')) take(o); });
       return out; },
-    // one thing alone among its kind (its siblings hidden), or all back
-    solo: i => { const T = GV._things || []; GV._solo = GV._solo || []; for (const o of GV._solo) o.visible = true; GV._solo = [];
-      if (i == null) return 0; for (let k = 0; k < T.length; k++) if (k !== i && T[k].visible) { T[k].visible = false; GV._solo.push(T[k]); } return GV._solo.length; },
+    // one thing alone among its kind: its siblings (the other things within reach) go down at every draw, until solo(null)
+    solo: i => { const T = GV._things || []; if (i == null) { GV.enforceSolo = null; return 0; } GV.enforceSolo = T.filter((o, k) => k !== i); return GV.enforceSolo.length; },
     // its drawn triangles NOW (the visible meshes under it, the instances stood, world metres): positions + normals + index, base64
     mesh: i => { const o = (GV._things || [])[i]; if (!o) return null; const P = [], Nn = [], I = [], parts = []; const v = new THREE.Vector3(), n = new THREE.Vector3(), M4 = new THREE.Matrix4(), N3 = new THREE.Matrix3();
       const vis = m => { for (let q = m; q && q !== o.parent; q = q.parent) if (!q.visible) return false; return true; };
       o.updateMatrixWorld(true);
-      o.traverse(m => { if (!(m.isMesh) || !m.geometry || !m.geometry.attributes.position || !vis(m)) return; const mat = Array.isArray(m.material) ? m.material[0] : m.material;
+      // (a HOUSE is drawn through a merged batch: its own meshes stay under its bag group, hidden, flagged merged - they are its shape)
+      const bag = !!(o.userData && o.userData.bagMeshes);
+      o.traverse(m => { if (!(m.isMesh) || !m.geometry || !m.geometry.attributes.position || !(vis(m) || (bag && m.userData && m.userData.merged))) return; const mat = Array.isArray(m.material) ? m.material[0] : m.material;
         if (mat && (mat.transparent && !mat.alphaTest) && m.renderOrder > 0) return;   // the glows and the AO skirts: decals, not the body
         const g = m.geometry, pa = g.attributes.position, na = g.attributes.normal, ix = g.index, cnt = m.isInstancedMesh ? m.count : 1;
         for (let k = 0; k < cnt; k++) { if (m.isInstancedMesh) { m.getMatrixAt(k, M4); M4.premultiply(m.matrixWorld); } else M4.copy(m.matrixWorld); N3.getNormalMatrix(M4);
@@ -153,15 +175,21 @@ const PAGE = `(() => {
     if (DO.includes('garage')) {
       const info = async () => JJ('(() => { const D = GARAGE_ENV._debug && GARAGE_ENV._debug(), h = D && D.hangar; return JSON.stringify(h ? { shell: h.shell || (GARAGE_ENV.shell && GARAGE_ENV.shell()), dims: h.dims, door: h.door, body: document.body.className, fov: FLIGHT_PROBE.camGet().fov, day: (() => { const d = FLIGHT_PROBE.world().day; return { sunEl: d.sunEl, cloudCover: d.cloudCover }; })() } : { err: "no room", body: document.body.className }); })()');
       const gshot = async (name, extra) => { const b = await rig.grab({ craft: false, settle: 10 }); fs.writeFileSync(path.join(OUT, name + '.png'), b); META.grabs.push(Object.assign({ name, info: b.info }, extra)); if (b.info.blank) { log('BLANK ' + name); META.blank = (META.blank || 0) + 1; } };
-      for (const shell of ['club', 'works']) {
+      const utc0 = await JJ('FLIGHT_PROBE.world().day.utc');
+      for (const TAG of TAGS) for (const shell of ['club', 'works']) {
+        if (TAG === 'gview') await rig.ev('window.FLYDIY_GVIEW_ON = true');
+        if (shell === 'club' && TAG !== TAGS[0]) { const r = await rig.ev("(() => { try { return String(GARAGE_ENV.setShell('club')); } catch (e) { return 'FAILED ' + e.message; } })()", 140000); log('garage: setShell club -> ' + r); await rig.frames(60); await rig.settleLoad(); await rig.frames(120); }
         if (shell === 'works') { const r = await rig.ev("(() => { try { return String(GARAGE_ENV.setShell('works')); } catch (e) { return 'FAILED ' + e.message; } })()", 140000); log('garage: setShell works -> ' + r); await rig.frames(60); await rig.settleLoad(); await rig.frames(120); }
-        const I = await info(); log('garage ' + shell + ': ' + JSON.stringify(I)); if (!I || I.err) { META.steps['garage_' + shell] = I; continue; }
+        const I = await info(); log('garage ' + shell + ': ' + JSON.stringify(I)); if (!I || I.err) { META.steps['garage_' + TAG + '_' + shell] = I; continue; }
         // the cooked scene, when this run asks for it (?gview=1): wait for it to land in THIS room (30 s), and say what it is
-        if (/gview=1/.test(opt('q', ''))) { let G = null; for (let k = 0; k < 30 && !G; k++) { G = await JJ('(() => { const g = window.FLYDIY_GVIEW, h = GARAGE_ENV._debug().hangar; return JSON.stringify(g && h.gview && h.gview() ? { stats: g.stats, buildMs: g.buildMs, shedWorld: h.shedWorld() } : null); })()'); if (!G) await rig.frames(30); }
+        if (TAG === 'gview' || /gview=1/.test(opt('q', ''))) { let G = null; for (let k = 0; k < 30 && !G; k++) { G = await JJ('(() => { const g = window.FLYDIY_GVIEW, h = GARAGE_ENV._debug().hangar; return JSON.stringify(g && h.gview && h.gview() ? { stats: g.stats, buildMs: g.buildMs, shedWorld: h.shedWorld() } : null); })()'); if (!G) await rig.frames(30); }
           I.gview = G; log('garage ' + shell + ': gview ' + JSON.stringify(G)); await rig.frames(90); }
         const HD = I.dims.HD, HWd = I.dims.HW;
         for (const tm of TIMES) {
-          if (tm !== 'now') { await rig.ev(`(() => { try { DAY_CLOCK.preset(${JSON.stringify(tm)}); return 1; } catch (e) { return 0; } })()`); await rig.frames(90); await rig.settleLoad(); await rig.frames(60); }
+          // 'now' is the hour the page booted in (put back for the second pass: the first one ends at night)
+          if (tm === 'now') await rig.ev('(() => { try { DAY_CLOCK.set({ utc: ' + utc0 + ' }); return 1; } catch (e) { return 0; } })()');
+          else await rig.ev(`(() => { try { DAY_CLOCK.preset(${JSON.stringify(tm)}); return 1; } catch (e) { return 0; } })()`);
+          await rig.frames(90); await rig.settleLoad(); await rig.frames(60);
           const V = [['door_out', -HD - 0.3, 1.7, 0, 0], ['door_left', -HD - 0.3, 1.7, 0, -45], ['door_right', -HD - 0.3, 1.7, 0, 45], ['door_high', -HD - 0.3, 4.0, 0, 0], ['inside', HD * 0.55, 2.2, -HWd * 0.25, null]];
           for (const [vn, lx, ey, lz, az] of V) {
             const a = az === null ? -Math.atan2(HWd * 0.25, HD * 1.55) : az * Math.PI / 180, t = [lx - Math.cos(a) * 50, ey - 1.0, lz - Math.sin(a) * 50];
@@ -169,11 +197,13 @@ const PAGE = `(() => {
             await gshot(TAG + '_' + tm + '_' + shell + '_' + vn, { kind: 'garage', tag: TAG, time: tm, shell, view: vn, eyeRoom: [lx, ey, lz], az: az === null ? +(a * 180 / Math.PI).toFixed(1) : az });
           }
         }
-        META.steps['garage_' + shell] = I; save();
+        META.steps['garage_' + TAG + '_' + shell] = I; save();
       }
       await rig.ev('FLYDIY_ROOM_EYE(null)');
       await rig.ev("(() => { try { GARAGE_ENV.setShell('club'); DAY_CLOCK.preset('afternoon'); return 1; } catch (e) { return 0; } })()", 140000); await rig.frames(60); await rig.settleLoad();
     }
+    // a run that asked for the garage's pictures only ends here (no flight)
+    if (!DO.some(k => k !== 'garage')) { META.done = true; META.seconds = Math.round((Date.now() - t0) / 1000); save(); log('done (the garage only): ' + META.grabs.length + ' grabs, ' + (META.blank || 0) + ' blank, ' + META.seconds + ' s'); await rig.close(); process.exit(0); }
     await rig.fly(); await rig.pause();
     // the player's aeroplane off the stand: on the ground 30 m BEHIND the large hangar, paused - out of every door view and off the
     // apron (slot 1, 22 Nov: with it placed 400 m up and hidden the page stopped answering; nothing is hidden or lifted now)
@@ -224,8 +254,8 @@ const PAGE = `(() => {
       const day = await JJ('JSON.stringify(GV.day())');
       await rig.ev('GV.craft(false)');
       await shootCard('ground12', 12); await shootCard('ground120', 120);
-      const hid = await JJ('JSON.stringify(GV.hide(' + JSON.stringify(HIDE.ground) + ', ' + JSON.stringify(HIDE.groundUD) + '))');
-      log('ground: ' + r + '; hidden ' + JSON.stringify(hid)); await alive('ground hide');
+      await JJ('JSON.stringify(GV.hide(' + JSON.stringify(HIDE.ground) + ', ' + JSON.stringify(HIDE.groundUD) + ', { noShadow: true }))'); await rig.frames(6);
+      const hid = await JJ('JSON.stringify(GV.hidden())'); log('ground: ' + r + '; hidden a frame (no sun shadow) ' + JSON.stringify(hid)); await alive('ground hide');
       const cam = META.cam0, tanV = Math.tan(cam.fov * Math.PI / 360), asp = cam.canvas[0] / cam.canvas[1];
       // a tile set: the eye h over the ground, straight down, the picture's top toward the club door's line; the tiles
       // overlap by 12 %. `rect` in a shed's room frame [lx0, lx1, lz0, lz1], or a world box round the middle
@@ -280,6 +310,7 @@ const PAGE = `(() => {
       // the eye near the things first: the houses and the props stand by distance (their LODs, the thrift)
       await eyeAt(S[0].doorCentre.x, floorY(S[0]) + 1.7, S[0].doorCentre.z, yawOf(S[0].doorDir.x, S[0].doorDir.z), -0.02, 40);
       const all = await JJ('JSON.stringify(GV.things(' + M.mid.x + ', ' + M.mid.z + ', 260))', 60000); await alive('things');
+      await JJ('JSON.stringify(GV.hide(["^propInstances$", "^contact:", "^crowd", "^animal"], [], { noShadow: true }))');   // no sun shadow in the things' pictures, and nobody (nor a barrel) standing before them
       const keep = all.filter(t => t.r > 0.6 && t.r < 60 && !/^parkedAt:|person_/.test(t.name));
       log('props: ' + all.length + ' things within 260 m, ' + keep.length + ' kept (no parked aircraft, no people, nothing under 0.6 m)');
       const tanV = Math.tan(META.cam0.fov * Math.PI / 360), PR = [];
@@ -292,18 +323,40 @@ const PAGE = `(() => {
         const eyes = [[S[0].doorCentre.x, floorY(S[0]) + 1.7, S[0].doorCentre.z], [S[1].doorCentre.x, floorY(S[1]) + 1.7, S[1].doorCentre.z], [(S[0].doorCentre.x + S[1].doorCentre.x) / 2 + S[0].doorDir.x * 25, floorY(S[0]) + 1.7, (S[0].doorCentre.z + S[1].doorCentre.z) / 2 + S[0].doorDir.z * 25]];
         for (let e = 0; e < eyes.length; e++) {
           const E = eyes[e], d = [t.c[0] - E[0], t.c[1] - E[1], t.c[2] - E[2]], L = Math.hypot(d[0], d[1], d[2]); if (L < 1) continue;
+          if (E[0] > t.min[0] - 2 && E[0] < t.max[0] + 2 && E[2] > t.min[2] - 2 && E[2] < t.max[2] + 2) continue;   // the eye stands in the thing itself (a shed from its own door)
           const u = d.map(v => v / L), D = Math.min(L, Math.max(t.r * 1.15, t.r / tanV / 0.6)), ex = t.c[0] - u[0] * D, ey = Math.max(t.c[1] - u[1] * D, t.min[1] + 0.4), ez = t.c[2] - u[2] * D;
           const pitch = Math.asin(Math.max(-1, Math.min(1, (t.c[1] - ey) / Math.hypot(t.c[0] - ex, t.c[1] - ey, t.c[2] - ez))));
           await eyeAt(ex, ey, ez, yawOf(u[0], u[2]), pitch, 14);
-          const g = await grab('prop_' + String(t.i).padStart(2, '0') + '_' + e, { kind: 'prop', thing: t.i, eye: e, name: t.name }); shots.push(g.name);
+          const g = await grab('prop_' + String(t.i).padStart(2, '0') + '_' + e, { kind: 'prop', thing: t.i, eye: e, thingName: t.name }); shots.push(g.name);
         }
         // its triangles as drawn from the last eye (the LOD the doors see is the LOD exported)
         const m = await JJ('GV.mesh(' + t.i + ')', 60000);
         if (m) { fs.writeFileSync(path.join(OUT, 'prop_' + String(t.i).padStart(2, '0') + '.json'), JSON.stringify(Object.assign({ thing: t, shots }, m))); }
         PR.push({ i: t.i, name: t.name, r: t.r, c: t.c, verts: m ? m.verts : 0, tris: m ? m.tris : 0, shots }); done++;
       }
-      await JJ('GV.solo(null)'); await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: ' + (+cc0 || 0) + ' })'); await rig.frames(30);
+      await JJ('GV.solo(null)'); await rig.ev('GV.show()'); await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: ' + (+cc0 || 0) + ' })'); await rig.frames(30);
       META.steps.props = { all, kept: PR, cloudCoverBack: cc0 }; save(); log('props: ' + done + ' things, ' + PR.reduce((a, p) => a + p.tris, 0) + ' triangles');
+    }
+
+    // ---- what stands low, in rings of distance ------------------------------------------------------------------------------------
+    if (DO.includes('slices')) {
+      await setTime(TIMES.includes('noon') ? 'noon' : 'now');
+      const cc0 = (await JJ('JSON.stringify(GV.day())')).cloudCover; await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: 1 })'); await rig.frames(90);
+      if (!META.grabs.some(g => g.name === 'card_props')) await shootCard('props', 12);
+      const RINGS = (opt('rings', '60,95,135,185,250,700')).split(',').map(Number), FOVS = 30, gy = await JJ(`FLIGHT_PROBE.world().terrainH(${M.mid.x}, ${M.mid.z})`), eye = [M.mid.x, gy + 2.0, M.mid.z];
+      const pass = async tag => { let n = 0; for (let r = 0; r + 1 < RINGS.length; r++) { await rig.ev('GV.over = { near: ' + RINGS[r] + ', far: ' + RINGS[r + 1] + ', fov: ' + FOVS + ' }');
+          for (let k = 0; k < 9; k++) { await eyeAt(eye[0], eye[1], eye[2], k * 40 * Math.PI / 180, 0.05, k === 0 ? 30 : 10); await grab('slice_' + tag + '_' + r + '_' + k, { kind: 'slice', pass: tag, ring: r, near: RINGS[r], far: RINGS[r + 1], k, yawDeg: k * 40, eye }); n++; } } return n; };
+      // the eye at the middle first: the cover ring plants round it
+      await eyeAt(eye[0], eye[1], eye[2], 0, 0.05, 60); await rig.settleLoad(); await rig.frames(60);
+      await JJ('JSON.stringify(GV.hide(' + JSON.stringify(['^treeRungs', '^premises:houses$', '^shed:', '^shell:', '^parked', '^contact:', '^fleetStand']) + ', ' + JSON.stringify(['fill', 'ser']) + ', { noShadow: true }))'); await rig.frames(6);
+      const hidA = await JJ('JSON.stringify(GV.hidden())'); await alive('slices hide A');
+      const nA = await pass('all');
+      await JJ('JSON.stringify(GV.hide(' + JSON.stringify(HIDE.ground) + ', ' + JSON.stringify(HIDE.groundUD) + ', { noShadow: true }))'); await rig.frames(6);
+      const hidB = await JJ('JSON.stringify(GV.hidden())'); await alive('slices hide B');
+      const nB = await pass('ground');
+      await rig.ev('GV.over = null'); await rig.ev('GV.show()');
+      await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: ' + (+cc0 || 0) + ' })'); await rig.frames(30);
+      META.steps.slices = { rings: RINGS, fov: FOVS, eye, grabs: nA + nB, hidA, hidB, cloudCoverBack: cc0 }; save(); log('slices: ' + (nA + nB) + ' grabs over ' + (RINGS.length - 1) + ' rings');
     }
 
     // ---- the far world as a band -------------------------------------------------------------------------------------------------
@@ -319,7 +372,7 @@ const PAGE = `(() => {
         for (let k = 0; k < 9; k++) { const yaw = k * 40 * Math.PI / 180;
           await eyeAt(eye[0], eye[1], eye[2], yaw, 0.07, 20);
           await grab('far_' + (ap ? 'ap' : 'clear') + '_' + k, { kind: 'far', ap, k, yawDeg: k * 40, near: NEARF, eye }); n++;
-          if (ap === 1) { const hid = await JJ('GV.hideAll()'); await rig.frames(4); await grab('far_bg_' + k, { kind: 'farbg', k, yawDeg: k * 40, hid }); await rig.ev('GV.show()'); await rig.frames(4); n++; }
+          if (ap === 1) { await JJ('GV.hideAll()'); await rig.frames(4); await grab('far_bg_' + k, { kind: 'farbg', k, yawDeg: k * 40 }); await rig.ev('GV.show()'); await rig.frames(4); n++; }
         }
       }
       await rig.ev('ATMO.setAP(true)'); await rig.ev('GV.over = null');

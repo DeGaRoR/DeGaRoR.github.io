@@ -16,9 +16,12 @@
 //            impostor sheet (the game draws impostors past 30 m: the nearest tree is 62 m from a door), lit by the sun
 //            through the sheet's own normals
 //   props    the buildings and the vehicles near, the game's own shapes
+//   far      everything past 700 m (the far forest, the ridges, the summits) as one band of the game's own pixels
 // The SKY, the clouds, the sun and the hour stay the room's (hangar.js applyDay: the game's atmosphere in the shed's
 // frame). The scene is static geometry: 6-8 draws, 4 small programs, no per-frame work but one haze colour.
 //
+//   GARAGE_VIEW.find(world, field, shed) -> Promise<row | null>  the cooked scene for a room: src/core/garage_view_packs.json
+//                                          (tools/garage_view/install.js writes it: one row an airfield, the sheds it serves)
 //   GARAGE_VIEW.load(base)              -> Promise<pack>  scene.json + scene.bin + its pictures, off the main path (the room
 //                                          stands without it: it arrives behind the first garage view)
 //   GARAGE_VIEW.build(THREE, pack, o)   -> { group, mats, stats, update(day), dispose() }
@@ -51,6 +54,13 @@ var GARAGE_VIEW = (() => {
     return mat;
   };
 
+  // ---- the pack list: fetched once; a room without a row keeps its own outdoors --------------------------------------------
+  let LIST = null;
+  const BASE = () => (typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '';
+  function find(world, field, shed) {
+    if (!LIST) LIST = fetch(BASE() + 'src/core/garage_view_packs.json').then(r => (r.ok ? r.json() : { packs: [] })).catch(() => ({ packs: [] }));
+    return LIST.then(P => (P.packs || []).find(p => p.world === world && p.field === field && (p.sheds || []).some(s => s.id === shed)) || null);
+  }
   // ---- the pack ------------------------------------------------------------------------------------------------------
   async function load(base, THREE) {
     const J = await (await fetch(base + 'scene.json')).json();
@@ -94,6 +104,7 @@ var GARAGE_VIEW = (() => {
       else if (M.kind === 'cards') { mat = std({ map, normalMap: M.nrmTex ? pack.tex[M.nrmTex] : null, alphaTest: M.alphaTest || 0.5, vertexColors: true, color: new THREE.Color(S.treeGain, S.treeGain, S.treeGain) }); mat.alphaToCoverage = true; if (!map) { mat.alphaTest = 0; mat.color.setRGB(0.05, 0.09, 0.05); } }
       else if (M.kind === 'ring') mat = std({ vertexColors: true });
       else if (M.kind === 'props') mat = std({ map, side: M.doubleSide ? THREE.DoubleSide : THREE.FrontSide });
+      else if (M.kind === 'far') { mat = std({ map, alphaTest: M.alphaTest || 0.5, side: THREE.DoubleSide }); mat.alphaToCoverage = true; }   // the far band: the game's own pixels past 700 m, lit as ground is
       else mat = std(map ? { map } : { color: new THREE.Color(0.12, 0.13, 0.11) });
       const m = new THREE.Mesh(g, mat); m.name = 'gview:' + M.name; m.castShadow = false; m.receiveShadow = false; m.renderOrder = M.kind === 'decal' ? 3 : (M.order || 0);
       m.matrixAutoUpdate = false; m.userData.gview = M.kind; group.add(m); tris += M.tris;
@@ -108,7 +119,7 @@ var GARAGE_VIEW = (() => {
       },
       dispose() { group.traverse(m => { if (m.geometry) m.geometry.dispose(); }); for (const m of mats) m.dispose(); for (const k of Object.keys(pack.tex)) pack.tex[k].dispose(); } };
   }
-  return { S, load, build, haze: HZ };
+  return { S, find, load, build, haze: HZ };
 })();
 if (typeof window !== 'undefined') window.GARAGE_VIEW = GARAGE_VIEW;
 if (typeof module !== 'undefined' && module.exports) module.exports = GARAGE_VIEW;

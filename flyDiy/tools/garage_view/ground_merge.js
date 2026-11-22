@@ -94,16 +94,17 @@ const cards = C.grabs.filter(g => g.kind === 'card' && g.card).map(cardCurves);
 for (const c of cards) console.log('card ' + c.name + ' (eye ' + c.h + ' m): greys ' + c.rows.slice(0, 8).map(r => r ? r.got.map(Math.round).join('/') : '-').join('  ') + '   worst colour patch error ' + c.worst);
 const card = n => cards.find(c => c.name === n) || cards[0];
 if (!cards.length) { console.error('ground_merge: no card in the capture'); process.exit(1); }
+const MIDF = (M.site && M.site.mid) || { u: 560, v: 460, out: 110 };
 const S = M.sheds, out = { what: 'GARAGE-VIEW ground mosaics', made: new Date().toISOString(), mosaics: [], cards: cards.map(c => ({ name: c.name, h: c.h, worst: c.worst, rows: c.rows })) };
 const dir = (Sd, lx, lz) => { const c = Math.cos(Sd.ry), s = Math.sin(Sd.ry); return [lx * c + lz * s, -lx * s + lz * c]; };
 for (const Sd of S) { const id = Sd.id.replace(/\W/g, '_'), tiles = C.grabs.filter(g => g.kind === 'ground' && g.set === 'near_' + id), st = C.steps['ground_near_' + Sd.id]; if (!tiles.length || !st) continue;
   const [x0, x1, z0, z1] = st.rect, U = x1 - x0, V = z1 - z0, W = +opt('near', 2048), eu = dir(Sd, 1, 0), ev = dir(Sd, 0, 1), o0 = dir(Sd, x0, z0);
   out.mosaics.push(mosaic('near_' + id, tiles, { shed: Sd.id, o: [Sd.x + o0[0], Sd.z + o0[1]], eu, ev, U, V, W, Hh: Math.round(W * V / U), room: st.rect }, card('card_ground12'))); }
 { const tiles = C.grabs.filter(g => g.kind === 'ground' && g.set === 'mid'), st = C.steps.ground_mid;
-  if (tiles.length && st) { const d = [S[0].doorDir.x, S[0].doorDir.z], t = [-d[1], d[0]], U = 560, V = 460, W = +opt('mid', 4096);
-    out.mosaics.push(mosaic('mid', tiles, { o: [st.centre[0] - d[0] * 280 - t[0] * 230, st.centre[1] - d[1] * 280 - t[1] * 230], eu: d, ev: t, U, V, W, Hh: Math.round(W * V / U) }, card('card_ground120'))); } }
+  if (tiles.length && st) { const d = [S[0].doorDir.x, S[0].doorDir.z], t = [-d[1], d[0]], U = MIDF.u, V = MIDF.v, W = +opt('mid', 4096);
+    out.mosaics.push(mosaic('mid', tiles, { o: [st.centre[0] - d[0] * U / 2 - t[0] * V / 2, st.centre[1] - d[1] * U / 2 - t[1] * V / 2], eu: d, ev: t, U, V, W, Hh: Math.round(W * V / U) }, card('card_ground120'))); } }
 { const tiles = C.grabs.filter(g => g.kind === 'ground' && g.set === 'wide');
-  if (tiles.length) { const d = [S[0].doorDir.x, S[0].doorDir.z], t = [-d[1], d[0]], U = 1900, V = 1820, W = +opt('wide', 2048);   // (20 m cells whose lines fall on the mid picture's edges: cook.js's wide grid)
-    out.mosaics.push(mosaic('wide', tiles, { o: [M.mid.x - d[0] * 350 - t[0] * 910, M.mid.z - d[1] * 350 - t[1] * 910], eu: d, ev: t, U, V, W, Hh: Math.round(W * V / U) }, card('card_ground120'))); } }
+  if (tiles.length) { const d = [S[0].doorDir.x, S[0].doorDir.z], t = [-d[1], d[0]], U = MIDF.u + 180 + 1160, V = MIDF.v + 1360, W = +opt('wide', 2048);   // (20 m cells whose lines fall on the mid picture's edges: cook.js's wide grid)
+    out.mosaics.push(mosaic('wide', tiles, { o: [M.mid.x + d[0] * (MIDF.out - MIDF.u / 2 - 180) - t[0] * (MIDF.v / 2 + 680), M.mid.z + d[1] * (MIDF.out - MIDF.u / 2 - 180) - t[1] * (MIDF.v / 2 + 680)], eu: d, ev: t, U, V, W, Hh: Math.round(W * V / U) }, card('card_ground120'))); } }
 fs.writeFileSync(path.join(OUT, 'ground.json'), JSON.stringify(out));
 console.log('ground_merge: ' + out.mosaics.length + ' mosaics -> ' + OUT);

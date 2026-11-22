@@ -1529,15 +1529,16 @@
   // GARAGE-VIEW (22 Nov): the cooked world out of the club hangar's and the large hangar's door (garage_view.js). OPT-IN while
   // the look is being judged (?gview=1; the user's rule: a look lands whole): the pack is fetched behind the room, the scene
   // stood when it lands (hangar.gviewFrom), the outdoors' materials taken into the sky's probe by one more bake
-  const gviewOn = () => { try { return /[?&]gview=1\b/.test(location.search || ''); } catch (e) { return false; } };
-  const GVIEW_BASE = 'media/garage_view/jolene_home/';
-  let gviewPack = null, gviewFor = null;
+  const gviewOn = () => { try { return !!window.FLYDIY_GVIEW_ON || /[?&]gview=1\b/.test(location.search || ''); } catch (e) { return false; } };   // (FLYDIY_GVIEW_ON: a rig's switch, the before and the after in one boot)
+  const gviewPacks = new Map();   // a pack's base -> its load (one fetch a scene, shared by the rooms it serves)
+  let gviewFor = null;
   function gviewTick() {
     if (!gviewOn() || !hangar || !hangar.gviewFrom || gviewFor === hangar || typeof GARAGE_VIEW === 'undefined') return;
-    if (window.FLYDIY_WORLD !== 'jolene' || roomBase() !== 'HOME' || hangar.shell === 'field') return;
     gviewFor = hangar; const H = hangar;
-    if (!gviewPack) gviewPack = GARAGE_VIEW.load(GVIEW_BASE, THREE);
-    gviewPack.then(pack => { if (hangar !== H) return; const t0 = performance.now(), B = H.gviewFrom(pack);
+    GARAGE_VIEW.find(window.FLYDIY_WORLD, roomBase(), roomId()).then(row => { if (!row || hangar !== H) return null;
+      if (!gviewPacks.has(row.base)) gviewPacks.set(row.base, GARAGE_VIEW.load(((typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '') + row.base, THREE));
+      return gviewPacks.get(row.base); })
+    .then(pack => { if (!pack || hangar !== H) return; const t0 = performance.now(), B = H.gviewFrom(pack);
       if (B) { window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(performance.now() - t0).toFixed(1), scene: B }; try { bakeHangarEnv(); } catch (e) {} } })
       .catch(e => { console.warn('flyDiy: the garage view -', e && e.message); });
   }

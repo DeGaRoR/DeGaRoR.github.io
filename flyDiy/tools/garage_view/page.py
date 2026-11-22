@@ -12,6 +12,7 @@ ap.add_argument('--in', dest='src', required=True)
 ap.add_argument('--out', required=True)
 ap.add_argument('--sketch', default=None)
 ap.add_argument('--note', default='')
+ap.add_argument('--refs', default=None, help="a capture dir: the game's own door views (ref_<time>_<shed>_<view>.png)")
 A = ap.parse_args()
 SK = A.sketch or A.src
 M = json.load(open(os.path.join(A.src, 'measure.json'), encoding='utf-8'))
@@ -32,7 +33,7 @@ def png(name):
 
 
 club, large = M['sheds'][0], M['sheds'][1]
-home = [r for r in M['runways'] if r['id'] == 'HOME'][0]
+home = [r for r in M['runways'] if r['id'] == (M.get('site') or {}).get('field', 'HOME')][0]
 hz = M['horizon'][0]['rows']
 cone = [r for r in hz if abs(((r['a'] - club['doorBearing'] + 540) % 360) - 180) <= 80]
 top = max(cone, key=lambda r: r['el'])
@@ -50,6 +51,35 @@ def pair(shed, view):
     tod = [v for v in S if v['shed'] == shed and v['view'] == view and v['scene'] == 'today'][0]
     return ('<div class="pair"><h4>%s</h4><div class="two"><div><p class="cap ok">The measured world</p>%s</div><div><p class="cap bad">What the garage builds today</p>%s</div></div></div>'
             % (esc(ref['label'][0].upper() + ref['label'][1:]), figure(ref), figure(tod)))
+
+
+def jpg(path, w=1280, q=80):
+    from PIL import Image
+    import io
+    im = Image.open(path).convert('RGB')
+    if im.width > w:
+        im = im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
+    b = io.BytesIO(); im.save(b, 'JPEG', quality=q, optimize=True)
+    return 'data:image/jpeg;base64,' + base64.b64encode(b.getvalue()).decode()
+
+
+def refs_section():
+    if not A.refs:
+        return ''
+    out = []
+    for sh, nm in ((club, 'club hangar'), (large, 'large hangar')):
+        sid = re.sub(r'\W', '_', sh['id'])
+        pics = []
+        for view, cap in (('door_out', 'straight out of the door'), ('door_left', '45 degrees to the left'), ('door_right', '45 degrees to the right')):
+            f = os.path.join(A.refs, 'ref_now_%s_%s.png' % (sid, view))
+            if os.path.exists(f):
+                pics.append('<figure class="shot"><div class="frame"><img alt="The game from the %s door, %s" src="%s" loading="lazy"></div><figcaption>%s</figcaption></figure>' % (nm, cap, jpg(f), cap[0].upper() + cap[1:]))
+        if pics:
+            out.append('<h4 style="margin-top:14px">From the %s door</h4><div class="refs">%s</div>' % (nm, ''.join(pics)))
+    if not out:
+        return ''
+    return ('<section><h2>The game itself, from each door</h2><p>Real pictures from the game (the 16:00 light it boots in), the eye standing in each door at 1.7 m, through the same 46 degree lens the garage uses. '
+            'These are the references the new scene is judged against.</p>%s</section>' % ''.join(out))
 
 
 def rows(items, name):
@@ -102,6 +132,7 @@ p { margin: 0 0 10px; max-width: 68ch; } ul { margin: 0; padding-left: 20px; max
 @media (max-width: 720px) { .two { grid-template-columns: 1fr; } h1 { font-size: 25px; } }
 .pair { border-top: 1px solid var(--line); padding-top: 14px; }
 .pairs { display: flex; flex-direction: column; gap: 18px; }
+.refs { display: grid; grid-template-columns: 1fr; gap: 12px; } figcaption { font-size: 13px; color: var(--mute); margin-top: 4px; }
 .cap { font-size: 13px; font-weight: 600; margin: 0 0 4px; } .cap.ok { color: var(--good); } .cap.bad { color: var(--bad); }
 figure { margin: 0; } .frame { position: relative; line-height: 0; border: 1px solid var(--line); overflow: hidden; }
 .frame img { width: 100%; height: auto; display: block; }
@@ -122,6 +153,8 @@ code { font-family: var(--mono); font-size: .92em; }
   <p class="lead" style="margin-top:10px">The world round the club hangar and the large hangar, measured from the game's own data. This is the survey the new outdoor scene is built from; nothing here is the final look. The pictures are schematic (flat colours, boxes, cones) but every place, size and distance is the game's.</p>
   __NOTE__
 </header>
+
+__REFS__
 
 <section class="facts">
   <div class="fact"><b>__BETWEEN__ m</b><span>between the two hangars; one shared scene serves both</span></div>
@@ -187,6 +220,7 @@ code { font-family: var(--mono); font-size: .92em; }
 '''
 
 rep = {
+    '__REFS__': refs_section(),
     '__NOTE__': ('<p class="hint">%s</p>' % esc(A.note)) if A.note else '',
     '__BETWEEN__': str(M['between']), '__BEAR__': '%d' % round(club['doorBearing']),
     '__RWY__': '%d' % round(home['nearest'][0]['toEdge']), '__TOPH__': '%d' % round(top['h']), '__TOPD__': '%.0f' % (top['d'] / 1000), '__TOPE__': '%.1f' % top['el'],

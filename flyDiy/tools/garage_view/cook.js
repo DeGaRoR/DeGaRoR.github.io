@@ -14,6 +14,8 @@
 //   trees    every tree the fill draws within --trees m (default 700), each a card of its species' own sheet, at its place,
 //            height and sink, facing the middle of the two sheds (the eye never leaves the rooms: 60 m and more away)
 //   props    the buildings and the vehicles near, the game's own shapes
+//   far      everything past 700 m (the far forest, the ridges, the summits, the sea) as ONE band: the game's own pixels,
+//            shot from the middle of the sheds with the near plane at 700 m, on a wall at that distance all round
 // Nothing here is drawn by hand: every number is the game's (measure.js, census.js, capture.js).
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -24,12 +26,13 @@ const IN = require(path.join(T, 'island_node.js'));
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const MDIR = opt('measure', path.join(T, 'perf', 'garage_view')), CAP = opt('cap', null), GDIR = opt('ground', CAP), OUT = opt('out', path.join(MDIR, 'scene'));
-const TREE_R = +opt('trees', 700);
+const TREE_R0 = opt('trees', null);
 fs.mkdirSync(OUT, { recursive: true });
 const M = JSON.parse(fs.readFileSync(path.join(MDIR, 'measure.json'), 'utf8'));
 const CEN = JSON.parse(fs.readFileSync(path.join(MDIR, 'census.json'), 'utf8'));
-const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fixtures', M.fixture || 'island_jolene.json'), 'utf8') });
-const S = M.sheds, SEA = M.sea || 0;
+const SITE = M.site || { pack: 'jolene_home', world: 'jolene', fixture: M.fixture || 'island_jolene.json', field: 'HOME', trees: 700, mid: { u: 560, v: 460, out: 110 } };
+const W = IN.islandWorld(SITE.world, { premises: fs.readFileSync(path.join(T, 'fixtures', SITE.fixture), 'utf8') });
+const S = M.sheds, SEA = M.sea || 0, TREE_R = +(TREE_R0 || SITE.trees || 700);
 const ORG = [M.mid.x, S[0].ySite !== null && S[0].ySite !== undefined ? S[0].ySite : S[0].y, M.mid.z];
 const Hh = (x, z) => Math.max(W.terrainH(x, z), SEA);
 const d0 = [S[0].doorDir.x, S[0].doorDir.z], t0 = [-d0[1], d0[0]];
@@ -39,7 +42,7 @@ const s2l = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.0
 const BIN = []; let binAt = 0;
 const put = (arr) => { const b = Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength), pad = (4 - (b.length % 4)) % 4, at = binAt; BIN.push(b); if (pad) BIN.push(Buffer.alloc(pad)); binAt += b.length + pad;
   return { at, n: arr.length, t: arr instanceof Float32Array ? 'f32' : arr instanceof Uint32Array ? 'u32' : arr instanceof Uint16Array ? 'u16' : 'u8' }; };
-const SCENE = { v: 1, what: 'GARAGE-VIEW scene: the world round the club hangar and the large hangar', made: new Date().toISOString(), site: 'jolene:HOME', fixture: M.fixture, origin: ORG.map(v => +v.toFixed(3)),
+const SCENE = { v: 1, what: 'GARAGE-VIEW scene: the world round the club hangar and the large hangar', made: new Date().toISOString(), pack: SITE.pack, world: SITE.world, field: SITE.field, fixture: SITE.fixture, rev: M.rev || null, origin: ORG.map(v => +v.toFixed(3)),
   sheds: S.map(s => ({ id: s.id, x: s.x, y: s.ySite !== null ? s.ySite : s.y, z: s.z, ry: s.ry, HW: s.HW, HD: s.HD })), meshes: [], textures: {}, stats: {} };
 const mesh = (name, kind, tex, A, extra) => { const m = Object.assign({ name, kind, tex: tex || null, tris: A.idx.length / 3, verts: A.pos.length / 3 }, extra || {});
   for (const k of ['pos', 'nrm', 'uv', 'col', 'idx']) if (A[k]) m[k] = put(A[k]); SCENE.meshes.push(m); return m; };
@@ -62,13 +65,20 @@ const smoothN = A => { const n = new Float32Array(A.pos.length), p = A.pos, ix =
     const nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0]; for (const k of [a, b, c]) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz; } }
   for (let i = 0; i < n.length; i += 3) { const l = Math.hypot(n[i], n[i + 1], n[i + 2]) || 1; n[i] /= l; n[i + 1] /= l; n[i + 2] /= l; } return n; };
 
+// ================= THE FAR BAND (read first: it decides how far the ground goes) =================================================
+const CJ0 = CAP && fs.existsSync(path.join(CAP, 'capture.json')) ? JSON.parse(fs.readFileSync(path.join(CAP, 'capture.json'), 'utf8')) : null;
+const FARG = CJ0 ? CJ0.grabs.filter(g => g.kind === 'far' && g.ap === 1 && fs.existsSync(path.join(CAP, g.name + '.png'))) : [];
+const FAR = FARG.length >= 6 ? { R: FARG[0].near, eye: FARG[0].eye } : null;
+
 // ================= THE GROUND =================================================================================================
 const GJ = GDIR && fs.existsSync(path.join(GDIR, 'ground.json')) ? JSON.parse(fs.readFileSync(path.join(GDIR, 'ground.json'), 'utf8')) : null;
 const mos = tag => GJ ? GJ.mosaics.find(m => m.tag === tag) : null;
 const copyTex = (key, file) => { fs.copyFileSync(path.join(GDIR, file), path.join(OUT, file)); SCENE.textures[key] = { file, srgb: true }; return key; };
 // the frames, the ones ground_merge.js draws its mosaics in (kept in step by ground.json when it is there)
-const F_MID = mos('mid') || { o: [M.mid.x + d0[0] * 110 - d0[0] * 280 - t0[0] * 230, M.mid.z + d0[1] * 110 - d0[1] * 280 - t0[1] * 230], eu: d0, ev: t0, U: 560, V: 460 };
-const F_WIDE = mos('wide') || { o: [M.mid.x - d0[0] * 350 - t0[0] * 910, M.mid.z - d0[1] * 350 - t0[1] * 910], eu: d0, ev: t0, U: 1900, V: 1820 };
+const MU = SITE.mid.u, MV = SITE.mid.v, MO = SITE.mid.out;
+const F_MID = mos('mid') || { o: [M.mid.x + d0[0] * (MO - MU / 2) - t0[0] * MV / 2, M.mid.z + d0[1] * (MO - MU / 2) - t0[1] * MV / 2], eu: d0, ev: t0, U: MU, V: MV };
+// the wide frame: 20 m cells whose lines fall on the mid picture's edges (670 m each side of it and 580 m behind, 1160 m ahead)
+const F_WIDE = mos('wide') || { o: [M.mid.x + d0[0] * (MO - MU / 2 - 180) - t0[0] * (MV / 2 + 680), M.mid.z + d0[1] * (MO - MU / 2 - 180) - t0[1] * (MV / 2 + 680)], eu: d0, ev: t0, U: MU + 180 + 1160, V: MV + 1360 };
 { const A = grid(F_MID, Math.round(F_MID.U / 4), Math.round(F_MID.V / 4)); A.nrm = smoothN(A); mesh('ground:mid', 'ground', mos('mid') ? copyTex('ground_mid', mos('mid').file) : null, A, { order: 0 }); }
 for (const Sd of S) { const id = Sd.id.replace(/\W/g, '_'), F = mos('near_' + id); if (!F) continue; const rim = 3;
   const A = grid(F, Math.round(F.U / 2), Math.round(F.V / 2), { lift: 0.012, alpha: (u, v) => Math.max(0, Math.min(1, Math.min(u, v, F.U - u, F.V - v) / rim)) }); A.nrm = smoothN(A);
@@ -77,9 +87,9 @@ for (const Sd of S) { const id = Sd.id.replace(/\W/g, '_'), F = mos('near_' + id
   const st = 20, nu = Math.round(F_WIDE.U / st), nv = Math.round(F_WIDE.V / st);
   const inMid = (x, z, m) => { const dx = x - F_MID.o[0], dz = z - F_MID.o[1], u = dx * F_MID.eu[0] + dz * F_MID.eu[1], v = dx * F_MID.ev[0] + dz * F_MID.ev[1]; return u > m && v > m && u < F_MID.U - m && v < F_MID.V - m; };
   const wxz = (u, v) => [F_WIDE.o[0] + F_WIDE.eu[0] * u + F_WIDE.ev[0] * v, F_WIDE.o[1] + F_WIDE.eu[1] * u + F_WIDE.ev[1] * v];
-  const A = grid(F_WIDE, nu, nv, { skip: (u, v) => { const q = wxz(u, v); return inMid(q[0], q[1], st * 1.5); }, drop: (u, v) => { const q = wxz(u, v); return inMid(q[0], q[1], 0.5) ? -0.35 : 0; } });
+  const A = grid(F_WIDE, nu, nv, { skip: (u, v) => { const q = wxz(u, v); return inMid(q[0], q[1], st * 1.5) || (FAR && Math.hypot(q[0] - FAR.eye[0], q[1] - FAR.eye[2]) > FAR.R + 2.5 * st); }, drop: (u, v) => { const q = wxz(u, v); return inMid(q[0], q[1], 0.5) ? -0.35 : 0; } });
   A.nrm = smoothN(A); mesh('ground:wide', 'ground', mos('wide') ? copyTex('ground_wide', mos('wide').file) : null, A, { order: 0 }); }
-{ // THE RING: from the wide picture's edge out to 32 km, the land's own heights (the skyline), coloured by what the land is
+if (!FAR) { // THE RING (only without a far band): from the wide picture's edge out to 32 km, the land's own heights (the skyline), coloured by what the land is
   const NA = 180, NR = 34, ROUT = 32000, cx = F_WIDE.o[0] + F_WIDE.eu[0] * F_WIDE.U / 2 + F_WIDE.ev[0] * F_WIDE.V / 2, cz = F_WIDE.o[1] + F_WIDE.eu[1] * F_WIDE.U / 2 + F_WIDE.ev[1] * F_WIDE.V / 2;
   const pos = [], col = [], idx = [], canopy = (x, z) => (W.island && W.island.canopyAt) ? W.island.canopyAt(x, z) : 0;
   for (let a = 0; a <= NA; a++) { const th = a / NA * Math.PI * 2, c = Math.cos(th), s = Math.sin(th);
@@ -94,6 +104,42 @@ for (const Sd of S) { const id = Sd.id.replace(/\W/g, '_'), F = mos('near_' + id
   // face up: the ring is wound one way; turn it if its mean normal points down
   A.nrm = smoothN(A); let ny = 0; for (let i = 1; i < A.nrm.length; i += 3) ny += A.nrm[i]; if (ny < 0) { for (let t = 0; t < A.idx.length; t += 3) { const q = A.idx[t + 1]; A.idx[t + 1] = A.idx[t + 2]; A.idx[t + 2] = q; } A.nrm = smoothN(A); }
   mesh('ground:ring', 'ring', null, A, { order: 0, rout: ROUT }); }
+
+// ================= THE FAR BAND: the pictures into one strip, the strip onto a wall at the near plane's distance ==================
+if (FAR) {
+  const camF = g => { const m = g.cam.mw, pj = g.cam.pj, w = g.info.w, h = g.info.h; return { w, h, I: PNG.decode(fs.readFileSync(path.join(CAP, g.name + '.png'))),
+    px: d => { const vx = m[0] * d[0] + m[1] * d[1] + m[2] * d[2], vy = m[4] * d[0] + m[5] * d[1] + m[6] * d[2], vz = m[8] * d[0] + m[9] * d[1] + m[10] * d[2], cw = pj[3] * vx + pj[7] * vy + pj[11] * vz; if (cw <= 1e-6) return null;
+      return [((pj[0] * vx + pj[4] * vy + pj[8] * vz) / cw * 0.5 + 0.5) * w, (1 - ((pj[1] * vx + pj[5] * vy + pj[9] * vz) / cw * 0.5 + 0.5)) * h]; } }; };
+  const cams = FARG.map(camF), PW = +opt('farw', 8192), E0 = -1.6 * Math.PI / 180, E1 = 13 * Math.PI / 180, T0 = Math.tan(E0), T1 = Math.tan(E1), PH = Math.round(PW / (2 * Math.PI) * (T1 - T0));
+  const out = new Uint8Array(PW * PH * 4); let covered = 0;
+  // the card under the band's light (noon, no cloud): captured -> texture values (the greys)
+  const cardG = CJ0.grabs.find(g => g.name === 'card_ground12') || CJ0.grabs.find(g => g.name === 'card_noon'); let lut = null;
+  if (cardG) { const m = cardG.cam.mw, pj = cardG.cam.pj, I = PNG.decode(fs.readFileSync(path.join(CAP, cardG.name + '.png'))), K = cardG.card, cs = Math.cos(K.yaw), sn = Math.sin(K.yaw), xs = [[], [], []], ys = [];
+    const px = (x, y, z) => { const dx = x - m[12], dy = y - m[13], dz = z - m[14], vx = m[0] * dx + m[1] * dy + m[2] * dz, vy = m[4] * dx + m[5] * dy + m[6] * dz, vz = m[8] * dx + m[9] * dy + m[10] * dz, cw = pj[3] * vx + pj[7] * vy + pj[11] * vz + pj[15]; return cw > 1e-6 ? [((pj[0] * vx + pj[4] * vy + pj[8] * vz + pj[12]) / cw * 0.5 + 0.5) * I.w, (1 - ((pj[1] * vx + pj[5] * vy + pj[9] * vz + pj[13]) / cw * 0.5 + 0.5)) * I.h] : null; };
+    for (let i = 0; i < 8; i++) { const lx = ((i % K.grid[0] + 0.5) / K.grid[0] - 0.5) * K.w, lz = ((Math.floor(i / K.grid[0]) + 0.5) / K.grid[1] - 0.5) * K.h, q = px(K.at[0] + lx * cs + lz * sn, K.at[1], K.at[2] - lx * sn + lz * cs); if (!q) continue;
+      const acc = [0, 0, 0]; let n = 0; for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) { const X = Math.round(q[0] + dx), Y = Math.round(q[1] + dy); if (X < 0 || Y < 0 || X >= I.w || Y >= I.h) continue; const o = (Y * I.w + X) * I.ch; acc[0] += I.data[o]; acc[1] += I.data[o + 1]; acc[2] += I.data[o + 2]; n++; }
+      if (n) { for (let k = 0; k < 3; k++) xs[k].push(acc[k] / n); ys.push(K.cols[i][0]); } }
+    if (ys.length >= 4) lut = [0, 1, 2].map(k => { const X = xs[k].slice(), t = new Uint8Array(256); for (let i = 1; i < X.length; i++) if (X[i] <= X[i - 1]) X[i] = X[i - 1] + 0.01;
+      for (let v = 0; v < 256; v++) { let i = 0; while (i < X.length - 2 && v > X[i + 1]) i++; t[v] = Math.max(0, Math.min(255, Math.round(ys[i] + (ys[i + 1] - ys[i]) * (v - X[i]) / (X[i + 1] - X[i])))); } return t; }); }
+  for (let j = 0; j < PH; j++) { const te = T1 - (j + 0.5) / PH * (T1 - T0), ce = 1 / Math.hypot(1, te);
+    for (let i = 0; i < PW; i++) { const th = (i + 0.5) / PW * 2 * Math.PI, d = [Math.sin(th) * ce, te * ce, -Math.cos(th) * ce]; let r = 0, g = 0, b = 0, a = 0, ws = 0;
+      for (const c of cams) { const q = c.px(d); if (!q) continue; const mg = Math.min(q[0], q[1], c.w - q[0], c.h - q[1]); if (mg < 2) continue; const wt = Math.min(1, mg / 60);
+        const X = Math.max(0, Math.min(c.w - 2, Math.floor(q[0] - 0.5))), Y = Math.max(0, Math.min(c.h - 2, Math.floor(q[1] - 0.5))), tx = q[0] - 0.5 - X, ty = q[1] - 0.5 - Y, I = c.I, ch = I.ch;
+        for (const [ox, oy, wq] of [[0, 0, (1 - tx) * (1 - ty)], [1, 0, tx * (1 - ty)], [0, 1, (1 - tx) * ty], [1, 1, tx * ty]]) { const o = ((Y + oy) * I.w + X + ox) * ch, R0 = I.data[o], G0 = I.data[o + 1], B0 = I.data[o + 2], on = (R0 + G0 + B0) > 6 ? 1 : 0;   // the background is black: nothing past the near plane
+          r += R0 * wq * wt * on; g += G0 * wq * wt * on; b += B0 * wq * wt * on; a += wq * wt * on; }
+        ws += wt; }
+      if (!ws || a <= 0) continue; const o = (j * PW + i) * 4, al = a / ws; r /= a; g /= a; b /= a;
+      out[o] = lut ? lut[0][Math.round(r)] : r; out[o + 1] = lut ? lut[1][Math.round(g)] : g; out[o + 2] = lut ? lut[2][Math.round(b)] : b; out[o + 3] = Math.round(al * 255); if (al > 0.5) covered++; } }
+  // the colour bled one texel past the cut (no dark rim at the skyline)
+  { const src = Uint8Array.from(out); for (let j = 1; j < PH - 1; j++) for (let i = 0; i < PW; i++) { const o = (j * PW + i) * 4; if (src[o + 3] > 0) continue; for (const q of [o + PW * 4, o - PW * 4, ((j * PW + (i + 1) % PW)) * 4, ((j * PW + (i + PW - 1) % PW)) * 4]) if (src[q + 3] > 0) { out[o] = src[q]; out[o + 1] = src[q + 1]; out[o + 2] = src[q + 2]; break; } } }
+  fs.writeFileSync(path.join(OUT, 'far.png'), PNG.encode(PW, PH, 4, out)); SCENE.textures.far = { file: 'far.png', srgb: true };
+  // the wall: at the near plane's distance round the eye the band was shot from, its height the strip's own (linear in tan(elevation))
+  const NA = 96, pos = [], uv = [], nrm = [], idx = [];
+  for (let a = 0; a <= NA; a++) { const th = a / NA * 2 * Math.PI, sx = Math.sin(th), sz = -Math.cos(th); for (const [tv, v] of [[T0, 0], [T1, 1]]) { const pp = L(FAR.eye[0] + sx * FAR.R, FAR.eye[1] + tv * FAR.R, FAR.eye[2] + sz * FAR.R); pos.push(pp[0], pp[1], pp[2]); uv.push(a / NA, v); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
+  for (let a = 0; a < NA; a++) { const i0 = a * 2; idx.push(i0, i0 + 1, i0 + 2, i0 + 2, i0 + 1, i0 + 3); }
+  mesh('far', 'far', 'far', { pos: new Float32Array(pos), nrm: new Float32Array(nrm), uv: new Float32Array(uv), idx: new Uint32Array(idx) }, { alphaTest: 0.5, doubleSide: true, R: FAR.R });
+  SCENE.stats.far = { strip: [PW, PH], covered: +(covered / (PW * PH)).toFixed(3), shots: FARG.length, R: FAR.R, card: !!lut };
+}
 
 // ================= THE TREES ==================================================================================================
 const SHEETS = CAP && fs.existsSync(path.join(CAP, 'sheets.json')) ? JSON.parse(fs.readFileSync(path.join(CAP, 'sheets.json'), 'utf8')) : null;
@@ -178,7 +224,9 @@ if (CAP && fs.existsSync(path.join(CAP, 'capture.json'))) {
     const AT = 2048, sheet = new Uint8Array(AT * AT * 4), pos = [], nrm = [], uv = [], idx = []; let shelfY = 0, shelfH = 0, cursorX = 0, placed = 0, tris = 0;
     const things = [];
     for (const pr of PR) { const f = path.join(CAP, 'prop_' + String(pr.i).padStart(2, '0') + '.json'); if (!fs.existsSync(f)) continue; const J = JSON.parse(fs.readFileSync(f, 'utf8')); if (!J.tris) continue;
-      const P = f32(J.pos), Nn = f32(J.nrm), Ix = u32(J.idx), shots = J.shots.map(n => CJ.grabs.find(g => g.name === n)).filter(Boolean).map(g => ({ g, cam: camOf(g), I: null, bb: [1e9, 1e9, -1e9, -1e9], tri: [] }));
+      const P = f32(J.pos), Nn = f32(J.nrm), Ix = u32(J.idx),
+      // (a thing's shots by its index and eye: capture 2 of 22 Nov wrote the thing's name over the grab's)
+      shots = CJ.grabs.filter(g => g.kind === 'prop' && g.thing === pr.i).map(g => Object.assign({}, g, { name: 'prop_' + String(pr.i).padStart(2, '0') + '_' + g.eye })).filter(g => fs.existsSync(path.join(CAP, g.name + '.png'))).map(g => ({ g, cam: camOf(g), I: null, bb: [1e9, 1e9, -1e9, -1e9], tri: [] }));
       if (!shots.length) continue;
       // each triangle to the shot that faces it best and holds it whole
       for (let t = 0; t < Ix.length; t += 3) { const a = Ix[t] * 3, b = Ix[t + 1] * 3, c = Ix[t + 2] * 3, cx = (P[a] + P[b] + P[c]) / 3, cy = (P[a + 1] + P[b + 1] + P[c + 1]) / 3, cz = (P[a + 2] + P[b + 2] + P[c + 2]) / 3;
