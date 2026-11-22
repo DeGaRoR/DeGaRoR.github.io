@@ -41,3 +41,6 @@ GARAGE_2    ; D:/Dev/perf-lab-built ; profile=phone&gfx=gamer ; new ; H5K ; -
 HEADLESS_1  ; D:/Dev/perf-lab-built ; - ; new ; HL ; -
 # Game's perf-simplify (9b4130e40, L40K): the based planes + storage put back (the default holds them: the user's call)
 BASED_1     ; D:/Dev/perf-lab-built ; based=1 ; new ; H5K ; -
+# MOUNTAIN-VEG's alpine rock scatter (default on in its ref; ?alprocks=0 = off). UNCOMMENT only if its ref is in the lab
+# build: the load must not move (nothing of it is built before the reveal); its frames need an alpine orbit, not a load.
+#ALPROCKS0_1 ; D:/Dev/perf-lab-built ; alprocks=0 ; new ; H5K ; -
