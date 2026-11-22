@@ -215,7 +215,8 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
       try { const f = JSON.parse(await ev("(()=>{const c=document.body.classList;return JSON.stringify({fly:c.contains('mode-fly')&&!c.contains('mode-ws')&&!c.contains('rollShot'),set:window.BOOT&&BOOT.set,state:window.BOOT&&BOOT.state});})()"));
         if (f.set === 'rollout' && f.state !== 'gone') seen = true;
         if (f.fly && !flyWall) flyWall = Date.now();
-        if (!seen && !f.fly && Date.now() - lastGo > 2000) { lastGo = Date.now(); await ev(GO); goClicks++; } } catch (e) {}
+        // --rollout-once (23 Nov): Go is pressed ONCE, so the roll-out shot PLAYS (about 11 s): the departure a player sees
+        if (!flag('rollout-once') && !seen && !f.fly && Date.now() - lastGo > 2000) { lastGo = Date.now(); await ev(GO); goClicks++; } } catch (e) {}
       let s = null; try { s = JSON.parse(await ev(`(() => { const B = window.BOOT; const st = (window.TREE_FILL && TREE_FILL.ringStat) ? TREE_FILL.ringStat() : null;
         return JSON.stringify({ state: B.state, set: B.set, phase: B.current && B.current.id, ring: st, flying: /TAXI|DOWNWIND|FINAL|STOPPED/.test(document.body.innerText) }); })()`)); } catch (e) { continue; }
       if (s.set === 'rollout' && s.state === 'gone' && !goneWall) { goneWall = Date.now(); rollout = { screenMs: goneWall - t0r, ring: s.ring }; }
