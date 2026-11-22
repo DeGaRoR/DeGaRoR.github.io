@@ -574,8 +574,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // refused is built here, as before; so is every strip of a build no host sleeps for (buildWorldScene: the rigs, the gates),
   // of a live edit's repaint, and of a page without the worker. OPT-IN while it is measured: ?stripw=1 (the default is the
   // inline build). GATE STRIPWORKER: the worker's arrays are the inline build's, byte for byte.
-  const STRIPW = { on: typeof location !== 'undefined' && /[?&]stripw=1(?:&|$)/.test(location.search || ''), jobs: new Map(), seq: 0, asked: 0, used: 0, inline: 0, missed: 0,
-    workerMs: 0, waitMs: 0, patience: 120000, why: null };
+  // NEAR FIRST (?nearfirst=1, PERF-LEAD's rule of 22 Nov: "the reveal waits for the near set only; everything else is built
+  // nearest first in the worker and arrives after" - OPT-IN, a visible change the user sees in game before it is a default).
+  // For the strips: the load stands the COARSE form of every strip whose answer is not in (the same builder, its
+  // refinement off: 0.1 s for all 14 of Jolene, 47 k vertices against 2.1 M) and waits only for the strip the aeroplane
+  // stands on; the others LAND as the worker answers - one strip a task (stripwLand: the strip taken away and stood again
+  // on the refined arrays, a few ms of the page's thread), in the garage as in flight. The strips then stay UNMERGED (their
+  // draw order is G664's renderOrder, as before G926's merge): the merge saved 4 draws of 14 on Jolene and would upload all
+  // 167 MB a second time in the first seconds of the flight. The wheels never read a mesh (world.terrainH), so a coarse strip
+  // changes no take-off; what differs for those seconds is the drawn surface between its 6 m rows.
+  // FLYDIY_STRIPW_HOLD (a gate's): every strip but the stand's is stood coarse and landed after, whenever its answer came.
+  const STRIPW = { on: typeof location !== 'undefined' && /[?&](?:stripw|nearfirst)=1(?:&|$)/.test(location.search || ''), jobs: new Map(), seq: 0, asked: 0, used: 0, inline: 0, missed: 0,
+    workerMs: 0, waitMs: 0, patience: 120000, why: null,
+    near: typeof location !== 'undefined' && /[?&]nearfirst=1(?:&|$)/.test(location.search || ''), at: null, late: new Map(), coarse: 0, landed: 0, lost: 0, reasked: 0, landing: false, land: null, pumpT: 0, landMs: 0, landMax: 0, t0: 0, lastLandS: 0 };
   if (typeof window !== 'undefined') window.FLYDIY_STRIPW = STRIPW;
   const stripwHost = () => (typeof window !== 'undefined' && window.HOUSE_WORKER && window.HOUSE_WORKER.ok() ? window.HOUSE_WORKER : null);
   // a pavement strip's builder options, as standStrip resolves them (null: not a pavement strip). `data` is numbers only -
@@ -601,32 +612,79 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (!(typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true)) { STRIPW.why = 'no host to wait'; return; }
     if (!HWK || !HQ || !(HQ.epoch >= 0) || HQ.dead || !PAV || !PAV.stripUnpack || !world.wearScales) { STRIPW.why = 'no worker'; return; }
     let at = null; try { at = window.FLYDIY_TOWN_AT ? window.FLYDIY_TOWN_AT() : null; } catch (e) { at = null; }
+    STRIPW.at = at && isFinite(at[0]) && isFinite(at[2]) ? [at[0], at[2]] : null;
     const wear = world.wearScales(), jobs = [];
     for (const a of world.aerodromes) {
       if (!stripWanted(a)) continue;
       let SP = null; try { SP = stripSpec(a); } catch (e) { SP = null; }
       if (!SP) continue;
-      const seq = ++STRIPW.seq, d = at && isFinite(at[0]) ? Math.hypot(a.x - at[0], a.z - at[2]) : 0;
+      const seq = ++STRIPW.seq, d = STRIPW.at ? stripBoxDist(a, STRIPW.at[0], STRIPW.at[1]) : 0;   // (to the strip's box: a long strip passing the stand is near)
       STRIPW.jobs.set(a.id, { seq, key: stripKey(SP), r: null, done: false, miss: null, t0: performance.now(), ms: 0 });
       // (the recipe's fade and the refinement's reuse flag are the PAGE's: named, where the builder reads its own module's)
       jobs.push({ seq, id: a.id, d, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) });
     }
     if (!jobs.length) { STRIPW.why = 'no strip'; return; }
     jobs.sort((p, q) => p.d - q.d);
-    HWK.onStrip = m => { for (const [, J] of STRIPW.jobs) if (J.seq === m.seq) { J.done = true; J.r = m.r || null; J.miss = m.miss || null; J.ms = m.ms || 0; STRIPW.workerMs += J.ms; } };
+    HWK.onStrip = stripwAnswer;
     if (!HWK.post({ cmd: 'strips', epoch: HQ.epoch, wear, jobs })) { STRIPW.jobs.clear(); STRIPW.why = 'post failed'; return; }
     STRIPW.asked = jobs.length; STRIPW.why = 'asked';
+  }
+  // metres from (x, z) to a strip's box (its length and width; 0 on it)
+  function stripBoxDist(a, x, z) { const c = Math.cos(a.hdg || 0), s = Math.sin(a.hdg || 0), dx = x - a.x, dz = z - a.z, u = dx * c + dz * s, v = dx * s - dz * c;
+    return Math.hypot(Math.max(0, Math.abs(u) - a.len / 2), Math.max(0, Math.abs(v) - a.wid / 2)); }
+  // the worker's answer to a strip's job (the boot's ask, or a later one's): filed; a strip waiting coarse lands on the next task
+  function stripwAnswer(m) {
+    for (const [id, J] of STRIPW.jobs) if (J.seq === m.seq) { J.done = true; J.r = m.r || null; J.miss = m.miss || null; J.ms = m.ms || 0; STRIPW.workerMs += J.ms;
+      if (STRIPW.late.has(id)) stripwPump(); }
+  }
+  // one strip asked again (its options or the soil's scales moved while it waited coarse)
+  function stripAskOne(a) {
+    const HWK = stripwHost(), HQ = premisesR && premisesR.hw; let SP = null; try { SP = stripSpec(a); } catch (e) { SP = null; }
+    if (!HWK || !HQ || !(HQ.epoch >= 0) || HQ.dead || !SP) return false;
+    const seq = ++STRIPW.seq;
+    STRIPW.jobs.set(a.id, { seq, key: stripKey(SP), r: null, done: false, miss: null, t0: performance.now(), ms: 0 });
+    HWK.onStrip = stripwAnswer;
+    return HWK.post({ cmd: 'strips', epoch: HQ.epoch, wear: world.wearScales(), jobs: [{ seq, id: a.id, d: 0, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) }] });
+  }
+  // THE LANDING: one strip a task. A strip standing coarse whose answer is in is taken away and stood again on the refined
+  // arrays (STRIPW.land: the strips' block sets it); a stale answer is asked again (the strip stays coarse meanwhile); an
+  // answer that will not come (a miss, the worker gone) leaves the strip coarse and says so - a refined strip is NEVER built
+  // on the page's thread in flight (4.7 s for the dearest).
+  function stripwPump() {
+    if (STRIPW.pumpT || !STRIPW.late.size || !STRIPW.land) return;
+    STRIPW.pumpT = setTimeout(() => {
+      STRIPW.pumpT = 0;
+      let more = false;
+      for (const [id, a] of STRIPW.late) {
+        const J = STRIPW.jobs.get(id), alive = !!stripwHost();
+        if (!J || (J.done && !J.r) || (!J.done && !alive)) { STRIPW.late.delete(id); STRIPW.jobs.delete(id); STRIPW.lost++; console.warn('strip worker: ' + id + ' stays coarse (' + (J && J.miss || (alive ? 'no answer' : 'the worker is gone')) + ')'); continue; }
+        if (!J.done) continue;
+        let SP = null; try { SP = stripSpec(a); } catch (e) { SP = null; }
+        if (!SP || J.key !== stripKey(SP)) { STRIPW.reasked++; if (!SP || STRIPW.reasked > 40 || !stripAskOne(a)) { STRIPW.late.delete(id); STRIPW.jobs.delete(id); STRIPW.lost++; console.warn('strip worker: ' + id + ' stays coarse (stale)'); } continue; }
+        STRIPW.late.delete(id);
+        const tL = performance.now(), TAPL = typeof window !== 'undefined' && typeof window.FLYDIY_STRIPW_LAND === 'function' ? window.FLYDIY_STRIPW_LAND : null;   // (a gate's clock)
+        if (TAPL) TAPL(id, 0);
+        try { STRIPW.land(a); STRIPW.landed++; } catch (e) { STRIPW.lost++; console.warn('strip worker: ' + id + ' did not land (' + (e && e.message) + ')'); }
+        if (TAPL) TAPL(id, 1);
+        { const dL = performance.now() - tL; STRIPW.landMs += dL; if (dL > STRIPW.landMax) STRIPW.landMax = dL; STRIPW.lastLandS = +((performance.now() - STRIPW.t0) / 1000).toFixed(2);
+          // (PERF-TRACE's ledger: a delivery - its main-thread ms, s since the world's build ended, n still to land, what)
+          const FRd = typeof window !== 'undefined' && window.FLIGHT_REC; if (FRd && FRd.event) try { FRd.event('deliver', dL, { s: STRIPW.lastLandS, n: STRIPW.late.size, what: 'strip ' + id }); } catch (e) {} }
+        more = true; break;   // one a task
+      }
+      if (more && STRIPW.late.size) stripwPump();
+    }, 0);
   }
   // a strip's geometry: the worker's when its answer is in and still the strip's (the same options, the same scales), else built here
   function stripGeoOf(a, SP, sd) {
     const J = STRIPW.jobs.get(a.id);
+    if (STRIPW.landing && !(J && J.done && J.r && J.key === stripKey(SP))) throw new Error('no refined answer');   // (never a refined strip built here in flight)
     if (J) {
       STRIPW.jobs.delete(a.id);
       if (J.done && J.r && J.key === stripKey(SP)) {
         try { const g = PAV.stripUnpack(THREE, sd, J.r); STRIPW.used++;
           if (typeof window !== 'undefined' && typeof window.FLYDIY_STRIPW_TAP === 'function') window.FLYDIY_STRIPW_TAP(a.id, sd, g);   // (GATE STRIPWORKER's read)
           return g; }
-        catch (e) { console.warn('strip worker: ' + a.id + ' did not stand (' + (e && e.message) + ') - built here'); }
+        catch (e) { if (STRIPW.landing) throw e; console.warn('strip worker: ' + a.id + ' did not stand (' + (e && e.message) + ') - built here'); }
       } else if (J.miss) console.warn('strip worker: ' + a.id + ' (' + J.miss + ') - built here');
       STRIPW.missed++;
     }
@@ -7854,7 +7912,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
       for (const p of parts) { scene.remove(p.o); const k = p.stood.indexOf(p.o); if (k >= 0) p.stood.splice(k, 1); p.o.geometry.dispose(); }
     };
-    const standStrip = a => {
+    const standStrip = (a, coarse) => {   // coarse (NEAR FIRST): the pavement's rows unrefined - the refined strip lands later (stripwLand)
       const kind = a.surface === world.SURFACE.PAVED ? 'paved'
         : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass';
       // (G927: the kind's 512 x 64 canvas is painted only for a strip that wears it - a PAVEMENT strip never did)
@@ -7920,7 +7978,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // its bumps, 5 cm across: the ruts' walls)
         const sd = Object.assign({}, SP.data, { heightAt: world.stoneH && SP.micro ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH,
           liftAt: SP.lift ? PAV.liftOver(premisesR.pavedAt, a.id) : null });   // G2115: no lift over another pavement
-        const pgeo = stripGeoOf(a, SP, sd);
+        const pgeo = coarse ? PAV.stripGeometry(THREE, Object.assign({}, sd, { refine: false, refineMin: 0, refineMinV: 0 })) : stripGeoOf(a, SP, sd);
+        if (coarse) STRIPW.coarse++;
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
         // G664: the side is cut per pixel over every other strip's surface (the game's strips never had the
@@ -7940,7 +7999,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const F = PAV.field(sd);
         // (DIRT-STRIP) a bumpy strip's stones on it: the field's [u, v, R] (its v the ribbon's flipped), a stone R wide stands 1.1 R tall
         const extra = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.rocksOf ? STRIP_MICRO.rocksOf(a.id).map(r => { const w = F.frame.toWorld(r[0], -r[1]); return [w[0], w[1], 1.1 * r[2], 2 * r[2]]; }) : null;
-        rocksWhenReady(() => standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld, extra }, keep));
+        rocksWhenReady(() => stripStood.get(a.id) === stood && standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld, extra }, keep));
       } else if (LK && (a.look === 'none' || LK.set)) {
         const lookTex = LK.set ? mkLook(LK.set, a.len, a.wid) : null;
         if (lookTex) {
@@ -7977,6 +8036,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     for (const a of world.aerodromes) {
       if (a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises)) continue;
       // (PERF-WORLDBUILD) its geometry asked of the house worker and not in yet: the host sleeps on the worker's next message
+      // (NEAR FIRST) a strip the aeroplane does not stand on, its answer not in (or held: a gate's): coarse now, landed later
+      if (STRIPW.near && STRIPW.jobs.has(a.id) && !(STRIPW.at && stripBoxDist(a, STRIPW.at[0], STRIPW.at[1]) < 15)
+          && (!STRIPW.jobs.get(a.id).done || (typeof window !== 'undefined' && window.FLYDIY_STRIPW_HOLD === true))) {
+        STRIPW.late.set(a.id, a); standStrip(a, true); yield 'strip ' + a.id + ' (coarse)'; continue; }
       { const J = STRIPW.jobs.get(a.id);
         if (J && !J.done) { const tW = performance.now();
           while (!J.done && stripwHost() && performance.now() - J.t0 < STRIPW.patience) { window.FLYDIY_WORLD_WAIT = stripwHost().next(); yield 'strip ' + a.id + ': its geometry'; }
@@ -7986,7 +8049,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // entire island here was one measured 7.2-second, uninterruptible task.
       yield 'strip ' + a.id;
     }
-    STRIPW.jobs.clear();   // (an answer nobody stood: a strip the loop skipped)
+    for (const id of Array.from(STRIPW.jobs.keys())) if (!STRIPW.late.has(id)) STRIPW.jobs.delete(id);   // (an answer nobody stood: a strip the loop skipped)
+    // one strip taken away (a repaint's removal, one strip's): everything it stood, its windsock, its weather entry
+    const unstandStrip = id => {
+      const stood = stripStood.get(id); if (!stood) return;
+      for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material, o.geometry); if (o.userData && o.userData.rwyLight) { const L = o.userData.rwyGlow ? RWY.glows : RWY.meshes, k = L.indexOf(o); if (k >= 0) L.splice(k, 1); } }
+      stripStood.delete(id);
+      for (let i = WXG.length - 1; i >= 0; i--) if (WXG[i].id === id) WXG.splice(i, 1);
+    };
+    // (NEAR FIRST) a coarse strip's landing: away, and stood again on the worker's refined arrays; a failure stands it coarse again
+    STRIPW.land = a => { STRIPW.landing = true;
+      try { unstandStrip(a.id); standStrip(a); }
+      catch (e) { STRIPW.landing = false; try { unstandStrip(a.id); standStrip(a, true); } catch (e2) {} throw e; }
+      finally { STRIPW.landing = false; } };
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
     // every premises strip are taken away and stood again from the registry as it is now
     // (G3008) A REPAINT ONLY WHEN A STRIP IS CONCERNED: every edit of the premises (a road's, a site's, an area's) stood
@@ -8004,6 +8079,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (!need) return false;
       }
       stripSig = stripSigOf();
+      if (STRIPW.late.size) { STRIPW.late.clear(); STRIPW.jobs.clear(); }   // (NEAR FIRST: a repaint stands every strip whole, here - nothing left to land)
       unmergeStrips();
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
@@ -8014,7 +8090,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);
       mergeStrips();
     };
-    mergeStrips();
+    if (!STRIPW.near) mergeStrips();   // (NEAR FIRST: the strips stay unmerged - see STRIPW)
+    else { STRIPW.t0 = performance.now(); stripwPump(); }   // ...and the ones standing coarse land as their answers come
     if (PAV && PAV.onRebuild) PAV.onRebuild(() => { if (typeof window === 'undefined' || !window.WORLD || window.WORLD.scene === scene) repaintStrips(); });   // G928: the A/B stands them again the other way (this world's scene only)
   }
 
@@ -8827,6 +8904,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         fill: rs ? (rs.queued || 0) + (rs.busy && !rs.queued ? 1 : 0) : 0,
         fillNear: fillApi && cg && !fillApi.ringReady(cg, reach, true) ? 1 : 0,
         cover: q(coverRing), grass: q(grassField), lawn: q(lawnField), rocks: q(rockLayer), rockRing: q(rockRing), cards: q(standCards),
+        stripsFar: STRIPW.late.size,   // (NEAR FIRST: the strips standing coarse, their refined form still to land - never the gate's to wait for)
         ...(premisesR && premisesR.owed ? premisesR.owed() : {}) };
     },
     // REVEAL-HITCH (19 Oct): the grass field's and the cover ring's cells round each eye [x, y, z, rad], planted now (cover_ring

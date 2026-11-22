@@ -582,8 +582,10 @@ const GATES = [
   // rails, poles and far terrain byte for byte. Two page processes one after the other
   { id: 'PAVEXACT', file: '_pavexact_check.js', tier: 'core', wall: 300 },
   // PERF-WORLDBUILD (22 Nov 2026): the strips' geometry built in the house worker (?stripw=1) is the inline build's, byte for
-  // byte, on every pavement strip of Jolene and at two more soil rungs; none built on the page's thread; arrays transferred
-  { id: 'STRIPWORKER', file: '_stripworker_check.js', tier: 'core', wall: 240 },
+  // byte, on every pavement strip of Jolene and at two more soil rungs; none built on the page's thread; arrays transferred.
+  // And NEAR FIRST (?nearfirst=1): the held strips stand coarse at the load, land one a task, each byte-equal to the inline
+  // build, the end state one refined mesh a strip, unmerged. Two page processes one after the other
+  { id: 'STRIPWORKER', file: '_stripworker_check.js', tier: 'core', wall: 480 },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s

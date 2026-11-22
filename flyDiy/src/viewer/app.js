@@ -16125,7 +16125,7 @@
     // FAR queue (1.5 - 9 km, the fill's 4 ms a frame) goes on arriving in flight, as it already does past the 1 500-update
     // cap. A VISIBLE choice (stand-in cards for longer past 1.5 km): shown to the user before it is ever a default
     const SETTLE_NEAR = !!WF.settleStat && typeof location !== 'undefined' && /[?&]settle=near(?:&|$)/.test(location.search || '');
-    const nearOwed = () => { const s = WF.settleStat(cg, RING_REACH); let n = 0; for (const k in s) if (k !== 'fill' && k !== 'geo') n += s[k] > 0 ? s[k] : 0; return n; };
+    const nearOwed = () => { const s = WF.settleStat(cg, RING_REACH); let n = 0; for (const k in s) if (k !== 'fill' && k !== 'geo' && !/Far$/.test(k)) n += s[k] > 0 ? s[k] : 0; return n; };   // (a ...Far count is work that lands after the reveal by design)
     const idle = () => (!ST || !(ST.near > 0)) && !(WF.ringStat && WF.ringStat() && WF.ringStat().busy);
     // G1075 (LOAD-SETTLE): THE SLICE'S CLOCK, HONOURED INSIDE THE CALL. The 40 ms slice was only checked between two
     // worldUpdate calls, and ONE call could hold ~1.1 s: a premises build, an HLOD cell's merge, a stand-card chunk and
