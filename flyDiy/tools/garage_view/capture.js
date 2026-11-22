@@ -165,7 +165,8 @@ const PAGE = `(() => {
   const t0 = Date.now(), log = (...a) => console.log('[gv ' + ((Date.now() - t0) / 1000).toFixed(0).padStart(4) + ' s]', ...a);
   const META = { what: 'GARAGE-VIEW capture', made: new Date().toISOString(), do: DO, times: TIMES, hide: HIDE, steps: {}, grabs: [] };
   const save = () => fs.writeFileSync(path.join(OUT, 'capture.json'), JSON.stringify(META));
-  const rig = await RIG.start({ cap: CAP, size: opt('size', '1600x900'), q: opt('q', 'gview=0'), page: opt('page', 'index.html'), name: 'garage-view' });
+  const rig = await RIG.start({ cap: CAP, size: opt('size', '1600x900'), headed: !argv.includes('--headless'), q: opt('q', 'gview=0'),   // (HEADED by default: GPU-HEADED-RULE, 22 Nov)
+ page: opt('page', 'index.html'), name: 'garage-view' });
   let rc = 0;
   // a page call's value as JSON (a call that already returns JSON text is taken as it is); ms: its own time limit
   const JJ = async (expr, ms) => { const t = await rig.ev('Promise.resolve(' + expr + ').then(v => typeof v === "string" ? v : JSON.stringify(v === undefined ? null : v))', ms); return t == null ? null : JSON.parse(t); };
