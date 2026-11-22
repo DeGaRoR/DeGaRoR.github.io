@@ -7086,6 +7086,7 @@
   //   3 SKIN_GPU's riding program (raw GL, linked on the driver's threads; started here, not at the first break)
   //   4 the wreck's wires (wreckWires: a gear leg's material on a PLAIN mesh - a skinned leg's non-skinned variant)
   //   5 the ground scar's decals (ground_scar.js 'scar:decal' / 'scar:live': parked with the world; again here, known keys link nothing)
+  //   6 the wreck's wing structure (wsWreck, made at the first wing break) and its cut twins
   // Each by stand-in (PROG_WARM.standIn: the object by prototype, never shown for a call) or a plain mesh made for it,
   // compiled as scuffPrelink's (compileSliced: the craft dressed in the world, its lights key them) and first-drawn
   // (warmDrawSliced). FLYDIY_CRASH_PRELINK = false: off (the A/B).
@@ -7118,7 +7119,18 @@
         if (o.name === 'dmglook:pool' || o.name === 'scar:decal' || o.name === 'scar:live') for (const m of mats(o)) add(o, m);                       // 2, 5
       });
     } catch (e) { console.warn('crash prelink (gather):', e && e.message); }
-    const done = () => { if (W && S) { W.pre--; S.wakeSet(W); } };
+    // 6 THE WRECK'S WING STRUCTURE (wsWreck: WING_STRUCT.group made at the first wing break, added to model.grp - its own
+    // material and, as a record's host, its cut twin both linked at the crash: PERF-LEAD's screen run 23 Nov 00:50, the
+    // guard held 'wingStruct:0L/MeshPhysicalMaterial' 35 frames, 3.1 s). Made here once (its materials are wing_struct.js's
+    // shared library, the same keys), compiled, its geometry disposed when the job ends
+    let WSG = null;
+    try {
+      if (window.WING_STRUCT && window.FLYDIY_WINGSTRUCT !== false && model.wsRigs === undefined && def && def.parts && def.parts.wf) {
+        WSG = WING_STRUCT.group(THREE, def, { map: p => [p[0], p[1], p[2]], lod: 1, name: 'wingStructPrelink' });
+        for (const m of WSG.children) for (const mt of mats(m)) { plain(m.geometry, mt, 'crashPrelink:ws'); if (typeof brkCutMat === 'function') plain(m.geometry, brkCutMat(mt), 'crashPrelink:wscut'); }
+      }
+    } catch (e) { console.warn('crash prelink (wing structure):', e && e.message); }
+    const done = () => { if (W && S) { W.pre--; S.wakeSet(W); } if (WSG) { try { WING_STRUCT.dispose(WSG); } catch (e) {} WSG = null; } };
     if (!CG.children.length) { done(); return null; }
     let job;
     try {
