@@ -71,6 +71,33 @@ function planePool() {
   }
   return out;
 }
+// THE WIDER POOL (STORY-REVAMP 22 Nov; opts.official, the CLI's --official): EVERY official plane, not only the career's
+// validated designs - "this is a game about building planes": a mission no validated design can fly may still be flown
+// by an aeroplane of the Official list the player can build or copy. Each extra row is measured here the way the
+// snapshots are (tools/snapshots.js: genShakedown for the design row, tools/_freight_site.js for the hold's card) and
+// stands in CONTRACT_DESIGNS / FREIGHT_CARDS under 'L<list n>' FOR THIS PROCESS ONLY (the game's tables are not written).
+// The validated designs come first, in their order: the smallest capable career design still flies a mission it can.
+let WIDE = null;
+function widePool() {
+  if (WIDE) return WIDE;
+  const base = planePool(), have = new Set(base.map(p => p.file)), out = base.slice();
+  let FSITE = null; try { FSITE = require(path.join(T, '_freight_site.js')); } catch (e) { FSITE = null; }
+  for (const r of officialRows()) {
+    if (have.has(r.file)) continue;
+    try {
+      const P = planeDef(r.file), s = P.shake, sp = P.spec, k = 'L' + r.n;
+      const D = { id: k, label: r.name, build: r.file, gear: C.stripGear(sp) === 'floats' || s.gearType === 'floats' ? 'floats' : 'wheels', seats: s.envelope.seats,
+                  bagKg: (sp.cabin && sp.cabin.baggage) || 0, massKg: s.mass, emptyKg: s.empty, toM: s.TORun, cruiseKmh: s.VCruise * 3.6, rangeKm: s.rangeKm, spanM: s.span,
+                  cost: s.cost, tankL: s.energyL, power: s.energyKind };
+      if (![D.seats, D.massKg, D.emptyKg, D.toM, D.rangeKm].every(v => typeof v === 'number' && isFinite(v))) continue;
+      let card = null; try { card = FSITE ? FSITE.freightMeasureFile(r.file, D) : null; } catch (e) { card = null; }
+      C.CONTRACT_DESIGNS[k] = D;
+      if (card) C.FREIGHT_CARDS[k] = card;
+      out.push({ design: k, file: r.file, name: r.name, reg: r.reg || null, list: r.list, n: r.n, card: card && card.hold ? card : null, wide: true });
+    } catch (e) { /* a file the load door refuses is not a plane of the pool */ }
+  }
+  return (WIDE = out);
+}
 // the official rows a BUILD order is judged against (every official file: the player's own design could be any of them)
 function officialRows() { return planeList().filter(r => OFFICIAL_LISTS.includes(r.list) && r.file && !r.rides && fs.existsSync(path.join(ROOT, r.file))); }
 
@@ -520,7 +547,7 @@ function judgeMission(env, packRow, m, opts) {
   R.static = S;
   if (S.broken.length) { R.verdict = 'broken'; R.why = S.broken.join('; '); return R; }
   const subs = C.contractSubsOf(rec);
-  const pool = planePool();
+  const pool = o.official ? widePool() : planePool();
   R.pool = pool.map(p => p.design);
   // on offer at all? (the career's own offer list, with everything before it done) - an order is judged on it first; a
   // job after the game's capability rule (its reason - the load, the gear, the strip - is the more specific one)
@@ -650,5 +677,5 @@ function mdTable(rows) {
   return out.join('\n');
 }
 
-module.exports = { C, TR, SH, SLOT, planePool, officialRows, planeDef, readPacks, spotsPack, installPack, staticCheck, careerDaySpec, careerWith,
+module.exports = { C, TR, SH, SLOT, planePool, widePool, officialRows, planeDef, readPacks, spotsPack, installPack, staticCheck, careerDaySpec, careerWith,
   nextTarget, routeFor, flyOne, flyMission, buildCandidates, judgeMission, finalize, makeEnv, mdTable, legLine, fmtT };
