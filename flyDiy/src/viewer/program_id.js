@@ -8,7 +8,7 @@
 //
 // 1. THE DECLARATION. A material says whose it is where it is made, one of two equal forms:
 //        PROGRAMS.own(material, 'terrain / island ground / splat')        (returns the material)
-//        new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / houses / walls' }, ... })
+//        the key in the material's own literal:   { userData: { progOwner: 'town / houses / walls' }, color: ..., ... }
 //    Both write material.userData.progOwner: a string 'feature / system / variant', or an array of them (a shared
 //    material has several owners; own() on an owned material ADDS). It is DIAGNOSTIC METADATA: never in
 //    customProgramCacheKey (the key decides which materials share a program), never in the GLSL, never in
