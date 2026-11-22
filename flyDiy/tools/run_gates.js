@@ -992,6 +992,10 @@ const GATES = [
   // standing, a share of the disc as drag with the throttle closed (by the engine's state: turning, dead, seized,
   // electric, governed), linear between; the trim's cruise and approach throttles on the same law; nothing diverges.
   { id: 'IDLEPROP', file: '_idleprop_check.js', tier: 'core', wall: 10 },
+  // DRAGROWS (PHYSICS-AUDIT step 5, 22 Nov): a floatplane pays its floats and their struts (it paid a phantom wheeled
+  // gear), a hull half again a fuselage's body row, a bare radial's fuselage less the form drag the engine pays; a
+  // landplane, an inline engine and a measured cowl untouched.
+  { id: 'DRAGROWS', file: '_dragrows_check.js', tier: 'core', wall: 60 },
   // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
   // stand beside your build, held to their PUBLISHED span and length — every
   // measurement taken against a reference is worth exactly what that check is

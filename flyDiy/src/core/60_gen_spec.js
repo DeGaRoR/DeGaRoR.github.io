@@ -2100,6 +2100,24 @@ const GEN_DRAG = {
   // "RAF wire" every wire-braced biplane from 1916 on flew, a Tiger Moth's and a Stearman's - is 0.3-0.4 on the same
   // thickness (Hoerner ch. 6, lenticular and faired wire sections at a fineness of 3-4): 0.35
   wire: { cdRound: 1.0, cdStream: 0.35 },
+  // THE ROWS THE DRAG STUDY SUPPORTS (PHYSICS-AUDIT step 5, 2026-11-22; reports/PHYSICS-AUDIT-2026-11-21.md; GATE DRAGROWS)
+  //   float     A FLOAT'S OWN DRAG. A floatplane paid for a phantom wheeled gear: genGearCdA billed two bare wheels and
+  //             two legs on gear.type 'floats' (the PA-18 on floats' gear row was the landplane Cub's, to the digit) and
+  //             its floats nothing. Now: each float `cd` on its frontal (beam x depth; Hoerner, Fluid-Dynamic Drag
+  //             ch. 13: seaplane floats with their step 0.2-0.25) and its struts and spreaders - the frame's own exposed
+  //             float members - a streamline section strutT thick at `strutCd`, the truss's own figure; no wheels, no
+  //             legs (an amphibian's wheels are the amph row's, as before)
+  //   hullK     A HULL IS NOT A FUSELAGE: the step, the chines and the spray rails cost a planing hull about half again
+  //             a streamlined body's drag (Hoerner ch. 13: flying-boat hulls 0.10-0.14 on their frontal where a
+  //             fuselage of the same fineness is 0.07-0.09). The body row x hullK when the fuselage is the boat
+  //   radialWake  A BARE RADIAL AHEAD OF THE BODY: the cooling row bills an uncowled or ring-cowled radial as a wall of
+  //             cylinders (kCool.radialBare / radialRing: the engine's own pressure drag), and the body row billed the
+  //             fuselage behind it its full form factor on top - the same pressure drag twice. The body's form share
+  //             (FF - 1) / FF is taken off in proportion to the body's frontal the engine's disc covers, and to how far
+  //             the cowl is from a NACA cowl (which is the body's own nose: nothing taken off)
+  float: { cd: 0.25, strutCd: 0.10 },
+  hullK: 1.5,
+  radialWake: 1,
 };
 // THE TAIL'S BRACE WIRES ARE THE TAILPLANE'S CONSTRUCTION'S (PHYSICS-AUDIT step 2, 2026-11-21; GATE WIRES). The frame
 // braces every conventional stab's tips to the fin post with four tension wires (61_gen_frame, G233: the lattice's own
@@ -4383,6 +4401,9 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //              carries a share of its disc as drag - nothing at full throttle or standing, a few per cent of the
 //              cruise throttle, a steeper glide and a shorter float with the throttle closed; the trim's cruise and
 //              approach throttles are solved on the same law
+//      step 5  (2026-11-22) the drag rows the study supports (GEN_DRAG.float / hullK / radialWake): a floatplane pays its floats and
+//              their struts where it paid a phantom wheeled gear, a hull half again a fuselage's body row, a bare
+//              radial's fuselage less the form drag the engine already pays - every float, hull and bare-radial build
 const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
