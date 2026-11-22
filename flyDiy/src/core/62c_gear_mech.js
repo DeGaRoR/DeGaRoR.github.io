@@ -24,7 +24,7 @@
 
 // the axis-angle rotation, 3 x 3 row-major
 function gearRot(k, a) {
-  const c = Math.cos(a), s = Math.sin(a), C = 1 - c, x = k[0], y = k[1], z = k[2];
+  const c = CORE_MATH.cos(a), s = CORE_MATH.sin(a), C = 1 - c, x = k[0], y = k[1], z = k[2];
   return [c + x * x * C, x * y * C - z * s, x * z * C + y * s, y * x * C + z * s, c + y * y * C, y * z * C - x * s,
           z * x * C - y * s, z * y * C + x * s, c + z * z * C];
 }

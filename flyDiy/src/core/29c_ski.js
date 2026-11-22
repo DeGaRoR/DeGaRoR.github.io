@@ -186,7 +186,7 @@ const SKI_SOFT = {
     const S = SKI_SOFT.at(SO, X, vr), F = X && X.fresh;
     groundSinkPlate(S, N, A, w);
     if (F && N > 0 && A > 0) {
-      let zf = Math.pow(N / A / (F.k * S.f), 1 / F.n); if (zf > F.z) zf = F.z;
+      let zf = CORE_MATH.pow(N / A / (F.k * S.f), 1 / F.n); if (zf > F.z) zf = F.z;
       let z = zf + GROUND_SINK.z; if (z > SO.zMax) z = SO.zMax;
       GROUND_SINK.z = z;
     }
@@ -197,9 +197,9 @@ const SKI_SOFT = {
   resist(S, X, w, z, sole) {
     if (!(z > 0)) return 0;
     const pl = X ? X.plough : 0, F = sole && X && X.fresh;
-    if (!F) return w * S.k * Math.pow(z, S.n + 1) * (1 / (S.n + 1) + pl);
+    if (!F) return w * S.k * CORE_MATH.pow(z, S.n + 1) * (1 / (S.n + 1) + pl);
     const k0 = F.k * S.f, zf = z < F.z ? z : F.z, zs = z - zf;   // (the fresh k at the same speed as S's)
-    return w * (k0 * Math.pow(zf, F.n + 1) * (1 / (F.n + 1) + pl) + (zs > 0 ? S.k * Math.pow(zs, S.n + 1) * (1 / (S.n + 1) + pl) : 0));
+    return w * (k0 * CORE_MATH.pow(zf, F.n + 1) * (1 / (F.n + 1) + pl) + (zs > 0 ? S.k * CORE_MATH.pow(zs, S.n + 1) * (1 / (S.n + 1) + pl) : 0));
   },
 };
 

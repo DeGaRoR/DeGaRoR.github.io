@@ -75,7 +75,7 @@ const STRIP_MICRO = (() => {
     o.hazards = Math.round(pick('hazards', 0, 4)); o.hazardSize = pick('hazardSize', 0, 50); o.swell = pick('swell', 0, 60); o.lumps = pick('lumps', 0, 30);
     o.ruts = pick('ruts', 0, 25); o.cart = Math.round(pick('cart', -1, 1)); o.path = Math.round(pick('path', -1, 1)); o.rocks = pick('rocks', 0, 0.9);
     o.seed = m && isFinite(+m.seed) ? (+m.seed | 0) : 0;
-    o.gd = 16e-6 * Math.pow(4, 5 * c);   // Gd(n0), m^3
+    o.gd = 16e-6 * CORE_MATH.pow(4, 5 * c);   // Gd(n0), m^3
     return o;
   }
   // field(strip, micro, grade): strip = { c: [x, z], hdg, len, wid } in the frame the caller queries in (27_premises: the
@@ -99,7 +99,7 @@ const STRIP_MICRO = (() => {
       // THE SHAPE (the user, 9 Nov 17:15: "give variation to the round puddles. Stretch them in some directions, then mix them
       // with noise"): stretched 1-2.2 x along an axis within 30 deg of the strip's (the wheels draw them out), its outline
       // pushed inward by a noise (holeRho); eV / eU its reach across / along
-      const a = 1 + 1.2 * ih(i, m, seed + 18), th = (ih(i, m, seed + 19) - 0.5) * 1.05, cth = Math.cos(th), sth = Math.sin(th);
+      const a = 1 + 1.2 * ih(i, m, seed + 18), th = (ih(i, m, seed + 19) - 0.5) * 1.05, cth = CORE_MATH.cos(th), sth = CORE_MATH.sin(th);
       const eV = R * Math.sqrt(a * a * sth * sth + cth * cth), eU = R * Math.sqrt(a * a * cth * cth + sth * sth);
       const lim = halfW - EDGE_IN[1] - eV;
       if (lim <= 0 || u < END_IN + eU || u > len - END_IN - eU) return null;
@@ -134,7 +134,7 @@ const STRIP_MICRO = (() => {
         if (Math.abs(du) >= H[8] || Math.abs(dv) >= H[7]) continue;
         const rho = holeRho(du, dv, H, i, m);
         if (rho >= 1) continue;
-        const b = H[3] * 0.5 * (1 + Math.cos(Math.PI * rho));
+        const b = H[3] * 0.5 * (1 + CORE_MATH.cos(Math.PI * rho));
         if (b > d) d = b;
         if (fill > 0) w = Math.max(w, b - (1 - fill) * H[3]);
       }
@@ -164,7 +164,7 @@ const STRIP_MICRO = (() => {
         if (Math.abs(du) >= H[2] * H[4] || Math.abs(dv) >= H[2]) continue;
         const rho = Math.sqrt(du * du / (H[4] * H[4]) + dv * dv) / H[2] * (1 + 0.25 * (0.5 + 0.5 * vnoise(du / H[2] * 1.4 + j * 5.7, dv / H[2] * 1.4 + 11, seed + 38)));
         if (rho >= 1) continue;
-        const b = H[3] * 0.5 * (1 + Math.cos(Math.PI * rho));
+        const b = H[3] * 0.5 * (1 + CORE_MATH.cos(Math.PI * rho));
         h += b;
         if (fill > 0 && H[3] < 0) w = Math.max(w, -b - (1 - fill) * -H[3]);
       }

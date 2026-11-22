@@ -1954,7 +1954,7 @@ function hullTipFit(rec, grossKg, opt) {
     }
     if (V > 1e-6) {
       const KB = VB / V, BM = I / V, GM = KB + BM - o.cgY;
-      const need = (M * Math.max(0, -GM) * Math.sin(HEEL_DESIGN * D2R) + (o.torqueKgm || 0)) * RULE_K / o.arm;
+      const need = (M * Math.max(0, -GM) * CORE_MATH.sin(HEEL_DESIGN * D2R) + (o.torqueKgm || 0)) * RULE_K / o.arm;
       kg = Math.max(kg, need);
       stab = { KB: +KB.toFixed(3), BM: +BM.toFixed(3), GM: +GM.toFixed(3), need: +need.toFixed(1) };
     }
@@ -1974,7 +1974,7 @@ function hullRestTrim(rec, grossKg, cgX, cgY) {
   const M = Math.max(60, grossKg || 0), n = 120, dx = HP.L / n;
   const secs = []; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; secs.push(sectionOf(HP, x)); }
   const at = (th, w) => {
-    const c = Math.cos(th), sn = Math.sin(th);
+    const c = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
     let v = 0, mx = 0;
     for (const s of secs) {
       const hw = (w + s.x * sn) / c, a = secAreaTo(HP, s, hw) * dx;
@@ -1985,14 +1985,14 @@ function hullRestTrim(rec, grossKg, cgX, cgY) {
     return { m: v * HP.rho, X: v > 0 ? mx / v : 0 };
   };
   const draftAt = th => { let lo = -HP.L, hi = HP.L + HP.H; for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (at(th, m).m < M) lo = m; else hi = m; } return lo; };
-  const arm = th => { const w = draftAt(th), r = at(th, w); return { w, d: r.X - (cgX * Math.cos(th) + cgY * Math.sin(th)), full: r.m < 0.999 * M }; };
+  const arm = th => { const w = draftAt(th), r = at(th, w); return { w, d: r.X - (cgX * CORE_MATH.cos(th) + cgY * CORE_MATH.sin(th)), full: r.m < 0.999 * M }; };
   let lo = -25 * D2R, hi = 25 * D2R;
   if (arm(lo).d > 0) return { trim: -25, draft: arm(lo).w, arm: arm(lo).d, sunk: true };
   if (arm(hi).d < 0) return { trim: 25, draft: arm(hi).w, arm: arm(hi).d, sunk: true };
   for (let k = 0; k < 30; k++) { const m = 0.5 * (lo + hi); if (arm(m).d > 0) hi = m; else lo = m; }
   const th = 0.5 * (lo + hi), r = arm(th);
   // the bow's freeboard: the foremost station's deck over the water (the lowest the bow deck stands)
-  const s0 = sectionOf(HP, -HP.xs + 1e-6), bow = (-s0.x * Math.sin(th) + s0.yd * Math.cos(th)) - r.w;
+  const s0 = sectionOf(HP, -HP.xs + 1e-6), bow = (-s0.x * CORE_MATH.sin(th) + s0.yd * CORE_MATH.cos(th)) - r.w;
   return { trim: +(th / D2R).toFixed(2), draft: +r.w.toFixed(3), bowDeck: +bow.toFixed(3), sunk: r.full };
 }
 // HULL-B21: A SPONSON IS A STUB WING (the user: "they should link to the fuselage directly and they should really look

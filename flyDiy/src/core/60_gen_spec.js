@@ -3191,7 +3191,7 @@ function genTipOf(w) {
 function genTipBend(L, D) {
   const N = 64, sm = t => t * t * (3 - 2 * t);
   const run = PHI => { const Z = [0], Y = [0];
-    for (let i = 0; i < N; i++) { const th = PHI * sm((i + 0.5) / N); Z.push(Z[i] + Math.cos(th) * L / N); Y.push(Y[i] - Math.sin(th) * L / N); }
+    for (let i = 0; i < N; i++) { const th = PHI * sm((i + 0.5) / N); Z.push(Z[i] + CORE_MATH.cos(th) * L / N); Y.push(Y[i] - CORE_MATH.sin(th) * L / N); }
     return { Z, Y }; };
   const pMax = GEN_TIP_SHAPE.phiMax * Math.PI / 180;
   let PHI = 0;
@@ -3243,7 +3243,7 @@ function genTipBuoyTable(cT, L, D, full, t, sparF) {
       if (!(c > 1e-3) || a < -sf * c || a > (1 - sf) * c) continue;
       const h = yt(Math.max(0, Math.min(1, a / c + sf))) * c * genTipFat(full, s, L), th = BD.th(s), Z = BD.Z(s), Y = BD.Y(s);
       for (let q = 0; q <= NV; q++) {
-        const v = -h + 2 * h * q / NV, o = Z + v * Math.sin(th), u = Y + v * Math.cos(th);
+        const v = -h + 2 * h * q / NV, o = Z + v * CORE_MATH.sin(th), u = Y + v * CORE_MATH.cos(th);
         const iu = Math.floor(u / e), io = Math.floor(o / e), row = occ.get(iu) || new Set();
         row.add(io); occ.set(iu, row);
       }
