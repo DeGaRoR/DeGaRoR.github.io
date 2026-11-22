@@ -47,7 +47,7 @@ else say "part 2 SKIPPED: $(left) min left"; fi
 
 # 2b. MOUNTAIN-VEG's alpine rock scatter IN FLIGHT: the same two-minute orbit off the altiport, the scatter on (the
 #     build's default) then off (?alprocks=0). A load at the stand never goes above the tree line; this does.
-ORBIT_MIN=${SLOT_ORBIT_MIN:-7}
+ORBIT_MIN=${SLOT_ORBIT_MIN:-9}
 for oq in on off; do
   if [ $(left) -ge $(( ORBIT_MIN + 5 )) ]; then
     say "part 2b: the alpine orbit, rocks $oq, cap $ORBIT_MIN min"
