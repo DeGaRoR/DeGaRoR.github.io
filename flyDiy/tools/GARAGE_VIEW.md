@@ -102,6 +102,26 @@ call into the game's own code, behind the scene's switch; without a scene the ga
 - The low layers (shrubs, ferns, flowers, rocks) are shot from ONE eye (the first shed's door) in rings of distance:
   right from that door, a little off from a shed 70 m away. Two sheds far apart want two sets of rings (not built).
 
+- THE CALIBRATION CARD MUST LIE ON OPEN, LEVEL GROUND. Every colour of the scene is read through it. At the Cabin
+  Strip the default place (60 m out of the door, at the shed's floor height) was a forested slope: the card stood buried
+  under a tree and the curves were noise (a white grass strip, a blue cabin, blue summits). `sites/<pack>.json card.out`
+  says how far out of the first door it lies; `capture.js` lays it at the ground's own height (0.6 m over a grass
+  strip, above the blades). LOOK at `card_ground12.png` before the cook; `ground_merge.js` prints the greys it read
+  and the worst patch error.
+- A GRASS STRIP IS ITS BLADES. The ground pass hides the cover ring with the other low plants; a site whose ground is a
+  lawn sets `ground: { cover: true }` or the strip bakes bare and pale. A lawn shot from straight above still comes out
+  darker than the same lawn seen along the ground (measured at the Cabin Strip: about half).
+- WATER, SEEN FROM ABOVE, IS NEAR BLACK. A lake 160 m behind Jolene's hangars read as "a gap in terrain" through the
+  back window. Two wrong guesses came first (the land's end; the forest's floor): SAMPLE the baked texture and the
+  measured surface AT THE SPOT before guessing. `cook.js groundTex` gives measured water (surface 4) a sky-throwing
+  colour, lifts the near-black floor under the hidden canopy, and fills what no tile covered.
+- NOTHING ALIVE IN THE SCENE. An elk walked by the Cabin Strip's tower and was baked into the low rings: the rings'
+  pass hides the animals, the crowd and the residents, as the things' pass does.
+- A ROOM AT ANOTHER PLOT (the garage step: each shed's room at its own plot) is written into the player's document as
+  `playerAcquire` writes it, WITHOUT the price book (the career's `econShellPrice` is not in the sandbox page).
+- NEVER EDIT A SLOT SCRIPT WHILE IT RUNS (bash reads it as it goes), and a waiter started before a queue script changed
+  keeps the old one: kill it by its own PID tree and start it again.
+
 ## 4. When the world changes
 
 GATE GARAGEVIEW compares every pack with today's record: a shed moved or turned, or the record's `rev` changed, and the
