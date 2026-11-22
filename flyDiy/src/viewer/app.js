@@ -660,6 +660,8 @@
       doc = playerLift(dims, parts);
     }
     player = CAREER_DEV ? careerNormalise(doc) : playerNormalise(playerMigrate(doc));
+    // HANGAR-SWITCH (the user 22 Nov): the sandbox holds the game's three hangars, built and restored (71_player_bases.js)
+    if (!CAREER_DEV && typeof playerSandboxHangars === 'function') try { player = playerSandboxHangars(player); } catch (e) { console.warn('flyDiy: the sandbox hangars -', e && e.message); }
     // HANGAR-OUTDOORS (the user 17 Nov via A0: "I launched the sandbox mode, and it put me into the new big garage ... I want to
     // keep in the club hangar"): the SANDBOX opens in the club at HOME at every start - a saved `here` (the last "go there", a
     // restored HOME.2) is not where the game starts; a career keeps its own (the story moves it)
@@ -12281,7 +12283,7 @@
   }
   // the base select's move (the routes panel): an empty hangar empty, and out of an empty stand that hangar's aeroplane
   function standEmptyFollow() {
-    if (!CAREER_DEV || !inGarage) return;
+    if (!inGarage) return;   // (HANGAR-SWITCH: the sandbox's hangars keep their own aeroplane too)
     const d = playerLoad(), n = garageStand(d, d.here).stand;
     if (n && STAND_EMPTY) storeMove(n, { kind: 'floor' });
     else if (!n) standEmptySet(standEmptyAt(d, d.here));
@@ -12380,7 +12382,8 @@
   var STAND_EMPTY = false;
   function standEmptyAt(d, id) {
     const sh = d && d.sheds && d.sheds[id];
-    if (!CAREER_DEV || !sh || garageStand(d, id).stand) return false;
+    // (HANGAR-SWITCH, the user 22 Nov: "in the sandbox and in a career ... it keeps its own plane" - the sandbox's hangars too)
+    if (!sh || garageStand(d, id).stand) return false;
     if (STAND_EMPTY) return true;
     const S = slotOnStand(); if (!S || typeof playerStoreWhere !== 'function') return false;
     const W = playerStoreWhere(d, S), aero = typeof sh.base === 'string' ? sh.base : 'HOME';

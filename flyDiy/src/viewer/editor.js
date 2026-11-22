@@ -323,7 +323,12 @@ function editorInit(api) {
     host.appendChild(n);
     return host;
   };
-  registerRoot({ key: 'shed', name: 'The shed', order: 20,
+  // HANGAR-SWITCH (the user 22 Nov: "we shouldn't have the ability to configure the garage from the tree of parts. That's
+  // obsolete" ... "that could be useful for the materials, particularly the large hangar. I may want to still tune them. So
+  // okay, ?dev=1"): the shed's root stands in the tree under ?dev=1 only; a player moves between hangars with the top bar's
+  // hangar icon (hangar_switch.js). The group itself is still built (the quick bar's light and the night flyout borrow it)
+  const SHED_ROOT = typeof location !== 'undefined' && /[?&]dev=1(?:&|$)/.test(location.search || '');
+  if (SHED_ROOT) registerRoot({ key: 'shed', name: 'The shed', order: 20,
     meta: 'the room you build in, and the sky outside its door',
     panel: () => { fillRoots();
       return rootNote(shedHost, 'The shed is not in this build.'); } });
@@ -2599,7 +2604,14 @@ function editorInit(api) {
       const b = document.createElement('button');
       b.id = 'edMenu'; b.type = 'button'; b.title = 'Menu';
       b.setAttribute('aria-label', 'the menu: resume, the shed, the options, the main menu'); b.setAttribute('aria-expanded', 'false');
-      b.onclick = () => { if (M.isOpen()) M.close(); else M.open(); };
+      b.onclick = () => {
+        if (M.isOpen()) { M.close(); return; }
+        // ONE POPUP AT A TIME (HANGAR-SWITCH, the user 22 Nov): the plane's shelf, the hangar list, the load screen close
+        try { if (window.GARAGE_SHELF) window.GARAGE_SHELF.close(); } catch (e) {}
+        try { if (window.HANGAR_SWITCH) window.HANGAR_SWITCH.close(); } catch (e) {}
+        try { if (window.FLEET_SCREEN && window.FLEET_SCREEN.isOpen && window.FLEET_SCREEN.isOpen()) window.FLEET_SCREEN.close(); } catch (e) {}
+        M.open();
+      };
       fleet.insertBefore(b, fleet.firstChild);
       M.opener(b);
     }
