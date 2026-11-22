@@ -1511,7 +1511,7 @@
    "D": 1.62,
    "blades": 2,
    "material": "carbon",
-   "pitch": "standard",
+   "pitch": "climb",
    "chord": 0.1,
    "root": 0.16,
    "spinner": {
@@ -3203,6 +3203,12 @@
     "who": "session",
     "step": "fit",
     "line": "user 17 Nov: windscreen top bow 3 cm, the glass meets the wing {\"wsCeilBow\":0.03}"
+   },
+   {
+    "date": "2026-11-22T01:00",
+    "who": "session",
+    "step": "fit",
+    "line": "PHYSICS-AUDIT (user 21 Nov: the propeller imposes the limit rpm): a climb-pitch propeller - POH-128, the fixed propeller meets its 2300 rpm limit at 93 KCAS at maximum continuous power, below the speed its power would give {\"prop.pitch\":\"climb\"}"
    }
   ]
  }
