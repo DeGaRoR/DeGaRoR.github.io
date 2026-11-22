@@ -318381,3 +318381,9 @@ fifth, two, three) where it is ONE chain across the glass, else the first with 4
 chain, the dash across the cabin (x +-0.54), nothing between the legs, the cheeks on the forward edge. Every base the fifth
 already found whole is untouched. With it, DASH-CHAIN (the longest chain, stubs within 8 cm joined; the Electric trainer's
 dash, the user 21 Nov) rides here too.
+READY claude/ready/dash-fix (for L40J's tail, A0 16:57 option a): GATE DASH PASS (the 7 reds out), SNAPSHOTS and COMMITHYGIENE
+PASS; REALBAND re-pinned (c172v2 empty 709 -> 717 kg: the full dashboard billed by its area); PLANELISTS = the PC-6 livery pair
+(retired by pc6-liveries). NAMED, NOT HELD: GATE CLIP c172 - the nav aerial's wire 22.3 mm into edFinSkin at (0, 0.58, -0.82),
+deterministic, gone with the old band. The aerial's mast and the fin skin measure identical with either band in a plain build,
+so the cause is how CLIP builds one of them (the dorsal root following the deck line is the lead) - followed on user-fixes;
+nothing declared, no gate moved. Owner FLAGSHIP.

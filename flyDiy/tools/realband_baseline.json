@@ -110,6 +110,14 @@
    "moved": [
     "chinookm"
    ]
+  },
+  {
+   "date": "2026-11-22",
+   "reason": "DASH-FIX (22 Nov): the refitted 172 draws its dashboard across the cabin (it was one cheek) - c172v2 moved: empty 709 -> 717 kg, the dash billed by its area",
+   "core": "c2d790d51e890c3b",
+   "moved": [
+    "c172v2"
+   ]
   }
  ],
  "planes": {
@@ -867,64 +875,6 @@
     }
    }
   },
-  "dc3r": {
-   "stamp": {
-    "file": "builds/candidates/dc3_2026-10.json",
-    "blob": "c624a000bf5adabeaf917c712830ddbeb52d1cc2",
-    "core": "c2d790d51e890c3b"
-   },
-   "facts": {
-    "empty": 7936.62,
-    "fuelKg": 2239.2
-   },
-   "dims": {
-    "S": 97.1352,
-    "Sh": 15.043,
-    "Sv": 8.79903,
-    "cRoot": 4.63,
-    "cTip": 1.4,
-    "hSpan": 7.81496,
-    "height": 5.35655,
-    "length": 19.6,
-    "span": 29,
-    "track": 5.64
-   },
-   "cases": {
-    "min": {
-     "mass": 8566.42,
-     "Vs": 108.156,
-     "V75": 288.589,
-     "Vmax": 316.385,
-     "roc": 9.47428,
-     "LD": 12.9984,
-     "TOgrass": 263,
-     "cgMAC": 58.1763,
-     "sm": 7.44161
-    },
-    "typ": {
-     "mass": 9136.22,
-     "Vs": 111.695,
-     "V75": 287.703,
-     "Vmax": 315.827,
-     "roc": 8.71941,
-     "LD": 12.9984,
-     "TOgrass": 285,
-     "cgMAC": 57.1988,
-     "sm": 8.32837
-    },
-    "mtow": {
-     "mass": 11431,
-     "Vs": 124.937,
-     "V75": 283.187,
-     "Vmax": 313.042,
-     "roc": 6.35595,
-     "LD": 12.9984,
-     "TOgrass": 426,
-     "cgMAC": 66.2879,
-     "sm": 1.99331
-    }
-   }
-  },
   "petrel42": {
    "stamp": {
     "file": "builds/candidates/superpetrel_V4_2.json",
@@ -983,6 +933,64 @@
     }
    }
   },
+  "dc3r": {
+   "stamp": {
+    "file": "builds/candidates/dc3_2026-10.json",
+    "blob": "c624a000bf5adabeaf917c712830ddbeb52d1cc2",
+    "core": "c2d790d51e890c3b"
+   },
+   "facts": {
+    "empty": 7936.62,
+    "fuelKg": 2239.2
+   },
+   "dims": {
+    "S": 97.1352,
+    "Sh": 15.043,
+    "Sv": 8.79903,
+    "cRoot": 4.63,
+    "cTip": 1.4,
+    "hSpan": 7.81496,
+    "height": 5.35655,
+    "length": 19.6,
+    "span": 29,
+    "track": 5.64
+   },
+   "cases": {
+    "min": {
+     "mass": 8566.42,
+     "Vs": 108.156,
+     "V75": 288.589,
+     "Vmax": 316.385,
+     "roc": 9.47428,
+     "LD": 12.9984,
+     "TOgrass": 263,
+     "cgMAC": 58.1763,
+     "sm": 7.44161
+    },
+    "typ": {
+     "mass": 9136.22,
+     "Vs": 111.695,
+     "V75": 287.703,
+     "Vmax": 315.827,
+     "roc": 8.71941,
+     "LD": 12.9984,
+     "TOgrass": 285,
+     "cgMAC": 57.1988,
+     "sm": 8.32837
+    },
+    "mtow": {
+     "mass": 11431,
+     "Vs": 124.937,
+     "V75": 283.187,
+     "Vmax": 313.042,
+     "roc": 6.35595,
+     "LD": 12.9984,
+     "TOgrass": 426,
+     "cgMAC": 66.2879,
+     "sm": 1.99331
+    }
+   }
+  },
   "c172v2": {
    "stamp": {
     "file": "builds/cessna172r_2026-11-08.json",
@@ -990,7 +998,7 @@
     "core": "c2d790d51e890c3b"
    },
    "facts": {
-    "empty": 709.055,
+    "empty": 716.973,
     "fuelKg": 152.64
    },
    "dims": {
@@ -1000,44 +1008,44 @@
     "cRoot": 1.63,
     "cTip": 1.12,
     "hSpan": 3.38922,
-    "height": 2.96514,
+    "height": 2.96634,
     "length": 8.04,
     "span": 11.02,
     "track": 2.184
    },
    "cases": {
     "min": {
-     "mass": 817.215,
-     "Vs": 80.5689,
-     "V75": 204.788,
-     "Vmax": 228.413,
-     "roc": 5.56884,
-     "LD": 11.2117,
-     "TOgrass": 195,
-     "cgMAC": 29.5975,
-     "sm": 23.1006
+     "mass": 825.133,
+     "Vs": 80.9841,
+     "V75": 204.566,
+     "Vmax": 228.255,
+     "roc": 5.492,
+     "LD": 11.2133,
+     "TOgrass": 198,
+     "cgMAC": 29.0966,
+     "sm": 23.6596
     },
     "typ": {
-     "mass": 865.375,
-     "Vs": 82.909,
-     "V75": 203.696,
-     "Vmax": 227.741,
-     "roc": 5.11565,
-     "LD": 11.2117,
-     "TOgrass": 210,
-     "cgMAC": 30.0515,
-     "sm": 22.8093
+     "mass": 873.293,
+     "Vs": 83.314,
+     "V75": 203.466,
+     "Vmax": 227.569,
+     "roc": 5.045,
+     "LD": 11.2133,
+     "TOgrass": 212,
+     "cgMAC": 29.5741,
+     "sm": 23.3455
     },
     "mtow": {
-     "mass": 1111,
-     "Vs": 93.9412,
-     "V75": 196.318,
-     "Vmax": 223.396,
-     "roc": 3.32843,
-     "LD": 11.2117,
-     "TOgrass": 292,
-     "cgMAC": 40.9552,
-     "sm": 14.6009
+     "mass": 1115.13,
+     "Vs": 94.1459,
+     "V75": 196.128,
+     "Vmax": 223.271,
+     "roc": 3.30484,
+     "LD": 11.2133,
+     "TOgrass": 294,
+     "cgMAC": 40.5135,
+     "sm": 15.1211
     }
    }
   },
