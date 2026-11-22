@@ -5,7 +5,7 @@
 // tools/mission_feas.js flies a mission the game's way at about the game's own speed: the whole pack is tens of hours of
 // one core. So the table is KEPT: one row a mission, written the moment its flights end, keyed by the mission's own record
 // - a mission that changes is stale until it is flown again, the others keep their row.
-//   node tools/story_feas.js --fly [--workers=3] [--max=N] [--only=a,b]   fly the missions that have no current row, one
+//   node tools/story_feas.js --fly [--workers=3] [--max=N] [--only=a,b [--again]]   fly the missions that have no current row, one
 //                             a process (mission_feas.js --only=<id> --rerun), the new project and club missions first;
 //                             a mission no validated design can fly is flown with the WIDER pool (--official)
 //   node tools/story_feas.js --table     the rows -> reports/STORY-REVAMP/feasibility.json + .md (structure: verdicts, the
@@ -49,7 +49,9 @@ const current = m => { const r = rowOf(m.id); return r && r.key === m.key ? r : 
 async function fly() {
   const { list } = load();
   const only = opt('only', null) ? opt('only').split(',') : null, max = +opt('max', 1e9), workers = Math.max(1, +opt('workers', 3));
-  let todo = list.filter(m => !current(m) && (!only || only.includes(m.id)));
+  // --again (with --only): fly the named missions even when their row is current - a row is keyed by the mission's record,
+  // and a change of the HARNESS (how a kind of mission is flown) leaves the key as it was
+  let todo = list.filter(m => (!current(m) || (only && has('again'))) && (!only || only.includes(m.id)));
   todo.sort((a, b) => { const ia = FIRST.indexOf(a.id), ib = FIRST.indexOf(b.id); return (ia < 0 ? 1e6 : ia) - (ib < 0 ? 1e6 : ib); });
   todo = todo.slice(0, max);
   console.log('story_feas: ' + todo.length + ' mission(s) to fly of ' + list.length + ' (' + (list.length - list.filter(m => !current(m)).length) + ' rows current), ' + workers + ' at a time');

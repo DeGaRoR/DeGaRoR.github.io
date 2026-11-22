@@ -473,7 +473,21 @@ function flyMission(env, rec, plane, opts) {
     const TN = C.missionTrackNew(rec, doc.career.contracts.live[rec.id], { reach });
     const T0 = tgt.objs || (TN.stol && TN.stol.length) ? TN : null;
     const route = (tgt.objs || tgt.survey) ? routeFor(W, tgt.objs || [], tgt.survey) : null;
+    // (STORY-REVAMP, COMPETE) A LANDING LINE NAMES THE WAY IT IS LANDED. 73c measures a touchdown only when it runs the line's
+    // `dir` (msrStolStep: within 90 deg) and every line of the stop must be measured - so the competitor lands THAT way,
+    // whatever the wind; the pilot left to itself takes the wind's end and the event is "not measured" (club.spot flown: the
+    // Cub and the Jodel both landed w2 from the far end). The harness plays the competitor: for this flight the field's
+    // record names the line's way (aero.landHdg, 43_pilot dirAt's one-way rule), and is put back after it
+    const lineWay = (TN.stol || []).find(S => S.kind !== 'takeoff' && typeof S.dir === 'number');
+    const fieldRec = lineWay ? W.aerodromes.find(q => q.id === tgt.to) : null, hdg0 = fieldRec ? fieldRec.landHdg : null;
+    if (fieldRec) {
+      const r = lineWay.dir * Math.PI / 180;
+      fieldRec.landHdg = Math.atan2(-Math.cos(r), Math.sin(r));
+      const said = 'the ' + lineWay.id + ' ' + lineWay.kind + ' line names the landing way (' + lineWay.dir + ' deg): flown that way, whatever the wind';
+      if (!out.notes.includes(said)) out.notes.push(said);
+    }
     const L = flyOne(ctx, cur, tgt.to, { first, route, tracker: T0, tMax: o.tMax });
+    if (fieldRec) fieldRec.landHdg = hdg0;
     first = false;
     L.why = tgt.why; L.load = { kg: load.kg, pax: load.pax, flags: load.flags, how: load.how };
     out.legs.push(L);

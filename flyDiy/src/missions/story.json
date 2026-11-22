@@ -4171,7 +4171,7 @@
      "id": "lap",
      "start": "g1",
      "stop": "g4",
-     "target": 215,
+     "target": 250,
      "splits": true,
      "medals": [
       {
@@ -4184,7 +4184,7 @@
       },
       {
        "medal": "bronze",
-       "le": 215
+       "le": 250
       }
      ],
      "ghost": {
