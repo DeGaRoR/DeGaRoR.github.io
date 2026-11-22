@@ -34,6 +34,12 @@ const T = __dirname;
 const argv = process.argv.slice(2);
 const BUILDS = ['cub_2026-09-20_corrected.json', 'jodel_2026-09-20_corrected.json', 'cessna172r_2026-11-08.json']
   .map(f => path.join(T, '..', 'builds', f));
+// DASH-FIX (22 Nov, A0 for L40J): THE MIGRATION ROWS READ FILES SAVED BEFORE THE ROW (G3451). The refitted 172 (list:50, the
+// user's final 16 Nov) is saved WITH the dash rows (dashStyle 1, dashLegs 1, dashV 1, dashWas 0): it is no longer a file from
+// before the switch. Its place in the load rows is the pre-row copy of the metal 172 (B-CESS, list:40, a test copy that
+// still carries none of them); list:50 stays in the GEOMETRY rows below - the official Cessna's own arch is judged there
+const LOAD_BUILDS = ['cub_2026-09-20_corrected.json', 'jodel_2026-09-20_corrected.json'].map(f => path.join(T, '..', 'builds', f))
+  .concat([path.join(T, 'fixtures', 'test_copies', 'cessnaMetal (1).json')]);
 
 // ---- the child: one build, one style, the energy layer's verdict
 if (argv[0] === '--tank') {
@@ -89,7 +95,7 @@ for (const b of BUILDS.slice(0, 2)) for (const st of [0, 1]) for (const md of ['
 
 // ---- load: the migration at the one door
 check(CG2.cageFromSpec(null).dashStyle === 1, 'load: a new build (no file) gets the arch');
-for (const b of BUILDS) {
+for (const b of LOAD_BUILDS) {
   const { spec } = SH.loadFixture(b);
   // G3451: every file saved before the switch takes the arch once, the dash it had kept as dashWas
   { const L = CG2.cageFromSpec(spec);

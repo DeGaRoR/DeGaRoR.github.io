@@ -318368,3 +318368,16 @@ REALBAND REALREFS FLAPS RODROW DASH PLANEFICHE PASS; GEN (cruise quiet in wind: 
 (the Archaeopteryx), FLEX (the generator archetypes) and ENGCONFIG (every build against its master pin) red - none reads
 the Chinook's flight: master's.
 NAMED, NOT RETUNED (the user's card): the static margin at the lightest load is 1 % (CG 44 % MAC) - near neutral solo.
+
+## DASH-FIX - GATE DASH on the refitted 172 (FLAGSHIP, Sun 22 Nov 2026; claude/ready/dash-fix on chinook-user, for L40J's tail)
+
+GATE DASH was red 7 with one-cessna-4 (the refitted 172, list:50): (a) its 4 load-migration rows read list:50 as a file saved
+BEFORE the dash rows (G3451) - the refit is saved WITH them (dashStyle 1, dashLegs 1, dashV 1, dashWas 0): the migration rows
+now read the pre-row copy of the metal 172 (tools/fixtures/test_copies/cessnaMetal (1).json, B-CESS), list:50 stays in the
+geometry rows; (b) its 3 geometry rows were a REAL defect: the refit's windscreen base bows UP in its middle (0.33 at the sides,
+0.465 inboard), the band's lowest fifth found two 6-point pieces (one a side) and the dash was built off ONE side's piece - a
+cheek with no middle (x 0.30-0.54 only). Fixed in source (_cage_gen.js, the band): the base is taken at the first band (a
+fifth, two, three) where it is ONE chain across the glass, else the first with 4 edges as before. The refit now: one 17-point
+chain, the dash across the cabin (x +-0.54), nothing between the legs, the cheeks on the forward edge. Every base the fifth
+already found whole is untouched. With it, DASH-CHAIN (the longest chain, stubs within 8 cm joined; the Electric trainer's
+dash, the user 21 Nov) rides here too.

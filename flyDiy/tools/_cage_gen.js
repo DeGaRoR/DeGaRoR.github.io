@@ -4033,16 +4033,40 @@ function cageCut(m, S) {
       // DASH-BAND (proto 17 Nov, the Virus: "why is the dashboard itself not rendering?"): a base that bows high at its sides
       // (the Virus's straight glass) leaves 2 edges in the lowest fifth, a 3-point line the dash refuses (it needs 5) - the
       // band widens to two fifths only then; every base the fifth already found (the Cessnas') is untouched
-      for (const cap of [yCap, y0 + (y1 - y0) * 0.4]) {
-        m.wsBase.length = 0;
+      // DASH-FIX (22 Nov, GATE DASH on the refitted 172): a base that bows UP in its MIDDLE (the 172 refit: 0.33 at the
+      // sides, 0.465 inboard) leaves the middle above the fifth - the fifth found 10 edges in TWO pieces, one a side, and
+      // the dash was built off one side's piece (a cheek, no middle). The band is now taken where the base is ONE chain
+      // across the glass (the fifth, then two fifths, then three); a band that gives no single chain falls back to the
+      // first that gives 4 edges, as before. Every base the fifth already found whole (the Cessnas before the refit) is
+      // untouched
+      const bandOf = cap => {
+        const e2 = [];
         for (const [k, b] of own2) {
           if (b !== 3) continue;
           const [a, c] = k.split('_').map(Number), p = V[a], q = V[c];
           const run = Math.hypot(p[0] - q[0], p[2] - q[2]);
-          if (Math.abs(p[1] - q[1]) < run * 0.5 && Math.max(p[1], q[1]) <= cap) m.wsBase.push([a, c]);
+          if (Math.abs(p[1] - q[1]) < run * 0.5 && Math.max(p[1], q[1]) <= cap) e2.push([a, c]);
         }
-        if (m.wsBase.length >= 4) break;
+        return e2;
+      };
+      const oneChain = e2 => {                   // the edges form one open chain: every vertex degree <= 2, two ends, connected
+        const deg = new Map(), adj = new Map();
+        for (const [a, c] of e2) { for (const [u, w] of [[a, c], [c, a]]) { deg.set(u, (deg.get(u) || 0) + 1); if (!adj.has(u)) adj.set(u, []); adj.get(u).push(w); } }
+        let ends = 0; for (const d of deg.values()) { if (d > 2) return false; if (d === 1) ends++; }
+        if (ends !== 2) return false;
+        const st = [...deg.keys()][0], seen = new Set([st]), todo = [st];
+        while (todo.length) for (const w of adj.get(todo.pop())) if (!seen.has(w)) { seen.add(w); todo.push(w); }
+        return seen.size === deg.size;
+      };
+      const caps = [yCap, y0 + (y1 - y0) * 0.4, y0 + (y1 - y0) * 0.6];
+      let pick = null, first4 = null;
+      for (const cap of caps) {
+        const e2 = bandOf(cap);
+        if (e2.length >= 4 && !first4) first4 = e2;
+        if (e2.length >= 4 && oneChain(e2)) { pick = e2; break; }
       }
+      m.wsBase.length = 0;
+      for (const e of (pick || first4 || bandOf(caps[1]))) m.wsBase.push(e);
     }
   }
   const groups = (kind, filt) => {
@@ -7459,15 +7483,38 @@ function cageInterior(m, S) {
         link.get(a).push(b); link.get(b).push(a);
       }
     }
-    let start = -1;
-    for (const [v, ns] of link) if (ns.length === 1) { start = v; break; }
-    if (start < 0) return;
-    const line = [start];
-    const seen = new Set([start]);
-    for (let v = start; ;) {
-      const nx = (link.get(v) || []).find(n => !seen.has(n));
-      if (nx == null) break;
-      line.push(nx); seen.add(nx); v = nx;
+    // DASH-CHAIN (the user 21 Nov: "the dashboard of the velis electro does not show"): the base can come in PIECES - the
+    // Electric trainer's is a 9-point chain across the glass and two 2-point stubs at the waist, cut off by an edge the
+    // band leaves out - and the walk took the first loose end the map met, a stub: under 5 points, no dash. Every chain
+    // is walked and the LONGEST is the base (a base in one piece, every other build's, is the same line as before)
+    const walk = start => {
+      const ln = [start], sn = new Set([start]);
+      for (let v = start; ;) {
+        const nx = (link.get(v) || []).find(n => !sn.has(n));
+        if (nx == null) break;
+        ln.push(nx); sn.add(nx); v = nx;
+      }
+      return ln;
+    };
+    const chains = [], took = new Set();
+    for (const [v, ns] of link) if (ns.length === 1 && !took.has(v)) { const ln = walk(v); ln.forEach(q => took.add(q)); chains.push(ln); }
+    chains.sort((a, b) => b.length - a.length);
+    let line = chains[0] || null;
+    if (!line) return;
+    // ...and a stub whose end lies within 8 cm of the line's end is the same base across the missing edge: joined, so
+    // the dash runs the glass's whole width (the trainer's stubs: 4.7 cm off)
+    for (let more = true; more && chains.length > 1;) {
+      more = false;
+      for (let ci = 1; ci < chains.length; ci++) {
+        const c = chains[ci];
+        if (!c) continue;
+        const d = (i, j) => Math.hypot(V[i][0] - V[j][0], V[i][1] - V[j][1], V[i][2] - V[j][2]);
+        const L0 = line[0], L1 = line[line.length - 1], c0 = c[0], c1 = c[c.length - 1];
+        const opts = [[d(L1, c0), () => line.concat(c)], [d(L1, c1), () => line.concat(c.slice().reverse())],
+                      [d(L0, c1), () => c.concat(line)], [d(L0, c0), () => c.slice().reverse().concat(line)]];
+        opts.sort((a, b) => a[0] - b[0]);
+        if (opts[0][0] < 0.08) { line = opts[0][1](); chains[ci] = null; more = true; }
+      }
     }
     if (line.length < 5) return;
     const base = line.map(vi => V[vi].slice());
