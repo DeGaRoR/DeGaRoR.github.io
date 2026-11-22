@@ -92,16 +92,18 @@
     root.traverseVisible(m => {
       mine.add(m);
       const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa) return;
-      // FRAME-DRAWN (the user 22 Nov): only what this picture's camera draws makes the frame (ui_layer.js UI_LAYER.drawn)
-      if (typeof window.UI_LAYER !== 'undefined' && window.UI_LAYER.drawn && !window.UI_LAYER.drawn(m)) return;
-      const step = Math.max(1, Math.floor(pa.count / 200));
-      for (let i = 0; i < pa.count; i += step) {
+      const at = i => {
         p.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld);
         const f = p.dot(fwd), l = p.dot(left), u = p.dot(up);
         if (f < ext.f[0]) ext.f[0] = f; if (f > ext.f[1]) ext.f[1] = f;
         if (l < ext.l[0]) ext.l[0] = l; if (l > ext.l[1]) ext.l[1] = l;
         if (u < ext.u[0]) ext.u[0] = u; if (u > ext.u[1]) ext.u[1] = u;
-      }
+      };
+      // FRAME-DRAWN (the user 22 Nov): only what this picture's camera draws makes the frame - a drawn mesh's drawn
+      // triangles' vertices, never a hidden face group's (ui_layer.js UI_LAYER.drawnPoints)
+      if (typeof window.UI_LAYER !== 'undefined' && window.UI_LAYER.drawnPoints) { window.UI_LAYER.drawnPoints(m, 200, at); return; }
+      const step = Math.max(1, Math.floor(pa.count / 200));
+      for (let i = 0; i < pa.count; i += step) at(i);
     });
     if (ext.f[0] > ext.f[1]) return null;
     const len = k => Math.max(0.1, ext[k][1] - ext[k][0]), mid = k => (ext[k][0] + ext[k][1]) / 2;

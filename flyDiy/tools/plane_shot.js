@@ -209,10 +209,17 @@ const PORTRAIT_BODY = `(o, root, fwd0, craft) => {
   // reported (frameSkip), and the meshes that set the frame's fore and aft ends (frameEnds)
   const DR = m => (typeof UI_LAYER !== 'undefined' && UI_LAYER.drawn) ? UI_LAYER.drawn(m) : !!(m.isMesh && m.geometry);
   const skip = [];
-  const box = new THREE.Box3(), gb = new THREE.Box3();
-  root.traverseVisible(m => { if (!m.isMesh || !m.geometry) return; const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld);
-    if (!DR(m)) { if (skip.length < 12) skip.push((m.name || '(unnamed)') + '<' + ((m.parent && m.parent.name) || '') + '> ' + [gb.min.toArray(), gb.max.toArray()].flat().map(x => x.toFixed(1)).join(',')); return; }
-    box.union(gb); });
+  // THE DRAWN POINTS (UI_LAYER.drawnPoints, the cause found 22 Nov: the page's cage sheet carries face groups under a hidden
+  // material, B-ITES' 3.7 m ahead of its spinner): a few hundred a mesh of the vertices its drawn triangles use - the box
+  // AND the fit come from them, never from a geometry's bounding box or its raw buffer
+  const DP = (m, fn) => (typeof UI_LAYER !== 'undefined' && UI_LAYER.drawnPoints) ? UI_LAYER.drawnPoints(m, 300, fn)
+    : (() => { const pa = m.geometry.attributes.position, st = Math.max(1, Math.floor(pa.count / 300)); let n = 0; for (let i = 0; i < pa.count; i += st) { fn(i); n++; } return n; })();
+  const box = new THREE.Box3(), gb = new THREE.Box3(), wpts = [];
+  root.traverseVisible(m => { if (!m.isMesh || !m.geometry || !m.geometry.attributes || !m.geometry.attributes.position) return;
+    if (!DR(m)) { const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld);
+      if (skip.length < 12) skip.push((m.name || '(unnamed)') + '<' + ((m.parent && m.parent.name) || '') + '> ' + [gb.min.toArray(), gb.max.toArray()].flat().map(x => x.toFixed(1)).join(',')); return; }
+    const pa = m.geometry.attributes.position;
+    DP(m, i => { const q = V().fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld); box.expandByPoint(q); wpts.push([q, m]); }); });
   const fwd = fwd0 ? V(fwd0[0], fwd0[1], fwd0[2]) : V(0, 0, 1).transformDirection(root.parent.matrixWorld); fwd.y = 0; fwd.normalize();
   const up = V(0, 1, 0), left = V().crossVectors(up, fwd).normalize();
   const c = box.getCenter(V()), W = o.w * o.ss, H = o.h * o.ss, aspect = o.w / o.h;
@@ -224,10 +231,9 @@ const PORTRAIT_BODY = `(o, root, fwd0, craft) => {
     return (m.name || '(unnamed)') + ' <' + ch.join('<') + '> ' + (M.type || '?') + (M.name ? ':' + M.name : '') + ' op ' + (M.opacity != null ? (+M.opacity).toFixed(2) : '?') +
       (M.transparent ? ' transp' : '') + (M.depthWrite === false ? ' noDepth' : '') + (M.side === 2 ? ' double' : '') + ' layers ' + (m.layers ? m.layers.mask : '?') +
       ' verts ' + (pa ? pa.count : 0) + (m.isInstancedMesh ? ' inst ' + m.count : '') + ' ud ' + Object.keys(m.userData || {}).slice(0, 6).join(','); };
-  const corners = [], pv = V(), ends = { lo: [1e9, ''], hi: [-1e9, ''] };
-  root.traverseVisible(m => { const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa || !DR(m)) return;
-    const step = Math.max(1, Math.floor(pa.count / 300)); for (let i = 0; i < pa.count; i += step) { const q = pv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c); corners.push(q);
-      const f = q.dot(fwd); if (f < ends.lo[0]) ends.lo = [f, m]; if (f > ends.hi[0]) ends.hi = [f, m]; } });
+  const corners = [], ends = { lo: [1e9, ''], hi: [-1e9, ''] };
+  for (const [p, m] of wpts) { const q = p.clone().sub(c); corners.push(q);
+    const f = q.dot(fwd); if (f < ends.lo[0]) ends.lo = [f, m]; if (f > ends.hi[0]) ends.hi = [f, m]; }
   ends.lo[1] = ends.lo[1] ? desc(ends.lo[1]) : '?'; ends.hi[1] = ends.hi[1] ? desc(ends.hi[1]) : '?';
   if (!corners.length) for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
   const fill = o.fill || 0.84;

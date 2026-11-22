@@ -153,11 +153,25 @@ if (decl) {
   const shared = mk(new THREE.MeshBasicMaterial()); shared.layers.enable(UI.LAYER);   // a world mesh the eye also sees on the UI layer: still drawn
   check(!UI.drawn(mk(hid)) && !UI.drawn(mk(blindM)) && UI.drawn(mk([hid, new THREE.MeshBasicMaterial()])) && UI.drawn(shared) && !UI.drawn(new THREE.Group()),
     'U6 ...a hidden or colour-blind material is not in the frame, one showing material is, a mesh on layer 0 AND the UI layer is');
+  // drawnPoints: only the vertices of the face groups whose material shows (the cause: the page's cage sheet hides its
+  // nose faces under a hidden material - B-ITES' portrait framed a nose 3.7 m ahead of the spinner)
+  {
+    const pos = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 50, 0, 0, 51, 0, 0, 50, 1, 0, 99, 99, 99]);   // vertex 6 used by no triangle
+    const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g2.setIndex([0, 1, 2, 3, 4, 5]);
+    g2.addGroup(0, 3, 0); g2.addGroup(3, 3, 1);
+    const shown = new THREE.MeshBasicMaterial(), hidden = new THREE.MeshBasicMaterial(); hidden.visible = false;
+    const xs = m => { const o = []; UI.drawnPoints(m, 300, i => o.push(pos[i * 3])); return o; };
+    const a = xs(new THREE.Mesh(g2, [shown, hidden])), b = xs(new THREE.Mesh(g2, [shown, shown])), cc = xs(new THREE.Mesh(g2, shown));
+    check(typeof UI.drawnPoints === 'function' && a.length === 3 && Math.max(...a) <= 1 && b.length === 6 && Math.max(...b) === 51 &&
+          cc.length === 6 && !cc.includes(99) && UI.drawnPoints(new THREE.Mesh(g2, hidden), 300, () => {}) === 0,
+      'U6 UI_LAYER.drawnPoints: a hidden face group\'s vertices and a vertex no triangle uses are not in the frame', JSON.stringify({ a, b, cc }));
+  }
   const PS = fs.readFileSync(path.join(T, 'plane_shot.js'), 'utf8'), PT = src('plane_thumb.js'), PF = src('plane_fiche.js');
-  check(/const DR = m => \(typeof UI_LAYER !== 'undefined' && UI_LAYER\.drawn\) \? UI_LAYER\.drawn\(m\)/.test(PS) && (PS.match(/!DR\(m\)/g) || []).length >= 2 &&
-        /window\.UI_LAYER\.drawn && !window\.UI_LAYER\.drawn\(m\)\) return;/.test(PT) &&
-        /const DR = m => \(typeof UI_LAYER !== 'undefined' && UI_LAYER\.drawn\)/.test(PF) && (PF.match(/!DR\(m\)/g) || []).length >= 2,
-    'U6 the three framers (plane_shot\'s portraits, plane_thumb, the fiche) frame through UI_LAYER.drawn - box AND points');
+  check(/const DR = m => \(typeof UI_LAYER !== 'undefined' && UI_LAYER\.drawn\) \? UI_LAYER\.drawn\(m\)/.test(PS) && /UI_LAYER\.drawnPoints\(m, 300, fn\)/.test(PS) &&
+        /DP\(m, i => \{ const q = V\(\)\.fromBufferAttribute\(pa, i\)\.applyMatrix4\(m\.matrixWorld\); box\.expandByPoint\(q\)/.test(PS) &&
+        /window\.UI_LAYER\.drawnPoints\(m, 200, at\)/.test(PT) &&
+        /const DR = m => \(typeof UI_LAYER !== 'undefined' && UI_LAYER\.drawn\)/.test(PF) && /UI_LAYER\.drawnPoints\(m, 300, at\)/.test(PF) && /box\.expandByPoint\(q\)/.test(PF),
+    'U6 the three framers (plane_shot\'s portraits, plane_thumb, the fiche) frame on UI_LAYER.drawnPoints - box AND points');
 }
 
 console.log(`UILAYER: ${nOk} ok, ${fails.length} failed`);
