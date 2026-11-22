@@ -7,6 +7,10 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
 
 <!-- L40J-RESULT --> **PARTIAL CORE BATTERY on the L40J candidate: FAIL - 16 red (56 PASS, 16 FAIL, 0 SKIP of 364).** FAIL (16 of 72 gates run; PARTIAL: 3 of 8 chunks, 292 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H] | NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE | L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 
+- **15:05 UTC: THE CONTAINER RESTARTED AGAIN (about 14:55), the third time today.** The chunk then running (43 gates:
+  TRAILER .. DMGCLUSTERS, 37 done) is lost and re-runs; the 72 gates already published stand. The remaining 292 gates
+  now run in 20 small chunks (at most ~20 min each) so a restart costs little. Expect the end towards 19:30-20:30 UTC
+  if the box holds; the log below keeps growing chunk by chunk in the meantime.
 - **THE NEW REDS SO FAR, read by check (14:40 UTC; none is this box: no memory kill, no timeout, all deterministic):**
   - **TAKEOFF**: "technique c172: to 15 m 794 m in [0.6, 1.4] x 514 m (C172S POH)" - the C172's take-off to 15 m is
     1.54 x the book's.
