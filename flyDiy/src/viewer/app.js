@@ -239,7 +239,7 @@
   // (?lampsfixed=1 is render_premises.js's: the lamp pool's count kept by day.)
   const LABQ = k => typeof location !== 'undefined' && new RegExp('[?&]' + k + '(&|$)').test(location.search || '');
   const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
-    paveFirst: LABQ('pavefirst=1'), pave: { handed: false, at: 0, readyAt: 0, sig: null, sigCompile: null, err: null },
+    groundFirst: LABQ('groundfirst=1'), ground: { at: {}, n: 0, err: null }, paveFirst: LABQ('pavefirst=1'), pave: { handed: false, at: 0, readyAt: 0, sig: null, sigCompile: null, err: null },
     lateBg: LABQ('latelinks=bg'), bg: { armed: false, revealed: false, revealAt: 0, running: false, done: false, xrayRun: false, startedAt: 0, xrayMs: 0, ms: 0, xrayLinks: 0, scuffLinks: 0, twins: 0, noTwin: 0, err: null } };
   if (LAB.noLogs && renderer.debug) renderer.debug.checkShaderErrors = false;
   if (typeof window !== 'undefined') window.FLYDIY_LAB = LAB;
@@ -937,6 +937,24 @@
     compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, dress)
       .then(() => { B.readyAt = Math.round(performance.now()); }, e => { B.err = String(e && e.message); });
   }
+  // ?groundfirst=1 (PERF-LEAD lab, 22 Nov; OFF by default): THE ISLAND GROUND'S PROGRAMS HANDED OVER AS THEIR MATERIALS APPEAR.
+  // The other heavy links of a cold load (the island ground's 17 and 14 s, 10 Nov) are keyed at the town step too, ~42 s in;
+  // their keys hold the ground's settings and the scene's fog, probe and lights, nothing of the geometry (PERF-WORLDBUILD's
+  // reading). The ring and its twin exist at the world build's 'ring lod' yield, the fine tiles' at 'far terrain', the far
+  // ring's at 'water': at each, every material of the ground family not handed over yet goes to compileSliced on a
+  // stand-in of the mesh that wears it, dressed as the pavement's hand-over is. Not awaited.
+  const GROUND_HANDED = new WeakSet();
+  function groundFirstHand(lab) {
+    const B = LAB.ground; if (B.at[lab] || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn || typeof renderer.compileAsync !== 'function') return;
+    B.at[lab] = Math.round(performance.now());
+    const g = new THREE.Group();
+    scene.traverse(o => { if (!o.isMesh || !o.material) return;
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (!m || !m.groundFamily || GROUND_HANDED.has(m)) continue;
+        GROUND_HANDED.add(m); try { g.add(PROG_WARM.standIn(o, m)); B.n++; } catch (e) { B.err = String(e && e.message); } } });
+    if (!g.children.length) return;
+    try { if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.apply) SHADOW_NEAR.apply(); } catch (e) {}
+    compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, fn => craftLightsGuess(fn)).catch(e => { B.err = String(e && e.message); });
+  }
   function buildWorldSliced() {
     if (WF) return;
     if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
@@ -952,7 +970,8 @@
       const tick = () => {
         if (WF) { window.FLYDIY_WORLD_ASYNC = false; res(); return; }   // built meanwhile by a synchronous door (none today: the screen owns the first build)
         const t0 = performance.now(); let r = null, lab = '';
-        try { do { r = g.next(); n++; if (!r.done) { lab = r.value; if (lab === 'pavement program' && LAB.paveFirst) paveFirstHand(); } } while (!r.done && !window.FLYDIY_WORLD_WAIT && performance.now() - t0 < 40); }
+        try { do { r = g.next(); n++; if (!r.done) { lab = r.value; if (lab === 'pavement program' && LAB.paveFirst) paveFirstHand();
+          else if (LAB.groundFirst && (lab === 'ring lod' || lab === 'far terrain' || lab === 'water')) groundFirstHand(lab); } } while (!r.done && !window.FLYDIY_WORLD_WAIT && performance.now() - t0 < 40); }
         catch (e) { console.error('world build:', e); window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null; res(); return; }
         worst = Math.max(worst, performance.now() - t0);
         geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
