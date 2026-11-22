@@ -244,6 +244,10 @@ function ledger(log, opt) {
   return { kind: 'flydiy-freeze-ledger', v: 1, log: o.logFile || null, build: H.build || null, gpu: (H.gpu || {}).unmaskedRenderer || null,
     limits: { orangeMs: ORANGE, longMs: LONG, freezeMs: FREEZE, hardMs: HARD, blockS: BLOCK / 1000, listedOverMs: MIN },
     gpuTimer: H.gpuTimer ? { coverage: H.gpuTimer.coverage, ok: H.gpuTimer.ok } : null, recorder: H.overhead || null,
+    // was the page seen? (a hidden or unfocused page is throttled: its frames mean nothing)
+    page: { canvas: H.canvas ? H.canvas.w + 'x' + H.canvas.h : null, css: H.canvas ? H.canvas.cssW + 'x' + H.canvas.cssH : null, window: H.window ? H.window.w + 'x' + H.window.h : null, dpr: H.dpr || null,
+      seen: H.seen || null, hiddenEvents: events.filter(e => e.kind === 'vis' && e.d === 'hidden').length, blurEvents: events.filter(e => e.kind === 'focus' && e.d === 'blur').length,
+      hiddenFrames: rows.filter(r => r.ctx === 'hidden').length },
     objectives, contexts, actions: acts, premises: log.premises || null, entries };
 }
 
@@ -252,6 +256,10 @@ function text(R, show) {
   L.push('FREEZE LEDGER  ' + (R.log || '') + '  build ' + (R.build || '?') + '  ' + (R.gpu || ''));
   L.push('  limits: orange > ' + R.limits.orangeMs + ' ms, long > ' + R.limits.longMs + ', FREEZE > ' + R.limits.freezeMs + ' (the user\'s), hard > ' + R.limits.hardMs + '; blocks of ' + R.limits.blockS + ' s' +
     (R.gpuTimer ? '; GPU timed on ' + Math.round((R.gpuTimer.coverage || 0) * 100) + ' % of the frames asked' : '; no GPU timer'));
+  { const P = R.page || {}, S = P.seen, f = x => x ? (x.state || '?') + (x.focus === true ? ', focused' : x.focus === false ? ', NOT FOCUSED' : '') : 'not recorded';
+    const bad = (S && ((S.start && (S.start.state !== 'visible' || S.start.focus === false)) || (S.now && (S.now.state !== 'visible' || S.now.focus === false)))) || P.hiddenEvents > 0;
+    L.push('  the page: canvas ' + (P.canvas || '?') + ' (css ' + (P.css || '?') + ', window ' + (P.window || '?') + ', dpr ' + (P.dpr || '?') + '); at the start ' + f(S && S.start) + ', at the end ' + f(S && S.now) +
+      '; hidden ' + (P.hiddenEvents || 0) + ' time(s) (' + (P.hiddenFrames || 0) + ' frames left out), focus lost ' + (S ? S.blurs : P.blurEvents || 0) + ' time(s)' + (bad ? '   <-- A HIDDEN OR UNFOCUSED PAGE IS THROTTLED: READ THE FRAMES WITH CARE' : '')); }
   L.push(''); L.push('THE OFFICIAL ROWS');
   for (const k of Object.keys(R.objectives)) { const v = R.objectives[k]; if (v) L.push('  ' + lp(k, 2) + '  ' + (v.ok ? 'MET     ' : 'NOT MET ') + v.text); }
   for (const a of R.actions) L.push('  ' + lp(a.target ? a.target.row : '', 2) + '  ' + (a.ok == null ? '        ' : a.ok ? 'MET     ' : 'NOT MET ') + a.act + ': first frame ' + a.firstFrameMs + ' ms, settled ' + a.settledMs + ' ms, worst frame ' + a.worstFrameMs + ' ms, ' + a.framesOver100 + ' over 100 ms' + (a.target ? ' (the target ' + a.target.ms / 1000 + ' s, none over 100 ms)' : ''));
