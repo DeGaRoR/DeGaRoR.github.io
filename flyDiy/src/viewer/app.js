@@ -1635,6 +1635,10 @@
       // holding the NEW room in place of the shown one (its lamps, so the keys are the ones the swap will draw; no frame is drawn
       // inside a slice, so nothing shows) - then every program's first use paid off the frame (firstUseSliced)
       const tc = performance.now(), G = rec.hangar.group;
+      // (ROOMS 6: the new room's MOBILE KIT placed before its compile, from the aeroplane's footprint as applyEnv places it - the
+      //  sandbox's frame, the large hangar's door offset; the swap re-places it the same way, so the programs keyed here are its)
+      try { if (rec.hangar.placeMobile && craft) { const bb = new THREE.Box3().setFromObject(craft), sz = (!CAREER_DEV && rec.hangar.door && rec.hangar.door.z) ? rec.hangar.door.z : 0;
+        if (isFinite(bb.min.x) && bb.max.x > bb.min.x) built.mobile = rec.hangar.placeMobile({ x0: bb.min.x, x1: bb.max.x, z0: bb.min.z + sz, z1: bb.max.z + sz }).length; } } catch (e) { console.warn('flyDiy: the room kit -', e && e.message); }
       // (ROOMS 4b, PERF-LEAD: the room's OUTDOORS too - the meshes through the door and the view's group, shown as hviewAttach
       //  shows them at the unpark - put in and taken off INSIDE each task, never across tasks: a frame between draws the old room)
       const upFor = r => !!(hview && hview.ready && hviewFor === r);
@@ -1648,13 +1652,21 @@
       // variants, in the boot's order - one target (null) left the cube bake and the frame to link the room again (slot 3: 28 s)
       return compileFramePasses(garageFramePasses(dress), lap)
         .then(() => { built.compileMs = ['cubeMs', 'cubeDepthMs', 'frameMs', 'frameDepthMs'].reduce((t, k) => t + (built[k] || 0), 0); lapT = performance.now(); })
+        .then(() => Promise.resolve(typeof programsReady === 'function' ? programsReady(45000) : null).then(() => {
+          built.linkMs = Math.round(performance.now() - lapT); lapT = performance.now();
+          try { built.pending = renderer.info.programs.filter(p => p.isReady && !p.isReady()).length; } catch (e) { built.pending = null; }
+          if (built.pending) console.warn('flyDiy: the room ' + id + ' - ' + built.pending + ' program(s) still linking at the cap: not prepared'); }))
         .then(() => { lap('depthMs'); return typeof uploadSliced === 'function' ? uploadSliced(G, 'rooms', 'the room') : null; })
         .then(() => { lap('uploadMs'); return typeof firstUseSliced === 'function' ? firstUseSliced() : null; })
-        .then(u => { lap('firstUseMs'); built.firstUse = u || null; built.prepMs = Math.round(performance.now() - t0); return built; },
+        .then(u => { lap('firstUseMs'); built.firstUse = u || null; built.prepMs = Math.round(performance.now() - t0);
+                built.prepared = !built.pending; const rr = ROOMS.get(id); if (rr) rr.prepared = built.prepared; return built; },
               e => { console.warn('flyDiy: the room compile -', e && e.message); return built; })
         .then(b => { Object.assign(ROOM_T, { room: id, how: 'prepared', genMs: b.genMs, buildMs: b.buildMs, cubeMs: b.cubeMs, cubeDepthMs: b.cubeDepthMs, frameMs: b.frameMs, frameDepthMs: b.frameDepthMs, compileMs: b.compileMs, depthMs: b.depthMs, uploadMs: b.uploadMs }); return b; });
     },
     cached: () => [...ROOMS.keys()],
+    // PREPARED = its programs submitted, LINKED (programsReady) and first-used, for the frame's targets (ROOMS 6): a switch to it is
+    // the swap alone. PERF-LEAD's budget (garage first) reads this flag
+    isPrepared: id => { const r = ROOMS.get(id); return !!(r && r.prepared); },
     programs: () => { try { return renderer.info.programs ? renderer.info.programs.length : null; } catch (e) { return null; } },   // (PERF-LEAD: before the swap and after its first frames)
     env: () => Object.assign({ busy: !!envSlice }, ENV_T),   // the sliced env re-bake: steps, total and worst step (ms) since envReset
     envReset: () => { ENV_T.steps = 0; ENV_T.ms = 0; ENV_T.maxMs = 0; ENV_T.jobs = 0; ENV_T.byStep = []; },
