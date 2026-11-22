@@ -5,6 +5,10 @@
 ALL_1       ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&pace=16 ; new ; H5K ; --rollout
 ALL_2       ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&pace=16 ; new ; H5K ; --rollout
 BASE_7      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
+# A0's owed pair for LOOK-1's rain (claude/rain 6c31caa22 against perf-codex 4421e5416, each its own built folder; these
+# two builds have no registry, so no flight log and no brief: the load line only)
+RAIN        ; D:/Dev/rain-built ; - ; new ; H5K ; -
+RAINBASE    ; D:/Dev/perfcodex-built ; - ; new ; H5K ; -
 
 # ---- pass 2: the same questions, the other order ----------------------------------------------------------------
 BASE_4      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
