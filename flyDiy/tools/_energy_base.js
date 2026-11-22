@@ -54,6 +54,12 @@ const BASE = path.join(__dirname, '_energy_base.json');
 // REAL-CANON (15 Nov 2026): re-blessed for ELEC-SYSTEMS' wiring harness billed by its cable runs (614822358, the
 // user's ruling "cable runs live", PHYSICS_V 8 -> 9): +0.58 to +0.93 kg on 13 cases, the CG 0.7-1.7 mm forward. The
 // carbon case is left at master's numbers: its -48 kg move is master's own red (L40a), not this stack's.
+// MASTER-GREEN (22 Nov 2026): re-blessed for the two cases that had moved, each by a change the user asked for; the other
+// twelve cases are byte for byte the 15 Nov baseline. `carbon` 459.9 -> 412.0 kg, the CG 83 mm forward: HULL-B50's composite
+// recalibration (4ab3c819d, 5 Nov, the user: "let's make this carbon worth it" - GEN_MATERIALS carbon lin x0.45; on master
+// since train L35c's merge of claude/ready/seaplanes, 7d6ad8b11 - bisected, not L40a). `electric` 383.0 -> 410.4 kg:
+// ELECTRIC-TRAINER 3bbc9984d (L40h, the user 17 Nov: "we have to modify the existing E811" - e811_velis is the installed
+// 53 kg motor).
 const BLESS = process.argv.includes('--bless');
 const SHOW = process.argv.includes('--show');
 const SELFTEST = process.argv.includes('--selftest');
