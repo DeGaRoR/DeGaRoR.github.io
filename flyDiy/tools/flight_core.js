@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c0460c977a0396b5
+// body-sha256: 4f67b4414694b53c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -39235,7 +39235,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 // (PHYSICS-AUDIT step 2, 2026-11-21: the tailplane's bracing, stBrace 0 = by its skin, and the flying wires' section,
 //  bpWireSec 0 = round cable)
-const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, cw_headCut: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
                                brkHold: 0, wgStrutSec: 0, wgJury: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
@@ -50441,6 +50441,16 @@ function genFusCdA(S, fr, o) {
       const at = cw.atEngine || {};
       const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
       heads = D.cdBlock * 2 * out * (2 * E.cylR) * 2;      // both banks, each bank's reach x its height
+    }
+    // FUSELAGE-DRAG (2026-11-22, "what sticks out"; the user: the client Cub's cylinder heads through a narrower, cut
+    // cowl): HEADS THAT STAND OUT OF A COWL THAT IS ON. The join measures the cylinders' frontal outside the drawn skin
+    // and in all (spec.cooling.headsOut / headsAll: the cooling flow already reads them, the drag did not). They pay
+    // the bare engine's own figure in the measured share - all of them out is exactly the uncowled engine's row.
+    const Cm = S.cooling && typeof S.cooling === 'object' ? S.cooling : null;
+    if (E && cowlOn && covers.sides && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' &&
+        Cm && Cm.headsOut > 0 && Cm.headsAll > 0) {
+      const bareOut = Math.max(0, E.cylReach - E.halfW);
+      heads = D.cdBlock * 2 * bareOut * (2 * E.cylR) * 2 * Math.min(1, Cm.headsOut / Cm.headsAll);
     }
   }
   // ENGINE-COOLING: a MEASURED cowl (the join's spec.cooling) or drawn wing radiators pay the momentum the cooling air
