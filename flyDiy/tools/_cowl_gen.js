@@ -1291,7 +1291,7 @@ function buildGrille(group,mats){
   const hw=o.w*0.96, hh=o.h*0.96;
   const NR=Math.max(0,Math.round(P.grilleRows||0));
   const R=grilleNumRects({cx:o.cx,cy:o.cy,w:hw,h:hh});
-  const plateM=R?new THREE.MeshStandardMaterial({color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
+  const plateM=R?(typeof MATLIB!=='undefined'?MATLIB:require('../src/viewer/matlib.js')).make(THREE,'std',{color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;   // (GATE ASSETS MATS: every material is made in matlib.js)
   const inR=(x,y,r)=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];
   // (the user: "the letter should be white and the rest should not be painted"): the digits ivory, the rest bare grille
   const matAt=(x,y)=>!R?m:(R.ink.some(r=>inR(x,y,r))?plateM:m);
@@ -1349,7 +1349,7 @@ function buildLamps(group,mats,shellM){
   const ze=zEnd(), z=ze-Math.max(0,P.lampBack), cy=spineY(ze)+P.lampY, r=Math.max(0.03,P.lampR);
   const half=surfPoint(0,z)[0];
   const chrome=mats.steel||mats.skin, shell=shellM||mats.skin;
-  const lens=new THREE.MeshStandardMaterial({color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
+  const lens=(typeof MATLIB!=='undefined'?MATLIB:require('../src/viewer/matlib.js')).make(THREE,'glow',{color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});   // (GATE ASSETS MATS)
   lens.userData.aeroskin=1;
   // CAR-3 (the user, 12 Nov: "two additional openings on the sides in which you're gonna stick the headlamps"):
   // lampIn 1 seats each lamp IN the face's side aperture (apMode 2 / 3: the fitted pair), lampBack behind the face,

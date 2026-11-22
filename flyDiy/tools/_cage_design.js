@@ -2963,7 +2963,7 @@ const ARCHETYPES = [
                     // THE CUT AT THE WAISTLINE, STRAIGHT ("an option so the cut at the bonnet waistline is drawn straight
                     // and nice"): the split held LEVEL (partLevel, PROPER-COWLS' option) with an even groove, ON the widest
                     // line (partY 0) - the waistline
-                    cw_partOn: 1, cw_partLevel: 1, cw_partArc: 1, cw_partY: 0,
+                    cw_partOn: 1, cw_partArc: 1, cw_partY: 0,   // (no cw_partLevel: the row retired 13 Nov - the split is always level, _cage_cowl.js; GATE DESIGN)
                     // THE LOUVRES under the cut, each flank ("shark fins on the cowls"): the side gills, a long panel of
                     // slanted slots
                     // (the user: "the side grill higher up, and if you can straight and longer, like the cars of that era"):
