@@ -1,6 +1,6 @@
-FAIL (86 of 353 gates run; PARTIAL: 22 of 23 chunks, 11 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H], PARKED [NEW], OBSTACLE [L40H], HITBOX [NEW], SNOWMUDFX [NEW], ROUGHWHEEL [L40H], WATERDAMP [NEW], WINGSTRUCT [L40H], STORAGE [L40H], ACCEPT [L40H], POD [L40H], CONTRACTS [NEW], MISSIONS [NEW], STAGES [L40H], CANDIDATES [L40H], NAMES [L40H], FREIGHT [NEW], NODUMMY [L40H], ENERGYBASE [L40H], TANKMOUNT [L40H], ENGTORQUE [L40H], DASH [NEW], GPSFACE [NEW], BIOME [NEW], SETTLE [NEW]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME SCENERYED PARKED HITBOX SNOWMUDFX WATERDAMP CONTRACTS MISSIONS FREIGHT DASH GPSFACE BIOME SETTLE
-L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
+FAIL (91 of 364 gates run; COMPLETE): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H], PARKED [NEW], OBSTACLE [L40H], HITBOX [NEW], SNOWMUDFX [NEW], ROUGHWHEEL [L40H], WATERDAMP [NEW], WINGSTRUCT [L40H], STORAGE [L40H], ACCEPT [L40H], POD [L40H], CONTRACTS [NEW], MISSIONS [NEW], STAGES [L40H], CANDIDATES [L40H], NAMES [L40H], FREIGHT [NEW], NODUMMY [L40H], ENERGYBASE [L40H], TANKMOUNT [L40H], ENGTORQUE [L40H], DASH [NEW], GPSFACE [NEW], BIOME [NEW], SETTLE [NEW], FLEX [L40H], LOAD [L40H], ENGCONFIG [L40H], AUDIOENG [NEW], LAZY [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME SCENERYED PARKED HITBOX SNOWMUDFX WATERDAMP CONTRACTS MISSIONS FREIGHT DASH GPSFACE BIOME SETTLE AUDIOENG LAZY
+L40h reds that PASS here: MONOWHEEL GFX
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
 A red marked [L40H] is in land_L40H_gates.log's FAIL list (master 9349a62c1, 61 reds); it may still fail on another check: compare the block. SKIP: none.
@@ -6799,6 +6799,667 @@ GATE AERO: PASS
   ok   4j a frame never drawn: a MISS after 5 s, not a hang
   (the page half runs by hand in a GPU slot: --gpu)
 GATE PAGERIG: PASS
+######## chunk 22 of 23 (11 gates) ########
+=== FLEX ===
+--- shard 0/3 (391.5 s) ---
+FLEX — deflection, torsion, softness and load margin.
+
+REALITY (handbook / static-test class figures, for comparison only):
+  strut-braced light aircraft, wing tip deflection    ~0.3-1 % of semispan at 1 g
+                                                      ~2-4 %  at 3.8 g limit load
+  glass sailplane (the bendiest certified thing)      ~4-6 %  at 1 g
+  GA wing torsional twist, root to tip, full aileron  ~1-2 deg
+  elastic strain limits: 4130 0.22 %  2024-T3 0.47 %  spruce 0.36 %  carbon 1.1 %  6061-T6 0.40 %
+
+GARAGE (generated — `lin` closes to an area, so softness and yield margin follow):
+  GEN 4130 tube + fabric semispan 5.00 m
+    tip deflection      0.28 % of semispan at 1 g      1.31 % at 3.8 g (EXTRAP)   slope   0.37 %/g   (n measured to 1.4)
+    cruise hold         0.28 % at n=0.97   peak-to-peak 0.02 %   twist 0.14 deg
+    torsion (static)    0.20 deg @200 N.m     0.40 @400   doubling 1.98x  linear
+    torsion (flight)    0.08 deg root->tip under full aileron   (CONFOUNDED by any departure — read the static row)
+    fus      peak load     3.47 kN   peak strain   0.52 %   A 0.74 cm2   soft x  19 (x11..x149)   load/yield   10.2 %
+    gear     peak load     0.12 kN   peak strain   0.51 %   A 1.34 cm2   soft x 806 (x528..x3384)   load/yield    0.2 %
+    tail     peak load     0.71 kN   peak strain   0.51 %   A 0.16 cm2   soft x  16 (x5..x335)   load/yield    9.8 %
+    wing     peak load     4.10 kN   peak strain   0.16 %   A 0.79 cm2   soft x   3 (x1..x43)   load/yield   11.3 %
+    wire     peak load     2.77 kN   peak strain   0.16 %   A 0.20 cm2   soft x   2 (x2..x2)   load/yield   29.6 %
+  GEN carbon + epoxy     semispan 5.00 m
+    tip deflection      0.27 % of semispan at 1 g      0.97 % at 3.8 g (EXTRAP)   slope   0.25 %/g   (n measured to 1.3)
+    cruise hold         0.25 % at n=0.96   peak-to-peak 0.00 %   twist 0.05 deg
+    torsion (static)   -1.13 deg @200 N.m    -2.38 @400   doubling 2.11x  linear
+    torsion (flight)    0.06 deg root->tip under full aileron   (CONFOUNDED by any departure — read the static row)
+    fus      peak load     3.27 kN   peak strain   0.69 %   A 1.10 cm2   soft x  25 (x12..x205)   load/yield    2.0 %
+    gear     peak load     0.19 kN   peak strain   0.21 %   A 2.45 cm2   soft x 377 (x245..x1571)   load/yield    0.1 %
+    tail     peak load     0.51 kN   peak strain   0.33 %   A 0.26 cm2   soft x  10 (x3..x213)   load/yield    1.3 %
+    wing     peak load     4.03 kN   peak strain   0.10 %   A 1.29 cm2   soft x   1 (x0..x27)   load/yield    2.1 %
+    wire     peak load     0.56 kN   peak strain   0.04 %   A 0.26 cm2   soft x   2 (x2..x2)   load/yield    1.5 %
+  GEN poles + ripstop: never reached cruise
+GARAGE MATRIX — static structure across the configuration space.
+  torsion deg @200 / @400 N.m antisymmetric tip couple; doubling < 1.80x = near a mechanism.
+  bend = tip rise, % of semispan, under 2 kN DISTRIBUTED over the stations.
+  stock                    semi  5.00 m  p3  tors   0.20 /   0.40  bend    0.1 %  doubling 1.98x
+  high cantilever          semi  5.00 m  p3  tors   0.40 /   0.82  bend    1.7 %  doubling 2.01x
+  low cantilever           semi  5.00 m  p3  tors   0.41 /   0.83  bend    1.7 %  doubling 1.99x
+  jodel crank              semi  5.00 m  p3  tors   0.23 /   0.47  bend    0.7 %  doubling 2.00x
+  c172ish hybrid           semi  5.00 m  p3  tors   0.36 /   0.72  bend    0.9 %  doubling 2.00x
+  strut panels 2           semi  6.50 m  p2  tors   0.30 /   0.60  bend    0.2 %  doubling 1.99x
+  cantilever span 14       semi  7.00 m  p3  tors   0.83 /   1.73  bend    2.0 %  doubling 2.08x
+  tubeFabric cantilever    semi  6.50 m  p3  tors   0.82 /   1.60  bend    1.9 %  doubling 1.95x
+  carbon cantilever        semi  6.50 m  p3  tors   0.72 /   1.42  bend    1.0 %  doubling 1.99x
+  softShell cantilever     semi  6.50 m  p3  tors  43.07 /  51.97  bend   39.4 %  doubling 1.21x   *** NEAR A MECHANISM
+  biplane I cantilever     semi  4.50 m  p3  tors   0.11 /   0.22  bend    0.8 %  doubling 2.01x
+  biplane flying wires only semi  4.50 m  p3  tors   0.10 /   0.20  bend    0.6 %  doubling 2.04x
+  12 of 12 configurations were stiff enough to need rating (the rest twist under 0.05 deg at 200 N.m) [shard 0/3].
+  soft corners: softShell cantilever
+  *** FOLDING: softShell cantilever (39.4%)
+  negative: 4 strut lower chords cut -> bend 90.6% (must exceed 8%)
+
+  FAIL  no garage configuration is near a mechanism
+  ok    every garage configuration built and measured
+  FAIL  no garage configuration folds in bending
+  ok    the bending net can catch the hinge (strut chords cut -> fold)
+  FAIL  every airframe reached cruise and was measured
+  ok    every measurement is finite
+  ok    no airframe diverged during the sweep
+  ok    instrument is deterministic
+failed: no garage configuration is near a mechanism | no garage configuration folds in bending | every airframe reached cruise and was measured
+GATE FLEX: FAIL
+[stderr]
+SHARD 0/3: 1 of 3 heavy jobs
+(exit code 1)
+--- shard 1/3 (277.8 s) ---
+  ok    no airframe diverged during the sweep
+  ok    instrument is deterministic
+GATE FLEX: PASS
+--- shard 2/3 (396.6 s) ---
+FLEX — deflection, torsion, softness and load margin.
+
+REALITY (handbook / static-test class figures, for comparison only):
+  strut-braced light aircraft, wing tip deflection    ~0.3-1 % of semispan at 1 g
+                                                      ~2-4 %  at 3.8 g limit load
+  glass sailplane (the bendiest certified thing)      ~4-6 %  at 1 g
+  GA wing torsional twist, root to tip, full aileron  ~1-2 deg
+  elastic strain limits: 4130 0.22 %  2024-T3 0.47 %  spruce 0.36 %  carbon 1.1 %  6061-T6 0.40 %
+
+GARAGE (generated — `lin` closes to an area, so softness and yield margin follow):
+  GEN 2024 alloy sheet   semispan 5.00 m
+    tip deflection      0.33 % of semispan at 1 g      1.19 % at 3.8 g (EXTRAP)   slope   0.31 %/g   (n measured to 1.4)
+    cruise hold         0.32 % at n=0.98   peak-to-peak 0.00 %   twist 0.03 deg
+    torsion (static)   -0.37 deg @200 N.m    -0.74 @400   doubling 2.01x  linear
+    torsion (flight)    0.04 deg root->tip under full aileron   (CONFOUNDED by any departure — read the static row)
+    fus      peak load     3.83 kN   peak strain   1.05 %   A 1.80 cm2   soft x  31 (x20..x235)   load/yield    6.2 %
+    gear     peak load     0.17 kN   peak strain   0.22 %   A 3.96 cm2   soft x 313 (x202..x1328)   load/yield    0.1 %
+    tail     peak load     0.50 kN   peak strain   0.28 %   A 0.40 cm2   soft x   7 (x2..x138)   load/yield    3.6 %
+    wing     peak load     4.92 kN   peak strain   0.10 %   A 1.98 cm2   soft x   1 (x0..x18)   load/yield    7.2 %
+    wire     peak load     0.20 kN   peak strain   0.02 %   A 0.40 cm2   soft x   4 (x4..x4)   load/yield    1.5 %
+  GEN glass + epoxy      semispan 5.00 m
+    tip deflection      0.27 % of semispan at 1 g      1.01 % at 3.8 g (EXTRAP)   slope   0.26 %/g   (n measured to 1.4)
+    cruise hold         0.26 % at n=0.97   peak-to-peak 0.00 %   twist 0.05 deg
+    torsion (static)   -0.16 deg @200 N.m    -0.31 @400   doubling 2.02x  linear
+    torsion (flight)    0.05 deg root->tip under full aileron   (CONFOUNDED by any departure — read the static row)
+    fus      peak load     3.66 kN   peak strain   0.75 %   A 2.00 cm2   soft x   6 (x3..x53)   load/yield   10.2 %
+    gear     peak load     0.25 kN   peak strain   0.14 %   A 4.37 cm2   soft x  47 (x30..x200)   load/yield    0.3 %
+    tail     peak load     0.40 kN   peak strain   0.70 %   A 0.45 cm2   soft x   3 (x1..x53)   load/yield    4.9 %
+    wing     peak load     4.72 kN   peak strain   0.11 %   A 2.26 cm2   soft x   0 (x0..x7)   load/yield   11.6 %
+    wire     peak load     0.49 kN   peak strain   0.03 %   A 0.45 cm2   soft x   1 (x1..x1)   load/yield    6.0 %
+GARAGE MATRIX — static structure across the configuration space.
+  torsion deg @200 / @400 N.m antisymmetric tip couple; doubling < 1.80x = near a mechanism.
+  bend = tip rise, % of semispan, under 2 kN DISTRIBUTED over the stations.
+  tricycle                 semi  5.00 m  p3  tors   0.21 /   0.41  bend    0.2 %  doubling 1.98x
+  low wing                 semi  5.00 m  p3  tors   0.19 /   0.38  bend    0.1 %  doubling 2.02x
+  winglet                  semi  5.00 m  p3  tors   0.25 /   0.49  bend    0.1 %  doubling 1.99x
+  crank + strut stations   semi  5.00 m  p3  tors   0.34 /   0.69  bend    0.8 %  doubling 2.00x
+  strut span 14            semi  7.00 m  p3  tors   0.64 /   1.28  bend    0.3 %  doubling 1.99x
+  cantilever span 7        semi  3.50 m  p3  tors  -0.10 /  -0.20  bend    1.2 %  the root turns with the ring: the box, not the wing — not rated
+  cantilever panels 5      semi  6.50 m  p5  tors   0.34 /   0.66  bend    2.6 %  doubling 1.94x
+  alloy cantilever         semi  6.50 m  p3  tors  -0.15 /  -0.11  bend    0.8 %  the root turns with the ring: the box, not the wing — not rated
+  glass cantilever         semi  6.50 m  p3  tors  -0.01 /  -0.01  bend    0.9 %  the root turns with the ring: the box, not the wing — not rated
+  sesquiplane              semi  4.50 m  p3  tors   0.00 /   0.00  bend    0.2 %  below the 0.05 deg floor — too stiff to rate
+  biplane 14 m             semi  7.00 m  p3  tors   0.31 /   0.63  bend    0.2 %  doubling 2.00x
+  7 of 11 configurations were stiff enough to need rating (the rest twist under 0.05 deg at 200 N.m) [shard 2/3].
+
+TAIL ARM — the stab tips under the stab's 1 g share, the rest of the aeroplane on trestles
+  stock (conventional)               sag     4 mm   rise   1.55 % of 4.01 m   roll  2.88 deg   76 substeps
+  twin boom (matrix row)             sag     1 mm   rise   0.05 % of 3.58 m   roll  0.09 deg   103 substeps
+  twin boom (the user's fixture)     sag     4 mm   rise   0.26 % of 3.49 m   roll  0.43 deg   101 substeps
+  twin boom (the fixture, drawn root) sag     4 mm   rise   0.24 % of 4.04 m   roll  0.47 deg   100 substeps
+    negative: twin boom as a truss, twinBoomK 1, no tube sag     1 mm   rise   0.09 % of 3.58 m   roll  0.14 deg   103 substeps
+
+  ok    no garage configuration is near a mechanism
+  ok    every garage configuration built and measured
+  ok    no garage configuration folds in bending
+  ok    tail arm: the stock tail is measured
+  ok    tail arm: the twin boom holds its tail (sag <= 40 mm, rise <= 2.5 %, roll <= 4 deg)
+  ok    tail arm: the twin boom does not buy its stiffness past 130 substeps
+  FAIL  tail arm: the tube factor is live (K 1 reads 3x softer in rise or roll)
+  ok    every airframe reached cruise and was measured
+  ok    every measurement is finite
+  ok    no airframe diverged during the sweep
+  ok    instrument is deterministic
+failed: tail arm: the tube factor is live (K 1 reads 3x softer in rise or roll)
+GATE FLEX: FAIL
+[stderr]
+SHARD 2/3: 1 of 3 heavy jobs
+(exit code 1)
+=== LOAD ===
+LOAD — the sandbag test. FAR 23 normal category: LIMIT +3.8 g (no permanent
+set), ULTIMATE +5.7 g (no failure). Load laid out over the wing strips in
+proportion to their area, applied against the aeroplane's own inertia, and
+measured from the FREE-FALL jig shape. Deflection is % of semispan.
+
+Real light aircraft, for scale: ~0.3-1 % of semispan at 1 g, ~2-4 % at limit.
+
+airframe                     1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult
+  GEN tubeFabric strut         0.18 %      0.68 %        1.02 %     37% of yield (wing)   ok
+  GEN tubeFabric cantilever    2.86 %     10.85 %       16.25 %    125% of yield (wing)   over yield
+  GEN wood strut               0.22 %      0.82 %        1.23 %     37% of yield (wing)   ok
+  GEN wood cantilever          2.11 %      7.91 %       11.73 %     99% of yield (wing)   ok
+  GEN alloy strut              0.08 %      0.29 %        0.44 %     29% of yield (wing)   ok
+  GEN alloy cantilever         1.01 %      3.81 %        5.70 %     83% of yield (wing)   ok
+  GEN carbon strut             0.08 %      0.32 %        0.48 %      9% of yield (wing)   ok
+  GEN carbon cantilever        1.10 %      4.15 %        6.21 %     24% of yield (wing)   ok
+  GEN aluTube strut            0.52 %      2.00 %        3.01 %     38% of yield (wing)   ok
+  GEN aluTube cantilever       6.90 %     25.32 %       37.26 %    105% of yield (wing)   over yield
+  GEN glass strut              0.09 %      0.36 %        0.54 %     48% of yield (wing)   ok
+  GEN glass cantilever         1.23 %      4.67 %        7.32 %    148% of yield (wing)   *** DID NOT SURVIVE
+  GEN softShell strut          0.76 %      2.88 %        4.34 %     35% of yield (wing)   ok
+  GEN softShell cantilever    17.22 %     82.19 %       83.11 %     46% of yield (wing)   *** DID NOT SURVIVE
+  GEN tubeFabric biplane       0.23 %      1.16 %        1.79 %    164% of yield (wire)   over yield
+  GEN wood biplane             0.20 %      1.01 %        1.57 %     15% of yield (wing)   ok
+
+OVER YIELD AT ULTIMATE — reported, deliberately NOT gated:
+    GEN tubeFabric cantilever — 125% of yield
+    GEN aluTube cantilever — 105% of yield
+    GEN glass cantilever — 148% of yield
+    GEN tubeFabric biplane — 164% of yield
+  The load is right and the force is right (the root bending moment
+  checks out by hand), but the ALLOWABLE is coarse: `A = lin/rho` gives
+  ONE area for the whole wing class, and the worst member here is not a
+  spar cap — it is the 3.4 m LIFT STRUT, which a real aeroplane sizes
+  separately. The wood row is the loud case because it pairs a big
+  section (12.9 cm2) with a small allowable (39 MPa crushing), i.e. a
+  WOODEN lift strut, which nobody builds: wooden aeroplanes use steel
+  struts, and the Jodel is a cantilever precisely to avoid the joint.
+  Gating this would be gating the proxy, not the aeroplane. What it is
+  really saying is that strut sizing wants its own area, and that is a
+  materials-model change, not a load-test result.
+
+STOCK BUILD, right wing seen from the front, root -> tip.
+Full height = 1.02 % of semispan (5.1 cm at the tip).
+  5.7 g ULTIMATE   tip 1.02 % = 5.1 cm
+                         ===
+                     =======
+                  ==========
+               =============
+             ===============
+       =====================
+    ========================
+  3.8 g LIMIT   tip 0.68 % = 3.4 cm
+                            
+                            
+                        ====
+                   =========
+               =============
+         ===================
+    ========================
+  1.0 g level   tip 0.18 % = 0.9 cm
+                            
+                            
+                            
+                            
+                            
+                ============
+    ========================
+
+  spanwise profile (% of semispan), station z in metres:
+    z           0.36   1.91   3.45   5.00
+    1.0 g       0.00   0.04   0.12   0.18
+    3.8 g       0.00   0.15   0.47   0.68
+    5.7 g       0.00   0.23   0.71   1.02
+
+THE TAIL — the stab under bags, the fin on its side, on every material
+airframe                     surface   1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult
+  GEN tubeFabric             stab     1.14 %      4.24 %        6.07 %     25% of yield (tail)   ok
+  GEN tubeFabric             fin     -0.21 %     -0.79 %       -1.18 %      9% of yield (wire)   ok
+  GEN wood                   stab     0.86 %      3.24 %        4.74 %     26% of yield (tail)   ok
+  GEN wood                   fin     -3.11 %    -11.67 %      -17.27 %     20% of yield (tail)   ok
+  GEN alloy                  stab     0.55 %      2.10 %        3.14 %     20% of yield (tail)   ok
+  GEN alloy                  fin     -0.75 %     -2.86 %       -4.28 %      5% of yield (tail)   ok
+  GEN carbon                 stab     0.60 %      2.30 %        3.41 %      6% of yield (tail)   ok
+  GEN carbon                 fin     -0.45 %     -1.69 %       -2.54 %      1% of yield (tail)   ok
+  GEN aluTube                stab     1.90 %      6.58 %        8.83 %     23% of yield (tail)   ok
+  GEN aluTube                fin     -0.51 %     -1.95 %       -2.93 %      1% of yield (tail)   ok
+  GEN glass                  stab     0.68 %      2.58 %        3.82 %     34% of yield (tail)   ok
+  GEN glass                  fin     -2.40 %     -9.04 %      -13.43 %     24% of yield (tail)   ok
+  GEN softShell              stab     1.95 %      6.73 %        9.00 %     21% of yield (tail)   ok
+  GEN softShell              fin     -0.71 %     -2.68 %       -4.02 %      2% of yield (tail)   ok
+  TWIN BOOM tubeFabric       stab    -2.13 %     -6.41 %       -8.30 %     37% of yield (tail)   ok
+  TWIN BOOM tubeFabric       fin     -0.41 %     -1.57 %       -2.35 %      4% of yield (tail)   ok
+  V-TAIL tubeFabric          stab   *** NOT MEASURABLE: no HF/HR spar stations (the stab has no tagged truss on this airframe) — OWED (REVIEW D4: no spar truss)
+  V-TAIL tubeFabric          fin    *** NOT MEASURABLE: no VF/VR spar stations (the fin has no tagged truss on this airframe) — OWED (REVIEW D4: no spar truss)
+
+THE FIN'S SIDE DEFLECTION IS REPORTED, NOT GATED — the lattice has two
+chords where the real fin has a skin (see the note in this file):
+    tubeFabric fin — -1 % of its height at ultimate
+    wood fin — -17 % of its height at ultimate
+    alloy fin — -4 % of its height at ultimate
+    carbon fin — -3 % of its height at ultimate
+    aluTube fin — -3 % of its height at ultimate
+    glass fin — -13 % of its height at ultimate
+    softShell fin — -4 % of its height at ultimate
+    twin fin — -2 % of its height at ultimate
+  GEN tubeFabric strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN tubeFabric cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN alloy strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN alloy cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN carbon strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN carbon cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN aluTube strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN aluTube cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN glass strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN glass cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN softShell strut: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN softShell cantilever: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN tubeFabric biplane: wire-braced, bilinear by construction — held to "grows", not to linear
+  GEN wood biplane: wire-braced, bilinear by construction — held to "grows", not to linear
+
+  FAIL  every airframe survived the ultimate load
+  ok    D4: the rig refuses the V-tail's stab and fin, naming the missing tag
+  ok    P4: every tail surface survived its ultimate case
+  ok    P4: the stab stays inside 10 % of its semispan at ultimate
+  ok    deflection grows with load on every airframe
+  ok    deflection scales with load (linear, +/-15%)
+  ok    every case was measured
+failed: every airframe survived the ultimate load
+GATE LOAD: FAIL
+(exit code 1)
+=== MOUNT ===
+  stock nose             power nose-over 0.00 x, cap 1.00  roll: tail agl max 0.23 m, throttle max 1.00, airborne (CLIMB at 60 s)
+
+GATE MOUNT: PASS
+=== ENGCONFIG ===
+1 IDENTITY - the saved builds and the single mounts, digested against master (1bcd01d3e + the landing notch)
+  FAIL  builds/cub_2026-09-20_corrected.json                 ae1624618f2fd513 716e37057d409aa9  (master 3648bf163799cae9 811852016151aab6)
+  FAIL  builds/jodel_2026-09-20_corrected.json               f92314b18436a8cd 9c7102aaf4d201cd  (master 071aec8b30f75954 91de808589c2b7bd)
+  FAIL  builds/cessna172r_2026-11-08.json                    264dfeb233449c79 1c4c8af8395feccb  (master 29b63f0af774d526 e7d6edfc42051ef7)
+  FAIL  builds/chinook_2026-09-21_corrected.json             a8c4f9321f68c1da 3bb787a6ace4f234  (master 23410ab32b1cb6c1 9a62a6a61fcc8556)
+  FAIL  tools/fixtures/build_v7_ultralight_2026-09-05.json   6933b1e4a5e09224 6af816a113af9f13  (master d2ed8ef26a86b6c5 a04a230e8d631667)
+  FAIL  tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json 83acc2285d121dbd 896e7c71253b924b  (master fe78edfd3ef1fea5 77b62ab7c4146aaa)
+  FAIL  tools/fixtures/test_copies/build_v7_twin_2026-09-04.json 7be95076757dec14 5921829017147dfa  (master 9ea1934fc404b8fc 221d6c2405b15e1e)
+  FAIL  builds/candidates/build_v8_pusher_2026-09-11.json    237af0e32a9c48d4 3273d5b42d0eb2a8  (master 888ebfdf96341e38 1e888903ddfb652c)
+  FAIL  bugReports/cessnaFloatsWOrks.json                    bb23210a648ebe55 cb56a0c7835d1a0a  (master ec60bc853a4a12a8 55bf1eec20118296)
+  FAIL  tools/fixtures/test_copies/rufus_2026-10-18_certified.json 4c6f04d6f22e4782 5358a70609c73271  (master 5ef573483ffd5d4d 210d8b580d8fe556)
+  FAIL  stock nose                                           24fc486d9998da73 560aad586af01019  (master e959f1716ede56c4 31cce33943cc578a)
+  FAIL  stock pusher                                         14df6848d7f5ec03 6713d2d604b79d8e  (master d4a273f9985f43a7 5613f19c025bd3cf)
+  FAIL  stock wingTop                                        8fb2cbba994ad916 c2ffd78d18ae1b05  (master 76401b1f0fa1c967 53a5929a6f5191d4)
+  FAIL  stock wing                                           bf1be0132c93e25c e1d6133e6a774d09  (master 495c25ec142c03ee 7f98742af70074a4)
+  FAIL  stock 2 nose (clamped to one)                        24fc486d9998da73 560aad586af01019  (master e959f1716ede56c4 31cce33943cc578a)
+  FAIL  stock pusher+nose (clamped to one)                   14df6848d7f5ec03 6713d2d604b79d8e  (master d4a273f9985f43a7 5613f19c025bd3cf)
+2 CLAMP - the exact lists keep their engines; every other list clamps as before
+  ok    [nose, pusher] keeps both, one engine type, the rear hand mirrored (o200_eprops/1 o200_eprops/-1)
+  ok    [nose, wing, wing] keeps three, the pair mirrored off its port entry
+  ok    [wing x4] keeps four, the outer pair outboard (z 1.5 1.5 3 3)
+  ok    every other list: one engine, or the classic pair (a lone wing entry doubled)
+  ok    genEngLayoutOf: a layout only for the exact lists (the classic pair is not one)
+3 LATTICE / 4 SHAKEDOWN - each layout built, balanced, on paper
+  ok    skymaster: 124 nodes, 531 beams - finite true, no zero member true, mirrored true
+  ok    skymaster: nEngines 2, engineOf [0,0,1,1] - every engine on its own mount nodes
+  ok    skymaster: the extra engines weigh what they weigh (+207 kg for 1 x 138 kg dry)
+  ok    skymaster: each engine's thrust nodes where its mount is (centreline / a nacelle a side)
+  ok    skymaster: static margin 0.234, flyable circuit true (mass 790 kg, Vs 22.9 m/s)
+  ok    skymaster: the rear disc clears the booms by 0.210 m and turns 3.95 m ahead of the stab
+  ok    skymaster: the props counter-rotate (the rear engine turned round) - torque and P-factor cancel in pairs
+  ok    tri: 101 nodes, 423 beams - finite true, no zero member true, mirrored true
+  ok    tri: nEngines 3, engineOf [0,0,1,2] - every engine on its own mount nodes
+  ok    tri: the extra engines weigh what they weigh (+241 kg for 2 x 80 kg dry)
+  ok    tri: each engine's thrust nodes where its mount is (centreline / a nacelle a side)
+  ok    tri: static margin 0.206, flyable circuit true (mass 701 kg, Vs 21.6 m/s)
+  ok    quad: 100 nodes, 432 beams - finite true, no zero member true, mirrored true
+  ok    quad: nEngines 4, engineOf [0,1,2,3] - every engine on its own mount nodes
+  ok    quad: the extra engines weigh what they weigh (+368 kg for 3 x 80 kg dry)
+  ok    quad: each engine's thrust nodes where its mount is (centreline / a nacelle a side)
+  ok    quad: static margin 0.156, flyable circuit true (mass 828 kg, Vs 23.5 m/s)
+5 FLIGHT - a straight downwind, wings level; every engine, then one cut (10 s)
+  ok    skymaster level, every engine: beta 0.06 deg, roll 0.51 deg, r 0.15 deg/s, -0.7 m in 10 s at 39.4 m/s
+  ok    tri       level, every engine: beta 0.13 deg, roll 0.33 deg, r 0.08 deg/s, -0.7 m in 10 s at 37.2 m/s
+  FAIL  quad level: never wings-level on the downwind
+  ok    CONTROL twin      cut  0: beta 6.11 deg, r 7.35 deg/s, roll 7.7, hdg 2.39 deg, alt 0.6 m, rudder 0.229, thrust [0 743] N - an asymmetric cut is seen
+  ok    skymaster cut  0: beta 0.08 deg, r 0.17 deg/s, roll 0.6, hdg 0.11 deg, alt -5.3 m, rudder 0.004, thrust [0 1122] N - centreline: small yaw
+  ok    skymaster cut  1: beta 0.05 deg, r 0.15 deg/s, roll 0.5, hdg 0.07 deg, alt -4.9 m, rudder 0.003, thrust [1130 0] N - centreline: small yaw
+  ok    REFERENCE single    cut  0: beta 8.31 deg, r 14.37 deg/s, roll 23.6, hdg -48.09 deg, alt -25.2 m, rudder 0.117, thrust [0] N - a single's own power cut (its torque, P-factor and swirl go)
+  ok    tri       cut  0: beta 0.92 deg, r 1.02 deg/s, roll 0.4, hdg -0.30 deg, alt -2.5 m, rudder 0.043, thrust [0 499 499] N - the nose engine: no thrust couple, a yaw under the single's power cut (8.31 deg)
+  ok    tri       cut  1: beta 2.65 deg, r 3.36 deg/s, roll 3.5, hdg -0.66 deg, alt -1.7 m, rudder 0.077, thrust [495 0 495] N - a wing engine: a yaw, under the twin's
+  FAIL  quad cut 0: never wings-level on the downwind - an inner engine out flies
+  FAIL  quad cut 2: never wings-level on the downwind - an outer engine out flies, and yaws more than an inner
+6 CERTIFY - the certificate and the bench to the ultimate (damage on)
+  ok    skymaster certificate: 531 members, 0 without an envelope, flown pull reached true; bench to 5.7 g: HELD, 0 broken (37357 ms)
+  ok    tri       certificate: 423 members, 0 without an envelope, flown pull reached true; bench to 5.7 g: HELD, 0 broken (25763 ms)
+  ok    quad      certificate: 432 members, 0 without an envelope, flown pull reached true; bench to 5.7 g: HELD, 0 broken (27350 ms)
+7 EDITOR - the join and the design tiles
+  ok    join: engMount 0-3 -> the lists they always were (nose | pusher | wingTop | wing,wing)
+  ok    join: engMount 4 / 5 / 6 -> push-pull / three / four (nose,pusher | nose,wing,wing | wing,wing,wing,wing)
+  ok    join: each push-pull entry carries its own drawn station (nose flange -1.1, pusher 2.9 / 0.50)
+  ok    join -> resolved: pushPull, the pusher at its drawn station, the rear hand the nose's mirror
+  ok    join: the four's pairs each tops-inward (1,-1,1,-1)
+  ok    tile Push-pull: engMount 4, twin booms at 1.24 (the disc's radius + 0.30), the nose cowl on
+  ok    tile Three: engMount 5, the nose keeps its cowl, the nacelles a tail
+  ok    tile Four: engMount 6, the outer pair outboard of the inner
+  ok    tile Single: a layout goes back to the nose
+  ok    the Engines row's Three / Four / Push-pull tiles are live
+  ok    the Engines row reads the layout back
+  ok    designBake (the birth intent) carries the push-pull (nose,pusher)
+8 PHYSICS - the propeller's moments, the wakes, the break groups
+  ok    TORQUE skymaster: reaction 473.9 / -473.9 N.m, net 0.0e+0; angular momentum 186.3 / 186.3 (hands 1,-1), net 0.0e+0 - they cancel in pairs
+  ok    TORQUE tri: every engine's reaction 201.3 N.m the same hand - the sum 604.0 N.m, 3 x a single's
+  ok    TORQUE quad: every engine's reaction 201.3 N.m the same hand - the sum 805.4 N.m, 4 x a single's
+  ok    WAKES tri: the tail in the nose's wake (15 strips), the wing in the nose's or its nacelle's
+  ok    WAKES skymaster: the stab in the centreline's series wake (12 strips), the boom fins out of it (4), no wing strip blown by the pusher
+  ok    WAKES quad: no tail wash (between the nacelles), each of the four discs blows its own wing strips
+  ok    WAKES tri in the solver: every disc 24.2 / 24.2 / 24.2 m/s; the nose off 0.0 / 24.7 / 24.7 (the mean disc would say 19.8 on the tail); a wing off 25.6 / 0.0 / 25.6
+  ok    WAKES skymaster in the solver: the series wake 49.0 m/s over one disc's 33.8; the nose off: the pusher's own 36.4
+  ok    DAMAGE skymaster: a mount break group per engine (eng, engAft), 0 engine issues, 8 other (the twin boom's own: 8)
+  ok    DAMAGE tri: a mount break group per engine (eng, engL, engR), 0 engine issues, 0 other (the twin boom's own: 0)
+  ok    DAMAGE quad: a mount break group per engine (engL, engL2, engR, engR2), 0 engine issues, 0 other (the twin boom's own: 0)
+9 FIXTURES - the example builds (tools/fixtures/build_v10_engcfg_*): loaded as the game loads them, design-checked, flown, certified
+  FAIL  pushpull  pushPull, 2 x io360_mccauley, 1037 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.142 as drawn, 0.112 at the worst corner)
+  FAIL  trimotor  tri, 3 x rotax912_warp, 827 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.241 as drawn, 0.163 at the worst corner)
+  FAIL  four      quad, 4 x rotax912_warp, 939 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.221 as drawn, 0.158 at the worst corner)
+  FAIL  the cards: pushpull: DIFFERS from the saved file (run --write after a deliberate change); trimotor: DIFFERS from the saved file (run --write after a deliberate change); four: DIFFERS from the saved file (run --write after a deliberate change)
+  ok    pushpull  cut  1: beta 0.05 deg, r 0.13 deg/s, roll 0.5, hdg 0.00 deg, alt -5.5 m, rudder 0.003, thrust [1243 0] N - flies the circuit, one engine cut
+  ok    pushpull  certificate: 548 members, flown pull reached true; bench to 5.7 g: HELD, 0 broken
+  ok    trimotor  cut  0: beta 0.59 deg, r 0.72 deg/s, roll 0.4, hdg -0.09 deg, alt -3.3 m, rudder 0.029, thrust [0 449 449] N - flies the circuit, one engine cut
+  ok    trimotor  certificate: 408 members, flown pull reached true; bench to 5.7 g: HELD, 0 broken
+  ok    four      cut  2: beta 2.81 deg, r 3.27 deg/s, roll 4.6, hdg -0.24 deg, alt -1.6 m, rudder 0.146, thrust [369 369 0 369] N - flies the circuit, one engine cut
+  ok    four      certificate: 413 members, flown pull reached true; bench to 5.7 g: HELD, 0 broken
+FAILED: builds/cub_2026-09-20_corrected.json                 ae1624618f2fd513 716e37057d409aa9  (master 3648bf163799cae9 811852016151aab6); builds/jodel_2026-09-20_corrected.json               f92314b18436a8cd 9c7102aaf4d201cd  (master 071aec8b30f75954 91de808589c2b7bd); builds/cessna172r_2026-11-08.json                    264dfeb233449c79 1c4c8af8395feccb  (master 29b63f0af774d526 e7d6edfc42051ef7); builds/chinook_2026-09-21_corrected.json             a8c4f9321f68c1da 3bb787a6ace4f234  (master 23410ab32b1cb6c1 9a62a6a61fcc8556); tools/fixtures/build_v7_ultralight_2026-09-05.json   6933b1e4a5e09224 6af816a113af9f13  (master d2ed8ef26a86b6c5 a04a230e8d631667); tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json 83acc2285d121dbd 896e7c71253b924b  (master fe78edfd3ef1fea5 77b62ab7c4146aaa); tools/fixtures/test_copies/build_v7_twin_2026-09-04.json 7be95076757dec14 5921829017147dfa  (master 9ea1934fc404b8fc 221d6c2405b15e1e); builds/candidates/build_v8_pusher_2026-09-11.json    237af0e32a9c48d4 3273d5b42d0eb2a8  (master 888ebfdf96341e38 1e888903ddfb652c); bugReports/cessnaFloatsWOrks.json                    bb23210a648ebe55 cb56a0c7835d1a0a  (master ec60bc853a4a12a8 55bf1eec20118296); tools/fixtures/test_copies/rufus_2026-10-18_certified.json 4c6f04d6f22e4782 5358a70609c73271  (master 5ef573483ffd5d4d 210d8b580d8fe556); stock nose                                           24fc486d9998da73 560aad586af01019  (master e959f1716ede56c4 31cce33943cc578a); stock pusher                                         14df6848d7f5ec03 6713d2d604b79d8e  (master d4a273f9985f43a7 5613f19c025bd3cf); stock wingTop                                        8fb2cbba994ad916 c2ffd78d18ae1b05  (master 76401b1f0fa1c967 53a5929a6f5191d4); stock wing                                           bf1be0132c93e25c e1d6133e6a774d09  (master 495c25ec142c03ee 7f98742af70074a4); stock 2 nose (clamped to one)                        24fc486d9998da73 560aad586af01019  (master e959f1716ede56c4 31cce33943cc578a); stock pusher+nose (clamped to one)                   14df6848d7f5ec03 6713d2d604b79d8e  (master d4a273f9985f43a7 5613f19c025bd3cf); quad level: never wings-level on the downwind; quad cut 0: never wings-level on the downwind - an inner engine out flies; quad cut 2: never wings-level on the downwind - an outer engine out flies, and yaws more than an inner; pushpull  pushPull, 2 x io360_mccauley, 1037 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.142 as drawn, 0.112 at the worst corner); trimotor  tri, 3 x rotax912_warp, 827 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.241 as drawn, 0.163 at the worst corner); four      quad, 4 x rotax912_warp, 939 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.221 as drawn, 0.158 at the worst corner); the cards: pushpull: DIFFERS from the saved file (run --write after a deliberate change); trimotor: DIFFERS from the saved file (run --write after a deliberate change); four: DIFFERS from the saved file (run --write after a deliberate change)
+GATE ENGCONFIG: FAIL
+(exit code 1)
+=== ENGDRAWN ===
+PASS removed: it flies where it is drawn (the join measured x 1.784, y 2.567)
+
+GATE ENGDRAWN: PASS
+=== AUDIOENG ===
+§1 CONFIG
+  ok     cub[0]: 4 cyl flat four-stroke, gear 1, 2 firings/rev, from table
+  ok     cub[0]: firing order 1-3-2-4 even (offsets 0, 0.5, 0.75, 0.25)
+  ok     jodel[0]: 4 cyl flat four-stroke, gear 1, 2 firings/rev, from table
+  ok     jodel[0]: firing order 1-3-2-4 even (offsets 0, 0.5, 0.75, 0.25)
+  FAIL   cessna[0]: 4 cyl flat four-stroke, gear 1, 2 firings/rev, from spec.sound
+  ok     cessna[0]: firing order 1-3-2-4 even (offsets 0, 0.5, 0.75, 0.25)
+  ok     cessnaFloats[0]: 6 cyl flat four-stroke, gear 1, 3 firings/rev, from table
+  ok     cessnaFloats[0]: firing order 1-4-5-2-3-6 even (offsets 0, 0.5, 0.3333, 0.8333, 0.6667, 0.1667)
+  ok     twin582[0]: 2 cyl inline two-stroke, gear 2.62, 2 firings/rev, from table
+  ok     twin582[0]: firing order 1-2 even (offsets 0, 0.5)
+  ok     twin582[1]: 2 cyl inline two-stroke, gear 2.62, 2 firings/rev, from table
+  ok     twin582[1]: firing order 1-2 even (offsets 0, 0.5)
+  ok     radial orders: 7 -> 1-3-5-7-2-4-6; 14 -> 1-10-5-14-9-4-13-8-3-12-7-2-11-6 (the R-1830's)
+  ok     an electric row has no piston voice
+  ok     the declared table matches the editor's 31 piston presets
+  ok     the join's sound row (CAGE_ENG_SOUND) equals the table on all 31
+  ok     the two fantasy presets get their OWN cylinders from the join (the table says A-65)
+§2 FIRING
+  ok     cub @48 kHz: firing peak within 0.02 % (<= 3), prominence >= 45 dB (>= 10) [644:21.5->21.5 975:32.5->32.5 1306:43.5->43.5 1638:54.6->54.6 1969:65.6->65.6 2300:76.7->76.7]
+  ok     cub @44.1 kHz: firing peak within 0.01 % (<= 3), prominence >= 45 dB (>= 10) [644:21.5->21.5 975:32.5->32.5 1306:43.5->43.5 1638:54.6->54.6 1969:65.6->65.6 2300:76.7->76.7]
+  ok     jodel @48 kHz: firing peak within 0.02 % (<= 3), prominence >= 45 dB (>= 10) [644:21.5->21.5 975:32.5->32.5 1306:43.5->43.5 1638:54.6->54.6 1969:65.6->65.6 2300:76.7->76.7]
+  ok     cessna @48 kHz: firing peak within 0.01 % (<= 3), prominence >= 43 dB (>= 10) [686:22.9->22.9 1039:34.6->34.6 1392:46.4->46.4 1744:58.1->58.1 2097:69.9->69.9 2450:81.7->81.7]
+  ok     cessnaFloats @48 kHz: firing peak within 0.01 % (<= 3), prominence >= 37 dB (>= 10) [721:36.1->36.0 1092:54.6->54.6 1463:73.1->73.1 1833:91.7->91.7 2204:110.2->110.2 2575:128.8->128.7]
+  ok     twin582 @48 kHz: firing peak within 0.00 % (<= 3), prominence >= 53 dB (>= 10) [1820:60.7->60.7 2756:91.9->91.9 3692:123.1->123.1 4628:154.3->154.3 5564:185.5->185.5 6500:216.7->216.7]
+  ok     twin582 @44.1 kHz: firing peak within 0.00 % (<= 3), prominence >= 47 dB (>= 10) [1820:60.7->60.7 2756:91.9->91.9 3692:123.1->123.1 4628:154.3->154.3 5564:185.5->185.5 6500:216.7->216.7]
+§3 HYGIENE
+  ok     26 renders: finite, peak 0.337 (< 0.9), DC: mean 7.7e-5 (< 1e-3), worst 1-s mean 4.7e-3 (< 1e-2), no subnormal output
+  ok     a free ring-down, 20 s, sleep off: 0 subnormals in 1762 pipe cells x 80 scans + the output (the bias holds them off)
+  ok     40 s after a hot shutdown: asleep, 0 subnormals in 1762 pipe cells + the output
+  ok     NaN / Infinity / negative parameters and a NaN in a pipe: finite, and the voice recovers
+§4 ALLOC
+  ok     process() over 20 000 blocks (run, crank, run-down, ticks): 0 GCs, heap 22.4 kB (0 GCs, < 64 kB)
+§5 SEED
+  ok     seed 7 twice: bit-identical renders
+  ok     seed 8: a different render
+§6 LIFE
+  ok     the crank (setEngine's 1.5 s, 1.18 s seen): voice 195-266 rpm (100-300) while the solver reads 5.9 rpm (a cranking engine is not turning, to the solver)
+  ok     the catch at 2.10 s: surge to 904 rpm over the solver's idle 644 (> +15 %), within 5 % of it by 4 s
+  ok     the run-down from 638 rpm: under 30 % of idle after 1.00 s (> 0.8; the solver: at once), stopped after 1.98 s (< 4.5)
+  ok     after-shutdown ticking, 10-24 s, 2-8 kHz: hot 31 dB vs cold -300 dB (> 40 dB apart)
+  ok     misfires: 84 % of 320 cycles starving (> 30), 0.0 % in cruise (< 3)
+  ok     combustion jitter: sd 0.328 at idle vs 0.050 in cruise (idle > 2x)
+  ok     control output: engine 5000 rpm, prop 1908 rpm (gear 2.62)
+  ok     the blower: the M-14P whistles at 3200 Hz (+45 dB), the O-540 does not (+9 dB)
+§7 CPU
+  ok     cub: 0.056 ms per 128-frame block (< 1.0; real time is 2.67 ms)
+  ok     cessna: 0.058 ms per 128-frame block (< 1.0; real time is 2.67 ms)
+  ok     cessnaFloats: 0.108 ms per 128-frame block (< 1.0; real time is 2.67 ms)
+  ok     twin582: 0.047 ms per 128-frame block (< 1.0; real time is 2.67 ms)
+§8 INERT
+  ok     cub: resolveSpec + buildGen + 4 s of the solver bit-identical with the sound row (0.2 MB compared, the row carried through the resolve)
+  ok     jodel: resolveSpec + buildGen + 4 s of the solver bit-identical with the sound row (0.2 MB compared, the row carried through the resolve)
+  ok     cessna: resolveSpec + buildGen + 4 s of the solver bit-identical with the sound row (0.2 MB compared, the row carried through the resolve)
+  ok     cessnaFloats: resolveSpec + buildGen + 4 s of the solver bit-identical with the sound row (0.7 MB compared, the row carried through the resolve)
+  ok     twin582: resolveSpec + buildGen + 4 s of the solver bit-identical with the sound row (0.2 MB compared, the row carried through the resolve)
+§9 REVIEW
+  ok     cub starter: centroid 347 Hz (< 600; was 1076), strongest bin 2.5 dB over its third octave (< 12: no tone)
+  ok     cub starter: -61.8 dB RMS (<= -46.4: 10 under the whine's -36.4); the cranking engine -60.7 dB(A) over the starter's -67.6 (>= it)
+  ok     cub the catch -53.4 dB(A) over the cranking -59.4 (>= +4: the first firings louder)
+  ok     jodel starter: centroid 347 Hz (< 600; was 1076), strongest bin 2.5 dB over its third octave (< 12: no tone)
+  ok     jodel starter: -61.8 dB RMS (<= -46.4: 10 under the whine's -36.4); the cranking engine -60.7 dB(A) over the starter's -67.6 (>= it)
+  ok     jodel the catch -53.4 dB(A) over the cranking -59.4 (>= +4: the first firings louder)
+  ok     cessna starter: centroid 273 Hz (< 600; was 926), strongest bin 3.0 dB over its third octave (< 12: no tone)
+  ok     cessna starter: -62.0 dB RMS (<= -46.4: 10 under the whine's -36.4); the cranking engine -59.9 dB(A) over the starter's -69.6 (>= it)
+  ok     cessna the catch -51.7 dB(A) over the cranking -59.2 (>= +4: the first firings louder)
+  ok     cessnaFloats starter: centroid 256 Hz (< 600; was 785), strongest bin 3.5 dB over its third octave (< 12: no tone)
+  ok     cessnaFloats starter: -62.6 dB RMS (<= -46.4: 10 under the whine's -36.4); the cranking engine -63.1 dB(A) over the starter's -70.6 (>= it)
+  ok     cessnaFloats the catch -47.8 dB(A) over the cranking -62.3 (>= +4: the first firings louder)
+  ok     twin582 starter: centroid 468 Hz (< 600; was 670), strongest bin 2.9 dB over its third octave (< 12: no tone)
+  ok     twin582 starter: -66.2 dB RMS (<= -46.4: 10 under the whine's -36.4); the cranking engine -68.6 dB(A) over the starter's -70.0 (>= it)
+  ok     twin582 the catch -50.8 dB(A) over the cranking -65.6 (>= +4: the first firings louder)
+  ok     cessna ticks: 80, median 2.25 ms to -20 dB (< 5; was 36): dry, no ring
+  ok     cessna ticks: spectral flatness 1.5-8 kHz 0.984 (> 0.35; was 0.25): broadband, no pitch
+  ok     cessna ticks: loudest -10.8 dB re the idle's RMS (<= -6; was +10.1)
+  ok     the tick hook: 70 messages for 70 ticks; synth 0 leaves -600 dB (< -150)
+  ok     cub/starve clicks: the loudest cough -5.9 dB re the running RMS (<= -3.7: 6 under the old +2.3; > -17.7: still heard)
+  ok     twin582/runup clicks: the loudest cough -4.9 dB re the running RMS (<= -1.8: 6 under the old +4.2; > -15.8: still heard)
+  ok     twin582/sweep clicks: the loudest cough -9.8 dB re the running RMS (<= -3.6: 6 under the old +2.4; > -17.6: still heard)
+  ok     twin582: both summed -1.0 dB re one (<= +1; was +6); piston voices: twin 2, Cub 1; each at -3.01 dB
+§P1 PCONFIG
+  ok     cub: piston, 2 blades, D 1.91 m, gear 1, no gear teeth, = the block
+  ok     jodel: piston, 2 blades, D 1.83 m, gear 1, no gear teeth, = the block
+  ok     cessna: piston, 2 blades, D 1.905 m, gear 1, no gear teeth, = the block
+  ok     cessnaMetal: piston, 2 blades, D 1.905 m, gear 1, no gear teeth, = the block
+  ok     cessnaFloats: piston, 2 blades, D 2.06 m, gear 1, no gear teeth, = the block
+  ok     twin582: piston, 2 blades, D 1.91 m, gear 2.62, 21 gear teeth, = the block
+  ok     pt6: turbine, 3 blades, D 2.69 m, gear 1, no gear teeth, = the block
+  ok     electric: electric, 2 blades, D 1.91 m, gear 1, no gear teeth, = the block
+§P2 BPF
+  ok     cub: BPF within 0.01 % (<= 3), prominence >= 53 dB (>= 20) [920:30.7->30.7 1380:46.0->46.0 1840:61.3->61.3 2300:76.7->76.7]
+  ok     jodel: BPF within 0.01 % (<= 3), prominence >= 53 dB (>= 20) [920:30.7->30.7 1380:46.0->46.0 1840:61.3->61.3 2300:76.7->76.7]
+  ok     cessna: BPF within 0.01 % (<= 3), prominence >= 54 dB (>= 20) [980:32.7->32.7 1470:49.0->49.0 1960:65.3->65.3 2450:81.7->81.7]
+  ok     cessnaMetal: BPF within 0.01 % (<= 3), prominence >= 54 dB (>= 20) [980:32.7->32.7 1470:49.0->49.0 1960:65.3->65.3 2450:81.7->81.7]
+  ok     cessnaFloats: BPF within 0.01 % (<= 3), prominence >= 50 dB (>= 20) [1030:34.3->34.3 1545:51.5->51.5 2060:68.7->68.7 2575:85.8->85.8]
+  ok     twin582: BPF within 0.01 % (<= 3), prominence >= 49 dB (>= 20) [992:33.1->33.1 1489:49.6->49.6 1985:66.2->66.2 2481:82.7->82.7]
+  ok     pt6: BPF within 0.01 % (<= 3), prominence >= 53 dB (>= 20) [760:38.0->38.0 1140:57.0->57.0 1520:76.0->76.0 1900:95.0->95.0]
+  ok     electric: BPF within 0.00 % (<= 3), prominence >= 52 dB (>= 20) [1000:33.3->33.3 1500:50.0->50.0 2000:66.7->66.7 2500:83.3->83.3]
+§P3 GEARBOX
+  ok     582 full static: firing 199.3 -> 199.3 Hz (+56 dB), BPF 76.1 -> 76.1 Hz (+55 dB): both, distinct (x2.62)
+  ok     582 gear mesh (21 teeth): 2093 -> 2093 Hz (+75 dB, >= 20)
+  ok     the Cub (direct drive): firing = BPF = 70.5 -> 70.5 Hz; no gear whine at 741 Hz (+10 dB, < 12)
+§P4 SNARL
+  ok     upper-harmonic share (>= 3.5 BPF over the fundamental) rises with tip Mach [0.7: -12.1 (+0.0), 0.8: -7.1 (+0.0), 0.9: 0.8 (+2.5), 0.95: 4.8 (+3.6), 1: 8.0 (+4.0)] dB
+  ok     the snarl: 0.0 dB below Mh 0.8 (<= 0.5), +3.6 dB at Mh 0.95-1.0 (>= 3) over the Gutin-only voice
+§P5 PHYGIENE
+  ok     23 engine+prop renders: finite, peak 0.417 (< 0.9), DC mean 3.9e-4 (< 1e-3), worst 1-s mean 5.9e-3 (< 1e-2), no subnormal in the output or the voices' states (0)
+  ok     30 s after a shutdown (Cub, PT6, electric): the prop asleep, 0 subnormals in the states
+  ok     NaN / Infinity / negative parameters and a NaN in a filter state: finite, and the prop recovers
+§P6 PALLOC
+  ok     prop (driven + fallback), turbine, electric process() over 20 000 blocks through every state: 0 GCs, heap 12.8 kB (0 GCs, < 64 kB)
+§P7 PLIFE
+  ok     the Cub's crank: the prop turns with the engine voice (BPF 8.8 Hz) while the solver says 0 rpm
+  ok     the run-down: 0.4 s after the key off the BPF is 65 % of idle (> 30), at 5.5 s 0 % (< 5)
+  ok     PT6: Ng 52.0 % at idle (52), 101.0 % at full power (101), 69 % 2 s after shutdown (> 30: the whine down)
+  ok     PT6 idle: the first compressor stage at Ng x 26 = 8450 -> 8450 Hz (+57 dB)
+  ok     PT6 beta buzz: 1.00 at taxi (> 0.5), 0.00 in the climb (0)
+  ok     E-811 at 2000 rpm: the torque ripple 6 x 10 pole pairs = 2000 -> 2000 Hz (+121 dB), x4.2 louder at full current
+  ok     the chop at BPF (76.7 Hz) in the broadband's envelope: +32 dB climbing, 8.5 dB deeper than level (>= 6)
+§P8 PCPU
+  ok     cub: prop 0.022 ms per 128-frame block (< 0.5) — real time is 2.67 ms
+  ok     twin582: prop 0.019 ms per 128-frame block (< 0.5) — real time is 2.67 ms
+  ok     pt6: prop 0.012 ms per 128-frame block (< 0.5), turbine 0.008 ms (< 0.3) — real time is 2.67 ms
+  ok     electric: prop 0.027 ms per 128-frame block (< 0.5), electric 0.012 ms (< 0.3) — real time is 2.67 ms
+§P9 SOURCE
+  ok     the Cub: 1 engine voice, 1 prop, the engine's output 1 -> the prop's input 0 (1 edge), the prop module loaded first
+  ok     a new aeroplane (the twin 582): 2 engines, 2 props, each prop on its own engine's output 1; the old prop's edges 0 (0)
+  ok     pt6: 1 turbine voice, 1 prop, 0 piston voices, driver output 1 -> prop (1)
+  ok     electric: 1 electric voice, 1 prop, 0 piston voices, driver output 1 -> prop (1)
+  ok     a steady frame: the prop and driver params scheduled 0 times over 120 frames (0)
+  ok     AUDIO.update with the engine + prop sources, the twin 582 then the PT6 (rpm and thrust moving): 0 GCs over 2 x 10 000 frames, heap 5.2 kB (the smaller window, < 256), 940 schedules, 8.7 us a frame
+NEGATIVE CONTROLS (each sabotage must turn its section red)
+  ok     §1 CONFIG / drift: red — cessna[0]: 4 cyl flat four-stroke, gear 1, 2 firings/rev, from spec.sound
+  ok     §1 CONFIG / parse: red — cessna[0]: 4 cyl flat four-stroke, gear 1, 2 firings/rev, from spec.sound
+  ok     §1 CONFIG / firing: red — cub[0]: firing order 1-3-2-4 even (offsets 0, 0.55, 0.75, 0.25)
+  ok     §2 FIRING / cyl: red — cub @48 kHz: firing peak within 24.75 % (<= 3), prominence >= 13 dB (>= 10) [644:21.5->16.2 1638:54.6->54.6 23
+  ok     §2 FIRING / stroke: red — cub @48 kHz: firing peak within 8.38 % (<= 3), prominence >= 6 dB (>= 10) [644:21.5->20.0 1638:54.6->59.2 2300
+  ok     §3 HYGIENE / nan: red — 1 renders: finite, peak 0.108 (< 0.9), DC: mean NaN (< 1e-3), worst 1-s mean NaN (< 1e-2), no subnormal output
+  ok     §3 HYGIENE / clip: red — 1 renders: finite, peak 1.302 (< 0.9), DC: mean 2.0e-11 (< 1e-3), worst 1-s mean 6.9e-3 (< 1e-2), no subnormal
+  ok     §3 HYGIENE / dc: red — 1 renders: finite, peak 0.118 (< 0.9), DC: mean 1.0e-2 (< 1e-3), worst 1-s mean 1.1e-2 (< 1e-2), no subnormal 
+  ok     §3 HYGIENE / denormal: red — a free ring-down, 20 s, sleep off: 8565 subnormals in 1762 pipe cells x 80 scans + the output (the bias holds 
+  ok     §3 HYGIENE / nanguard: red — a NaN left in the output is caught
+  ok     §4 ALLOC / alloc: red — process() over 20 000 blocks (run, crank, run-down, ticks): 0 GCs, heap 5966.9 kB (0 GCs, < 64 kB)
+  ok     §5 SEED / seed: red — seed 7 twice: bit-identical renders
+  ok     §6 LIFE / crank: red — the crank (setEngine's 1.5 s, 1.18 s seen): voice 440-600 rpm (100-300) while the solver reads 5.9 rpm (a cran
+  ok     §6 LIFE / nocatch: red — the catch at 2.10 s: surge to 644 rpm over the solver's idle 644 (> +15 %), within 5 % of it by 4 s
+  ok     §6 LIFE / rundown: red — the run-down from 0 rpm: under 30 % of idle after 0.02 s (> 0.8; the solver: at once), stopped after 0.02 s (<
+  ok     §6 LIFE / ticks: red — after-shutdown ticking, 10-24 s, 2-8 kHz: hot -300 dB vs cold -300 dB (> 40 dB apart)
+  ok     §6 LIFE / misfire: red — misfires: 0 % of 414 cycles starving (> 30), 0.0 % in cruise (< 3)
+  ok     §6 LIFE / ctl: red — control output: engine 5000 rpm, prop 5000 rpm (gear 2.62)
+  ok     §6 LIFE / blower: red — the blower: the M-14P whistles at 3118 Hz (+9 dB), the O-540 does not (+9 dB)
+  ok     §7 CPU / cpu: red — cub: 2.000 ms per 128-frame block (< 1.0; real time is 2.67 ms)
+  ok     §8 INERT / physics: red — cub: resolveSpec + buildGen + 4 s of the solver bit-identical with the sound row (0.2 MB compared, the row car
+  ok     §9 REVIEW / whine: red — cub starter: centroid 1074 Hz (< 600; was 1076), strongest bin 29.0 dB over its third octave (< 12: no tone)
+  ok     §9 REVIEW / loudstarter: red — cub starter: -40.2 dB RMS (<= -46.4: 10 under the whine's -36.4); the cranking engine -60.7 dB(A) over the sta
+  ok     §9 REVIEW / flatcatch: red — cub the catch -60.2 dB(A) over the cranking -53.1 (>= +4: the first firings louder)
+  ok     §9 REVIEW / ring: red — cessna ticks: 99, median 41.75 ms to -20 dB (< 5; was 36): dry, no ring
+  ok     §9 REVIEW / tone: red — cessna ticks: spectral flatness 1.5-8 kHz 0.068 (> 0.35; was 0.25): broadband, no pitch
+  ok     §9 REVIEW / loudtick: red — cessna ticks: loudest 8.5 dB re the idle's RMS (<= -6; was +10.1)
+  ok     §9 REVIEW / hook: red — the tick hook: 0 messages for 70 ticks; synth 0 leaves -78 dB (< -150)
+  ok     §9 REVIEW / crack: red — cub/starve clicks: the loudest cough 15.0 dB re the running RMS (<= -3.7: 6 under the old +2.3; > -17.7: still
+  ok     §9 REVIEW / locked: red — twin582: both summed +6.0 dB re one (<= +1; was +6); piston voices: twin 2, Cub 1; each at -3.01 dB
+  ok     §P1 PCONFIG / blades: red — cub: piston, 3 blades, D 1.91 m, gear 1, no gear teeth, = the block — blades 3 (want 2)
+  ok     §P1 PCONFIG / pinion: red — twin582: piston, 2 blades, D 1.91 m, gear 2.62, 23 gear teeth, = the block — pinion 23 (want 21), pinion 23 (w
+  ok     §P2 BPF / blades: red — cub: BPF within 8.93 % (<= 3), prominence >= 8 dB (>= 20) [1150:38.3->41.6 2300:76.7->69.8]
+  ok     §P3 GEARBOX / gear: red — 582 full static: firing 199.3 -> 206.2 Hz (+28 dB), BPF 76.1 -> 72.1 Hz (+8 dB): both, distinct (x2.86)
+  ok     §P3 GEARBOX / whine: red — 582 gear mesh (21 teeth): 2093 -> 2054 Hz (+19 dB, >= 20)
+  ok     §P4 SNARL / snarl: red — the snarl: 0.0 dB below Mh 0.8 (<= 0.5), +0.0 dB at Mh 0.95-1.0 (>= 3) over the Gutin-only voice
+  ok     §P5 PHYGIENE / nan: red — 1 engine+prop renders: finite, peak 0.185 (< 0.9), DC mean NaN (< 1e-3), worst 1-s mean NaN (< 1e-2), no subno
+  ok     §P5 PHYGIENE / clip: red — 1 engine+prop renders: finite, peak 2.224 (< 0.9), DC mean 9.3e-4 (< 1e-3), worst 1-s mean 1.5e-2 (< 1e-2), no
+  ok     §P5 PHYGIENE / dc: red — 1 engine+prop renders: finite, peak 0.195 (< 0.9), DC mean 9.9e-3 (< 1e-3), worst 1-s mean 1.0e-2 (< 1e-2), no
+  ok     §P5 PHYGIENE / sleep: red — 30 s after a shutdown (Cub, PT6, electric): the prop NOT ASLEEP, 0 subnormals in the states
+  ok     §P5 PHYGIENE / nanguard: red — NaN / Infinity / negative parameters and a NaN in a filter state: finite, and the prop recovers
+  ok     §P6 PALLOC / alloc: red — prop (driven + fallback), turbine, electric process() over 20 000 blocks through every state: 0 GCs, heap 2825
+  ok     §P7 PLIFE / unwired: red — the Cub's crank: the prop turns with the engine voice (BPF 0.0 Hz) while the solver says 0 rpm
+  ok     §P7 PLIFE / ngidle: red — PT6: Ng 70.0 % at idle (52), 101.0 % at full power (101), 69 % 2 s after shutdown (> 30: the whine down)
+  ok     §P7 PLIFE / poles: red — E-811 at 2000 rpm: the torque ripple 6 x 10 pole pairs = 2000 -> 2058 Hz (+13 dB), x4.2 louder at full current
+  ok     §P7 PLIFE / chop: red — the chop at BPF (76.7 Hz) in the broadband's envelope: +6 dB climbing, 0.0 dB deeper than level (>= 6)
+  ok     §P8 PCPU / cpu: red — cub: prop 2.000 ms per 128-frame block (< 0.5) — real time is 2.67 ms
+  ok     §P9 SOURCE / wire: red — the Cub: 1 engine voice, 1 prop, the engine's output 1 -> the prop's input 0 (0 edges), the prop module loaded
+  ok     §P9 SOURCE / sched: red — a steady frame: the prop and driver params scheduled 960 times over 120 frames (0)
+  ok     §P9 SOURCE / rebuild: red — a new aeroplane (the twin 582): 2 engines, 0 props, each prop on its own engine's output 1; the old prop's edg
+  ok     §P9 SOURCE / hook: red — the Cub: 1 engine voice, 1 prop, the engine's output 1 -> the prop's input 0 (0 edges), the prop module loaded
+  ok     §P9 SOURCE / srcalloc: red — AUDIO.update with the engine + prop sources, the twin 582 then the PT6 (rpm and thrust moving): 0 GCs over 2 x
+(240 s)
+GATE AUDIOENG: FAIL (1)
+(exit code 1)
+=== OBSTFRAME ===
+houses 132 (unmatched 0), samples 3168, agreement 100.0 % (the opposite yaw would read 96.8 %)
+GATE OBSTFRAME: PASS
+=== STRIPGROUND ===
+ok  seed 3  A5    strip hdg   23 len   340  |elev-terrainH| max 0.00 m at t 0 v 0, wet samples 0  Vass Strip
+31 strips on seeds 0, 1, 2, 3
+GATE STRIPGROUND: PASS
+=== GENPAIRS ===
+ok  vtail+floats       nodes   85 beams  314
+ok  biplane+pusher     nodes  165 beams  762
+GATE GENPAIRS: PASS
+=== BUILT ===
+  the working tree's outputs = the fresh build (7 files)
+  HEAD f80229d715's committed outputs = the fresh build
+GATE BUILT: PASS
+=== LAZY ===
+ok   one career_core.<h8>.js beside the page (career_core.84ac2f05.js)
+  ok   career_core.84ac2f05.js: named by its own sha256 (84ac2f05)
+  ok   MANIFEST.career: the fourteen career-only modules (G2741: + 79_story.js; G3260: + 78b_routes.js; G3230: + 79b_tech.js; MISSIONS-P1/P2: + 73b_missions.js, 73c_mission_run.js) (72_contract_data.js, 73_contracts.js, 73b_missions.js, 73c_mission_run.js, 74_career.js, 75_career_wire.js, 76_economy.js, 76_procure.js, 76_pilots.js, 76_freight.js, 77_freight_load.js, 78b_routes.js, 79_story.js, 79b_tech.js)
+  ok   career_core = the nine modules concatenated in MANIFEST.core's order (655.8 KB)
+  ok   index.html inlines none of the nine (a signature each: const CONTRACT_FIELDS = { | const CONTRACT_KINDS = ['con | const MISSION_PACK_WHAT = 'f | const MISSION_RUN_V = 1; | const CAREER_V = 2; | const CAREER_MAP_LOOK = { fi | const ECON_V = 1; | const PROCURE_V = 1; | const FREIGHT_V = 1; | const PILOTS_V = 1; | const FREIGHT_LOAD_V = 1; | const ROUTES_V = 1; | const STORY_V = 1; | const TECH_V = 1;)
+  ok   index.html inlines every other core module (73)
+  ok   the page's career loader names career_core.84ac2f05.js
+  ok   dev.html tags exactly the nine data-career (14) and its promote skips them outside the rule
+  ok   dev.html's promote: data-career only under FLYDIY_CAREER_WANT()
+  ok   tools/flight_core.js = every MANIFEST.core module in order, the nine included (4862.4 KB)
+  ok   the page's core runs alone
+  ok   before the career: none of its 701 globals exists
+  ok   career_core.84ac2f05.js runs right after it
+  ok   after it, every career global the page names resolves (545 names across app.js, world_boot.js, map_menu.js, freight_load.js and the core)
+  ok   a new career's map record (careerNew + careerMapRecord) = flight_core.js's
+  ok   the price book (KIT_PRICES, the shells) = flight_core.js's
+  ok   the stage maxes (76_stages over CONTRACT_TRACKS) = flight_core.js's
+  ok   the first contract board (contractJobs) = flight_core.js's
+  ok   the physics worker's core list (SIM_HOST_CORE, 15 names) names none of the career's: it imports tools/flight_core.js whole and calls nothing of it
+  ok   one route_draw.<h8>.js beside the page (route_draw.551be74d.js)
+  ok   route_draw.551be74d.js: named by its own sha256 (551be74d)
+  ok   route_draw.551be74d.js = src/viewer/route_draw.js verbatim under its header (32.4 KB)
+  ok   route_draw.551be74d.js runs alone and declares no global (it registers ROUTE_DRAW_UI)
+  ok   index.html inlines none of the drawing (G.ROUTE_DRAW_UI = ROUTE_DRAW; | function drawProfile() { | function hitLeg(bx, by) {)
+  ok   index.html inlines route_lazy.js (window.ROUTE_DRAW, the door app.js calls)
+  ok   index.html keeps 38c_route.js and 44_vprofile.js (the pilot's - core, the worker flies them too)
+  ok   the page's route loader names route_draw.551be74d.js
+  ok   dev.html tags route_draw.js data-routedraw, ahead of route_lazy.js
+  ok   dev.html's promote: data-routedraw only under FLYDIY_ROUTE_WANT()
+  ok   sw.js lists this build's career_core.84ac2f05.js (CAREER_KEEP)
+  ok   install with a career page open: career_core.84ac2f05.js precached (1 fetch)
+  ok   install with sandbox pages open: nothing fetched, nothing cached
+  ok   the career loader's word: cached
+  ok   a fetch of it is answered from the cache (no network)
+  ok   a fetch of it uncached: from the network, cached on the way through
+  ok   another build's career_core is not this worker's to answer
+  ok   activate sweeps a superseded career_core and keeps this build's (and media/)
+  ok   sw.js lists this build's route_draw.551be74d.js (ROUTE_KEEP)
+  ok   install: route_draw.551be74d.js not fetched (a page asks for it)
+  ok   the page's word (the drawing ran): route_draw.551be74d.js cached
+  ok   a fetch of it is answered from the cache (no network)
+  ok   a fetch of it uncached: from the network, cached on the way through
+  ok   another build's route_draw is not this worker's to answer
+  ok   activate sweeps a superseded route_draw and keeps this build's (and media/)
+  ok   scripts and pages are still never the worker's (app.js passes through)
+  ok   default: app.js ran (23 s, 2098 requests, 715 from the worker)
+  ok   default: app.js saw no career code (typeof careerNew / procureBuyModel / freightLoadNew undefined)
+  ok   THE DEFAULT SANDBOX NEVER REQUESTS career_core (none of 2098)
+  ok   default: no page error
+  ok   THE DEFAULT SANDBOX NEVER REQUESTS route_draw (none of 2098; app.js saw no drawing)
+  FAIL default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw.551be74d.js once and ran it
+  ok   ?career=1: career_core.84ac2f05.js requested (request #3 of 727)
+  ok   ?career=1: answered and run BEFORE app.js (its setter saw careerNew, procureBuyModel, freightLoadNew) - fetched by 420 ms, app.js at 11084 ms
+  ok   ?career=1: requested ahead of the promoted payloads (#3 < #538)
+  ok   ?career=1: app.js's career door is up (FLYDIY_CAREER)
+  ok   ?career=1: no page error
+  ok   ?career=1: sw.js holds career_core.84ac2f05.js after the visit
+  ok   OFFLINE: a second ?career=1 boot with career_core.84ac2f05.js's network blocked boots the career from sw.js's cache
+  ok   ?map=1: career_core.84ac2f05.js requested (request #3 of 727)
+  ok   ?map=1: answered and run BEFORE app.js (its setter saw careerNew, procureBuyModel, freightLoadNew) - fetched by 246 ms, app.js at 11874 ms
+  ok   ?map=1: requested ahead of the promoted payloads (#3 < #538)
+  ok   ?map=1: app.js's procure door is up (FLYDIY_PROCURE)
+  ok   ?map=1: no page error
+  ok   ?freight=1: career_core.84ac2f05.js requested (request #3 of 725)
+  ok   ?freight=1: answered and run BEFORE app.js (its setter saw careerNew, procureBuyModel, freightLoadNew) - fetched by 300 ms, app.js at 10884 ms
+  ok   ?freight=1: requested ahead of the promoted payloads (#3 < #538)
+  ok   ?freight=1: app.js's freight door is up (FLYDIY_FREIGHT)
+  ok   ?freight=1: no page error
+  ok   armed: route_draw.551be74d.js requested at boot, ahead of the promoted payloads (#3 < #538 of 718)
+  ok   armed: run BEFORE app.js (its setter saw ROUTE_DRAW_UI bound to the door)
+  ok   armed: the drawing has it armed and the first flight's pilot holds it ({"armed":true,"name":"lazy","drawn":"armed"})
+  ok   armed: no page error
+  ok   armed: sw.js holds route_draw.551be74d.js after the visit
+  ok   OFFLINE: a second armed boot with route_draw.551be74d.js's network blocked runs the drawing from sw.js's cache, before app.js
+  the request lists in 139 s
+GATE LAZY: FAIL (1)
+(exit code 1)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -7154,6 +7815,17 @@ BIOME     FAIL    10.0 s
 SETTLE    FAIL     9.1 s
 AERO      PASS     7.9 s
 PAGERIG   PASS     5.1 s
-wall (the chunks' own, summed) 34482.8 s  (jobs 4)
+FLEX      FAIL   396.6 s  [3 shards]
+LOAD      FAIL   572.7 s
+MOUNT     PASS   101.9 s
+ENGCONFIG FAIL   456.4 s
+ENGDRAWN  PASS    80.0 s
+AUDIOENG  FAIL   242.1 s
+OBSTFRAME PASS     2.6 s
+STRIPGROUND PASS    10.9 s
+GENPAIRS  PASS     2.7 s
+BUILT     PASS     5.6 s
+LAZY      FAIL   141.9 s
+wall (the chunks' own, summed) 35333.3 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 86 red (267 PASS, 86 FAIL, 0 SKIP of 364)
+CORE BATTERY on the L40J candidate: FAIL - 91 red (273 PASS, 91 FAIL, 0 SKIP of 364)
