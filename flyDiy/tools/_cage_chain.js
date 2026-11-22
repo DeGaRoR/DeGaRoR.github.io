@@ -71,7 +71,7 @@
   const L = [];
   const C = window.CAGE_CHAIN = {
     on: !/(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || ''),
-    ok: true, why: '', layers: L, ORDER, FEEDS, REL_FEEDS, dirty: false,
+    ok: true, why: '', layers: L, ORDER, FEEDS, REL_FEEDS, DEFERS, dirty: false,
     last: null,           // the last chain: [{name, ran, ms}]
   };
   const fileOf = () => {
@@ -81,6 +81,7 @@
   };
   // ---- the recording view of P -------------------------------------------------------------------------------
   let CUR = null;                        // the layer whose own body is running
+  let DERK = null;                       // PERF-SLIDERS: the rows a derived read's function reads (C.derived, below)
   let RUN = null;                        // ...recorded or not (G2880: whose turn another layer is placed again in)
   const ADOPT = new WeakSet();           // G2880: objects a layer added inside another layer's turn
   const snapV = v => (v !== null && typeof v === 'object') ? (() => { try { return 'json:' + JSON.stringify(v); } catch (e) { return NaN; } })() : v;
@@ -89,7 +90,7 @@
   const viewOf = P => {
     let v = views.get(P);
     if (!v) views.set(P, v = new Proxy(P, {
-      get(t, k) { const x = t[k]; if (CUR && typeof k === 'string' && !CUR.reads.has(k)) CUR.reads.set(k, snapV(x)); return x; },
+      get(t, k) { const x = t[k]; if (DERK && typeof k === 'string') DERK.add(k); if (CUR && typeof k === 'string' && !CUR.reads.has(k)) CUR.reads.set(k, snapV(x)); return x; },
       has(t, k) { if (CUR && typeof k === 'string' && !CUR.reads.has(k)) CUR.reads.set(k, snapV(t[k])); return k in t; },
       ownKeys(t) { if (CUR) CUR.all = true; return Reflect.ownKeys(t); },
       getOwnPropertyDescriptor(t, k) { if (CUR && typeof k === 'string' && !CUR.reads.has(k)) CUR.reads.set(k, snapV(t[k])); return Reflect.getOwnPropertyDescriptor(t, k); },
@@ -115,7 +116,7 @@
     const rec = C.on && ctx && ctx.__rec;
     const prev = CUR, prevRun = RUN;
     RUN = Ly;
-    if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.all = false; Ly.allSnap = null; } else CUR = null;
+    if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.der = null; Ly.all = false; Ly.allSnap = null; } else CUR = null;
     const outer = childAcc; childAcc = 0;
     const t0 = now();
     Ly.stat0 = statTxt(ctx); Ly.kids0 = kids(ctx);
@@ -127,6 +128,7 @@
       Ly.statApp = (st != null && Ly.stat0 != null && st.length >= Ly.stat0.length && st.slice(0, Ly.stat0.length) === Ly.stat0) ? st.slice(Ly.stat0.length) : '';
       const dt = now() - t0;
       Ly.ms = dt - childAcc; childAcc = outer + dt;
+      Ly.msRan = Ly.ms;                  // PERF-SLIDERS: its last RUN's ms (ms is 0 on a skipped turn) - the drag budget's guess
       if (rec && Ly.all) Ly.allSnap = snapV(rec.P);
       CUR = prev; RUN = prevRun;
     }
@@ -182,6 +184,22 @@
       host.stat0 = r.line.slice(0, Math.max(0, host.stat0.length + r.delta));
     return r;
   };
+  // PERF-SLIDERS (23 Nov 2026): derived(P, name, fn) - A READ THROUGH A FUNCTION. A layer that depends on a row only through
+  // a threshold or a class (the dash's gear selector counts ONE lamp when the mains stand on the centreline: s1X > 0.01)
+  // recorded the row's raw value, so every tick of that row re-ran the layer - the DC-3's main gear station re-ran the
+  // whole crew layer (its seats, its floor, its panel: 1.4 of a 2.0 s tick in the page in node) for a lamp count that
+  // did not change. derived() runs fn(P) with the recording off and records fn's VALUE under `name` (and, apart, the rows
+  // fn read: derivedKeys(), GATE DERIVED's walk); the plan runs the layer when fn(P) answers differently (or throws).
+  // fn must be a pure function of P. ?derived=0, or CAGE_CHAIN.derivedOff = true (the gate's): the raw reads, as before.
+  C.derivedOff = /(^|[?&])derived=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+  C.derived = (P, name, fn) => {
+    if (C.derivedOff || !CUR) return fn(P);
+    const Ly = CUR, keys = new Set(); CUR = null; DERK = keys;
+    let v; try { v = fn(P); } finally { CUR = Ly; DERK = null; }
+    (Ly.der || (Ly.der = new Map())).set(name, { fn, v: snapV(v), keys });
+    return v;
+  };
+  C.derivedKeys = () => { const out = new Set(); for (const l of L) if (l.der) for (const d of l.der.values()) for (const k of d.keys) out.add(k); return out; };
   // the run counter (each layer's `seq` is the counter at its last run)
   C.seqNow = () => SEQ;
   // only(names): a plan that runs the named layers (and the always-run ones) and skips the rest
@@ -211,6 +229,8 @@
         else if (release && Ly.mesh !== mesh) r = 'sheet';      // it last ran on another sheet (a detail row's tick)
         else if (Ly.all && !same(snapV(P), Ly.allSnap)) r = 'all';
         else for (const [k, v] of Ly.reads) if (!same(snapV(P[k]), v)) { r = k; break; }
+        // (PERF-SLIDERS: its derived reads - the value of a function of P, not the keys the function read)
+        if (!r && Ly.der) for (const [n, d] of Ly.der) { let v, bad = false; try { v = snapV(d.fn(P)); } catch (e) { bad = true; } if (bad || !same(v, d.v)) { r = n; break; } }
         if (r) {
           run[i] = true; why[i] = r;
           if (r !== 'always') {

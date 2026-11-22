@@ -60,7 +60,9 @@ function gearLeverOf(P) {
   // join's own test, off the gear layer's contacts; else the rows' stations)
   let n = 3;
   if (floatsAmph) n = 4;
-  else if (+P.s1On && !(+P.s1X > 0.01) && +P.s1Ul) n = 1;
+  // (PERF-SLIDERS: the mains on the centreline or not is all this reads of their station - a derived read, so a drag of
+  // the station does not re-run the layer that builds the dash; _cage_chain.js derived)
+  else if (+P.s1On && !((window.CAGE_CHAIN && window.CAGE_CHAIN.derived) ? window.CAGE_CHAIN.derived(P, 'gearLever:mainsOffCentre', Q => +Q.s1X > 0.01) : +P.s1X > 0.01) && +P.s1Ul) n = 1;
   else {
     const cs = (window.CAGE_GEAR && window.CAGE_GEAR.contacts) || [];
     const isSingle = c => c.st && (c.st.single != null ? !!c.st.single : c.st.x <= 0.01);
