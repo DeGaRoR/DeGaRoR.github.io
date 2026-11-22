@@ -20,9 +20,9 @@ for (const [mode, hypot] of [['Math.hypot', Math.hypot], ['core hyp2', mathConte
   let calls = 0;
   const HYP2 = (x, z) => { calls++; return hypot(x, z); };
   const context = vm.createContext({ Math, CORE_MATH, hyp2: HYP2, module: { exports: {} }, console });
-  const anchor = 'const API = { PREMISES_V,';
-  assert(src.split(anchor).length === 2);
-  vm.runInContext(src.replace(anchor, 'const API = { __roadSegIdx: roadSegIdx, PREMISES_V,'), context);
+  const anchor = 'const API = { ';   // the module's one export literal, whatever its first key (SNOW-MUD RAIL put SURFACE_WX_NAMES ahead of PREMISES_V)
+  assert(src.split(anchor).length === 2, 'one export literal to hook');
+  vm.runInContext(src.replace(anchor, 'const API = { __roadSegIdx: roadSegIdx, '), context);
   const PG = context.module.exports;
   const scope = { Math, isFinite, SEG_RINGS: 24, HYP2, roadSegIdx: PG.__roadSegIdx, roadDeadEnds: it => it.deadEnds };
   const fast = vm.runInNewContext('(' + fastSource + ')', scope);
