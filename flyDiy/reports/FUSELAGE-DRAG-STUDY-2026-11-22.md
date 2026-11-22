@@ -408,6 +408,35 @@ the real one reaches 0.40: its cylinder rows are the next thing to true.
   family switched off is not paid; the core's fittings-family map against the fittings page's), REALBAND re-written,
   GATE STOL's fixture re-captured, the fiche's physics re-baked, the flown `real_check --all`.
 
+### 7.3 The LS4 and the user's new Chinook (22 Nov, late)
+
+**The LS4** (the user: "please include the LS4 too"). `builds/ls4_2026-11-13.json` is not a `real_check` key on this
+base (its reference block is REAL-FIGURES': best glide 40.5), so it is read with the audit's own polar, wheel up:
+
+| | drag area, wheel down | best glide, wheel up | min sink at 308 kg |
+|---|---|---|---|
+| master (L40H) | 0.287 m² | 24.2 | 0.92 m/s |
+| the plan as built | 0.260 | 32.0 | 0.68 |
+| build 10 | 0.179 | 34.8 | - |
+| **build 10, the card's steps and handles off** | 0.158 | **37.8** (book 40.5: -7 %) | 0.61 |
+
+Its body is 0.022 m² (half its skin laminar, soft corners, no steps), its wing's section 43 % under the turbulent
+figure, its root junctions 0.002. The card drew two steps and three handles (0.021 m², an eighth of the aeroplane):
+`accHandling 0`, as on the Velis and the Archaeopteryx. The wing is still the garage's NACA 2412.
+
+**The Chinook.** The user, 22 Nov: "I have updated the chinook with a newer, truer version." A0: it is
+`claude/ready/chinook-user` (a13292c22: the user's file of 21 Nov, list:8's card; it rides L40J). Read on both trees
+(evidence `evidence/FUSELAGE-DRAG-2026-11-22/chinook_user/`): **every row inside its band on both.**
+
+| figure | book | the old card, plan → build 10 | the user's card, plan → build 10 |
+|---|---|---|---|
+| top speed | 153 | 151 (-1) → 140 (-9 ~) | 148-153 → 146-151 |
+| cruise | 116-134 | 134 (+7) → 125 (0) | 125-134 → 123-132 |
+| glide | 10 | 9.2 (-8) → 8.2 (-18 ~) | 9.3 (-7) → 9.1 (-9) |
+
+The away-move was the old card's: its open pod ended in a 0.45 m² base. The user's is skinned and longer (span
+10.6 m, chord 1.21, a 1.5 m cruise-pitch propeller); its base is 0.32 m² and its steps 0.09.
+
 ## 8. Limits
 
 - The constants are handbook orders of magnitude from memory (Hoerner's fuselage and windscreen chapters, the usual
