@@ -102,13 +102,14 @@
       }
       return result;
     };
-    const create = (fragmentShader, U) => new THREE.RawShaderMaterial({ userData: { progOwner: 'terrain / ground cache / tile bake' },
+    // made by the material library like every other material (GATE ASSETS MATS, AS4a): its 'raw' shape
+    const create = (fragmentShader, U) => MATLIB.make(THREE, 'raw', {
       vertexShader: raw(S.vs), fragmentShader: raw(fragmentShader), glslVersion: THREE.GLSL3,
       uniforms: U, side: mesh.material.side, depthTest: true, depthWrite: true,
       // Frozen reference light uniforms: the comparison scene must not replace
       // the world's prepared lighting with its own empty light list.
       lights: false, toneMapped: false
-    });
+    }, 'terrain / ground cache / tile bake');   // (PERF-TRACE: the owner, program_id.js)
     const size = o.size || 256, width = o.cacheWidth || size, height = o.cacheHeight || size, rect = o.rect;
     if (!rect || rect.length !== 4) throw Error('material cache: rect [x,z,width,depth] required');
     const target = new THREE.WebGLRenderTarget(width, height, {
@@ -185,7 +186,7 @@
       for (const clone of [pair.baker, pair.lit]) {
         for (const key of ['envMap', 'envMapIntensity', 'roughness', 'metalness', 'side', 'opacity', 'transparent', 'depthTest', 'depthWrite',
           'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'flatShading', 'vertexColors', 'dithering', 'fog', 'toneMapped', 'alphaTest']) clone[key] = m[key];
-        clone.color.copy(m.color); clone.emissive.copy(m.emissive); clone.emissiveIntensity = m.emissiveIntensity;
+        clone.color.copy(m.color); clone.emissive.copy(m.emissive); clone.emissiveIntensity = m.emissiveIntensity;   // pre-ok: a COPY of the ground material's own value each sync (whoever wrote it there carried P; scaling the copy would apply P twice)
         if (clone.envMapRotation && m.envMapRotation) clone.envMapRotation.copy(m.envMapRotation);
         if (pair.version !== m.version) clone.needsUpdate = true;
       }

@@ -891,14 +891,19 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
         sh.fragmentShader = sh.fragmentShader.replace('uniform sampler2D tGrunge;', '');
         pars = pars.replace('uniform sampler2D tDmgG;', 'uniform sampler2D tGrunge;\n#define tDmgG tGrunge');
       }
-      const def = '#define DMG_SCUFF 1\n' + (shared ? '' : '#define GD_OFF 1\n') + (obj ? '#define DMG_OBJ 1\n' : '');
+      const def = '#define DMG_SCUFF 1\n#define GD_OFF 1\n' + (obj ? '#define DMG_OBJ 1\n' : '');
+      // THE ONE EXCEPTION (Codex's opt-in ?scuffopt shared grunge, default OFF): there tDmgG is tGrunge under another
+      // name, the program holds one sampler less, and the computed mud / rain term fits under the 16 units again, so
+      // only that path leaves GD_OFF out (9 captured programs linked at 16 active samplers at most, 20 Nov). Every
+      // other scuffed program takes `def` as it is: the term compiled out, the unit count master's (GATE MUDCOAT F).
+      const defs = shared ? def.replace('#define GD_OFF 1\n', '') : def;
       const surf = simplify ? AERO_DMG_SURF_LITE_FS : specialized ? AERO_DMG_SURF_FS.replace('float dCls = mod(vDmgD.w, 8.0);', 'float dCls = ' + classHint.toFixed(1) + ';') : AERO_DMG_SURF_FS;
       sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', def + AERO_DMG_VS_PARS + '#include <common>')
+        .replace('#include <common>', defs + AERO_DMG_VS_PARS + '#include <common>')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + AERO_DMG_VS_MAIN);
       const nm = /uniform\s+mat3\s+normalMatrix\s*;/.test(sh.fragmentShader) ? '' : 'uniform mat3 normalMatrix;\n';
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', def + nm + pars + '#include <common>')
+        .replace('#include <common>', defs + nm + pars + '#include <common>')
         .replace('#include <lights_physical_fragment>', (kind === 'glass' ? AERO_DMG_GLASS_FS : surf)
                  + '#include <lights_physical_fragment>\n' + AERO_DMG_CC_FS);
     };
