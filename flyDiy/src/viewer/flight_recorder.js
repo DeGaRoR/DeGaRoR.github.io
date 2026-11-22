@@ -208,6 +208,14 @@
     let events = [], evDropped = 0, evSaved = 0;
     const LAPS = new Float64Array(224); let lapK = 0;   // PERF-TRACE: the frame's laps (lapNote)
     const LAPN = (() => { const m = /[?&]reclaps=(\d+)(?:&|$)/.exec(q), n = m ? +m[1] : 256; return n >= 1 && n <= 65536 ? n : 256; })();
+    const LAPW = 2 + 7 * 14, LAPCAP = LAPN < 256 ? 16384 : 2048, LAPR = new Float64Array(LAPCAP * LAPW); let lapRn = 0;   // the census' ring: [work, n, the laps' numbers]
+    const LAPLCAP = 2048, LAPL = new Float64Array(LAPLCAP * LAPW); let lapLn = 0;   // ... and the LONG frames' (work of 50 ms or more: the last 2 048 of them)
+    // the census as the log's table, oldest first: { every, frames, rows: [[work, slot, t, GPU ms, GPU calls, updated KB, draw calls, triangles, slot, ...]] }
+    function lapRows(A, cap, all) { const n = Math.min(all, cap), rows = [];
+      for (let j = all - n; j < all; j++) { const o = (j % cap) * LAPW, k = A[o + 1], a = new Array(k + 1); a[0] = Math.round(A[o] * 100) / 100;
+        for (let i = 0; i < k; i++) { const c = i % 7, v = A[o + 2 + i]; a[i + 1] = c === 1 || c === 2 ? Math.round(v * 100) / 100 : c === 4 ? Math.round(v / 1024) : v; } rows.push(a); }
+      return rows; }
+    function lapsTable() { return { every: LAPN, frames: lapRn, rows: lapRows(LAPR, LAPCAP, lapRn), longFrames: lapLn, long: lapRows(LAPL, LAPLCAP, lapLn) }; }
     // the page's hidden moments (a tab away), on this recorder's clock: a gap spanning one is not a frame, not a freeze
     if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) V[HIDDEN] = clock(); });
     const rec = {
@@ -249,11 +257,15 @@
     // total, not its place in the frame, so an event of a long frame (a program's first use, a link) could not be put in
     // the mirror's pass or the main render's. Every lap now also stores seven numbers in a typed array kept for the frame
     // (the slot, the time, the GPU-data counters so far - creation ms, creation calls, updated bytes - and the draw calls
-    // and triangles so far): nothing allocated. They are handed on as ONE event, 'laps' at the frame's start, ms = its
-    // work, [slot, t, GPU ms, GPU calls, updated KB, draw calls, triangles] x n (the first with slot -1 = the frame's
-    // start), for a frame whose work reached 50 ms AND for one frame in 256 whatever its length (the steady census: what
-    // each pass draws - the mirror's capture against the main render; ?reclaps=N samples one frame in N, 1 = every frame,
-    // for a study run: an array of ~30 numbers a sampled frame, which is why the default is 256).
+    // and triangles so far): nothing allocated. A frame's laps are a row, [its work, then slot, t, GPU ms, GPU calls,
+    // updated KB, draw calls, triangles for each lap] (the first lap with slot -1 = the frame's start).
+    // NO EVENT: two rings of typed numbers allocated once, written in place, read at the save as the log's `laps`
+    // table - `long`: every frame whose work reached 50 ms (LAPL: the last 2 048 of them, 1.6 MB); `rows`: one frame in 256
+    // WHATEVER ITS LENGTH, the steady census of what each pass draws - the mirror's capture against the main render (LAPR:
+    // 2 048 frames, 1.6 MB; ?reclaps=N keeps one frame in N, 1 = every frame, and under 256 that ring is 16 384 frames,
+    // 13 MB). (GATE FLIGHTREC, 22 Nov: handed on as an event, a long frame's laps were an array a frame - 8.9 bytes a
+    // frame in the gate's count against its 4, where every frame is long. A truthful red: the frame's path allocates
+    // nothing again, long frame or not.)
     // tools/slot_frames.js reads it; a log without it is read by the slots' order, which is an estimate and says so.
     function lapNote(s, t) { if (lapK <= LAPS.length - 7) { LAPS[lapK++] = s; LAPS[lapK++] = t; LAPS[lapK++] = UP.ms; LAPS[lapK++] = UP.texN + UP.bufN + UP.mipN; LAPS[lapK++] = UP.subB; LAPS[lapK++] = calls; LAPS[lapK++] = tris; } }
     function lap(s) {
@@ -299,8 +311,8 @@
       for (let i = 0; i < NS; i++) { ringF[j + C_SLOT0 + i] = acc[i]; sum += acc[i]; }
       const work = t - V[T0];
       ringF[j + C.work] = work;
-      if ((work >= 50 || (fi + 1) % LAPN === 0) && lapK > 7) { const a = new Array(lapK); for (let i = 0; i < lapK; i++) { const k = i % 7; a[i] = k === 1 || k === 2 ? Math.round(LAPS[i] * 100) / 100 : k === 4 ? Math.round(LAPS[i] / 1024) : LAPS[i]; }
-        event('laps', V[T0], work, a); }
+      if ((fi + 1) % LAPN === 0 && lapK > 7) { const o = (lapRn++ % LAPCAP) * LAPW, k = Math.min(lapK, LAPW - 2); LAPR[o] = work; LAPR[o + 1] = k; for (let i = 0; i < k; i++) LAPR[o + 2 + i] = LAPS[i]; }
+      if (work >= 50 && lapK > 7) { const o = (lapLn++ % LAPLCAP) * LAPW, k = Math.min(lapK, LAPW - 2); LAPL[o] = work; LAPL[o + 1] = k; for (let i = 0; i < k; i++) LAPL[o + 2 + i] = LAPS[i]; }
       ringF[j + C.other] += work - sum;              // rounding and anything between the laps: the split sums to the work
       ringF[j + C.owed] = owed; ringF[j + C.taken] = taken;
       ringF[j + C.gpu] = NaN;
@@ -672,7 +684,7 @@
         Math.round(r.startTime), Math.round(r.responseEnd), Math.round((r.transferSize || r.encodedBodySize || 0) / 1024), r.initiatorType || '']) : null; } catch (e) {}
       let wks = null; try { wks = typeof WK !== 'undefined' && WK.on ? wkRows(true) : null; } catch (e) {}   // PERF-TRACE: the workers' traffic in 250 ms buckets
       parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + ',"uploads":' + JSON.stringify(upl) +
-        ',"workers":' + JSON.stringify(wks) + '}');
+        ',"workers":' + JSON.stringify(wks) + ',"laps":' + JSON.stringify(lapsTable()) + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)

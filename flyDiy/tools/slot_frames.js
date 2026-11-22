@@ -44,7 +44,8 @@ function slotFrames(log, opt) {
   const usual = rows.filter(r => r.ctx === CTX && r.dt === r.dt && r.dt <= 35);
   const med = {}; for (const k of SL.concat(['work', 'calls', 'tris', 'gpu'])) med[k] = median(usual.map(r => r[k]).filter(x => x === x));
   // the laps of the long frames (PERF-TRACE 6), by the frame's start
-  const laps = events.filter(e => e.kind === 'laps' && Array.isArray(e.d));
+  // (the long frames' events, and the census' rows of the log's `laps` table: [work, then the laps] - the same shape once the work is taken off)
+  const laps = events.filter(e => e.kind === 'laps' && Array.isArray(e.d)).concat(((log.laps && log.laps.long) || []).concat((log.laps && log.laps.rows) || []).filter(a => a.length >= 15).map(a => ({ t: a[2], kind: 'laps', ms: a[0], d: a.slice(1) }))).sort((a, b) => a.t - b.t);
   const lapOf = (p) => { let lo = 0, hi = laps.length - 1, best = null; while (lo <= hi) { const m = (lo + hi) >> 1; if (laps[m].t < p.t - 0.5) lo = m + 1; else { best = laps[m]; hi = m - 1; } } return best && best.t - p.t < Math.max(8, p.work || 0) ? best : null; };
   // a lap event's window of the slot: [slot, t, GPU ms, GPU calls, updated KB, draw calls, triangles] x n, each lap's numbers the frame's totals so far
   const lapWin = a => { for (let k = 7; k + 6 < a.length; k += 7) if (SL[a[k]] === slot) return { t0: a[k - 6], t1: a[k + 1], ms: r1(a[k + 2] - a[k - 5]), calls: a[k + 3] - a[k - 4], updateKB: a[k + 4] - a[k - 3], draws: a[k + 5] - a[k - 2], tris: a[k + 6] - a[k - 1] }; return null; };

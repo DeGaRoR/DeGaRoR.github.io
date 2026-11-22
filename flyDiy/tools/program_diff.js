@@ -53,12 +53,18 @@ function diff(logA, logB, opt) {
   const line = (X, p) => p ? { n: p.n, submittedS: X.s(p.t), readyS: X.s(p.readyT), pendingS: p.readyT != null ? r1((p.readyT - p.t) / 1000) : null, crowd: r1(p.crowd), shareS: r1((p.share || 0) / 1000), step: X.stepOf(p.t), via: p.via || null } : null;
   const heavy = A.rows.filter(p => p.share != null).sort((x, y) => y.share - x.share).slice(0, o.top || 25).map(p => ({ owner: A.who(p), kb: Math.round(A.kb(p)), a: line(A, p), b: line(B, bByKey.get(A.key(p))) }));
   const heavyB = B.rows.filter(p => p.share != null && !A.rows.some(q => A.key(q) === B.key(p))).sort((x, y) => y.share - x.share).slice(0, 8).map(p => ({ owner: B.who(p), kb: Math.round(B.kb(p)), a: null, b: line(B, p) }));
+  // a source text linked MORE THAN ONCE in a load (PERF-LEAD, the early hand-over: "its text submitted ONCE, not once early and once at
+  // the town step under another key"): each link's submit time and step, and whether the cache keys differ
+  const twice = X => { const m = new Map(); for (const p of X.rows) { if (!p.fp) continue; let g = m.get(p.fp); if (!g) m.set(p.fp, g = []); g.push(p); }
+    return [...m.values()].filter(g => g.length > 1).map(g => ({ owner: [...new Set(g.map(p => X.who(p)))].join(' | '), kb: Math.round(X.kb(g[0])), links: g.length, keys: new Set(g.map(p => p.key)).size,
+      at: g.map(p => X.s(p.t) + ' (' + X.stepOf(p.t).replace(/^garage:/, '') + (p.readyT != null ? ', ready ' + X.s(p.readyT) : '') + ')').join('; ') })).sort((a, b) => b.kb * b.links - a.kb * a.links); };
+  const twiceA = twice(A), twiceB = twice(B);
   // the whole load by light signature
   const byL = new Map(); const addL = (X, s) => { for (const p of X.rows) { const k = X.lights(p); let g = byL.get(k); if (!g) byL.set(k, g = { lights: k, a: { programs: 0, kb: 0, shareS: 0, drawn: 0 }, b: { programs: 0, kb: 0, shareS: 0, drawn: 0 } }); const c = g[s]; c.programs++; c.kb += X.kb(p); c.shareS += (p.share || 0) / 1000; if (p.useT != null) c.drawn++; } };
   addL(A, 'a'); addL(B, 'b');
   const lights = [...byL.values()].map(g => ({ lights: g.lights, a: { programs: g.a.programs, kb: Math.round(g.a.kb), shareS: r1(g.a.shareS), drawn: g.a.drawn }, b: { programs: g.b.programs, kb: Math.round(g.b.kb), shareS: r1(g.b.shareS), drawn: g.b.drawn } })).sort((x, y) => (y.a.programs + y.b.programs) - (x.a.programs + x.b.programs));
   return { kind: 'flydiy-program-diff', v: 1, a: Object.assign({ build: (logA.header || {}).build || null }, tot(A, A.rows)), b: Object.assign({ build: (logB.header || {}).build || null }, tot(B, B.rows)),
-    steps, onlyA: Object.assign(tot(A, oa), { byOwner: group(A, oa) }), onlyB: Object.assign(tot(B, ob), { byOwner: group(B, ob) }), heavy: heavy.concat(heavyB), lights };
+    steps, onlyA: Object.assign(tot(A, oa), { byOwner: group(A, oa) }), onlyB: Object.assign(tot(B, ob), { byOwner: group(B, ob) }), heavy: heavy.concat(heavyB), lights, twiceA, twiceB };
 }
 
 function text(R, la, lb) {
@@ -75,6 +81,8 @@ function text(R, la, lb) {
   L.push(''); L.push('THE HEAVY ONES of ' + la + ' and where each is in ' + lb + ' (s on the loading clock: submitted, first seen ready; pending; crowd = the others in flight with it; share)');
   L.push('  ' + lp('KB', 5) + lp(la + ':subm', 12) + lp('ready', 8) + lp('pend', 7) + lp('crowd', 7) + lp('share', 7) + lp(lb + ':subm', 14) + lp('ready', 8) + lp('pend', 7) + lp('crowd', 7) + lp('share', 7) + '  owner');
   for (const h of R.heavy) { const a = h.a || {}, b = h.b; L.push('  ' + lp(h.kb, 5) + lp(a.submittedS, 12) + lp(a.readyS, 8) + lp(a.pendingS, 7) + lp(a.crowd, 7) + lp(a.shareS, 7) + (b ? lp(b.submittedS, 14) + lp(b.readyS, 8) + lp(b.pendingS, 7) + lp(b.crowd, 7) + lp(b.shareS, 7) : lp('NOT LINKED', 14) + ' '.repeat(29)) + '  ' + h.owner + (h.a ? '' : '   (only in ' + lb + ')')); }
+  for (const [lab, T] of [[la, R.twiceA], [lb, R.twiceB]]) { L.push(''); L.push('A SOURCE TEXT LINKED MORE THAN ONCE in ' + lab + ': ' + T.length + ' texts' + (T.length ? ' (links; keys = how many different cache keys asked for it; each link: submitted at s (step, ready at s))' : ''));
+    for (const t of T.slice(0, 14)) L.push('  ' + lp(t.kb, 5) + ' KB' + lp(t.links, 3) + ' links' + lp(t.keys, 3) + ' keys  ' + t.owner.slice(0, 70) + '   ' + t.at); if (T.length > 14) L.push('  ... and ' + (T.length - 14) + ' smaller'); }
   if (R.lights.some(g => g.lights !== '-')) { L.push(''); L.push('THE WHOLE LOAD BY LIGHT SIGNATURE (dir.point.spot.hemi / shadows dir.point.spot; programs, share s, drawn)');
     L.push('  ' + lp(la, 8) + lp('share', 7) + lp('drawn', 7) + lp(lb, 10) + lp('share', 7) + lp('drawn', 7) + '  lights');
     for (const g of R.lights) L.push('  ' + lp(g.a.programs, 8) + lp(g.a.shareS, 7) + lp(g.a.drawn, 7) + lp(g.b.programs, 10) + lp(g.b.shareS, 7) + lp(g.b.drawn, 7) + '  ' + g.lights); }

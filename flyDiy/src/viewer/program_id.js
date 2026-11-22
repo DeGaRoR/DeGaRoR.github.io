@@ -107,16 +107,21 @@
   //   DITHERING   DMG_SCUFF   (and any other #define DMG_* / GD_* / BAND_* a hook wrote)
   // ~1 ms a 200 KB text: it is NOT done at the link. The texts wait in a queue read in the page's idle time
   // (requestIdleCallback), and what is left when a table is asked for is read then.
-  const BODY = /(directionalLights|pointLights|spotLights|hemisphereLights|directionalLightShadows|pointLightShadows|spotLightShadows|clippingPlanes)\[ ?(\d+) ?\]|vec3 toneMapping\( vec3 color \) \{ return (\w+)|linearToOutputTexel\( vec4 value \) \{\s*return \(?\s*(\w+)|#define[ \t]+(TONE_MAPPING|OPAQUE|DITHERING|(?:DMG|GD|BAND)_\w+)\b|uniform float (uFbFade)\b/g;
+  // (22 Nov, PERF-LEAD's question on the first light table: "shadows 2.1.0" - which point light casts? NONE. The shadow
+  //  arrays are also INDEXED inside the light loops three unrolls - `pointLightShadows[ 1 ]` is written for the second point
+  //  light whether or not any casts, behind an #if - so the largest index read point lights - 1. A SHADOW count is now the
+  //  size of the array's DECLARATION only, `uniform PointLightShadow pointLightShadows[ N ];`. The lights' own counts were
+  //  right: their declaration is their largest number.)
+  const BODY = /(uniform \w+ )?(directionalLights|pointLights|spotLights|hemisphereLights|directionalLightShadows|pointLightShadows|spotLightShadows|clippingPlanes)\[ ?(\d+) ?\]|vec3 toneMapping\( vec3 color \) \{ return (\w+)|linearToOutputTexel\( vec4 value \) \{\s*return \(?\s*(\w+)|#define[ \t]+(TONE_MAPPING|OPAQUE|DITHERING|(?:DMG|GD|BAND)_\w+)\b|uniform float (uFbFade)\b/g;
   function bodyTags(src) {
     const n = { directionalLights: -1, pointLights: -1, spotLights: -1, hemisphereLights: -1, directionalLightShadows: -1, pointLightShadows: -1, spotLightShadows: -1, clippingPlanes: -1 };
     let tone = null, out = null; const flags = new Set(); let m; BODY.lastIndex = 0;
     while ((m = BODY.exec(src))) {
-      if (m[1]) { const v = +m[2]; if (v > n[m[1]]) n[m[1]] = v; }
-      else if (m[3]) tone = m[3].replace(/ToneMapping$/, '');
-      else if (m[4]) out = /sRGB/.test(m[4]) ? 'sRGB' : 'linear';
-      else if (m[5] && m[5] !== 'TONE_MAPPING') flags.add(m[5]);
-      else if (m[6]) flags.add('FLOWN_FADE');   // (flown_bake.js: the live / band twins' dither is a uniform, uFbFade, not a define)
+      if (m[2]) { if (m[1] || !/Shadows$/.test(m[2])) { const v = +m[3]; if (v > n[m[2]]) n[m[2]] = v; } }
+      else if (m[4]) tone = m[4].replace(/ToneMapping$/, '');
+      else if (m[5]) out = /sRGB/.test(m[5]) ? 'sRGB' : 'linear';
+      else if (m[6] && m[6] !== 'TONE_MAPPING') flags.add(m[6]);
+      else if (m[7]) flags.add('FLOWN_FADE');   // (flown_bake.js: the live / band twins' dither is a uniform, uFbFade, not a define)
     }
     const z = k => Math.max(0, n[k]), tags = [];
     if (n.directionalLights >= 0 || n.pointLights >= 0 || n.spotLights >= 0 || n.hemisphereLights >= 0) tags.push('LIGHTS=' + z('directionalLights') + '.' + z('pointLights') + '.' + z('spotLights') + '.' + z('hemisphereLights'));

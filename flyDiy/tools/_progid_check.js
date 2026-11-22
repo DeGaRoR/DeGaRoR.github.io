@@ -271,20 +271,32 @@ function run(ok) {
     const L = JSON.parse(B.REC.logParts().join(''));
     ok(L.uploads && L.uploads.rows.length >= 3 && JSON.parse(D.REC.logParts().join('')).uploads === null, '6i the saved log carries the table (null without the switch)');
   }
+  // ---- 6a (22 Nov): a shadow count is the DECLARATION's, not the largest index three's unrolled light loop writes --------
+  {
+    const B = boot({}), THREE = B.THREE, sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera();
+    const sun = new THREE.DirectionalLight(0xffffff, 1); sun.castShadow = true; sc.add(sun); sc.add(new THREE.PointLight()); sc.add(new THREE.PointLight()); sc.add(new THREE.PointLight());
+    const m = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ userData: { progOwner: 'props / test / lit' } })); m.receiveShadow = true; sc.add(m);
+    B.renderer.compile(sc, cam);
+    const r = B.PID.table(true).find(x => (x.own || []).indexOf('props / test / lit') >= 0);
+    ok(!!r && Array.isArray(r.body) && r.body.indexOf('LIGHTS=1.3.0.0') >= 0 && r.body.indexOf('SHADOWS=1.0.0') >= 0,
+       '6a three point lights that cast nothing read LIGHTS=1.3.0.0 / SHADOWS=1.0.0 (the text indexes pointLightShadows[ 2 ] in its unrolled loop: that is not a count)', r && r.body ? r.body.join(' ') : 'no row');
+  }
   // ---- 6j: when each lap of a long frame ended (the 'laps' event: what happened INSIDE a slot) --------------------
   {
     const B = boot({}), R = B.REC, S = R.S;
     const frame = (a, b) => { B.T.now += 5; R.begin(B.T.now, null); B.T.now += a; R.lap(S.mirror); B.T.now += b; R.lap(S.render); R.end(true, null); };
     frame(4, 6); frame(30, 31); frame(3, 3);
-    const E = JSON.parse(R.logParts().join('')).events.filter(e => e[1] === 'laps'), a = E[0] && E[0][3];
-    ok(E.length === 1 && E[0][2] === 61 && Array.isArray(a) && a.length === 28 && a[0] === -1 && a[7] === S.mirror && a[14] === S.render && a[21] === S.other,
+    const LJ = JSON.parse(R.logParts().join('')), E = (LJ.laps && LJ.laps.long) || [], a = E[0] && E[0].slice(1);   // (a row: [work, then the laps])
+    ok(E.length === 1 && E[0][0] === 61 && LJ.laps.longFrames === 1 && !LJ.events.some(e => e[1] === 'laps') && Array.isArray(a) && a.length === 28 && a[0] === -1 && a[7] === S.mirror && a[14] === S.render && a[21] === S.other,
        '6j a frame whose work reached 50 ms logs its laps once (the frame\'s start, then each lap\'s slot in order); the shorter frames log none', E.length + ' events' + (a ? ', ' + a.length / 7 + ' laps' : ''));
-    ok(!!a && a[8] - a[1] === 30 && a[15] - a[8] === 31 && E[0][0] === a[1], '6j each lap carries the time it ended: the mirror\'s window is [start, +30], the render\'s the 31 ms after it', a ? (a[8] - a[1]) + ' / ' + (a[15] - a[8]) : undefined);
+    ok(!!a && a[8] - a[1] === 30 && a[15] - a[8] === 31, '6j each lap carries the time it ended: the mirror\'s window is [start, +30], the render\'s the 31 ms after it', a ? (a[8] - a[1]) + ' / ' + (a[15] - a[8]) : undefined);
     // the steady census: one frame in N whatever its length (?reclaps=4 here; 256 by default - none of the three frames above)
     const B4 = boot({ search: '?reclaps=4' }), R4 = B4.REC;
     for (let f = 0; f < 12; f++) { B4.T.now += 5; R4.begin(B4.T.now, null); B4.T.now += 2; R4.lap(R4.S.mirror); B4.renderer.render(new B4.THREE.Scene(), new B4.THREE.PerspectiveCamera()); B4.T.now += 3; R4.lap(R4.S.render); R4.end(true, null); }
-    const E4 = JSON.parse(R4.logParts().join('')).events.filter(e => e[1] === 'laps');
-    ok(E4.length === 3 && E4.every(e => e[3].length === 28 && e[2] === 5), '6j ?reclaps=4: one short frame in four logs its laps too (the steady census of what each pass draws)', E4.length + ' of 12 frames');
+    const L4 = JSON.parse(R4.logParts().join('')), T4 = L4.laps;
+    ok(!!T4 && T4.every === 4 && T4.frames === 3 && T4.rows.length === 3 && T4.rows.every(a => a.length === 29 && a[0] === 5 && a[1] === -1 && a[8] === R4.S.mirror && a[9] - a[2] === 2) && T4.long.length === 0 && !L4.events.some(e => e[1] === 'laps'),
+       '6j ?reclaps=4: one short frame in four is kept for the steady census - the log\'s `laps` table, [work, then the laps] a row; no event, nothing allocated in the frame', T4 ? T4.rows.length + ' of 12 frames' : 'no table');
+    ok(LJ.laps.rows.length === 0 && LJ.laps.every === 256, '6j by default the census keeps one frame in 256 (none of three)');
   }
   // ---- 6g: the cost -----------------------------------------------------------------------------------------
   {
