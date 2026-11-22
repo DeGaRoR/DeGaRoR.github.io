@@ -318354,3 +318354,17 @@ NEW REDS (named):
 - MONOWHEEL: E, parked on the wheel + nose skid + one wingtip skid - FLAGSHIP (the E811 change / electric trainer) to check.
 - TAILWHEEL: I, down & out lands HOME at 22.57 m/s, roll-out 0 deg - Pilot / FLAGSHIP to check against the E811 change.
 NAMED for list:50 (rides L40i): DMGCERT BROKE UP with no BROKE AT (18 wing members kink at 7.4 g, nothing detaches).
+
+## CHINOOK-USER - the user's modified Chinook is list:8 (FLAGSHIP, Sun 22 Nov 2026; claude/ready/chinook-user on one-cessna-4)
+
+The user (21-22 Nov): "I have modified the Chinook, not yet tested, but much better looking and accurate, to be replaced in
+game"; "send my new chinook for quick testing and inclusion". builds/chinook_2026-09-21_corrected.json is the user's card
+(D:/Dev/flydiy-notes/user-reports-2026-11-21/chinook_modified_4.json, their bytes; the names kept: name birdman, meta chinook,
+reg C-ICHK). 351 cage rows moved: span 9.75 -> 10.6 m, chord 1.47 -> 1.21 m, taper 0.25 -> 0.65 m, cabin 0.70 -> 1.06 m.
+QUICK TEST (node): it builds; it flies HOME's circuit (tw_probe circuit: roll 176 m, lift-off 15 s, touchdown 1.61 m/s at
+19.8 m/s, rolled out and STOPPED); real_check chinookm: every indicator INSIDE its band (empty 186 kg, Vs1 54-69, V75
+124-132, Vmax 146-151, ROC 2.1-4.9, L/D 9.3, TO 76-185 m); REALBAND re-pinned (chinookm alone moved). Gates: PLANELISTS
+REALBAND REALREFS FLAPS RODROW DASH PLANEFICHE PASS; GEN (cruise quiet in wind: the default generated plane), TANKMOUNT
+(the Archaeopteryx), FLEX (the generator archetypes) and ENGCONFIG (every build against its master pin) red - none reads
+the Chinook's flight: master's.
+NAMED, NOT RETUNED (the user's card): the static margin at the lightest load is 1 % (CG 44 % MAC) - near neutral solo.
