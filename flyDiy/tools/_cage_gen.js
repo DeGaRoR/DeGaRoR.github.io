@@ -1475,10 +1475,10 @@ function cageHullFitAll(P, f, HY, opt) {
   // that rests it; short of it, reported
   if (r && r.trim >= REST_TRIM_MAX && o.balance !== false) {
     const d0 = +P.hullAftDeg > 0 ? +P.hullAftDeg : 7;
-    const atD = dg => { const P1 = Object.assign({}, P, fit, { hullAftDeg: dg }), f1 = cageHullFit(P1, (f.zFw - f.cg[0]) / FS, (f.cg[1] + f.yD) / FS, { exact: true });
+    const atDeg = dg => { const P1 = Object.assign({}, P, fit, { hullAftDeg: dg }), f1 = cageHullFit(P1, (f.zFw - f.cg[0]) / FS, (f.cg[1] + f.yD) / FS, { exact: true });
       return f1 && { fit: Object.assign({}, fit, f1, { hullAftDeg: +dg.toFixed(2) }), r: restOf(Object.assign({}, P1, f1)) }; };
     let got = null;
-    for (let dg = d0 - 0.5; dg >= AFT_DEG_MIN - 1e-9; dg -= 0.5) { const t = atD(dg); if (t && t.r && t.r.trim < REST_TRIM_MAX) { got = t; break; } if (t) got = t; }
+    for (let dg = d0 - 0.5; dg >= AFT_DEG_MIN - 1e-9; dg -= 0.5) { const t = atDeg(dg); if (t && t.r && t.r.trim < REST_TRIM_MAX) { got = t; break; } if (t) got = t; }
     if (got) { fit = got.fit; r = got.r; }
     if (!r || r.trim >= REST_TRIM_MAX) notes.push('rests ' + (r ? r.trim.toFixed(1) : '?') + ' deg bow UP with the afterbody at its shallowest (' + AFT_DEG_MIN + ' deg): the CG is aft of what this hull carries');
   }
@@ -9692,7 +9692,7 @@ function cageDefaults() {
 // flies. Declared here rather than guessed, and skipped in both directions.
 // (G63.)
 // (ENGINE-DIALS B: the propeller's pitch row is a view of spec.prop.pitch - _cage_eng.js PROP_PITCHES - never a cage key)
-const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1, gearLvPos: 1, propPitch: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved; WILGA-GEAR: the trailing-link preview too)
+const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1, gearLvPos: 1, skiPos: 1, propPitch: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved; WILGA-GEAR: the trailing-link preview too; SKIS: the wheel-ski's skiPos, which the save already skipped - GATE SAVE)
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and

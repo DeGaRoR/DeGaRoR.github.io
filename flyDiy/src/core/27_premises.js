@@ -1028,7 +1028,7 @@ function stageRestore(edited, V) {
   if (!V || !V.staged || !V.whole) return edited;
   const W = V.whole, out = Object.assign({}, edited, { layers: Object.assign({}, edited.layers) });
   const kitOf = id => { const m = /^(.+):(\d+|frame|clear)$/.exec(String(id)); return m && V.kits[m[1]] ? m[1] : null; };
-  const back = (e, where) => {
+  const back = (e, where, was) => {
     const st = V.kept[where]; if (!st) return e;
     const c = Object.assign({}, e); delete c.stage; delete c.stageSown; c.stage = st;   // (the key last, as the author writes it)
     const vr = V.varied[where];
@@ -1036,7 +1036,14 @@ function stageRestore(edited, V) {
       if (key === 'P') { const P = Object.assign({}, c.P || {}); for (const pk of Object.keys(vr.now.P || {})) if (JSON.stringify(P[pk]) === JSON.stringify(vr.now.P[pk])) { if (vr.was.P && pk in vr.was.P) P[pk] = vr.was.P[pk]; else delete P[pk]; } c.P = P; continue; }
       if (JSON.stringify(c[key]) === JSON.stringify(vr.now[key])) { if (vr.was[key] === undefined) delete c[key]; else c[key] = vr.was[key]; }
     }
-    return c;
+    // MASTER-GREEN (22 Nov; GATE STAGES 7 red since L40f): the keys in the WHOLE entry's own order, then what the edit added.
+    // `stage` last is the staged editor's order, but an entry the sandbox editor (or a tool) wrote a key onto after its
+    // stage - MICRO's `micro` on nv_strip and tw_ski - came back with the two swapped: the same record, another file
+    if (!was) return c;
+    const o = {};
+    for (const key of Object.keys(was)) if (key in c) o[key] = c[key];
+    for (const key of Object.keys(c)) if (!(key in o)) o[key] = c[key];
+    return o;
   };
   // in the WHOLE record's order: a cut entry (or a kit) from the whole, an edited one from the edit (its stage back), one
   // the edit deleted gone; then whatever the edit added
@@ -1047,7 +1054,7 @@ function stageRestore(edited, V) {
     for (const e of whole || []) {
       if (!e || e.id === undefined) { res.push(e); continue; }
       if (cut.has(e.id) || (isKit && isKit(e))) { res.push(e); used.add(e.id); continue; }
-      if (byId.has(e.id)) { res.push(back(byId.get(e.id), whereOf(e))); used.add(e.id); }
+      if (byId.has(e.id)) { res.push(back(byId.get(e.id), whereOf(e), e)); used.add(e.id); }
     }
     for (const e of edit || []) if (e && (e.id === undefined || !kitOf(e.id)) && !used.has(e.id) && !(e.id !== undefined && cut.has(e.id))) res.push(e);
     return res;
