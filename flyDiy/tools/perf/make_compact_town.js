@@ -44,6 +44,6 @@ const report={scope:'Compact town fixture; other named places and seaplane base 
  fraction:townPlots.length/prior.count,retainedZones:[...keepZones],box,before,after,
  originalSelectedPlotSeeds:selected.length,retainedOriginalIds:townPlots.filter(p=>prior.plots.some(q=>q.id===p.id)).length,
  issues:O.records.issues};
-fs.writeFileSync(path.join(root,'tools/fixtures/premises_v1_perf_town_third.json'),JSON.stringify(rec,null,1)+'\n');
+fs.writeFileSync(path.join(root,'tools/fixtures/perf_town_third.json'),JSON.stringify(rec,null,1)+'\n');
 fs.writeFileSync(path.join(root,'reports/evidence/PERFORMANCE-2026-11-19/town-third-fixture.json'),JSON.stringify(report,null,2));
 console.log(JSON.stringify(report,null,2));
