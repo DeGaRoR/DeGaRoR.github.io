@@ -111,6 +111,9 @@ for i in $(seq 0 $((N - 1))); do
   if [ -z "$LM_DRY" ] && [ -s "$OUT/$TAG.flightlog.json" ] && [ -f "$T/load_brief.js" ]; then
     { echo "=== $TAG  q=$Q${X:+  $X}"; nice -n 19 node "$T/load_brief.js" "$OUT/$TAG.flightlog.json" --label "$TAG" $LM_BRIEF_ARGS 2>&1 | head -${LM_BRIEF_LINES:-14}; } >> "$OUT/briefs.txt"; fi   # (LM_BRIEF_ARGS: e.g. --steps compile,frames,worldCompile --miss 1, PERF-TRACE's per-step lines, perf-trace-2)
   g=$(grep -o 'overlay gone [0-9]*' "$L" | awk '{printf "%.1f", $3/1000}')
+  # LM_STOP_FIRST=1: a FIRST row that does not load means the build or the rig is broken: stop, keep the slot's hours
+  if [ -n "$LM_STOP_FIRST" ] && [ $i -eq 0 ] && [ -z "$g" ] && [ -z "$LM_DRY" ]; then
+    echo "$TAG [$KIND]: load FAILED - THE FIRST ROW DID NOT LOAD: the run stops here (see $L)" | tee -a "$SUM"; tail -5 "$L" | tee -a "$SUM"; exit 5; fi
   echo "$TAG [$KIND]: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o '\(HEADED\|headless\) window.*' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | package ${t} C -> $(TEMP) C | q=$Q${X:+ | $X} | $(grep -o '^  eval .*' "$L" | head -1 | cut -c3-) | $(grep -o '^  rollout: .*' "$L" | head -1 | cut -c3-) | $(sizes "$UDD")" | tee -a "$SUM"
 done
 echo "done $(date '+%H:%M')" | tee -a "$SUM"

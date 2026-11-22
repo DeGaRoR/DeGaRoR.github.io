@@ -9,6 +9,11 @@
 
 # ---- pass 1 ---------------------------------------------------------------------------------------------------
 BASE_1      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
+# THE SMOKE, as the slot's rows 2 and 3 (its own GPU turn did not come): every switch at once, then a night load with the
+# clock set to noon before Go and the near-first path forced. If BASE_1 fails the runner stops the whole slot; these two
+# are read by PERF-LEAD while pass 1 goes on.
+SMOKE_ALL   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&latelinks=1&lampsfixed=1&firstuse=1&pace=16 ; new ; H5K ; --rollout
+SMOKE_HOLD  ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&day=night ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js --init-file tools/perf/init_striphold.js
 # how many programs may link at once (default auto = 8 on this box): is the shader wait a queue?
 PACE4_1     ; D:/Dev/perf-lab-built ; pace=4 ; new ; H5K ; -
 PACE16_1    ; D:/Dev/perf-lab-built ; pace=16 ; new ; H5K ; -

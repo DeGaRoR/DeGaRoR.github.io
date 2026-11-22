@@ -33,7 +33,8 @@ say "slot start, $MIN min, lab $LAB ($(cat "$LAB/flyDiy/version.json" 2>/dev/nul
 # 1. pass 1 (its own cap: what the journey, audio and a useful pass 2 leave it)
 P1=${SLOT_P1_MIN:-95}
 say "part 1: pass 1, cap $P1 min"
-LM_HELD=1 LM_DRY=$SLOT_DRY LM_BRIEF_ARGS="${LM_BRIEF_ARGS:---steps compile,frames,worldCompile --miss 1}" LM_BRIEF_LINES=${LM_BRIEF_LINES:-40} bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass1.txt" "$OUT/pass1" $P1 2>&1 | tee -a "$LOG"
+LM_HELD=1 LM_DRY=$SLOT_DRY LM_BRIEF_ARGS="${LM_BRIEF_ARGS:---steps compile,frames,worldCompile --miss 1}" LM_BRIEF_LINES=${LM_BRIEF_LINES:-40} LM_STOP_FIRST=1 bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass1.txt" "$OUT/pass1" $P1 2>&1 | tee -a "$LOG"
+[ "${PIPESTATUS[0]}" = 5 ] && { say "ABORT: the first row did not load; the box is freed, nothing else runs"; exit 5; }
 
 # 2. the journey + the freeze ledger, run from the LAB build's own tools (page_rig serves the tree it runs in).
 #    PERF-TRACE's command (22 Nov); headed at the user's canvas is asked through page_rig's options in the script's env
