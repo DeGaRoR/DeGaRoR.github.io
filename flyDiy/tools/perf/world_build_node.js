@@ -14,7 +14,7 @@
 // IndexedDB): then what the browser runs off the main thread is off it here too.
 //
 //   nice -n 19 node --max-old-space-size=6144 tools/perf/world_build_node.js --out <dir> [--query 'town=1'] [--workers]
-//                   [--no-prof] [--census] [--drain] [--units] [--wx] [--mats] [--label before]
+//                   [--no-prof] [--census] [--drain] [--units] [--wx] [--mats] [--composesplit] [--label before]
 // Writes <dir>/world_build_<label>.json (+ .cpuprofile) and prints the tables. One node process (+1 thread with --workers).
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -22,7 +22,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const has = k => argv.includes('--' + k);
 const OUT = path.resolve(opt('out', path.join(os.tmpdir(), 'world_build_node'))), LABEL = opt('label', 'run');
-const QUERY = opt('query', ''), WORKERS = has('workers'), PROF = !has('no-prof'), CENSUS = has('census'), DRAIN = has('drain'), UNITSON = has('units'), WXON = has('wx'), MATSON = has('mats');
+const QUERY = opt('query', ''), WORKERS = has('workers'), PROF = !has('no-prof'), CENSUS = has('census'), DRAIN = has('drain'), UNITSON = has('units'), WXON = has('wx'), MATSON = has('mats'), CSPLIT = has('composesplit');
 const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's clock
 
 (async () => {
@@ -73,7 +73,10 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
       if (typeof W.buildWorldSceneSteps === 'function') wrapGen(W);
       // the record's compositions (PREMISES_GEN.compose: makeWorld's at the boot's scripts, the renderer's at its make, an edit's)
       if (W.PREMISES_GEN && !W.PREMISES_GEN.__wbc) { const PG = W.PREMISES_GEN, c0 = PG.compose; PG.__wbc = true;
-        PG.compose = function () { const t = now(); try { return c0.apply(this, arguments); } finally { COMPOSE.push({ at: bootCur || '?', ms: +(now() - t).toFixed(1), opts: arguments[2] ? Object.keys(arguments[2]).sort().join(',') : '' }); } }; }
+        PG.compose = function () { const t = now(); let row = null; try { return c0.apply(this, arguments); } finally { row = { at: bootCur || '?', ms: +(now() - t).toFixed(1), opts: arguments[2] ? Object.keys(arguments[2]).sort().join(',') : '' }; COMPOSE.push(row);
+          // --composesplit: the same composition again WITHOUT its placement stage (o.noPlace: no plot sown, no forest planted), timed
+          // and thrown away - what the stages before it cost, and so what stage 5 costs (the difference)
+          if (CSPLIT && !(arguments[2] && arguments[2].noPlace)) { const t2 = now(); try { c0.call(this, arguments[0], arguments[1], Object.assign({}, arguments[2] || {}, { noPlace: true })); row.noPlaceMs = +(now() - t2).toFixed(1); } catch (e) { row.noPlaceErr = String(e && e.message); } } } }; }
       // --units: PAVEMENT's three geometry builders, a call a row - its ms, its vertices, where it lies; and the same call
       // WITHOUT its refinement (the regular rows: G2115's bisection and a bumpy strip's fine rows off), built beside it and
       // thrown away: what a coarse form of the same strip or road would cost and weigh
