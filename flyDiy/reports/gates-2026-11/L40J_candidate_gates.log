@@ -1,5 +1,5 @@
-FAIL (40 of 166 gates run; PARTIAL: 15 of 23 chunks, 198 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF
+FAIL (48 of 196 gates run; PARTIAL: 16 of 23 chunks, 168 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -4231,6 +4231,808 @@ GATE CARDDRAG: PASS
   ok   5 the stream raises what it builds (inline and from the house worker)
   ok   5 the prewarm (under the roll-out screen) does not (either way)
 GATE FADES: PASS
+######## chunk 15 of 23 (30 gates) ########
+=== CONTACT ===
+ok   SINK.liftIn is a metre or two  (1.5)
+  ok   the side and the edge keep the whole lift
+  ok   from liftIn in the lift is 0 on every class (concrete, grass, gravel)
+  ok   the ground sinks at least what the pavement lost (SINK.pre by the same law), 0..liftIn
+  ok   the deep sink still reaches S past d0 + ramp
+  ok   a strip on the patch pins a row at liftIn inside its edge
+  ok   every strip vertex from liftIn in is AT heightAt  (6.4e-8)
+  ok   off the patch (no sinkD0) a strip keeps its constant lift  (0.0700)
+  ok   Jolene road past liftIn: the drawn surface within 10 mm of terrainH (p5..p95)  (n 308416, mean 0, p5 -3.3, p95 3.3 mm)
+  ok   Jolene apron past liftIn: the drawn surface within 10 mm of terrainH (p5..p95)  (n 206078, mean 0.4, p5 -5.7, p95 7.8 mm)
+  ok   Jolene strip:concrete past liftIn: the drawn surface within 10 mm of terrainH (p5..p95)  (n 97492, mean 0, p5 0, p95 0 mm)
+  FAIL Jolene strip:gravel past liftIn: the drawn surface within 10 mm of terrainH (p5..p95)  (n 21063, mean -0.7, p5 -13.6, p95 8.9 mm)
+  FAIL Jolene strip:grass past liftIn: the drawn surface within 10 mm of terrainH (p5..p95)  (n 830, mean -1.8, p5 -15.8, p95 15.4 mm)
+  FAIL Jolene apron edge: pavement points within 5 mm of the ground no more than rev 28's 663 (+ slack)  (810 of 193473 <= 749)
+  FAIL Jolene apron side: pavement points within 5 mm of the ground no more than rev 28's 1779 (+ slack)  (2142 of 109396 <= 1977)
+  ok   Jolene road band: pavement points within 5 mm of the ground no more than rev 28's 196 (+ slack)  (132 of 1819955 <= 236)
+  ok   Jolene road edge: pavement points within 5 mm of the ground no more than rev 28's 331 (+ slack)  (277 of 674317 <= 384)
+  ok   Jolene road side: pavement points within 5 mm of the ground no more than rev 28's 7528 (+ slack)  (8210 of 1011471 <= 8301)
+  ok   Jolene concrete edge: pavement points within 5 mm of the ground no more than rev 28's 0 (+ slack)  (0 of 26498 <= 20)
+  ok   Jolene concrete band: pavement points within 5 mm of the ground no more than rev 28's 0 (+ slack)  (0 of 244668 <= 20)
+  ok   Jolene concrete side: pavement points within 5 mm of the ground no more than rev 28's 0 (+ slack)  (0 of 39793 <= 20)
+  ok   Jolene gravel edge: pavement points within 5 mm of the ground no more than rev 28's 0 (+ slack)  (0 of 12366 <= 20)
+  ok   Jolene grass edge: pavement points within 5 mm of the ground no more than rev 28's 0 (+ slack)  (0 of 6721 <= 20)
+  ok   at rest: a blob under each wheel and one under the body  (4 for 3 wheels)
+  ok   at rest the wheels' blobs are at full strength (halo and core, G2055)  (0.80/0.90 0.80/0.90 0.80/0.90 0.24/0.00)
+  ok   each wheel's blob is straight under its node, on the ground
+  ok   20 cm up the blobs are fainter  (0.398)
+  ok   lifted past coreReach: the core is gone, the halo stays  (0.000 / 0.706)
+  ok   lifted, the halo spreads  (0.675 -> 0.703 m)
+  ok   pressed 2 cm in, the footprint lengthens  (0.179 -> 0.266 m)
+  ok   the core is as wide as the drawn tyre
+  ok   past reach: no blob
+  ok   on a floor 3 m up: the same blobs, on the floor  (4)
+  ok   past `reach` the wheels cast no blob  (1 left (the body's fades by bodyReach))
+  ok   on floats (sim.hydro) no blob
+  ok   over drawn water no wheel blob
+  ok   one InstancedMesh, transparent, no depth write, after the pavement (renderOrder 4), casting nothing
+  ok   the shader: pulled toward the eye on its ray, halo and core composed as occlusions, black (the ground multiplied)
+  ok   update writes one instance a blob  (4)
+  ok   the first blob sits on the sloped ground, on its plane  (y 0.0454, tilt 0.000 deg)
+  ok   every instance right-handed, its front face up the normal (G1002's were mirrored and culled)  (4/4 unmirrored, 4 facing up)
+  ok   its halo, core and footprint ride the instance attribute
+  ok   no blob: nothing drawn
+  ok   app.js poses the contact shadows right after poseModel in the frame
+  ok   contact negative: moving contact shadow before pose is rejected
+  ok   contact: removing optional pose timing preserves the wiring
+  ok   build.js ships contact_shadow.js before app.js
+  ok   app.js makes the world's and the shed's blob meshes at load, in their scenes
+  ok   in the shed: the cage's contacts or the flown wheels, on the floor
+  ok   the premises answer pavedNear
+  ok   13/31's centre is 13/31  (HOME)
+  ok   skipped by its own id, 13/31 does not answer for itself  (null)
+  ok   0.3 m off its edge: near within 0.5 m, not on it
+  ok   ...and its own band stones there are not refused by their own strip
+  FAIL 02/20's band holds points on or by another pavement (the crossing, the turnarounds, the taxiways), and they are few  (25749 of 38764)
+  ok   13/31's gravel shoulders are gone (rev 28): no y_sh surface shipped
+  ok   the pad (a PAVED surface polygon and its look polygon) answers
+  ok   render_world standRocks refuses a stone on or within its size + 0.5 m of another pavement
+  ok   scenery_life: litter never lies on a pavement
+  ok   scenery_life: a road's things keep off every pavement but their road, an apron's off every pavement
+  ok   scenery_life: the apron's clutter and cones stand outside it
+  ok   render_premises hands the life its pavedNear
+GROUND DRAWN: the patch's drop at w3's stand (open grass) 0 mm, its grid 2 m; FINE.step 5 m; TW_DRAW_DROP 0 mm; terrainH analytic (FLYDIY_GROUND_RASTER unset); 313 pavement meshes, 3206 patch chunks
+  ok   app.js TW_DRAW_DROP is 0 (G1543: the drawn tail gear on its node)
+  ok   render_premises.js drops the patch by patchDrop (G1541), not a flat 2 cm
+  ok   the patch at terrainH on the open grass round Jolene's aerodromes (no drop 3 m and more off a pavement)  (1462 points, 0 dropped)
+  ok   ...and 2 cm under a pavement, where its interior and side are drawn over it (none under a grass road: its own 1 cm, G2115)  (534 points, 0 not)
+  ok   inside a residential zone (z_village) the lots keep the patch 2 cm under them (G434.2)  (20.0 mm)
+  ok   mn_strip's stand is the start of mn_stand_lane  (0.00 m)
+  ok   mn_strip's stand stands on its drawn pad (mn_y_stand_d)  (paved true)
+  ok   the pad has an open edge (grass 1.5 m out)
+  ok   G1542: 1.5 m off the stand pad's open edge nothing is paved, nothing sunk, the drawn patch within 3 cm of the ground (the side tuck, no pit at the pad's edge)  (-21.2 mm)
+  ok   ...1 m inside the pad the patch takes the edge's 7 cm, not the deep sink  (5.2 cm)
+  ok   ...6 m inside, the deep sink  (0.80 m)
+  ok   HOME: the stock build's tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)  (apron:concrete 0.7/0.0, apron:concrete 0.5/0.0, apron:concrete -1.3/0.0)
+  ok   w3: the stock build's tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)  (patch -1.5/2.0, patch -1.6/2.1, patch -1.2/0.1)
+  ok   mn_strip: the stock build's tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)  (apron:gravel 0.7/0.0, apron:gravel 0.5/0.0, apron:gravel -1.3/0.0)
+  ok   nv_strip: the stock build's tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)  (apron:grass 0.7/0.0, apron:grass 0.5/0.0, apron:grass -1.3/0.0)
+  ok   tw_ski: the stock build's tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)  (apron:concrete 0.7/0.0, apron:concrete 0.5/0.0, apron:concrete -1.3/0.0)
+  ok   w4: the stock build's tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)  (apron:gravel 0.9/-0.2, apron:gravel 0.9/-0.3, apron:gravel -1.2/-0.2)
+  ok   w1: the stock build's tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)  (apron:gravel 0.7/0.0, apron:gravel 0.5/-0.0, apron:gravel -1.3/0.0)
+  ok   mt_strip: the stock build's tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)  (apron:snow 0.7/0.0, apron:snow 0.5/-0.0, apron:snow -1.3/-0.0)
+GATE CONTACT: FAIL
+(exit code 1)
+=== TERRAINMATCH ===
+ok   gamer: the sites measured (every land strip with a record: stand, strip, lanes, both over-runs)  (59 sites)
+  ok   gamer w2 strip: |drawn - terrainH| p95 6.9 mm (<= 8), worst 55.5 (<= 60) off 1913 creased / stepped points [ALLOW: BUMPINESS: 02/20's band at chaos 0.4 (the user 16 Nov), its 1758 m ribbon draped over the bumps; worst 55.5 mm at (567.5, -45.2) on the crumble's dirt apron, which is not refined to the bumps]  (worst at 567.5,-45.2 on apron:dirt)
+  ok   gamer w2 overrun end: |drawn - terrainH| p95 0.1 mm (<= 5), worst 4.6 (<= 30) off 0 creased / stepped points  (worst at 245.8,675.3 on strip:concrete)
+  ok   gamer w2 overrun start: |drawn - terrainH| p95 2.8 mm (<= 5), worst 27.4 (<= 30) off 4 creased / stepped points  (worst at 990.2,-1020.6 on apron:concrete)
+  ok   gamer xw_rough strip: |drawn - terrainH| p95 3.4 mm (<= 5), worst 13.2 (<= 30) off 163 creased / stepped points  (worst at 595.1,-79 on strip:mud)
+  ok   gamer xw_rough overrun end: |drawn - terrainH| p95 2.2 mm (<= 5), worst -7.4 (<= 30) off 0 creased / stepped points  (worst at 399.6,332.9 on apron:dirt)
+  ok   gamer xw_rough overrun start: |drawn - terrainH| p95 3.2 mm (<= 5), worst 34.7 (<= 40) off 5 creased / stepped points [ALLOW: BUMPINESS: w2 bumpy beside the lane (the user 16 Nov): 34.7 mm on its dirt apron at (861.6, -702.7)]  (worst at 861.6,-702.7 on apron:dirt)
+  ok   gamer HOME stand: |drawn - terrainH| p95 0.0 mm (<= 5), worst 0.0 (<= 30) off 0 creased / stepped points  (worst at -152.6,626.6 on apron:concrete)
+  ok   gamer HOME strip: |drawn - terrainH| p95 0.0 mm (<= 5), worst 7.7 (<= 30) off 0 creased / stepped points  (worst at 141.4,633.4 on road rim)
+  ok   gamer HOME overrun end: |drawn - terrainH| p95 1.3 mm (<= 5), worst 16.1 (<= 30) off 0 creased / stepped points  (worst at 645.7,1051.7 on apron:concrete)
+  ok   gamer HOME overrun start: |drawn - terrainH| p95 2.1 mm (<= 5), worst 23.3 (<= 30) off 7 creased / stepped points  (worst at -1227.3,-618.3 on apron:concrete)
+  ok   gamer HOME lane: |drawn - terrainH| p95 2.2 mm (<= 5), worst -7.0 (<= 30) off 0 creased / stepped points  (worst at -142.8,394.9 on road)
+  FAIL gamer HOME lane 2: |drawn - terrainH| p95 4.2 mm (<= 5), worst 78.8 (<= 30) off 47 creased / stepped points  (worst at 52.5,671.5 on road)
+  ok   gamer w3 stand: |drawn - terrainH| p95 0.0 mm (<= 5), worst -5.6 (<= 30) off 0 creased / stepped points  (worst at -687.6,-2387.6 on tier (patch))
+  ok   gamer w3 strip: |drawn - terrainH| p95 2.5 mm (<= 5), worst -21.9 (<= 30) off 8 creased / stepped points  (worst at -690.9,-2430.9 on road rim)
+  ok   gamer w3 overrun end: |drawn - terrainH| p95 0.4 mm (<= 5), worst 25.8 (<= 30) off 0 creased / stepped points  (worst at -1076.2,-2322.3 on apron:gravel)
+  ok   gamer w3 overrun start: |drawn - terrainH| p95 5.0 mm (<= 5), worst 19.2 (<= 45) off 40 creased / stepped points [ALLOW: r5's rim where r40's square end meets its side: G1001's side lift over a sliver pavedAt names r40's (so the site's edge filter keeps it); the 0.42 m pit under r40's cap past that end is gone (27_premises pastJoinedEnd, 2 Nov)]  (worst at -499,-2476.2 on road rim)
+  ok   gamer w3 lane: |drawn - terrainH| p95 2.5 mm (<= 5), worst 7.5 (<= 30) off 9 creased / stepped points  (worst at -694,-2427.4 on road)
+  ok   gamer mn_strip stand: |drawn - terrainH| p95 1.2 mm (<= 5), worst 28.5 (<= 30) off 0 creased / stepped points  (worst at 7271,-15323.5 on apron:gravel)
+  ok   gamer mn_strip strip: |drawn - terrainH| p95 1.8 mm (<= 5), worst -10.4 (<= 30) off 2 creased / stepped points  (worst at 7265.1,-15308.6 on road)
+  ok   gamer mn_strip overrun end: |drawn - terrainH| p95 1.7 mm (<= 5), worst 9.9 (<= 30) off 4 creased / stepped points  (worst at 7227.4,-15648.7 on tier (patch))
+  ok   gamer mn_strip overrun start: |drawn - terrainH| p95 5.9 mm (<= 8), worst -16.1 (<= 30) off 144 creased / stepped points [ALLOW: mn_main across its 18 m on the cut past the end: rows across 3 m (REFINE.roadV off: 13 k more over Jolene)]  (worst at 7267.4,-15246.1 on road)
+  ok   gamer mn_strip lane: |drawn - terrainH| p95 2.5 mm (<= 5), worst 7.1 (<= 30) off 0 creased / stepped points  (worst at 7264.5,-15337.4 on road)
+  ok   gamer nv_strip stand: |drawn - terrainH| p95 3.8 mm (<= 15), worst 22.8 (<= 50) off 9 creased / stepped points [ALLOW: nv_meadow: a grass polygon at its 2 m grid - refined it is +27 k triangles at nv_strip, where potato's count would grow (pavement.js REFINE: grass polygons not refined)]  (worst at 10074.8,-11733.4 on apron:grass)
+  ok   gamer nv_strip strip: |drawn - terrainH| p95 11.0 mm (<= 12), worst -22.1 (<= 30) off 202 creased / stepped points [ALLOW: BUMPINESS: nv_strip at chaos 0.4 (the user 16 Nov) under nv_meadow's 2 m grass grid (as nv_strip stand)]  (worst at 10035.3,-11685.8 on apron:grass)
+  ok   gamer nv_strip overrun end: |drawn - terrainH| p95 4.9 mm (<= 8), worst -33.8 (<= 40) off 36 creased / stepped points [ALLOW: nv_meadow (as nv_strip stand)]  (worst at 9999.6,-11583.6 on apron:grass)
+  ok   gamer nv_strip overrun start: |drawn - terrainH| p95 3.1 mm (<= 8), worst -18.1 (<= 30) off 13 creased / stepped points [ALLOW: nv_meadow (as nv_strip stand)]  (worst at 10061.6,-11740.1 on apron:grass)
+  ok   gamer nv_strip lane: |drawn - terrainH| p95 7.5 mm (<= 10), worst 16.6 (<= 30) off 25 creased / stepped points [ALLOW: nv_meadow (as nv_strip stand)]  (worst at 10051.6,-11724.6 on apron:grass)
+  ok   gamer tw_ski stand: |drawn - terrainH| p95 0.5 mm (<= 5), worst 13.1 (<= 30) off 0 creased / stepped points  (worst at 316.9,-7832.5 on apron:concrete)
+  ok   gamer tw_ski strip: |drawn - terrainH| p95 3.2 mm (<= 5), worst -8.1 (<= 30) off 0 creased / stepped points  (worst at 256.5,-7708.6 on strip:grass)
+  ok   gamer tw_ski overrun end: |drawn - terrainH| p95 3.1 mm (<= 5), worst 9.6 (<= 40) off 16 creased / stepped points [ALLOW: its apron's concrete rim at (343, -7877): 34.2 mm, master's own (unmasked by the per-runway sample, AFB-0220)]  (worst at 365.2,-7878.2 on tier (patch))
+  ok   gamer tw_ski overrun start: |drawn - terrainH| p95 3.0 mm (<= 5), worst -9.6 (<= 30) off 11 creased / stepped points  (worst at 194.6,-7597.7 on tier (patch))
+  ok   gamer tw_ski lane: |drawn - terrainH| p95 1.3 mm (<= 5), worst 6.5 (<= 30) off 0 creased / stepped points  (worst at 321.2,-7839.7 on apron:concrete)
+  ok   gamer w5 strip: |drawn - terrainH| p95 5.1 mm (<= 6), worst -15.6 (<= 30) off 135 creased / stepped points [ALLOW: BUMPINESS: w5 at chaos 0.4 (the user 16 Nov) under the user's grass apron a11~d at its 2 m grid (as w5 overrun end)]  (worst at 3182.3,-2797.9 on apron:gravel)
+  ok   gamer w5 overrun end: |drawn - terrainH| p95 12.4 mm (<= 15), worst -37.6 (<= 50) off 71 creased / stepped points [ALLOW: a11~d: the user's grass apron across it at its 2 m grid, as nv_meadow (pavement.js REFINE: grass polygons not refined - translucent, the patch seen through it); its gravel apron within 27 mm (2 Nov, master d1a754b94)]  (worst at 2834.1,-2912 on apron:grass)
+  ok   gamer w5 overrun start: |drawn - terrainH| p95 1.4 mm (<= 5), worst -9.5 (<= 30) off 3 creased / stepped points  (worst at 3247.2,-2767.5 on tier (patch))
+  ok   gamer w6 strip: |drawn - terrainH| p95 3.6 mm (<= 5), worst 100.9 (<= 105) off 39 creased / stepped points [ALLOW: BUMPINESS: w6 at chaos 0.8 (the user 16 Nov): 100.9 mm where a road's rim crosses it at (-4248.7, -22120.2) - the road is not draped over the strip's bumps (a visible seam; listed for the roads' owner)]  (worst at -4248.7,-22120.2 on road rim)
+  ok   gamer w6 overrun end: |drawn - terrainH| p95 1.1 mm (<= 5), worst -5.8 (<= 30) off 0 creased / stepped points  (worst at -4390.1,-22127.4 on road)
+  ok   gamer w6 overrun start: |drawn - terrainH| p95 1.5 mm (<= 5), worst 8.4 (<= 30) off 0 creased / stepped points  (worst at -3950.7,-22098.4 on tier (patch))
+  ok   gamer w7 strip: |drawn - terrainH| p95 2.2 mm (<= 5), worst -9.9 (<= 30) off 4 creased / stepped points  (worst at -4049.9,-23616.7 on road rim)
+  ok   gamer w7 overrun end: |drawn - terrainH| p95 0.9 mm (<= 5), worst -4.4 (<= 30) off 5 creased / stepped points  (worst at -4059.9,-23606.2 on tier (patch))
+  ok   gamer w7 overrun start: |drawn - terrainH| p95 0.6 mm (<= 5), worst -2.4 (<= 30) off 0 creased / stepped points  (worst at -2961.5,-23854.3 on tier (patch))
+  ok   gamer w4 stand: |drawn - terrainH| p95 0.4 mm (<= 5), worst 28.0 (<= 30) off 0 creased / stepped points  (worst at -1328.5,-17592.2 on apron:gravel)
+  ok   gamer w4 strip: |drawn - terrainH| p95 2.4 mm (<= 5), worst 8.7 (<= 30) off 0 creased / stepped points  (worst at -1470.8,-17776.2 on strip:gravel)
+  ok   gamer w4 overrun end: |drawn - terrainH| p95 1.6 mm (<= 5), worst -9.5 (<= 30) off 20 creased / stepped points  (worst at -1527.9,-17836.3 on tier (patch))
+  ok   gamer w4 overrun start: |drawn - terrainH| p95 0.3 mm (<= 5), worst 24.4 (<= 30) off 0 creased / stepped points  (worst at -1321.2,-17617.2 on apron:gravel)
+  ok   gamer w4 lane: |drawn - terrainH| p95 1.6 mm (<= 5), worst 6.7 (<= 30) off 0 creased / stepped points  (worst at -1328.1,-17616.9 on apron:gravel)
+  ok   gamer w8 strip: |drawn - terrainH| p95 4.0 mm (<= 5), worst -10.0 (<= 30) off 41 creased / stepped points  (worst at 4283.6,-16328.6 on strip:dirt)
+  ok   gamer w8 overrun end: |drawn - terrainH| p95 0.5 mm (<= 5), worst 9.8 (<= 30) off 1 creased / stepped points  (worst at 4575,-16050.8 on tier (patch))
+  ok   gamer w8 overrun start: |drawn - terrainH| p95 0.5 mm (<= 5), worst 8.5 (<= 30) off 0 creased / stepped points  (worst at 4165.8,-16446.2 on tier (patch))
+  ok   gamer w1 stand: |drawn - terrainH| p95 0.0 mm (<= 5), worst 0.0 (<= 30) off 0 creased / stepped points  (worst at 2674.5,-15896.3 on apron:gravel)
+  ok   gamer w1 strip: |drawn - terrainH| p95 3.0 mm (<= 5), worst 10.0 (<= 30) off 42 creased / stepped points  (worst at 2569.8,-16209.8 on strip:gravel)
+  ok   gamer w1 overrun end: |drawn - terrainH| p95 0.6 mm (<= 5), worst 8.7 (<= 30) off 0 creased / stepped points  (worst at 2744.2,-15782.8 on tier (patch))
+  ok   gamer w1 overrun start: |drawn - terrainH| p95 0.5 mm (<= 5), worst 7.9 (<= 30) off 1 creased / stepped points  (worst at 2548.8,-16262.6 on tier (patch))
+  ok   gamer w1 lane: |drawn - terrainH| p95 1.1 mm (<= 5), worst 10.0 (<= 30) off 1 creased / stepped points  (worst at 2687.5,-15919.4 on apron:gravel)
+  ok   gamer mt_strip stand: |drawn - terrainH| p95 3.8 mm (<= 5), worst 12.7 (<= 30) off 88 creased / stepped points  (worst at 9224.7,-5961.4 on apron:snow)
+  ok   gamer mt_strip strip: |drawn - terrainH| p95 2.7 mm (<= 5), worst -12.3 (<= 30) off 26 creased / stepped points  (worst at 9241.5,-5963.1 on apron:snow)
+  ok   gamer mt_strip overrun end: |drawn - terrainH| p95 3.1 mm (<= 5), worst 16.0 (<= 30) off 40 creased / stepped points  (worst at 9205.9,-5952.5 on apron:snow rim)
+  ok   gamer mt_strip overrun start: |drawn - terrainH| p95 1.5 mm (<= 5), worst -9.8 (<= 30) off 35 creased / stepped points  (worst at 9486.3,-5951.2 on tier (patch))
+  ok   gamer mt_strip lane: |drawn - terrainH| p95 4.1 mm (<= 5), worst -10.6 (<= 30) off 9 creased / stepped points  (worst at 9241.5,-5962.8 on apron:snow)
+  ok   the wheels: the Cub, the Jodel and the metal Cessna at every stand  (24 placings)
+  ok   the drawn ground under every wheel within 11 mm of terrainH  (worst -0.3 mm, w4 cub on apron:gravel)
+  ok   potato: the sites measured (every land strip with a record: stand, strip, lanes, both over-runs)  (59 sites)
+  ok   potato w2 strip: |drawn - terrainH| p95 6.9 mm (<= 8), worst 55.5 (<= 60) off 1913 creased / stepped points [ALLOW: BUMPINESS: 02/20's band at chaos 0.4 (the user 16 Nov), its 1758 m ribbon draped over the bumps; worst 55.5 mm at (567.5, -45.2) on the crumble's dirt apron, which is not refined to the bumps]  (worst at 567.5,-45.2 on apron:dirt)
+  ok   potato w2 overrun end: |drawn - terrainH| p95 0.1 mm (<= 5), worst 4.6 (<= 30) off 0 creased / stepped points  (worst at 245.8,675.3 on strip:concrete)
+  ok   potato w2 overrun start: |drawn - terrainH| p95 2.8 mm (<= 5), worst 27.4 (<= 30) off 4 creased / stepped points  (worst at 990.2,-1020.6 on apron:concrete)
+  ok   potato xw_rough strip: |drawn - terrainH| p95 3.4 mm (<= 5), worst 13.2 (<= 30) off 163 creased / stepped points  (worst at 595.1,-79 on strip:mud)
+  ok   potato xw_rough overrun end: |drawn - terrainH| p95 2.2 mm (<= 5), worst -7.4 (<= 30) off 0 creased / stepped points  (worst at 399.6,332.9 on apron:dirt)
+  ok   potato xw_rough overrun start: |drawn - terrainH| p95 3.2 mm (<= 5), worst 34.7 (<= 40) off 5 creased / stepped points [ALLOW: BUMPINESS: w2 bumpy beside the lane (the user 16 Nov): 34.7 mm on its dirt apron at (861.6, -702.7)]  (worst at 861.6,-702.7 on apron:dirt)
+  ok   potato HOME stand: |drawn - terrainH| p95 0.0 mm (<= 5), worst 0.0 (<= 30) off 0 creased / stepped points  (worst at -152.6,626.6 on apron:concrete)
+  ok   potato HOME strip: |drawn - terrainH| p95 0.0 mm (<= 5), worst 7.7 (<= 30) off 0 creased / stepped points  (worst at 141.4,633.4 on road rim)
+  ok   potato HOME overrun end: |drawn - terrainH| p95 1.3 mm (<= 5), worst 16.1 (<= 30) off 0 creased / stepped points  (worst at 645.7,1051.7 on apron:concrete)
+  ok   potato HOME overrun start: |drawn - terrainH| p95 2.1 mm (<= 5), worst 23.3 (<= 30) off 7 creased / stepped points  (worst at -1227.3,-618.3 on apron:concrete)
+  ok   potato HOME lane: |drawn - terrainH| p95 2.2 mm (<= 5), worst -7.0 (<= 30) off 0 creased / stepped points  (worst at -142.8,394.9 on road)
+  FAIL potato HOME lane 2: |drawn - terrainH| p95 4.2 mm (<= 5), worst 78.8 (<= 30) off 47 creased / stepped points  (worst at 52.5,671.5 on road)
+  ok   potato w3 stand: |drawn - terrainH| p95 0.0 mm (<= 5), worst -5.6 (<= 30) off 0 creased / stepped points  (worst at -687.6,-2387.6 on tier (patch))
+  ok   potato w3 strip: |drawn - terrainH| p95 2.5 mm (<= 5), worst -21.9 (<= 30) off 8 creased / stepped points  (worst at -690.9,-2430.9 on road rim)
+  ok   potato w3 overrun end: |drawn - terrainH| p95 0.4 mm (<= 5), worst 25.8 (<= 30) off 0 creased / stepped points  (worst at -1076.2,-2322.3 on apron:gravel)
+  ok   potato w3 overrun start: |drawn - terrainH| p95 5.0 mm (<= 5), worst 19.2 (<= 45) off 40 creased / stepped points [ALLOW: r5's rim where r40's square end meets its side: G1001's side lift over a sliver pavedAt names r40's (so the site's edge filter keeps it); the 0.42 m pit under r40's cap past that end is gone (27_premises pastJoinedEnd, 2 Nov)]  (worst at -499,-2476.2 on road rim)
+  ok   potato w3 lane: |drawn - terrainH| p95 2.5 mm (<= 5), worst 7.5 (<= 30) off 9 creased / stepped points  (worst at -694,-2427.4 on road)
+  ok   potato mn_strip stand: |drawn - terrainH| p95 1.2 mm (<= 5), worst 28.5 (<= 30) off 0 creased / stepped points  (worst at 7271,-15323.5 on apron:gravel)
+  ok   potato mn_strip strip: |drawn - terrainH| p95 1.8 mm (<= 5), worst -10.4 (<= 30) off 2 creased / stepped points  (worst at 7265.1,-15308.6 on road)
+  ok   potato mn_strip overrun end: |drawn - terrainH| p95 1.7 mm (<= 5), worst 9.9 (<= 30) off 4 creased / stepped points  (worst at 7227.4,-15648.7 on tier (patch))
+  ok   potato mn_strip overrun start: |drawn - terrainH| p95 5.9 mm (<= 8), worst -16.1 (<= 30) off 144 creased / stepped points [ALLOW: mn_main across its 18 m on the cut past the end: rows across 3 m (REFINE.roadV off: 13 k more over Jolene)]  (worst at 7267.4,-15246.1 on road)
+  ok   potato mn_strip lane: |drawn - terrainH| p95 2.5 mm (<= 5), worst 7.1 (<= 30) off 0 creased / stepped points  (worst at 7264.5,-15337.4 on road)
+  ok   potato nv_strip stand: |drawn - terrainH| p95 3.8 mm (<= 15), worst 22.8 (<= 50) off 9 creased / stepped points [ALLOW: nv_meadow: a grass polygon at its 2 m grid - refined it is +27 k triangles at nv_strip, where potato's count would grow (pavement.js REFINE: grass polygons not refined)]  (worst at 10074.8,-11733.4 on apron:grass)
+  ok   potato nv_strip strip: |drawn - terrainH| p95 11.0 mm (<= 12), worst -22.1 (<= 30) off 202 creased / stepped points [ALLOW: BUMPINESS: nv_strip at chaos 0.4 (the user 16 Nov) under nv_meadow's 2 m grass grid (as nv_strip stand)]  (worst at 10035.3,-11685.8 on apron:grass)
+  ok   potato nv_strip overrun end: |drawn - terrainH| p95 4.9 mm (<= 8), worst -33.8 (<= 40) off 36 creased / stepped points [ALLOW: nv_meadow (as nv_strip stand)]  (worst at 9999.6,-11583.6 on apron:grass)
+  ok   potato nv_strip overrun start: |drawn - terrainH| p95 3.1 mm (<= 8), worst -18.1 (<= 30) off 13 creased / stepped points [ALLOW: nv_meadow (as nv_strip stand)]  (worst at 10061.6,-11740.1 on apron:grass)
+  ok   potato nv_strip lane: |drawn - terrainH| p95 7.5 mm (<= 10), worst 16.6 (<= 30) off 25 creased / stepped points [ALLOW: nv_meadow (as nv_strip stand)]  (worst at 10051.6,-11724.6 on apron:grass)
+  ok   potato tw_ski stand: |drawn - terrainH| p95 0.5 mm (<= 5), worst 13.1 (<= 30) off 0 creased / stepped points  (worst at 316.9,-7832.5 on apron:concrete)
+  ok   potato tw_ski strip: |drawn - terrainH| p95 3.2 mm (<= 5), worst -8.1 (<= 30) off 0 creased / stepped points  (worst at 256.5,-7708.6 on strip:grass)
+  ok   potato tw_ski overrun end: |drawn - terrainH| p95 3.1 mm (<= 5), worst 9.6 (<= 40) off 16 creased / stepped points [ALLOW: its apron's concrete rim at (343, -7877): 34.2 mm, master's own (unmasked by the per-runway sample, AFB-0220)]  (worst at 365.2,-7878.2 on tier (patch))
+  ok   potato tw_ski overrun start: |drawn - terrainH| p95 3.0 mm (<= 5), worst -9.6 (<= 30) off 11 creased / stepped points  (worst at 194.6,-7597.7 on tier (patch))
+  ok   potato tw_ski lane: |drawn - terrainH| p95 1.3 mm (<= 5), worst 6.5 (<= 30) off 0 creased / stepped points  (worst at 321.2,-7839.7 on apron:concrete)
+  ok   potato w5 strip: |drawn - terrainH| p95 5.1 mm (<= 6), worst -15.6 (<= 30) off 135 creased / stepped points [ALLOW: BUMPINESS: w5 at chaos 0.4 (the user 16 Nov) under the user's grass apron a11~d at its 2 m grid (as w5 overrun end)]  (worst at 3182.3,-2797.9 on apron:gravel)
+  ok   potato w5 overrun end: |drawn - terrainH| p95 12.4 mm (<= 15), worst -37.6 (<= 50) off 71 creased / stepped points [ALLOW: a11~d: the user's grass apron across it at its 2 m grid, as nv_meadow (pavement.js REFINE: grass polygons not refined - translucent, the patch seen through it); its gravel apron within 27 mm (2 Nov, master d1a754b94)]  (worst at 2834.1,-2912 on apron:grass)
+  ok   potato w5 overrun start: |drawn - terrainH| p95 1.4 mm (<= 5), worst -9.5 (<= 30) off 3 creased / stepped points  (worst at 3247.2,-2767.5 on tier (patch))
+  ok   potato w6 strip: |drawn - terrainH| p95 3.6 mm (<= 5), worst 100.9 (<= 105) off 39 creased / stepped points [ALLOW: BUMPINESS: w6 at chaos 0.8 (the user 16 Nov): 100.9 mm where a road's rim crosses it at (-4248.7, -22120.2) - the road is not draped over the strip's bumps (a visible seam; listed for the roads' owner)]  (worst at -4248.7,-22120.2 on road rim)
+  ok   potato w6 overrun end: |drawn - terrainH| p95 1.1 mm (<= 5), worst -5.8 (<= 30) off 0 creased / stepped points  (worst at -4390.1,-22127.4 on road)
+  ok   potato w6 overrun start: |drawn - terrainH| p95 1.5 mm (<= 5), worst 8.4 (<= 30) off 0 creased / stepped points  (worst at -3950.7,-22098.4 on tier (patch))
+  ok   potato w7 strip: |drawn - terrainH| p95 2.2 mm (<= 5), worst -9.9 (<= 30) off 4 creased / stepped points  (worst at -4049.9,-23616.7 on road rim)
+  ok   potato w7 overrun end: |drawn - terrainH| p95 0.9 mm (<= 5), worst -4.4 (<= 30) off 5 creased / stepped points  (worst at -4059.9,-23606.2 on tier (patch))
+  ok   potato w7 overrun start: |drawn - terrainH| p95 0.6 mm (<= 5), worst -2.4 (<= 30) off 0 creased / stepped points  (worst at -2961.5,-23854.3 on tier (patch))
+  ok   potato w4 stand: |drawn - terrainH| p95 0.4 mm (<= 5), worst 28.0 (<= 30) off 0 creased / stepped points  (worst at -1328.5,-17592.2 on apron:gravel)
+  ok   potato w4 strip: |drawn - terrainH| p95 2.4 mm (<= 5), worst 8.7 (<= 30) off 0 creased / stepped points  (worst at -1470.8,-17776.2 on strip:gravel)
+  ok   potato w4 overrun end: |drawn - terrainH| p95 1.6 mm (<= 5), worst -9.5 (<= 30) off 20 creased / stepped points  (worst at -1527.9,-17836.3 on tier (patch))
+  ok   potato w4 overrun start: |drawn - terrainH| p95 0.3 mm (<= 5), worst 24.4 (<= 30) off 0 creased / stepped points  (worst at -1321.2,-17617.2 on apron:gravel)
+  ok   potato w4 lane: |drawn - terrainH| p95 1.6 mm (<= 5), worst 6.7 (<= 30) off 0 creased / stepped points  (worst at -1328.1,-17616.9 on apron:gravel)
+  ok   potato w8 strip: |drawn - terrainH| p95 4.0 mm (<= 5), worst -10.0 (<= 30) off 41 creased / stepped points  (worst at 4283.6,-16328.6 on strip:dirt)
+  ok   potato w8 overrun end: |drawn - terrainH| p95 0.5 mm (<= 5), worst 9.8 (<= 30) off 1 creased / stepped points  (worst at 4575,-16050.8 on tier (patch))
+  ok   potato w8 overrun start: |drawn - terrainH| p95 0.5 mm (<= 5), worst 8.5 (<= 30) off 0 creased / stepped points  (worst at 4165.8,-16446.2 on tier (patch))
+  ok   potato w1 stand: |drawn - terrainH| p95 0.0 mm (<= 5), worst 0.0 (<= 30) off 0 creased / stepped points  (worst at 2674.5,-15896.3 on apron:gravel)
+  ok   potato w1 strip: |drawn - terrainH| p95 3.0 mm (<= 5), worst 10.0 (<= 30) off 42 creased / stepped points  (worst at 2569.8,-16209.8 on strip:gravel)
+  ok   potato w1 overrun end: |drawn - terrainH| p95 0.6 mm (<= 5), worst 8.7 (<= 30) off 0 creased / stepped points  (worst at 2744.2,-15782.8 on tier (patch))
+  ok   potato w1 overrun start: |drawn - terrainH| p95 0.5 mm (<= 5), worst 7.9 (<= 30) off 1 creased / stepped points  (worst at 2548.8,-16262.6 on tier (patch))
+  ok   potato w1 lane: |drawn - terrainH| p95 1.1 mm (<= 5), worst 10.0 (<= 30) off 1 creased / stepped points  (worst at 2687.5,-15919.4 on apron:gravel)
+  ok   potato mt_strip stand: |drawn - terrainH| p95 3.8 mm (<= 5), worst 12.7 (<= 30) off 88 creased / stepped points  (worst at 9224.7,-5961.4 on apron:snow)
+  ok   potato mt_strip strip: |drawn - terrainH| p95 2.7 mm (<= 5), worst -12.3 (<= 30) off 26 creased / stepped points  (worst at 9241.5,-5963.1 on apron:snow)
+  ok   potato mt_strip overrun end: |drawn - terrainH| p95 3.1 mm (<= 5), worst 16.0 (<= 30) off 40 creased / stepped points  (worst at 9205.9,-5952.5 on apron:snow rim)
+  ok   potato mt_strip overrun start: |drawn - terrainH| p95 1.5 mm (<= 5), worst -9.8 (<= 30) off 35 creased / stepped points  (worst at 9486.3,-5951.2 on tier (patch))
+  ok   potato mt_strip lane: |drawn - terrainH| p95 4.1 mm (<= 5), worst -10.6 (<= 30) off 9 creased / stepped points  (worst at 9241.5,-5962.8 on apron:snow)
+GROUND DRAWN: the patch's drop at w3's stand (open grass) 0 mm, its grid 2 m; FINE.step 5 m; TW_DRAW_DROP 0 mm; terrainH the premises raster (the page's default); 313 pavement meshes, 3206 patch chunks
+  ok   every over-run (3-100 m past each end, the strip's width) lies 50.6 m and more inside the patch (ring1 + the tier's half-diagonal): no tuck, no far terrain, the tier stands there  (3500 points, the shallowest 66.0 m at HOME end +99 m)
+  ok   render_premises: the near level sinks from SINK0_IN = res[0] x sqrt2 further in under a refined pavement (sinkNear; the town's roads keep the line)
+  ok   ...the near level is drawn from Y1, the coarse levels from Y (G660's sink from the opaque line, unchanged)
+  ok   the deep sink is 0 at a vertex SINK0_IN inside the opaque line (only the edge's 7 cm)  (2.828 m)
+  ok   along every strip's edge (the line, 0.5-3 m out) the near level stands within the edge's 7 + 2 cm of the ground - no pocket of the deep sink (was 5-13 cm, 0.4 m at mn_strip)  (8988 points, the deepest -84.7 mm at tw_ski 0.5 m out)
+  ok   pavement.js liftOver: 1 off another pavement, 0 from liftIn inside it (its own lift law)
+  ok   pavement.js stripGeometry: a row at liftIn inside each end, the strip at the ground from it in (tw_ski's start: +52 mm 1.5 m in)  (at liftIn 0, past it 0)
+  ok   pavement.js REFINE: a strip on a crest gains rows where it curves (its triangles' centres within the tolerance past liftIn); no sinkD0 (the analytic world): its own rows  (41 -> 77 rows along, worst centre 3.86 mm)
+  ok   render_premises: an aerodrome's roads (along) and its opaque aprons refine - the town's, the harbour's and the grass ones do not
+  ok   pavement.js translucent: a grass road alone (its tracks drawn, the grass between them the patch)
+  ok   sinkAt under a grass road: 1 cm, no pre-sink  (0.01)
+  ok   ...and the grass road stands 1 cm over the ground on its middle  (0.009999999776482582)
+  ok   render_premises patchDrop: no 2 cm under a grass road (its own margin is the gap)
+  ok   the tier at w3's stand: its edge band ON the patch's near level (its own triangles) and its core ON the law  (band 2016 vertices, 0.0000 mm; core 1089, 0.000000 mm)
+  ok   ...the layer's uniform sinks its vertices more than a cell inside (their triangles within 2 cells: the band) - the core starts after the ramp  ([-680,-2380,14,3])
+  ok   ...one draw of 8192 triangles
+  ok   ...every normal of the tier finite, unit and up (11 Nov, the black bars: its +z edge row was NaN)  (0 bad of 4225)
+  ok   the tier at mn_strip's stand: its edge band ON the patch's near level (its own triangles) and its core ON the law  (band 2016 vertices, 0.0000 mm; core 1089, 0.000000 mm)
+  ok   ...the layer's uniform sinks its vertices more than a cell inside (their triangles within 2 cells: the band) - the core starts after the ramp  ([7280,-15316,14,3])
+  ok   ...one draw of 8192 triangles
+  ok   ...every normal of the tier finite, unit and up (11 Nov, the black bars: its +z edge row was NaN)  (0 bad of 4225)
+  ok   render_world: the ground hook sinks a vertex under the tier by uTier (a vertex test: no discard, early-Z kept)
+  ok   ...off for every ground program (the ring, the far terrain) but the patch's (opts.tierU) and the fine tiles' (TIER_U.fine)
+  ok   ...the tier's own materials: the same program keys as their layer's, their own uniforms (no sink), a polygon offset over the band they share
+  ok   ...worldUpdate drives it (the aeroplane's position), a live edit of the ground drops it
+  ok   build.js ships ground_tier.js before render_world.js
+  ok   potato's patchTolPx (6) has its base here (master d1a754b94)
+  FAIL potato (patchTolPx 6) HOME stand: the patch + the pavement within 3 km + the tier no more than master's (d1a754b94)  (3563812 -> 3633124 (patch 398208, pavement 3226724, tier 8192))
+  FAIL potato (patchTolPx 6) HOME taxi: the patch + the pavement within 3 km + the tier no more than master's (d1a754b94)  (3792322 -> 3859746 (patch 380272, pavement 3471282, tier 8192))
+  FAIL gamer (patchTolPx 1) HOME stand: the patch + the pavement within 3 km + the tier no more than master's (d1a754b94)  (4313172 -> 4371684 (patch 1136768, pavement 3226724, tier 8192))
+  FAIL gamer (patchTolPx 1) HOME taxi: the patch + the pavement within 3 km + the tier no more than master's (d1a754b94)  (4610754 -> 4653602 (patch 1174128, pavement 3471282, tier 8192))
+  ok   render_premises: no skirt on an edge two chunks of one block share (one LOD: one row of vertices)
+GATE TERRAINMATCH: FAIL
+[stderr]
+cage float layer: gear modules not loaded
+(exit code 1)
+=== SHADOWSKY ===
+GATE SHADOWSKY
+  ok   1 install() patches the PCF lookup  ({"bias":true,"grid":true})
+  ok   1 PCF: the bias is subtracted under the reversed buffer, added otherwise
+  ok   1 PCF: four fixed bilinear-compare taps (a 3x3 tent), no per-pixel noise disc - fewer than the five of three: no heavier to compile
+  ok   1 PCF: the taps are written out (no loop of fetches for fxc to inline)
+  ok   1 the VSM and BASIC lookups are untouched
+  ok   2 the stand (5 m AGL): the near depth reaches the ground shadow  (far 310 m >= 68)
+  ok   2 the stand: the bias is 0.05 m of depth
+  ok   2 the stand: the craft is in the near map's craft cascade (CRAFT_LAYER), not the far map (FAR_LAYER), not a near caster (NEAR_LAYER; the box keeps it whole - G1125 boxCraft)
+  ok   2 the stand: the craft's cascade half 2.75 m (<= 30), its depth 90 m reaches the ground shadow
+  ok   2 the stand: G1410 the sun's penumbra within penFitTx 24 of the craft's texels (13.96 texels; the kernel crisper, capped at 2.5)
+  ok   2 the stand: fitted to the craft's sphere and the penumbra (r 0.866 m -> half 2.75 m, 0.54 cm a texel)
+  ok   2 the stand: the kernel radius 1.00 in [1, 2.5]
+  ok   2 the circuit (60 m AGL): the near depth reaches the ground shadow  (far 399 m >= 157)
+  ok   2 the circuit: the bias is 0.05 m of depth
+  ok   2 the circuit: the craft is in the near map's craft cascade (CRAFT_LAYER), not the far map (FAR_LAYER), not a near caster (NEAR_LAYER; the box keeps it whole - G1125 boxCraft)
+  ok   2 the circuit: the craft's cascade half 21.11 m (<= 30), its depth 223 m reaches the ground shadow
+  ok   2 the circuit: G1410 the sun's penumbra within penFitTx 24 of the craft's texels (21.82 texels; the kernel crisper, capped at 2.5)
+  ok   2 the circuit: fitted to the craft's sphere and the penumbra (r 0.866 m -> half 21.11 m, 4.12 cm a texel)
+  ok   2 the circuit: the kernel radius 2.50 in [1, 2.5]
+  ok   2 the cruise (400 m AGL): the near depth reaches the ground shadow  (far 947 m >= 705)
+  ok   2 the cruise: the bias is 0.05 m of depth
+  ok   2 the cruise: the craft is in the near map's craft cascade (CRAFT_LAYER), not the far map (FAR_LAYER), not a near caster (NEAR_LAYER; the box keeps it whole - G1125 boxCraft)
+  ok   2 the cruise: the craft's cascade half 30.00 m (<= 30), its depth 1045 m reaches the ground shadow
+  ok   2 the cruise: G1410 the sun's penumbra within penFitTx 24 of the craft's texels (102.37 texels; the kernel crisper, capped at 2.5)
+  ok   2 the cruise: the kernel radius 2.50 in [1, 2.5]
+  ok   2 high (1500 m AGL): the near depth reaches the ground shadow  (far 2721 m >= 2479)
+  ok   2 high: the bias is 0.05 m of depth
+  ok   2 high: the craft is in the near map's craft cascade (CRAFT_LAYER), not the far map (FAR_LAYER), not a near caster (NEAR_LAYER; the box keeps it whole - G1125 boxCraft)
+  ok   2 high: the craft's cascade half 30.00 m (<= 30), its depth 3706 m reaches the ground shadow
+  ok   2 high: G1410 the sun's penumbra within penFitTx 24 of the craft's texels (383.89 texels; the kernel crisper, capped at 2.5)
+  ok   2 high: the cascade is the 60 m box again
+  ok   2 high: the kernel radius 2.50 in [1, 2.5]
+  ok   2 G1005/G1410: the near map is a 2 x 1 atlas of two viewports - the craft's 1 x 1 (1024 texels), the box's 1 x 1
+  ok   2 G1005: viewport 0 draws the craft (and the near casters in its box), viewport 1 the near casters
+  ok   2 G1005: the craft cascade walks the craft alone - the rest of the scene hidden for viewport 0, back for viewport 1  (hidden true restored true)
+  ok   2 G1005: a near caster in the craft box given without its object - the cascade walks everything
+  ok   2 G1005: a caster in the window keeps its chain alone - its siblings and the rest of the scene hidden for the cascade, all back after  (path true)
+  ok   2 G1005: a near caster past the craft ground shadow (150 m down-sun) does not stop the pruning - the window, not the frustum
+  ok   2 G1005: the window holds the craft and stops past its ground shadow  (window -0.000..1.000, CG 0.666, 200 m down-sun 2.923)
+  ok   2 G1005: follow() restores a walk that never reached viewport 1
+  ok   2 G1005: the CG maps into the box's viewport through the 60 m matrix and into the craft's (left) through uNearM1  (0.750 / 0.250)
+  ok   2 G1005: one near lookup - the craft cascade inside its box, the 60 m viewport elsewhere
+  ok   2 G1005: the PCF taps are square in texels on the 2 x 1 atlas
+  ok   2 near map off: the craft casts into the far map
+  ok   2 near map on again: the craft leaves the far map
+  ok   2 G874: apply() - the near light hidden and not casting, the craft on the far map, before any follow()
+  ok   2 G874: ...and back on at once
+  ok   2 G874: gfx_settings applies the near light where the shadows row sets its dial
+  ok   2 G1080 (as it was): aimed at the eye 90 m off, the cascade grew to its 30 m cap and still missed the aeroplane  (half 30.0 m, the craft 45.0 m across the light)
+  ok   2 G1080: aimed at the drawn aeroplane whatever the eye - the cascade fitted to the craft  (half 2.75 m)
+  ok   2 G1080: the 60 m box round the aeroplane too
+  ok   2 G1080: aim() after the pose - the cascade on this frame's aeroplane at once, not grown by the jump  (half 2.75 m)
+  ok   2 G1080: the near casters are tagged round the drawn aeroplane (aimPoint)
+  ok   2 G1080: an aeroplane off the stage (the scenery mode) leaves the aim with the given point
+  ok   2 G1410: the near map's sun held under 0.01 deg (render_world re-reads it as the clouds' light moves), taken past it  (0.024 deg)
+  ok   2 G1410: a 0.03 deg turn of the sun - the craft's cascade counted from the aeroplane stays on its texel (render_world's grid, from the origin 1.5 km away, re-rolls the staircase)  (anchored 0.00 texel, world grid 0.06)
+  ok   2 G1410: the near map drawn when it must - a new sun (0.3 deg), the aeroplane moved 5 mm, a part shown / hidden - and held when nothing moved (or 0.1 mm)  ([true,false,false,true,false,true,true] craft)
+  ok   2 G1410: S.cache off, or the pass not hooked - drawn every frame as before
+  ok   2 G1080: three r186 - the shadow walk tests the MAIN camera's layers (the far map's camera layers filter nothing): the reason for farLight
+  ok   2 G1080: the aeroplane hidden while the far map draws, shown again for the near map  (far pass hidden true, near pass visible true)
+  ok   2 G1080: follow() shows it again (a far pass the near one never followed)
+  ok   2 G1080: with the near map off the aeroplane stays in the far map (its only shadow)
+  ok   2 G1080: farHide off (the A/B) - the aeroplane in the far map, as before
+  ok   2 G1080: render_world hands the far light to farLight
+  ok   2 G1080: app.js re-aims right after poseModel; render_world hands follow() the ground under the aeroplane
+  ok   3 water.js exports obliqueClip
+  ok   3 reversed: a point on the water is at the near plane (1)  (1.00000, 1.00000)
+  ok   3 reversed: a point above the water is inside the depth range  (0.9338, 0.9196)
+  ok   3 reversed: a point under the water is clipped  (1.1277)
+  ok   3 reversed: the inverse projection follows the bent matrix
+  ok   3 OpenGL: a point on the water is at the near plane (-1)  (-1.00000, -1.00000)
+  ok   3 OpenGL: a point above the water is inside the depth range  (-0.8675, -0.8392)
+  ok   3 OpenGL: a point under the water is clipped  (-1.2555)
+  ok   3 OpenGL: the inverse projection follows the bent matrix
+  ok   4 aa_resolve: the camera's world matrix is made current before the clouds' pre hook
+  FAIL 4 clouds: a stale depth nearer than the first deck is sky - marched through, its key the far plane (the composite hides behind this frame's scene)
+  ok   4 render_world: the canopy cover pass is off on an island by default
+  ok   4 app: FLYDIY_HELD is the Pause button's
+  ok   4 render_world: the sea, the sway and the premises' wall clock hold while paused
+  ok   4 water: the capture has a guard band; a turn re-captures only near its edge
+  ok   4 shadows near: the sun keeps casting (no relink), its camera on an empty layer, its map drawn once - the craft map alone
+  ok   4 water: the mirror camera is reversed before its first draw (three would recompute its projection and wipe the clip)
+  ok   5 G1125: hook(renderer) wraps three's shadow pass once
+  ok   5 G1125 (as it was): the 60 m box drew the craft, a crumb and the instanced trees - a NEAR_LAYER camera filters nothing in three r186  (v1 craft,crate,hangar,trees)
+  ok   5 G1125: the 60 m box draws nearTag's casters and the craft alone - exactly what it drew before that stands on NEAR_LAYER or CRAFT_LAYER  (v1 craft,hangar (want craft,hangar))
+  ok   5 G1125: boxCraft off - the box its near casters alone (G1005's letter: a receiver deeper than the cascade's window then loses the craft's shadow)  (v1 hangar)
+  ok   5 G1125: the craft's cascade draws what it drew (the craft and the near caster in its window)  (v0 craft,hangar)
+  ok   5 G1125: the far map draws what it drew - everything but the craft (FAR_LAYER's scheme)  (far crate,hangar,shed,trees)
+  ok   5 G1125: the main pass drew the same, and nothing is left hidden after the pass  (main craft,crate,ground,hangar,trees; hidden none)
+  ok   5 G1125: before nearTag has spoken (no list) the box walks whole, as before
+  ok   5 G1125: a pass that throws inside the box's walk leaves nothing hidden (the hook)  (none)
+  ok   5 G1126: a far camera on an empty layer draws nothing (the 'near' tier); the near map as before; all shown again  (far nothing, v1 craft,hangar, hidden none)
+  ok   5 G1126 (as it was, farEmpty off): the empty layer filtered nothing - the whole world into the far map  (far crate,hangar,shed,trees)
+  ok   5 G1125: app.js hooks the renderer's shadow pass
+  ok   6 G1359.1: inject() binds the SHARED near uniforms over three's clone (the cascade's matrix is live in every program)
+  ok   6 G1359.1: the flown bake binds them (FB_HOOK -> ATMO.inject -> SHADOW_NEAR.inject)
+GATE SHADOWSKY: FAIL (1)
+(exit code 1)
+=== LOOKS ===
+  ok   4 the failure is said on the console
+  ok   5 the cover ring refuses the drawn water (wetBy: the drawn lakes' field and waterDrawY; the first ring at 0.3 m, the grass field at lakeMargin by a lake)
+GATE LOOKS: PASS
+=== RWYLIGHTS ===
+FAIL   jolene tw_ski: the strip keeps its lights (17 of 24, 2 flush) - 17 of 24
+  jolene: 460 lights on 14 strips - 297 elevated, 163 flush, 44 left out (w2 72/0, xw_rough 20/2, HOME 15/2, w3 11/4, mn_strip 6/2, tw_ski 2/7, w5 10/9, w6 4/4, w7 5/7, w4 10/6, w1 1/0, mt_strip 7/1)
+  the procedural world: 274 lights on 8 strips - 274 elevated, 0 flush, 0 left out
+GATE RWYLIGHTS: FAIL (1 of 126)
+(exit code 1)
+=== LAKEBED ===
+GATE LAKEBED
+  ok   1 the island ground hook found (islandGroundHookFor(side, rock): no `dry` twin)
+  ok   1 no ground program discards for the lake field
+  FAIL 1 the hook's only discards are the fine disc's (the near ring inside it, a fine tile outside it)  (4 discard(s))
+  ok   1 the far terrain is one material (the lake-free twin and its quadrant split are gone)
+  ok   1 the far terrain's patches take the carved bed (the asset is the raw DEM)
+  ok   1 the near ring and the fine tiles sample world.terrainH (the carved ground)
+  ok   1 the fine tiles are the carved surface at a shore too (no blend back to the ring's 17.6 m chords within 30 m of a lake)
+  ok   2 Jolene composed with its premises (island_node)
+  ok   2 the renderer's lake field, quad rules and quad level found in render_world.js (lakeR, lakeTexels .. isSea, lakeY)
+  ok   2 the island carries the bed and its law  (edge 0.5 m at the line, 3 m by 12 m in, the bank to 30 m out)
+  (drawn lakes 257, filled by the premises 60, left to the sea 0; 178073 field texels a metre or more inside a drawn line)
+  (THE OLD CUT: the raw ground stood over the drawn water at 3875 of them, in 164 lakes, up to 21.93 m - the gap the cut showed)
+  ok   2 every texel a metre inside a drawn lake has its ground under the drawn water  (0 over; 9 a premises modifier holds over it)
+  ok   2 02/20's pond: no more water than the user accepted (rev 28: 28 texels left - the user's ruling, 14 Oct)  (texels 28)
+  ok   2 the bed only ever lowers the ground (every ceiling the codec gives still holds)
+  ok   3 the walk crosses every drawn lake's line  (9859 line points)
+  ok   3 the ground is continuous across every line (no jump over the raw DEM's own + 0.5 m on a 0.1 m walk)  (0 steps; worst +0.36 m at -172, -18215)
+  ok   3 two metres in, the ground is under the drawn water  (0 dry)
+  ok   3 ...and the physics has water there (the floats ride what is drawn)  (0 without)
+  (the bank: 54049 texels within 30 m out of a lake line; the shelf 2-4 m out under a bank: 1192 of 1192 within 1.5 m of the water)
+  ok   4 the bank never cuts more than `cap` (6 m) under the LAKE-HOLES bank (s + s^2/16)  (0 over)
+  ok   4 the ground is continuous over the bank reach (no jump over the raw DEM own + 0.5 m on a 0.25 m walk)  (0 steps; worst +0.22 m)
+  ok   4 the bank shelves into the water (2-4 m out, under a bank a metre and a half over the water: the ground within 1.5 m of it)  (1192 of 1192)
+GATE LAKEBED: FAIL (1)
+(exit code 1)
+=== MEDIA ===
+the named chunks: 2 (index.html: career_core.84ac2f05.js, route_draw.551be74d.js · dev.html: none), each on disk and tracked by git
+  media/audio/music: 58 files, 127.19 MB
+  media/audio/sfx: 70 files, 10.76 MB
+  media/audio/voice: 353 files, 12.15 MB
+  media/blueprints/chinook2s.cec14f3e.png: 1 files, 0.20 MB
+  media/chars/adam.67a9f56a.json: 1 files, 0.01 MB
+  media/chars/david.3628450d.json: 1 files, 0.01 MB
+  media/chars/elizabeth.b98259f7.json: 1 files, 0.01 MB
+  media/chars/james.be11fc43.json: 1 files, 0.01 MB
+  media/chars/jody.626857c5.json: 1 files, 0.01 MB
+  media/chars/kate.ec3f11ad.json: 1 files, 0.01 MB
+  media/chars/leonard.5ae347bb.json: 1 files, 0.01 MB
+  media/chars/martha.82baf12d.json: 1 files, 0.01 MB
+  media/chars/pete.5c18bb9e.json: 1 files, 0.01 MB
+  media/city/jolene: 14 files, 0.71 MB
+  media/fiches/cand_B-ITES.json: 7 files, 0.15 MB
+  media/fiches/cand_Twin_busher_floats_4b.json: 7 files, 0.27 MB
+  media/fiches/cand_build_v8_pusher_2026-09-11.json: 7 files, 0.21 MB
+  media/fiches/cand_camel_2026-10.json: 7 files, 0.28 MB
+  media/fiches/cand_dc3_2026-10.json: 7 files, 0.20 MB
+  media/fiches/cand_flydiy-build_4_.json: 7 files, 0.16 MB
+  media/fiches/cand_mosquito.json: 7 files, 0.18 MB
+  media/fiches/cand_pawnee_1_.json: 7 files, 0.18 MB
+  media/fiches/cand_stearman_2026-10.json: 7 files, 0.32 MB
+  media/fiches/cand_stol_cub_showcase.json: 7 files, 0.20 MB
+  media/fiches/cand_tigermoth_2026-10.json: 7 files, 0.34 MB
+  media/fiches/cand_ugly_bi.json: 7 files, 0.27 MB
+  media/fiches/design_c172f: 7 files, 0.24 MB
+  media/fiches/design_cub: 7 files, 0.21 MB
+  media/fiches/design_jodel: 7 files, 0.22 MB
+  media/fiches/design_twinf: 7 files, 0.20 MB
+  media/fiches/index.json: 1 files, 0.11 MB
+  media/fiches/list_25: 7 files, 0.26 MB
+  media/fiches/list_26: 7 files, 0.21 MB
+  media/fiches/list_40: 7 files, 0.20 MB
+  media/fiches/list_41: 7 files, 0.24 MB
+  media/fiches/list_47: 7 files, 0.21 MB
+  media/fiches/list_50: 7 files, 0.20 MB
+  media/fiches/list_7: 7 files, 0.20 MB
+  media/fiches/references.json: 1 files, 0.03 MB
+  media/fiches/stock_chinook: 7 files, 0.22 MB
+  media/fonts/OFL-alfaslabone.txt: 1 files, 0.00 MB
+  media/fonts/OFL-barlowcondensed.txt: 1 files, 0.00 MB
+  media/fonts/OFL-greatvibes.txt: 1 files, 0.00 MB
+  media/fonts/OFL-jost.txt: 1 files, 0.00 MB
+  media/fonts/OFL-lobstertwo.txt: 1 files, 0.00 MB
+  media/fonts/OFL-sairacondensed.txt: 1 files, 0.00 MB
+  media/fonts/OFL-stardosstencil.txt: 1 files, 0.00 MB
+  media/fonts/alfa-slab-one-400.25afe043.woff: 1 files, 0.04 MB
+  media/fonts/barlow-condensed-600-italic.c8d60bac.woff2: 1 files, 0.02 MB
+  media/fonts/barlow-condensed-600.85df76c1.woff2: 1 files, 0.01 MB
+  media/fonts/barlow-condensed-700-italic.fb39eb17.woff2: 1 files, 0.01 MB
+  media/fonts/barlow-condensed-700.67219bf2.woff2: 1 files, 0.01 MB
+  media/fonts/great-vibes-400.7644eb75.woff2: 1 files, 0.03 MB
+  media/fonts/jost-500-italic.50c88745.woff2: 1 files, 0.01 MB
+  media/fonts/jost-500.77d6fb38.woff2: 1 files, 0.01 MB
+  media/fonts/jost-700-italic.e8c84b83.woff2: 1 files, 0.01 MB
+  media/fonts/jost-700.ba69a796.woff2: 1 files, 0.01 MB
+  media/fonts/lobster-two-400-italic.6b95c5b6.woff: 1 files, 0.08 MB
+  media/fonts/lobster-two-400.1a128147.woff: 1 files, 0.09 MB
+  media/fonts/lobster-two-700-italic.356b1a2d.woff: 1 files, 0.08 MB
+  media/fonts/lobster-two-700.809cc3a9.woff: 1 files, 0.09 MB
+  media/fonts/saira-condensed-700.144b04aa.woff: 1 files, 0.04 MB
+  media/fonts/stardos-stencil-400.0aada258.woff: 1 files, 0.02 MB
+  media/fonts/stardos-stencil-700.fe037887.woff: 1 files, 0.02 MB
+  media/geo/airframe: 2 files, 0.65 MB
+  media/geo/animal_lod: 10 files, 0.12 MB
+  media/geo/animals: 12 files, 1.36 MB
+  media/geo/cabin: 1 files, 0.33 MB
+  media/geo/camp: 4 files, 0.10 MB
+  media/geo/camp_lod: 6 files, 0.07 MB
+  media/geo/cars: 8 files, 0.22 MB
+  media/geo/cars_lod: 5 files, 0.10 MB
+  media/geo/chars: 27 files, 18.41 MB
+  media/geo/infra: 15 files, 0.21 MB
+  media/geo/loads: 14 files, 1.01 MB
+  media/geo/loads_lod: 26 files, 0.40 MB
+  media/geo/models: 13 files, 9.74 MB
+  media/geo/panelhw: 9 files, 0.22 MB
+  media/geo/pier: 101 files, 10.07 MB
+  media/geo/pier_lod: 202 files, 4.55 MB
+  media/geo/props: 46 files, 6.74 MB
+  media/geo/props_lod: 76 files, 2.54 MB
+  media/geo/scenery: 17 files, 3.29 MB
+  media/geo/scenery_lod: 21 files, 1.21 MB
+  media/geo/totems: 18 files, 1.51 MB
+  media/geo/trees: 40 files, 7.69 MB
+  media/heroes/arch_c172.webp: 1 files, 0.01 MB
+  media/heroes/arch_camel.webp: 1 files, 0.01 MB
+  media/heroes/arch_chinook.webp: 1 files, 0.01 MB
+  media/heroes/arch_cub.webp: 1 files, 0.01 MB
+  media/heroes/arch_jodel.webp: 1 files, 0.01 MB
+  media/heroes/arch_pushPull.webp: 1 files, 0.01 MB
+  media/heroes/arch_skymaster.webp: 1 files, 0.01 MB
+  media/heroes/arch_spitfire.webp: 1 files, 0.01 MB
+  media/heroes/arch_stearman.webp: 1 files, 0.02 MB
+  media/heroes/arch_tigermoth.webp: 1 files, 0.02 MB
+  media/heroes/cand_B-ITES.webp: 1 files, 0.01 MB
+  media/heroes/cand_Twin_busher_floats_4b.webp: 1 files, 0.01 MB
+  media/heroes/cand_birdman.webp: 1 files, 0.01 MB
+  media/heroes/cand_build_v7_twin_2026-09-04.webp: 1 files, 0.01 MB
+  media/heroes/cand_build_v7_ultralight_2026-09-05_floats.webp: 1 files, 0.01 MB
+  media/heroes/cand_build_v8_pusher_2026-09-11.webp: 1 files, 0.01 MB
+  media/heroes/cand_camel_2026-10.webp: 1 files, 0.01 MB
+  media/heroes/cand_carbon_cub_ss.webp: 1 files, 0.01 MB
+  media/heroes/cand_cub_chord160.webp: 1 files, 0.01 MB
+  media/heroes/cand_dc3_2026-10.webp: 1 files, 0.01 MB
+  media/heroes/cand_flydiy-build_4_.webp: 1 files, 0.01 MB
+  media/heroes/cand_mosquito.webp: 1 files, 0.01 MB
+  media/heroes/cand_pa18_floats_chord160.webp: 1 files, 0.01 MB
+  media/heroes/cand_pawnee_1_.webp: 1 files, 0.01 MB
+  media/heroes/cand_pc6_drafting_2026-11-11.webp: 1 files, 0.01 MB
+  media/heroes/cand_pc6_floats_2026-11-13.webp: 1 files, 0.01 MB
+  media/heroes/cand_ruckus_2026-11-09.webp: 1 files, 0.01 MB
+  media/heroes/cand_ruckus_std_2026-11-09.webp: 1 files, 0.01 MB
+  media/heroes/cand_stearman_2026-10.webp: 1 files, 0.02 MB
+  media/heroes/cand_stol_cub_showcase.webp: 1 files, 0.01 MB
+  media/heroes/cand_superpetrel_V4_2.webp: 1 files, 0.01 MB
+  media/heroes/cand_tigermoth_2026-10.webp: 1 files, 0.02 MB
+  media/heroes/cand_ugly_bi.webp: 1 files, 0.02 MB
+  media/heroes/design_c172.webp: 1 files, 0.01 MB
+  media/heroes/design_c172f.webp: 1 files, 0.01 MB
+  media/heroes/design_cub.webp: 1 files, 0.01 MB
+  media/heroes/design_jodel.webp: 1 files, 0.01 MB
+  media/heroes/design_twinf.webp: 1 files, 0.01 MB
+  media/heroes/index.json: 1 files, 0.00 MB
+  media/heroes/list_1.webp: 1 files, 0.01 MB
+  media/heroes/list_25.webp: 1 files, 0.01 MB
+  media/heroes/list_26.webp: 1 files, 0.01 MB
+  media/heroes/list_39.webp: 1 files, 0.01 MB
+  media/heroes/list_41.webp: 1 files, 0.01 MB
+  media/heroes/list_47.webp: 1 files, 0.01 MB
+  media/heroes/list_5.webp: 1 files, 0.01 MB
+  media/heroes/list_50.webp: 1 files, 0.01 MB
+  media/heroes/list_53.webp: 1 files, 0.01 MB
+  media/heroes/list_54.webp: 1 files, 0.01 MB
+  media/heroes/list_7.webp: 1 files, 0.01 MB
+  media/heroes/stock_cessna-172.webp: 1 files, 0.01 MB
+  media/heroes/stock_chinook.webp: 1 files, 0.01 MB
+  media/heroes/stock_jodel-D112.webp: 1 files, 0.01 MB
+  media/heroes/stock_jodel.webp: 1 files, 0.01 MB
+  media/heroes/stock_piper-cub.webp: 1 files, 0.01 MB
+  media/heroes/stock_sailplane.webp: 1 files, 0.01 MB
+  media/map/jolene_art.1b6f317e.jpg: 1 files, 0.89 MB
+  media/map/jolene_map.fd96187c.png: 1 files, 0.68 MB
+  media/map/jolene_proj.abd8bb98.json: 1 files, 0.09 MB
+  media/parked/arch_c172.15c9d25f.gz.bin: 1 files, 3.70 MB
+  media/parked/arch_chinook.981e260f.gz.bin: 1 files, 3.20 MB
+  media/parked/arch_cub.96627abe.gz.bin: 1 files, 3.78 MB
+  media/parked/arch_jodel.70b4511c.gz.bin: 1 files, 3.41 MB
+  media/people/BG-Tim_512.2715a336.webp: 1 files, 0.07 MB
+  media/people/BG-local-man_512.d32bac64.webp: 1 files, 0.07 MB
+  media/people/BG-local-woman_512.8e1c9941.webp: 1 files, 0.07 MB
+  media/people/BG-pilot-amateur_512.a6f4f559.webp: 1 files, 0.05 MB
+  media/people/BG-pilot-bush_512.7f1cc5ef.webp: 1 files, 0.06 MB
+  media/people/BG-pilot-normal_512.14d995f5.webp: 1 files, 0.06 MB
+  media/people/BG-pilot-rookie_512.63a27c63.webp: 1 files, 0.07 MB
+  media/people/BG-tourist-indoorsy_512.a4858dc0.webp: 1 files, 0.06 MB
+  media/people/BG-tourist-normal_512.78f43099.webp: 1 files, 0.08 MB
+  media/people/BG-worker_512.d0bf287b.webp: 1 files, 0.07 MB
+  media/people/adam_128.584464c9.webp: 1 files, 0.01 MB
+  media/people/adam_256.d94f3b8a.webp: 1 files, 0.02 MB
+  media/people/adam_512.32e313af.webp: 1 files, 0.05 MB
+  media/people/brian_128.5922e5fb.webp: 1 files, 0.00 MB
+  media/people/brian_256.25309439.webp: 1 files, 0.01 MB
+  media/people/brian_512.49a7cce0.webp: 1 files, 0.03 MB
+  media/people/bryce_128.6930d44a.webp: 1 files, 0.01 MB
+  media/people/bryce_256.daa2314d.webp: 1 files, 0.02 MB
+  media/people/bryce_512.55b84aff.webp: 1 files, 0.05 MB
+  media/people/david_128.3c4b0f05.webp: 1 files, 0.00 MB
+  media/people/david_256.8714862f.webp: 1 files, 0.01 MB
+  media/people/david_512.39cf4231.webp: 1 files, 0.03 MB
+  media/people/elizabeth_128.5b66b5b5.webp: 1 files, 0.01 MB
+  media/people/elizabeth_256.31ff8a5b.webp: 1 files, 0.02 MB
+  media/people/elizabeth_512.544e510f.webp: 1 files, 0.06 MB
+  media/people/james_128.93923ec7.webp: 1 files, 0.01 MB
+  media/people/james_256.e5fa7d63.webp: 1 files, 0.01 MB
+  media/people/james_512.65e27d0d.webp: 1 files, 0.03 MB
+  media/people/jody_128.0d6d856a.webp: 1 files, 0.01 MB
+  media/people/jody_256.c36e4810.webp: 1 files, 0.02 MB
+  media/people/jody_512.4396816b.webp: 1 files, 0.04 MB
+  media/people/kate_128.a80874c0.webp: 1 files, 0.01 MB
+  media/people/kate_256.27937e85.webp: 1 files, 0.02 MB
+  media/people/kate_512.24d61fbe.webp: 1 files, 0.06 MB
+  media/people/leonard_128.7e898136.webp: 1 files, 0.00 MB
+  media/people/leonard_256.45b46aa2.webp: 1 files, 0.01 MB
+  media/people/leonard_512.4da17cfc.webp: 1 files, 0.03 MB
+  media/people/martha_128.ff0d5745.webp: 1 files, 0.01 MB
+  media/people/martha_256.577fa73b.webp: 1 files, 0.01 MB
+  media/people/martha_512.50ef2cdf.webp: 1 files, 0.04 MB
+  media/people/megan_128.604d5860.webp: 1 files, 0.01 MB
+  media/people/megan_256.6d0263b5.webp: 1 files, 0.01 MB
+  media/people/megan_512.2fe97fbf.webp: 1 files, 0.04 MB
+  media/people/pete_128.703b3256.webp: 1 files, 0.01 MB
+  media/people/pete_256.4727dee7.webp: 1 files, 0.02 MB
+  media/people/pete_512.e30178a4.webp: 1 files, 0.06 MB
+  media/people/remy_128.656b3883.webp: 1 files, 0.00 MB
+  media/people/remy_256.bc804d84.webp: 1 files, 0.01 MB
+  media/people/remy_512.029254fc.webp: 1 files, 0.05 MB
+  media/people/sophie_128.09bcddcd.webp: 1 files, 0.01 MB
+  media/people/sophie_256.205de36a.webp: 1 files, 0.02 MB
+  media/people/sophie_512.78520191.webp: 1 files, 0.06 MB
+  media/people/stig_128.1143636f.webp: 1 files, 0.01 MB
+  media/people/stig_256.67ae682d.webp: 1 files, 0.01 MB
+  media/people/stig_512.bbf70577.webp: 1 files, 0.04 MB
+  media/people/tim_128.e79b7778.webp: 1 files, 0.01 MB
+  media/people/tim_256.82f39c2e.webp: 1 files, 0.02 MB
+  media/people/tim_512.eab43459.webp: 1 files, 0.06 MB
+  media/scenery/jolene: 1 files, 0.00 MB
+  media/tex/animals: 20 files, 1.76 MB
+  media/tex/cabin: 2 files, 0.20 MB
+  media/tex/camp: 12 files, 2.77 MB
+  media/tex/cars: 13 files, 2.44 MB
+  media/tex/chars: 79 files, 45.13 MB
+  media/tex/crack: 2 files, 0.75 MB
+  media/tex/dust: 2 files, 0.16 MB
+  media/tex/floor: 3 files, 0.79 MB
+  media/tex/flowers: 21 files, 5.56 MB
+  media/tex/ground: 405 files, 150.88 MB
+  media/tex/house: 99 files, 10.67 MB
+  media/tex/ktx2: 636 files, 141.71 MB
+  media/tex/loads: 43 files, 2.47 MB
+  media/tex/models: 25 files, 2.58 MB
+  media/tex/panel: 1 files, 1.31 MB
+  media/tex/panelhw: 3 files, 0.08 MB
+  media/tex/pier: 317 files, 23.19 MB
+  media/tex/props: 204 files, 12.35 MB
+  media/tex/scenery: 35 files, 12.12 MB
+  media/tex/shots: 19 files, 3.29 MB
+  media/tex/signs: 17 files, 5.47 MB
+  media/tex/skin: 9 files, 0.87 MB
+  media/tex/sky: 2 files, 5.98 MB
+  media/tex/totems: 6 files, 1.91 MB
+  media/tex/trees: 159 files, 37.40 MB
+  media/tex/vessel: 9 files, 0.67 MB
+  media/tex/walls: 23 files, 6.28 MB
+  media/tex/wood: 4 files, 0.15 MB
+  media/thumbs/arch_c172.webp: 1 files, 0.00 MB
+  media/thumbs/arch_camel.webp: 1 files, 0.00 MB
+  media/thumbs/arch_chinook.webp: 1 files, 0.00 MB
+  media/thumbs/arch_cub.webp: 1 files, 0.00 MB
+  media/thumbs/arch_jodel.webp: 1 files, 0.00 MB
+  media/thumbs/arch_pushPull.webp: 1 files, 0.00 MB
+  media/thumbs/arch_skymaster.webp: 1 files, 0.00 MB
+  media/thumbs/arch_spitfire.webp: 1 files, 0.00 MB
+  media/thumbs/arch_stearman.webp: 1 files, 0.00 MB
+  media/thumbs/arch_tigermoth.webp: 1 files, 0.00 MB
+  media/thumbs/cand_B-ITES.webp: 1 files, 0.00 MB
+  media/thumbs/cand_Twin_busher_floats_4b.webp: 1 files, 0.00 MB
+  media/thumbs/cand_birdman.webp: 1 files, 0.00 MB
+  media/thumbs/cand_buggy_2026-11.webp: 1 files, 0.00 MB
+  media/thumbs/cand_build_v7_twin_2026-09-04.webp: 1 files, 0.00 MB
+  media/thumbs/cand_build_v7_ultralight_2026-09-05_floats.webp: 1 files, 0.00 MB
+  media/thumbs/cand_build_v8_pusher_2026-09-11.webp: 1 files, 0.00 MB
+  media/thumbs/cand_camel_2026-10.webp: 1 files, 0.00 MB
+  media/thumbs/cand_carbon_cub_ss.webp: 1 files, 0.00 MB
+  media/thumbs/cand_cub_chord160.webp: 1 files, 0.00 MB
+  media/thumbs/cand_dc3_2026-10.webp: 1 files, 0.00 MB
+  media/thumbs/cand_flydiy-build_4_.webp: 1 files, 0.00 MB
+  media/thumbs/cand_mosquito.webp: 1 files, 0.00 MB
+  media/thumbs/cand_pa18_floats_chord160.webp: 1 files, 0.00 MB
+  media/thumbs/cand_pawnee_1_.webp: 1 files, 0.00 MB
+  media/thumbs/cand_pc6_drafting_2026-11-11.webp: 1 files, 0.00 MB
+  media/thumbs/cand_pc6_floats_2026-11-13.webp: 1 files, 0.00 MB
+  media/thumbs/cand_roadster_2026-11.webp: 1 files, 0.00 MB
+  media/thumbs/cand_ruckus_2026-11-09.webp: 1 files, 0.00 MB
+  media/thumbs/cand_ruckus_std_2026-11-09.webp: 1 files, 0.00 MB
+  media/thumbs/cand_stearman_2026-10.webp: 1 files, 0.00 MB
+  media/thumbs/cand_stol_cub_showcase.webp: 1 files, 0.00 MB
+  media/thumbs/cand_superpetrel_V4_2.webp: 1 files, 0.00 MB
+  media/thumbs/cand_tigermoth_2026-10.webp: 1 files, 0.00 MB
+  media/thumbs/cand_ugly_bi.webp: 1 files, 0.00 MB
+  media/thumbs/design_c172.webp: 1 files, 0.00 MB
+  media/thumbs/design_c172f.webp: 1 files, 0.00 MB
+  media/thumbs/design_cub.webp: 1 files, 0.00 MB
+  media/thumbs/design_jodel.webp: 1 files, 0.00 MB
+  media/thumbs/design_twinf.webp: 1 files, 0.00 MB
+  media/thumbs/index.json: 1 files, 0.00 MB
+  media/thumbs/list_1.webp: 1 files, 0.00 MB
+  media/thumbs/list_25.webp: 1 files, 0.00 MB
+  media/thumbs/list_26.webp: 1 files, 0.00 MB
+  media/thumbs/list_39.webp: 1 files, 0.00 MB
+  media/thumbs/list_41.webp: 1 files, 0.00 MB
+  media/thumbs/list_47.webp: 1 files, 0.00 MB
+  media/thumbs/list_5.webp: 1 files, 0.00 MB
+  media/thumbs/list_50.webp: 1 files, 0.00 MB
+  media/thumbs/list_53.webp: 1 files, 0.00 MB
+  media/thumbs/list_54.webp: 1 files, 0.00 MB
+  media/thumbs/list_7.webp: 1 files, 0.00 MB
+  media/thumbs/stock_cessna-172.webp: 1 files, 0.00 MB
+  media/thumbs/stock_chinook.webp: 1 files, 0.00 MB
+  media/thumbs/stock_jodel-D112.webp: 1 files, 0.00 MB
+  media/thumbs/stock_jodel.webp: 1 files, 0.00 MB
+  media/thumbs/stock_piper-cub.webp: 1 files, 0.00 MB
+  media/thumbs/stock_sailplane.webp: 1 files, 0.00 MB
+  media/townkit/townkit_2e8c3968b3e6.bin: 1 files, 4.72 MB
+  media/townkit/townkit_jolene_ecf2a3fd58e0.bin: 1 files, 0.02 MB
+  media/world/jolene: 634 files, 122.52 MB
+  4359 references from 110 manifests, 4358 files in media/ · index.html 18.48 MiB, 6.21 MiB gzipped (budget 6.5), +74.3 KB over c4fc5e31 (budget 307.2 KB), data: 118 KB (budget 400)
+  index.html 19375438 B (18921.3 KB, 6359.5 KB gzipped) · the career core career_core.84ac2f05.js 656.1 KB (208.8 KB gzipped; budget 720 KB), fetched by a career / ?map=1 / ?freight=1 boot alone · the route drawing route_draw.551be74d.js 32.5 KB (10.7 KB gzipped; budget 64 KB), fetched when the drawing is opened or a route is armed
+  FAIL media/thumbs/index.json references media/thumbs/cand_cub_fittings_hand_2026-10.webp, which is not on disk — bake and commit went out of step
+GATE MEDIA: FAIL
+(exit code 1)
+=== ASSETS ===
+1680 images under media/ (10 in assets/, not gated), census 34135 ms
+  FLAT      0 (allowed 0)
+  DUPES     2 groups, 2 redundant files (allowed 0 / 0)
+  HUGE      2 over 4096 px (allowed 2)
+  JPGNOR    167 JPEG normal maps (allowed 167)
+  MATS      174 'new THREE.*Material' sites in 35 files (allowed 172 in 34)
+  WRITERS   writeMedia folds; write_media folds
+  (34.4 s)
+  FAIL dupes: fc82782e117f8c7a has 2 (allowed 0) - a byte-identical copy of a file already in media/: writeMedia / write_media return the existing one
+  FAIL dupes: f722b458ddbc1812 has 2 (allowed 0) - a byte-identical copy of a file already in media/: writeMedia / write_media return the existing one
+  FAIL mats: tools/_cowl_gen.js has 2 (allowed 0) - a `new THREE.*Material` site: materials are made in src/viewer/matlib.js (AS4a)
+GATE ASSETS: FAIL
+(exit code 1)
+=== MATLIB ===
+  materials by uuid -> the families' records: props 1127 -> 300, trees 317 -> 92, strip stones 19 -> 7
+  wall 45.5 s
+GATE MATLIB: PASS
+=== GEO ===
+  media/geo: 673 bins, 673 decoded; 673 manifest records, 673 layout-checked
+  wire 70.52 MiB (one gzip stream each) -> as-is 107.20 MiB decoded (65.8 %)
+GATE GEO: PASS
+=== SPLAT ===
+PASS uSNCode 17, uSNCand 8 (C[8]), uSNSlot 34 (the lean program's codes x 2 passes: by code - a quad's neighbours sample a type in the same iteration)
+4. (--gpu not asked: the sampler census on Jolene and the fxc probe need Chrome; node tools/_splat_check.js --gpu)
+GATE SPLAT: PASS
+=== GROUNDLIB ===
+PASS 5 no canvas in the ground's array path (pavement.js library, splat_ground.js, ground_lib.js)
+  66 sets (57 cooked), aliases: splat 22, pavement 35, lot 5, site 10; 2.0 s
+GATE GROUNDLIB: PASS
+=== KTX2 ===
+SKIP 8 the encoder: no basisu v1.16.4 here (cd flyDiy && npm install) - the files are held by 3-6
+  95.1 s
+GATE KTX2: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== SKINMAT ===
+sections 41, finishes 36, constructions 4, hardware 112 names over 9 layers
+GATE SKINMAT: PASS
+=== LIVERYREACH ===
+second plane: map + repaint (3 meshes moved, the swap alone left the copy)
+LIVERYREACH: 24 pass, 0 fail
+GATE LIVERYREACH: PASS
+=== LIVERY ===
+292 checks: A -> B and back, the boot, the pool key (11 dials both ways), the source, the struts on every build
+GATE LIVERY: PASS
+=== LIVERYSET ===
+
+[stderr]
+node:fs:440
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/bugReports/cessnaMetal (1).json'
+    at Object.readFileSync (node:fs:440:20)
+    at rawOf (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_load_build.js:85:48)
+    at Object.loadBuild (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_load_build.js:119:13)
+    at specOf (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_liveryset_check.js:34:51)
+    at checks (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_liveryset_check.js:53:15)
+    at Object.<anonymous> (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_liveryset_check.js:104:11)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/bugReports/cessnaMetal (1).json'
+}
+
+Node.js v22.23.5
+(exit code 1)
+=== LIVERYTEXT ===
+72 checks
+GATE LIVERYTEXT: PASS
+=== LIVERYSTICKERS ===
+stol-river 0.09%; grizzly-range 0.12%; orca 0.14%; winged-prop 0.06%; midnight-valley 0.16%; northern-shield 0.23%; bear-paw 0.14%; true-north 0.09%; bull-moose 0.10%; lighthouse 0.12%; glassy-panorama 0.15%; alaska 0.08%; 49 builds held
+  153 / 153 checks
+GATE LIVERYSTICKERS: PASS
+=== WEATHER ===
+layers 25, colours 8, substrates 37, benches 35
+GATE WEATHER: PASS
+=== SURF ===
+GATE SURF: PASS
+=== LIGHT ===
+sources: shed 7 [key lamps desk stove panels env sky], world 6 [sun hemi env sky runway lamps]; ground bounce 1
+GATE LIGHT: PASS
+=== CABINLAMP ===
+twin2      flood:roof@toele pax:roof@toele pax:roof@toele pax:roof@toele
+twin2con   flood:console@headliner pax:console@headliner pax:roof@headliner pax:roof@headliner
+GATE CABINLAMP: PASS
+=== EDBUGS ===
+GATE EDBUGS: 40 rows, 0 red
+GATE EDBUGS: PASS
+=== FIT ===
+field index: 7080 samples, 38094 hits, walked both ways, 0 differ
+  332 fittings measured on 6 builds (fuselage against the mesh, cowl against its own surface), 50 on the wing checked as declarations and drawn in the page
+GATE FIT: PASS
+=== HANDLE ===
+48 builds and cards, 82 handles (70 on doors), none on the glass; ALL GLASS -> the frame (2), NO ROOM -> unplaced (0)
+GATE HANDLE: PASS
+=== PILLAR ===
+  table  Cessna floats  pilot:P 0 mm at 0 deg (wing), on the closed door: wing  RED  wing 0, anchor 20, wing strut 0, float strut 52
+  table  Cessna floats  pilot:M 0 mm at 0 deg (wing), on the closed door: wing  RED  wing 0, anchor 8, wing strut 0, float strut 52
+GATE PILLAR: PASS
+=== FITMANUAL ===
+  (12.7 s; the Cub's auto sites: fuelCap {"kind":"spine","z":-0.364,"h":null}, doorHandle {"kind":"flank","z":0.8989,"h":55.0968}, step {"kind":"flank","z":0.9906,"h":22.3026})
+29 checks
+GATE FITMANUAL: PASS
+=== RAYINDEX ===
+  instanced                  1283 hits
+  3176 rays both ways, 3188 checks, 9 indexes, 2862 fast asks
+GATE RAYINDEX: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -4399,6 +5201,36 @@ REALREFS  PASS     0.1 s
 REALBAND  PASS   383.3 s
 CARDDRAG  PASS     0.2 s
 FADES     PASS     0.9 s
-wall (the chunks' own, summed) 28571.7 s  (jobs 4)
+CONTACT   FAIL   204.7 s
+TERRAINMATCH FAIL   303.4 s
+SHADOWSKY FAIL     0.2 s
+LOOKS     PASS     6.7 s
+RWYLIGHTS FAIL     7.9 s
+LAKEBED   FAIL     8.0 s
+MEDIA     FAIL     1.6 s
+ASSETS    FAIL    34.5 s
+MATLIB    PASS    45.7 s
+GEO       PASS     1.0 s
+SPLAT     PASS     4.8 s
+GROUNDLIB PASS     2.0 s
+KTX2      PASS    95.2 s
+BUILD     PASS     1.8 s
+SKINMAT   PASS     4.6 s
+LIVERYREACH PASS     0.1 s
+LIVERY    PASS    31.2 s
+LIVERYSET FAIL     2.9 s
+LIVERYTEXT PASS     0.2 s
+LIVERYSTICKERS PASS     3.8 s
+WEATHER   PASS     6.7 s
+SURF      PASS     1.2 s
+LIGHT     PASS     6.5 s
+CABINLAMP PASS    96.2 s
+EDBUGS    PASS     2.6 s
+FIT       PASS    11.3 s
+HANDLE    PASS   134.9 s
+PILLAR    PASS   167.6 s
+FITMANUAL PASS    12.8 s
+RAYINDEX  PASS     1.0 s
+wall (the chunks' own, summed) 28917.9 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 40 red (126 PASS, 40 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 48 red (148 PASS, 48 FAIL, 0 SKIP of 364)
