@@ -72,8 +72,30 @@ medians of five bands of the door view (sky top, sky low, tree line, apron far, 
   the game's, not a neutral dark.
 - A CLOUD OVER THE DOOR darkens the sun near the door only; far from it the sun is the sky's mean (`S.cloudFar`).
 
+- THE WHOLE PICTURE, NOT ONE BAND. A cloud drifts over the door between two shoots and dims the sun near it: one band at
+  noon is noise. Read the whole picture by thirds (sky, horizon, ground), several views, and trust golden hour and
+  night for the ambient terms. The last rounds: the world's environment ambient by day (`S.env`, fading with the sun),
+  a stronger haze, the cards' gain; a lawn site's `ground.gain` (a lawn shot from above is darker than along the
+  ground). Club hangar, whole picture: noon 94-101 % of the game's, golden hour 98-100 %, night 99-129 % (the lamps).
+- A CUT-OUT'S EDGE (the user: "a very jagged line ... with little black pixels ... typical transparency border
+  management"). A silhouette texel is a mix of the thing and of the black the picture was cleared to. `cook.js
+  cleanEdge`: the two texels inside the cut take the colour further in, the outside takes it too, the alpha across the
+  cut is a slope; the far band is encoded in UASTC (ETC1S blocks an alpha edge in 4 x 4 stairs); the rings' rows lie
+  16 texels apart in their sheet.
+
 Keep it simple (the user: "let's not get too many subsystems into the garage"): every item above is one uniform or one
 call into the game's own code, behind the scene's switch; without a scene the garage is untouched.
+
+**The switch.** The door view is ON wherever a room has a cooked scene (`?gview=0` keeps the room's hand-drawn
+outdoors; `window.FLYDIY_GVIEW_ON = true / false` is the rigs' switch). It is asked for behind the first garage view,
+built held down, its programs linked off the frame (`compileSliced`), then shown: `GARAGE_VIEW.prelink()` returns that
+job, `GARAGE_VIEW.ready` says it stands.
+
+**What it costs** (`capture.js --do garage --perf`: today / the scene / a variant, in one boot; 22 Nov, canvas 640 x
+900, uncapped): the frame's interval 4.6 -> 4.1 ms in the club hangar, 4.6 -> 5.0 in the large one, 6.2 -> 5.9 in the
+Shed; fewer draw calls (99 -> 64), about 50 000 more triangles; the game's cloud pass in the room 0.3-0.65 ms of GPU a
+frame at that size (it grows with the pixels); a scene is 10-13 MB to download, about 58 MB of GPU memory, stands in
+9-12 ms.
 
 ## 3. Frames and traps
 

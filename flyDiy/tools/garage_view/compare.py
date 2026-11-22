@@ -21,6 +21,7 @@ ap.add_argument('--note', default='')
 ap.add_argument('--today', default='')   # the folder of the 'garage today' pictures, when another run than --garage shot them
 ap.add_argument('--sheds', default='HOME:club:Club hangar')   # ref shed id : garage shell : title [: view+view+...], comma separated
 ap.add_argument('--title', default='Garage View Side by Side')
+ap.add_argument('--extra', default='')   # an HTML fragment put under the note (the costs' table)
 ap.add_argument('--eyebrow', default='Wingsmith · Jolene AFB · the view out of the hangars')
 A = ap.parse_args()
 esc = html.escape
@@ -104,6 +105,7 @@ p { margin: 0 0 10px; max-width: 70ch; } .eyebrow { font-family: var(--mono); fo
 @media (max-width: 900px) { .three { grid-template-columns: 1fr; } h1 { font-size: 25px; } }
 .cell img { width: 100%; height: auto; display: block; border: 1px solid var(--line); }
 .cap { font-size: 13px; font-weight: 600; margin: 0 0 4px; } .cap.game { color: var(--game); } .cap.ok { color: var(--good); } .cap.bad { color: var(--bad); }
+.tablebox { overflow-x: auto; max-width: 100%; margin-top: 14px; } table { border-collapse: collapse; font-size: 14px; } th, td { border-bottom: 1px solid var(--line); padding: 6px 12px 6px 0; text-align: left; vertical-align: top; } th { color: var(--mute); font-weight: 600; } td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; } h3 { font-size: 16px; margin: 18px 0 4px; }
 .none { border: 1px dashed var(--line); color: var(--mute); font-size: 13px; padding: 28px 10px; text-align: center; }
 .hint { color: var(--mute); font-size: 13px; } .note { background: var(--panel); border-left: 3px solid var(--accent); padding: 12px 14px; } .note p:last-child { margin-bottom: 0; }
 </style>
@@ -117,6 +119,6 @@ p { margin: 0 0 10px; max-width: 70ch; } .eyebrow { font-family: var(--mono); fo
 __ROWS__
 </div>
 '''
-PAGE = PAGE.replace('__TITLE__', esc(A.title)).replace('__EYEBROW__', esc(A.eyebrow)).replace('__NOTE__', ('<div class="note"><p>%s</p></div>' % esc(A.note)) if A.note else '').replace('__STATS__', stats).replace('__ROWS__', ''.join(rows) or '<p>No pictures found.</p>')
+PAGE = PAGE.replace('__TITLE__', esc(A.title)).replace('__EYEBROW__', esc(A.eyebrow)).replace('__NOTE__', ('<div class="note"><p>%s</p></div>' % esc(A.note)) if A.note else '').replace('__STATS__', stats + (open(A.extra, encoding='utf-8').read() if A.extra else '')).replace('__ROWS__', ''.join(rows) or '<p>No pictures found.</p>')
 open(A.out, 'w', encoding='utf-8', newline='\n').write(PAGE)
 print('compare: %d rows -> %s (%.0f kB)' % (n, A.out, os.path.getsize(A.out) / 1024))
