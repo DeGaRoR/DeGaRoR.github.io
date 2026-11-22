@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 541d3903c5b5d161
+// body-sha256: 9ae42021a4ec299a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -38581,7 +38581,12 @@ function genPropFit(pr, o) {
   const cls = F.design[pr.pitchUsed] ? pr.pitchUsed : 'standard';
   const Vt = genPropVtop({ P: pr.powerW, nE: o.nE > 0 ? o.nE : 1, A, etaB, f: o.f, W: o.W, S: o.S, eAR: o.eAR });
   if (!(Vt > 0)) return null;
-  const Vd = F.design[cls] * Vt;
+  // (FUSELAGE-DRAG, 2026-11-22: a card may STATE the speed its fixed pitch is cut for - the cage row cw_redKmh, `o.vRed`
+  //  m/s: full throttle, level, the propeller turning its rated speed on its rated power there. Then the design point and
+  //  the redline are that speed, not a share of the aeroplane's own top speed: a trainer's fine propeller on a slippery
+  //  airframe - the Velis's, which meets its motor's limit in the climb and tops out 15 % under what its drag allows)
+  const Vcut = o.vRed > 0 ? o.vRed : 0;
+  const Vd = Vcut > 0 ? Vcut : F.design[cls] * Vt;
   const Td = genPropDiscT(pr.powerW, A, Vd, etaB, RHO);
   // the least kV2 that keeps the law within `over` of the disc's thrust past the design point (read at 1.1 .. 1.5 Vd:
   // a quadratic is not the disc's curve, and a propeller whose class already stands within 3 % of it keeps its class's
@@ -38597,7 +38602,7 @@ function genPropFit(pr, o) {
   pr.V0 = Math.sqrt(T0 / pr.kV2);
   pr.VPeak = pr.V0 / Math.sqrt(3);
   pr.Vtop = Vt; pr.Vd = Vd; pr.etaD = Td * Vd / pr.powerW;
-  pr.V1 = F.redline[cls] * Vt / Math.sqrt(1 - GEN_SHAFT.staticK * GEN_SHAFT.staticK);
+  pr.V1 = (Vcut > 0 ? Vcut : F.redline[cls] * Vt) / Math.sqrt(1 - GEN_SHAFT.staticK * GEN_SHAFT.staticK);
   return pr;
 }
 
@@ -39235,7 +39240,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 // (PHYSICS-AUDIT step 2, 2026-11-21: the tailplane's bracing, stBrace 0 = by its skin, and the flying wires' section,
 //  bpWireSec 0 = round cable)
-const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, cw_headCut: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, cw_headCut: 0, cw_redKmh: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
                                brkHold: 0, wgStrutSec: 0, wgJury: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
@@ -54895,7 +54900,8 @@ function buildGen(specIn) {
     const f = params.fusCdA[0] + fSurf + (params.strutCdA ? params.strutCdA[0] * nB : 0)
             - (RT && RT.cdA > 0 ? RT.cdA * (RT.frac > 0 && RT.frac < 1 ? RT.frac : 1) : 0);
     const eAR = (S.wings || []).length > 1 ? Math.PI * GEN_PROP_FIT.eBiplane * G_.span * G_.span / G_.Sw : params.polarWing.eAR;
-    const AP = { nE: params.nEngines || 1, f, W: gClean.W, S: gClean.Sw, eAR };
+    const AP = { nE: params.nEngines || 1, f, W: gClean.W, S: gClean.Sw, eAR,
+                 vRed: S.cage && +S.cage.cw_redKmh > 0 ? Math.max(40, Math.min(700, +S.cage.cw_redKmh)) / 3.6 : 0 };   // (the card's stated cut, 60_gen_spec genPropFit)
     if (params.engine && params.engine.cs) {
       // (step 6: a governed propeller flies the disc - params.prop.cs is the solver's law, the quadratic an estimate)
       if (genPropGovern(S.prop, AP)) { params.prop.Tstatic = S.prop.Tstatic; params.prop.kV2 = S.prop.kV2; params.prop.cs = S.prop.cs; }
