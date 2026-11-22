@@ -230,9 +230,15 @@
   //                  keyed their materials too: 22 skin programs of ~206 KB linked for the cube, 2 ever drawn
   //                  (PERF-TRACE, 22 Nov). With the flag a compile for the cube leaves the probe's hidden subjects out
   //                  (not while the "craft in probe" light test is on, which draws them there).
+  //   ?latelinks=1   A MEASURE, not a behaviour to keep: the load WITHOUT the two sets of programs it links for views
+  //                  the player may never open - the damage look's awake programs (scuffPrelink: every exterior skin
+  //                  again with the scuff block, ~30 programs of 225 KB) and the see-through view's twins
+  //                  (compileXrayVariants). With the flag the first damage / the first see-through view links them in
+  //                  its own frame, as before those prelinks existed. It prices "compile them after the reveal, in
+  //                  the background", which is the real change if the number is worth it.
   // (?lampsfixed=1 is render_premises.js's: the lamp pool's count kept by day.)
   const LABQ = k => typeof location !== 'undefined' && new RegExp('[?&]' + k + '(&|$)').test(location.search || '');
-  const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0 };
+  const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0 };
   if (LAB.noLogs && renderer.debug) renderer.debug.checkShaderErrors = false;
   if (typeof window !== 'undefined') window.FLYDIY_LAB = LAB;
   const groundCache = typeof GROUND_MATERIAL_CACHE !== 'undefined' && typeof location !== 'undefined' && /[?&]groundcache=[12](&|$)/.test(location.search || '')
@@ -15764,7 +15770,7 @@
       catch (e) { console.warn('craft depth compile:', e && e.message); }
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
-      .then(() => scuffPrelink(inW))
+      .then(() => { if (LAB.lateLinks) { LAB.lateSkipped++; return null; } return scuffPrelink(inW); })   // (?latelinks=1: see LAB)
       .then(() => compileCraftShed());
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
@@ -22721,6 +22727,7 @@
   // room's in exactly opaque, doubleSided and flipSided).
   function compileXrayVariants() {
     if (typeof renderer.compileAsync !== 'function' || !hangar) return Promise.resolve();
+    if (LAB.lateLinks) { LAB.lateSkipped++; return Promise.resolve(); }   // (?latelinks=1: a MEASURE of the load without them - the first see-through view then links its twins itself)
     const helper = new THREE.Group(), seen = new Set();
     let n = 0;
     const twin = (m, side) => {
