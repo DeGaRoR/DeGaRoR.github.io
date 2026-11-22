@@ -1539,7 +1539,7 @@
       if (!gviewPacks.has(row.base)) gviewPacks.set(row.base, GARAGE_VIEW.load(((typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '') + row.base, THREE));
       return gviewPacks.get(row.base); })
     .then(pack => { if (!pack || hangar !== H) return; const t0 = performance.now(), B = H.gviewFrom(pack);
-      if (B) { window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(performance.now() - t0).toFixed(1), scene: B }; try { bakeHangarEnv(); } catch (e) {} } })
+      if (B) window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(performance.now() - t0).toFixed(1), scene: B }; })   // (the scene carries its own light: no probe to bake)
       .catch(e => { console.warn('flyDiy: the garage view -', e && e.message); });
   }
   let hoTry = 0;

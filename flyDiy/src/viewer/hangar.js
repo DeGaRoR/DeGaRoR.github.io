@@ -209,6 +209,7 @@ let ROOM_POLISH = null;   // G3534: what the room's polish stood (hangar.polish)
 let POLISH_OUT = null;    // G3534b: its pieces outside the walls, drawn only while the eye stands outside (polishFollow)
 let HO_TREES = null;     // HANGAR-OUTDOORS: the tree cards' places (the outdoors plant them; treesFrom stands the cards)
 let SHED_W = null;       // GARAGE-VIEW: the room's shed in the world ({ x, y, z, ry }: the site's hangar) - the cooked scene stands by it
+let GV_LAST = null;     // GARAGE-VIEW: the last day applyDay took ([day, light]): a scene that lands takes it at once
 let GVIEW = null;        // GARAGE-VIEW: the cooked world out of the door (garage_view.js), once it has landed (gviewFrom)
 let ROOM_PAD = null;      // HANGAR-VIEW C: the plot's ground pad (under room:polish) - outdoors, so the world's view stands in for it
 
@@ -4087,7 +4088,10 @@ function applyDay(day, renderer) {
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
   dayDirShed[0] = s[0]; dayDirShed[1] = s[1]; dayDirShed[2] = s[2];
   // GARAGE-VIEW: the cooked outdoors take the day - the haze's colour off the sky, the shed's own shadow on the apron off the light
-  if (GVIEW && GVIEW.update) GVIEW.update(day, { dir: s, cloudT: cloudT, isMoon: SKY_LIGHT.isMoon });
+  // (the last day is KEPT: a scene lands behind the room, between two days - it takes this one at once, gviewFrom. 22 Nov: the
+  // second scene stood black at the boot hour until the clock moved)
+  GV_LAST = [day, { dir: [s[0], s[1], s[2]], cloudT: cloudT, isMoon: SKY_LIGHT.isMoon, keyI: key.intensity, keyC: key.color }];
+  if (GVIEW && GVIEW.update) GVIEW.update(GV_LAST[0], GV_LAST[1]);
   // G2070 (GARAGE-LAPTOP): the key's POSE steps when the sun has moved 0.05 deg (~12 s of a 1x day; under a third of a
   // 2048 texel at the shed's far wall) - its shadow map is cached (shed_shadow.js) and re-bakes when the light moves, so a
   // key that crept every frame re-drew its 1 300 casters every frame; the flare (dayDirShed) keeps the live sun
@@ -4719,6 +4723,7 @@ return {
     for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = false;
     if (ROOM_PAD) ROOM_PAD.visible = false;
     B.group.visible = !viewOut; G.add(B.group); GVIEW = B;
+    if (GV_LAST && B.update) B.update(GV_LAST[0], GV_LAST[1]);
     if (B.shadow) { B.shadow.visible = !viewOut; G.add(B.shadow); }   // the shed's shadow on the apron (the room's frame)
     return B;
   },

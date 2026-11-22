@@ -28,30 +28,53 @@
 //                                          o.shed { x, y, z, ry } the room's shed in the world (its TRUE yaw); the group is
 //                                          the scene in the room's frame (the door at local -x, the floor at y 0)
 //                                          o.outdoor(mat) the room's own list of outdoor materials (lit off the sky's probe)
-//   GARAGE_VIEW.S                       the dials (the env's share, the haze, the apron's step under the sill)
+//   GARAGE_VIEW.S                       the dials (the sky's gain, the haze, the cards' gain, the apron's step under the sill)
 // ============================================================================
 'use strict';
 var GARAGE_VIEW = (() => {
   const S = {
-    env: 0.45,          // the sky probe's share on the outdoor materials (hangar.js ENV_OUT: the mood scales it)
     sill: -0.02,        // the scene under the room's floor by this much (hangar.js Y_APRON: the sill is a step, nothing coplanar)
-    haze: 1.0,          // the haze's colour: the sky's irradiance x K_HEMI x this
+    hemi: 2.0,          // the sky's light over the alps anchor (render_world's island row: hemi 0.55 over 0.274), as the WORLD lights its ground
+    hemiUnder: 0.0,     // a gain of its own under a cloud, over the game's law (clouds.js hemiUnder, taken in update), 0 until judged
+    gnd: [0.10, 0.11, 0.07],   // the land's mean albedo (linear): what the ground throws back up under a card or an eave (sky_light groundHalf)
+    haze: 1.6,          // the haze's colour: the sky's mean radiance x this (the horizon is brighter than the mean)
     hazeK: 5.5e-5,      // its density (1 / m): the far ridges fade into the sky as the game's aerial perspective fades them
-    treeGain: 1.0,      // the cards' albedo gain
-    shadow: 0.42,       // the shed's own shadow on the apron: how much of the light it takes at a clear noon (x the cloud's transmittance)
+    unit: Math.PI,      // THE WORLD'S UNIT (render_world LIGHT_UNIT): the scene is lit as the world lights its ground. At the room's own unit (1) the
+                        // shade fell into the tone curve's toe (22 Nov: the apron black under a cloud, where the game shows it blue-grey)
+    cloudFar: 0.6,      // far from the shed the sun is the SKY's mean (1 - this x the cover), not the one cloud over the door: the game's cloud shadow is a patch
+    cloudR: [60, 420],  // ...from the door's cloud to the mean, over these metres
+    treeGain: 2.0,      // the cards' gain: the game lights a leaf by its environment too (measured 22 Nov at noon: the cards a third of the game's against the sky)
+    shadow: 0.92,       // the shed's own shadow on the apron: this much of the SUN's share of the light goes (the sky's stays)
   };
   const NL = String.fromCharCode(10);
-  const HZ = { value: null };   // (vec4: rgb the haze's colour in the scene's light, w its density) - one uniform, every material
-  // the haze: one injection, shared (the outdoors carry fog: false - the room's air is the room's)
-  const hazed = (THREE, mat) => {
+  // THE SCENE'S LIGHT IS THE WORLD'S, NOT THE ROOM'S (the first garage pictures, 22 Nov: the apron came out warm and four times too
+  // bright against the sky - the room's lamps and its probe were lighting the outdoors, as they light hangar.js's own slab). The
+  // scene's materials are UNLIT for three and carry the day themselves: the sun (the room's key: its colour and strength, the cloud's
+  // transmittance in it) on N.L, and the sky's hemisphere (sky_light.js's own law: K_HEMI x the sky's irradiance x the island's gain,
+  // the ground's half below) - the two lights the world's ground is lit by, in the units the room's sky dome is drawn in. No lamp,
+  // no probe, no shadow map: one small program (two with the cards' normal map).
+  const U = { sun: { value: null }, sky: { value: null }, gnd: { value: null }, dir: { value: null }, haze: { value: null }, cloud: { value: null } };
+  const lit = (THREE, mat, nrm) => {
     mat.onBeforeCompile = sh => {
-      sh.uniforms.uGvHaze = HZ;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + NL + 'varying float vGvDist;')
-        .replace('#include <project_vertex>', '#include <project_vertex>' + NL + '  vGvDist = length(mvPosition.xyz);');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + NL + 'varying float vGvDist;' + NL + 'uniform vec4 uGvHaze;')
-        .replace('#include <tonemapping_fragment>', '  gl_FragColor.rgb = mix(uGvHaze.rgb, gl_FragColor.rgb, exp(-vGvDist * uGvHaze.w));' + NL + '#include <tonemapping_fragment>');
+      sh.uniforms.uGvSun = U.sun; sh.uniforms.uGvSky = U.sky; sh.uniforms.uGvGnd = U.gnd; sh.uniforms.uGvDir = U.dir; sh.uniforms.uGvHaze = U.haze; sh.uniforms.uGvCloud = U.cloud;
+      if (nrm) sh.uniforms.uGvNrm = { value: nrm };
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + NL + 'varying float vGvDist;' + NL + 'varying vec3 vGvN;')
+        .replace('#include <project_vertex>', '#include <project_vertex>' + NL + '  vGvDist = length(mvPosition.xyz);' + NL + '  vGvN = normalize(mat3(modelMatrix) * normal);');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + NL + 'varying float vGvDist;' + NL + 'varying vec3 vGvN;' + NL +
+          'uniform vec3 uGvSun, uGvSky, uGvGnd, uGvDir;' + NL + 'uniform vec4 uGvHaze, uGvCloud;' + (nrm ? NL + 'uniform sampler2D uGvNrm;' : ''))
+        .replace('#include <opaque_fragment>', [
+          '  vec3 gvN = normalize(vGvN);',
+          // a card: its sheet's normal (right, up, toward the eye) stood in the card's own frame (the card is upright: its right = up x its face)
+          nrm ? '  { vec3 t = texture2D(uGvNrm, vMapUv).xyz * 2.0 - 1.0; vec3 f = normalize(vec3(gvN.x, 0.0, gvN.z)); vec3 r = normalize(cross(vec3(0.0, 1.0, 0.0), f)); gvN = normalize(t.x * r + t.y * vec3(0.0, 1.0, 0.0) + t.z * f); }' : '',
+          // (a card is leaves: the game's own WRAP past the terminator, trees.js LEAF_TERMS - a leaf is thin and its normal a fiction)
+          nrm ? '  float gvL = dot(gvN, uGvDir); gvL = max(gvL, 0.0) + (max(0.0, (gvL + 0.8) / 1.8) - max(0.0, gvL));' : '  float gvL = max(dot(gvN, uGvDir), 0.0);',
+          // (the sun through the cloud over the DOOR near, through the sky's mean far: uGvCloud = here, far, r0, r1)
+          '  gvL *= mix(uGvCloud.x, uGvCloud.y, smoothstep(uGvCloud.z, uGvCloud.w, vGvDist));',
+          '  outgoingLight = diffuseColor.rgb * (uGvSun * gvL + mix(uGvGnd, uGvSky, gvN.y * 0.5 + 0.5));',
+          '#include <opaque_fragment>',
+          '  gl_FragColor.rgb = mix(uGvHaze.rgb, gl_FragColor.rgb, exp(-vGvDist * uGvHaze.w));'].join(NL));
     };
-    mat.customProgramCacheKey = () => 'gview-haze';
+    mat.customProgramCacheKey = () => 'gview-lit' + (nrm ? '-n' : '');
     return mat;
   };
 
@@ -94,11 +117,13 @@ var GARAGE_VIEW = (() => {
     const c = Math.cos(sh.ry), s = Math.sin(sh.ry), dx = J.origin[0] - sh.x, dz = J.origin[2] - sh.z;
     group.rotation.y = -sh.ry; group.position.set(dx * c - dz * s, J.origin[1] - sh.y + S.sill, dx * s + dz * c);
     group.updateMatrix(); group.matrixAutoUpdate = false;
-    if (!HZ.value) HZ.value = new THREE.Vector4(0.5, 0.6, 0.7, S.hazeK);
+    if (!U.sun.value) { U.sun.value = new THREE.Vector3(0.8, 0.8, 0.8); U.sky.value = new THREE.Vector3(0.15, 0.17, 0.2); U.gnd.value = new THREE.Vector3(0.03, 0.03, 0.02); U.dir.value = new THREE.Vector3(0.3, 0.8, 0.5).normalize(); U.haze.value = new THREE.Vector4(0.2, 0.25, 0.3, S.hazeK); }
+    if (!U.cloud.value) U.cloud.value = new THREE.Vector4(1, 1, S.cloudR[0], S.cloudR[1]);
     const arr = a => a.t === 'f32' ? new Float32Array(pack.buf, a.at, a.n) : a.t === 'u32' ? new Uint32Array(pack.buf, a.at, a.n) : new Uint16Array(pack.buf, a.at, a.n);
-    const std = p => { const m = hazed(THREE, new THREE.MeshStandardMaterial(Object.assign({ roughness: 1, metalness: 0, fog: false, envMapIntensity: S.env }, p))); mats.push(m); return out(m); };
+    const std = (p, nrm) => { const m = lit(THREE, new THREE.MeshBasicMaterial(Object.assign({ fog: false }, p)), nrm || null); mats.push(m); return m; };
     let tris = 0;
     for (const M of J.meshes) {
+      if (M.at && Math.hypot(M.at[0] - sh.x, M.at[1] - sh.z) < 12) continue;   // this room's own shed, as the world shows it from outside: not round the room itself
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(arr(M.pos), 3));
       if (M.nrm) g.setAttribute('normal', new THREE.BufferAttribute(arr(M.nrm), 3));
@@ -110,7 +135,7 @@ var GARAGE_VIEW = (() => {
       const map = M.tex ? pack.tex[M.tex] : null;
       let mat;
       if (M.kind === 'decal') mat = std({ map, transparent: true, depthWrite: false, vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-      else if (M.kind === 'cards') { mat = std({ map, normalMap: M.nrmTex ? pack.tex[M.nrmTex] : null, alphaTest: M.alphaTest || 0.5, vertexColors: true, color: new THREE.Color(S.treeGain, S.treeGain, S.treeGain) }); mat.alphaToCoverage = true; if (!map) { mat.alphaTest = 0; mat.color.setRGB(0.05, 0.09, 0.05); } }
+      else if (M.kind === 'cards') { mat = std({ map, alphaTest: M.alphaTest || 0.5, vertexColors: true, color: new THREE.Color(S.treeGain, S.treeGain, S.treeGain) }, map && M.nrmTex ? pack.tex[M.nrmTex] : null); mat.alphaToCoverage = true; if (!map) { mat.alphaTest = 0; mat.color.setRGB(0.05, 0.09, 0.05); } }
       else if (M.kind === 'ring') mat = std({ vertexColors: true });
       else if (M.kind === 'props') mat = std({ map, side: M.doubleSide ? THREE.DoubleSide : THREE.FrontSide });
       else if (M.kind === 'far') { mat = std({ map, alphaTest: M.alphaTest || 0.5, side: THREE.DoubleSide }); mat.alphaToCoverage = true; }   // the far band: the game's own pixels past 700 m, lit as ground is
@@ -139,18 +164,34 @@ var GARAGE_VIEW = (() => {
       const H = lo.slice(0, -1).concat(up.slice(0, -1)), A = shadow.geometry.attributes.position;
       for (let i = 0; i < 12; i++) { const p = H[Math.min(i, H.length - 1)]; A.setXYZ(i, p[0], S.sill + 0.016, p[1]); }
       A.needsUpdate = true; };
-    const E = [0, 0, 0];
+    const E = [0, 0, 0], lum = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     return { group, shadow, mats, stats: { meshes: J.meshes.length, tris, textures: Object.keys(pack.tex).length, pictures: pack.pictures || null, bytes: pack.buf.byteLength },
-      // the haze takes the day's sky: its irradiance on the scale the room's light stands on
+      // THE DAY: L = { dir (the light's direction in the room's frame), keyI + keyC (the room's key as sky_light.js set it: the sun
+      // or the moon, the cloud's transmittance in it), cloudT, isMoon }. The scene's four colours, in radiance per unit albedo
       update(day, L) {
-        if (L && L.dir) throwShadow(L.dir, S.shadow * (L.cloudT == null ? 1 : L.cloudT) * (L.isMoon ? 0.5 : 1));
-        if (!day || typeof ATMO === 'undefined' || !ATMO.skyIrradiance || typeof SKY_LIGHT === 'undefined') return;
-        const K = SKY_LIGHT.K().K_HEMI; if (K == null) return;
-        ATMO.skyIrradiance(0, day.sun, E); HZ.value.set(E[0] * K * S.haze, E[1] * K * S.haze, E[2] * K * S.haze, S.hazeK);
+        if (!day || !L || !L.dir || typeof ATMO === 'undefined' || !ATMO.skyIrradiance || typeof SKY_LIGHT === 'undefined') return;
+        const K = SKY_LIGHT.K(); if (K.K_HEMI == null) return;
+        const kc = L.keyC ? [L.keyC.r, L.keyC.g, L.keyC.b] : [1, 1, 1], kI = L.keyI || 0, cT = L.cloudT == null ? 1 : L.cloudT, PI = Math.PI;
+        ATMO.skyIrradiance(0, day.sun, E);
+        const mE = Math.max(E[0], E[1], E[2], 1e-9), hI = K.K_HEMI * lum(E) * S.hemi * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1) * (1 + S.hemiUnder * (1 - cT)), sc = [E[0] / mE, E[1] / mE, E[2] / mE], dy = Math.max(0, L.dir[1]);
+        U.dir.value.set(L.dir[0], L.dir[1], L.dir[2]);
+        // the sun with NO cloud in it (the room's key carries the door's cloud: sky_light keyGain): the shader puts the cloud back, by distance
+        let I0 = kI; if (!L.isMoon) { if (cT > 0.05) I0 = kI / cT; else if (ATMO.sunTransmittance) { const T3 = [0, 0, 0]; ATMO.sunTransmittance(0, day.sun[1], T3);
+          const el = Math.asin(Math.max(-1, Math.min(1, day.sun[1]))) * 180 / PI; I0 = (K.K_SUN || 0) * Math.max(T3[0], T3[1], T3[2]) * Math.min(1, Math.max(0, (el + 1.5) / 2)); } }
+        const un = S.unit / PI, cHere = L.isMoon ? 1 : cT, cFar = L.isMoon ? 1 : Math.max(cHere, 1 - S.cloudFar * Math.max(0, Math.min(1, +day.cloudCover || 0)));
+        U.cloud.value.set(cHere, cFar, S.cloudR[0], S.cloudR[1]);
+        U.sun.value.set(kc[0] * I0 * un, kc[1] * I0 * un, kc[2] * I0 * un);
+        U.sky.value.set(sc[0] * hI * un, sc[1] * hI * un, sc[2] * hI * un);
+        // the ground's half (sky_light groundHalf): the land's albedo x what falls on it
+        U.gnd.value.set(S.gnd[0] * (kc[0] * kI * dy + sc[0] * hI) * un, S.gnd[1] * (kc[1] * kI * dy + sc[1] * hI) * un, S.gnd[2] * (kc[2] * kI * dy + sc[2] * hI) * un);
+        // the haze: the sky's mean radiance (its irradiance over pi, on the dome's scale), the horizon's share over it
+        const kh = (K.K_SUN || 0) / PI * S.haze; U.haze.value.set(E[0] * kh, E[1] * kh, E[2] * kh, S.hazeK);
+        // the shed's shadow: the sun's share of what falls on level ground goes
+        const sunP = lum(kc) * kI * dy, skyP = lum(sc) * hI; throwShadow(L.dir, sunP + skyP > 0 ? S.shadow * sunP / (sunP + skyP) : 0);
       },
       dispose() { group.traverse(m => { if (m.geometry) m.geometry.dispose(); }); for (const m of mats) m.dispose(); for (const k of Object.keys(pack.tex)) pack.tex[k].dispose(); } };
   }
-  return { S, find, load, build, haze: HZ };
+  return { S, find, load, build, light: U };
 })();
 if (typeof window !== 'undefined') window.GARAGE_VIEW = GARAGE_VIEW;
 if (typeof module !== 'undefined' && module.exports) module.exports = GARAGE_VIEW;

@@ -176,10 +176,25 @@ const PAGE = `(() => {
       const info = async () => JJ('(() => { const D = GARAGE_ENV._debug && GARAGE_ENV._debug(), h = D && D.hangar; return JSON.stringify(h ? { shell: h.shell || (GARAGE_ENV.shell && GARAGE_ENV.shell()), dims: h.dims, door: h.door, body: document.body.className, fov: FLIGHT_PROBE.camGet().fov, day: (() => { const d = FLIGHT_PROBE.world().day; return { sunEl: d.sunEl, cloudCover: d.cloudCover }; })() } : { err: "no room", body: document.body.className }); })()');
       const gshot = async (name, extra) => { const b = await rig.grab({ craft: false, settle: 10 }); fs.writeFileSync(path.join(OUT, name + '.png'), b); META.grabs.push(Object.assign({ name, info: b.info }, extra)); if (b.info.blank) { log('BLANK ' + name); META.blank = (META.blank || 0) + 1; } };
       const utc0 = await JJ('FLIGHT_PROBE.world().day.utc');
-      for (const TAG of TAGS) for (const shell of ['club', 'works']) {
+      // THE ROOMS ARE THE SITE'S SHEDS, each at its own plot (the player's document through the rigs' door, FLYDIY_PLAYER.set:
+      // a plot not held is acquired with the site's shell, then the garage goes there as the map's "go" does). The first
+      // run of 22 Nov stood both shells at HOME: the large hangar's views were 70 m off its own door.
+      const doc0 = await JJ('JSON.stringify(window.FLYDIY_PLAYER ? FLYDIY_PLAYER.doc() : null)');
+      const FIELD = (M.site && M.site.field) || 'HOME';
+      const roomAt = async (id, shell) => JJ(`(async () => { try { const P = window.FLYDIY_PLAYER, id = ${JSON.stringify(id)}, shell = ${JSON.stringify(shell)}, field = ${JSON.stringify(FIELD)}; let d = P.doc();
+          if (!d.sheds[id]) { d.wallet = Math.max(+d.wallet || 0, 1e8); const r = typeof playerAcquire === 'function' ? playerAcquire(d, field, id, shell) : null;
+            if (r && !r.ok) return JSON.stringify({ ok: false, why: 'acquire: ' + r.why });
+            if (r) d = r.doc; else d.sheds[id] = { shell, kits: [], base: field, tenure: 'own', price: 0, since: 0 };
+            P.set(d); }
+          if (P.doc().here !== id) { const g = await P.gotoGarage(id); if (!g.ok && g.why !== 'you are there') return JSON.stringify({ ok: false, why: 'goto: ' + g.why }); }
+          const sh = P.doc().sheds[id]; let set = '';
+          if (sh.shell !== shell) set = String(GARAGE_ENV.setShell(shell));
+          return JSON.stringify({ ok: true, here: P.doc().here, shell: P.doc().sheds[id].shell, base: sh.base, set }); } catch (e) { return JSON.stringify({ ok: false, why: e.message }); } })()`, 160000);
+      const ROOMS = opt('rooms') ? opt('rooms').split(',') : null;   // (--rooms HOME: only these sheds' rooms)
+      for (const TAG of TAGS) for (const Rm of S) { const shell = Rm.shell || 'club'; if (ROOMS && !ROOMS.includes(Rm.id)) continue;
         if (TAG === 'gview') await rig.ev('window.FLYDIY_GVIEW_ON = true');
-        if (shell === 'club' && TAG !== TAGS[0]) { const r = await rig.ev("(() => { try { return String(GARAGE_ENV.setShell('club')); } catch (e) { return 'FAILED ' + e.message; } })()", 140000); log('garage: setShell club -> ' + r); await rig.frames(60); await rig.settleLoad(); await rig.frames(120); }
-        if (shell === 'works') { const r = await rig.ev("(() => { try { return String(GARAGE_ENV.setShell('works')); } catch (e) { return 'FAILED ' + e.message; } })()", 140000); log('garage: setShell works -> ' + r); await rig.frames(60); await rig.settleLoad(); await rig.frames(120); }
+        { const r = await roomAt(Rm.id, shell); log('garage: room ' + Rm.id + ' (' + shell + ') -> ' + JSON.stringify(r)); await rig.frames(60); await rig.settleLoad(); await rig.frames(120);
+          if (!r || !r.ok) { META.steps['garage_' + TAG + '_' + shell] = { err: 'room ' + Rm.id + ': ' + (r && r.why) }; save(); continue; } }
         const I = await info(); log('garage ' + shell + ': ' + JSON.stringify(I)); if (!I || I.err) { META.steps['garage_' + TAG + '_' + shell] = I; continue; }
         // the cooked scene, when this run asks for it (?gview=1): wait for it to land in THIS room (30 s), and say what it is
         if (TAG === 'gview' || /gview=1/.test(opt('q', ''))) { let G = null; for (let k = 0; k < 30 && !G; k++) { G = await JJ('(() => { const g = window.FLYDIY_GVIEW, h = GARAGE_ENV._debug().hangar; return JSON.stringify(g && h.gview && h.gview() ? { stats: g.stats, buildMs: g.buildMs, shedWorld: h.shedWorld() } : null); })()'); if (!G) await rig.frames(30); }
@@ -190,9 +205,10 @@ const PAGE = `(() => {
           if (tm === 'now') await rig.ev('(() => { try { DAY_CLOCK.set({ utc: ' + utc0 + ' }); return 1; } catch (e) { return 0; } })()');
           else await rig.ev(`(() => { try { DAY_CLOCK.preset(${JSON.stringify(tm)}); return 1; } catch (e) { return 0; } })()`);
           await rig.frames(90); await rig.settleLoad(); await rig.frames(60);
-          const V = [['door_out', -HD - 0.3, 1.7, 0, 0], ['door_left', -HD - 0.3, 1.7, 0, -45], ['door_right', -HD - 0.3, 1.7, 0, 45], ['door_high', -HD - 0.3, 4.0, 0, 0], ['inside', HD * 0.55, 2.2, -HWd * 0.25, null]];
+          const V = [['door_out', -HD - 0.3, 1.7, 0, 0], ['door_left', -HD - 0.3, 1.7, 0, -45], ['door_right', -HD - 0.3, 1.7, 0, 45], ['door_high', -HD - 0.3, 4.0, 0, 0], ['inside', HD * 0.55, 2.2, -HWd * 0.25, null], ['back', -HD * 0.55, 1.8, 0, 180], ['back_high', -HD * 0.2, (I.dims.EAVE || 6) - 1.3, 0, 180]];
           for (const [vn, lx, ey, lz, az] of V) {
-            const a = az === null ? -Math.atan2(HWd * 0.25, HD * 1.55) : az * Math.PI / 180, t = [lx - Math.cos(a) * 50, ey - 1.0, lz - Math.sin(a) * 50];
+            // (back: the eye looks at the back wall's high window from the floor; back_high: level through it, the eye at its height)
+            const a = az === null ? -Math.atan2(HWd * 0.25, HD * 1.55) : az * Math.PI / 180, t = vn === 'back' ? [HD, (I.dims.EAVE || 6) - 1.3, 0] : vn === 'back_high' ? [HD + 50, ey - 1.0, 0] : [lx - Math.cos(a) * 50, ey - 1.0, lz - Math.sin(a) * 50];
             await rig.ev('FLYDIY_ROOM_EYE(' + JSON.stringify([lx, ey, lz]) + ', ' + JSON.stringify(t) + ')'); await rig.frames(16);
             await gshot(TAG + '_' + tm + '_' + shell + '_' + vn, { kind: 'garage', tag: TAG, time: tm, shell, view: vn, eyeRoom: [lx, ey, lz], az: az === null ? +(a * 180 / Math.PI).toFixed(1) : az });
           }
@@ -200,7 +216,8 @@ const PAGE = `(() => {
         META.steps['garage_' + TAG + '_' + shell] = I; save();
       }
       await rig.ev('FLYDIY_ROOM_EYE(null)');
-      await rig.ev("(() => { try { GARAGE_ENV.setShell('club'); DAY_CLOCK.preset('afternoon'); return 1; } catch (e) { return 0; } })()", 140000); await rig.frames(60); await rig.settleLoad();
+      // (the player's document as it was found, the garage back where it stood)
+      if (doc0) await JJ('(async () => { try { FLYDIY_PLAYER.set(' + JSON.stringify(doc0) + '); if (FLYDIY_PLAYER.doc().here !== ' + JSON.stringify(doc0.here || 'HOME') + ') await FLYDIY_PLAYER.gotoGarage(' + JSON.stringify(doc0.here || 'HOME') + '); DAY_CLOCK.preset("afternoon"); return 1; } catch (e) { return 0; } })()', 160000); await rig.frames(60); await rig.settleLoad();
     }
     // a run that asked for the garage's pictures only ends here (no flight)
     if (!DO.some(k => k !== 'garage')) { META.done = true; META.seconds = Math.round((Date.now() - t0) / 1000); save(); log('done (the garage only): ' + META.grabs.length + ' grabs, ' + (META.blank || 0) + ' blank, ' + META.seconds + ' s'); await rig.close(); process.exit(0); }
@@ -264,14 +281,16 @@ const PAGE = `(() => {
           await grab('ground_' + tag + '_' + String(n).padStart(2, '0'), { kind: 'ground', set: tag, h, at: [q[0], gy, q[1]] }); n++; } return n; };
       const fp = h => [2 * h * tanV, 2 * h * tanV * asp];   // the footprint: along the eye's up (the picture's height), across
       const yawD = yawOf(S[0].doorDir.x, S[0].doorDir.z);
+      // (the frames' sizes are the SITE's: sites/<pack>.json through measure.json; the first site's as the defaults)
+      const SN = Object.assign({ out: 46, in: 6, side: 10 }, (M.site && M.site.near) || {}), SM = Object.assign({ u: 560, v: 460, out: 110 }, (M.site && M.site.mid) || {});
       // NEAR: 12 m up, in front of each door: 6 m inside the sill to 46 m out, the door's width + 10 m each side
       for (const Sd of S) { const [fu, fa] = fp(12), st = [fu * 0.88, fa * 0.88], pts = [];
-        const x0 = -Sd.HD - 46, x1 = -Sd.HD + 6, z0 = -Sd.door.w / 2 - 10, z1 = Sd.door.w / 2 + 10;
+        const x0 = -Sd.HD - SN.out, x1 = -Sd.HD + SN.in, z0 = -Sd.door.w / 2 - SN.side, z1 = Sd.door.w / 2 + SN.side;
         for (let lx = x1 - fu / 2; lx > x0 - st[0] / 2; lx -= st[0]) for (let lz = z0 + fa / 2 - 2; lz < z1 + st[1] / 2; lz += st[1]) pts.push(toWorld(Sd, lx, lz));
         const n = await tiles('near_' + Sd.id.replace(/\W/g, '_'), 12, pts, yawD); META.steps['ground_near_' + Sd.id] = { tiles: n, footprint: [fu, fa], rect: [x0, x1, z0, z1] }; save(); log('near ' + Sd.id + ': ' + n + ' tiles'); }
       // MID: 120 m up, the whole pavement: 560 x 460 m round the two sheds' middle, pushed 110 m out of the doors
-      { const [fu, fa] = fp(120), st = [fu * 0.88, fa * 0.88], pts = [], c = [M.mid.x + S[0].doorDir.x * 110, M.mid.z + S[0].doorDir.z * 110], d = [S[0].doorDir.x, S[0].doorDir.z], t = [-d[1], d[0]];
-        for (let u = -280 + fu / 2; u < 280 + st[0] / 2; u += st[0]) for (let v = -230 + fa / 2; v < 230 + st[1] / 2; v += st[1]) pts.push([c[0] + d[0] * u + t[0] * v, c[1] + d[1] * u + t[1] * v]);
+      { const [fu, fa] = fp(120), st = [fu * 0.88, fa * 0.88], pts = [], c = [M.mid.x + S[0].doorDir.x * SM.out, M.mid.z + S[0].doorDir.z * SM.out], d = [S[0].doorDir.x, S[0].doorDir.z], t = [-d[1], d[0]];
+        for (let u = -SM.u / 2 + fu / 2; u < SM.u / 2 + st[0] / 2; u += st[0]) for (let v = -SM.v / 2 + fa / 2; v < SM.v / 2 + st[1] / 2; v += st[1]) pts.push([c[0] + d[0] * u + t[0] * v, c[1] + d[1] * u + t[1] * v]);
         const n = await tiles('mid', 120, pts, yawD); META.steps.ground_mid = { tiles: n, footprint: [fu, fa], centre: c }; save(); log('mid: ' + n + ' tiles'); }
       // WIDE: 1200 m up, one picture over the middle, and one 800 m out of the doors
       { const d = [S[0].doorDir.x, S[0].doorDir.z]; const n = await tiles('wide', 1200, [[M.mid.x + d[0] * 200, M.mid.z + d[1] * 200], [M.mid.x + d[0] * 1000, M.mid.z + d[1] * 1000]], yawD); META.steps.ground_wide = { tiles: n, footprint: fp(1200) }; save(); log('wide: ' + n + ' tiles'); }
@@ -292,6 +311,13 @@ const PAGE = `(() => {
           await grab('ref_' + tm + '_' + Sd.id.replace(/\W/g, '_') + '_' + vn, { kind: 'ref', time: tm, shed: Sd.id, view: vn, eyeRoom: [lx, ey, lz], az, day });
         }
       }
+      if (DO.includes('refs')) {   // WHAT STANDS BEHIND each shed (its back window): the world's own sheds hidden, the garage's two back eyes
+        await JJ('JSON.stringify(GV.hide(["^shed:", "^shell:"], [], {}))'); await rig.frames(6);
+        for (const Sd of S) { const wy = (Sd.EAVE || 6) - 1.3, c = Math.cos(Sd.ry), s = Math.sin(Sd.ry), yw = yawOf(c, -s);   // (room +x in the world)
+          for (const [vn, lx, ey, pt] of [['back', -Sd.HD * 0.55, 1.8, Math.atan2(wy - 1.8, Sd.HD * 1.55)], ['back_high', -Sd.HD * 0.2, wy, -0.02]]) { const p = toWorld(Sd, lx, 0);
+            await eyeAt(p[0], floorY(Sd) + ey, p[1], yw, pt, 24);
+            await grab('ref_' + tm + '_' + Sd.id.replace(/\W/g, '_') + '_' + vn, { kind: 'ref', time: tm, shed: Sd.id, view: vn, eyeRoom: [lx, ey, 0], az: 180, day }); } }
+        await rig.ev('GV.show()'); await rig.frames(6); }
       META.steps['refs_' + tm] = { hid, day }; save(); log('refs ' + tm + ': ' + META.grabs.length + ' grabs so far');
       if (tm === 'noon' && DO.includes('ground')) await ground('preset noon (with the noon views)');
     }

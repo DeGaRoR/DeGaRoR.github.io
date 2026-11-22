@@ -58,6 +58,18 @@ first and the gpu lock inside (`gv.sh` writes it; RIG-PROCEDURE.md).
 - A capture's pictures are tone-mapped display values: only the CARD turns them back into texture values. No card, no
   texture.
 - The sandbox world has no building on a plot the player does not hold (HOME.2): the references show the world as it is.
+- `visible = false` does not hold in the game: the fill's partition, the LODs and the thrift re-show their meshes every
+  frame, and a hidden caster still shadows. `capture.js` enforces its hide list inside the draw (the `FLYDIY_AA.render`
+  wrap) and sets the lights' `shadow.intensity` to 0 for the ground pictures. Look at the tiles before the cook: a tree or
+  the shed's shadow in one means the hide list missed a name (read `scene_graph.json`).
+- A slot may end before the last thing is photographed: `cook.js --props <new capture>,<older capture>` takes each thing
+  from the first capture that holds it.
+- The cooked scene is NOT lit by the room. Its materials are unlit and carry the world's own sun, sky and ground light
+  and one haze (`garage_view.js lit()`, fed by `hangar.applyDay`): the room's lamps and its probe would tint the apron.
+- The room does not stand its own shed's outside round itself: the cook writes each world shed as a mesh of its own
+  (`props:shed:<id>`, with its place), the page skips the one within 12 m of the room.
+- The low layers (shrubs, ferns, flowers, rocks) are shot from ONE eye (the first shed's door) in rings of distance:
+  right from that door, a little off from a shed 70 m away. Two sheds far apart want two sets of rings (not built).
 
 ## 4. When the world changes
 

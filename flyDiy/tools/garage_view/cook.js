@@ -239,7 +239,7 @@ const SHEETS = CAP && fs.existsSync(path.join(CAP, 'sheets.json')) ? JSON.parse(
     if (atlas && (!sh || sh.row === undefined)) continue;
     const cy = sh ? sh.cy : CEN.trees[i + 8] / 2, diam = sh ? sh.diam : CEN.trees[i + 8] * 1.1, vx = E0[0] - x, vz = E0[1] - z, vl = Math.hypot(vx, vz) || 1, nx = vx / vl, nz = vz / vl, rx = nz, rz = -nx;   // right = up x toward-the-eye
     const w2 = diam * s / 2, h2 = diam * sy / 2, yc = y + cy * sy, b = pos.length / 3;
-    for (const [a, c] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const p = L(x + rx * w2 * a, yc + h2 * c, z + rz * w2 * a); pos.push(p[0], p[1], p[2]); nrm.push(nx, 0.25, nz); }
+    for (const [a, c] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const p = L(x + rx * w2 * a, yc + h2 * c, z + rz * w2 * a); pos.push(p[0], p[1], p[2]); nrm.push(nx, 0, nz); }   // (the card's face, level: the page stands the sheet's normal in it)
     let u0 = 0, v0 = 0, du = 1, dv = 1;
     if (atlas) { // the eye's direction in the tree's own frame (the tree is turned by rotation.y = yaw)
       const lx = nx * Math.cos(yaw) - nz * Math.sin(yaw), lz = nx * Math.sin(yaw) + nz * Math.cos(yaw); let k = 0, bd = -9; atlas.views.forEach((vw, q) => { const dd = vw.d[0] * lx + vw.d[2] * lz; if (dd > bd) { bd = dd; k = q; } });
@@ -252,26 +252,27 @@ const SHEETS = CAP && fs.existsSync(path.join(CAP, 'sheets.json')) ? JSON.parse(
 }
 
 // ================= WHAT STANDS NEAR ===========================================================================================
-if (PCAP && fs.existsSync(path.join(PCAP, 'capture.json'))) {
-  const CAP = PCAP;   // (the things' own capture)
-  const CJ = JSON.parse(fs.readFileSync(path.join(CAP, 'capture.json'), 'utf8')), PR = (CJ.steps.props && CJ.steps.props.kept) || [];
-  if (PR.length) {
+// (--props a,b: several captures, the first one that holds a thing wins - a slot may end before its last thing)
+const PCAPS = String(PCAP || '').split(',').filter(c => c && fs.existsSync(path.join(c, 'capture.json')));
+if (PCAPS.length) {
+  {
+    const things = [], seen = [];
     const f32 = b => { const u = Buffer.from(b, 'base64'); return new Float32Array(u.buffer, u.byteOffset, u.length / 4); }, u32 = b => { const u = Buffer.from(b, 'base64'); return new Uint32Array(u.buffer.slice(u.byteOffset, u.byteOffset + u.length)); };
     const camOf = g => { const m = g.cam.mw, p = g.cam.pj, w = g.info.w, h = g.info.h, t = [m[12], m[13], m[14]];
       return { w, h, pos: t, px: (x, y, z) => { const dx = x - t[0], dy = y - t[1], dz = z - t[2], vx = m[0] * dx + m[1] * dy + m[2] * dz, vy = m[4] * dx + m[5] * dy + m[6] * dz, vz = m[8] * dx + m[9] * dy + m[10] * dz, cw = p[3] * vx + p[7] * vy + p[11] * vz + p[15]; if (cw <= 1e-6) return null;
         return [((p[0] * vx + p[4] * vy + p[8] * vz + p[12]) / cw * 0.5 + 0.5) * w, (1 - ((p[1] * vx + p[5] * vy + p[9] * vz + p[13]) / cw * 0.5 + 0.5)) * h]; } }; };
+    for (const CAP of PCAPS) {
+    const CJ = JSON.parse(fs.readFileSync(path.join(CAP, 'capture.json'), 'utf8')), PR = (CJ.steps.props && CJ.steps.props.kept) || [];
     // the card under the props' sky: captured -> texture values (ground_merge.js's law, the greys only)
     const cardG = CJ.grabs.find(g => g.name === 'card_props'); let lut = null;
-    if (cardG) { const cam = camOf(cardG), I = PNG.decode(fs.readFileSync(path.join(CAP, cardG.name + '.png'))), K = cardG.card, cs = Math.cos(K.yaw), sn = Math.sin(K.yaw), xs = [[], [], []], ys = [];
+    if (cardG && fs.existsSync(path.join(CAP, cardG.name + '.png'))) { const cam = camOf(cardG), I = PNG.decode(fs.readFileSync(path.join(CAP, cardG.name + '.png'))), K = cardG.card, cs = Math.cos(K.yaw), sn = Math.sin(K.yaw), xs = [[], [], []], ys = [];
       for (let i = 0; i < 8; i++) { const lx = ((i % K.grid[0] + 0.5) / K.grid[0] - 0.5) * K.w, lz = ((Math.floor(i / K.grid[0]) + 0.5) / K.grid[1] - 0.5) * K.h, q = cam.px(K.at[0] + lx * cs + lz * sn, K.at[1], K.at[2] - lx * sn + lz * cs); if (!q) continue;
         const acc = [0, 0, 0]; let n = 0; for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) { const X = Math.round(q[0] + dx), Y = Math.round(q[1] + dy); if (X < 0 || Y < 0 || X >= I.w || Y >= I.h) continue; const o = (Y * I.w + X) * I.ch; acc[0] += I.data[o]; acc[1] += I.data[o + 1]; acc[2] += I.data[o + 2]; n++; }
         if (n) { for (let k = 0; k < 3; k++) xs[k].push(acc[k] / n); ys.push(K.cols[i][0]); } }
       if (ys.length >= 4) { lut = [0, 1, 2].map(k => { const X = xs[k].slice(), t = new Uint8Array(256); for (let i = 1; i < X.length; i++) if (X[i] <= X[i - 1]) X[i] = X[i - 1] + 0.01;
         for (let v = 0; v < 256; v++) { let i = 0; while (i < X.length - 2 && v > X[i + 1]) i++; t[v] = Math.max(0, Math.min(255, Math.round(ys[i] + (ys[i + 1] - ys[i]) * (v - X[i]) / (X[i + 1] - X[i])))); } return t; }); } }
-    // every thing's shots, their used rectangles packed on shelves into one sheet
-    const AT = 2048, sheet = new Uint8Array(AT * AT * 4), pos = [], nrm = [], uv = [], idx = []; let shelfY = 0, shelfH = 0, cursorX = 0, placed = 0, tris = 0;
-    const things = [];
     for (const pr of PR) { const f = path.join(CAP, 'prop_' + String(pr.i).padStart(2, '0') + '.json'); if (!fs.existsSync(f)) continue; const J = JSON.parse(fs.readFileSync(f, 'utf8')); if (!J.tris) continue;
+      if (pr.c && seen.some(c => Math.hypot(c[0] - pr.c[0], c[2] - pr.c[2]) < 2)) continue;   // (an earlier capture holds it)
       const P = f32(J.pos), Nn = f32(J.nrm), Ix = u32(J.idx),
       // (a thing's shots by its index and eye: capture 2 of 22 Nov wrote the thing's name over the grab's)
       shots = CJ.grabs.filter(g => g.kind === 'prop' && g.thing === pr.i).map(g => Object.assign({}, g, { name: 'prop_' + String(pr.i).padStart(2, '0') + '_' + g.eye })).filter(g => fs.existsSync(path.join(CAP, g.name + '.png'))).map(g => ({ g, cam: camOf(g), I: null, bb: [1e9, 1e9, -1e9, -1e9], tri: [] }));
@@ -284,7 +285,10 @@ if (PCAP && fs.existsSync(path.join(PCAP, 'capture.json'))) {
           const tx = sh.cam.pos[0] - cx, ty = sh.cam.pos[1] - cy, tz = sh.cam.pos[2] - cz, tl = Math.hypot(tx, ty, tz) || 1, sc = Math.abs(fn[0] * tx + fn[1] * ty + fn[2] * tz) / tl; if (sc > bs) { bs = sc; best = k; bq = q; } });
         if (best < 0) continue; const sh = shots[best]; sh.tri.push({ v: [a, b, c], q: bq });
         for (const v of bq) { sh.bb[0] = Math.min(sh.bb[0], v[0]); sh.bb[1] = Math.min(sh.bb[1], v[1]); sh.bb[2] = Math.max(sh.bb[2], v[0]); sh.bb[3] = Math.max(sh.bb[3], v[1]); } }
-      things.push({ pr, P, Nn, shots: shots.filter(sh => sh.tri.length) }); }
+      things.push({ pr, P, Nn, CAP, lut, shots: shots.filter(sh => sh.tri.length) }); if (pr.c) seen.push(pr.c); }
+    }
+    // every thing's shots, their used rectangles packed on shelves into one sheet
+    const AT = 2048, sheet = new Uint8Array(AT * AT * 4), BK = new Map(); let shelfY = 0, shelfH = 0, cursorX = 0, placed = 0, tris = 0;
     function cam3(cam, P, a) { return cam.px(P[a], P[a + 1], P[a + 2]); }
     // the scale: the rectangles' total area into ~80 % of the sheet
     let area = 0; for (const th of things) for (const sh of th.shots) area += (sh.bb[2] - sh.bb[0] + 4) * (sh.bb[3] - sh.bb[1] + 4);
@@ -292,14 +296,16 @@ if (PCAP && fs.existsSync(path.join(PCAP, 'capture.json'))) {
     const all = []; for (const th of things) for (const sh of th.shots) all.push({ th, sh, w: Math.ceil((sh.bb[2] - sh.bb[0]) * sc) + 4, h: Math.ceil((sh.bb[3] - sh.bb[1]) * sc) + 4 });
     all.sort((a, b) => b.h - a.h);
     for (const R of all) { if (cursorX + R.w > AT) { cursorX = 0; shelfY += shelfH; shelfH = 0; } if (shelfY + R.h > AT) { R.skip = true; continue; } R.x = cursorX; R.y = shelfY; cursorX += R.w; shelfH = Math.max(shelfH, R.h); placed++;
-      const I = PNG.decode(fs.readFileSync(path.join(CAP, R.sh.g.name + '.png')));
+      const I = PNG.decode(fs.readFileSync(path.join(R.th.CAP, R.sh.g.name + '.png'))), lut = R.th.lut;
       for (let y = 0; y < R.h; y++) for (let x = 0; x < R.w; x++) { const sx = R.sh.bb[0] + (x - 2) / sc, sy = R.sh.bb[1] + (y - 2) / sc, X = Math.max(0, Math.min(I.w - 1, Math.round(sx))), Y = Math.max(0, Math.min(I.h - 1, Math.round(sy))), o = (Y * I.w + X) * I.ch, d = ((R.y + y) * AT + R.x + x) * 4;
         for (let k = 0; k < 3; k++) sheet[d + k] = lut ? lut[k][I.data[o + k]] : I.data[o + k]; sheet[d + 3] = 255; }
-      for (const tr of R.sh.tri) { const b = pos.length / 3; for (let k = 0; k < 3; k++) { const a = tr.v[k], p = L(R.th.P[a], R.th.P[a + 1], R.th.P[a + 2]); pos.push(p[0], p[1], p[2]); nrm.push(R.th.Nn[a], R.th.Nn[a + 1], R.th.Nn[a + 2]);
-          uv.push((R.x + 2 + (tr.q[k][0] - R.sh.bb[0]) * sc) / AT, 1 - (R.y + 2 + (tr.q[k][1] - R.sh.bb[1]) * sc) / AT); } idx.push(b, b + 1, b + 2); tris++; } }
+      // a SHED of the world is a mesh of its own (a room does not stand its own shed's outside round itself: the page leaves it out)
+      const own = /^shed:/.test(R.th.pr.name || '') ? R.th.pr.name : '', Bk = BK.get(own) || (BK.set(own, { pos: [], nrm: [], uv: [], idx: [], c: R.th.pr.c }), BK.get(own));
+      for (const tr of R.sh.tri) { const b = Bk.pos.length / 3; for (let k = 0; k < 3; k++) { const a = tr.v[k], p = L(R.th.P[a], R.th.P[a + 1], R.th.P[a + 2]); Bk.pos.push(p[0], p[1], p[2]); Bk.nrm.push(R.th.Nn[a], R.th.Nn[a + 1], R.th.Nn[a + 2]);
+          Bk.uv.push((R.x + 2 + (tr.q[k][0] - R.sh.bb[0]) * sc) / AT, 1 - (R.y + 2 + (tr.q[k][1] - R.sh.bb[1]) * sc) / AT); } Bk.idx.push(b, b + 1, b + 2); tris++; } }
     if (tris) { fs.writeFileSync(path.join(OUT, 'props.png'), PNG.encode(AT, AT, 4, sheet)); SCENE.textures.props = { file: 'props.png', srgb: true };
-      mesh('props', 'props', 'props', { pos: new Float32Array(pos), nrm: new Float32Array(nrm), uv: new Float32Array(uv), idx: new Uint32Array(idx) }, { doubleSide: true });
-      SCENE.stats.props = { things: things.length, names: things.map(t => t.pr.name), shots: placed, tris, scale: +sc.toFixed(3), card: !!lut }; }
+      for (const [own, Bk] of BK) mesh(own ? 'props:' + own : 'props', 'props', 'props', { pos: new Float32Array(Bk.pos), nrm: new Float32Array(Bk.nrm), uv: new Float32Array(Bk.uv), idx: new Uint32Array(Bk.idx) }, own ? { doubleSide: true, at: [Bk.c[0], Bk.c[2]] } : { doubleSide: true });
+      SCENE.stats.props = { things: things.length, names: things.map(t => t.pr.name), shots: placed, tris, scale: +sc.toFixed(3), card: things.some(t => !!t.lut), from: PCAPS.map(c => path.basename(c)) }; }
   }
 }
 

@@ -72,7 +72,9 @@ for (const P of PK.packs) {
   ok(/gviewFrom: pack =>/.test(han) && /GARAGE_VIEW\.build\(THREE, pack, \{ shed: SHED_W/.test(han), '5b the room stands a scene by its shed\'s place in the world (gviewFrom, SHED_W)');
   ok(/o\.visible = !viewOut && \(!GVIEW \|\| o === GVIEW\.group \|\| o === GVIEW\.shadow\)/.test(han) && /ROOM_PAD\.visible = !viewOut && !GVIEW/.test(han), '5c the hand-drawn outdoors stay down while a scene stands (outdoorsShow)');
   ok(/group\.rotation\.y = -sh\.ry/.test(gv) && !/siteToLocal/.test(gv), '5d the scene is placed by the shed\'s TRUE yaw (no siteToLocal quarter turn)');
-  ok(/fog: false/.test(gv) && /customProgramCacheKey = \(\) => 'gview-haze'/.test(gv), '5e the scene\'s materials: no room fog, ONE haze injection (one program key)');
+  ok(/fog: false/.test(gv) && /new THREE\.MeshBasicMaterial/.test(gv) && !/MeshStandardMaterial/.test(gv) && /customProgramCacheKey = \(\) => 'gview-lit' \+ \(nrm \? '-n' : ''\)/.test(gv),
+    '5e the scene\'s materials carry the WORLD\'s light themselves (unlit for three: no room lamp, no probe, no room fog), two program keys at most');
+  ok(/GV_LAST = \[day, /.test(han) && /if \(GV_LAST && B\.update\) B\.update\(GV_LAST\[0\], GV_LAST\[1\]\)/.test(han), '5g a scene that lands takes the last day of the room at once (it stood black at the boot hour until the clock moved)');
   ok(/gviewTick\(\)/.test(app) && /GARAGE_VIEW\.find\(window\.FLYDIY_WORLD, roomBase\(\), roomId\(\)\)/.test(app), '5f app.js asks for the room\'s scene by its world, field and shed, behind the room (gviewTick, GARAGE_VIEW.find)');
 }
 console.log(fails ? 'GATE GARAGEVIEW: FAIL (' + fails + ')' : 'GATE GARAGEVIEW: PASS');

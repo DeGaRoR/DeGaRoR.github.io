@@ -16,20 +16,34 @@ ap.add_argument('--garage', required=True)
 ap.add_argument('--out', required=True)
 ap.add_argument('--times', default='now,noon,golden,night')
 ap.add_argument('--views', default='door_out,door_left,door_right')
-ap.add_argument('--w', type=int, default=960)
+ap.add_argument('--w', type=int, default=720)
 ap.add_argument('--note', default='')
+ap.add_argument('--today', default='')   # the folder of the 'garage today' pictures, when another run than --garage shot them
+ap.add_argument('--sheds', default='HOME:club:Club hangar')   # ref shed id : garage shell : title, comma separated
 A = ap.parse_args()
 esc = html.escape
 TIMES, VIEWS = A.times.split(','), A.views.split(',')
-SHEDS = [('HOME', 'club', 'Club hangar'), ('HOME_2', 'works', 'Large hangar')]
+SHEDS = [tuple(x.split(':')) for x in A.sheds.split(',')]
 TNAME = {'now': '16:00 (the hour the game opens in)', 'noon': 'Noon', 'golden': 'Golden hour', 'night': 'Night'}
-VNAME = {'door_out': 'straight out of the door', 'door_left': '45 degrees left', 'door_right': '45 degrees right', 'door_high': 'from 4 m up', 'inside': 'from the back of the room'}
+VNAME = {'door_out': 'straight out of the door', 'door_left': '45 degrees left', 'door_right': '45 degrees right', 'door_high': 'from 4 m up', 'inside': 'from the back of the room',
+         'back': 'the back wall and its high window, from the floor', 'back_high': 'level through the back window', 'apron_out': 'from the apron, 14 m out'}
 
 
-def jpg(path):
+def aspect_of(path):
+    if not os.path.exists(path):
+        return None
+    with Image.open(path) as im:
+        return im.width / im.height
+
+
+def jpg(path, aspect=None):
     if not os.path.exists(path):
         return None
     im = Image.open(path).convert('RGB')
+    # the garage's canvas is narrower than the flight's (its panels): the game's picture is cut to the same shape, about its centre
+    if aspect and im.width / im.height > aspect * 1.02:
+        w = round(im.height * aspect); x0 = (im.width - w) // 2
+        im = im.crop((x0, 0, x0 + w, im.height))
     if im.width > A.w:
         im = im.resize((A.w, round(im.height * A.w / im.width)), Image.LANCZOS)
     b = io.BytesIO(); im.save(b, 'JPEG', quality=78, optimize=True)
@@ -47,8 +61,9 @@ for sid, shell, sname in SHEDS:
     blk = []
     for t in TIMES:
         for v in VIEWS:
-            g = jpg(os.path.join(A.refs, 'ref_%s_%s_%s.png' % (t, sid, v)))
-            a = jpg(os.path.join(A.garage, 'today_%s_%s_%s.png' % (t, shell, v)))
+            asp = aspect_of(os.path.join(A.garage, 'today_%s_%s_%s.png' % (t, shell, v))) or aspect_of(os.path.join(A.garage, 'gview_%s_%s_%s.png' % (t, shell, v)))
+            g = jpg(os.path.join(A.refs, 'ref_%s_%s_%s.png' % (t, sid, v)), asp)
+            a = jpg(os.path.join(A.today or A.garage, 'today_%s_%s_%s.png' % (t, shell, v)))
             b = jpg(os.path.join(A.garage, 'gview_%s_%s_%s.png' % (t, shell, v)))
             if not (g or a or b):
                 continue
