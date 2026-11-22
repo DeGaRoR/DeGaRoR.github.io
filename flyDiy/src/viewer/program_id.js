@@ -38,8 +38,9 @@
 //        readiness was first learnt by a status query that WAITED held that frame (`blocked`, with the ms); one never
 //        drawn was warmed for nothing.
 //      - WHAT IT IS: three's type and name, the hash of its cache key, the hash and the size of its final vertex and
-//        fragment source (the fingerprint: the same text links the same program on any boot), and the #defines of
-//        three's prefix (USE_FOG, USE_SHADOWMAP, USE_INSTANCING, ...): the VARIANT, readable.
+//        fragment source (the fingerprint: the same text links the same program on any boot), and the VARIANT,
+//        readable: the #defines of three's prefix (USE_FOG, USE_SHADOWMAP, USE_INSTANCING, ...) and the axes three
+//        writes into the body (LIGHTS=, SHADOWS=, TONE=, OUT=, OPAQUE, DITHERING, a hook's DMG_SCUFF: bodyTags).
 //      - WHERE: the boot step it was made in, compile / render / shadow, the render target.
 //    Rows go to the recorder's log as events ('prog' when its owner is known, 'progready', 'proguse') and whole, with
 //    the defines, in the downloaded log's `programs`. tools/program_report.js reads them.
@@ -97,6 +98,35 @@
     return out;
   }
 
+  // THE VARIANT'S OTHER AXES ARE IN THE BODY (PERF-LEAD's reading of the skin family, 22 Nov: 75 programs for 24
+  // prefixes). Three writes the light and shadow counts into the text as array sizes (`directionalLights[ 2 ]`), and
+  // the tone mapping, the output transfer, OPAQUE and DITHERING after the fragment prefix's first uniform - where
+  // defsOf stops; a game hook's own switch (DMG_SCUFF) is a #define in the body too. bodyTags() reads them off the
+  // FRAGMENT text with one pass of one regex and gives them as tags beside the prefix defines:
+  //   LIGHTS=dir.point.spot.hemi   SHADOWS=dir.point.spot   CLIP=n   TONE=<function>   OUT=sRGB|linear   OPAQUE
+  //   DITHERING   DMG_SCUFF   (and any other #define DMG_* / GD_* / BAND_* a hook wrote)
+  // ~1 ms a 200 KB text: it is NOT done at the link. The texts wait in a queue read in the page's idle time
+  // (requestIdleCallback), and what is left when a table is asked for is read then.
+  const BODY = /(directionalLights|pointLights|spotLights|hemisphereLights|directionalLightShadows|pointLightShadows|spotLightShadows|clippingPlanes)\[ ?(\d+) ?\]|vec3 toneMapping\( vec3 color \) \{ return (\w+)|linearToOutputTexel\( vec4 value \) \{\s*return \(?\s*(\w+)|#define[ \t]+(TONE_MAPPING|OPAQUE|DITHERING|(?:DMG|GD|BAND)_\w+)\b|uniform float (uFbFade)\b/g;
+  function bodyTags(src) {
+    const n = { directionalLights: -1, pointLights: -1, spotLights: -1, hemisphereLights: -1, directionalLightShadows: -1, pointLightShadows: -1, spotLightShadows: -1, clippingPlanes: -1 };
+    let tone = null, out = null; const flags = new Set(); let m; BODY.lastIndex = 0;
+    while ((m = BODY.exec(src))) {
+      if (m[1]) { const v = +m[2]; if (v > n[m[1]]) n[m[1]] = v; }
+      else if (m[3]) tone = m[3].replace(/ToneMapping$/, '');
+      else if (m[4]) out = /sRGB/.test(m[4]) ? 'sRGB' : 'linear';
+      else if (m[5] && m[5] !== 'TONE_MAPPING') flags.add(m[5]);
+      else if (m[6]) flags.add('FLOWN_FADE');   // (flown_bake.js: the live / band twins' dither is a uniform, uFbFade, not a define)
+    }
+    const z = k => Math.max(0, n[k]), tags = [];
+    if (n.directionalLights >= 0 || n.pointLights >= 0 || n.spotLights >= 0 || n.hemisphereLights >= 0) tags.push('LIGHTS=' + z('directionalLights') + '.' + z('pointLights') + '.' + z('spotLights') + '.' + z('hemisphereLights'));
+    if (n.directionalLightShadows >= 0 || n.pointLightShadows >= 0 || n.spotLightShadows >= 0) tags.push('SHADOWS=' + z('directionalLightShadows') + '.' + z('pointLightShadows') + '.' + z('spotLightShadows'));
+    if (n.clippingPlanes > 0) tags.push('CLIP=' + n.clippingPlanes);
+    if (tone) tags.push('TONE=' + tone); if (out) tags.push('OUT=' + out);
+    for (const f of [...flags].sort()) tags.push(f);
+    return tags;
+  }
+
   // ---- 2. the registry ----------------------------------------------------------------------------------------
   let H = null;                                       // the one hook of the page (a second renderer keeps the first's)
   function hook(renderer, gl, clock, event) {
@@ -105,7 +135,14 @@
     const props = renderer.properties;
     const rows = [], byGL = new WeakMap(), byThree = new WeakMap(), SH = new WeakMap(), PSH = new WeakMap();
     let fresh = [];                                   // rows whose three program is known and whose material is not yet
-    const self = { hashMs: 0, resolveMs: 0, resolves: 0, walked: 0 };
+    const self = { hashMs: 0, resolveMs: 0, resolves: 0, walked: 0, bodyMs: 0, bodies: 0 };
+    // the fragment texts waiting for bodyTags(), read when the page is idle
+    const bodyQ = []; let bodyT = 0;
+    const bodyRun = dl => { bodyT = 0; const t0 = clock(); let first = !!(dl && dl.didTimeout);   // (a page busy for 4 s: one text all the same, so the queue cannot only grow)
+      while (bodyQ.length && (first || (dl && typeof dl.timeRemaining === 'function' ? dl.timeRemaining() > 2 : clock() - t0 < 4))) { first = false; const e = bodyQ.pop(), t = clock(); e[0].body = bodyTags(e[1]); self.bodyMs += clock() - t; self.bodies++; }
+      if (bodyQ.length) bodySoon(); };
+    const bodySoon = () => { if (bodyT) return; try { bodyT = typeof W.requestIdleCallback === 'function' ? W.requestIdleCallback(bodyRun, { timeout: 4000 }) : setTimeout(bodyRun, 200); } catch (e) { bodyT = 0; } };
+    const bodyFlush = () => { while (bodyQ.length) { const e = bodyQ.pop(), t = clock(); e[0].body = bodyTags(e[1]); self.bodyMs += clock() - t; self.bodies++; } };
     const r1 = x => Math.round(x * 10) / 10;
     const bootStep = () => { const B = W.BOOT; return B ? (B.set || '') + ':' + ((B.current && B.current.id) || (B.state === 'gone' ? '-' : B.state || '')) : ''; };
     const rtName = () => { let rt = null; try { rt = renderer.getRenderTarget(); } catch (e) {}
@@ -117,7 +154,7 @@
       if (typeof ss === 'function' && typeof at === 'function') {
         gl.shaderSource = function (s, src) {
           if (s && typeof src === 'string') {
-            if (MODE === 2) { const t = clock(); SH.set(s, { len: src.length, h: fnv(src), defs: defsOf(src) }); self.hashMs += clock() - t; }
+            if (MODE === 2) { const t = clock(); SH.set(s, { len: src.length, h: fnv(src), defs: defsOf(src), src }); self.hashMs += clock() - t; }   // (src: kept to the link only, for the body's tags)
             else SH.set(s, { len: src.length, h: 0, defs: null });
           }
           return ss.call(gl, s, src);
@@ -150,7 +187,10 @@
         inCompile++;
         let set;
         try { set = targetScene === undefined ? compile.call(this, scene, camera) : compile.call(this, scene, camera, targetScene); } finally { inCompile--; }
-        if (fresh.length && set && typeof set.forEach === 'function') { const t = clock(); set.forEach(m => holds(m, null)); close(false); self.resolveMs += clock() - t; self.resolves++; }
+        if (fresh.length && set && typeof set.forEach === 'function') { const t = clock(); set.forEach(m => holds(m, null));
+          // a program nobody answers for: the compiled objects are asked too, so that its row at least says who wears it
+          if (fresh.some(r => r.found && !r.owners.length && !r.objs.length)) walk(scene);
+          close(false); self.resolveMs += clock() - t; self.resolves++; }
         return set;
       };
     } catch (e) {}
@@ -163,9 +203,17 @@
       if (!ps || typeof ps.forEach !== 'function') return;
       ps.forEach(pr => { const r = byThree.get(pr); if (r !== undefined && r.open) attribute(r, m, o); });
     }
+    // (the cold captures of 22 Nov: 61 unowned programs read '<MeshStandardMaterial>' and nothing else. A material with
+    //  no owner now says what can be said of it: its userData's keys, its colour, its map's name - the trail to its maker)
+    const describe = m => { let s = (m.name || '') + '<' + m.type + '>';
+      try { if (!ownersOf(m).length) { const k = Object.keys(m.userData || {}).slice(0, 8).join(','); s += '{' + (k ? 'ud:' + k + ' ' : '') + (m.color && m.color.getHexString ? '#' + m.color.getHexString() : '') +
+        (m.map ? ' map:' + (m.map.name || (m.map.isCanvasTexture ? 'canvas' : m.map.isDataTexture ? 'data' : m.map.isCompressedTexture ? 'ktx' : 'tex')) : '') + (m.vertexColors ? ' vc' : '') + (m.transparent ? ' transp' : '') + '}'; } } catch (e) {}
+      return s; };
+    // a compile's stand-in (PROG_WARM.standIn: an object whose prototype is the real one, its parent cut) stands for it
+    const realOf = o => { try { const p = Object.getPrototypeOf(o); return o.parent === null && p && p.isObject3D ? p : o; } catch (e) { return o; } };
     function attribute(r, m, o) {
       for (const w of ownersOf(m)) if (r.owners.indexOf(w) < 0) r.owners.push(w);
-      const mn = (m.name || '') + '<' + m.type + '>';
+      const mn = describe(m); if (o) o = realOf(o);
       if (r.mats.length < 4 && r.mats.indexOf(mn) < 0) r.mats.push(mn);
       if (o && r.objs.length < 2) { let s = o.name || o.type, p = o.parent, k = 0; while (p && k++ < 6) { if (p.name) s = p.name + '/' + s; p = p.parent; } if (r.objs.indexOf(s) < 0) r.objs.push(s); }
       r.found = true;
@@ -186,9 +234,9 @@
       const keep = [];
       for (const r of fresh) {
         if (!r.found && !all) { keep.push(r); continue; }
-        if (!r.found) {
-          const w = THREE_OWN[r.name] || THREE_TYPE[r.type];
-          if (w) { r.owners.push(w); r.mats.push('(three) ' + (r.name || r.type)); }
+        if (!r.owners.length) {   // three's own: by its name whether a scene of three's held it (the PMREM bakes) or none did
+          const w = THREE_OWN[r.name] || (!r.found ? THREE_TYPE[r.type] : null);
+          if (w) { r.owners.push(w); if (!r.found) r.mats.push('(three) ' + (r.name || r.type)); }
         }
         r.open = false;
         event('prog', r.t0, null, { n: r.n, id: r.id, name: r.name, type: r.type, own: r.owners.join(' | ') || null, mat: r.mats.join(' | ') || null,
@@ -211,9 +259,11 @@
         const r = { n, t, linkMs: ms, t0: t, id: null, name: null, type: null, key: null, keyLen: 0,
           fp: vs && fs && MODE === 2 ? hex(vs.h) + hex(fs.h) : null, vsLen: vs ? vs.len : null, fsLen: fs ? fs.len : null,
           defs: vs && fs && vs.defs ? merge(vs.defs, fs.defs) : null,
-          ctx: ctxNow(), step: bootStep(), rt: null, owners: [], mats: [], objs: [], open: false, found: false,
+          body: null, ctx: ctxNow(), step: bootStep(), rt: null, owners: [], mats: [], objs: [], open: false, found: false,
           polls: 0, pendT: null, readyT: null, via: null, waitMs: null, fu0: null, firstUseMs: null, useT: null, useCtx: null, blocked: false, relink: byGL.has(p) };
         rows.push(r); byGL.set(p, r);
+        if (fs && fs.src) { bodyQ.push([r, fs.src]); fs.src = null; bodySoon(); }
+        if (vs && vs.src) vs.src = null;
       },
       // three made a WebGLProgram (renderer.info.programs.push): its .program is the GL object just linked
       created(pr) {
@@ -256,7 +306,7 @@
       // the rows, plain (the log's `programs`); a CENSUS over `roots` adds every material that holds each program now
       table(roots) {
         if (roots === true) roots = alive();
-        P.flush(roots);
+        P.flush(roots); bodyFlush();
         let holders = null;
         if (roots && roots.length && props) {
           holders = new Map();
@@ -269,7 +319,7 @@
         }
         return rows.map(r => {
           const o = { n: r.n, id: r.id, name: r.name, type: r.type, own: r.owners.slice(), mat: r.mats.slice(), obj: r.objs.slice(), key: r.key, keyLen: r.keyLen, fp: r.fp, vs: r.vsLen, fs: r.fsLen,
-            defs: r.defs, ctx: r.ctx, step: r.step, rt: r.rt, t: r1(r.t), linkMs: r.linkMs === null ? null : r1(r.linkMs), polls: r.polls, pendT: r.pendT === null ? null : r1(r.pendT),
+            defs: r.defs ? (r.body && r.body.length ? r.defs.concat(r.body) : r.defs) : null, body: r.body, ctx: r.ctx, step: r.step, rt: r.rt, t: r1(r.t), linkMs: r.linkMs === null ? null : r1(r.linkMs), polls: r.polls, pendT: r.pendT === null ? null : r1(r.pendT),
             readyT: r.readyT === null ? null : r1(r.readyT), via: r.via, waitMs: r.waitMs === null ? null : r1(r.waitMs), useT: r.useT === null ? null : r1(r.useT), useCtx: r.useCtx, firstUseMs: r.firstUseMs === null ? null : r1(r.firstUseMs),
             blocked: r.blocked, relink: r.relink, three: r.id !== null };
           const h = holders && holders.get(r);
@@ -281,14 +331,88 @@
         let three = 0, owned = 0, ready = 0, drawn = 0, late = 0, blocked = 0;
         for (const r of rows) { if (r.id !== null) three++; if (r.owners.length) owned++; if (r.readyT !== null) ready++; if (r.useT !== null) drawn++; if (r.ctx !== 'compile') late++; if (r.blocked) blocked++; }
         return { mode: MODE, links: rows.length, three, owned, unowned: three - owned, pendingOwner: fresh.length, seenReady: ready, drawn, notCompiled: late, drawnBeforeReady: blocked,
-          hashMs: r1(self.hashMs), resolveMs: r1(self.resolveMs), resolves: self.resolves, walked: self.walked };
+          hashMs: r1(self.hashMs), resolveMs: r1(self.resolveMs), resolves: self.resolves, walked: self.walked, bodyMs: r1(self.bodyMs), bodies: self.bodies, bodiesWaiting: bodyQ.length };
       },
     };
     return P;
   }
   function merge(a, b) { const s = new Set(a); for (const x of b) s.add(x); return [...s].sort(); }
 
-  const API = { own, ownersOf, hook, THREE_OWN, THREE_TYPE, defsOf, fnv, get mode() { return MODE; },
+  // ---- 3. THE UPLOADS OF A STEADY FRAME, BY OWNER (?recup=1; PERF-LEAD, 22 Nov) ---------------------------------------
+  // The 07:00 captures: in flight the game sends ~4 MB to the GPU EVERY frame (73 buffer updates, 54 buffer creations,
+  // ~70 texture calls). The GL counters say how much; this says WHOSE. Three uploads a buffer or a texture when its
+  // `version` moved, and the version moves through the `needsUpdate` setter of BufferAttribute, InterleavedBuffer and
+  // Texture: with ?recup=1 those three setters are wrapped (the original is called first, unchanged) and each object
+  // marked is counted - its marks, the FRAMES it was marked in, its bytes (the attribute's array, or its update
+  // ranges; a texture's width x height x layers) - and, on one frame in 32, a SAMPLE of its content is hashed at the
+  // frame's end (1 024 elements across the array): an object marked again with the same sample was very likely
+  // re-uploaded UNCHANGED. Nothing is asked of the GL. WHOSE it is is found when the table is asked for, not during
+  // the frames: the scenes the renderer drew are walked once - geometry attributes, instance matrices and colours, the
+  // index, morph and bone textures -> the mesh's path and its material's owner; a material's maps and uniforms -> the
+  // texture. An object no scene holds any more keeps its own name, or is 'gone'. OFF by default: nothing is wrapped.
+  // The counters restart at each reveal (the flight's own), so the table is the flight's, not the loading's.
+  const TRAFFIC_ON = /[?&]recup=1(?:&|$)/.test(q);
+  let TR = null;
+  function traffic(THREE, frameOf) {
+    if (!TRAFFIC_ON || TR || !THREE) return TR;
+    const recs = new WeakMap(), list = [], WR = typeof WeakRef === 'function';
+    let frame0 = frameOf(), marked = [], lastF = -1;
+    const bytesOf = (o, kind) => { try {
+      if (kind === 'tex') { const im = o.image; if (!im) return 0; if (im.data && im.data.byteLength) return im.data.byteLength; return (im.width || 0) * (im.height || 0) * (im.depth || 1) * 4; }
+      const a = o.array; if (!a) return 0; const ur = o.updateRanges;
+      if (ur && ur.length) { let n = 0; for (let i = 0; i < ur.length; i++) n += ur[i].count; return n * a.BYTES_PER_ELEMENT; }
+      return a.byteLength; } catch (e) { return 0; } };
+    const mark = (o, kind) => {
+      let r = recs.get(o);
+      if (r === undefined) { r = { kind, marks: 0, frames: 0, lastF: -1, bytes: 0, max: 0, hash: null, same: 0, diff: 0, ref: WR ? new WeakRef(o) : null, name: (o.name || '') }; recs.set(o, r); if (list.length < 20000) list.push(r); }
+      const f = frameOf(); r.marks++; const b = bytesOf(o, kind); r.bytes += b; if (b > r.max) r.max = b;
+      if (r.lastF !== f) { r.lastF = f; r.frames++; if (f !== lastF) { lastF = f; marked.length = 0; } marked.push(r); }
+    };
+    const wrap = (proto, kind) => { const d = proto && Object.getOwnPropertyDescriptor(proto, 'needsUpdate');
+      if (!d || typeof d.set !== 'function') return false;
+      Object.defineProperty(proto, 'needsUpdate', { configurable: true, enumerable: d.enumerable, get: d.get, set(v) { d.set.call(this, v); if (v === true) mark(this, kind); } }); return true; };
+    const wrapped = [wrap(THREE.BufferAttribute && THREE.BufferAttribute.prototype, 'attr'), wrap(THREE.InterleavedBuffer && THREE.InterleavedBuffer.prototype, 'attr'), wrap(THREE.Texture && THREE.Texture.prototype, 'tex')];
+    // a sample of an object's content: 1 024 elements across its array (a canvas or an image has none: not judged)
+    const sample = o => { const a = o && (o.array || (o.image && o.image.data)); if (!a || !a.length) return null;
+      const n = a.length, st = Math.max(1, Math.floor(n / 1024)); let h = 0x811c9dc5;
+      for (let i = 0; i < n; i += st) { h ^= (a[i] * 4096) | 0; h = imul(h, 16777619); } return h >>> 0; };
+    TR = { on: true, wrapped,
+      // the frame is over: on one frame in 32, what was marked in it is sampled and compared with its last sample
+      frameEnd(f) { if ((f & 31) !== 0 || lastF !== f) return;
+        for (let i = 0; i < marked.length; i++) { const r = marked[i], o = r.ref ? r.ref.deref() : null; if (!o) continue; const h = sample(o); if (h === null) continue;
+          if (r.hash !== null) { if (r.hash === h) r.same++; else r.diff++; } r.hash = h; } },
+      reset() { frame0 = frameOf(); for (const r of list) { r.marks = 0; r.frames = 0; r.bytes = 0; r.max = 0; r.same = 0; r.diff = 0; r.hash = null; r.lastF = -1; } },
+      // the table: whose each marked object is, from the scenes given
+      table(roots) {
+        const who = new Map();   // object -> { owner, path, what }
+        const put = (o, owner, path, what) => { if (o && !who.has(o)) who.set(o, { owner, path, what }); };
+        const pathOf = m => { let s = m.name || m.type, p = m.parent, k = 0; while (p && k++ < 5) { if (p.name) s = p.name + '/' + s; p = p.parent; } return s; };
+        const texOf = (m, owner, path) => { try { for (const k in m) { const v = m[k]; if (v && v.isTexture) put(v, owner, path, k); }
+          const U = m.uniforms; if (U) for (const k in U) { const v = U[k] && U[k].value; if (v && v.isTexture) put(v, owner, path, 'uniform ' + k); else if (Array.isArray(v)) for (const x of v) if (x && x.isTexture) put(x, owner, path, 'uniform ' + k); }
+          const ud = m.userData; if (ud) for (const k in ud) { const v = ud[k]; if (v && v.isTexture) put(v, owner, path, 'userData ' + k); else if (v && v.value && v.value.isTexture) put(v.value, owner, path, 'userData ' + k); } } catch (e) {} };
+        for (const sc of (roots || [])) if (sc && sc.traverse) sc.traverse(o => {
+          const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [], owner = (mats[0] && ownersOf(mats[0])[0]) || null, path = pathOf(o), g = o.geometry;
+          if (g) { const A = g.attributes || {}; for (const k in A) { const a = A[k]; put(a.isInterleavedBufferAttribute ? a.data : a, owner, path, k); } if (g.index) put(g.index, owner, path, 'index');
+            const MA = g.morphAttributes || {}; for (const k in MA) for (const a of MA[k]) put(a, owner, path, 'morph ' + k); }
+          if (o.instanceMatrix) put(o.instanceMatrix, owner, path, 'instanceMatrix'); if (o.instanceColor) put(o.instanceColor, owner, path, 'instanceColor');
+          if (o.morphTexture) put(o.morphTexture, owner, path, 'morphTexture'); if (o.skeleton && o.skeleton.boneTexture) put(o.skeleton.boneTexture, owner, path, 'boneTexture');
+          if (o._matricesTexture) put(o._matricesTexture, owner, path, 'batch matrices'); if (o._colorsTexture) put(o._colorsTexture, owner, path, 'batch colours');
+          for (const m of mats) if (m) texOf(m, ownersOf(m)[0] || null, path);
+        });
+        const frames = Math.max(1, frameOf() - frame0), rows = [];
+        let tot = 0, named = 0;
+        for (const r of list) { if (!r.marks) continue; const o = r.ref ? r.ref.deref() : null, w = o ? who.get(o) : null; tot += r.bytes; if (w) named += r.bytes;
+          rows.push({ kind: r.kind, what: w ? w.what : (r.name || (o ? (o.isTexture ? 'texture' : 'attribute') : 'gone')), owner: w ? w.owner : null, at: w ? w.path : (o ? 'not in a drawn scene' : 'gone'), name: r.name || null,
+            marks: r.marks, frames: r.frames, per100: Math.round(1000 * r.frames / frames) / 10, KB: Math.round(r.max / 1024), MB: Math.round(r.bytes / 104857.6) / 10, sampled: r.same + r.diff, unchanged: r.same }); }
+        rows.sort((a, b) => b.MB - a.MB);
+        return { frames, objects: rows.length, MB: Math.round(tot / 104857.6) / 10, namedMB: Math.round(named / 104857.6) / 10, perFrameKB: Math.round(tot / 1024 / frames), wrapped, rows: rows.slice(0, 300) };
+      },
+    };
+    return TR;
+  }
+
+  const API = { own, ownersOf, hook, THREE_OWN, THREE_TYPE, defsOf, bodyTags, fnv, get mode() { return MODE; },
+    traffic, get trafficOn() { return TRAFFIC_ON; }, uploads: () => (TR && H ? TR.table(H.scenes()) : null),
     table: roots => (H ? H.table(roots) : []), summary: () => (H ? H.summary() : null), awaiting: t => (H ? H.awaiting(t) : []), flush: roots => { if (H) H.flush(roots); },
     _reset: () => { H = null; } };
   W.PROGRAMS = API;

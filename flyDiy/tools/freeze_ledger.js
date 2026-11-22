@@ -248,7 +248,10 @@ function ledger(log, opt) {
     page: { canvas: H.canvas ? H.canvas.w + 'x' + H.canvas.h : null, css: H.canvas ? H.canvas.cssW + 'x' + H.canvas.cssH : null, window: H.window ? H.window.w + 'x' + H.window.h : null, dpr: H.dpr || null,
       seen: H.seen || null, hiddenEvents: events.filter(e => e.kind === 'vis' && e.d === 'hidden').length, blurEvents: events.filter(e => e.kind === 'focus' && e.d === 'blur').length,
       hiddenFrames: rows.filter(r => r.ctx === 'hidden').length },
-    objectives, contexts, actions: acts, premises: log.premises || null, entries };
+    // the steady GPU traffic of the run (the recorder's totals): what every frame uploads, whether anything is new or not
+    gpuData: H.gpuData ? Object.assign({}, H.gpuData, { perFrame: H.gpuData.frames ? { texCalls: r1(H.gpuData.texCalls / H.gpuData.frames), bufferCalls: r1(H.gpuData.bufferCalls / H.gpuData.frames),
+      updateCalls: r1(H.gpuData.updateCalls / H.gpuData.frames), updateKB: Math.round(H.gpuData.updateMB * 1024 / H.gpuData.frames), bufferKB: Math.round(H.gpuData.bufferMB * 1024 / H.gpuData.frames) } : null }) : null,
+    objectives, contexts, actions: acts, premises: log.premises || null, uploads: log.uploads || null, entries };
 }
 
 function text(R, show) {
@@ -260,6 +263,9 @@ function text(R, show) {
     const bad = (S && ((S.start && (S.start.state !== 'visible' || S.start.focus === false)) || (S.now && (S.now.state !== 'visible' || S.now.focus === false)))) || P.hiddenEvents > 0;
     L.push('  the page: canvas ' + (P.canvas || '?') + ' (css ' + (P.css || '?') + ', window ' + (P.window || '?') + ', dpr ' + (P.dpr || '?') + '); at the start ' + f(S && S.start) + ', at the end ' + f(S && S.now) +
       '; hidden ' + (P.hiddenEvents || 0) + ' time(s) (' + (P.hiddenFrames || 0) + ' frames left out), focus lost ' + (S ? S.blurs : P.blurEvents || 0) + ' time(s)' + (bad ? '   <-- A HIDDEN OR UNFOCUSED PAGE IS THROTTLED: READ THE FRAMES WITH CARE' : '')); }
+  if (R.gpuData && R.gpuData.perFrame) { const G = R.gpuData, f = G.perFrame;
+    L.push('  GPU data over the run: ' + G.frames + ' frames touched it; per such frame ' + f.texCalls + ' texture calls, ' + f.bufferCalls + ' buffer creations (' + f.bufferKB + ' KB), ' + f.updateCalls + ' buffer updates (' + f.updateKB + ' KB); in all ' +
+      G.megapixels + ' MP + ' + G.compressedMB + ' MB compressed of textures in ' + G.texMs + ' ms, ' + G.bufferMB + ' MB of new buffers in ' + G.bufferMs + ' ms, ' + G.updateMB + ' MB of updates'); }
   L.push(''); L.push('THE OFFICIAL ROWS');
   for (const k of Object.keys(R.objectives)) { const v = R.objectives[k]; if (v) L.push('  ' + lp(k, 2) + '  ' + (v.ok ? 'MET     ' : 'NOT MET ') + v.text); }
   for (const a of R.actions) L.push('  ' + lp(a.target ? a.target.row : '', 2) + '  ' + (a.ok == null ? '        ' : a.ok ? 'MET     ' : 'NOT MET ') + a.act + ': first frame ' + a.firstFrameMs + ' ms, settled ' + a.settledMs + ' ms, worst frame ' + a.worstFrameMs + ' ms, ' + a.framesOver100 + ' over 100 ms' + (a.target ? ' (the target ' + a.target.ms / 1000 + ' s, none over 100 ms)' : ''));
@@ -275,6 +281,14 @@ function text(R, show) {
     L.push('CAUSES, ' + c.toUpperCase() + ' (' + C.attribution.confirmed + ' frames confirmed, ' + C.attribution.partial + ' partial, ' + C.attribution.open + ' open; ' + C.attribution.unattributedMs + ' of ' + C.attribution.excessMs + ' ms of excess unattributed)');
     L.push('  ' + lp('ms', 8) + lp('frames', 7) + lp('>100', 6) + lp('worst', 8) + '  what');
     for (const g of C.causes.slice(0, 18)) L.push('  ' + lp(g.ms, 8) + lp(g.frames, 7) + lp(g.freezes, 6) + lp(g.worstMs, 8) + '  ' + g.what); }
+  if (R.uploads && R.uploads.rows) { const U = R.uploads, by = new Map();
+    for (const r of U.rows) { const k = r.owner || ('(no owner) ' + r.at); let g = by.get(k); if (!g) by.set(k, g = { owner: k, MB: 0, objects: 0, everyFrame: 0, unchanged: 0, sampled: 0 }); g.MB += r.MB; g.objects++; if (r.per100 >= 90) g.everyFrame++; g.unchanged += r.unchanged; g.sampled += r.sampled; }
+    L.push(''); L.push('WHAT THE GAME MARKS FOR THE GPU SINCE THE REVEAL, BY OWNER (?recup=1: ' + U.frames + ' frames, ' + U.objects + ' objects, ' + U.MB + ' MB in all = ' + U.perFrameKB + ' KB a frame; ' + U.namedMB + ' MB named)');
+    L.push('  ' + lp('MB', 9) + lp('objects', 8) + lp('each frame', 11) + lp('unchanged', 12) + '  owner');
+    for (const g of [...by.values()].sort((a, b) => b.MB - a.MB).slice(0, 25)) L.push('  ' + lp(r1(g.MB), 9) + lp(g.objects, 8) + lp(g.everyFrame, 11) + lp(g.sampled ? g.unchanged + ' of ' + g.sampled : '-', 12) + '  ' + g.owner);
+    L.push('  THE LARGEST OBJECTS (frames in 100 it is marked; unchanged = sampled marks whose content sample was the same as the last one)');
+    L.push('  ' + lp('MB', 9) + lp('KB each', 9) + lp('in 100', 8) + lp('unchanged', 12) + '  what');
+    for (const r of U.rows.slice(0, 30)) L.push('  ' + lp(r.MB, 9) + lp(r.KB, 9) + lp(r.per100, 8) + lp(r.sampled ? r.unchanged + ' of ' + r.sampled : '-', 12) + '  ' + r.kind + ' ' + r.what + (r.name ? ' "' + r.name + '"' : '') + '  ' + (r.owner || '(no owner)') + '  @' + r.at); }
   const E = R.entries.slice().sort((a, b) => b.ms - a.ms).slice(0, show || 40);
   L.push(''); L.push('THE FRAMES (the ' + E.length + ' longest of ' + R.entries.length + ' over ' + R.limits.listedOverMs + ' ms)');
   for (const e of E) {

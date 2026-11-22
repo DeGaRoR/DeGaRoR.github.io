@@ -131,6 +131,13 @@ function run(ok) {
     const g = rows.find(r => r.own.indexOf('terrain / island ground / splat') >= 0 && r.type === 'MeshStandardMaterial');
     ok(!!g && Array.isArray(g.defs) && g.defs.indexOf('USE_FOG') >= 0 && g.defs.indexOf('USE_SHADOWMAP') >= 0 && !g.defs.some(d => /^SHADER_(NAME|TYPE)/.test(d)),
        '6a the variant is readable: the #defines of three\'s prefix', g && g.defs ? g.defs.slice(0, 6).join(' ') + ' ... (' + g.defs.length + ')' : undefined);
+    // ... and the axes three writes into the BODY, after the prefix: the lights and shadows as array sizes, the tone mapping,
+    // the output transfer, OPAQUE (this scene: one shadow-casting directional light and a hemisphere light, ACES, the canvas)
+    ok(!!g && g.defs.indexOf('LIGHTS=1.0.0.1') >= 0 && g.defs.indexOf('SHADOWS=1.0.0') >= 0 && g.defs.indexOf('TONE=ACESFilmic') >= 0 && g.defs.indexOf('OUT=sRGB') >= 0 && g.defs.indexOf('OPAQUE') >= 0,
+       '6a the variant carries the body\'s axes too: light and shadow counts, tone mapping, output transfer, OPAQUE', g && g.body ? g.body.join(' ') : 'no body tags');
+    { const tgt = rows.filter(r => r.type === 'MeshDepthMaterial' && r.body), lit = rows.filter(r => r.type === 'MeshStandardMaterial' && r.body);
+      ok(lit.length >= 4 && lit.every(r => r.body.some(t => /^LIGHTS=/.test(t))) && tgt.every(r => !r.body.some(t => /^TONE=/.test(t))) && B.PID.summary().bodies === rows.length && B.PID.summary().bodiesWaiting === 0,
+         '6a every lit program has its light counts; a depth program (drawn into a shadow map) has no tone mapping; every text was read when the table was asked', B.PID.summary().bodies + ' texts read'); }
     // the events: one 'prog' a program with its owner, its link number the 'link' event's
     const ev = B.REC.events, progs = ev.filter(e => e[1] === 'prog'), linksEv = ev.filter(e => e[1] === 'link');
     ok(progs.length === rows.length && linksEv.length === rows.length && progs.every(e => linksEv.some(l => l[3] === e[3].n)) && progs.some(e => e[3].own === 'town / houses / walls'),
@@ -207,6 +214,31 @@ function run(ok) {
     // a frame that creates nothing says nothing
     const n0 = C.REC.events.length; C.T.now += 16; C.REC.begin(C.T.now, null); C.renderer.render(Wc.sc, Wc.cam); C.REC.end(true, null);
     ok(C.REC.events.slice(n0).every(e => e[1] !== 'gpuup' && e[1] !== 'proguse' && e[1] !== 'prog'), '6h the next frame, which makes nothing new, logs no program and no GPU-data event');
+  }
+  // ---- 6i: the uploads of a steady frame, by owner (?recup=1; off by default) ---------------------------------
+  {
+    const B = boot({ search: '?recup=1' }), Wd = world(B, true), THREE = B.THREE; warm(B, Wd);
+    const T = B.REC.rec.traffic;
+    ok(!!T && T.wrapped.every(Boolean), '6i ?recup=1 wraps the three needsUpdate setters (BufferAttribute, InterleavedBuffer, Texture)', T ? JSON.stringify(T.wrapped) : 'no traffic');
+    // a mesh of its own whose positions change every frame, a table texture marked every frame with the SAME bytes, a normal marked once
+    const g = new THREE.BoxGeometry(), wing = Wd.put('wing', Wd.M.hook), tab = new THREE.DataTexture(new Uint8Array(64 * 64 * 4), 64, 64);
+    wing.geometry = g; Wd.M.roof.userData.table = tab; Wd.sc.updateMatrixWorld(true);
+    const pos = g.attributes.position, v0 = pos.version, t0 = tab.version;
+    for (let f = 0; f < 96; f++) { B.T.now += 16; B.REC.begin(B.T.now, null); pos.array[0] = f; pos.needsUpdate = true; tab.needsUpdate = true; if (f === 5) g.attributes.normal.needsUpdate = true;
+      B.renderer.render(Wd.sc, Wd.cam); B.REC.end(true, null); }
+    ok(pos.version === v0 + 96 && tab.version === t0 + 96, '6i the wrapped setters still do three\'s own work (the versions move as before)', (pos.version - v0) + ' / ' + (tab.version - t0));
+    const U = B.PROGRAMS.uploads(), rp = U && U.rows.find(r => r.what === 'position' && /wing$/.test(r.at)), rt = U && U.rows.find(r => r.kind === 'tex' && /table/.test(r.what)), rn = U && U.rows.find(r => r.what === 'normal' && /wing$/.test(r.at));
+    ok(!!rp && rp.owner === 'terrain / island ground / splat' && rp.frames === 96 && rp.per100 >= 99 && rp.KB === Math.round(pos.array.byteLength / 1024) && rp.sampled >= 2 && rp.unchanged === 0,
+       '6i an attribute rewritten every frame: its mesh, its material\'s owner, every frame, its bytes, its content CHANGED', rp ? JSON.stringify(rp) : 'no row');
+    ok(!!rt && rt.owner === 'town / houses / roofs' && rt.frames === 96 && rt.sampled >= 2 && rt.unchanged === rt.sampled && rt.KB === 16,
+       '6i a table texture marked every frame with the same bytes: named by the material that holds it, and flagged UNCHANGED', rt ? JSON.stringify(rt) : 'no row');
+    ok(!!rn && rn.frames === 1, '6i an attribute marked once is counted once', rn ? rn.frames : 'no row');
+    ok(U.frames >= 96 && U.namedMB > 0 && U.namedMB <= U.MB, '6i the table says how many frames it covers and how much of the bytes it could name', U.frames + ' frames, ' + U.namedMB + ' of ' + U.MB + ' MB');
+    // the default: nothing wrapped, nothing kept
+    const D = boot({}), d = Object.getOwnPropertyDescriptor(D.THREE.Texture.prototype, 'needsUpdate');
+    ok(D.REC.rec.traffic == null && D.PROGRAMS.uploads() === null && !/mark\(/.test(String(d.set)), '6i without the switch the setters are three\'s own and no table exists');
+    const L = JSON.parse(B.REC.logParts().join(''));
+    ok(L.uploads && L.uploads.rows.length >= 3 && JSON.parse(D.REC.logParts().join('')).uploads === null, '6i the saved log carries the table (null without the switch)');
   }
   // ---- 6g: the cost -----------------------------------------------------------------------------------------
   {

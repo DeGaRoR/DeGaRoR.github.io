@@ -25,7 +25,8 @@
 const fs = require('fs'), path = require('path');
 const SRC = path.join(__dirname, '..', 'src');
 // (the third form: a class chosen in the call - `new (phys ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial)({` - AEROSKIN's own)
-const SITE = /\bnew\s+(?:THREE_?|TH|T)\.(\w*Material)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(|\bnew\s*\([^()]*\bTHREE\.\w*(Material)\s*\)\s*\(/g;
+// (any alias of three: THREE., T., TH., THREE3. ... - gps_face.js's `new THREE3.` was missed by a list of names, 22 Nov)
+const SITE = /\bnew\s+[A-Za-z_$][\w$]*\.(\w*Material)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(|\bnew\s*\([^()]*\bTHREE\.\w*(Material)\s*\)\s*\(/g;
 
 function walk(dir, out) {
   for (const f of fs.readdirSync(dir)) { const p = path.join(dir, f), st = fs.statSync(p);
