@@ -1,5 +1,5 @@
-FAIL (26 of 119 gates run; PARTIAL: 8 of 23 chunks, 245 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN
+FAIL (27 of 120 gates run; PARTIAL: 9 of 23 chunks, 244 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD
 L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -2123,6 +2123,37 @@ twin floatplane:
   159/160 checks
 GATE DMGSKIN: FAIL
 (exit code 1)
+######## chunk 08 of 23 (1 gates) ########
+=== DMGUPLOAD ===
+GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)
+  cub: the mild staging not flown - its crushable nose takes it whole; the hard staging below is its crash
+  metal: fresh - 1833 drawn buffers checked, 0 stale; the crash {"br":89,"wreck":7,"stage":{"V":30,"agl":4,"tr":0.3,"D":40,"off":0}}; after the shed and the roll-out (live true) - 2280 checked, 0 STALE (0 owed by their fold, paid at its next shown walk: []); uploads {"uploads":32070,"subs":66001,"contexts":3}; drawn meshes by class {"mesh":315,"still":1}; the flown bake {"module":false,"hit":null,"cm":null,"hybrid":false,"hyT":null,"folds":0,"foldMeshes":0,"views":0,"merge":null}
+  metal THE ROLL-OUT SHOT: fresh - {"frames":675,"worst":0,"shot":674}; after the crash - {"frames":678,"worst":0,"shot":677} (the shot’s wreck resets 0)
+  metal: fold buffers checked fresh 0, after 0 (by class {"mesh":2273,"still":7})
+  cub, THE HARD STAGING ({"id":"hard","V":30,"agl":1,"tr":0.5,"D":40}): the wreck must break up (80+ members)
+  cub: fresh - 1775 drawn buffers checked, 0 stale; the crash {"br":83,"wreck":10,"stage":{"V":30,"agl":1,"tr":0.5,"D":40,"off":0}}; after the shed and the roll-out (live true) - 2205 checked, 0 STALE (0 owed by their fold, paid at its next shown walk: []); uploads {"uploads":34220,"subs":66482,"contexts":3}; drawn meshes by class {"mesh":311,"still":1}; the flown bake {"module":false,"hit":null,"cm":null,"hybrid":false,"hyT":null,"folds":0,"foldMeshes":0,"views":0,"merge":null}
+  cub THE ROLL-OUT SHOT: fresh - {"frames":661,"worst":0,"shot":660}; after the crash - {"frames":678,"worst":0,"shot":677} (the shot’s wreck resets 0)
+  cub: fold buffers checked fresh 0, after 0 (by class {"mesh":2198,"still":7})
+  cub: fresh - 1489 drawn buffers checked, 0 stale; the crash {"br":0,"wreck":0,"stage":{"V":30,"agl":4,"tr":0.3,"D":40,"off":0}}; after the shed and the roll-out (live true) - 1489 checked, 0 STALE (0 owed by their fold, paid at its next shown walk: []); uploads {"uploads":20131,"subs":51835,"contexts":3}; drawn meshes by class {"mesh":246,"still":3}; the flown bake {"module":false,"hit":null,"cm":null,"hybrid":false,"hyT":null,"folds":0,"foldMeshes":0,"views":0,"merge":null}
+  cub THE ROLL-OUT SHOT: fresh - {"frames":661,"worst":0,"shot":660}; after the crash - {"frames":660,"worst":0,"shot":659} (the shot’s wreck resets 0)
+  cub DAMAGE OFF: the heal upload marking fired 0 times; 0 stale
+  cub: fold buffers checked fresh 0, after 0 (by class {"mesh":1468,"still":21})
+  cub FLY AGAIN after the crash (damage on): the crash {"br":83,"wreck":10,"stage":{"V":30,"agl":1,"tr":0.5,"D":40,"off":0}}; removed triangles at the crash 4 meshes, after Fly again []; hidden fresh 26 / after 26; members against their fold []; the wreck layer idle
+  ok    cub Fly again (damage on): every part back, nothing hidden or removed
+  cub FLY AGAIN after the crash (damage OFF): the crash {"br":0,"wreck":0,"stage":{"V":30,"agl":1,"tr":0.5,"D":40,"off":0}}; removed triangles at the crash 0 meshes, after Fly again []; hidden fresh 26 / after 26; members against their fold []; the wreck layer idle
+  ok    cub Fly again (damage OFF): every part back, nothing hidden or removed
+  FAIL  metal: the flown bake was not the test's fake (FB.last.hit null)
+  FAIL  metal: no hybrid fold was made ({"module":false,"hit":null,"cm":null,"hybrid":false,"hyT":null,"folds":0,"foldMeshes":0,"views":0,"merge":null})
+  FAIL  metal: no drawn fold buffer checked (fresh 0, after 0)
+  FAIL  metal: errors: page ["THREE.BufferGeometry.computeBoundingBox(): GLBufferAttribute requires a manual bounding box. [object Object]","THREE.BufferGeometry.computeBoundingBox(): GLBufferAttribute requires a manual bounding box. [object Object]"], worker []
+  FAIL  cub: the flown bake was not the test's fake (FB.last.hit null)
+  FAIL  cub: no hybrid fold was made ({"module":false,"hit":null,"cm":null,"hybrid":false,"hyT":null,"folds":0,"foldMeshes":0,"views":0,"merge":null})
+  FAIL  cub: no drawn fold buffer checked (fresh 0, after 0)
+  FAIL  cub: the flown bake was not the test's fake (FB.last.hit null)
+  FAIL  cub: no hybrid fold was made ({"module":false,"hit":null,"cm":null,"hybrid":false,"hyT":null,"folds":0,"foldMeshes":0,"views":0,"merge":null})
+  FAIL  cub: no drawn fold buffer checked (fresh 0, after 0)
+GATE DMGUPLOAD: FAIL
+(exit code 1)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -2244,6 +2275,7 @@ DMGINST   FAIL   287.6 s
 DMGFPS    PASS   170.3 s
 DMGINTEGRITY FAIL   100.1 s
 DMGSKIN   FAIL   110.2 s
-wall (the chunks' own, summed) 17019.7 s  (jobs 4)
+DMGUPLOAD FAIL  1401.7 s
+wall (the chunks' own, summed) 18421.4 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 26 red (93 PASS, 26 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 27 red (93 PASS, 27 FAIL, 0 SKIP of 364)
