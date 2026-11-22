@@ -1325,7 +1325,7 @@ function buildGrille(group,mats){
   const hw=o.w*0.96, hh=o.h*0.96;
   const NR=Math.max(0,Math.round(P.grilleRows||0));
   const R=grilleNumRects({cx:o.cx,cy:o.cy,w:hw,h:hh});
-  const plateM=R?(typeof MATLIB!=='undefined'?MATLIB:require('../src/viewer/matlib.js')).make(THREE,'std',{color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide},'aircraft / cowl / grille number digits'):null;   // (GATE ASSETS MATS: every material is made in matlib.js)
+  const plateM=R?(cowlMatLib()?cowlMatLib().make(THREE,'std',{color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide},'aircraft / cowl / grille number digits'):m):null;   // (GATE ASSETS MATS: every material is made in matlib.js)
   const inR=(x,y,r)=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];
   // (the user: "the letter should be white and the rest should not be painted"): the digits ivory, the rest bare grille
   const matAt=(x,y)=>!R?m:(R.ink.some(r=>inR(x,y,r))?plateM:m);
@@ -1374,6 +1374,10 @@ function grilleNumRects(o){
   const plate=[o.cx-W/2-H*0.2,o.cy-H*0.66,o.cx+W/2+H*0.2,o.cy+H*0.66];
   return {ink, plate};
 }
+// THE MATERIAL LIBRARY, where a page has it (GATE ASSETS MATS: no `new THREE.*Material` here). The game, dev.html and node's
+// headless scene load src/viewer/matlib.js; a bench page that does not (tools/_cage8.html, _dmg_scuff.html, _weather.html)
+// gets null, and the car's two parts that ask (the grille's number plate, the lamp's lens) wear the metal beside them - never a throw
+function cowlMatLib(){ return typeof MATLIB!=='undefined'?MATLIB:(typeof require==='function'?require('../src/viewer/matlib.js'):null); }
 // THE HEADLAMPS (CAR-1, the user: "little lamps like the ones in the wing of the aircraft, just give them a backface in
 // fuselage material"): lampOn - a pair of proud lamps beside the radiator, each a deep shell (in the BODY's livery
 // material, handed in as shellM), a chrome rim, a lit lens and a stalk back to the shell's side; lampR the lens radius,
@@ -1383,8 +1387,8 @@ function buildLamps(group,mats,shellM){
   const ze=zEnd(), z=ze-Math.max(0,P.lampBack), cy=spineY(ze)+P.lampY, r=Math.max(0.03,P.lampR);
   const half=surfPoint(0,z)[0];
   const chrome=mats.steel||mats.skin, shell=shellM||mats.skin;
-  const lens=(typeof MATLIB!=='undefined'?MATLIB:require('../src/viewer/matlib.js')).make(THREE,'glow',{color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide},'aircraft / cowl / headlamp lens');   // (GATE ASSETS MATS)
-  lens.userData.aeroskin=1;
+  const ML=cowlMatLib(), lens=ML?ML.make(THREE,'glow',{color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide},'aircraft / cowl / headlamp lens'):chrome;   // (GATE ASSETS MATS)
+  if(ML) lens.userData.aeroskin=1;
   // CAR-3 (the user, 12 Nov: "two additional openings on the sides in which you're gonna stick the headlamps"):
   // lampIn 1 seats each lamp IN the face's side aperture (apMode 2 / 3: the fitted pair), lampBack behind the face,
   // its radius the aperture's - no stalk; absent = on the stalks off the shell's side, as before
