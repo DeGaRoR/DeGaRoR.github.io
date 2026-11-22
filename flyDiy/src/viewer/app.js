@@ -1496,8 +1496,10 @@
       // G3536: a prop that lands after the floor print (the WIP fuselage on its trestles, a scan on the wire) prints too -
       // now if the room is shown, else when it is next entered (applyEnv bakes it then anyway)
       if (hangar.onFurnLanded) { const h0 = hangar; hangar.onFurnLanded(() => { if (hangar === h0 && inGarage && !envAway && h0.bakeGroundShadow) h0.bakeGroundShadow(renderer, hangarScene); }); }
+      const tBake = performance.now();
       bakeHangarEnv();
       if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
+      ROOM_T.bakeMs = Math.round(performance.now() - tBake);   // (HANGAR-SWITCH: the env + floor-shadow bakes of a first build)
       // the part system (G41, rehomed by HANGARS S1): the shell's default
       // dress first, then every part's saved dress off the player's record —
       // a class default the player's own choices always win over.
@@ -1594,12 +1596,20 @@
         if (hangar && hangarRoom === id) { roomPark(); rec = ROOMS.get(id); }
       } catch (e) { console.warn('flyDiy: the room could not be prepared -', e && e.message); }
       finally { d.here = here0; if (cur && ROOMS.has(cur)) roomUnpark(cur); }
-      const built = { room: id, cached: false, genMs: ROOM_T.genMs, buildMs: Math.round(performance.now() - t0) };
-      if (!rec || typeof renderer.compileAsync !== 'function') return Promise.resolve(built);
-      const tc = performance.now();
-      // the programs against the garage scene (its lights, its fog): the swap draws them warm
-      return renderer.compileAsync(rec.hangar.group, camera, hangarScene).then(() => Object.assign(built, { compileMs: Math.round(performance.now() - tc) }),
-        () => built).then(r => { Object.assign(ROOM_T, { room: id, how: 'prepared', compileMs: r.compileMs, buildMs: r.buildMs, genMs: r.genMs }); return r; });
+      const built = { room: id, cached: false, genMs: ROOM_T.genMs, bakeMs: ROOM_T.bakeMs, buildMs: Math.round(performance.now() - t0) };
+      if (!rec || typeof compileSliced !== 'function') return Promise.resolve(built);
+      // THE PROGRAMS (PERF-LEAD 22 Nov: "NOT renderer.compileAsync on a scratch scene: use app.js compileSliced ... and compile
+      // against the REAL lit scene's lights"): paced slices over the new room's materials, each slice DRESSED - the garage scene
+      // holding the NEW room in place of the shown one (its lamps, so the keys are the ones the swap will draw; no frame is drawn
+      // inside a slice, so nothing shows) - then every program's first use paid off the frame (firstUseSliced)
+      const tc = performance.now(), G = rec.hangar.group;
+      const dress = fn => { const cur = hangar && hangar.group; if (cur) hangarScene.remove(cur); hangarScene.add(G);
+        try { return fn(); } finally { hangarScene.remove(G); if (cur) hangarScene.add(cur); } };
+      return Promise.resolve(compileSliced(G, null, hangarScene, false, dress))
+        .then(() => (typeof firstUseSliced === 'function' ? firstUseSliced() : null), e => { console.warn('flyDiy: the room compile -', e && e.message); return null; })
+        .then(u => { Object.assign(built, { compileMs: Math.round(performance.now() - tc), firstUse: u || null });
+          Object.assign(ROOM_T, { room: id, how: 'prepared', genMs: built.genMs, bakeMs: built.bakeMs, buildMs: built.buildMs, compileMs: built.compileMs });
+          return built; });
     },
     cached: () => [...ROOMS.keys()],
     memory: () => { const out = {}; for (const [k, r] of ROOMS) out[k] = roomBytes(r);
