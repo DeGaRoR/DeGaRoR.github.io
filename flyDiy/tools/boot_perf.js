@@ -52,8 +52,15 @@ if (!CHROME) { console.error('boot_perf: no Chrome found'); process.exit(2); }
 const UDD = opt('udd', null) || (flag('cold') ? path.join(os.tmpdir(), 'cdp_boot_' + PORT + '_' + Date.now())
                          : path.join(os.tmpdir(), 'flydiy_boot_perf_profile'));
 const XFLAGS = argv.map((a, i) => (a === '--chrome' ? argv[i + 1] : null)).filter(Boolean);
-const args = ['--headless=new', '--remote-debugging-port=' + PORT,
-  '--window-size=1920,1080', '--hide-scrollbars', '--no-first-run',
+// --headed: a VISIBLE Chrome (the user, 22 Nov: "the only reliable timing comes from an actual in-browser test").
+// --size W,H: the window (default 1920,1080; the user's screen is 5120,1440). Headless, the page's viewport is set to
+// it. Headed, NOTHING is emulated: the viewport is what the window leaves under its tabs and bars, as for a player,
+// and the run prints the canvas it really drew (`canvas WxH`): read that, not the window, before comparing two rows.
+const HEADED = flag('headed');
+const [SW, SH] = String(opt('size', '1920,1080')).split(/[,x]/).map(Number);
+if (!(SW > 0 && SH > 0)) { console.error('boot_perf: --size W,H'); process.exit(2); }
+const args = [...(HEADED ? ['--window-position=0,0', '--no-default-browser-check'] : ['--headless=new']), '--remote-debugging-port=' + PORT,
+  '--window-size=' + SW + ',' + SH, '--hide-scrollbars', '--no-first-run',
   '--user-data-dir=' + UDD, '--disable-gpu-sandbox'].concat(XFLAGS, ['about:blank']);
 const ch = spawn(CHROME, args, { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -130,19 +137,21 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
     const d = r.result; if (!d || d.exceptionDetails) throw new Error('page: ' + (d && d.exceptionDetails ? d.exceptionDetails.text : JSON.stringify(r))); return d.result.value; };
   await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Network.enable', { maxTotalBufferSize: 200000000 });
-  await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  if (!HEADED) await cmd('Emulation.setDeviceMetricsOverride', { width: SW, height: SH, deviceScaleFactor: 1, mobile: false });
+  let VP = [SW, SH];   // the viewport the screenshots clip to: the emulated one, or (headed) the window's own, read below
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: INJECT });
   // a same-origin page first, so the profiler survives the navigation (a
   // cross-origin hop would swap the renderer process)
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub
   await cmd('Page.navigate', { url: ORIGIN + '/__boot_perf_warm__' }); await sleep(800);
+  if (HEADED) try { const v = JSON.parse(await ev('JSON.stringify([innerWidth, innerHeight])')); if (v[0] > 0 && v[1] > 0) VP = v; } catch (e) {}
   await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 500 });
   await cmd('Profiler.start');
   const navT = Date.now();
   await cmd('Page.navigate', { url: URL });
   const shotAt = [0.2, 2, 5]; const taken = new Map(); let bootGoneWall = null;
   const snap = async name => {
-    const r = await cmd('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1920, height: 1080, scale: 0.25 } });
+    const r = await cmd('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: VP[0], height: VP[1], scale: 0.25 } });
     const buf = Buffer.from(r.result.data, 'base64');
     if (flag('shots')) {
       fs.mkdirSync(SHOTDIR, { recursive: true }); fs.writeFileSync(path.join(SHOTDIR, `boot_${TAG}_${name}.png`), buf);
@@ -198,6 +207,8 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   }
   let gpu = null; try { gpu = JSON.parse(await ev(`(() => { const r = WORLD.renderer, g = r.getContext(), i = r.info; const d = g.getExtension('WEBGL_debug_renderer_info');
     return JSON.stringify({ programs: i.programs.length, geometries: i.memory.geometries, textures: i.memory.textures,
+      canvas: g.drawingBufferWidth + 'x' + g.drawingBufferHeight, view: innerWidth + 'x' + innerHeight, dpr: devicePixelRatio,
+      vis: document.visibilityState, focus: document.hasFocus(),
       parallel: !!g.getExtension('KHR_parallel_shader_compile'), gl: d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER) }); })()`)); } catch (e) { gpu = String(e); }
   const prof = (await cmd('Profiler.stop')).result.profile;
   // --window a,b (ms of the page's clock, roughly): the self time by function inside it
@@ -251,6 +262,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
   const pad = (s, n) => String(s).padEnd(n);
   console.log(`boot_perf ${TAG}  ${URL}\n  gpu ${gpu && gpu.gl}  programs ${gpu && gpu.programs}  parallel-compile ${gpu && gpu.parallel}`);
+  console.log(`  ${HEADED ? 'HEADED' : 'headless'} window ${SW}x${SH}  view ${gpu && gpu.view}  canvas ${gpu && gpu.canvas}  dpr ${gpu && gpu.dpr}  page ${gpu && gpu.vis}${gpu && gpu.focus ? ', focused' : ', NOT focused'}`);
   console.log('  milestones: ' + M.ev.map(e => e.k + '@' + e.t).join('  '));
   if (bootLog) {
     // the steps with their ms, the marks, and the landings folded per key

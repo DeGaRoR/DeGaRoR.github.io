@@ -8,12 +8,18 @@
 # If P's loads 2-3 compile as long as load 1 and Q's do not, the cache is too small for ~450 large programs, and no
 # shader source is at fault. If neither gets faster, the sources change between boots (test a, src_diff) or the
 # cache is not written at all. After each load: the size of every cache folder of the profile.
+# THE BROWSER (the user, 22 Nov: "the only reliable timing comes from an actual in-browser test", some at the big
+# screen's 5120x1440): series P and Q run HEADED, a visible Chrome window of WCT_SIZE (default 5120,1440), nothing
+# emulated; each row prints the canvas really drawn and whether the page was visible and focused. Series H is the
+# old way for comparison: one cold + one warm load HEADLESS at 1920,1080, run last and only if the window has time.
 #
-# Usage:  bash tools/perf/warm_cache_test.sh <BUILT flyDiy parent dir> <out dir> [port] [series: PQ | P | Q]
-# Takes and drops the GPU lock itself (PERF-LEAD); kills only its own server; hard cap: 6 loads x 5 min.
+# Usage:  bash tools/perf/warm_cache_test.sh <BUILT flyDiy parent dir> <out dir> [port] [series: PQH | P | Q | H ...]
+# Takes and drops the GPU lock itself (PERF-LEAD); kills only its own server; hard cap: WCT_MIN minutes (default 55):
+# a load that could not end inside it is not started.
 # A MEASUREMENT, not a gate. Needs a QUIET box (a timing run): ask A0 for the slot.
-DIR=$1; OUT=$2; PORT=${3:-8793}; SERIES=${4:-PQ}
-[ -n "$DIR" ] && [ -n "$OUT" ] || { echo "usage: warm_cache_test.sh <built dir> <out dir> [port] [PQ|P|Q]"; exit 2; }
+DIR=$1; OUT=$2; PORT=${3:-8793}; SERIES=${4:-PQH}
+END=$(( $(date +%s) + ${WCT_MIN:-55} * 60 )); SIZE=${WCT_SIZE:-5120,1440}
+[ -n "$DIR" ] && [ -n "$OUT" ] || { echo "usage: warm_cache_test.sh <built dir> <out dir> [port] [PQH|P|Q|H]"; exit 2; }
 B=/d/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh
 T="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$OUT"
@@ -30,7 +36,7 @@ NTOK=${CPU_TOKENS:-4}
 HOLD() { for i in $(seq 1 $NTOK); do echo "PERF-LEAD $(date +%H:%M:%S) warm_cache_test (timing: all tokens)" > "$TK/PERF-LEAD_$i.tok"; done; }
 OTHERS() { local n=0 f a; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */PERF-LEAD_[0-9].tok) continue ;; esac
   a=$(( ($(date +%s) - $(stat -c %Y "$f")) / 60 )); [ $a -le 45 ] && n=$((n + 1)); done; echo $n; }
-bash $B take gpu PERF-LEAD "warm-cache test, 6 loads" || { echo "no gpu lock"; exit 3; }
+bash $B take gpu PERF-LEAD "warm-cache test, 6-8 loads, headed $SIZE" || { echo "no gpu lock"; exit 3; }
 SRV=
 trap '[ -n "$SRV" ] && kill $SRV 2>/dev/null; rm -f "$TK"/PERF-LEAD_[0-9].tok; bash $B drop gpu PERF-LEAD' EXIT
 HOLD
@@ -50,14 +56,16 @@ mine() {    # a Chrome this script started and a timeout left behind: found by I
     echo "  leftover chrome $p: killed"; taskkill //PID $p //T //F > /dev/null 2>&1; done; }
 run() {     # series, n, profile, extra flags...
   local S=$1 N=$2 UDD=$3; shift 3
+  [ $(( $(date +%s) + 330 )) -le $END ] || { echo "$S$N: NOT RUN - it could not end inside the window" | tee -a "$OUT/summary.txt"; return 0; }
   local t; t=$(COOL) || { echo "$S$N: NOT RUN - the package stayed at 80 C or more for 15 min, or the sensor feed is gone" | tee -a "$OUT/summary.txt"; exit 4; }
   local L="$OUT/${S}${N}.log"
   HOLD
   timeout 330 node "$T/boot_perf.js" --url http://localhost:$PORT/flyDiy/dev.html --udd "$UDD" --secs 240 --tag ${S}${N} --out "$OUT/${S}${N}.json" "$@" > "$L" 2>&1 || mine "$UDD"
   local g=$(grep -o 'overlay gone [0-9]*' "$L" | awk '{printf "%.1f", $3/1000}')
-  echo "$S$N: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | package ${t} C at the start, $(TEMP) C at the end | $(sizes "$UDD")" | tee -a "$OUT/summary.txt"
+  echo "$S$N: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | $(grep -o '\(HEADED\|headless\) window.*' "$L" | head -1) | package ${t} C at the start, $(TEMP) C at the end | $(sizes "$UDD")" | tee -a "$OUT/summary.txt"
 }
 BIG="--chrome --gpu-program-cache-size-kb=1048576 --chrome --gpu-disk-cache-size-kb=1048576"
-case "$SERIES" in *P*) P="$OUT/profile_P"; rm -rf "$P"; for n in 1 2 3; do run P $n "$P"; done ;; esac
-case "$SERIES" in *Q*) Q="$OUT/profile_Q"; rm -rf "$Q"; for n in 1 2 3; do run Q $n "$Q" $BIG; done ;; esac
+case "$SERIES" in *P*) P="$OUT/profile_P"; rm -rf "$P"; for n in 1 2 3; do run P $n "$P" --headed --size $SIZE; done ;; esac
+case "$SERIES" in *Q*) Q="$OUT/profile_Q"; rm -rf "$Q"; for n in 1 2 3; do run Q $n "$Q" --headed --size $SIZE $BIG; done ;; esac
+case "$SERIES" in *H*) H="$OUT/profile_H"; rm -rf "$H"; for n in 1 2; do run H $n "$H" --size 1920,1080; done ;; esac
 echo "done $(date '+%H:%M')" | tee -a "$OUT/summary.txt"
