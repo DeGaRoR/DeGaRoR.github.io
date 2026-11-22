@@ -13,7 +13,8 @@
    "name": "Field Wagon Retro (van)",
    "file": "builds/vehicles/utility_retro_2026-11.json",
    "note": "CAR-3: the airfield's official tow & utility van - a 1940s-style large van from the Cessna 172 card (two pax bays, rear doors, tow hitch, 4WD); the Retro livery: cream over navy, 'Home Field' lettering. Tows the glider and the floatplane trailer",
-   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)"
+   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)",
+   "thumb": "veh:utility_retro_2026-11.json"
   },
   {
    "kind": "car",
@@ -21,7 +22,8 @@
    "name": "Field Wagon (van)",
    "file": "builds/vehicles/utility_2026-11.json",
    "note": "CAR-3: the same van, its first livery (TOW 1)",
-   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)"
+   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)",
+   "thumb": "veh:utility_2026-11.json"
   },
   {
    "kind": "car",
@@ -29,7 +31,8 @@
    "name": "Field Wagon Alpine (van)",
    "file": "builds/vehicles/utility_mountain_2026-11.json",
    "note": "CAR-3: the same van in the Alpine livery (the 'mountains' kit pattern)",
-   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)"
+   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)",
+   "thumb": "veh:utility_mountain_2026-11.json"
   },
   {
    "kind": "car",
@@ -46,7 +49,8 @@
    "name": "Ranch Hand (UTV)",
    "file": "builds/vehicles/utv_2026-11.json",
    "note": "CAR-4: a two-seat utility vehicle from the Cub card - the twin booms as its chassis, the stabiliser as its bed; tows the light motorglider",
-   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)"
+   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)",
+   "thumb": "veh:utv_2026-11.json"
   },
   {
    "kind": "car",
