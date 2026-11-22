@@ -238,7 +238,8 @@
   //                  the background", which is the real change if the number is worth it.
   // (?lampsfixed=1 is render_premises.js's: the lamp pool's count kept by day.)
   const LABQ = k => typeof location !== 'undefined' && new RegExp('[?&]' + k + '(&|$)').test(location.search || '');
-  const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0 };
+  const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
+    lateBg: LABQ('latelinks=bg'), bg: { armed: false, revealed: false, revealAt: 0, running: false, done: false, xrayRun: false, startedAt: 0, xrayMs: 0, ms: 0, xrayLinks: 0, scuffLinks: 0, twins: 0, noTwin: 0, err: null } };
   if (LAB.noLogs && renderer.debug) renderer.debug.checkShaderErrors = false;
   if (typeof window !== 'undefined') window.FLYDIY_LAB = LAB;
   const groundCache = typeof GROUND_MATERIAL_CACHE !== 'undefined' && typeof location !== 'undefined' && /[?&]groundcache=[12](&|$)/.test(location.search || '')
@@ -15761,8 +15762,64 @@
       .then(() => warmDrawSliced(scene, target, null, depth.children, noFog, { perKey: true }))
       .catch(e => console.warn('craft reflection warm:', e && e.message));
   }
+  // ?latelinks=bg (PERF-LEAD lab, 22 Nov; OFF by default): THE TWO PRELINKS OF ?latelinks, AFTER THE REVEAL INSTEAD OF UNDER THE BOOT.
+  // ?latelinks=1 priced the load without the damage look's awake programs and the see-through twins: 102.7 s against 114-127
+  // (22 Nov, cold, headed 5K). Skipping them for good would move their links to the first scratch and the first see-through
+  // view - a freeze where it hurts most. Here the boot skips them, and:
+  //   1. a few seconds after the garage is revealed (the boot's screen gone, nothing busy, still in the garage) they are
+  //      linked in the background: the see-through twins by their own function (twins of the room's materials: no live
+  //      material is touched), the damage look's awake programs on TWINS of the wrapped materials (SKIN_SCUFF's awakeTwin
+  //      hook: the awake key while the live materials sleep on) - compileSliced's stand-ins, a program a group, no draw;
+  //   2. the FIRST roll-out's craft step runs again (its key carries the phase) and scuffPrelink does there what it did
+  //      under the boot - the live materials compiled awake (the programs are in three's cache: no link) and drawn once,
+  //      under the Go screen - so the wake at a crash finds everything resident, as today.
+  // Go pressed before 1 has ended: the craft step waits for the links under its screen. The see-through view opened before
+  // 1 has ended links its twins itself (as before G441). LAB.bg holds the times and counts for the rig.
+  function lateBgArm() {
+    const B = LAB.bg; if (B.armed) return; B.armed = true;
+    const wait = () => {
+      const up = typeof BOOT !== 'undefined' && ((BOOT.state && BOOT.state !== 'gone') || (typeof BOOT.busy === 'function' && BOOT.busy()));   // (a page without the screen: nothing to wait for)
+      if (up) { setTimeout(wait, 500); return; }
+      if (!B.revealed) { B.revealed = true; B.revealAt = performance.now(); }
+      if (performance.now() - B.revealAt < 3000 || !inGarage) { setTimeout(wait, inGarage ? 500 : 2000); return; }
+      lateBgRun();
+    };
+    setTimeout(wait, 500);
+  }
+  function lateBgRun() {
+    const B = LAB.bg; if (B.running || B.done) return;
+    B.running = true; B.startedAt = performance.now();
+    const progs = () => (renderer.info && renderer.info.programs ? renderer.info.programs.length : 0), n0 = progs();
+    B.xrayRun = true;
+    Promise.resolve().then(() => compileXrayVariants())
+      .then(() => { B.xrayRun = false; B.xrayMs = Math.round(performance.now() - B.startedAt); B.xrayLinks = progs() - n0; return lateBgScuff(); })
+      .then(() => { B.ms = Math.round(performance.now() - B.startedAt); B.scuffLinks = progs() - n0 - B.xrayLinks; B.done = true; B.running = false; },
+            e => { B.xrayRun = false; B.running = false; B.err = String(e && e.message); console.warn('late links (background):', e && e.message); });
+  }
+  function lateBgScuff() {
+    const B = LAB.bg, at = model && model.scuff;
+    if (!at || !at.W || at.W.on || !WF || typeof SKIN_SCUFF === 'undefined' || typeof AEROSKIN === 'undefined' || !AEROSKIN.aeroDupe
+        || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
+    const twinOf = new Map(), G = new THREE.Group();
+    const add = (o, m) => {
+      if (!m || !m.userData || !m.userData.scuff) return;
+      let t = twinOf.get(m);
+      if (t === undefined) {
+        const hook = m._atmoHook || (Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : null);
+        t = null;
+        if (hook && hook.awakeTwin) { try { t = AEROSKIN.aeroDupe(m); t.onBeforeCompile = hook.awakeTwin; B.twins++; } catch (e) { t = null; } }
+        if (!t) B.noTwin++;
+        twinOf.set(m, t);
+      }
+      if (t) { try { G.add(PROG_WARM.standIn(o, t)); } catch (e) {} }
+    };
+    craft.traverse(o => { if (o.isMesh && o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) add(o, m); });
+    for (const [o, m] of ((window.FLOWN_BAKE && FLOWN_BAKE.warmPairs) ? FLOWN_BAKE.warmPairs() : [])) add(o, m);
+    if (!G.children.length) return null;
+    return compileSliced(G, aa && aa.target ? aa.target() : null, scene, false, craftInWorldNow, 1);   // (a program a group: a new skin source is the long part of a task)
+  }
   function compileCraftLinks() {
-    const inW = craftInWorldNow, KG = (window.FLOWN_BAKE && FLOWN_BAKE.FB.noKeptCompile) ? new THREE.Group() : keptGroup().KG;   // (?fbake=nokeptcompile)
+    const inW = craftInWorldNow, KG =(window.FLOWN_BAKE && FLOWN_BAKE.FB.noKeptCompile) ? new THREE.Group() : keptGroup().KG;   // (?fbake=nokeptcompile)
     const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene, false, inW)];
     if (KG.children.length) jobs.push(compileSliced(KG, aa && aa.target ? aa.target() : null, scene, false, inW));
     if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {
@@ -15770,7 +15827,9 @@
       catch (e) { console.warn('craft depth compile:', e && e.message); }
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
-      .then(() => { if (LAB.lateLinks) { LAB.lateSkipped++; return null; } return scuffPrelink(inW); })   // (?latelinks=1: see LAB)
+      .then(() => { if (LAB.lateLinks) { LAB.lateSkipped++; return null; }   // (?latelinks=1: see LAB)
+        if (LAB.lateBg && !LAB.bg.revealed) { LAB.lateSkipped++; lateBgArm(); return null; }   // (?latelinks=bg: not under the boot - lateBgArm)
+        return scuffPrelink(inW); })
       .then(() => compileCraftShed());
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
@@ -16268,7 +16327,7 @@
         .catch(e => console.warn('flown bake:', e && e.message || e)) },
     { id: 'spec', part: 'craft', label: 'your aeroplane, built', w: 4, key: buildKey, deps: ['snapshot', 'bake'],
       fn: () => { syncApply(tripSync, true); } },
-    { id: 'craft', part: 'craft', label: "your aeroplane's shaders", w: 4, key: () => modelId() + '|' + (WF ? 'w' : '-') + '|' + gfxKey(), deps: ['spec'],
+    { id: 'craft', part: 'craft', label: "your aeroplane's shaders", w: 4, key: () => modelId() + '|' + (WF ? 'w' : '-') + '|' + gfxKey() + (LAB.lateBg ? (LAB.bg.revealed ? '|bg1' : '|bg0') : ''), deps: ['spec'],   // (?latelinks=bg: the first roll-out after the reveal runs it again - lateBgArm)
       fn: () => compileCraft() },
     // W6 (GPS-STALL): the roll-out shot's shadow pass, its first draws and every program's first use under this screen
     // (shedShadowWarm), once per aeroplane and graphics; only where the shot plays. ?shadowwarm=0: off (the A/B)
@@ -22728,6 +22787,7 @@
   function compileXrayVariants() {
     if (typeof renderer.compileAsync !== 'function' || !hangar) return Promise.resolve();
     if (LAB.lateLinks) { LAB.lateSkipped++; return Promise.resolve(); }   // (?latelinks=1: a MEASURE of the load without them - the first see-through view then links its twins itself)
+    if (LAB.lateBg && !LAB.bg.xrayRun && !LAB.bg.done) { LAB.lateSkipped++; lateBgArm(); return Promise.resolve(); }   // (?latelinks=bg: in the background after the reveal - lateBgRun calls back here)
     const helper = new THREE.Group(), seen = new Set();
     let n = 0;
     const twin = (m, side) => {
