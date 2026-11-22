@@ -125,11 +125,12 @@ function skyline(RT, cam, S, Fm) {
   for (let x = 0; x < WID; x++) {
     // the column's direction at the horizon, back in the world: room -> world bearing
     const vx = (x + 0.5 - WID / 2) / cam.F, d = [cam.f[0] + cam.r[0] * vx, 0, cam.f[2] + cam.r[2] * vx], cs = Math.cos(S.ry), sn = Math.sin(S.ry);
-    const wx = d[0] * cs + d[2] * sn, wz = -d[0] * sn + d[2] * cs, br = ((Math.atan2(wx, -wz) * 180 / Math.PI) + 360) % 360, row = Hz.rows[Math.round(br) % 360];
+    const wx = d[0] * cs + d[2] * sn, wz = -d[0] * sn + d[2] * cs, br = ((Math.atan2(wx, -wz) * 180 / Math.PI) + 360) % 360, b0 = Math.floor(br) % 360, row = Hz.rows[b0], rowN = Hz.rows[(b0 + 1) % 360], tb = br - Math.floor(br);
     if (!row) continue;
-    const layers = row.ridges.concat([{ el: row.el, d: row.d }]).sort((a, b) => b.d - a.d);
-    for (const L of layers) {
-      const el = L.el * Math.PI / 180, hd = Math.hypot(d[0], d[2]), dir = [d[0] / hd * Math.cos(el), Math.sin(el), d[2] / hd * Math.cos(el)];
+    const lay = r => r.ridges.concat([{ el: r.el, d: r.d }]).sort((a, b) => b.d - a.d);
+    const layers = lay(row), layN = rowN ? lay(rowN) : layers;
+    for (let li = 0; li < layers.length; li++) { const L = layers[li], Ln = layN[Math.max(0, layN.length - (layers.length - li))] || L;   // matched from the nearest ridge back
+      const el = (L.el + (Ln.el - L.el) * tb) * Math.PI / 180, hd = Math.hypot(d[0], d[2]), dir = [d[0] / hd * Math.cos(el), Math.sin(el), d[2] / hd * Math.cos(el)];
       const yv = dir[0] * cam.u[0] + dir[1] * cam.u[1] + dir[2] * cam.u[2], zv = dir[0] * cam.f[0] + dir[1] * cam.f[1] + dir[2] * cam.f[2]; if (zv <= 0) continue;
       const ys = Math.max(0, Math.round(HEI / 2 - yv / zv * cam.F)), hz = 1 - Math.exp(-L.d / 9000), base = row.sea && L.el < 0.1 ? [104, 142, 170] : [84, 112, 88], c = base.map((b, i) => b + ([196, 211, 222][i] - b) * hz);
       for (let y = ys; y < HEI; y++) { const i = y * WID + x; if (RT.zb[i] < 1e8) continue; RT.col[i * 3] = c[0]; RT.col[i * 3 + 1] = c[1]; RT.col[i * 3 + 2] = c[2]; }
@@ -194,7 +195,7 @@ const VIEWS = S => [
   { name: 'door_out', label: 'standing in the door, looking straight out', eye: [-S.HD - 0.3, 1.7, 0], az: 0 },
   { name: 'door_left', label: 'standing in the door, 45 degrees to the left', eye: [-S.HD - 0.3, 1.7, 0], az: -45 },
   { name: 'door_right', label: 'standing in the door, 45 degrees to the right', eye: [-S.HD - 0.3, 1.7, 0], az: 45 },
-  { name: 'inside', label: 'from the back of the room, through the door', eye: [S.HD * 0.55, 2.2, -S.HW * 0.25], az: 6, frameDoor: true },
+  { name: 'inside', label: 'from the back of the room, through the door', eye: [S.HD * 0.55, 2.2, -S.HW * 0.25], az: -Math.atan2(S.HW * 0.25, S.HD * 1.55) * 180 / Math.PI, frameDoor: true },
 ];
 fs.mkdirSync(OUT, { recursive: true });
 const META = [];

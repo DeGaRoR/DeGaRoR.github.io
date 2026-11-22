@@ -37,11 +37,13 @@ fs.mkdirSync(OUT, { recursive: true });
   try {
     const AA = W.FLYDIY_AA; let sc = null;
     if (AA && AA.render) { const o = AA.render; AA.render = function (s) { if (s && s.isScene) sc = s; return o.apply(this, arguments); }; await P.frames(3); AA.render = o; }
-    const row = (o, d) => { const m = Array.isArray(o.material) ? o.material[0] : o.material;
-      const r = { n: o.name || '', t: o.type, v: o.visible ? 1 : 0, k: o.children.length, ud: Object.keys(o.userData || {}).slice(0, 8).join(','), m: m ? (m.type + (m.name ? ':' + m.name : '')) : '',
-        ro: o.renderOrder || 0, c: o.isInstancedMesh ? o.count : undefined, p: [o.position.x, o.position.y, o.position.z].map(v => +v.toFixed(1)) };
-      if (d < 3 && o.children.length && o.children.length <= 400) r.ch = o.children.map(c => row(c, d + 1));
-      else if (o.children.length) { const by = {}; for (const c of o.children) { const k = (c.name || '-') + '|' + c.type + '|' + Object.keys(c.userData || {}).slice(0, 4).join(','); by[k] = (by[k] || 0) + 1; } r.kinds = by; }
+    const THREE = W.THREE;
+    const sig = o => { const m = Array.isArray(o.material) ? o.material[0] : o.material, g = o.geometry;
+      return [o.name ? o.name.replace(/[:|].*/, ':*') : '-', o.type, o.isInstancedMesh ? 'inst' : '', m ? m.type + (m.name ? ':' + m.name : '') : '', g ? Object.keys(g.attributes || {}).sort().join('+') : '', Object.keys(o.userData || {}).slice(0, 6).join(','), 'ro' + (o.renderOrder || 0), o.visible ? '' : 'HIDDEN', m && m.transparent ? 'transp' : '', m && m.userData && m.userData.progOwner ? 'own=' + m.userData.progOwner : ''].join('|'); };
+    const V3 = new THREE.Vector3();
+    const row = (o, d) => { const r = { n: o.name || '', s: sig(o), k: o.children.length, v: o.visible ? 1 : 0, groups: {}, ch: [] };
+      for (const c of o.children) { if (c.children.length && d < 5) r.ch.push(row(c, d + 1)); else { const s = sig(c), G = r.groups[s] || (r.groups[s] = { n: 0, p: [] }); G.n++;
+        if (G.p.length < 3) { c.getWorldPosition(V3); let rad = 0; if (c.geometry) { if (!c.geometry.boundingSphere) c.geometry.computeBoundingSphere(); rad = c.geometry.boundingSphere ? c.geometry.boundingSphere.radius : 0; } G.p.push([+V3.x.toFixed(0), +V3.y.toFixed(0), +V3.z.toFixed(0), +rad.toFixed(0), c.isInstancedMesh ? c.count : 0]); } } }
       return r; };
     if (sc) fs.writeFileSync(path.join(OUT, 'scene_graph.json'), JSON.stringify(row(sc, 0)));
     console.log('census: scene graph ' + (sc ? sc.children.length + ' top children -> scene_graph.json' : 'NOT captured (no FLYDIY_AA.render call)'));

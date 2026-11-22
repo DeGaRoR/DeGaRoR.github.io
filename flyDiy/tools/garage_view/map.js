@@ -84,9 +84,11 @@ function draw(half, cx, cz, o) {
   S.push('<rect x="' + f1(x0) + '" y="' + f1(z0) + '" width="' + 2 * half + '" height="' + 2 * half + '" fill="#dfe6cf"/>');
   const g = o.wide ? M.terrain.mid : M.terrain.near;
   // the sea, the canopy (wide), then the contours
-  if (o.wide && g.canopy) { let d = ''; for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { const c = g.canopy[j * g.n + i], h = g.h[j * g.n + i]; const x = g.x0 + (i - 0.5) * g.step, z = g.z0 + (j - 0.5) * g.step;
-      if (h <= M.sea + 0.05) S.push('<rect x="' + f1(x) + '" y="' + f1(z) + '" width="' + g.step + '" height="' + g.step + '" fill="#9fc3d8"/>');
-      else if (c >= 2.5) S.push('<rect x="' + f1(x) + '" y="' + f1(z) + '" width="' + g.step + '" height="' + g.step + '" fill="#6f9a63" fill-opacity="' + f2(Math.min(0.75, 0.2 + c / 40)) + '"/>'); } }
+  if (o.wide && g.canopy) {   // run-length rows: one rect a run of the same class (sea / three canopy shades)
+    const cls = (i, j) => { const h = g.h[j * g.n + i], c = g.canopy[j * g.n + i]; return h <= M.sea + 0.05 ? 1 : c >= 14 ? 4 : c >= 7 ? 3 : c >= 2.5 ? 2 : 0; };
+    const FILL = { 1: 'fill="#9fc3d8"', 2: 'fill="#6f9a63" fill-opacity="0.3"', 3: 'fill="#6f9a63" fill-opacity="0.5"', 4: 'fill="#5f8a56" fill-opacity="0.72"' };
+    for (let j = 0; j < g.n; j++) { let i = 0; while (i < g.n) { const c = cls(i, j); let k = i + 1; while (k < g.n && cls(k, j) === c) k++;
+      if (c) S.push('<rect x="' + f1(g.x0 + (i - 0.5) * g.step) + '" y="' + f1(g.z0 + (j - 0.5) * g.step) + '" width="' + (k - i) * g.step + '" height="' + g.step + '" ' + FILL[c] + '/>'); i = k; } } }
   const lo = Math.min(...g.h), hi = Math.max(...g.h), stepL = o.wide ? 10 : 1, levels = [];
   for (let L = Math.ceil(lo / stepL) * stepL; L <= hi; L += stepL) levels.push(L);
   for (const c of contours(g, g.h, levels)) S.push('<path d="' + c.d + '" fill="none" stroke="#8a7f5c" stroke-opacity="' + (c.L % (stepL * 5) === 0 ? 0.75 : 0.32) + '" stroke-width="' + (o.wide ? 1.2 : 0.22) + '"/>');
@@ -96,7 +98,7 @@ function draw(half, cx, cz, o) {
   for (const r of M.runways) { S.push(poly(r.poly, 'fill="' + (+r.surface === 5 ? '#8f8c86' : '#b59f79') + '" stroke="#55524c" stroke-width="' + (o.wide ? 1.5 : 0.3) + '"'));
     S.push(text(r.c[0], r.c[1], r.name, o.wide ? 46 : 7, 'text-anchor="middle" fill="#2c2a27" transform="rotate(' + f1(r.hdg * 180 / Math.PI) + ' ' + f1(r.c[0]) + ' ' + f1(r.c[1]) + ')"')); }
   // the forest, tree by tree
-  for (const t of TREES) { if (Math.abs(t.x - cx) > half || Math.abs(t.z - cz) > half) continue; const k = kindOf(t.key), H = t.h * t.sy;
+  if (!o.wide) for (const t of TREES) { if (Math.abs(t.x - cx) > half || Math.abs(t.z - cz) > half) continue; const k = kindOf(t.key), H = t.h * t.sy;
     S.push('<circle cx="' + f1(t.x) + '" cy="' + f1(t.z) + '" r="' + f1(o.wide ? 5 : Math.max(0.6, H * (k === 'conifer' ? 0.16 : 0.26))) + '" fill="' + KCOL[k] + '" fill-opacity="' + (o.wide ? 0.55 : 0.6) + '"' + (t.town ? ' stroke="#111" stroke-width="0.2"' : '') + '/>'); }
   if (!o.wide) {
     for (const b of M.buildings) S.push(bldSvg(b));
@@ -110,7 +112,7 @@ function draw(half, cx, cz, o) {
     }
     for (const st of M.stands) S.push('<circle cx="' + f1(st.x) + '" cy="' + f1(st.z) + '" r="1.6" fill="none" stroke="#27408b" stroke-width="0.4"/>' + text(st.x + 2.5, st.z + 1.5, 'stand ' + st.id, 3.6, 'fill="#27408b"'));
   }
-  if (o.today) for (const S0 of M.sheds) {
+  if (o.today) for (const S0 of M.sheds.slice(0, 1)) {   // (the club's room; the large hangar's is the same turn about its own centre)
     // where TODAY's room shows a world point: the quarter turn's local place, stood back in the world by the true yaw
     const c = Math.cos(S0.ry), s = Math.sin(S0.ry), today = (x, z) => { const lx = z - S0.z, lz = S0.x - x; return [S0.x + lx * c + lz * s, S0.z - lx * s + lz * c]; };
     for (const r of M.runways) S.push(poly(r.poly.map(q => today(q[0], q[1])), 'fill="#d32f2f" fill-opacity="0.10" stroke="#d32f2f" stroke-width="0.7" stroke-dasharray="5 3"'));
@@ -134,9 +136,9 @@ for (const Hz of M.horizon) {
   const S0 = M.sheds.find(s => s.id === Hz.shed), b0 = S0.doorBearing, Wd = 1400, Hd = 420, pad = 46, el2y = e => Hd - pad - (e + 1) * (Hd - 2 * pad) / 13, a2x = da => pad + (da + 110) * (Wd - 2 * pad) / 220;
   const S = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + Wd + ' ' + Hd + '" width="' + Wd + '" height="' + Hd + '" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="13">', '<rect width="' + Wd + '" height="' + Hd + '" fill="#eef3f7"/>'];
   const rows = []; for (let da = -110; da <= 110; da++) rows.push(Object.assign({ da }, Hz.rows[((Math.round(b0 + da) % 360) + 360) % 360]));
-  // the ridges behind one another: the far ones lighter
-  for (let k = 3; k >= 0; k--) { const pts = rows.map(r => { const rg = r.ridges[r.ridges.length - 1 - k]; return rg ? [a2x(r.da), el2y(rg.el)] : [a2x(r.da), el2y(-1)]; });
-    S.push('<polygon points="' + a2x(-110) + ',' + el2y(-1) + ' ' + pts.map(q => f1(q[0]) + ',' + f1(q[1])).join(' ') + ' ' + a2x(110) + ',' + el2y(-1) + '" fill="#5d7a5a" fill-opacity="' + (0.16 + 0.1 * k) + '"/>'); }
+  // the skyline's body, and the nearest ridge in front of it (a bearing with one ridge only: the skyline itself)
+  const band = (f, op) => S.push('<polygon points="' + a2x(-110) + ',' + el2y(-1) + ' ' + rows.map(r => f1(a2x(r.da)) + ',' + f1(el2y(Math.max(-1, f(r))))).join(' ') + ' ' + a2x(110) + ',' + el2y(-1) + '" fill="#5d7a5a" fill-opacity="' + op + '"/>');
+  band(r => r.el, 0.22); band(r => (r.ridges.length ? r.ridges[0].el : r.el), 0.34);
   S.push('<polyline points="' + rows.map(r => f1(a2x(r.da)) + ',' + f1(el2y(r.el))).join(' ') + '" fill="none" stroke="#263238" stroke-width="1.6"/>');
   for (const r of rows) if (r.sea && r.el < 0.15) S.push('<rect x="' + f1(a2x(r.da) - 3) + '" y="' + f1(el2y(0)) + '" width="6" height="5" fill="#4f8fb3"/>');
   for (let e = 0; e <= 12; e += 2) S.push('<line x1="' + pad + '" x2="' + (Wd - pad) + '" y1="' + el2y(e) + '" y2="' + el2y(e) + '" stroke="#90a4ae" stroke-width="0.5"/>' + '<text x="6" y="' + (el2y(e) + 4) + '" fill="#455a64">' + e + '°</text>');

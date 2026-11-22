@@ -6475,6 +6475,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                 }
             return out;
           },
+          // GARAGE-VIEW (22 Nov): THE SPECIES' IMPOSTOR SHEETS, for the cook of the hangars' far trees - every baked sheet's facts
+          // (its key and series, its layer, the square it frames: cy / diam in metres, the grid and the tile, its tint as the draw
+          // applies it) and its bytes read back (atlas.read: N x N RGBA - the albedo sRGB and premultiplied, or the normals)
+          sheets: () => { const out = [], num = u => (u && typeof u.value === 'number') ? u.value : null;
+            for (const a of ATLAS.values()) { if (!a || !(a.layer >= 0) || a.refused || !a.key) continue; const t = IMPA.tintU[a.layer];
+              out.push({ key: a.key, series: a.series, layer: a.layer, N: a.N, grid: IMP_G, tile: IMP_TILE, cy: a.cy, diam: a.diam,
+                tint: t ? { hue: num(t.uHue), sat: num(t.uSat), light: num(t.uLightB || t.uLight), flat: num(t.uFlat) } : null }); }
+            return out; },
+          sheetRead: (layer, which) => { for (const a of ATLAS.values()) if (a && a.layer === layer && a.read) { const px = new Uint8Array(a.N * a.N * 4); a.read(px, which); return px; } return null; },
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; staleAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
           thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },
