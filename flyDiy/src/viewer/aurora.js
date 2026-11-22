@@ -57,6 +57,13 @@
       gl_FragColor = vec4(c * mask * smoothstep(0.0, 0.03, d.y) * (1.0 - smoothstep(0.27, 0.34, el)) * uK, 1.0);
     }`;
   let meshes = [], mat = null, cam = null;
+  // NIGHT-SUN (22 Nov, the user on the aurora night's water-level stills: "really at the water level, so that it's very mirrory" - and the lake was a
+  // flat blue with no aurora in it): THE AURORA IN THE WATER'S PLANAR MIRROR. The sphere rides the MAIN camera, so the mirror's capture (its own
+  // eye, under the water) never held it: near water, where the mirror carries the reflection, the aurora was not reflected at all. mirror() hands
+  // the mirror's sky pass (water.js) a second sphere of the same program, drawn over the dome at the mirrored eye: its colour x 2 and its alpha
+  // left alone - the capture's sky is flagged alpha 2, premultiplied (STAR-DIRECT) - and x MIR_K, a dial (AURORA.mirrorK)
+  let mirMesh = null, mirMat = null;
+  const MIR = { k: 1 };
   const put = () => {
     U.uAz.value = D.azDeg / 57.29578; U.uWide.value = D.wideDeg / 57.29578; U.uBase.value = D.baseDeg / 57.29578; U.uHgt.value = D.heightDeg / 57.29578;
   };
@@ -87,9 +94,18 @@
       const probes = (W.ATMO && W.ATMO.probes) || [], day = W.DAY_CLOCK && W.DAY_CLOCK.day ? W.DAY_CLOCK.day() : null;
       tick();
       for (const p of probes) { if (!p.scene) continue; addTo(p.scene, 18, 5); if (day) { try { p.bake(day, true); } catch (e) { console.warn('aurora bake:', e && e.message); } } }
+      if (W.MATLIB && W.MATLIB.make) {   // the mirror's sphere (made in the material library, AS4a): the same shaders and uniforms - the same program
+        mirMat = W.MATLIB.make(T, 'shader', { uniforms: U, vertexShader: VS, fragmentShader: FS, side: T.BackSide, blending: T.CustomBlending, blendEquation: T.AddEquation,
+          blendSrc: T.OneFactor, blendDst: T.OneFactor, blendSrcAlpha: T.ZeroFactor, blendDstAlpha: T.OneFactor, transparent: false, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+        mirMesh = new T.Mesh(new T.SphereGeometry(1.9, 48, 24), mirMat);
+        mirMesh.frustumCulled = false; mirMesh.onBeforeRender = () => { tick(); U.uK.value *= 2 * MIR.k; };
+      }
       return true;
     },
-    off() { for (const m of meshes) { if (m.parent) m.parent.remove(m); m.geometry.dispose(); } meshes = []; if (mat) { mat.dispose(); mat = null; } },
+    // the mirror's sphere while the aurora is on (water.js mirrorRender adds it to its sky scene for the one draw), else null
+    mirror() { return meshes.length && mirMesh && MIR.k > 0 ? mirMesh : null; }, mirrorK: MIR,
+    off() { for (const m of meshes) { if (m.parent) m.parent.remove(m); m.geometry.dispose(); } meshes = []; if (mat) { mat.dispose(); mat = null; }
+      if (mirMesh) { if (mirMesh.parent) mirMesh.parent.remove(mirMesh); mirMesh.geometry.dispose(); mirMesh = null; } if (mirMat) { mirMat.dispose(); mirMat = null; } },
   };
   W.AURORA = AURORA;
 })();

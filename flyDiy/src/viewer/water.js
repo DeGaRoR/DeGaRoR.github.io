@@ -1455,7 +1455,12 @@ const WATER = (() => {
       if (SU) { SU.stars.value = st0 * MIR.starsK; SU.starK.value.x = MIR.starPx; }
       // STAR-DIRECT: the water draws the points itself (NIGHT_SEA.direct) - the capture keeps the Milky Way's glow, no points; its sky is flagged (alpha 2)
       const sPts = SU && SU.starPts ? SU.starPts.value : 1; if (SU && SU.starPts && NIGHT_SEA.direct) SU.starPts.value = 0; if (SU && SU.skyA) SU.skyA.value = 2;
+      // NIGHT-SUN: the aurora over the dome in the capture (aurora.js mirror(): its own sphere at the mirrored eye, drawn after the dome) - the mirror's sky
+      // had the stars and the clouds and no aurora, so the near water never reflected it
+      const aurM = typeof window !== 'undefined' && window.AURORA && window.AURORA.mirror ? window.AURORA.mirror() : null;
+      if (aurM) { MIR.skyScene.add(aurM); aurM.position.copy(mc.position); aurM.renderOrder = (sky.renderOrder || 0) + 1; }
       renderer.render(MIR.skyScene, mc);
+      if (aurM) MIR.skyScene.remove(aurM);
       if (SU) { SU.stars.value = st0; SU.starK.value.x = sp0; if (SU.starPts) SU.starPts.value = sPts; if (SU.skyA) SU.skyA.value = 1; }
       sky.visible = skyVis;
     }
