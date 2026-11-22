@@ -234,7 +234,8 @@ var FLYDIY_PERFBENCH = (function () {
     tr.device = device();
     say('boot: the garage at ' + (tr.boot.garageMs / 1000).toFixed(1) + ' s' + (tr.boot.loading ? ', loading-screen frames max ' + tr.boot.loading.max + ' ms' : ''));
     await sleep(3000); takeFrames(); takeLong();
-    tr.garage = { sliders: await sliders(say), menu: await menuRows(say), hangars: await hangarRows(say) };
+    tr.garage = { sliders: await sliders(say), menu: await menuRows(say) };
+    tr.garage.hangars = await hangarRows(say);   // (HANGAR-SWITCH: row 5, each held hangar and back)
     if (A.scenario && !garageOnly()) await flight(A.scenario, tr, say);
     else if (A.scenario) say('the phone profile boots the garage alone: no flight here (the garage steps are the phone\'s)');
     if (A.crash && !garageOnly() && W.FLIGHT_PROBE && FLIGHT_PROBE.sim && FLIGHT_PROBE.sim()) tr.crash = await crash(say);
