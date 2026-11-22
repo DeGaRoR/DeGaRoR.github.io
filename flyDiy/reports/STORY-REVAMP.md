@@ -16,8 +16,8 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 | story-1 | THE RULES ON THE PACK: no drawn job, no drawn shady job, an unflyable mission offered, repeating authored contracts, a project step moves its world track and gives machinery; GATE STORYPACK | PUSHED `claude/ready/story-1` 2e319695c |
 | story-2 | THE PACK'S OWN CLIENTS, FOUR PROJECT TRACKS, THE STORY PACK v0; a whole career walked in the gate | PUSHED `claude/ready/story-2` 2f9def0e8 |
 | story-3 | THE TUTORIAL ON NODE (`tools/story_run.js`, GATE TUTORWALK core + TUTORFLY full); THE AERO CLUB (six events, the STOL / attitude samples wired on the page and in the rig, results kept on the career); THE MACHINERY GIVEN (the pack's start, kits given by projects, the career adopts its pack once) | PUSHED `claude/ready/story-3` 6c076ee23 |
-| story-4 | THE SWITCH-OVER: a player's career reads the story pack with no flag (the career loader of both pages, app.js, the adoption at the load, the projects on the clock); the projects board's record; `mission_feas --official`; `tools/story_feas.js` | gated at the tip; the feasibility harness gate at the tip is the last check before the push |
-| story-5 | THE MISSION EDITOR: a row on the start menu, a way back, "Try it in the game", and the story pack's own structure editable (rules, clients, starting kits, projects and steps) | on the branch, gates running |
+| story-4 | THE SWITCH-OVER: a player's career reads the story pack with no flag (the career loader of both pages, app.js, the adoption at the load, the projects on the clock); the projects board's record; `mission_feas --official`; `tools/story_feas.js`; the HANDOVER entry | PUSHED `claude/ready/story-4` 7667a826b |
+| story-5 | THE MISSION EDITOR: a row on the start menu, a way back, "Try it in the game", and the story pack's own structure editable (rules, clients, starting kits, projects and steps) | PUSHED `claude/ready/story-5` a02d9d81c |
 | feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`) | running in the background; rows land in `reports/STORY-REVAMP/feasibility/` |
 | the tutorial flown | `node tools/story_run.js`: 8 beats, 4 flights + the job's 2, 3 753 s flown, PASS (on e5df77487); again at the tip with the story pack in use: running | flown once |
 
@@ -167,6 +167,21 @@ NAMES (4, "Alaska" in aeroskin.js / livery_marks.js), LAZY (1, "default: the doo
 Story-1 on 888b545aa: 20 gates PASS (CLOCK UISMOKE GAMEPREM DMGPOD CONTRACTS MISSIONS PROJECTS STORYPACK MISSIONPROPS
 MISSIONLIVE STORY TUTORLOCK ROUTES TECH ECON PRICE PROCURE FREIGHT PILOTS BUILT) + COMMITHYGIENE; no red of its own.
 Re-pin: GATE CONTRACTS' track list and a new career's tracks (the four project tracks), its own commit 241ec63da.
+
+| ready | gated on | PASS | red, master's own by check name | notes |
+|---|---|---|---|---|
+| story-1 | 888b545aa | CLOCK UISMOKE GAMEPREM DMGPOD CONTRACTS MISSIONS PROJECTS STORYPACK MISSIONPROPS MISSIONLIVE STORY TUTORLOCK ROUTES TECH ECON PRICE PROCURE FREIGHT PILOTS BUILT COMMITHYGIENE | STAGES MEDIA NAMES LAZY | - |
+| story-2 | b4e88a9ff | the same + MAPBAKE PREMISES PLAYER SNAPSHOTS | STAGES MEDIA NAMES LAZY SAVE ACCEPT | STAGES counts 37 not 19: master's red check is listed once a track value, and there are 18 more values |
+| story-3 | abe740cc3 | CLOCK UISMOKE UISMOKE-PHONE PLAYER GAMEPREM CONTRACTS MISSIONS PROJECTS STORYPACK TUTORWALK MISSIONPROPS MISSIONLIVE MISSIONFEAS STORY TUTORLOCK ROUTES TECH ECON PRICE PROCURE FREIGHT PILOTS BUILT COMMITHYGIENE | GFX MEDIA NAMES LAZY | MISSIONFEAS timed out inside the loaded battery (not a verdict), PASS alone in 11 min 47 s |
+| story-4 | 079de68d7, then 48d6a4850 | CLOCK PLAYER GAMEPREM CONTRACTS MISSIONS PROJECTS STORYPACK TUTORWALK MISSIONPROPS MISSIONLIVE MISSIONFEAS STORY TUTORLOCK ROUTES TECH ECON PRICE PROCURE FREIGHT PILOTS BUILT UISMOKE UISMOKE-PHONE COMMITHYGIENE | GFX MEDIA SAVE NAMES LAZY | UISMOKE and UISMOKE-PHONE were RED of this work on 079de68d7 (two career calls on lines without the career guard): fixed in source (48d6a4850), both green after |
+| story-5 | e393772a6 | UISMOKE UISMOKE-PHONE CONTRACTS MISSIONS PROJECTS STORYPACK TUTORWALK MISSIONLIVE STORY TUTORLOCK BUILT COMMITHYGIENE | GFX NAMES | the editor itself is driven in a headless browser (not a gate) |
+
+Master's reds added to the list above since: GFX ("no device test outside welcome.js ...: src/viewer/perf_bench.js 1 > 0"),
+SAVE (2, "lost 1: skiPos"), ACCEPT (1, "app.js: the leg ticked and signed beside the HUD": `ctlStrip()` now sits between
+`hudGear()` and `ACCEPT_REC.frame()`). Not run here: the GPU gates (FRAMECOST, PROGRAMS, ...) and the full battery: A0's
+train. The page's switch-over was booted three ways in headless Chromium on SwiftShader (a new career with its tutorial,
+a new career without, the dev career): no page error; the first two on the story pack, the third on the built-in
+tables.
 
 ## Gaps (listed, not invented)
 

@@ -318308,3 +318308,12 @@ WHAT IS NOT DONE (reports/STORY-REVAMP.md, the gaps): no scenery wears home / co
 change nothing yet); claude/ready/community-airport and claude/ready/docks-lodge are not on master; 14 missions need a plane no
 validated design can fly; no glider, no aerobatic plane; the Projects board and the machinery's pop-up are the page's (Game, local
 GPU); the economy of the pack is not calibrated (GATE ECON reads the built-in tables).
+
+STORY-REVAMP 7 - THE MISSION EDITOR, FOUND AND USABLE (ready story-5; the user 22 Nov: "there should be an in-game path ... a start menu
+option even ... operated by a human rather than being just a big repository of barely explained parameters"): welcome.js has a
+"Mission editor" row (a light page: tools/mission_editor.html); the editor has "<- The game", "Open story pack", "Try it in the game"
+(a new tab on the TEST career, ?career=1&pack=draft) and edits the pack's rules, clients, starting kits, projects and steps, a
+mission's "Comes back" / "After these projects" / "It gives"; it loads 79b_tech.js too (tools/_missions_lib.js LEAN follows). app.js
+unwraps the editor's draft ({ file, pack }): ?pack=draft could not work before. GATE STORYPACK 18 (133 checks). NOT in the editor:
+the competition fields (raw JSON only). story.json is still WRITTEN BY tools/_story_pack.js (GATE STORYPACK 9): the hand-over to the
+editor is its own small ready, on the user's word.
