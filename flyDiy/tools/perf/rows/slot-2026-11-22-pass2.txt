@@ -32,3 +32,4 @@ REC0_1      ; D:/Dev/perf-lab-built ; rec=0 ; new ; H5K ; -
 CUBELEAN_2  ; D:/Dev/perf-lab-built ; cubelean=1 ; new ; H5K ; -
 WORKERS_2   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1 ; new ; H5K ; -
 ALPROCKS0_2 ; D:/Dev/perf-lab-built ; alprocks=0 ; new ; H5K ; -
+LATELINKS_2 ; D:/Dev/perf-lab-built ; latelinks=1 ; new ; H5K ; -

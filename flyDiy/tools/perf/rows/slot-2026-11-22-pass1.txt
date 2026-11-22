@@ -59,3 +59,8 @@ PROGID0_1   ; D:/Dev/perf-lab-built ; progid=0 ; new ; H5K ; -
 WORKERS_1   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1 ; new ; H5K ; -
 # the reflection cube's compile without what the cube never shows (22 skin programs keyed for it, 2 ever drawn)
 CUBELEAN_1  ; D:/Dev/perf-lab-built ; cubelean=1 ; new ; H5K ; -
+# the load WITHOUT the programs linked for views the player may never open (the scuff's awake set, the see-through
+# twins): what "compile them after the reveal, in the background" would give. And Codex's one-program scuff (no
+# asleep / awake pair: the block always in, gated by a uniform).
+LATELINKS_1 ; D:/Dev/perf-lab-built ; latelinks=1 ; new ; H5K ; -
+SCUFFONE_1  ; D:/Dev/perf-lab-built ; scuffopt=liteone ; new ; H5K ; -
