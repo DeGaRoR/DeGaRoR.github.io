@@ -773,7 +773,34 @@ function cageJoinSpec(P, M, T) {
       legs.push({ L: r3(L), d: r3(dO * (cyl + 0.6 * (1 - cyl))), sec: faired ? 'fair' : 'round' });      // the cylinder and its thinner piston
       if (Math.round(num('s1_oleoBrace', 1)) === 1) legs.push({ L: r3(0.8 * L), d: r3(0.6 * dO), sec: 'round' });
     }
-    if (legs.length) spec.gearShape = { v: 1, legs };
+    // (the user, 22 Nov: "if you rework the landing gear billing, do it for all") A TRAILING LINK's leg and arm - the
+    // core keeps its own strut off the lever's drawn geometry (gear.lever) and adds it
+    else if (kind === 4) {
+      legs.push({ L: r3(L), d: 0.05, sec: faired ? 'fair' : 'round' });
+      legs.push({ L: r3(num('s1_lvArm', 0.4)), d: 0.04, sec: 'round' });
+    }
+    // THE THIRD WHEEL's leg, as drawn: a nose leg (blade, tube, oleo with its brace) or a tailwheel (a leaf spring edge
+    // on, or the PC-6's oleo post) with its swivel fork
+    const third = [];
+    if (P.s2Leg != null && +P.s2On !== 0) {
+      const k2 = Math.round(+P.s2Leg), d2 = Math.max(0.03, num('s2Drop', 0.2));
+      const fair2 = Math.round(num('s2LegFair', 0)) === 1 || Math.round(num('s2Fair', 0)) === 2;
+      if (k2 === 0) third.push({ L: r3(d2), d: r3(num('s2_beamT', 0.02)), sec: fair2 ? 'fair' : 'blade' });
+      else if (k2 === 1) third.push({ L: r3(d2), d: r3(num('s2_linkArmW', 0.04)), sec: fair2 ? 'fair' : 'round' });
+      else if (k2 === 2) {
+        const dO = num('s2_oleoDia', 0.06), cyl = Math.max(0, Math.min(1, num('s2_oleoCyl', 0.55)));
+        third.push({ L: r3(d2), d: r3(dO * (cyl + 0.6 * (1 - cyl))), sec: fair2 ? 'fair' : 'round' });
+        if (Math.round(num('s2_oleoBrace', 1)) === 1) third.push({ L: r3(0.8 * d2), d: r3(0.6 * dO), sec: 'round' });
+      } else if (k2 === 3) {
+        const tdrop = num('s2_twLegDrop', 0.1);
+        // (an oleo post runs up into the body: what stands in the wind is no longer than the swivel's drop under it)
+        if (Math.round(num('s2_twStyle', 0)) === 1) { third.push({ L: r3(Math.min(num('s2_twPostLen', 0.4), tdrop)), d: r3(num('s2_twPostD', 0.06)), sec: 'round' });
+                                                      third.push({ L: r3(0.3 * tdrop), d: 0.025, sec: 'round' }); }       // its fork
+        else { third.push({ L: r3(num('s2_twSpringLen', 0.32)), d: r3(num('s2_twSpringT', 0.01) * Math.max(1, Math.round(num('s2_twLeaves', 1)))), sec: 'blade' });
+               third.push({ L: r3(tdrop), d: 0.025, sec: 'round' }); }                                  // the swivel and its fork
+      } else if (k2 === 4) third.push({ L: r3(d2), d: 0.05, sec: fair2 ? 'fair' : 'round' });
+    }
+    if (legs.length || third.length) spec.gearShape = Object.assign({ v: 1, legs }, third.length ? { third } : {}, kind === 4 ? { lever: 1 } : {});
   }
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {
