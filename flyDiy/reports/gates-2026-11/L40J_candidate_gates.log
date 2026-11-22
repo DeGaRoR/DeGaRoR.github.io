@@ -1,5 +1,5 @@
-FAIL (48 of 200 gates run; PARTIAL: 17 of 23 chunks, 164 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET
+FAIL (58 of 238 gates run; PARTIAL: 18 of 23 chunks, 126 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -5050,6 +5050,755 @@ GATE ROOMMERGE: PASS
   PASS 4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)
   PASS 4b no control byte in the room's sources, and ?roompolish=0 / ?roomdirt=0 are word boundaries (HANGAR-BS: a backspace byte never matched)
 GATE HANGARVIEW: PASS
+######## chunk 17 of 23 (38 gates) ########
+=== POSEHIDDEN ===
+  PASS   no new page errors  [0 vs 0]
+  PASS NEGATIVE CONTROL: without the catch-up pose the shown skin diverges and the comparison catches it  [max position diff 8.39e-2 m, normal 1.45e-1]
+GATE POSEHIDDEN: PASS
+=== HINGE ===
+DOOR AXIS: 5 aeroplanes, every door on one hinge line a run (co-axial < 1 mm, on the skin, on its edge)
+  6 wings, every control surface hung and clear
+GATE HINGE: PASS
+=== CLIP ===
+  wall 35717 ms over 6 builds
+  1/1 checks
+GATE CLIP: PASS
+=== WINGSPLIT ===
+13 wings frozen, 8 groups each, 30914 skin vertices
+GATE WINGSPLIT: PASS
+=== CAGEFIT ===
+
+cageSpec(CAGE_PARAMS) identity: maxDev 0.000000 (step 0 v49)
+GATE CAGEFIT: PASS
+=== FRAMES ===
+FAIL   IDENTITY file:builds/cessna172r_2026-11-08.json — tailCap.band [0.121242895,0.050766768,-4.594024,null,null] -> [0.121989435,0.3187,-3.544024,null,null] (mesh 192/190 -> 198/194)
+  FAIL   IDENTITY file:builds/chinook_2026-09-21_corrected.json — pilPaxA.band [0.4567041,-0.348,1.265791,null,null] -> [0.5640344,-0.178,0.98358761,null,null] (mesh 174/170 -> 171/170)
+  ok     IDENTITY 59 corpus items compared
+  ok     LOCALITY page: the base cage is a closed 2-manifold
+  ok     LOCALITY page: 90 row settings each move their own frame only, cage closed
+  ok     LOCALITY page: cab frame fore/aft clamped on displacement (0.210 m for a 2 m row), cage closed
+  ok     LOCALITY page: pax frame fore/aft clamped on displacement (0.455 m for a 2 m row), cage closed
+  ok     LOCALITY page: boom frame fore/aft clamped on displacement (0.455 m for a 2 m row), cage closed
+  ok     FOLLOW page: every frame row written at its resolved value = identical rings
+  ok     FOLLOW page: every frame row null, then at its default = identical rings
+  ok     FOLLOW page: 35 height/width rows follow (35)
+  ok     MIGRATION page: the lift drops every retired key
+  ok     MIGRATION page: the lift wrote 13 frame rows for 14 retired values (13 expected)
+  ok     MIGRATION page: a lifted file re-lifted is a fixed point
+  ok     MIGRATION page: lifted rings = the pre-chantier resolver's (12 rings; the run may re-lerp)
+  ok     LOCALITY taper3: the base cage is a closed 2-manifold
+  ok     LOCALITY taper3: 90 row settings each move their own frame only, cage closed
+  ok     LOCALITY taper3: cab frame fore/aft clamped on displacement (0.210 m for a 2 m row), cage closed
+  ok     LOCALITY taper3: pax frame fore/aft clamped on displacement (0.350 m for a 2 m row), cage closed
+  ok     LOCALITY taper3: boom frame fore/aft clamped on displacement (0.350 m for a 2 m row), cage closed
+  ok     FOLLOW taper3: every frame row written at its resolved value = identical rings
+  ok     FOLLOW taper3: every frame row null, then at its default = identical rings
+  ok     FOLLOW taper3: 35 height/width rows follow (35)
+  ok     MIGRATION taper3: the lift drops every retired key
+  ok     MIGRATION taper3: the lift wrote 16 frame rows for 14 retired values (16 expected)
+  ok     MIGRATION taper3: a lifted file re-lifted is a fixed point
+  ok     MIGRATION taper3: lifted rings = the pre-chantier resolver's (18 rings; the run may re-lerp)
+  ok     LOCALITY box: the base cage is a closed 2-manifold
+  ok     LOCALITY box: 104 row settings each move their own frame only, cage closed
+  ok     LOCALITY box: cab frame fore/aft clamped on displacement (0.210 m for a 2 m row), cage closed
+  ok     LOCALITY box: pax frame fore/aft clamped on displacement (0.455 m for a 2 m row), cage closed
+  ok     LOCALITY box: boom frame fore/aft clamped on displacement (0.455 m for a 2 m row), cage closed
+  ok     FOLLOW box: every frame row written at its resolved value = identical rings
+  ok     FOLLOW box: every frame row null, then at its default = identical rings
+  ok     FOLLOW box: 35 height/width rows follow (35)
+  ok     PROFILE page: straight ignores the curve rows (identity)
+  ok     PROFILE page {"frPaxEase":1}: bends 4 run rings only, cage closed
+  ok     PROFILE page {"frPaxBias":1}: bends 4 run rings only, cage closed
+  ok     PROFILE page {"frPaxBias":-1}: bends 4 run rings only, cage closed
+  ok     PROFILE page {"frPaxBulgeH":0.2}: bends 4 run rings only, cage closed
+  ok     PROFILE page {"frPaxBulgeW":-0.2}: bends 4 run rings only, cage closed
+  ok     PROFILE page {"frPaxBulgeH":-0.2,"frPaxLoops":2}: bends 4 run rings only, cage closed
+  ok     PROFILE page: one bay — inert without loops, a former loop with them
+GATE FRAMES: FAIL (2)
+(exit code 1)
+=== KNIFE ===
+  ok     BUBBLE triangle stands 0.064 m out of its loop (row 0.05, the skin's own curve on top)
+  ok     BUBBLE triangle a row at 0 is the flat window
+GATE KNIFE: PASS
+=== DRAFTING ===
+  ok   the key measurements carry the nose wheel and the tail wheel rows
+  ok   a sheet turns by a fractional angle (3 deg: 41.9 px at 10 m, round trip 1.8e-15)
+GATE DRAFTING: PASS
+=== QSPARITY ===
+  info quickshot at the garage's subdivision (level 2, what the player sees): 119 / 175 (table 133); 50 row(s) move by more than half their tolerance: line.side.top.nose.cowl fore.offset -0.013, line.side.top.nose.cowl aft.offset -0.017, line.side.top.nose.windscreen base.offset -0.036, line.side.top.nose.windscreen base.worst -0.167, line.side.top.nose.windscreen base.straight -0.045, line.side.top.nose.windscreen base.kink -15.698, line.side.top.nose.windscreen base.slope -8.121, line.top.side.fore.cabin.kink -3.479 ...
+  info quickshot through the load door (the join's clamps, level 0): 133 / 175 (table 133); 0 row(s) move by more than half their tolerance
+GATE QSPARITY: PASS
+=== QSCUT ===
+  ok   the section line: 4550 edges
+  ok   the side picture written (8070 bytes)
+GATE QSCUT: PASS
+=== WORKBENCH ===
+20 workbench row(s), 6 skill(s)
+GATE WORKBENCH: PASS
+=== COMMITHYGIENE ===
+note: 69 commit(s) since origin/master (merge-base 9349a62c1)
+  FAIL built file(s) in source commit f80229d71 "train L40J CANDIDATE (built + premises cook), for the cloud battery - ": flyDiy/dev.html, flyDiy/index.html, flyDiy/sw.js, flyDiy/tools/flight_core.js, flyDiy/version.json  -> move them to a separate "(built)" commit
+  1 finding(s)
+GATE COMMITHYGIENE: FAIL
+(exit code 1)
+=== QUADWIN ===
+  ok     5 SAVE the quad's corners save and load back exact  [8 rows]
+30 checks
+GATE QUADWIN: PASS
+=== FIN ===
+ref 29 v / 18 q · gen 29 v / 18 q
+vertex maxDev 0.00e+0 (in file order)
+faces matched, materials 100%
+
+cub ref 23 v / 14 q · gen 23 v / 14 q
+cub vertex maxDev 4.25e-7 (NN), faces + materials matched
+template keel(zH1) -0.063774 -> offKeel measured 0.020407 / fiche 0.020407
+  sketch root A sits -0.4 mm off the template deck (absorbed by deck mode)
+  sketch root B sits 15.2 mm off the template deck (absorbed by deck mode)
+  sketch root C sits 9.0 mm off the template deck (absorbed by deck mode)
+  deck mode dorsal 0 keel 0: boundary strayed 3.72 mm from the skin in-body, projected to 0 (7/13 verts)
+  deck mode dorsal 0 keel 1: boundary strayed 2.15 mm from the skin in-body, projected to 0 (6/13 verts)
+  deck mode dorsal 1 keel 0: boundary strayed 3.72 mm from the skin in-body, projected to 0 (15/21 verts)
+  deck mode dorsal 1 keel 1: boundary strayed 0.39 mm from the skin in-body, projected to 0 (14/21 verts)
+health: 96 cases (dorsal x root x keel x crease x corners+rows x horn x deck), L2 each
+root economy: cage 29v/18q -> 23v/13q · single-creased root within 19.9 mm (surface, L2) of the guard pair
+corner sharpness: weight 3 pins the tip to 0.0e+0, weight 0 eases it 78 mm
+root freedoms: front column moves, keel-off baseY lifts the strand TE end 0.300
+rebase: template cap dz -1.0e-6, short-body TE lands at -3.360624
+cut cub mode 1: hinge z -4.1654 row y 1.4679 · fin 64 q / rudder 80 q · slot loss 0.0458
+cut cub mode 2: hinge z -4.1654 row y 1.4679 · fin 48 q / rudder 112 q · slot loss 0.0427
+solid cub mode 0: 706 v / 704 q · |x|max 0.060 · aft 0.017 · rim faces 508
+solid cub mode 2: 708 v / 704 q · |x|max 0.060 · aft 0.017 · rim faces 408
+edge sections: 4 -> 64 rim faces, 8 -> 128
+forced volume flip: 96 rim faces, 0 inverted, 0 out of register
+stab cant 0.6 rad: rotation residue 2.22e-16, cant 0 identical
+stab (cub defaults, hinge cut): 580 v / 576 q per side · mirrored, closed, root at x 0.05
+measure (sketch, L2): area 3.2801 proper 2.8115 dorsal 0.2800 keel 0.1886 · span 2.039 chord mean 1.379 root 0.369 box 3.978 · rudder 29.4 % (hinge) 44.1 % (horn)
+measure (cub stab panel, L2): area 1.8567 span 1.427 chord mean 1.301 root 0.376 · elevator 41.5 %
+macro tier: identity exact, height/chord/tip/sweep/hinge do what they say, 30 range ends, none clamped on the sketch, 1 named on the Cub
+straight fin: LE dev 4.3e-7, top dev 2.7e-3, 24 keys
+measure: tail_measure_2026-09-07_boot.json (dev.html boot build 2026-09-07 (the page as it opened; hinge cuts, stab on the keel), L2) reproduced headless, worst 0.0e+0 at -
+measure: tail_measure_2026-09-07_horn.json (dev.html 2026-09-07, horn balance on fin and stab (finCut 2, stCut 2), T-tail seat (stMount 2), L2) reproduced headless, worst 0.0e+0 at -
+§9: rod root on the saddle plate (6 verts, lift 10.5 mm), loft root on the skin (14 verts)
+  FAIL §10: cessna fin sheet folds over itself (5 faces, 0.0186 cage units^2)
+§10: folds counted in 10 sheets (jodel fin 224, jodel stab 192, cub fin 224, cub stab 192, cessna fin 288, cessna stab 192, cessna floats fin 288, cessna floats stab 192, twin fin 192, twin stab 192 faces)
+GATE FIN: FAIL
+(exit code 1)
+=== COWL ===
+  ok   a firewall too small for the engine is REPORTED, not drawn silently  radial cowl: the firewall is too small — 0.64 m across where this engine needs 1.75 m
+  ok   ...and the taper still stops at the row's own limit  1.15
+GATE COWL: PASS
+=== NACLAG ===
+
+all checks pass (90 s)
+GATE NACLAG: PASS
+=== ENGMESH ===
+LOD far                   5442    5608    9938    104     13   0.14   0.93
+
+GATE ENGMESH: PASS
+=== JOIN ===
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+=== GEOPARITY ===
+GEOPARITY - every flown strip against the drawn sheet at its station
+  tolerance: mean |dx| 0.05 m (fin 0.05), mean |dh| 0.03 m, worst |dx| 0.15 m, worst |dh| 0.05 m
+  ok     cub: the surfaces - fin 0.98 m2 (rudder 0.61), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.005/+0.002 stab +0.066/-0.000 fin -0.046/+0.157
+  ok     cub: wing mean +0.008/-0.002 worst +0.034/-0.003 chord +0.020 | stab mean +0.015/-0.000 worst +0.135/-0.000 chord -0.350 | fin mean -0.020/+0.000 worst -0.055/+0.000 chord +0.184
+  ok     jodel: the surfaces - fin 1.03 m2 (rudder 0.53), stab 2.21 m2 (elevator 0.43): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.014/-0.011 stab +0.026/+0.000 fin +0.002/+0.139
+  ok     jodel: wing mean +0.015/-0.000 worst +0.061/+0.002 chord +0.012 | stab mean +0.020/+0.000 worst +0.026/+0.000 chord -0.113 | fin mean -0.009/+0.000 worst -0.028/+0.000 chord +0.128
+  ok     cessna: the surfaces - fin 1.51 m2 (rudder 0.45), stab 3.18 m2 (elevator 0.47): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.015/-0.008 stab +0.018/-0.000 fin +0.295/+0.159
+  FAIL   cessna: wing mean +0.016/-0.001 worst +0.049/-0.001 chord +0.017 | stab mean +0.001/-0.000 worst +0.060/-0.000 chord -0.198 | fin mean +0.056/+0.000 worst +0.188/+0.000 chord -0.310  <- fin mean dx +0.056; fin worst dx +0.188
+           wing @0.99  dx +0.003 dh -0.001 dc +0.013 | flown x 1.01 h 1.24 c 1.63 | drawn le 0.60 te 2.22 h 1.25
+           wing @1.82  dx +0.003 dh -0.001 dc +0.012 | flown x 1.01 h 1.28 c 1.63 | drawn le 0.60 te 2.22 h 1.28
+           wing @2.28  dx +0.003 dh -0.001 dc +0.012 | flown x 1.01 h 1.30 c 1.63 | drawn le 0.60 te 2.22 h 1.30
+           wing @2.44  dx +0.003 dh -0.001 dc +0.012 | flown x 1.01 h 1.31 c 1.63 | drawn le 0.60 te 2.22 h 1.31
+           wing @2.89  dx +0.010 dh -0.001 dc +0.013 | flown x 1.03 h 1.33 c 1.57 | drawn le 0.63 te 2.18 h 1.33
+           wing @3.55  dx +0.021 dh -0.001 dc +0.014 | flown x 1.06 h 1.35 c 1.45 | drawn le 0.68 te 2.12 h 1.35
+           wing @4.31  dx +0.034 dh -0.001 dc +0.015 | flown x 1.10 h 1.39 c 1.32 | drawn le 0.74 te 2.05 h 1.39
+           wing @5.14  dx +0.049 dh -0.000 dc +0.017 | flown x 1.14 h 1.42 c 1.18 | drawn le 0.80 te 1.97 h 1.42
+           wing @0.00  MISSING
+           stab @0.24  dx +0.060 dh -0.000 dc -0.198 | flown x 5.35 h 1.00 c 1.02 | drawn le 4.98 te 6.20 h 1.00
+           stab @0.51  dx +0.026 dh -0.000 dc -0.134 | flown x 5.36 h 1.00 c 0.98 | drawn le 5.05 te 6.17 h 1.00
+           stab @0.78  dx +0.008 dh -0.000 dc -0.092 | flown x 5.37 h 1.00 c 0.95 | drawn le 5.10 te 6.14 h 1.00
+           stab @1.04  dx -0.010 dh -0.000 dc -0.051 | flown x 5.37 h 1.00 c 0.91 | drawn le 5.14 te 6.11 h 1.00
+           stab @1.31  dx -0.029 dh -0.000 dc -0.009 | flown x 5.38 h 1.00 c 0.88 | drawn le 5.19 te 6.08 h 1.00
+           stab @1.58  dx -0.049 dh -0.000 dc +0.034 | flown x 5.39 h 1.00 c 0.84 | drawn le 5.24 te 6.05 h 1.00
+           stab @0.00  MISSING
+           fin  @1.24  dx +0.188 dh +0.000 dc -0.310 | flown x 5.45 h 0.00 c 1.13 | drawn le 4.90 te 6.34 h 0.00
+           fin  @1.72  dx -0.001 dh +0.000 dc -0.004 | flown x 5.70 h 0.00 c 1.05 | drawn le 5.44 te 6.49 h 0.00
+           fin  @2.20  dx -0.019 dh +0.000 dc +0.074 | flown x 5.95 h 0.00 c 0.97 | drawn le 5.75 te 6.64 h 0.00
+  ok     floats: the surfaces - fin 1.55 m2 (rudder 0.55), stab 2.65 m2 (elevator 0.27): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.030/+0.007 stab +0.026/+0.000 fin +0.174/+0.232
+  ok     floats: wing mean +0.031/-0.003 worst +0.075/-0.005 chord +0.015 | stab mean -0.006/+0.000 worst -0.086/+0.000 chord -0.192 | fin mean -0.034/+0.000 worst -0.074/+0.000 chord +0.274
+  ok     twinFloats: the surfaces - fin 1.71 m2 (rudder 0.48), stab 3.33 m2 (elevator 0.45): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.002/-0.001 stab +0.041/-0.000 fin +0.034/+0.091
+  ok     twinFloats: wing mean +0.002/-0.001 worst +0.002/-0.001 chord +0.008 | stab mean +0.041/-0.000 worst +0.124/-0.000 chord -0.154 | fin mean +0.011/+0.000 worst +0.042/+0.000 chord -0.167
+  ok     mosquito2: the surfaces - fin 0.95 m2 (rudder 0.57), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.003/-0.001 stab +0.066/+0.000 fin -0.045/+0.113
+  ok     mosquito2: wing mean +0.002/-0.001 worst +0.002/-0.001 chord +0.011 | stab mean +0.015/+0.000 worst +0.135/+0.000 chord -0.350 | fin mean -0.010/+0.000 worst -0.055/+0.000 chord +0.175
+  ok     mosquito3: the surfaces - fin 1.43 m2 (rudder 0.49), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.022/+0.007 stab +0.066/-0.000 fin +0.054/+0.124
+  ok     mosquito3: wing mean +0.021/-0.000 worst +0.062/+0.002 chord +0.018 | stab mean +0.015/-0.000 worst +0.135/-0.000 chord -0.350 | fin mean -0.003/+0.000 worst -0.058/+0.000 chord -0.173
+  ok     cub boom +0.8: the surfaces - fin 0.98 m2 (rudder 0.61), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.005/+0.002 stab +0.066/-0.000 fin -0.045/+0.158
+  ok     cub boom +0.8: wing mean +0.008/-0.002 worst +0.034/-0.003 chord +0.020 | stab mean +0.015/-0.000 worst +0.135/-0.000 chord -0.350 | fin mean -0.021/+0.000 worst -0.055/+0.000 chord +0.186
+  ok     cub boom -0.6: the surfaces - fin 0.98 m2 (rudder 0.61), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.005/+0.002 stab +0.066/-0.000 fin -0.048/+0.157
+  ok     cub boom -0.6: wing mean +0.008/-0.002 worst +0.034/-0.003 chord +0.020 | stab mean +0.015/-0.000 worst +0.135/-0.000 chord -0.350 | fin mean -0.020/+0.000 worst -0.055/+0.000 chord +0.183
+  ok     cub fin swept 25: the surfaces - fin 0.99 m2 (rudder 0.60), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.005/+0.002 stab +0.066/-0.000 fin +0.011/+0.156
+  ok     cub fin swept 25: wing mean +0.008/-0.002 worst +0.034/-0.003 chord +0.020 | stab mean +0.015/-0.000 worst +0.135/-0.000 chord -0.350 | fin mean -0.021/+0.000 worst -0.057/+0.000 chord +0.189
+  ok     cub turtledeck: the surfaces - fin 0.96 m2 (rudder 0.57), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.007/+0.002 stab +0.066/+0.000 fin -0.044/+0.114
+  ok     cub turtledeck: wing mean +0.008/-0.002 worst +0.034/-0.003 chord +0.020 | stab mean +0.015/+0.000 worst +0.134/+0.000 chord -0.350 | fin mean -0.011/+0.000 worst -0.056/+0.000 chord +0.178
+  ok     mosquito boom 3.6: the surfaces - fin 1.44 m2 (rudder 0.49), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.022/+0.007 stab +0.066/-0.000 fin +0.064/+0.123
+  ok     mosquito boom 3.6: wing mean +0.021/-0.000 worst +0.062/+0.002 chord +0.018 | stab mean +0.015/-0.000 worst +0.135/-0.000 chord -0.350 | fin mean +0.001/+0.000 worst +0.059/+0.000 chord -0.197
+  ok     mosquito boom 6.0: the surfaces - fin 1.42 m2 (rudder 0.49), stab 2.48 m2 (elevator 0.41): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.022/+0.007 stab +0.066/-0.000 fin +0.055/+0.127
+  ok     mosquito boom 6.0: wing mean +0.021/-0.000 worst +0.062/+0.002 chord +0.018 | stab mean +0.015/-0.000 worst +0.135/-0.000 chord -0.350 | fin mean -0.005/+0.000 worst -0.059/+0.000 chord +0.168
+  ok     jodel fin upright: the surfaces - fin 1.03 m2 (rudder 0.53), stab 2.21 m2 (elevator 0.43): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.014/-0.011 stab +0.026/+0.000 fin +0.002/+0.139
+  ok     jodel fin upright: wing mean +0.015/-0.000 worst +0.061/+0.002 chord +0.012 | stab mean +0.020/+0.000 worst +0.026/+0.000 chord -0.113 | fin mean -0.009/+0.000 worst -0.028/+0.000 chord +0.128
+           join errors: prop: through the wing (24 of 288 points) / prop: through the wing (24 of 288 points)
+  ok     twin rod inclined: the surfaces - fin 1.74 m2 (rudder 0.48), stab 3.33 m2 (elevator 0.45): areas, control fractions and aspect ratios the drawn ones
+           aero centres (readout) flown - drawn: wing +0.002/-0.001 stab +0.041/+0.002 fin +0.035/+0.083
+  ok     twin rod inclined: wing mean +0.002/-0.001 worst +0.002/-0.001 chord +0.008 | stab mean +0.041/+0.002 worst +0.124/+0.002 chord -0.154 | fin mean +0.009/+0.000 worst +0.040/+0.000 chord -0.211
+SELF-TEST
+  ok     cub, fin moved 0.5 m aft after the join: the doctored build goes RED (fin mean dx +0.480; fin worst dx +0.515)
+  ok     cub, stab raised 0.15 m after the join: the doctored build goes RED (stab mean dh +0.175; stab worst dh +0.175)
+
+GEOPARITY: 31/32 ok, 1 FAIL
+GATE GEOPARITY: FAIL
+(exit code 1)
+=== WINGROWS ===
+WINGROWS - the wing row is the wing that is drawn and flown (G3050, CONFIGURATIONS §9)
+S9 - the three §9 rows and their siblings, both planes
+  FAIL   §9.1 tip 0.55 on a 2.10 root (flew 0.945): row 0.7350 (want 0.9450); note "held at 0.735 (asked 0.55) — the tip is held to 0.35–1 × the root chord"
+  ok     the ceiling: tip 1.75 on a 1.70 root (the user's Cub): row 1.7000 (want 1.7000); note "held at 1.7 (asked 1.75) — the tip is held to 0.35–1 × the root chord"
+  ok     §9.3 span 6.5 on a 2.10 chord (4 x chord): row 8.4000 (want 8.4000); note "held at 8.4 (asked 6.5) — the span is held to 6.5–18 m and 4–20 × the root chord"
+  ok     span 18 on a 0.80 chord (20 x chord): row 16.0000 (want 16.0000); note "held at 16 (asked 18) — the span is held to 6.5–18 m and 4–20 × the root chord"
+  ok     the sail seed 15 x 1.00 untouched: row 15.0000 (want 15.0000); note ""
+  ok     tip offset 2.5 on a 6.5 m span (tan 30 deg): row 1.7032 (want 1.7032); note "held at 1.703 (asked 2.5) — the tip offset is held to tan 30° of the semispan"
+  ok     a crank at 10 % is no crank: row 0.0000 (want 0.0000); note "held at 0 (asked 0.1) — a crank inboard of 15 % of the semispan is no crank"
+  ok     a 0.10 m centre section flies 0.20: row 0.2000 (want 0.2000); note "held at 0.2 (asked 0.1) — the narrowest centre section is 0.20 m"
+  ok     a 0.60 flap beside a 0.55 aileron: row 0.4100 (want 0.4100); note "held at 0.41 (asked 0.6) — the flap ends 4 % of the semispan short of the aileron"
+  FAIL   the second plane: tip 0.55 on a 2.10 root: row 0.7350 (want 0.9450); note "held at 0.735 (asked 0.55) — the tip is held to 0.35–1 × the root chord"
+  ok     the second plane: span 3.5 on a 2.10 chord: row 4.2000 (want 4.2000); note "held at 4.2 (asked 3.5) — the span is held to 2–18 m and 2–20 × the root chord"
+SWEEP - 400 seeded random wings over every wing row's range, both planes
+  ok     every live wing row = the flown wing on 400/400 random builds (380 had a row the resolver overruled)
+  ok     the write-back is a fixed point: a second coerce moves nothing (0 moved)
+KEPT - the validated builds: the rows the write-back moves, the flown wing bit-identical
+  ok     cub: flown wing + controls bit-identical; rows moved: wgChordTip 1.75 -> 1.7
+  ok     jodel: flown wing + controls bit-identical; rows moved: none
+  ok     cessna: flown wing + controls bit-identical; rows moved: none
+  ok     cessna floats: flown wing + controls bit-identical; rows moved: none
+  ok     twin on floats: flown wing + controls bit-identical; rows moved: wgChordTip 1.6 -> 1.5
+  ok     mosquito: flown wing + controls bit-identical; rows moved: none
+STATION - the fore / aft and up / down rows at their ends, through the page chain headless (the game path)
+  ok     jodel, fore / aft at the aft end -1.5 (inside): drawn dx -1.500 dy -0.160; xLE 1.938 yRoot 0.070; geoparity mean 0.015/-0.000 worst 0.061/0.002
+  ok     jodel, fore / aft at the forward end 1.8 (§9.2: drawn 1.16 m ahead of the flown): drawn dx 1.638 dy -0.160; xLE -1.200 yRoot 0.070; geoparity mean 0.015/-0.000 worst 0.061/0.002
+  ok     cub, fore / aft 1.8: drawn dx 1.485 dy -0.100; xLE -1.200 yRoot 1.215; geoparity mean 0.008/-0.002 worst 0.034/-0.003
+  ok     cessna, fore / aft 1.8: drawn dx 1.800 dy -0.077; xLE -0.845 yRoot 1.228; geoparity mean 0.016/-0.001 worst 0.049/-0.001
+  ok     cessna, parasol 1.20 m + up 1.0 (drawn 3.72 m over the keel, flew 3.00): drawn dx 0.352 dy 0.495; xLE 0.603 yRoot 3.000; geoparity mean 0.016/-0.001 worst 0.049/-0.001
+  ok     cub, low wing down 1.0 (inside): drawn dx 0.000 dy -1.000; xLE 0.285 yRoot -0.713; geoparity mean 0.008/-0.002 worst 0.034/-0.003
+  ok     cub biplane, upper parasol 1.20 m + up 0.6 (drawn 3.39, flew 3.00): drawn dx 0.000 dy -0.100 w2Dy 0.208; xLE 0.285/- yRoot 0.187/3.000
+SELF-TEST - each rule broken must go red
+S9 - the three §9 rows and their siblings, both planes (coerce removed)
+  ok     the write-back removed: S9 goes red
+  ok     the write-back removed: SWEEP goes red
+  ok     the drawn window removed: the Jodel at fore / aft 1.8 goes red (drawn past the flown wing)
+
+WINGROWS: 27/29 ok, 2 FAIL
+GATE WINGROWS: FAIL
+(exit code 1)
+=== DESIGNCHECK ===
+VALIDATED - no FAIL row
+  ok     cub: WARN pitch.sm=0.033(warn) pitch.Vh=0.362 pitch.short=0.66 ctl.elevator=0.166 ctl.flare=1 yaw.Vv=0.022 yaw.cnb=0.09 roll.clb=-0.038 roll.spiral=15.17(warn) yaw.dutch=0.214 roll.mode=0.08 ctl.aileron=0.265 ctl.rudder=13.6
+           warn pitch.sm: as drawn 0.177, at the worst loading corner (full cabin · reserves) 0.033 of the mean chord. Below zero the aeroplane diverges in pitch: any bump grows. -> move the CG forward by 0.03 m (ballast in the nose, the wing aft, or the tanks/seats forward), or grow the stabiliser
+           warn roll.spiral: unstable: a bank of 5 deg becomes 10 in 15.17 s, then tightens into a spiral dive -> the dihedral effect is weak against the fin: more dihedral (or a higher wing); a smaller fin also helps the spiral but costs the dutch roll
+  ok     jodel: WARN pitch.sm=0.021(warn) pitch.Vh=0.338 pitch.short=0.7 ctl.elevator=0.269 ctl.flare=1 yaw.Vv=0.032 yaw.cnb=0.115 roll.clb=-0.189 roll.spiral=- yaw.dutch=0.067(warn) roll.mode=0.11 ctl.aileron=0.28 ctl.rudder=16.5
+           warn pitch.sm: as drawn 0.045, at the worst loading corner (full cabin · reserves) 0.021 of the mean chord. Below zero the aeroplane diverges in pitch: any bump grows. -> move the CG forward by 0.05 m (ballast in the nose, the wing aft, or the tanks/seats forward), or grow the stabiliser
+           warn yaw.dutch: frequency 2.52 rad/s (period 2.49 s), damping 0.067 -> more fin area further aft (yaw damping grows with fin area x arm squared); less dihedral also calms it, at the spiral's expense
+  ok     cessna: PASS pitch.sm=0.286 pitch.Vh=0.593 pitch.short=0.5 ctl.elevator=0.392 ctl.flare=1 yaw.Vv=0.038 yaw.cnb=0.157 roll.clb=-0.074 roll.spiral=- yaw.dutch=0.197 roll.mode=0.11 ctl.aileron=0.198 ctl.rudder=19.51
+  ok     floats: PASS pitch.sm=0.196 pitch.Vh=0.455 pitch.short=0.44 ctl.elevator=0.156 ctl.flare=1.04 yaw.Vv=0.039 yaw.cnb=0.14 roll.clb=-0.061 roll.spiral=39.78 yaw.dutch=0.18 roll.mode=0.1 ctl.aileron=0.243 ctl.rudder=21.85
+  ok     twinFloats: WARN pitch.sm=0.023(warn) pitch.Vh=0.324 pitch.short=0.78 ctl.elevator=0.147 ctl.flare=1 yaw.Vv=0.019(warn) yaw.cnb=0.054 roll.clb=-0.028 roll.spiral=14.75(warn) yaw.dutch=0.177 roll.mode=0.09 ctl.aileron=0.179 ctl.rudder=13.34
+           warn pitch.sm: as drawn 0.039, at the worst loading corner (solo · reserves) 0.023 of the mean chord. Below zero the aeroplane diverges in pitch: any bump grows. -> move the CG forward by 0.04 m (ballast in the nose, the wing aft, or the tanks/seats forward), or grow the stabiliser
+           warn yaw.Vv: fin area 1.71 m2 on a 2.36 m arm against the wing's 17.7 m2 x 11.8 m span -> the fin is too small or too close: grow it by 0.06 m2, or move it aft by 0.09 m
+           warn roll.spiral: unstable: a bank of 5 deg becomes 10 in 14.75 s, then tightens into a spiral dive -> the dihedral effect is weak against the fin: more dihedral (or a higher wing); a smaller fin also helps the spiral but costs the dutch roll
+THE USER'S MOSQUITO (the repro builds, joined) - printed
+           mosquito_2: WARN pitch.sm=0.14 pitch.Vh=0.405 pitch.short=0.57 ctl.elevator=0.173 ctl.flare=1 yaw.Vv=0.023 yaw.cnb=0.072 roll.clb=-0.036 roll.spiral=18.54(warn) yaw.dutch=0.198 roll.mode=0.06 ctl.aileron=0.255 ctl.rudder=16.15
+           mosquito_3: PASS pitch.sm=0.28 pitch.Vh=0.593 pitch.short=0.56 ctl.elevator=0.28 ctl.flare=1 yaw.Vv=0.04 yaw.cnb=0.132 roll.clb=-0.164 roll.spiral=- yaw.dutch=0.177 roll.mode=0.06 ctl.aileron=0.159 ctl.rudder=15.44
+THE USER'S RUFUS (nose-heavy: the elevator runs out before the stall) - ctl.flare catches it
+  ok     rufus: ctl.flare warn (1.1 x Vs; flown 1.16) -> it is nose-heavy for its elevator: the CG 0.15 m further aft (a lighter engine, or the wing moved forward by about that) - near the stall a bigger elevator barely helps
+DOCTORED - each defect fails on its own row, with a fix
+  ok     the fin shrunk to 30 %: yaw.Vv fail (0.007) -> the fin is too small or too close: grow it by 0.58 m2 (moving it aft would take 8 m: the area is what is missing)
+  ok     the fin a sliver (12 %): yaw.Vv fail (0.003) -> the fin is too small or too close: grow it by 0.76 m2 (moving it aft would take 28 m: the area is what is missing)
+  ok     the fin dragged forward to 1.2 m behind the wing: yaw.Vv fail (0.007) -> the fin is too small or too close: grow it by 1.93 m2 (moving it aft would take 3 m: the area is what is missing)
+  ok     the stab shrunk to 40 %: pitch.Vh fail (0.145) -> grow the stabiliser by 1.07 m2 (moving it aft would take 5 m: the area is what is missing)
+  ok     the tail pulled 1.2 m forward: pitch.sm fail (-0.021) -> move the CG forward by 0.12 m (ballast in the nose, the wing aft, or the tanks/seats forward), or grow the stabiliser
+  ok     no aileron: ctl.aileron fail (0) -> longer or wider ailerons (their span outboard counts most)
+  ok     the wing 0.4 m aft of the CG: ctl.flare fail (1.35) -> it is nose-heavy for its elevator: the CG 0.34 m further aft (a lighter engine, or the wing moved forward by about that) - near the stall a bigger elevator barely helps
+  ok     the engine 0.8 m forward: ctl.elevator pass (0.086), ctl.flare warn (1.18 x Vs) -> it is nose-heavy for its elevator: the CG 0.2 m further aft (a lighter engine, or the wing moved forward by about that) - near the stall a bigger elevator barely helps
+SWEEPS - the physics points the right way
+  ok     fin area x0.6..1.5 -> yaw stiffness rises: 0.0754 0.0839 0.0902 0.0960 0.1001
+  ok     fin area x0.6..1.5 -> dutch-roll damping (zeta x wn) rises: 0.3934 0.4273 0.4508 0.4700 0.4815
+  ok     fin area x0.6..1.5 -> the spiral root rises (less stable): 0.0438 0.0449 0.0457 0.0465 0.0471
+  ok     dihedral 0..6 deg -> dihedral effect grows (Clb falls): -0.0205 -0.0472 -0.0743 -0.1018 -0.1295
+  ok     dihedral 0..6 deg -> the spiral root falls (more stable): 0.0536 0.0418 0.0299 0.0180 0.0058
+  ok     tail moved -0.6..+0.6 m -> static margin rises: 0.149 0.164 0.177 0.186 0.189
+DATA AND DETERMINISM
+  ok     13 rows, every one with id/group/label/level/limit/why and a fix when not a pass
+  ok     the same build twice: the same check to the bit
+  ok     the bench renders every row (benchDesignHtml)
+THE BOOM - a stressed skin is a shell, a truss a truss
+  ok     the carbon mosquito's boom flies on a shell cluster (omega 610 rad/s)
+  FAIL   200 N sideways at the post: 4.2 mm against the drawn carbon shell's 1.8 mm (within 2x)
+  ok     ...and the revert switch (shellBoom 0) is the soft truss again: 37.9 mm
+  ok     the Cub's tube-and-fabric fuselage stays a truss (no shell)
+THE MARGINS ARE THE GARAGE CG COLOURS
+  ok     cub: pitch.sm warn = the garage CG colour orange (worst corner 0.031, drawn 0.175 green)
+  ok     jodel: pitch.sm warn = the garage CG colour orange (worst corner 0.021, drawn 0.045 orange)
+  ok     cessna: pitch.sm pass = the garage CG colour green (worst corner 0.286, drawn 0.324 green)
+  ok     the Cub row follows GEN_MARGIN_BANDS: the orange edge raised over its margin -> pass becomes warn
+  ok     the pitch.sm row carries no margin number of its own (only GEN_MARGIN_BANDS)
+
+DESIGNCHECK: 31/32 ok, 1 FAIL
+GATE DESIGNCHECK: FAIL
+(exit code 1)
+=== SPECFIX ===
+  (joins: 102.1 s)
+
+GATE SPECFIX: PASS
+=== JOINPARITY ===
+== 1. node's load path against the page's own spec (tools/fixtures/join_parity_page.json) ==
+PASS the page capture holds every validated build (cub, jodel, metal, floats, twinFloats, petrel)
+     (the load chain's files changed since the capture of 2026-11-18T09:56:52.338Z: a FAIL below means the game's aeroplane moved - re-capture with node tools/join_parity_page.js if that move is meant, and say so in the HANDOVER)
+PASS Cub              node = page: n 97/97 nb 404/404 mass 477.299/477.299 kg, worst 0.00e+0
+FAIL Jodel            node = page: n 115/115 nb 502/502 mass 470.666/469.732 kg, worst 1.96e-2 - FIRST: node 0 (S0BL).m 29.439385931126427 vs 29.43654713777305
+FAIL metal Cessna     node = page: n 117/117 nb 492/492 mass 1061.695/1061.801 kg, worst 1.46e-2 - FIRST: node 0 (S0BL).m 42.598891515111106 vs 42.601364882696956
+PASS Cessna floats    the float station (the page's CG handshake, declared): x 1.22720 / page 1.22720, y -1.09042 / page -1.09042 (within 5 mm)
+PASS Cessna floats    node = page: n 134/134 nb 543/543 mass 951.334/951.334 kg, worst 1.88e-16
+PASS twin floatplane  the float station (the page's CG handshake, declared): x 1.21939 / page 1.21939, y -0.45884 / page -0.45884 (within 5 mm)
+PASS twin floatplane  node = page: n 123/123 nb 500/500 mass 474.525/474.525 kg, worst 0.00e+0
+PASS Super Petrel     node = page: n 184/184 nb 845/845 mass 581.001/581.001 kg, worst 1.83e-15
+== 2. the file as written is NOT the game's aeroplane (the pre-G1985 loaders) ==
+FAIL metal Cessna: the engine nodes as written at x -0.604 m, in the game at -0.604 (the join's engines[0].x = -0.6035)
+PASS Cub: the nose tank's nodes as written 0.924 m over the firewall's foot, in the game 0.924; 476.14 kg as written (box), 477.30 in the game (deck, the tank 45 L)
+== 3. the chain is a pure function of its inputs ==
+PASS metal Cessna: two fresh computations and the cache agree to the byte
+PASS Cub: two fresh computations and the cache agree to the byte
+== 4. the game's spec saved and opened again (question 4) ==
+PASS Cub              save -> open: n 97/97 nb 404/404 mass 477.299/477.299 kg, worst 0.00e+0, engines[0].x -0.8920 carried
+PASS Jodel            save -> open: n 115/115 nb 502/502 mass 470.666/470.666 kg, worst 0.00e+0, engines[0].x -0.9855 carried
+PASS metal Cessna     save -> open: n 117/117 nb 492/492 mass 1061.695/1061.695 kg, worst 0.00e+0, engines[0].x -0.6035 carried
+PASS Cessna floats    save -> open: n 134/134 nb 543/543 mass 951.334/951.334 kg, worst 0.00e+0, engines[0].x -1.1619 carried
+PASS twin floatplane  save -> open: n 123/123 nb 500/500 mass 474.525/474.525 kg, worst 0.00e+0
+PASS Super Petrel     save -> open: n 184/184 nb 845/845 mass 581.001/581.001 kg, worst 0.00e+0
+== 5. every loader of a validated build goes through tools/_load_build.js ==
+PASS the legacy list only shrinks: 19 of at most 19, every one still raw (owner Deform)
+PASS the incoming list only shrinks: 5 of at most 5
+  OPEN pod_still.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN pod_trials.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _pod_check.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _pod_fly.js reads a validated build raw [owner GAME, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+  OPEN _radialdiv_check.js reads a validated build raw [owner RADIAL-DIVERGE, opened 2026-10-11: through tools/_load_build.js, then strike it off]
+FAIL no tool flies a validated build raw: _muddeposit_check.js, _qscut_check.js, _tutorlock_check.js, _unify_check.js, large_hangar_shot.js, large_hangar_store_shot.js
+PASS pilot_trace.js loads saved builds through tools/_load_build.js
+PASS _treecrash_lib.js loads saved builds through tools/_load_build.js
+PASS _tour_lib.js loads saved builds through tools/_load_build.js
+GATE JOINPARITY: 4 FAIL
+(exit code 1)
+=== CREWLOAD ===
+  ok   B: and the character is ready
+  ok   SELF-TEST the mutant without the guard rebuilds on every build (the old loop) and turns A red  (mutant builds 7 in 9 s)
+GATE CREWLOAD: PASS
+=== CREWSEATS ===
+  ok   7g the crew layer: the door, the chair built off the layer, the job's passenger forced live
+  (70 s)
+GATE CREWSEATS: PASS
+=== ENGINE ===
+THERMO + PRICE over every registry row
+  ok     a65_sensenich74: family 'four' declared
+  ok     a65_sensenich74: cooling 'air' declared
+  ok     a65_sensenich74: coolKW finite (21.8)
+  ok     a65_sensenich74: piston burns (14.5 kg/h), draws nothing
+  ok     a65_sensenich74: price law 13520 inside the band of 11000 (x1.23)
+  ok     r1830_hs23e50: family 'four' declared
+  ok     r1830_hs23e50: cooling 'air' declared
+  ok     r1830_hs23e50: coolKW finite (402.8)
+  ok     r1830_hs23e50: piston burns (268.5 kg/h), draws nothing
+  ok     r1830_hs23e50: price law 95698 inside the band of 78000 (x1.23)
+  ok     io360_mccauley: family 'four' declared
+  ok     io360_mccauley: cooling 'air' declared
+  ok     io360_mccauley: coolKW finite (60.3)
+  ok     io360_mccauley: piston burns (40.2 kg/h), draws nothing
+  ok     io360_mccauley: price law 49233 inside the band of 52000 (x0.95)
+  ok     rotax277_pusher: family 'two' declared
+  ok     rotax277_pusher: cooling 'air' declared
+  ok     rotax277_pusher: coolKW finite (11.6)
+  ok     rotax277_pusher: piston burns (10.5 kg/h), draws nothing
+  ok     rotax277_pusher: price law 4476 inside the band of 5300 (x0.84)
+  ok     vw2180_wood: family 'four' declared
+  ok     vw2180_wood: cooling 'air' declared
+  ok     vw2180_wood: coolKW finite (19.8)
+  ok     vw2180_wood: piston burns (13.2 kg/h), draws nothing
+  ok     vw2180_wood: price law 11913 inside the band of 8700 (x1.37)
+  ok     rotax582_ivo: family 'two' declared
+  ok     rotax582_ivo: cooling 'liquid' declared
+  ok     rotax582_ivo: coolKW finite (24.0)
+  ok     rotax582_ivo: piston burns (24.0 kg/h), draws nothing
+  ok     rotax582_ivo: price law 11581 inside the band of 8800 (x1.32)
+  ok     jabiru2200_std: family 'four' declared
+  ok     jabiru2200_std: cooling 'air' declared
+  ok     jabiru2200_std: coolKW finite (28.4)
+  ok     jabiru2200_std: piston burns (18.9 kg/h), draws nothing
+  ok     jabiru2200_std: price law 18996 inside the band of 21800 (x0.87)
+  ok     rotax912_warp: family 'four' declared
+  ok     rotax912_warp: cooling 'liquid' declared
+  ok     rotax912_warp: coolKW finite (25.0)
+  ok     rotax912_warp: piston burns (17.9 kg/h), draws nothing
+  ok     rotax912_warp: price law 17674 inside the band of 22000 (x0.80)
+  ok     rotax912is_warp: family 'four' declared
+  ok     rotax912is_warp: cooling 'liquid' declared
+  ok     rotax912is_warp: coolKW finite (30.9)
+  ok     rotax912is_warp: piston burns (22.1 kg/h), draws nothing
+  ok     rotax912is_warp: price law 23211 inside the band of 22000 (x1.06)
+  ok     o200_eprops: family 'four' declared
+  ok     o200_eprops: cooling 'air' declared
+  ok     o200_eprops: coolKW finite (33.6)
+  ok     o200_eprops: piston burns (22.4 kg/h), draws nothing
+  ok     o200_eprops: price law 23664 inside the band of 43000 (x0.55)
+  ok     r985_hs2b20: family 'four' declared
+  ok     r985_hs2b20: cooling 'air' declared
+  ok     r985_hs2b20: coolKW finite (151.2)
+  ok     r985_hs2b20: piston burns (100.8 kg/h), draws nothing
+  ok     r985_hs2b20: price law 67918 inside the band of 52000 (x1.31)
+  ok     verner7u_wood: family 'four' declared
+  ok     verner7u_wood: cooling 'air' declared
+  ok     verner7u_wood: coolKW finite (35.1)
+  ok     verner7u_wood: piston burns (23.4 kg/h), draws nothing
+  ok     verner7u_wood: price law 25075 inside the band of 31900 (x0.79)
+  ok     clerget9b_wood: family 'four' declared
+  ok     clerget9b_wood: cooling 'air' declared
+  ok     clerget9b_wood: coolKW finite (43.6)
+  ok     clerget9b_wood: piston burns (29.1 kg/h), draws nothing
+  ok     clerget9b_wood: price law 33291 inside the band of 37700 (x0.88)
+  ok     merlin66_rotol4: family 'four' declared
+  ok     merlin66_rotol4: cooling 'liquid' declared
+  ok     merlin66_rotol4: coolKW finite (538.9)
+  ok     merlin66_rotol4: piston burns (384.9 kg/h), draws nothing
+  ok     merlin66_rotol4: price law 108554 inside the band of 261000 (x0.42)
+  ok     rotec3600_std: family 'four' declared
+  ok     rotec3600_std: cooling 'air' declared
+  ok     rotec3600_std: coolKW finite (50.4)
+  ok     rotec3600_std: piston burns (33.6 kg/h), draws nothing
+  ok     rotec3600_std: price law 40133 inside the band of 43500 (x0.92)
+  ok     mikron3_wood: family 'four' declared
+  ok     mikron3_wood: cooling 'air' declared
+  ok     mikron3_wood: coolKW finite (21.6)
+  ok     mikron3_wood: piston burns (14.4 kg/h), draws nothing
+  ok     mikron3_wood: price law 13339 inside the band of 23200 (x0.57)
+  ok     gipsymajor1_wood: family 'four' declared
+  ok     gipsymajor1_wood: cooling 'air' declared
+  ok     gipsymajor1_wood: coolKW finite (43.6)
+  ok     gipsymajor1_wood: piston burns (29.1 kg/h), draws nothing
+  ok     gipsymajor1_wood: price law 33291 inside the band of 55000 (x0.61)
+  ok     hirth508_wood: family 'four' declared
+  ok     hirth508_wood: cooling 'air' declared
+  ok     hirth508_wood: coolKW finite (94.0)
+  ok     hirth508_wood: piston burns (62.7 kg/h), draws nothing
+  ok     hirth508_wood: price law 57520 inside the band of 58000 (x0.99)
+  ok     argus10c_wood: family 'four' declared
+  ok     argus10c_wood: cooling 'air' declared
+  ok     argus10c_wood: coolKW finite (79.2)
+  ok     argus10c_wood: piston burns (52.8 kg/h), draws nothing
+  ok     argus10c_wood: price law 54162 inside the band of 55100 (x0.98)
+  ok     o320_mccauley: family 'four' declared
+  ok     o320_mccauley: cooling 'air' declared
+  ok     o320_mccauley: coolKW finite (50.4)
+  ok     o320_mccauley: piston burns (33.6 kg/h), draws nothing
+  ok     o320_mccauley: price law 40133 inside the band of 52000 (x0.77)
+  ok     o540_hartzell: family 'four' declared
+  ok     o540_hartzell: cooling 'air' declared
+  ok     o540_hartzell: coolKW finite (78.8)
+  ok     o540_hartzell: piston burns (52.5 kg/h), draws nothing
+  ok     o540_hartzell: price law 54054 inside the band of 64000 (x0.84)
+  ok     io550_hartzell3: family 'four' declared
+  ok     io550_hartzell3: cooling 'air' declared
+  ok     io550_hartzell3: coolKW finite (104.0)
+  ok     io550_hartzell3: piston burns (69.3 kg/h), draws nothing
+  ok     io550_hartzell3: price law 59570 inside the band of 60900 (x0.98)
+  ok     io720_hartzell3: family 'four' declared
+  ok     io720_hartzell3: cooling 'air' declared
+  ok     io720_hartzell3: coolKW finite (134.1)
+  ok     io720_hartzell3: piston burns (89.4 kg/h), draws nothing
+  ok     io720_hartzell3: price law 65124 inside the band of 65300 (x1.00)
+  ok     rotax915_carbon: family 'four' declared
+  ok     rotax915_carbon: cooling 'liquid' declared
+  ok     rotax915_carbon: coolKW finite (44.1)
+  ok     rotax915_carbon: piston burns (31.5 kg/h), draws nothing
+  ok     rotax915_carbon: price law 36903 inside the band of 51600 (x0.72)
+  ok     rotax916_carbon: family 'four' declared
+  ok     rotax916_carbon: cooling 'liquid' declared
+  ok     rotax916_carbon: coolKW finite (49.1)
+  ok     rotax916_carbon: piston burns (35.1 kg/h), draws nothing
+  ok     rotax916_carbon: price law 42478 inside the band of 55300 (x0.77)
+  ok     ranger440_wood: family 'four' declared
+  ok     ranger440_wood: cooling 'air' declared
+  ok     ranger440_wood: coolKW finite (67.0)
+  ok     ranger440_wood: piston burns (44.7 kg/h), draws nothing
+  ok     ranger440_wood: price law 51095 inside the band of 50800 (x1.01)
+  ok     w670_hs2b: family 'four' declared
+  ok     w670_hs2b: cooling 'air' declared
+  ok     w670_hs2b: coolKW finite (73.8)
+  ok     w670_hs2b: piston burns (49.2 kg/h), draws nothing
+  ok     w670_hs2b: price law 52840 inside the band of 52200 (x1.01)
+  ok     r755_hs2b: family 'four' declared
+  ok     r755_hs2b: cooling 'air' declared
+  ok     r755_hs2b: coolKW finite (100.8)
+  ok     r755_hs2b: piston burns (67.2 kg/h), draws nothing
+  ok     r755_hs2b: price law 58932 inside the band of 59500 (x0.99)
+  ok     m14p_v530: family 'four' declared
+  ok     m14p_v530: cooling 'air' declared
+  ok     m14p_v530: coolKW finite (120.6)
+  ok     m14p_v530: piston burns (80.4 kg/h), draws nothing
+  ok     m14p_v530: price law 62750 inside the band of 62400 (x1.01)
+  ok     r1340_hs12d40: family 'four' declared
+  ok     r1340_hs12d40: cooling 'air' declared
+  ok     r1340_hs12d40: coolKW finite (201.2)
+  ok     r1340_hs12d40: piston burns (134.1 kg/h), draws nothing
+  ok     r1340_hs12d40: price law 75054 inside the band of 75400 (x1.00)
+  ok     rotax503_wood: family 'two' declared
+  ok     rotax503_wood: cooling 'air' declared
+  ok     rotax503_wood: coolKW finite (20.4)
+  ok     rotax503_wood: piston burns (18.5 kg/h), draws nothing
+  ok     rotax503_wood: price law 8586 inside the band of 4700 (x1.83)
+  ok     emrax268_carbon: family 'electric' declared
+  ok     emrax268_carbon: cooling 'air' declared
+  ok     emrax268_carbon: coolKW finite (11.8)
+  ok     emrax268_carbon: electric draws > shaft, burns nothing
+  ok     emrax268_carbon: price law 32100 inside the band of 32000 (x1.00)
+  ok     outrunner2212_9x47: family 'electric' declared
+  ok     outrunner2212_9x47: cooling 'air' declared
+  ok     outrunner2212_9x47: coolKW finite (0.0)
+  ok     outrunner2212_9x47: electric draws > shaft, burns nothing
+  ok     outrunner2212_9x47: price law 13 inside the band of 25 (x0.52)
+  ok     outrunner3548_12x6: family 'electric' declared
+  ok     outrunner3548_12x6: cooling 'air' declared
+  ok     outrunner3548_12x6: coolKW finite (0.1)
+  ok     outrunner3548_12x6: electric draws > shaft, burns nothing
+  ok     outrunner3548_12x6: price law 49 inside the band of 55 (x0.89)
+  ok     outrunner6374_18x10: family 'electric' declared
+  ok     outrunner6374_18x10: cooling 'air' declared
+  ok     outrunner6374_18x10: coolKW finite (0.2)
+  ok     outrunner6374_18x10: electric draws > shaft, burns nothing
+  ok     outrunner6374_18x10: price law 122 inside the band of 130 (x0.94)
+  ok     eppg_direct_130: family 'electric' declared
+  ok     eppg_direct_130: cooling 'air' declared
+  ok     eppg_direct_130: coolKW finite (1.3)
+  ok     eppg_direct_130: electric draws > shaft, burns nothing
+  ok     eppg_direct_130: price law 3600 inside the band of 3800 (x0.95)
+  ok     fes_folding_100: family 'electric' declared
+  ok     fes_folding_100: cooling 'air' declared
+  ok     fes_folding_100: coolKW finite (2.4)
+  ok     fes_folding_100: electric draws > shaft, burns nothing
+  ok     fes_folding_100: price law 6600 inside the band of 9500 (x0.69)
+  ok     emrax228_3blade: family 'electric' declared
+  ok     emrax228_3blade: cooling 'air' declared
+  ok     emrax228_3blade: coolKW finite (6.0)
+  ok     emrax228_3blade: electric draws > shaft, burns nothing
+  ok     emrax228_3blade: price law 16500 inside the band of 11000 (x1.50)
+  ok     e811_velis: family 'electric' declared
+  ok     e811_velis: cooling 'liquid' declared
+  ok     e811_velis: coolKW finite (8.6)
+  ok     e811_velis: electric draws > shaft, burns nothing
+  ok     sp260d_class: family 'electric' declared
+  ok     sp260d_class: cooling 'air' declared
+  ok     sp260d_class: coolKW finite (28.6)
+  ok     sp260d_class: electric draws > shaft, burns nothing
+  ok     sp260d_class: price law 78000 inside the band of 90000 (x0.87)
+  ok     pt6a114a_hartzell3: family 'turbine' declared
+  ok     pt6a114a_hartzell3: cooling 'air' declared
+  ok     pt6a114a_hartzell3: coolKW finite (25.2)
+  ok     pt6a114a_hartzell3: piston burns (176.0 kg/h), draws nothing
+  ok     pt6a114a_hartzell3: price law 365418 inside the band of 390000 (x0.94)
+  ok     pt6a34_hartzell4: family 'turbine' declared
+  ok     pt6a34_hartzell4: cooling 'air' declared
+  ok     pt6a34_hartzell4: coolKW finite (28.0)
+  ok     pt6a34_hartzell4: piston burns (196.0 kg/h), draws nothing
+  ok     pt6a34_hartzell4: price law 411217 inside the band of 420000 (x0.98)
+  ok     pt6a42_hartzell4: family 'turbine' declared
+  ok     pt6a42_hartzell4: cooling 'air' declared
+  ok     pt6a42_hartzell4: coolKW finite (31.7)
+  ok     pt6a42_hartzell4: piston burns (221.9 kg/h), draws nothing
+  ok     pt6a42_hartzell4: price law 471371 inside the band of 455000 (x1.04)
+  ok     pt6a60a_hartzell4: family 'turbine' declared
+  ok     pt6a60a_hartzell4: cooling 'air' declared
+  ok     pt6a60a_hartzell4: coolKW finite (39.2)
+  ok     pt6a60a_hartzell4: piston burns (274.0 kg/h), draws nothing
+  ok     pt6a60a_hartzell4: price law 594569 inside the band of 590000 (x1.01)
+  ok     pt6a27_hartzell3: family 'turbine' declared
+  ok     pt6a27_hartzell3: cooling 'air' declared
+  ok     pt6a27_hartzell3: coolKW finite (20.5)
+  ok     pt6a27_hartzell3: piston burns (143.5 kg/h), draws nothing
+  ok     pt6a27_hartzell3: price law 291934 inside the band of 410000 (x0.71)
+  ok     legacy piston dict infers four/air
+  ok     legacy electric dict infers electric
+clampSpec: the custom row is bounded or dead
+  ok     garbage custom row dies at the door
+  FAIL   a smuggled giant is clamped to the envelope
+  ok     unknown enums fall back the legacy way
+  ok     an unpriced row takes the market curve
+  ok     the default spec carries no custom row
+  ok     no-custom resolve is deterministic
+  ok     engBox still sizes off the engine mass
+resolveSpec + genFrame: the custom engine flies
+  ok     resolveSpec flies the custom mass (S.pplant)
+  FAIL   Tstatic follows the custom watts on the P^(2/3) curve
+  ok     the engine's node moves by the installed delta (-20.34 kg = -20.34: dry -18 + install -2.34)
+  ok     frame mass moves by the installed delta and the gauge's follow (-23.8 kg in [-25.4, -20.3])
+  ok     a lighter nose moves the CG aft, never forward
+  ok     the def carries params.engine (solver + plaque read it)
+  ok     and it is the named custom engine
+  ok     an electric custom row keeps its aspiration into the def
+  ok     a turbocharged custom row keeps aspiration + critAlt into the def
+  ok     an NA row cannot smuggle a critAlt
+  ok     at 3 000 m the turbo still makes rated power (1), the NA one 71 %
+  ok     a turbine custom row keeps both keys through the clamp
+  ok     and its flat-rating margin and length ride with it
+  ok     the clamp put Jet-A in a turbine that asked for avgas
+  ok     the engine box has no cylinders and runs the declared length
+  ok     the def carries the turbine aspiration and its margin to the solver
+  ok     a piston cannot smuggle a flat-rating margin
+  ok     and the clamp took the kerosene out of it
+  ok     a registry PT6 flies as a turbine and burns Jet-A
+  ok     the turbine price curve sits on its own rows
+  ok     a custom cgAft survives the clamp and is the spec's reading
+  ok     a custom row without one reads the registry table's (912: 0.23)
+  ok     0.5 m more engine arm moves the CG aft by 7.8 cm (m_inst·0.5/M = 7.8, m_inst 67.8)
+  ok     the engine hangs on a CGE node when the row knows its CG
+  ok     and exactly the installed engine mass is on it (67.800 kg = 60 dry + 7.800 install; the blades stay on the flange, the locating members weigh nothing)
+
+  2 check(s) failed
+GATE ENGINE: FAIL
+(exit code 1)
+=== ENGID ===
+  ok     P&W PT6A-34: no installation row moves the facts or the name
+  ok     pipistrel E-811: no installation row moves the facts or the name
+GATE ENGID: PASS
+=== ENGINEDIALS ===
+  ok     every official / candidate / validated build (28) carries a stiffness on the row and the constants
+  ok     the row's writer moves the row and writes spec.prop.pitch (GARAGE_SPEC.update, the design tiles' and the kit's call)
+GATE ENGINEDIALS: PASS
+=== STARTER ===
+3 starters, 4 architectures, 3 doors
+GATE STARTER: PASS
+=== FLOATKIT ===
+
+FLOATKIT: 21/21 ok
+GATE FLOATKIT: PASS
+=== SAVE ===
+ok     every edited row really differs from the default aeroplane
+  ok     every edited row is a real parameter
+  ok     enough rows to be a real integrity test (20)
+  ok     the whole panel is under test (1169 rows of 1572)
+  ok     the save wrote a slot
+  ok     the SAVED FILE carries every edited row
+  ok     the WIP AUTOSAVE carries every edited row
+  ok     the EXPORTED FILE carries every edited row
+  ok     edit -> save -> load returns every edited row to the editor
+  ok     GARAGE_SPEC.json() reports the aeroplane on the stand, not the last one
+  FAIL   the SAVED FILE describes all 1169 moved rows (lost 1: skiPos)
+  FAIL   save -> load returns all 1169 rows to the editor (lost 1: skiPos)
+  ok     a row put BACK to its default is back in the SAVED FILE too
+  ok     save -> load of the aeroplane put home returns the DEFAULT for every row
+  ok     the file of an aeroplane put home IS the default aeroplane
+  ok     a side-by-side aeroplane with a central cowl opening saves as one (file says seatLayout 1, cw_apMode 1)
+  ok     the file describes ONE aeroplane — its derived half agrees with its own cage
+  ok     the file just saved describes ONE aeroplane — its derived half agrees with its own cage
+  ok     the autosave describes ONE aeroplane — its derived half agrees with its own cage
+  ok     save -> load -> save is a FIXED POINT over the whole spec
+  ok     the PLAQUE survives the round trip
+  ok     the LOGBOOK survives the round trip
+  ok     the registration, role and class survive the round trip
+  ok     the PAINT survives the round trip
+  ok     the per-section FINISH survives the round trip
+  ok     the fuel, cargo and systems survive the round trip
+  ok     the VESSELS survive the round trip (bay, capacity, station)
+  ok     the vessel SHAPE and the tank’s finish, hue and tint survive it too
+  ok     it asks the editor before writing the build down: const saveAs = name =>
+  ok     it asks the editor before writing the build down: function exportFile()
+  ok     it asks the editor before writing the build down: json: ()
+  ok     PREM-S2: a save tells the fleet ledger the slots, the slot written, and no repaint (a new slot)
+  ok     PREM-S2: the build envelope carries nothing of the fleet ledger
+  ok     PREM-S2: saved again unchanged - no repaint
+  ok     PREM-S2: saved with a new finish - a repaint (the wear resets)
+  ok     PREM-S2: save as - both slots handed over
+  ok     FREIGHT-STRAP: the strapped load writes nothing into the build the shelf saves (no genSpec, no GARAGE_SPEC, no seat / baggage row)
+  20 targeted rows, 1169 panel rows moved and put back, the whole envelope as a fixed point, 3 persist doors
+GATE SAVE: FAIL
+(exit code 1)
+=== BENCH ===
+
+157/157 checks
+GATE BENCH: PASS
+=== BENCHTIME ===
+EVERY TEST IS COMPUTED
+  ok     no watched (live) test on the bench
+  ok     the crosswind ladder is gone (its number is the design check's rudder row)
+  ok     the wing loading and the hydroplane are quick (computed off the page)
+  ok     the only flown row is the test flight (awarded by the first arrival)
+NOTHING FREEZES THE PAGE
+  ok     a computed row waits for the sheet off the page (api.shakeReady) and shows no freeze card
+  ok     app.js shakeReady asks the sheet thread (the stand's lane, joined) unless the sheet is known
+  ok     the bench api carries shakeReady
+  ok     the wing loading is computed on the worker (loadq)
+  ok     the hydroplane runs in 60 ms slices, the page answering between
+  ok     the cursor spins (body.benchWorking) and so does the computing row
+AS FAST AS THE BENCH CHECK
+  ok     cub_2026-09-20_corrected: the bench check in 4896 ms (<= 6000)
+  ok     cub_2026-09-20_corrected: the density altitude in 222 ms (<= 1000)
+  ok     cub_2026-09-20_corrected: the wing loading, computed, in 2636 ms (480 frames; verdict HELD; <= 8000 and <= 2 bench checks)
+  FAIL   jodel_2026-09-20_corrected: the bench check in 7008 ms (<= 6000)
+  ok     jodel_2026-09-20_corrected: the density altitude in 140 ms (<= 1000)
+  ok     jodel_2026-09-20_corrected: the wing loading, computed, in 6555 ms (480 frames; verdict HELD; <= 8000 and <= 2 bench checks)
+  FAIL   cessna172r_2026-11-08: the bench check in 8735 ms (<= 6000)
+  ok     cessna172r_2026-11-08: the density altitude in 92 ms (<= 1000)
+  ok     cessna172r_2026-11-08: the wing loading, computed, in 7598 ms (480 frames; verdict HELD — over yield; <= 8000 and <= 2 bench checks)
+  ok     rufus_2026-10-18_certified: the bench check in 4245 ms (<= 6000)
+  ok     rufus_2026-10-18_certified: the density altitude in 54 ms (<= 1000)
+  ok     rufus_2026-10-18_certified: the wing loading, computed, in 3021 ms (480 frames; verdict HELD; <= 8000 and <= 2 bench checks)
+  ok     pa18_floats_2026-10-23: the bench check in 5402 ms (<= 6000)
+  ok     pa18_floats_2026-10-23: the density altitude in 22 ms (<= 1000)
+  ok     pa18_floats_2026-10-23: the wing loading, computed, in 3319 ms (480 frames; verdict HELD; <= 8000 and <= 2 bench checks)
+25 checks, 2 failed
+GATE BENCHTIME: FAIL
+(exit code 1)
+=== CGBAND ===
+  ok     the tooltip is styled per band (editor.css)
+24 checks, 0 failed
+GATE CGBAND: PASS
+=== AIDS ===
+  ok     the toggles persist (flydiy.aids)
+  ok     the key-issue card renders the remedy and the tiers (the margin and the three promoted rows: not safe to fly)
+GATE AIDS: PASS
+=== COOL ===
+  ok     list:7 Rufus (bare): a normal reading
+  ok     the cockpit's needle reads it
+GATE COOL: PASS
+=== SIMWORKER ===
+
+52 checks, 0 failed, 97.5 s
+GATE SIMWORKER: PASS
+=== SHEETWORKER ===
+  ok   the node page refuses an unasked Blob worker (the gates keep the old path)
+47/47 checks
+GATE SHEETWORKER: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -5252,6 +6001,44 @@ INSTANT   PASS  1256.7 s
 SHEDSHADOW PASS   230.6 s
 ROOMMERGE PASS   241.8 s
 HANGARVIEW PASS     0.1 s
-wall (the chunks' own, summed) 30174.8 s  (jobs 4)
+POSEHIDDEN PASS   718.0 s
+HINGE     PASS    72.7 s
+CLIP      PASS    37.1 s
+WINGSPLIT PASS     1.6 s
+CAGEFIT   PASS     0.1 s
+FRAMES    FAIL    11.7 s
+KNIFE     PASS    16.4 s
+DRAFTING  PASS    16.2 s
+QSPARITY  PASS    21.3 s
+QSCUT     PASS    17.6 s
+WORKBENCH PASS     0.1 s
+COMMITHYGIENE FAIL     8.2 s
+QUADWIN   PASS     1.8 s
+FIN       FAIL    20.8 s
+COWL      PASS     0.5 s
+NACLAG    PASS    89.8 s
+ENGMESH   PASS    40.0 s
+JOIN      PASS     7.0 s
+GEOPARITY FAIL    56.5 s
+WINGROWS  FAIL    34.1 s
+DESIGNCHECK FAIL   351.6 s
+SPECFIX   PASS   115.3 s
+JOINPARITY FAIL   153.1 s
+CREWLOAD  PASS    32.6 s
+CREWSEATS PASS    70.3 s
+ENGINE    FAIL     0.9 s
+ENGID     PASS     0.2 s
+ENGINEDIALS PASS     0.4 s
+STARTER   PASS     1.2 s
+FLOATKIT  PASS    37.9 s
+SAVE      FAIL     1.2 s
+BENCH     PASS    87.8 s
+BENCHTIME FAIL    54.3 s
+CGBAND    PASS     2.8 s
+AIDS      PASS    28.7 s
+COOL      PASS   109.4 s
+SIMWORKER PASS    97.8 s
+SHEETWORKER PASS    47.1 s
+wall (the chunks' own, summed) 30982.5 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 48 red (152 PASS, 48 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 58 red (180 PASS, 58 FAIL, 0 SKIP of 364)
