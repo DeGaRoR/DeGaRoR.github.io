@@ -821,6 +821,21 @@ function careerProjectsTick(doc, projects, now) {
   return { doc: d, events };
 }
 
+// THE PROJECTS BOARD, AS A RECORD (STORY-REVAMP; the page draws it): every project of the pack as the career stands -
+// -> [{ id, name, client, state: 'locked' | 'open' | 'done', needs: [project ids not done], step (index), steps: [{ id,
+//      state: 'done' | 'current' | 'works' | 'later', missions: [{ id, done }], works: { days, cost } | null, ready (the
+//      works' end, s) | null, track, gives, site }] }]. Pure.
+function careerProjectsBoard(doc, projects, now) {
+  const c = (doc && doc.career) || {}, P = c.projects || {}, done = new Set(((c.contracts && c.contracts.done) || []).map(r => r.id));
+  return (projects || []).map(p => {
+    const S = P[p.id] || { step: 0 }, needs = p.requires.projects.filter(id => !(P[id] || {}).done), k = S.done ? p.steps.length : (S.step | 0);
+    return { id: p.id, name: p.name, client: p.client, state: S.done ? 'done' : needs.length ? 'locked' : 'open', needs, step: k,
+      steps: p.steps.map((st, i) => ({ id: st.id, state: i < k ? 'done' : i > k ? 'later' : S.works ? 'works' : 'current',
+        missions: st.missions.map(id => ({ id, done: done.has(id) })), works: st.works ? { days: st.works.days, cost: st.works.cost } : null,
+        ready: i === k && S.works ? S.works.ready : null, track: st.track || null, gives: (st.gives || []).slice(), site: st.site ? st.site.id : null })) };
+  });
+}
+
 // ---- THE PACK IN USE (MISSIONS-LIVE switch, 13 Nov: "the switch to mission packs: the loader") ----------------------------
 // missionPackUse(pack, providers?, text?) -> { ok, n, held, why }: the pack installed (missionPackInstall) OVER the live
 // tables - every provider's arc / builds / night replaced by the pack's, the pack's words merged into the text - so the
@@ -842,6 +857,7 @@ function missionPackUse(pack, providers, text) {
   }
   Object.assign(T, I.text || {});
   MISSION_RULES_LIVE = N.rules || null;                       // STORY-REVAMP: the career reads the pack's rules from now on
+  MISSION_ID_LIVE = N.id || null;
   return { ok: true, n, held: I.held, why: '', projects: N.projects, rules: MISSION_RULES_LIVE, id: N.id, start: N.start || null };   // (PROJECTS: the page ticks them)
 }
 
@@ -853,8 +869,9 @@ function missionPackUse(pack, providers, text) {
 // "this is a game about building planes" - the player builds the plane; 'hold' keeps it off the board, as today). A pack
 // that states no rules keeps today's board (the built-in pack). The Trust's loan job stays: one fixed errand, not a draw.
 const MISSION_PACK_RULES = { jobs: ['generated', 'none'], shady: [true, false], unflyable: ['hold', 'offer'] };
-let MISSION_RULES_LIVE = null;
+let MISSION_RULES_LIVE = null, MISSION_ID_LIVE = null;
 const missionPackRules = () => MISSION_RULES_LIVE;
+const missionPackId = () => MISSION_ID_LIVE;                    // the pack in use (null: none yet - the tables as built)
 function missionPackRulesNorm(r) {
   const R = msObj(r) ? r : {}, o = {};
   for (const k of Object.keys(MISSION_PACK_RULES)) if (R[k] !== undefined) o[k] = R[k];

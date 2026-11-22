@@ -404,6 +404,9 @@ function careerSign(doc, slot, sign) {
 // the next epoch's jobs are new ones). Reputation never hides a tab (g7): it scales the jobs' loads.
 function careerOfferIds(doc) {
   const c = doc.career, C = c.contracts;
+  // (STORY-REVAMP) a career that ADOPTED a pack (73b careerPackAdopt) has a board only while that pack is in use: a page
+  // that could not load it offers nothing, rather than another pack's missions or a drawn job
+  if (c.pack && c.pack.id && typeof missionPackId === 'function' && missionPackId() !== c.pack.id) return [];
   const done = careerDoneIds(doc), taken = new Set(done.concat(C.accepted));
   const out = [];
   const A = contractAuthored(), sky = careerOfferSky(doc);
