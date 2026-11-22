@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// finish_stills.js - FINISH-FIX G2750's before/after stills on the user's Mosquito (tools/fixtures/repro/mosquito_3.json:
+// finish_stills.js - FINISH-FIX G2750's before/after stills on the user's Mosquito (tools/fixtures/test_copies/mosquito_3.json:
 // carbon fuselage, weather age 0.7, a bubble canopy, a registration). Drives a page kept up by tools/live_driver.js.
 //   garage: the weathering on the carbon flank + fin (and the same view with each candidate layer pinned to 0, to name the
 //           tiled one), the bubble canopy's surround (and with the cabin gain 0 / the shoulder off), the roof lights

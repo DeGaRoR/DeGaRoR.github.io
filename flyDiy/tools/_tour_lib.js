@@ -307,7 +307,7 @@ function gameHost(C, W, def, from, to, g) {
 const ROOT = path.join(__dirname, '..');
 const BUILDS = {
   cub: { key: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub", tour: 'land' },
-  // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
+  // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/test_copies/cessnaMetal (1).json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
   c172: { key: path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json'), name: 'the Cessna 172 (F-HCSN)', tour: 'c172' },
   // (CANON-CLEAN, 14 Nov: the test copy's c172fx row dropped - no tool flew it; the fixture file stays for its structure / audio users)
   floats: { key: path.join(ROOT, 'bugReports', 'cessnaFloatsWOrks.json'), name: 'the float Cessna', tour: 'water' },
