@@ -52,8 +52,12 @@ def main():
     def fps(idx, label):
         if not idx: P('- %s: no frames' % label); return
         ds = sorted(dt[i] for i in idx); T = secs(idx)
-        per = collections.Counter(int(t[i] // 1000) for i in idx)
-        full = [v for k, v in per.items()]
+        # 23 Nov: a frame the draw guard HELD was rendered and not shown (PERF-TRACE's notShown flag, tool 7): the seconds
+        # with 29+ frames count the frames SHOWN. A second that had frames and showed none counts as 0.
+        NS = FL.get('notShown', 0); hid = sum(1 for i in idx if fl[i] & NS) if NS else 0
+        per = collections.Counter(int(t[i] // 1000) for i in idx if not (NS and fl[i] & NS))
+        full = [per.get(k, 0) for k in set(int(t[i] // 1000) for i in idx)]
+        if hid: P('- %s: %d of %d frames were rendered and NOT SHOWN (held by the draw guard): left out of the frames a second below' % (label, hid, len(idx)))
         P('- %s: %.1f fps mean, median frame %.1f ms; seconds with 29+ frames %.1f %%; frames on time (<= 34.5 ms) %.1f %%; frames over 50 ms %.2f %%' % (
             label, len(idx) / T, ds[len(ds) // 2], 100.0 * sum(1 for v in full if v >= 29) / len(full), 100.0 * sum(1 for v in ds if v <= 34.5) / len(ds), 100.0 * sum(1 for v in ds if v > 50) / len(ds)))
     P('')
