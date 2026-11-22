@@ -22,6 +22,17 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
   on the trunk, drawn"; "nothing broken ...: no payload, no release, no strike"), **DMGWALL** (metal: "places past 8
   slots" on four cases), **DMGLOOK** (metal trunk-0, "c. the plan ... worst plan 2.00 ms": a per-event time, which the
   8 Nov cloud sweep already read as this box's speed - treat DMGLOOK as TIME, not as a red).
+- **22:35 UTC - THE BATTERY IS COMPLETE: 273 PASS, 91 FAIL, 0 SKIP of 364.** 32 names are not in L40h's FAIL list;
+  MONOWHEEL and GFX, red on L40h, pass. The log's first lines sort the 32:
+  - **24 are the candidate's.** Proven by the same gate passing alone on master L40h on this box: DMGSKIN DMGSETTLE
+    HITBOX CONTRACTS MISSIONS FREIGHT; proven inside the candidate's history: TAKEOFF (green on 9eee1de09, red on the
+    merge of one-cessna-4). By their rows: the Cessna - ROUTE DMGWALL DMGDRIVE WATERDAMP LIVERYSET FIN GEOPARITY FRAMES
+    DASH GPSFACE AUDIOENG PARKED; "nothing broken records nothing" - DMGWRECK DMGSCAR DMGSCUFF DMGUPLOAD; FMIST.
+  - **1 is the candidate commit's packaging:** COMMITHYGIENE.
+  - **7 are this box, not reds:** SNOWMUDFX and LAZY fail on master L40h here too; BENCHTIME, SCENERYED 20b, BIOME, SETTLE
+    and DMGLOOK's plan row are millisecond budgets.
+  - **3 have NO verdict here:** TOW, TREECRASH, DMGGEAR hit the runner's 1800 s limit on this slower machine (all three
+    are L40h reds on the box). They are being re-run here directly, without the limit; the result is added below.
 - **21:35 UTC - seven more NEW names (266 of 364 gates in), sorted:**
   - `one-cessna-4` again: **LIVERYSET** dies on `ENOENT ... bugReports/cessnaMetal (1).json` (the candidate deletes
     that file and the gate still opens it); **FIN** "§10: cessna fin sheet folds over itself (5 faces)"; **GEOPARITY**
