@@ -699,6 +699,7 @@ const GATES = [
   // tundra is a torus, every tail cone has its zone (the mirrored pod's too), the Mosquito's whole-cabin shoulder,
   // and the comment strip the source-scan gates share is a lexer. Seconds.
   { id: 'EDBUGS', file: '_edbugs_check.js', tier: 'core' },
+  { id: 'REFLOCK', file: '_reflock_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },   // REF-LOCK (the user 21 Nov): a locked row shows no slider
   // THE FITTINGS (G81-G85): GEN_ACCESS resolved against the built skin, and
   // the geometry that lands there. Every fitting on its own skin, one per
   // flank, snapped to real structure, standing OUT, no two in one place, and
