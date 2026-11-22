@@ -206,7 +206,7 @@ async function placed() {
     const ap = C.makePilot(sim, DEF0, W, {}); ap.setRoute(aH, aH); ap.departFrom(aH, aH, site); return ap.lineupPose(); })();
   const dirUp = st(UP.x, UP.z)[0] > aH.len / 2 ? -1 : 1;   // the roll's direction along 13's u (-1: from the u end back)
   const farEnd = dirUp < 0 ? 0 : aH.len;                     // the far end's station (0 = 13's threshold end)
-  const P1 = { x: aH.x - dirUp * ux * (aH.len / 2 - 60), z: aH.z - dirUp * uz * (aH.len / 2 - 60) };   // the other end's start (60 m in from the far end)
+  const P1 = { x: aH.x + dirUp * ux * (aH.len / 2 - 60), z: aH.z + dirUp * uz * (aH.len / 2 - 60) };   // the other end's start: 60 m in from the far end (the winch's), rolling back
   // 1 the record: ONE winch, at the far end, facing the usual line-up
   const ids = Object.keys(stood), w = stood.xw_winch;
   let okRec = ids.length === 1 && !!w, line1 = '';
