@@ -1078,6 +1078,19 @@ function genFusCdA(S, fr, o) {
 //   choices, priced no more than legDrop is (stance is not a drag knob).
 const genFairDroplet = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) - 1);
 // (PHYSICS-AUDIT step 5: `noWheels` - a floatplane's call: no wheels and no legs, the lift struts as ever)
+// ONE SIDE'S MAIN LEG AS DRAWN (spec.gearShape, the join's; GEN_DRAG.legSec): the sum of its members' length x
+// thickness x section coefficient, m2 - or null (no description, a trailing link: the tube law stands)
+function genGearLegsCdA(S) {
+  const h = S && S.gearShape, T = GEN_DRAG.legSec;
+  if (!T || !h || h.v !== 1 || !Array.isArray(h.legs) || !h.legs.length) return null;
+  if (S.gear && S.gear.suspension === 'lever') return null;
+  let a = 0;
+  for (const m of h.legs) {
+    if (!m || !(m.L > 0) || !(m.d > 0) || !(T[m.sec] > 0)) return null;
+    a += Math.min(6, m.L) * Math.min(0.5, m.d) * T[m.sec];
+  }
+  return a;
+}
 function genGearCdA(S, semi, noWheels) {
   const G = S.gear;
   if (noWheels) return S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0;
@@ -1095,7 +1108,9 @@ function genGearCdA(S, semi, noWheels) {
           + tCd * (2 * Rt * 0.76 * Rt);           // the third wheel
   const drop = G.legDrop || 0.42;
   const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
-  cda += G.sink > 0 ? 0 : nMn * legCd * drop * 0.05;   // the main legs (a sunk wheel's fork is inside)
+  // (FUSELAGE-DRAG: the legs the gear layer drew, member by member - genGearLegsCdA; a spec that describes none keeps the tube)
+  const drawn = genGearLegsCdA(S);
+  cda += G.sink > 0 ? 0 : nMn * (drawn != null ? drawn : legCd * drop * 0.05);   // the main legs (a sunk wheel's fork is inside)
   // WILGA-GEAR: a trailing link's strut stands in the stream beside its leg (a 60 mm cylinder, eye to eye - the drawn
   // one, gear.lever, else the reference's 0.50 m); the boot (the leg-fairing row or the trousers) carries it at the
   // faired leg's Cd. Only a lever leg: the calibration's reference gear has none, and no other build reads a term
@@ -1142,7 +1157,8 @@ function genGearCdAMains(S) {
             * (G.fairing && G.fairing !== 'none' ? genFairDroplet(G.fairTail) : 1);
   const R = G.wheelR || 0.20, drop = G.legDrop || 0.42;
   const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
-  return 2 * wCd * (2 * R * 0.76 * R) + 2 * legCd * drop * 0.05;
+  const drawn = genGearLegsCdA(S);                  // (FUSELAGE-DRAG: as genGearCdA bills them)
+  return 2 * wCd * (2 * R * 0.76 * R) + 2 * (drawn != null ? drawn : legCd * drop * 0.05);
 }
 // THE CALIBRATION IS PRESERVED BY A DELTA. genFusCdA's 0.75 was fitted so the
 // Cub's GEOMETRY reproduces its hand-tuned totals — totals that implicitly

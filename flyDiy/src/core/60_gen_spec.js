@@ -2091,6 +2091,11 @@ const GEN_DRAG = {
   // cSurf the factor is 1: every light aeroplane is as calibrated. The finish's own penalty (matCd0: laps, rivets,
   // roughness) does not scale: a rough skin is in the fully rough regime.
   reynolds: { vRef: 60, nu: 1.46e-5, lBody: 8.0, cSurf: 2.0 },
+  // THE MAIN LEGS BY THEIR DRAWN MEMBERS (FUSELAGE-DRAG, 2026-11-22; spec.gearShape, the join's description of the gear
+  // layer's rows): each member pays length x thickness x its section's coefficient, on its thickness across the flow -
+  // a round tube or cylinder below the drag crisis 1.2 (Hoerner ch. 3), a spring blade seen edge on 0.6 (a rounded
+  // flat bar), a fabric-covered V 0.3 (a flat panel edge on), a streamlined fairing 0.12. Per side; a monowheel has one.
+  legSec: { round: 1.2, blade: 0.6, panel: 0.3, fair: 0.12 },
   // A LIGHT LAMINAR / TURBULENT MODEL FOR THE LIFTING SURFACES (FUSELAGE-DRAG, 2026-11-22; the user: "a whole laminar
   // turbulent model, which is not too heavy, is something that we are indeed missing a lot"). ONE transition point per
   // surface: the share of the chord its layer stays laminar, by what the surface is built of. The section's profile

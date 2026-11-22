@@ -746,6 +746,34 @@ function cageJoinSpec(P, M, T) {
     const UIb = typeof window !== 'undefined' ? window.CAGE_UI : null;
     if (UIb && UIb.bodyShape && typeof UIb.bodyShape === 'object') spec.bodyShape = Object.assign({}, UIb.bodyShape);
   }
+  // FUSELAGE-DRAG (2026-11-22, "what sticks out": the user - "have a look at exactly how the landing gears are built"):
+  // THE MAIN LEGS AS DRAWN. The drag billed every leg as 0.66 m of 50 mm tube whatever the gear layer drew - a
+  // spring-steel blade, a bungee truss, an oleo tripod. The members the rows draw, per side, in metres (the gear's rows
+  // are metres): each { L: its length in the stream, d: its thickness across the flow, sec: its section }. A
+  // DESCRIPTION of rows the fingerprints already hash, like `bodyShape` (66b CERT_MEASURED_BLOCKS); 62_gen_aero
+  // genGearLegsCdA prices it (GEN_DRAG.legSec). A trailing link keeps the core's own lever law; a gear with no mains none.
+  if (P.s1Leg != null && +P.gearOn !== 0 && +P.s1On !== 0) {
+    const kind = Math.round(+P.s1Leg), num = (k, d) => (P[k] != null && isFinite(+P[k]) ? +P[k] : d);
+    const drop = Math.max(0.05, num('s1Drop', 0.42)), halfW = M && M.halfW > 0 ? M.halfW : 0.5;
+    const L = Math.hypot(drop, Math.max(0, num('s1X', 0.9) - halfW));
+    const faired = Math.round(num('s1LegFair', 0)) === 1 || Math.round(num('s1Fair', 0)) === 2;   // a streamlined leg, or trousers over it
+    const r3 = v => +v.toFixed(3), legs = [];
+    if (kind === 0) legs.push({ L: r3(L), d: r3(num('s1_beamT', 0.02)), sec: faired ? 'fair' : 'blade' });
+    else if (kind === 1) {
+      const d = num('s1_linkArmW', 0.04), panel = Math.round(num('s1_linkPanel', 0)) === 1, vee = Math.round(num('s1_linkVee', 1)) === 1;
+      legs.push({ L: r3(L), d: r3(d), sec: panel ? 'panel' : faired ? 'fair' : 'round' });             // the leg (a covered V is one panel)
+      if (vee && !panel) legs.push({ L: r3(L), d: r3(d), sec: faired ? 'fair' : 'round' });             // its V partner
+      if (Math.round(num('s1_linkX', 0)) === 1) legs.push({ L: r3(Math.hypot(drop, num('s1X', 0.9))), d: r3(d), sec: 'round' });   // the crossed strut, to the far side
+      if (Math.round(num('s1_linkAxle', 0)) === 1) legs.push({ L: r3(num('s1X', 0.9)), d: r3(d), sec: 'round' });                 // half the cross axle
+      const sk = Math.round(num('s1_shockKind', 0));
+      legs.push(sk === 3 ? { L: r3(0.8 * L), d: r3(num('s1_oleoDia', 0.06)), sec: 'round' } : { L: r3(0.5 * L), d: 0.03, sec: 'round' });   // the shock: an oleo strut, else a coil / bungee / rubber unit
+    } else if (kind === 2) {
+      const dO = num('s1_oleoDia', 0.06), cyl = Math.max(0, Math.min(1, num('s1_oleoCyl', 0.55)));
+      legs.push({ L: r3(L), d: r3(dO * (cyl + 0.6 * (1 - cyl))), sec: faired ? 'fair' : 'round' });      // the cylinder and its thinner piston
+      if (Math.round(num('s1_oleoBrace', 1)) === 1) legs.push({ L: r3(0.8 * L), d: r3(0.6 * dO), sec: 'round' });
+    }
+    if (legs.length) spec.gearShape = { v: 1, legs };
+  }
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {
     spec.wings[0].xLE = M.wingXLE;
