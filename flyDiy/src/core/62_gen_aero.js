@@ -887,6 +887,16 @@ function genCoolOilC(S, at) {
   return { oilC: oil, margin: x > 0 ? 1 / x : Infinity };
 }
 
+// THE MEASURED BODY, if the spec carries one this law can read (spec.bodyShape v 1, every figure a sane number); an
+// open frame is not a body with an outline, and GEN_DRAG.body absent switches the law off
+function genBodyShapeOf(S) {
+  const h = S && S.bodyShape, B = GEN_DRAG.body;
+  if (!B || !h || typeof h !== 'object' || h.v !== 1) return null;
+  if (S.fuselage && S.fuselage.covering === 'open') return null;
+  const ok = v => typeof v === 'number' && isFinite(v) && v >= 0;
+  if (!ok(h.sharp) || !ok(h.stepM2) || !ok(h.baseM2) || !ok(h.trip)) return null;
+  return { sharp: Math.min(1, h.sharp), stepM2: Math.min(20, h.stepM2), baseM2: Math.min(20, h.baseM2), trip: Math.min(1, h.trip) };
+}
 function genFusCdA(S, fr, o) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
@@ -915,6 +925,21 @@ function genFusCdA(S, fr, o) {
   const hullK = D.hullK > 0 && S.gear && S.gear.hull && Array.isArray(S.gear.hull.sta) ? D.hullK : 1;
   let body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK * reK;
   if (hullK !== 1) body *= hullK;
+  // FUSELAGE-DRAG (2026-11-22; GEN_DRAG.body's header): the body the editor measured is billed by its shape
+  const SHP = genBodyShapeOf(S);
+  let shapeRows = null;
+  if (SHP) {
+    const B = D.body, Vc = o && o.Vs > 0 ? GEN_VRATIO.VCruise * o.Vs : D.reynolds.vRef;
+    const Re = Math.max(2e5, Vc * wet.L / B.nu), cf = 0.455 / CORE_MATH.pow(Math.log10(Re), 2.58);
+    const moulded = S.material === 'glass' || S.material === 'carbon';
+    const unpow = typeof genUnpowered === 'function' && genUnpowered(S);
+    const nosProp = !unpow && S.engines && S.engines.length > 0 && !(S.engAt || []).some(e => e && e.mount && e.mount !== 'nose');
+    const lam = moulded && !nosProp && SHP.sharp < B.lamSharp ? Math.min(B.lamMax, SHP.trip) : 0;
+    const friction = wet.swet * cf * (1 - lam * B.lamCf) * (B.kSkin[S.material] || B.kSkinDefault) * FF * hullK;
+    const corners = friction * B.corner * SHP.sharp, steps = B.step * SHP.stepM2, base = B.base * SHP.baseM2;
+    body = friction + corners + steps + base;
+    shapeRows = { friction, corners, steps, base, lam, sharp: SHP.sharp, cf, formPart: friction + corners };
+  }
   // the cooling, by the engine and its cowl
   const EN = (S.engines && S.engines[0]) || {};
   const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
@@ -960,13 +985,16 @@ function genFusCdA(S, fr, o) {
   }
   if (radialOpen > 0 && !(coolSheet && coolSheet.kind === 'measured')) {
     const cover = Math.min(1, Math.PI * S.engBox.cylReach * S.engBox.cylReach / Math.max(1e-6, wet.frontal));
-    radialWake = D.radialWake * radialOpen * cover * (FF - 1) / FF * body;
+    // (a measured body: the form share of its friction and corners - the steps and the base are not in the engine's wake)
+    radialWake = D.radialWake * radialOpen * cover * (FF - 1) / FF * (shapeRows ? shapeRows.formPart : body);
     body -= radialWake;
   }
   // the windscreen
   const cb = S.cab || {}, cn = cb.canopy || {};
   const seats = Math.max(1, S.seats || 1);
+  // (a measured body carries its screen in its steps, by the screen's own rake and size; an open cockpit keeps its figure)
   const screen = cb.glazing === 'none' ? D.screen.open + D.screen.openPerSeat * seats
+               : shapeRows ? 0
                : cn.style === 'bubble' ? D.screen.bubble
                : D.screen.flat + D.screen.flatStep * (1 - (fu.cowlDeck == null ? 0.66 : fu.cowlDeck));
   // the junctions
@@ -985,6 +1013,8 @@ function genFusCdA(S, fr, o) {
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
             body, cool, heads, screen, junct, exh, ...(reK !== 1 ? { reK } : {}),
             ...(hullK !== 1 ? { hullK } : {}), ...(radialWake > 0 ? { radialWake } : {}),
+            ...(shapeRows ? { shape: { friction: shapeRows.friction, corners: shapeRows.corners, steps: shapeRows.steps, base: shapeRows.base,
+                                       lam: shapeRows.lam, sharp: shapeRows.sharp } } : {}),
             coolBy: coolSheet && coolSheet.kind === 'measured' ? 'momentum' : 'perKW' },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the

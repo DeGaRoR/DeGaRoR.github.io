@@ -2048,6 +2048,22 @@ const GEN_OUTFIT = {
 // wetted body (cdWet) sits on the material row.
 const GEN_DRAG = {
   cdWetDefault: 0.0125,        // a material row without cdWet reads as fabric
+  // THE BODY BY ITS SHAPE (FUSELAGE-DRAG, 2026-11-22; reports/FUSELAGE-DRAG-STUDY-2026-11-22.md). A build whose body the
+  // editor MEASURED (spec.bodyShape, _cage_gen cageBodyShape) is billed by what was measured, not by cdWet x boxK:
+  //   friction   Swet x the turbulent plate at the body's own length and cruise speed (0.455 / log10(Re)^2.58)
+  //              x (1 - lam x lamCf)   lam: the body's share ahead of its first step, on a MOULDED skin with soft
+  //                                    corners (sharp < lamSharp) and no propeller on the nose; at most lamMax
+  //              x kSkin               what the construction leaves on the surface (moulded ... tent cloth)
+  //              x FF(fineness)        as ever
+  //   corners    x (1 + corner x sharp)   sharp: the share of the outline's turning in sharp edges (a tube 0, a
+  //                                       sharp box ~0.65) - a soft-cornered square costs little, a creased one all
+  //   steps      + step x stepM2       forward-facing area met on the body at more than 25 deg (the windscreen, by its
+  //                                    own rake and size: the fixed `screen` figure goes)
+  //   base       + base x baseM2       area closed faster than the flow follows, an end left open
+  // None of corner / step / base was fitted: the Cessna 172 lands on its figure (0.179 -> 0.176 m2, the study's 6.2).
+  // A spec with no measurement (a hand-written one, GEN_DEFAULT, an open frame) keeps the law below, bit for bit.
+  body: { corner: 0.9, step: 0.7, base: 0.18, lamCf: 0.85, lamSharp: 0.25, lamMax: 0.5, nu: 1.46e-5,
+          kSkin: { glass: 1.08, carbon: 1.08, wood: 1.20, alloy: 1.30, tubeFabric: 1.40, aluTube: 1.40, softShell: 1.60 }, kSkinDefault: 1.40 },
   // the slab-side penalty on the crown rows: a box section runs ~10 % over
   // a round one of the same area (Hoerner ch. 6, rectangular bodies)
   boxK: 0.10,
