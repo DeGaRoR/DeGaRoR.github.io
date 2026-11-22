@@ -1,4 +1,4 @@
-FAIL (40 of 150 gates run; PARTIAL: 14 of 23 chunks, 214 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H]
+FAIL (40 of 166 gates run; PARTIAL: 15 of 23 chunks, 198 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H]
 NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
@@ -4171,6 +4171,66 @@ GATE ROUNDTRIP
   wall 897.2 s
 GATE ROUNDTRIP: FAIL (6)
 (exit code 1)
+######## chunk 14 of 23 (16 gates) ########
+=== HOUSEWORKER ===
+  ok   partial: every array the worker sent was transferred, not copied (4695 buffers, 154.1 MB; 0 copied)
+  ok   partial: exactly the deleted entries generated (16 built of 16 deleted, 32 from the cache)
+GATE HOUSEWORKER: PASS
+=== PAVEXACT ===
+  the polygon queries (old / new): {"checks":0,"rejected":0,"exact":13525639,"enabled":false} / {"checks":13525586,"rejected":10952431,"exact":2573208,"enabled":true}
+  heap peak in the world step, MB (old -> new): JS heap 597 -> 660, during the strips 597 -> 660, typed arrays 2351 -> 2351
+GATE PAVEXACT: PASS
+=== STAND ===
+  ok   4 every cell lookup is by cellKey
+  ok   4 a block's InstancedMesh is made empty and handed its buffer
+GATE STAND: PASS
+=== ROLLANIM ===
+  rolls 18.7-35.1 m, shots 5.98-6.00 s; the eye's worst plan: club 0, works 0, field 10 bad samples of 49 (clamped per frame)
+  914 checks
+GATE ROLLANIM: PASS
+=== ROLLSND ===
+    a turboprop (the metal Cessna on a PT6A-114A) start 2.10 + check 3.30 + roll 5.67 = 11.07  (1 engine, crank 250 rpm, idle 1900, the roll's 0.14 throttle 1900 rpm)
+  20 / 20 mutations caught; 100.7 s
+GATE ROLLSND: PASS
+=== PWA ===
+32 checks ok
+GATE PWA: PASS
+=== WINGSMITH ===
+  caught the player's save key renamed
+  selftest: 6 of 6 caught
+GATE WINGSMITH: PASS
+=== UPDATE ===
+67 checks ok
+GATE UPDATE: PASS
+=== UILAYER ===
+UILAYER: 32 ok, 0 failed
+GATE UILAYER: PASS
+=== CARDS ===
+56 ok, 0 red
+GATE CARDS: PASS
+=== PLANETHUMB ===
+36 checks
+GATE PLANETHUMB: PASS
+=== PLANELISTS ===
+  selftest files: a test copy nobody reads: red (ok)
+  selftest the floats draft shown to a player before its file lands: red (ok)
+GATE PLANELISTS: PASS
+=== REALREFS ===
+  selftest red on a plane on a missing reference: PLANES.x: ref nope is no REFS row
+  note: 14 references still without their trail (url, date read, quality per source): cub d112 c172r c172f pa18f petrel chinook dc3 ruckus camel tigermoth stearman skymaster carboncub
+GATE REALREFS: PASS
+=== REALBAND ===
+  note: the report's evidence is not fresh for etrainer (never flown), pc6 (never flown), pc6f (never flown), cub (unstamped), jodelg (never flown), pa18f (unstamped), ruckus (never flown), ruckusbc (never flown), dc3r (never flown), chinookm (never flown), tigermothm (never flown), camelm (never flown), stearman (unstamped), archaeo (never flown), petrel42 (never flown), carboncubss (unstamped), c172v2 (unstamped) - re-fly them (real_check --all)
+  17 planes in 383 s
+GATE REALBAND: PASS
+=== CARDDRAG ===
+C census: 198 files, 31 card-like ids - 16 draggable, 15 allow-listed; 19 registered
+G the gesture in a stub DOM: bind, threshold, drag + save, buttons, re-render, re-made, clamps, the header handle, the double-click, resetAll, register, no storage
+GATE CARDDRAG: PASS
+=== FADES ===
+  ok   5 the stream raises what it builds (inline and from the house worker)
+  ok   5 the prewarm (under the roll-out screen) does not (either way)
+GATE FADES: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -4323,6 +4383,22 @@ GREENGRASS PASS    30.6 s
 LAWN      PASS    23.0 s
 FRAMECOST FAIL   325.0 s
 ROUNDTRIP FAIL   897.2 s
-wall (the chunks' own, summed) 27125.4 s  (jobs 4)
+HOUSEWORKER PASS  1446.3 s
+PAVEXACT  PASS   470.1 s
+STAND     PASS     0.1 s
+ROLLANIM  PASS    62.6 s
+ROLLSND   PASS   101.1 s
+PWA       PASS     0.8 s
+WINGSMITH PASS     0.2 s
+UPDATE    PASS     0.1 s
+UILAYER   PASS     2.1 s
+CARDS     PASS     4.0 s
+PLANETHUMB PASS     0.0 s
+PLANELISTS PASS    13.4 s
+REALREFS  PASS     0.1 s
+REALBAND  PASS   383.3 s
+CARDDRAG  PASS     0.2 s
+FADES     PASS     0.9 s
+wall (the chunks' own, summed) 28571.7 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 40 red (110 PASS, 40 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 40 red (126 PASS, 40 FAIL, 0 SKIP of 364)
