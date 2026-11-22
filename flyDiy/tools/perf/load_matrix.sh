@@ -107,7 +107,7 @@ for i in $(seq 0 $((N - 1))); do
   fi
   # PERF-TRACE's ten lines on the row's flight log (the step's kind, the programs that held it, first uses, long tasks)
   if [ -z "$LM_DRY" ] && [ -s "$OUT/$TAG.flightlog.json" ] && [ -f "$T/load_brief.js" ]; then
-    { echo "=== $TAG  q=$Q${X:+  $X}"; nice -n 19 node "$T/load_brief.js" "$OUT/$TAG.flightlog.json" --label "$TAG" 2>&1 | head -14; } >> "$OUT/briefs.txt"; fi
+    { echo "=== $TAG  q=$Q${X:+  $X}"; nice -n 19 node "$T/load_brief.js" "$OUT/$TAG.flightlog.json" --label "$TAG" $LM_BRIEF_ARGS 2>&1 | head -${LM_BRIEF_LINES:-14}; } >> "$OUT/briefs.txt"; fi   # (LM_BRIEF_ARGS: e.g. --steps compile,frames,worldCompile --miss 1, PERF-TRACE's per-step lines, perf-trace-2)
   g=$(grep -o 'overlay gone [0-9]*' "$L" | awk '{printf "%.1f", $3/1000}')
   echo "$TAG [$KIND]: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o '\(HEADED\|headless\) window.*' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | package ${t} C -> $(TEMP) C | q=$Q${X:+ | $X} | $(grep -o '^  eval .*' "$L" | head -1 | cut -c3-) | $(grep -o '^  rollout: .*' "$L" | head -1 | cut -c3-) | $(sizes "$UDD")" | tee -a "$SUM"
 done
