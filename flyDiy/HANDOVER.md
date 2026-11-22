@@ -318326,3 +318326,12 @@ track a project builds at its max, every kit taken at the start given back, ever
 never a count or a name; 14-16, GATE MISSIONLIVE's short landing and nothing else read the FROZEN copy of the pack as handed over,
 tools/fixtures/storypack/story_v0.json (do not edit it with the story; replace it only with the gate rows that read it). The
 totem site's project no longer requires the mine (an invented prerequisite). 132 checks.
+
+STORY-REVAMP 9 - THE FIRST FLIGHTS READ (ready story-7; reports/STORY-REVAMP.md "The flights so far"): tools/mission_feas_lib.js
+lands a contract with an open STOL landing / spot line THE WAY THE LINE NAMES (the field's landHdg for that flight; 73c measures no
+other way and every line of the stop must be measured) and says so in the row; tools/story_feas.js --again re-flies named missions
+after a change of the harness (a row is keyed by the mission's record only) and keeps a flight's notes. club.pylons' bronze and
+target are 250 s (the Cub's lap: 215.9 s). KNOWN, NOT MINE, with their cases in the report: the Cessna 172 capsizes out of its slip
+on a short final (master's own minedock.02 the same - 43_pilot.js WINGS-LEVEL's family); Cabin Lake (cb_sea) is landable one way
+only (approach: 0 on the island's record lands it) and five home missions land there. To trace one flight whole: judgeMission with
+a log callback prints each leg (phases, the pilot's verdicts, the landing, each gate's closest pass).
