@@ -92,6 +92,8 @@
     root.traverseVisible(m => {
       mine.add(m);
       const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa) return;
+      // FRAME-DRAWN (the user 22 Nov): only what this picture's camera draws makes the frame (ui_layer.js UI_LAYER.drawn)
+      if (typeof window.UI_LAYER !== 'undefined' && window.UI_LAYER.drawn && !window.UI_LAYER.drawn(m)) return;
       const step = Math.max(1, Math.floor(pa.count / 200));
       for (let i = 0; i < pa.count; i += step) {
         p.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld);

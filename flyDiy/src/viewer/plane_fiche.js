@@ -121,14 +121,16 @@
   function frameOf(T, root) {
     root.updateMatrixWorld(true);
     const box = new T.Box3(), gb = new T.Box3(), pts = [], p = new T.Vector3();
+    // FRAME-DRAWN (the user 22 Nov): only what the fiche's cameras draw makes the frame (ui_layer.js UI_LAYER.drawn)
+    const DR = m => (typeof UI_LAYER !== 'undefined' && UI_LAYER.drawn) ? UI_LAYER.drawn(m) : !!(m.isMesh && m.geometry);
     root.traverseVisible(m => {
-      if (!m.isMesh || !m.geometry) return;
+      if (!m.isMesh || !m.geometry || !DR(m)) return;
       const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox();
       gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld); box.union(gb);
     });
     const c = box.getCenter(new T.Vector3());
     root.traverseVisible(m => {
-      const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa) return;
+      const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa || !DR(m)) return;
       const step = Math.max(1, Math.floor(pa.count / 300));
       for (let i = 0; i < pa.count; i += step) pts.push(p.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c));
     });

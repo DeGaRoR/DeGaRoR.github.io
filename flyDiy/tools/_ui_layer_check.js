@@ -141,6 +141,25 @@ if (decl) {
   check(during && !after, 'U5 rollShotUi toggles body.rollShot on for the shot, off at the reveal');
 }
 
+// ---- U6: FRAME-DRAWN - a picture frames what its camera draws (the user 22 Nov: portraits "at the bottom right corner") --
+{
+  const uiMeshes = uiDrawn.filter(o => o.isMesh && o.geometry), papiMeshes = papiObjs.filter(o => o.isMesh && o.geometry);
+  check(typeof UI.drawn === 'function' && uiMeshes.length > 0 && uiMeshes.every(o => !UI.drawn(o)),
+    `U6 UI_LAYER.drawn: no helper mesh (${uiMeshes.length}) counts for a picture's frame`);
+  check(papiMeshes.length > 0 && papiMeshes.every(o => UI.drawn(o)), `U6 ...every world mesh (the PAPI's ${papiMeshes.length}) does`);
+  const G = new THREE.BoxGeometry(1, 1, 1), mk = mat => new THREE.Mesh(G, mat);
+  const hid = new THREE.MeshBasicMaterial(); hid.visible = false;
+  const blindM = new THREE.MeshBasicMaterial(); blindM.colorWrite = false;
+  const shared = mk(new THREE.MeshBasicMaterial()); shared.layers.enable(UI.LAYER);   // a world mesh the eye also sees on the UI layer: still drawn
+  check(!UI.drawn(mk(hid)) && !UI.drawn(mk(blindM)) && UI.drawn(mk([hid, new THREE.MeshBasicMaterial()])) && UI.drawn(shared) && !UI.drawn(new THREE.Group()),
+    'U6 ...a hidden or colour-blind material is not in the frame, one showing material is, a mesh on layer 0 AND the UI layer is');
+  const PS = fs.readFileSync(path.join(T, 'plane_shot.js'), 'utf8'), PT = src('plane_thumb.js'), PF = src('plane_fiche.js');
+  check(/const DR = m => \(typeof UI_LAYER !== 'undefined' && UI_LAYER\.drawn\) \? UI_LAYER\.drawn\(m\)/.test(PS) && (PS.match(/!DR\(m\)/g) || []).length >= 2 &&
+        /window\.UI_LAYER\.drawn && !window\.UI_LAYER\.drawn\(m\)\) return;/.test(PT) &&
+        /const DR = m => \(typeof UI_LAYER !== 'undefined' && UI_LAYER\.drawn\)/.test(PF) && (PF.match(/!DR\(m\)/g) || []).length >= 2,
+    'U6 the three framers (plane_shot\'s portraits, plane_thumb, the fiche) frame through UI_LAYER.drawn - box AND points');
+}
+
 console.log(`UILAYER: ${nOk} ok, ${fails.length} failed`);
 console.log('GATE UILAYER: ' + (fails.length ? 'FAIL' : 'PASS'));
 process.exit(fails.length ? 1 : 0);

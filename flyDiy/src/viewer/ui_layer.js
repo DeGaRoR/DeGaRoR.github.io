@@ -25,6 +25,7 @@
 //   UI_LAYER.see(cam, on)  the camera sees the UI layer (on !== false) or not
 //   UI_LAYER.blind(cam)    see(cam, false)
 //   UI_LAYER.is(obj)       claimed?
+//   UI_LAYER.drawn(mesh)   would a picture's camera draw it (not the UI layer alone, a material that shows)? - FRAME-DRAWN
 // ============================================================================
 var UI_LAYER = (function () {
   'use strict';
@@ -44,7 +45,18 @@ var UI_LAYER = (function () {
   }
   const blind = cam => see(cam, false);
   const is = o => !!(o && o.userData && o.userData.uiLayer);
-  return { LAYER, claim, see, blind, is };
+  // FRAME-DRAWN (the user 22 Nov: "in the generated pictures, some of them are poorly centered ... at the bottom right
+  // corner rather than being well centered like the others"): a picture frames what its camera DRAWS. A visible mesh on
+  // the UI layer alone (a helper: photo mode and every picture's camera are blind to it) or whose every material is hidden
+  // or writes no colour is drawn by nobody, yet traverseVisible walks it - and the frame made room for it. The portraits
+  // (plane_shot), the player's thumbnails (plane_thumb) and the fiche (plane_fiche) frame through this one test.
+  function drawn(m) {
+    if (!m || !m.isMesh || !m.geometry) return false;
+    if (m.layers && (m.layers.mask & ~(1 << LAYER)) === 0) return false;
+    const M = [].concat(m.material || []);
+    return M.some(x => x && x.visible !== false && x.colorWrite !== false);
+  }
+  return { LAYER, claim, see, blind, is, drawn };
 })();
 if (typeof window !== 'undefined') window.UI_LAYER = UI_LAYER;
 if (typeof module !== 'undefined') module.exports = UI_LAYER;

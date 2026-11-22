@@ -204,16 +204,24 @@ const PORTRAIT_BODY = `(o, root, fwd0, craft) => {
   reframe();
   // the box of what is drawn (the hidden overlays out), and the aeroplane's own axes (z forward in the cage, the mount
   // turned to the room; up is the room's)
+  // FRAME-DRAWN (the user 22 Nov: B-ITES and the small electric twin "at the bottom right corner"): only what the
+  // panels' cameras DRAW (UI_LAYER.drawn: not a UI-layer helper, a material that shows); what was walked and skipped is
+  // reported (frameSkip), and the meshes that set the frame's fore and aft ends (frameEnds)
+  const DR = m => (typeof UI_LAYER !== 'undefined' && UI_LAYER.drawn) ? UI_LAYER.drawn(m) : !!(m.isMesh && m.geometry);
+  const skip = [];
   const box = new THREE.Box3(), gb = new THREE.Box3();
-  root.traverseVisible(m => { if (!m.isMesh || !m.geometry) return; const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld); box.union(gb); });
+  root.traverseVisible(m => { if (!m.isMesh || !m.geometry) return; const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld);
+    if (!DR(m)) { if (skip.length < 12) skip.push((m.name || '(unnamed)') + '<' + ((m.parent && m.parent.name) || '') + '> ' + [gb.min.toArray(), gb.max.toArray()].flat().map(x => x.toFixed(1)).join(',')); return; }
+    box.union(gb); });
   const fwd = fwd0 ? V(fwd0[0], fwd0[1], fwd0[2]) : V(0, 0, 1).transformDirection(root.parent.matrixWorld); fwd.y = 0; fwd.normalize();
   const up = V(0, 1, 0), left = V().crossVectors(up, fwd).normalize();
   const c = box.getCenter(V()), W = o.w * o.ss, H = o.h * o.ss, aspect = o.w / o.h;
   // the fit's points: the drawn vertices themselves (a few hundred a mesh), not the box's corners - a 3/4 eye throws a
   // box's corners far wider than the aeroplane (the 20:50 take's heroes filled half the frame, off centre)
-  const corners = [], pv = V();
-  root.traverseVisible(m => { const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa) return;
-    const step = Math.max(1, Math.floor(pa.count / 300)); for (let i = 0; i < pa.count; i += step) corners.push(pv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c)); });
+  const corners = [], pv = V(), ends = { lo: [1e9, ''], hi: [-1e9, ''] };
+  root.traverseVisible(m => { const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa || !DR(m)) return;
+    const step = Math.max(1, Math.floor(pa.count / 300)); for (let i = 0; i < pa.count; i += step) { const q = pv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c); corners.push(q);
+      const f = q.dot(fwd); if (f < ends.lo[0]) ends.lo = [f, m.name || ((m.parent && m.parent.name) || '?')]; if (f > ends.hi[0]) ends.hi = [f, m.name || ((m.parent && m.parent.name) || '?')]; } });
   if (!corners.length) for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
   const fill = o.fill || 0.84;
   // the aeroplane's own frame: the drawn points' extents along the nose, the left wing and up - the orthos' one scale
@@ -349,7 +357,8 @@ const PORTRAIT_BODY = `(o, root, fwd0, craft) => {
   }
   const cam = panels[0].cam;
   return { a, b, cuts, meta: { name: meta.name || null, reg: meta.reg || null }, eye: cam.position.toArray().map(x => +x.toFixed(3)), fov: cam.isPerspectiveCamera ? cam.fov : 0, w: OW, h: OH,
-           box: [box.min.toArray(), box.max.toArray()].flat().map(x => +x.toFixed(3)), dist: +cam.position.distanceTo(c).toFixed(2) };
+           box: [box.min.toArray(), box.max.toArray()].flat().map(x => +x.toFixed(3)), dist: +cam.position.distanceTo(c).toFixed(2),
+           frameSkip: skip, frameEnds: [ends.lo[1] + ' ' + ends.lo[0].toFixed(2), ends.hi[1] + ' ' + ends.hi[0].toFixed(2)] };
 }`;
 // THE TAKE-OFF HERO (the user, 3 Nov: "the hero shot should be rendered with flaps, lights, and turning blades, as it
 // clearly evokes a plane just taking off seen from the ground"): o.takeoff draws the FLOWN model, not the editor's cage
@@ -527,7 +536,8 @@ async function shoot(o) {
             if (!o.keepUi) { await C.ev('(() => { if (window.SHOT_MODE) SHOT_MODE.enter(); return 1; })()'); await frames(3); }
             const pr = await J('(' + PORTRAIT + ')(' + JSON.stringify(po) + ')', 120000);
             await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
-            Object.assign(VR, { door: 'portrait', eye: pr.eye, fov: pr.fov, dist: pr.dist, box: pr.box, takeoff: pr.takeoff || null });
+            Object.assign(VR, { door: 'portrait', eye: pr.eye, fov: pr.fov, dist: pr.dist, box: pr.box, takeoff: pr.takeoff || null,
+                                frameSkip: pr.frameSkip || [], frameEnds: pr.frameEnds || null });   // FRAME-DRAWN
             if (pr.takeoff) log(base, v, 'take-off:', JSON.stringify(pr.takeoff));
             if (pr.cuts) {   // THE CUT-OUTS: one transparent PNG a view + <base>_cuts.json (the orthos' px a metre, the name, the reg)
               VR.cuts = [];
