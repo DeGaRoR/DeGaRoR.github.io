@@ -192,6 +192,7 @@ var COVER_RING = (() => {
   // a mix's forest.rockUp [h0, h1, k] multiplies its rocks by 1 + k x smoothstep(h0, h1, the cell's ground) and fades the rows' exposed
   // rule out over the same band (the flat summits keep their rocks); forest.alpRockK multiplies a mix's rocks (the scree); the rocks'
   // own ring registers its big rocks as trunk-law hit sets (TREE_HITS.lying, world.treeHits: the solver meets them as it meets trees)
+  const ALP_BAND = [560, 860];   // the default band (the subalpine's trees thin 560-860 m: 28c subTop0 / subTop1)
   let ALP_ON = true; try { const m = /[?&]alprocks=([01])/.exec(location.search); if (m) ALP_ON = m[1] === '1'; } catch (e) {}
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
   // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
@@ -702,12 +703,18 @@ var COVER_RING = (() => {
     function placeRocks(c, row, F, G, centreMix, cx, cz, C, emit) {
       const place = c.place || {};
       const P = protosOf(c); if (!P.length) return 0;
-      const per = ((c.kind === 'debris' ? F.debris : F.rocks) || 0) / 1000 * S.rocks * (row.proportion === undefined ? 1 : row.proportion);
-      if (per <= 0) return 0;
+      const prop = row.proportion === undefined ? 1 : row.proportion;
+      const per = ((c.kind === 'debris' ? F.debris : F.rocks) || 0) / 1000 * S.rocks * prop;
       const x0 = cx * C, z0 = cz * C, sSeed = hashStr(c.name);
-      // the alpine rocks (above): the cell's own ground on the mix's band; the rows' exposed rule fades out over it
-      const up = ALP_ON && F.rockUp ? smooth(F.rockUp[0], F.rockUp[1], world.terrainH(x0 + C / 2, z0 + C / 2)) : 0;
-      const perA = per * (ALP_ON ? (F.alpRockK || 1) * (1 + (F.rockUp ? F.rockUp[2] : 0) * up) : 1), exposedA = (row.exposed || 0) * (1 - 0.6 * up);
+      // the alpine rocks (above): the cell's own ground on the mix's band [h0, h1] (forest.rockUp; 560-860 m: where the subalpine's trees thin);
+      // a rock row's count x alpRockK x (1 + k up), PLUS forest.rockAlp rocks / 1000 m2 x up (22 Nov 11:00 in game: the bare ground above the
+      // trees is mostly the grassland and the rock class, whose own counts are near nothing - a multiplier alone left them smooth); the rows'
+      // exposed rule fades to 40 % over the band
+      const band = F.rockUp || ALP_BAND, up = ALP_ON && c.kind === 'rock' && (F.rockUp || F.rockAlp) ? smooth(band[0], band[1], world.terrainH(x0 + C / 2, z0 + C / 2)) : 0;
+      const perA = !(ALP_ON && c.kind === 'rock') ? per : per * (F.alpRockK || 1) * (1 + (F.rockUp ? F.rockUp[2] : 0) * up) + up * (F.rockAlp || 0) / 1000 * S.rocks * prop;
+      if (perA <= 0) return 0;
+      const exposedA = (row.exposed || 0) * (1 - 0.6 * up);
+      const Lc = exposedA > 0 ? new Map() : null;   // (the exposed test's 5 height reads, ONCE per sub-grid point: the 27.8 ms cell, 22 Nov)
       const Rq = rng((((hsh(cx, cz) * 4294967295) >>> 0) ^ sSeed) >>> 0);
       const blotch = F.blotch || 0, blotchM = F.blotchM || 18;
       const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
@@ -747,9 +754,10 @@ var COVER_RING = (() => {
         // where it would be likely to have quite a few rocks dispersed"): `exposed` keeps a rock by how bare the soil likely is - a knob or
         // a ridge (the ground CONVEX over 8 m: the Laplacian under 0) or a slope (the gradient over 8 m) - 0 keeps all, 1 only there
         if (exposedA > 0 && !floats) {
-          const r8 = 8, y0 = world.terrainH(x, z), hx1 = world.terrainH(x + r8, z), hx0 = world.terrainH(x - r8, z), hz1 = world.terrainH(x, z + r8), hz0 = world.terrainH(x, z - r8);
-          const lap = (hx1 + hx0 + hz1 + hz0) / 4 - y0, sl = Math.hypot(hx1 - hx0, hz1 - hz0) / (2 * r8);
-          const L = Math.max(smooth(0.05, 0.6, -lap), smooth(0.25, 0.7, sl));
+          const gq = G.at(x, z); let L = Lc.get(gq);
+          if (L === undefined) { const r8 = 8, y0 = world.terrainH(x, z), hx1 = world.terrainH(x + r8, z), hx0 = world.terrainH(x - r8, z), hz1 = world.terrainH(x, z + r8), hz0 = world.terrainH(x, z - r8);
+            const lap = (hx1 + hx0 + hz1 + hz0) / 4 - y0, sl = Math.hypot(hx1 - hx0, hz1 - hz0) / (2 * r8);
+            L = Math.max(smooth(0.05, 0.6, -lap), smooth(0.25, 0.7, sl)); Lc.set(gq, L); }
           if (Rq() > (1 - exposedA) + exposedA * L) continue;
         }
         const gk = G.at(x, z);

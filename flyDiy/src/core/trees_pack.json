@@ -11049,7 +11049,13 @@
      "spread": 0.2,
      "coverSpread": 0.08,
      "canopyFloor": 0,
-     "debris": 10
+     "debris": 10,
+     "rockUp": [
+      560,
+      860,
+      0
+     ],
+     "rockAlp": 50
     }
    },
    "borders": {
@@ -11261,7 +11267,13 @@
      "coverSpread": 0.08,
      "rockMap": 1,
      "debris": 8,
-     "alpRockK": 6
+     "alpRockK": 6,
+     "rockUp": [
+      560,
+      860,
+      0
+     ],
+     "rockAlp": 40
     }
    },
    "shore": {
@@ -11628,7 +11640,13 @@
      "rocks": 12,
      "ttype": 12,
      "coverSpread": 0.08,
-     "debris": 35
+     "debris": 35,
+     "rockUp": [
+      560,
+      860,
+      0
+     ],
+     "rockAlp": 60
     }
    },
    "conifer_scrub": {
@@ -12391,10 +12409,11 @@
       0.8
      ],
      "rockUp": [
-      700,
-      950,
+      560,
+      860,
       1.5
-     ]
+     ],
+     "rockAlp": 40
     }
    }
   },
