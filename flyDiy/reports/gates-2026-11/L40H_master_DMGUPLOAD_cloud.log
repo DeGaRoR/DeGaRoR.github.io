@@ -1,0 +1,19 @@
+GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)
+  cub: the mild staging not flown - its crushable nose takes it whole; the hard staging below is its crash
+  metal: fresh - 634 drawn buffers checked, 0 stale; the crash {"br":144,"wreck":13,"stage":{"V":30,"agl":4,"tr":0.3,"D":40,"off":0}}; after the shed and the roll-out (live true) - 801 checked, 0 STALE (0 owed by their fold, paid at its next shown walk: []); uploads {"uploads":34869,"subs":30564,"contexts":3}; drawn meshes by class {"mesh":116,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.52,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":167,"merge":{"ext":{"from":104,"to":3,"bones":33,"verts":592926,"skip":{}},"in":{"from":98,"to":4,"bones":40,"verts":433944,"skip":{}}}}
+  metal THE ROLL-OUT SHOT: fresh - {"frames":668,"worst":0,"shot":667}; after the crash - {"frames":678,"worst":0,"shot":677} (the shot’s wreck resets 0)
+  metal: fold buffers checked fresh 50, after 50 (by class {"mesh":751,"fold":50})
+  cub, THE HARD STAGING ({"id":"hard","V":30,"agl":1,"tr":0.5,"D":40}): the wreck must break up (80+ members)
+  cub: fresh - 528 drawn buffers checked, 0 stale; the crash {"br":84,"wreck":10,"stage":{"V":30,"agl":1,"tr":0.5,"D":40,"off":0}}; after the shed and the roll-out (live true) - 705 checked, 0 STALE (0 owed by their fold, paid at its next shown walk: []); uploads {"uploads":30018,"subs":29262,"contexts":3}; drawn meshes by class {"mesh":102,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.49,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":144,"merge":{"ext":{"from":101,"to":3,"bones":33,"verts":548958,"skip":{}},"in":{"from":80,"to":4,"bones":29,"verts":301464,"skip":{}}}}
+  cub THE ROLL-OUT SHOT: fresh - {"frames":658,"worst":0,"shot":657}; after the crash - {"frames":678,"worst":0,"shot":677} (the shot’s wreck resets 0)
+  cub: fold buffers checked fresh 50, after 50 (by class {"mesh":655,"fold":50})
+  cub: fresh - 445 drawn buffers checked, 0 stale; the crash {"br":0,"wreck":0,"stage":{"V":30,"agl":4,"tr":0.3,"D":40,"off":0}}; after the shed and the roll-out (live true) - 445 checked, 0 STALE (0 owed by their fold, paid at its next shown walk: []); uploads {"uploads":19559,"subs":19818,"contexts":3}; drawn meshes by class {"mesh":70,"still":1,"fold":7}; the flown bake {"module":true,"hit":"fake","cm":0.49,"hybrid":true,"hyT":0,"folds":2,"foldMeshes":7,"views":143,"merge":{"ext":{"from":101,"to":3,"bones":33,"verts":548958,"skip":{}},"in":{"from":80,"to":4,"bones":29,"verts":301464,"skip":{}}}}
+  cub THE ROLL-OUT SHOT: fresh - {"frames":658,"worst":0,"shot":657}; after the crash - {"frames":657,"worst":0,"shot":656} (the shot’s wreck resets 0)
+  cub DAMAGE OFF: the heal upload marking fired 0 times; 0 stale
+  cub: fold buffers checked fresh 44, after 44 (by class {"mesh":394,"still":7,"fold":44})
+  cub FLY AGAIN after the crash (damage on): the crash {"br":84,"wreck":10,"stage":{"V":30,"agl":1,"tr":0.5,"D":40,"off":0}}; removed triangles at the crash 5 meshes, after Fly again []; hidden fresh 106 / after 106; members against their fold []; the wreck layer idle
+  ok    cub Fly again (damage on): every part back, nothing hidden or removed
+  cub FLY AGAIN after the crash (damage OFF): the crash {"br":0,"wreck":0,"stage":{"V":30,"agl":1,"tr":0.5,"D":40,"off":0}}; removed triangles at the crash 0 meshes, after Fly again []; hidden fresh 106 / after 106; members against their fold []; the wreck layer idle
+  ok    cub Fly again (damage OFF): every part back, nothing hidden or removed
+GATE DMGUPLOAD: PASS
+exit 0

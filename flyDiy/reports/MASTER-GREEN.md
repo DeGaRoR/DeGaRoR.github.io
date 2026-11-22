@@ -31,8 +31,10 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
   - **1 is the candidate commit's packaging:** COMMITHYGIENE.
   - **7 are this box, not reds:** SNOWMUDFX and LAZY fail on master L40h here too; BENCHTIME, SCENERYED 20b, BIOME, SETTLE
     and DMGLOOK's plan row are millisecond budgets.
-  - **3 have NO verdict here:** TOW, TREECRASH, DMGGEAR hit the runner's 1800 s limit on this slower machine (all three
-    are L40h reds on the box). They are being re-run here directly, without the limit; the result is added below.
+  - **3 hit the runner's 1800 s limit on this slower machine** (TOW, TREECRASH, DMGGEAR) and were then run directly on
+    the candidate with no limit (23:55 UTC; outputs beside the log as `L40J_candidate_<GATE>_direct.log`): **TOW** and
+    **DMGGEAR** fail on exactly master L40h's rows, nothing new. **TREECRASH** fails on L40h's row AND on two new ones,
+    "metal/trunk0 against the reference ... MOVED" and "metal/trunk25 against the reference ... MOVED": the Cessna again.
 - **21:35 UTC - seven more NEW names (266 of 364 gates in), sorted:**
   - `one-cessna-4` again: **LIVERYSET** dies on `ENOENT ... bugReports/cessnaMetal (1).json` (the candidate deletes
     that file and the gate still opens it); **FIN** "§10: cessna fin sheet folds over itself (5 faces)"; **GEOPARITY**
