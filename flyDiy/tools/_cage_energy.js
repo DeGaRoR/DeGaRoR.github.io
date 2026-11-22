@@ -84,7 +84,29 @@ function liftedVessels(spec) {
     return Array.isArray(v) && v.length ? v : null;
   } catch (e) { return null; }
 }
-function fromSpec(energy, spec) {
+// WATER TANKS (GEN_RULES.water; the user 15 Nov: "We need to be able to put tanks, and fill them with water. These will
+// be called water tanks ... Let's simply reuse the fuel tank mechanism, but give it another appearance ... blue
+// plastic"): THEY LIVE IN THIS LIST, flagged `holds: 'water'`, so every placement, fit, drag and drawing door here is
+// theirs too - and they LEAVE it as their own section, spec.water.vessels (toWater), which the physics' fuel and pack
+// readers never see. `fill` (0..1) is the tank's own, the garage's row. WATER_KNOWN: the list was seeded from a spec
+// that could carry water; until then the join leaves the spec's water alone (a harness that seeds the fuel list only
+// must not empty a card's water tanks).
+let WATER_KNOWN = false;
+const isWater = v => !!(v && v.holds === 'water');
+const waterOf = (spec, water) => water !== undefined ? water : (spec ? (spec.water || null) : undefined);
+function waterVessel(v) {
+  return { holds: 'water', bay: v.bay || 'cabin', capacity: +v.capacity || 0,
+    fill: v.fill == null ? 1 : MathL.max(0, MathL.min(1, +v.fill)),
+    along: v.along == null ? null : +v.along, lv: v.lv == null ? null : +v.lv, rot: +v.rot || 0,
+    form: v.form === 'cyl' ? 'cyl' : (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2) ? 'deck' : 'box',
+    dims: (v.dims && v.dims.L > 0) ? Object.assign({ L: +v.dims.L, W: +v.dims.W, H: +v.dims.H },
+      (Array.isArray(v.dims.profile) && v.dims.profile.length >= 2) ? { profile: v.dims.profile.map(Number) } : {}) : null,
+    finish: FINISH[v.finish] ? v.finish : null, hue: v.hue == null ? null : +v.hue || 0, tint: v.tint || null,
+    ...(+v.outletD > 0 ? { outletD: +v.outletD } : {}) };
+}
+function fromSpec(energy, spec, water) {
+  const WL = waterOf(spec, water);
+  const keepW = WL === undefined ? EN.vessels.filter(isWater) : null;
   let E = energy || {};
   if (spec && !(Array.isArray(E.vessels) && E.vessels.length)) {
     const L = liftedVessels(spec);
@@ -117,6 +139,12 @@ function fromSpec(energy, spec) {
         v.fit === 'auto' ? { fit: 'auto' } : {}, v.gap != null && isFinite(+v.gap) ? { gap: +v.gap } : {},
         v.room != null && isFinite(+v.room) ? { room: +v.room } : {}))
     : defaultVessels();
+  // (a fuel or pack list never holds a water tank: the water rides beside it)
+  EN.vessels = EN.vessels.filter(v => !isWater(v));
+  if (WL !== undefined) {
+    WATER_KNOWN = true;
+    if (WL && Array.isArray(WL.vessels)) for (const v of WL.vessels) if (v && +v.capacity > 0) EN.vessels.push(waterVessel(v));
+  } else if (keepW && keepW.length) EN.vessels.push(...keepW);
   seeded = true;
   savePrefs();
   if (panelBody) renderPanel();
@@ -129,7 +157,7 @@ function fromSpec(energy, spec) {
 function toSpec() {
   return { kind: EN.kind, fuel: EN.fuel, cell: EN.cell, vessel: EN.vessel,
            finish: EN.finish, hue: EN.hue, tint: EN.tint,
-           vessels: EN.vessels.map(v => ({ bay: v.bay, capacity: v.capacity,
+           vessels: EN.vessels.filter(v => !isWater(v)).map(v => ({ bay: v.bay, capacity: v.capacity,
              along: v.along, lv: v.lv, rot: v.rot, form: v.form || 'box',
              // G1150: a deck's profile rides with its dims (without it the core makes it a box)
              dims: v.dims ? Object.assign({ L: v.dims.L, W: v.dims.W, H: v.dims.H }, Array.isArray(v.dims.profile) ? { profile: v.dims.profile.slice() } : {}) : null,
@@ -139,19 +167,28 @@ function toSpec() {
              ...(v.fit === 'auto' ? { fit: 'auto' } : {}), ...(v.gap != null ? { gap: v.gap } : {}), ...(v.room != null ? { room: v.room } : {}) })) };
 }
 
+// THE WATER TANKS' OWN SECTION (spec.water): undefined until the list was seeded from a spec that could carry water
+function toWater() {
+  if (!WATER_KNOWN) return undefined;
+  return { vessels: EN.vessels.filter(isWater).map(v => ({ bay: v.bay, capacity: v.capacity, fill: v.fill == null ? 1 : v.fill,
+    along: v.along, lv: v.lv, rot: v.rot, form: v.form || 'box',
+    dims: v.dims ? Object.assign({ L: v.dims.L, W: v.dims.W, H: v.dims.H }, Array.isArray(v.dims.profile) ? { profile: v.dims.profile.slice() } : {}) : null,
+    finish: v.finish || null, hue: v.hue == null ? null : v.hue, tint: v.tint || null,
+    ...(+v.outletD > 0 ? { outletD: v.outletD } : {}) })) };
+}
 // the bench remembers; the game's memory is the spec
 const LSKEY = () => 'cageEnergy:' + (typeof location !== 'undefined' ? location.pathname : '');
 function loadPrefs() {
   if (inGame() || typeof localStorage === 'undefined') return false;
   try {
     const j = JSON.parse(localStorage.getItem(LSKEY()) || 'null');
-    if (j && Array.isArray(j.vessels)) { fromSpec(j); return true; }
+    if (j && Array.isArray(j.vessels)) { fromSpec(j, undefined, j.water || null); return true; }
   } catch (e) {}
   return false;
 }
 function savePrefs() {
   if (inGame() || typeof localStorage === 'undefined') return;
-  try { localStorage.setItem(LSKEY(), JSON.stringify(toSpec())); } catch (e) {}
+  try { localStorage.setItem(LSKEY(), JSON.stringify(Object.assign(toSpec(), { water: toWater() || null }))); } catch (e) {}
 }
 
 // ---------------------------------------------------------------------------
@@ -175,11 +212,11 @@ const vesselKey = () => EN.vessel || (EN.kind === 'battery' ? 'packCase' : 'alu'
 const formOf = v => (v && v.form === 'cyl' ? 'cyl' : v && v.form === 'ogive' ? 'ogive'
   : v && v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) ? 'deck' : 'box');
 // installed litres of a drawn box -> the capacity unit the spec stores
-function capacityFromDims(dims, form) {
+function capacityFromDims(dims, form, v) {
   const G = VG(), C = core();
   if (!G || !G.installedFromDims) return 0;
-  const inst = G.installedFromDims(vesselKey(), dims, form);
-  if (EN.kind === 'battery') {
+  const inst = G.installedFromDims(v ? vesselKeyV(v) : vesselKey(), dims, form);
+  if (EN.kind === 'battery' && !isWater(v)) {
     const cell = (C.CELLS || {})[EN.cell] || { WhL: 250, packK: 0.7 };
     return MathL.max(0, MathL.round((inst / 1.18) * (cell.WhL * cell.packK) / 1000 * 10) / 10);
   }
@@ -187,6 +224,11 @@ function capacityFromDims(dims, form) {
 }
 const medium = () => (EN.kind === 'battery' ? EN.cell : EN.fuel);
 const unit = () => (EN.kind === 'battery' ? 'kWh' : 'L');
+// PER VESSEL (WATER TANKS): a water tank is water in blue polyethylene whatever the section's kind
+const kindV = v => isWater(v) ? 'water' : (EN.kind === 'battery' ? 'battery' : 'fuel');
+const vesselKeyV = v => isWater(v) ? 'waterPoly' : vesselKey();
+const mediumV = v => isWater(v) ? 'water' : medium();
+const unitV = v => isWater(v) ? 'L' : unit();
 
 // THE RESOLVED SPEC the bay rule reads. The game has one; the bench
 // reconstructs the four numbers the join measures, off the same rings.
@@ -525,7 +567,7 @@ function placeAll(ctx, inv) {
   if (!C.vesselResolve || !G) return results;
   // ENGINELESS (the LS4: the engine page's switch off, engOn 0 - a sailplane): no tank, no pack drawn - the core holds
   // none (60_gen_spec genUnpowered) and the join writes none
-  if (ctx && ctx.P && ctx.P.engOn != null && !+ctx.P.engOn) return results;
+  const engineless = !!(ctx && ctx.P && ctx.P.engOn != null && !+ctx.P.engOn);   // (WATER TANKS: a sailplane keeps its water)
   let wroteBack = false;
   // ONE SWEEP PER BAY PER BODY, not per layout and not per build: a drag
   // moves the tank and nothing else, and a wing or engine row moves nothing
@@ -551,8 +593,9 @@ function placeAll(ctx, inv) {
   // (The user's Cub booted to a 29 L tank shaped against the waiting crew and loaded from the shelf to 27 L.)
   const crewPending = !FIT_ASKING && typeof window.CAGE_CREW_PENDING === 'function' && window.CAGE_CREW_PENDING();
   for (const v of EN.vessels) {
+    if (engineless && !isWater(v)) continue;
     if (v.bay === 'strut' && !BAYS.find(b => b.key === 'strut') && !legacyFit()) {
-      const res0 = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel', v.capacity, vesselKey(), medium());
+      const res0 = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
       results.push({ on: 'strut', ok: false, unmounted: true, pods: [], v, res: res0, needL: res0.installedL, roomL: 0,
         bay: { key: 'strut', name: 'On the lift struts', on: 'strut', span: [0.25, 0.8] },
         why: ['this aeroplane has no lift struts to hang it on: the pod is not fitted and carries no fuel (give the wing ' +
@@ -568,10 +611,9 @@ function placeAll(ctx, inv) {
     // litres derived from them (installed volume, less the shell's rounding,
     // back through the same ullage factor genVesselResolve applies), so the
     // ledger bills what the drawn box holds and nothing else.
-    if (v.dims) v.capacity = capacityFromDims(v.dims, formOf(v));
-    const res = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
-                                v.capacity, vesselKey(), medium());
-    let dims = G.vesselDims(vesselKey(), res.installedL, v.dims, formOf(v));
+    if (v.dims) v.capacity = capacityFromDims(v.dims, formOf(v), v);
+    const res = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
+    let dims = G.vesselDims(vesselKeyV(v), res.installedL, v.dims, formOf(v));
     let pl, resOver = null, autoY = null;
     if (bay.on === 'strut') {
       // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared by
@@ -581,9 +623,8 @@ function placeAll(ctx, inv) {
       // the body at its foot by a hand, and the litres are the pair's.
       v.form = 'ogive';
       if (v.dims) v.capacity = capacityFromDims(v.dims, 'ogive') * 2;
-      const resH = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
-                                   v.capacity / 2, vesselKey(), medium());
-      dims = G.vesselDims(vesselKey(), resH.installedL, v.dims, 'ogive');
+      const resH = C.vesselResolve(kindV(v), v.capacity / 2, vesselKeyV(v), mediumV(v));
+      dims = G.vesselDims(vesselKeyV(v), resH.installedL, v.dims, 'ogive');
       const t0 = v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]);
       if (v.along == null) { v.along = t0; wroteBack = true; }
       const S2 = (W && W.struts) || [];
@@ -696,8 +737,8 @@ function placeAll(ctx, inv) {
           if (!same) { v.form = 'deck'; v.dims = na.dims; v.along = na.along; v.lv = na.lv; v.rot = 0; v.fit = 'auto'; wroteBack = true; }
           v.capacity = capacityFromDims(v.dims, 'deck');
           v.shaped = 'auto';
-          resOver = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel', v.capacity, vesselKey(), medium());
-          dims = G.vesselDims(vesselKey(), resOver.installedL, v.dims, 'deck');
+          resOver = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
+          dims = G.vesselDims(vesselKeyV(v), resOver.installedL, v.dims, 'deck');
           delete v.autoWhy;
           autoY = na.yc;
         } else if (na && na.why) v.autoWhy = na.why;
@@ -739,11 +780,10 @@ function placeAll(ctx, inv) {
               if (free > 0.06 && free < bf.H) { bf.H = free; bf.capped = true; bf.crew = true; }
             }
             v.dims = { L: +bf.L.toFixed(3), W: +bf.W.toFixed(3), H: +bf.H.toFixed(3) };
-            v.capacity = capacityFromDims(v.dims, formOf(v));
+            v.capacity = capacityFromDims(v.dims, formOf(v), v);
             v.shaped = bf.crew ? 'crew' : (bf.capped ? 'band' : true);
-            const res2 = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
-                                         v.capacity, vesselKey(), medium());
-            dims = G.vesselDims(vesselKey(), res2.installedL, v.dims, formOf(v));
+            const res2 = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
+            dims = G.vesselDims(vesselKeyV(v), res2.installedL, v.dims, formOf(v));
             // a new shape settles its own level; the station stays the player's
             v.lv = null;
             wroteBack = true;
@@ -1772,8 +1812,76 @@ function lightBox(r, sol) {
   return [c[0] - ex, c[1] - e[1], c[2] - ez, c[0] + ex, c[1] + e[1], c[2] + ez];
 }
 // ALL BODY TANKS (the layout's and fitOf's door)
+// WATER TANKS: THE OUTLET'S RUN, CHECKED (the user, 15 Nov: "a release point, by default a simple downwards opening with
+// little checks" - "Little checks means regarding collision. Ideally we'd need to cut through the fuselage, let's not
+// do that yet"). The hole is in the tank's floor and the water goes straight down: from there a ray down the drawn
+// surfaces (the soup every tank is judged against) must meet the SKIN first - the floor boards it may go through (a
+// hole in the board); a frame tube, a keel, a seat, the gear, anything else first is a blocked run, named. Past the
+// skin, 0.35 m more: the jet must not land on the wheel or a strut. Not cut yet: the pipe stops at the skin, and the
+// verdict is the readout's and the drawn pipe's (red where it is blocked) - the tank flies either way.
+const OUTLET_BELOW = 0.35;
+function outletJudge(ctx, scene, inv, r) {
+  r.outlet = null;
+  let S, O;
+  try { S = surfAll(ctx, scene, inv); O = obstIndex(S); } catch (e) { return; }
+  if (!S || !O) return;
+  const x = r.c[0], z = r.c[2], y0 = r.c[1] - r.e[1] - 0.003;
+  const raw = h => TAG_NAMES[S.tag[h.i]] || 'surface';
+  const isSkin = t => TAG_WORDS[t] === 'skin' || /^(body|plywood|skin|sheet|fabric|shell|hull|cover)/i.test(t);
+  let y = y0, skinY = null, why = null, at = null;
+  for (let k = 0; k < 8 && skinY == null && !why; k++) {
+    const h = obstSeg(O, [x, y, z], [x, y - 2, z]);
+    if (!h) break;
+    const yh = y - 2 * h.t, t = raw(h);
+    if (isSkin(t)) { skinY = yh; break; }
+    if (t === 'floorBoard') { y = yh - 0.002; continue; }
+    at = [x, yh, z];
+    why = 'runs into the ' + tagWord(S.tag[h.i], at) + ' ' + ((y0 - yh) * 1000).toFixed(0) + ' mm under the tank';
+  }
+  if (!why && skinY != null) {
+    const h2 = obstSeg(O, [x, skinY - 0.002, z], [x, skinY - OUTLET_BELOW, z]);
+    if (h2) { const yh = skinY - 0.002 - (OUTLET_BELOW - 0.002) * h2.t; at = [x, yh, z];
+      why = 'the water falls on the ' + tagWord(S.tag[h2.i], at) + ' ' + ((skinY - yh) * 1000).toFixed(0) + ' mm under the skin'; }
+  }
+  const len = MathL.max(0.01, skinY != null ? y0 - skinY : 0.06);
+  r.outlet = { ok: !why, why, at, len, top: [x, y0, z], bot: [x, y0 - len, z], skin: skinY != null };
+}
+// the water itself: clear, a little blue (the fuel's own look, lighter)
+let WATER_MAT = null;
+function waterMat() {
+  if (WATER_MAT) return WATER_MAT;
+  const m = new THREE.MeshStandardMaterial({ color: 0x8fd0ff, roughness: 0.08, metalness: 0.0,
+    transparent: true, opacity: 0.45, depthWrite: false });
+  m.userData.aeroskin = 1;
+  return (WATER_MAT = m);
+}
+// the outlet: a short pipe from the tank's floor to the skin and the valve on it - the tank's steel where it is clear
+// (it flies with the tank), red and the editor's alone where the run is blocked (a bead where it meets something)
+let OUT_GEO = null, VALVE_GEO = null;
+function drawOutlet(group, r, i, tankBad) {
+  const o = r.outlet, T3 = window.THREE;
+  if (!o || !T3) return;
+  if (!OUT_GEO) { OUT_GEO = new T3.CylinderGeometry(0.014, 0.014, 1, 14, 1, false); VALVE_GEO = new T3.CylinderGeometry(0.024, 0.024, 0.035, 16); }
+  const mat = o.ok ? slotMat('hard', false, i, r.v) : clashMat();
+  const pipe = new T3.Mesh(OUT_GEO, mat);
+  pipe.scale.set(1, o.len, 1);
+  pipe.position.set(o.top[0], o.top[1] - o.len / 2, o.top[2]);
+  pipe.name = 'edVessel_' + i + '_outlet';
+  const valve = new T3.Mesh(VALVE_GEO, mat);
+  valve.position.set(o.top[0], o.top[1] - MathL.min(0.03, o.len / 2), o.top[2]);
+  valve.name = 'edVessel_' + i + '_valve';
+  // (a tank that does not fit takes its outlet with it: every mesh of it stamped edUnfit, G1108 - GATE TANKMOUNT)
+  for (const m of [pipe, valve]) { if (!o.ok) { m.userData.edMarker = 1; m.userData.edUnfit = 1; } if (tankBad) m.userData.edUnfit = 1; group.add(m); }
+  if (!o.ok && o.at) {
+    const b = new T3.Mesh(clashGeo(), clashMat());
+    b.position.set(o.at[0], o.at[1], o.at[2]);
+    b.name = 'edTankClash_' + i + '_outlet'; b.userData.edMarker = 1; b.userData.edUnfit = 1; b.renderOrder = 10;
+    group.add(b);
+  }
+}
 function judgeAll(scene, inv, results, ctx) {
   for (const r of results) if (r.on === 'body' && r.c) judgeTank(ctx, scene, inv, r);
+  for (const r of results) if (r.on === 'body' && r.c && isWater(r.v)) outletJudge(ctx, scene, inv, r);   // WATER TANKS: the outlet's run
   // RETRACT G3 (RETRACT-STUDY §8.3): THE GEAR'S WELLS ARE STRUCTURE - a tank that meets the volume a retracting gear's
   // stowed unit reserves is red, as one through the skin is (the gear layer ran before this one: its wells are this
   // build's). No retraction, no wells: nothing here runs
@@ -1816,6 +1924,7 @@ const NOSE_CASE_DEPTH = 0.10;     // m: the instruments' cases behind the panel'
 const NOSE_CLR = 0.02;            // m to the firewall and the walls (the pads, the straps)
 const NOSE_AUTO = new Map();      // the fitted shape, by body, gap and the crew's points
 function noseAutoWanted(v, bay) {
+  if (isWater(v)) return false;   // (WATER TANKS: free, never shaped behind the panel)
   if (!NOSE_AUTO_ON || !bay || bay.key !== 'nose' || legacyFit()) return false;
   if (v.fit === 'auto') return true;
   // the user, 3 Nov ("Yes"): the saves' nose tanks left to the bay rule (no station, no box of their own - the
@@ -2088,13 +2197,15 @@ const FINISH = {
   plastic: { name: 'moulded plastic', set: 'plastic', col: 0xdedac9 },
   rubber:  { name: 'rubber',          set: 'plastic', col: 0x33333a },
   steel:   { name: 'steel',           set: 'steel',   col: 0xffffff },
+  // WATER TANKS (the user: "blue plastic, so we can tell them apart with the eventual fuel tanks")
+  bluePoly: { name: 'blue polyethylene', set: 'plastic', col: 0x2f6fd0 },
 };
 // what a catalogue vessel is made of when the player has not said. A rubber
 // bladder is rubber, a moulded tank is polythene, a welded one is bare alloy,
 // and a pack case is painted — which is also the one the hue row recolours, so
 // an electric build is where a player first meets it.
 const FINISH_OF = { alu: 'alu', moulded: 'plastic', bladder: 'rubber',
-                    packCase: 'paint', wet: null };
+                    packCase: 'paint', wet: null, waterPoly: 'bluePoly' };
 // THE SECTION'S ANSWER, and what a tank falls back to.
 const finishKey = () => (FINISH[EN.finish] ? EN.finish : null) ||
                         FINISH_OF[vesselKey()] || 'alu';
@@ -2105,9 +2216,9 @@ const finishKey = () => (FINISH[EN.finish] ? EN.finish : null) ||
 // the strap pads and the filler cap are NOT in here: they are steel, rubber
 // and the one spot of colour wherever they are, and they are not the
 // builder's.
-const finishOf = v => (v && FINISH[v.finish] ? v.finish : null) || finishKey();
-const hueOf = v => (v && v.hue != null ? +v.hue : (EN.hue || 0));
-const tintOf = v => (v && v.tint) || EN.tint || null;
+const finishOf = v => (v && FINISH[v.finish] ? v.finish : null) || (isWater(v) ? 'bluePoly' : finishKey());
+const hueOf = v => (v && v.hue != null ? +v.hue : (isWater(v) ? 0 : (EN.hue || 0)));
+const tintOf = v => (v && v.tint) || (isWater(v) ? null : EN.tint) || null;
 // what a row writes: the RESOLVED look, all three, onto the tank itself. A
 // half-inherited tank ("its tint is its own, its hue is the section's") is a
 // state nobody can read off the panel, and the section-wide values stay
@@ -2534,10 +2645,11 @@ function vesselSolid(r) {
   const fin = finishOf(r.v);
   const form = formOf(r.v);
   const prof = form === 'deck' && r.v && r.v.dims && r.v.dims.profile ? r.v.dims.profile : null;
-  const key = r.e.map(x => x.toFixed(4)).join(',') + '|' + form + '|' + EN.kind + '|' + fin + (prof ? '|' + prof.map(x => (+x).toFixed(3)).join(',') : '');
+  const kd = isWater(r.v) ? 'fuel' : EN.kind;   // (WATER TANKS: the fuel tank's own solid and fittings, in blue)
+  const key = r.e.map(x => x.toFixed(4)).join(',') + '|' + form + '|' + kd + '|' + fin + (prof ? '|' + prof.map(x => (+x).toFixed(3)).join(',') : '');
   let s = solids.get(key);
   if (!s) {
-    s = VM.build({ e: r.e, form, kind: EN.kind, profile: prof,
+    s = VM.build({ e: r.e, form, kind: kd, profile: prof,
                    tile: { shell: tileOf(fin), hard: tileOf('steel'),
                            seal: tileOf('rubber') } });
     if (solids.size > 24) solids.clear();
@@ -2698,7 +2810,15 @@ function drawResults(group, ctx, results) {
       // fuel has a round bottom and a flat top, and the level itself is placed
       // by VOLUME, not by height (VESSEL_MESH.contents). A pack does not
       // drain, so nothing is drawn inside one.
-      if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
+      if (isWater(r.v)) {
+        // WATER TANKS: the water at the tank's own fill, and the outlet run straight down (outletJudge's verdict)
+        const fw = r.v.fill == null ? 1 : r.v.fill;
+        if (fw > 0.02) {
+          const mw = slotMesh(group, contentsMemo(sol, fw), waterMat(), 'edFuel_' + i, r.c, yaw, true);
+          if (mw && bad) mw.userData.edUnfit = 1;
+        }
+        drawOutlet(group, r, i, bad);
+      } else if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
         const mf = slotMesh(group, legacyFit() ? VM.contents(sol, VIEW.fill, 0.008) : contentsMemo(sol, VIEW.fill), fuelMat(),
                             'edFuel_' + i, r.c, yaw, true);
         if (mf && bad) mf.userData.edUnfit = 1;
@@ -2750,15 +2870,16 @@ function drawResults(group, ctx, results) {
         // (VESSEL_GEN.wingRibs off the wing layer's probes): the loft, and
         // the fuel inside it cut flat at the slider's level. The box below
         // is what a wing with no probe still gets.
-        if (!wet && EN.kind !== 'battery') wingTankDress(group, s, i, bad, r.v);   // WING-STRUCTURE: its hardware (the cutaway shows it)
+        if (!wet && (EN.kind !== 'battery' || isWater(r.v))) wingTankDress(group, s, i, bad, r.v);   // WING-STRUCTURE: its hardware (the cutaway shows it)
         if (s.ribs && s.ribs.length >= 2 && VM.wingLoft) {
           const mat = wet ? matWet(bad) : wingShellMat(bad, i, r.v);
           if (!wet)
             slotMesh(group, VM.wingLoft(s.ribs, tileOf(finishOf(r.v))), mat,
                      'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
-          if (EN.kind !== 'battery' && VIEW.fill > 0.02)
-            slotMesh(group, VM.wingLoft(wet ? s.ribs : fuelSpan(s, 0.006), 0.4, { fill: MathL.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
-                     wet ? matWet(bad) : fuelMat(),
+          const fW = isWater(r.v) ? (r.v.fill == null ? 1 : r.v.fill) : VIEW.fill;
+          if ((EN.kind !== 'battery' || isWater(r.v)) && fW > 0.02)
+            slotMesh(group, VM.wingLoft(wet ? s.ribs : fuelSpan(s, 0.006), 0.4, { fill: MathL.min(1, fW), inset: wet ? 0.0 : 0.008 }),
+                     wet ? matWet(bad) : isWater(r.v) ? waterMat() : fuelMat(),
                      'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
           continue;
         }
@@ -2771,8 +2892,9 @@ function drawResults(group, ctx, results) {
         if (!wet)
           slotMesh(group, VM.wingBox(p8, tileOf(finishOf(r.v))), mat,
                    'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
-        if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
-          const inset = wet ? 0.0 : 0.008, f = MathL.min(1, VIEW.fill);
+        const fW2 = isWater(r.v) ? (r.v.fill == null ? 1 : r.v.fill) : VIEW.fill;
+        if ((EN.kind !== 'battery' || isWater(r.v)) && fW2 > 0.02) {
+          const inset = wet ? 0.0 : 0.008, f = MathL.min(1, fW2);
           const g0 = y0 + inset, g1 = g0 + MathL.max(0.004, (s.d - 2 * inset) * f);
           const dx = s.x1 > s.x0 ? inset : -inset;
           const q8 = [
@@ -2781,7 +2903,7 @@ function drawResults(group, ctx, results) {
             [s.x1 - dx, g0, s.zR1 + inset], [s.x1 - dx, g0, s.zF1 - inset],
             [s.x1 - dx, g1, s.zF1 - inset], [s.x1 - dx, g1, s.zR1 + inset],
           ];
-          slotMesh(group, VM.wingBox(q8, 0.4), wet ? matWet(bad) : fuelMat(),
+          slotMesh(group, VM.wingBox(q8, 0.4), wet ? matWet(bad) : isWater(r.v) ? waterMat() : fuelMat(),
                    'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
         }
       }
@@ -3021,6 +3143,7 @@ function commit() {
   // or the file would say 50 litres over a 60-litre tank.
   try {
     const patch = { energy: toSpec() };
+    const wNow = toWater();   // WATER TANKS: their own section (undefined: not known, left alone)
     // resolveSpec, not genNormaliseSpec: normalise migrates and defaults,
     // and it is clampSpec — which only the resolve runs — that derives the
     // litres from the list
@@ -3039,7 +3162,12 @@ function commit() {
     const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = x[kk]; return o; }, {}) : x);
     const same = had && canon(had.energy) === canon(patch.energy)
       && (!patch.fuel || (had.fuel && canon({ litres: had.fuel.litres, tank: had.fuel.tank }) === canon(patch.fuel)));
-    if (!same) G.update(patch);
+    // WATER TANKS: written beside the energy, or the key taken off when the last one goes (update merges, remove deletes)
+    const wHad = had ? (had.water || null) : null, wWant = wNow && wNow.vessels.length ? wNow : null;
+    const wSame = wNow === undefined || canon(wHad) === canon(wWant);
+    if (!wSame && wWant) patch.water = wWant;
+    if (!same || (!wSame && wWant)) G.update(patch);
+    if (!wSame && !wWant && G.remove) G.remove('water');
   } catch (e) { console.error('energy:', e); }
   scheduleReadouts(250);
   // `update` rebuilds the aeroplane rather than committing the join, so the
@@ -3627,7 +3755,7 @@ function renderPanel() {
       EN.vessel = null;                 // the vessel follows the kind
       // a capacity in litres is not a capacity in kWh: start each vessel at a
       // sensible size for the new kind rather than carrying a number across
-      for (const vs of EN.vessels) vs.capacity = EN.kind === 'battery' ? 8 : 45;
+      for (const vs of EN.vessels) if (!isWater(vs)) vs.capacity = EN.kind === 'battery' ? 8 : 45;
       renderPanel(); relayout(); commit();
     });
   const meds = EN.kind === 'battery'
@@ -3658,8 +3786,10 @@ function renderPanel() {
   if (!inGame()) B.appendChild(lookElement());
 
   // ---- each vessel --------------------------------------------------------
+  const nWat = EN.vessels.filter(isWater).length, nOwn = EN.vessels.length - nWat;
   EN.vessels.forEach((v, i) => {
     const bay = BAYS.find(b => b.key === v.bay) || BAYS[0];
+    const wat = isWater(v);
     const det = document.createElement('details');
     det.open = true;
     // the entry a viewport click lands on (see `selectVessel`): the list is
@@ -3668,7 +3798,8 @@ function renderPanel() {
     det.dataset.ves = i;
     if (i === selected) det.classList.add('on');
     const sum = document.createElement('summary');
-    sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
+    sum.textContent = (wat ? 'water tank ' + (EN.vessels.filter(isWater).indexOf(v) + 1)
+                           : (EN.kind === 'battery' ? 'pack ' : 'tank ') + (EN.vessels.filter(x => !isWater(x)).indexOf(v) + 1)) +
       ' · ' + (bay ? bay.name.toLowerCase() : '?');
     sum.onclick = () => { selectVessel(i); };
     det.appendChild(sum);
@@ -3677,7 +3808,7 @@ function renderPanel() {
     B.appendChild(det);
 
     select(box, 'bay', 'a predetermined place. The nose bay is the only one ' +
-      'gravity can feed from; the wing bays relieve the spar', bayOptions(),
+      'gravity can feed from; the wing bays relieve the spar', wat ? bayOptions().filter(o => o[0] !== 'strut') : bayOptions(),
       v.bay, nb => {
         v.bay = nb; v.along = null; v.lv = null; v.rot = 0;
         // TANK-FIT Part 2: a tank moved to the nose is fitted to it (the shape row can make it free again)
@@ -3703,7 +3834,7 @@ function renderPanel() {
             delete v.fit;
             // an auto shape left for a free one keeps its size as a squared box of the same footprint
             v.form = nf === 'cyl' ? 'cyl' : 'box';
-            if (v.dims) { v.dims = { L: v.dims.L, W: v.dims.W, H: v.dims.H }; v.capacity = capacityFromDims(v.dims, formOf(v)); }
+            if (v.dims) { v.dims = { L: v.dims.L, W: v.dims.W, H: v.dims.H }; v.capacity = capacityFromDims(v.dims, formOf(v), v); }
           }
           selected = i; renderPanel(); relayout(); commit();
         });
@@ -3721,16 +3852,30 @@ function renderPanel() {
     // capacity: as much as the bay can take, less the vessel's own ullage
     const room = bay ? (bay.roomL || 0) : 0;
     let capMax;
-    if (EN.kind === 'battery') {
+    if (EN.kind === 'battery' && !wat) {
       const cell = (C.CELLS || {})[EN.cell] || { WhL: 250, packK: 0.7 };
       capMax = MathL.max(1, MathL.floor(room / 1.18 * (cell.WhL * cell.packK) / 1000));
     } else capMax = MathL.max(1, MathL.floor(room / 1.06));
     if (!(bay && bay.key === 'nose' && noseAutoWanted(v, bay))) range(box, 'capacity', 'what it holds. The top of the slider is what the ' +
       'bay can take; the readout says whether the SHAPE fits. Moving this ' +
       'gives the vessel its catalogue shape again', 1,
-      MathL.max(capMax, 1), 1, MathL.min(v.capacity, MathL.max(capMax, 1)), fmtL,
+      MathL.max(capMax, 1), 1, MathL.min(v.capacity, MathL.max(capMax, 1)), wat ? (x => x.toFixed(0) + ' L') : fmtL,
       x => { v.capacity = x; v.dims = null; dragLayout(false, i); },
       x => { v.capacity = x; v.dims = null; relayout(); commitSoon(); });
+    // WATER TANKS: HOW FULL (the user: "Offer to partially fill the tank in the garage") - the water aboard, drawn and
+    // weighed (a payload: the ledger's 'water'); the pilot's valve empties it in flight
+    if (wat) range(box, 'filled', 'how full this water tank is, drawn and weighed - the structure is built for it full; ' +
+      'in flight the dump valve empties it', 0, 1, 0.01, v.fill == null ? 1 : v.fill, x => (x * 100).toFixed(0) + ' %',
+      x => { v.fill = x; dragLayout(false, i); }, x => { v.fill = x; relayout(); commitSoon(); });
+    // ...AND HOW FAST IT EMPTIES: the outlet's hole (GEN_RULES.water: Torricelli at the tank's head) - a sailplane's
+    // ballast valves empty its wings in a few minutes, a bomber's hopper in seconds
+    if (wat) { const Rw = (C.RULES && C.RULES.water) || { outletD: 0.04, Cd: 0.6, head: 0.25 };
+      const rate = d => 1000 * Rw.Cd * MathL.PI * d * d / 4 * MathL.sqrt(2 * 9.81 * Rw.head);
+      range(box, 'outlet', 'the dump outlet\'s hole across: how fast the valve empties this tank (Torricelli at its head)', 6, 80, 1,
+        (v.outletD > 0 ? v.outletD : Rw.outletD) * 1000, x => { const r = rate(x / 1000), L = (+v.capacity || 0) * (v.fill == null ? 1 : v.fill),
+          t = r > 0 ? L / r : 0;   // (the helper: how long this tank takes to empty, as filled, at the full head's rate)
+          return x.toFixed(0) + ' mm · ' + r.toFixed(2) + ' L/s · empty in ' + (t >= 90 ? (t / 60).toFixed(1) + ' min' : t.toFixed(0) + ' s'); },
+        x => { v.outletD = x / 1000; }, x => { v.outletD = x / 1000; commitSoon(); }); }
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
     // for the box; the first touch copies the catalogue shape so the sliders
     // start from what is drawn, and from then on the litres are calculated.
@@ -3803,10 +3948,10 @@ function renderPanel() {
     box.appendChild(rd);
     READ[i] = rd;
 
-    if (EN.vessels.length > 1) {
+    if (wat || nOwn > 1) {
       const rm = row(box, '', '');
       const b = document.createElement('button');
-      b.textContent = 'remove this ' + (EN.kind === 'battery' ? 'pack' : 'tank');
+      b.textContent = 'remove this ' + (wat ? 'water tank' : EN.kind === 'battery' ? 'pack' : 'tank');
       b.className = 'wide';
       b.onclick = () => { EN.vessels.splice(i, 1); selected = 0;
         renderPanel(); relayout(); commit(); };
@@ -3830,6 +3975,23 @@ function renderPanel() {
       EN.vessels.push(Object.assign({ bay: nk,
         capacity: EN.kind === 'battery' ? 6 : 30, along: null, lv: null, rot: 0,
         form: 'box' }, nk === 'nose' && NOSE_AUTO_ON && !legacyFit() ? { fit: 'auto' } : {}));
+      selected = EN.vessels.length - 1;
+      renderPanel(); relayout(); commit();
+    };
+    r.appendChild(b);
+  }
+  // WATER TANKS: one more, blue, in the cabin (or the first body bay), 20 L full - free to move like any tank
+  {
+    const r = row(B, '', '');
+    const b = document.createElement('button');
+    b.textContent = '+ add a water tank';
+    b.className = 'wide';
+    b.title = 'a blue polyethylene water tank: ballast you fill in the garage and the pilot can dump in flight ' +
+      '(an outlet straight down, checked clear of the structure)';
+    b.onclick = () => {
+      const bw = BAYS.find(x => x.key === 'cabin') || BAYS.find(x => x.on === 'body') || BAYS[0];
+      EN.vessels.push({ holds: 'water', bay: bw ? bw.key : 'cabin', capacity: 20, fill: 1, along: null, lv: null, rot: 0, form: 'box' });
+      WATER_KNOWN = true;
       selected = EN.vessels.length - 1;
       renderPanel(); relayout(); commit();
     };
@@ -3932,7 +4094,7 @@ function syncReadouts() {
   rs.forEach((r, i) => {
     const d = READ[i];
     // a pod with no strut is not aboard (the core's `unmounted`): not in the totals
-    if (!r.unmounted) { totCap += r.v.capacity; totKg += r.res.contentsKg; totVes += r.res.vesselKg; price += r.res.price; }
+    if (!r.unmounted && !isWater(r.v)) { totCap += r.v.capacity; totKg += r.res.contentsKg; totVes += r.res.vesselKg; price += r.res.price; }
     if (!d) return;
     const bits = [];
     bits.push('needs ' + r.needL.toFixed(0) + ' of ' + (r.roomL || 0).toFixed(0) + ' L');
@@ -3945,6 +4107,11 @@ function syncReadouts() {
       bits.push('a ' + r.pods[0].L.toFixed(2) + ' x ' + r.pods[0].D.toFixed(2) + ' m pod each side');
     if (r.unmounted) { d.textContent = '✗ NOT FITTED, CARRIES NO FUEL — ' + r.why.join('; '); d.classList.add('bad'); return; }
     if (r.pending) { d.textContent = '… fitting the tank to the nose'; d.classList.remove('bad'); return; }
+    if (isWater(r.v)) {
+      const fw = r.v.fill == null ? 1 : r.v.fill;
+      bits.push(r.res.vesselKg.toFixed(1) + ' kg tank + ' + (r.res.contentsKg * fw).toFixed(1) + ' kg water (' + (fw * 100).toFixed(0) + ' %)');
+      if (r.outlet) bits.push(r.outlet.ok ? 'outlet clear (' + (r.outlet.len * 1000).toFixed(0) + ' mm to the skin)' : '✗ outlet: ' + r.outlet.why);
+    } else
     bits.push(r.res.vesselKg.toFixed(1) + ' kg ' + (EN.kind === 'battery' ? 'case + cells' : 'tank') +
       (EN.kind === 'battery' ? '' : ' + ' + r.res.contentsKg.toFixed(1) + ' kg fuel'));
     if (r.on === 'body' && !r.crewHits) bits.push('clears the crew');
@@ -3965,7 +4132,7 @@ function syncReadouts() {
 }
 
 window.CAGE_ENERGY = {
-  EN, fromSpec, toSpec, relayout, commit, setEnv: vesselSetEnv, fitOf, capacityFromDims,
+  EN, fromSpec, toSpec, toWater, relayout, commit, setEnv: vesselSetEnv, fitOf, capacityFromDims,
   // the flown aeroplane's door into the factory (app.js matFor, `m.ves`)
   material: vesselMatFor,
   // the two columns' doors: structure gets the whole panel, finish gets the

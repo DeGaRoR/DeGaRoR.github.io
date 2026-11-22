@@ -636,6 +636,8 @@ function makeSimHost(CORE, init, keptWorld) {
     if ('wr' in h) c.wr = h.wr === 0 || h.wr === 1 ? h.wr : null;
     if (h.twLock === 0 || h.twLock === 1) c.twLock = h.twLock;   // G3800: the tailwheel lock (the hand's own handle)
     if ('gear' in c && (h.gear === 0 || h.gear === 1)) c.gear = h.gear;   // RETRACT-1: the gear handle (a retract build's ctl only)
+    if ('dump' in c && (h.dump === 0 || h.dump === 1)) c.dump = h.dump;   // WATER TANKS: the dump valve (a build with water only)
+    if ('airbrake' in c && h.airbrake >= 0 && h.airbrake <= 1) c.airbrake = h.airbrake;   // AIRBRAKES: the handle (a build with brakes only)
     if (Array.isArray(h.eng) && Array.isArray(c.eng))
       for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
   }

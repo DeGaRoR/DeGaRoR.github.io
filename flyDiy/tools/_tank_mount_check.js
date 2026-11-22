@@ -168,7 +168,10 @@ for (const a of cards) {
     // bay this aeroplane does not have goes to the nose"), where it is shaped
     // to 3 L. Printed, not judged; any OTHER card doing it is red.
     const KNOWN_REMAP = { chinook: 'G1109: strut pod -> nose (no strut bay on this body), owed' };
-    if (KNOWN_REMAP[a.key] && bb !== jb) console.log('  KNOWN ' + a.key + ': ' + KNOWN_REMAP[a.key] + ' (card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L)');
+    // (ENGINELESS, the LS4-alike 15 Nov: a sailplane's join writes no fuel tank or pack - the engine page's engOn 0, GATE
+    //  ENGINELESS - so its card's motorglider seed has nothing to be compared with; its water rides spec.water)
+    if (base.engines && base.engines[0] && base.engines[0].none) console.log('  ENGINELESS ' + a.key + ': no tank or pack (card ' + bb + ' ' + bc + ' L, the join none)');
+    else if (KNOWN_REMAP[a.key] && bb !== jb) console.log('  KNOWN ' + a.key + ': ' + KNOWN_REMAP[a.key] + ' (card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L)');
     else check(bb === jb && (shaped || bc === jc), a.key + ': the tanks asked about are the card\'s own (bays, and capacities unless the layer shaped them)',
       'card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L');
   }
@@ -277,10 +280,19 @@ for (const a of cards) {
       if (!rr.ok && kt && rr.why.length === 1 && mmIn <= kt.mm) { console.log('  KNOWN ' + a.key + ': ' + kt.why + ' (' + rr.why.join('; ') + ')'); continue; }
       check(!!rr.ok, a.key + ': the refitted stock tank fits its bay (' + rr.v.bay + ', ' + rr.v.capacity + ' L, ' + (rr.v.form || 'box') + ')', rr.why.join('; '));
     }
+  // KNOWN, LOGGED, OWED (L40c, 15 Nov; the Archaeopteryx branch - A0's ruling, "fix them or re-pin with a written
+  // reason"): THE HANGING NACELLE'S POD AND AN AUTO-PLACED PACK. Scaled (x0.66, x0.45) the pack loses its station
+  // (along / lv cleared, above) and the energy layer settles it by the bay's own section - which the Archaeopteryx's
+  // soft-shell pod round the mast does not follow: at x0.45 it lands under the floor, round the monowheel (edWheelR,
+  // 139 mm through it), and the layer's verdict reads 'fits' with the shell outside the skin. The card's own pack (x1,
+  // its station) is judged as ever. Owed: TANK-FIT's judge on the hanging-nacelle pod
+  const KNOWN_AUTO = { archaeopteryx: 'the hanging nacelle\'s pod: an auto-placed pack is judged by the bay\'s section (owed: TANK-FIT on this pod)' };
+  if (KNOWN_AUTO[a.key] && kCap !== 1 && RES.some(rr => rr.ok)) console.log('  KNOWN ' + a.key + ' x' + kCap + ': ' + KNOWN_AUTO[a.key]);
   for (const rr of RES) {
     const vi = EN.vessels.indexOf(rr.v);
     const mine = all.filter(o => new RegExp('^ed(Vessel|Fuel)_' + vi + '(_|$)').test(o.name));
-    if (rr.ok) check((outByVes[vi] || 0) === 0, a.key + ' x' + kCap + ': a tank that fits has nothing past a surface (shell, straps, the pieces that stayed)', (outByVes[vi] || 0) + ' vertices');
+    const knownAuto = !!(KNOWN_AUTO[a.key] && kCap !== 1);
+    if (rr.ok && !knownAuto) check((outByVes[vi] || 0) === 0, a.key + ' x' + kCap + ': a tank that fits has nothing past a surface (shell, straps, the pieces that stayed)', (outByVes[vi] || 0) + ' vertices');
     if (rr.ok) {
       // ...and nothing INSIDE it: a plate can enter a tank with no segment
       // from its centre crossing it (the Savannah-alike's dash, 130 of its
@@ -312,7 +324,7 @@ for (const a of cards) {
           if (all6) deep++;
         }
         row.intruders = (row.intruders || 0) + deep;
-        check(deep === 0, a.key + ' x' + kCap + ': nothing else stands inside a tank that fits (5 mm deep, by parity)', deep + ' points');
+        if (!knownAuto) check(deep === 0, a.key + ' x' + kCap + ': nothing else stands inside a tank that fits (5 mm deep, by parity)', deep + ' points');
       }
     }
     else {

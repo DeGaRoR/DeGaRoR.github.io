@@ -253,6 +253,10 @@ function cageJoinSpec(P, M, T) {
       // chord closes from the leading edge only by this share (1: the trailing edge runs straight to the tip) - absent = none
       ...(+P.wgTipTE > 0 ? { tipTE: Math.min(1, +P.wgTipTE) } : {}),
       ...(+P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {}),
+      // AIRBRAKES (GEN_RULES.airbrake): the boxes' span and the plate's height - absent when off
+      ...(+P.wgBrake ? { airbrake: { z0: P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30,
+          z1: (P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30) + (P.wgBrakeLen != null ? +P.wgBrakeLen : 0.16),
+          h: P.wgBrakeH != null ? +P.wgBrakeH : 0.20 } } : {}),
       // THE HUB (the rod rooted in the centre section): the centre's rows and the first bay's loop cuts the rod's hump
       // is shaped on (_cage_wing hubHump) - the same keys the wing layer draws with
       // THE HUB (the rod rooted in the centre section): the centre's rows the rod's hump is shaped on - the wing layer's
@@ -442,6 +446,9 @@ function cageJoinSpec(P, M, T) {
     if (M.mono) spec.gear.mono = true;             // MONOWHEEL: one main on the centreline (no track)
     if (M.mono && +P.s1Ul) spec.gear.ul = true;   // WEIGHT STUDY L6: the ultralight monowheel (GEN_RULES.ulGear)
     if (Math.round(+P.towHook || 0) > 0) spec.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+P.towHook)) - 1];   // THE TOW HOOK (GEN_RULES.towHook)
+    // THE CATEGORY (GEN_CATEGORY): the key only off 'normal'
+    { const ck = ['normal', 'light', 'sailplane', 'aerobatic'][Math.max(0, Math.min(3, Math.round(+P.certCat || 0)))];
+      if (ck !== 'normal') spec.category = ck; else delete spec.category; }
     // MONOWHEEL: the mains sunk into the body (their share; the drag counts what stands out)
     if (+P.s1Sink > 0 && +P.s1On) spec.gear.sink = Math.min(0.7, +P.s1Sink);
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
@@ -584,7 +591,7 @@ function cageJoinSpec(P, M, T) {
                         || 'glass';
     // THE BRAKES' HOLD (GEN_BRAKES, the user 9 Nov): the key only when chosen - absent flies as it always did (G3800's
     // twMode rule), so no saved build moves and no certificate is withdrawn
-    { const bk = [null, 'drum', 'disc', 'double'][Math.round(+P.brkHold || 0)];
+    { const bk = [null, 'drum', 'disc', 'double', 'sailplane'][Math.round(+P.brkHold || 0)];
       if (bk) spec.gear.brakes = bk; else delete spec.gear.brakes; }
     // G132: THE DRAWN LEG IS THE SUSPENSION. GEN_SUSPENSION (spring rate,
     // damping, price) read spec.gear.suspension while the mains' shock rows
@@ -959,6 +966,8 @@ function cageJoinSpec(P, M, T) {
   // paint", so a build that had a tint could never go back to plain.
   if (M.finish !== undefined) spec.finish = M.finish;
   if (M.energy !== undefined) spec.energy = M.energy;
+  // WATER TANKS: the layer's answer when it has one - a list, or none (the key off)
+  if (M.water !== undefined) { if (M.water && M.water.vessels && M.water.vessels.length) spec.water = M.water; else delete spec.water; }
   // the panel arc, session 2: the fit, the same way (a null inside it is
   // 'the tier's answer' and must survive — garage.js's merge keeps nulls)
   if (M.systems !== undefined) spec.systems = M.systems;
@@ -1275,6 +1284,7 @@ function cageSurfHinge(pts, surf, opts) {
     if (opts && opts.cant >= 20) { out.drive2 = 'dr'; out.sgn2 = Math.abs(axis[1]) > 1e-6 ? (axis[1] > 0 ? -1 : 1) : (port ? -1 : 1); }
   }
   else if (S2 === 'flapR' || S2 === 'flapL') { out.drive = 'flap'; out.sgn = -1; }
+  else if (S2 === 'brkR' || S2 === 'brkL') { out.drive = 'airbrake'; out.sgn = 1; }   // AIRBRAKES: a slide, no turn
   else { out.drive = 'da'; out.sgn = port ? -1 : 1; }
   return out;
 }
@@ -1784,9 +1794,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const CRW = window.CAGE_CREW;
         if (CRW && Array.isArray(CRW.seatsAt) && CRW.seatsAt.length) {
           const SEAT_CG_FWD = 0.20;
+          // (SEAT SLIDE, 16 Nov 2026 - the user, the LS4: "that seat should be allowed to slide back from the
+          // firewall to the aft bulkhead"): a seat slid up to the firewall keeps its station, held at the core's own
+          // floor (60_gen_spec: seatsX >= 0.05) - it used to be DROPPED there, and with it every seat's station: the
+          // occupants fell back to the pillar rings, a CG cliff in the last quarter metre of the slider
           const xs = CRW.seatsAt
-            .map(s => zFw - s.zBack - SEAT_CG_FWD)
-            .filter(x => isFinite(x) && x > 0.05);
+            .map(s => zFw - s.zBack - (Number.isFinite(s.cgFwd) ? s.cgFwd : SEAT_CG_FWD))   // (SEAT-CG: the seat's own, reclined)
+            .filter(x => isFinite(x)).map(x => Math.max(0.05, x));
           if (xs.length === CRW.seatsAt.length) M.seatsX = xs;
           // SEATS (2026-11-02): each drawn seat's own mass, the same list and order - a cabin of vintage airliner
           // seats behind two crew seats weighs what it draws, seat for seat (the user: "MASS/CG honest")
@@ -2233,7 +2247,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // The list is written WHOLE - garage.js's merge replaces an array - so a
     // removed tank stays removed.
     if (window.CAGE_ENERGY && window.CAGE_ENERGY.toSpec)
-      try { M.energy = window.CAGE_ENERGY.toSpec(); if (P.engOn != null && !+P.engOn) M.energy.vessels = []; }   // (ENGINELESS: no tank)
+      try { M.energy = window.CAGE_ENERGY.toSpec(); if (P.engOn != null && !+P.engOn) M.energy.vessels = [];   // (ENGINELESS: no tank)
+            // WATER TANKS: their own section (undefined until the layer knows the spec's water: then the spec's stays)
+            if (window.CAGE_ENERGY.toWater) M.water = window.CAGE_ENERGY.toWater(); }
       catch (e) { ERRS.push('the tanks could not be written to the build: '
                             + e.message); }
     // ...AND THE FIT (the panel arc, session 2), through the same door: the
@@ -2540,7 +2556,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // G185: the second plane's four surfaces ride the same way; their
       // names carry a '2', which the drive map strips below
       for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'rud', 'rud2',
-                        'elevR', 'elevL', 'ailR2', 'ailL2', 'flapR2', 'flapL2'])
+                        'elevR', 'elevL', 'ailR2', 'ailL2', 'flapR2', 'flapL2', 'brkR', 'brkL'])   // (AIRBRAKES: the plates)
         PARTS.others.push({ src: 'edSurf_' + nm, kind: 'surf_' + nm,
           surf: nm, groups: {} });
       // G239: THE CONTROL LINKS. A pushrod or a cable has one end on the
@@ -3342,7 +3358,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const S2k = pt.surf.replace(/2$/, '');
           const which = S2k.lastIndexOf('ail', 0) === 0 ? 'aileron'
                       : S2k.lastIndexOf('flap', 0) === 0 ? 'flap'
-                      : S2k.lastIndexOf('rud', 0) === 0 ? 'rudder' : 'elevator';
+                      : S2k.lastIndexOf('rud', 0) === 0 ? 'rudder'
+                      : S2k.lastIndexOf('brk', 0) === 0 ? 'airbrake' : 'elevator';
           const ft = spec && spec.controls && spec.controls.flap
                      && spec.controls.flap.type;
           out2.k = genTravel(which, ft);
