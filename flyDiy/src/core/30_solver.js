@@ -4153,7 +4153,7 @@ function makeSim(def, world) {
     // tether holds the splinters together, it is no strength: the Jodel's certificate read BROKE AT 9.54 g with 104 of
     // its wing's members broken from 6.01 g while the crushed caps were counted kept, GATE DMGCERT 17 Nov)
     const k = tetherKind(b), fu = b.fu < Infinity ? b.fu : 0;
-    return k === 1 ? GEN_DMG_TETHER.rDuct * fu : k === 3 ? GEN_DMG_TETHER.rComp * fu : 0;   // (G4104: a laminate's fibres pull too)
+    return k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (G4104: a laminate's fibres hold its pieces but, as crushed wood, keep no joint's strength - DMGCOMPOSITE's certificate read BROKE AT 6.14 g past its 6.13 band with them kept)
   }
   // after a pass: a torn tether's joint has now lost the rest of that member - its group judged again (G1894's third)
   function tetherGroups() {
@@ -4162,7 +4162,7 @@ function makeSim(def, world) {
       const b = beams[bi], g = grpOf[bi];
       if (g < 0 || grpDone[g] || gearGrp[g]) continue;
       const fu = b.fu < Infinity ? b.fu : 0, k = tetherKind(b);
-      grpLost[g] += k === 1 ? GEN_DMG_TETHER.rDuct * fu : k === 3 ? GEN_DMG_TETHER.rComp * fu : 0;   // (wood was counted lost whole at its kink: tetherKeep)
+      grpLost[g] += k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (wood and laminate counted lost whole at their crack: tetherKeep)   // (wood was counted lost whole at its kink: tetherKeep)
       const G0 = DGR[g].t0; let cap = 0;
       for (let q = 0; q < G0.length; q++) { const f2 = beams[G0[q]].fu; cap += f2 < Infinity ? f2 : 0; }
       if (cap > 0 && grpLost[g] < GEN_DMG_GROUP.rel * cap * (1 - 1e-9)) continue;
