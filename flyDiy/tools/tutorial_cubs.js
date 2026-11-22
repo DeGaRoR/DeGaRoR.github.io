@@ -59,6 +59,16 @@ const UPGRADE = [
   { part: 'stabiliser > size', k: 'stSpan', v: 1.59, row: 'span (x the drawn)',
     why: 'a Super Cub-sized tail (the Carbon Cub\'s 1.589, on the 0.01 grid): the flare check passes with the new engine' },
 ];
+// THE CLIENT'S OWN COWL (FUSELAGE-DRAG, the user 22 Nov: "I'm OK with using the 'client cub' for opening the cowl and
+// exposing cylinder heads. You'll need to reduce cowl.width, because it has a super cub cowl now, hiding the cylinder
+// heads. And you will need to cut properly into the cowl for them to stick out" - and, when the validated J-3 was cut
+// by mistake: "I said yes for cutting the client's cub, not the default one"). Three cowl rows on the client's card and
+// on the two built from it; the validated J-3 (list:1) keeps its cowl. Not tutorial steps: the client hands it over so.
+const CLIENT_COWL = [
+  { k: 'cw_aftW', v: 0.3, row: 'cowl half-width at the firewall', why: 'the J-3\'s narrow cowl (0.395 was the Super Cub\'s, over the heads)' },
+  { k: 'cw_lobeSig', v: 25, row: 'cheek spread round the section', why: 'the opening\'s height round each flank (50 deg)' },
+  { k: 'cw_lobeStream', v: 2, row: 'cheek form', why: 'cut out: the heads stand through where the cheeks bulged' },
+];
 const FLOATS = [
   { part: 'floats > catalogue', k: 'gearFloats', v: 1, row: 'floats (instead of wheels)',
     why: 'the wheels off, the floats on (the 1450 brings no seaplane propeller: the float kit leaves the prop alone)' },
@@ -128,6 +138,7 @@ function compose(key) {
     const st = s.finish.sections && s.finish.sections.strut;
     if (st && st.fin === 'castAlu' && st.tint != null && st.tint !== 0xffffff) s.finish.sections.strut = { tint: st.tint };
     s.meta = Object.assign({}, s.meta, META);
+    for (const e of CLIENT_COWL) s.cage[e.k] = e.v;   // (the client's own cowl: the heads through it)
     return s;
   }
   if (key === 'upgraded') return applyEdits(readJ(FILES.client).spec, UPGRADE);
@@ -189,9 +200,13 @@ if (argv.includes('--check')) {
     }
     if (key === 'client') {
       const Vr = readJ(FILES.validated).spec, dr = diffKeys(Vr, s).map(x => x[0]);
-      say(dr.every(k => /^(paint|finish|meta)\./.test(k)), 'client: the validated J-3 file to the leaf but paint / finish / meta (' + dr.length + ' leaves)');
-      const V = LB().gameSpec(readJ(FILES.validated)), d = diffKeys(V, again).map(x => x[0]);
-      say(d.every(k => /^(paint|finish|meta)\./.test(k)), 'client: opened, the validated J-3 as the game opens it, to the leaf but paint / finish / meta (' + d.length + ' leaves, ' +
+      const own = new RegExp('^(paint|finish|meta)\\.|^cage\\.(' + CLIENT_COWL.map(e => e.k).join('|') + ')$');   // (+ its own cowl's three rows)
+      say(dr.every(k => own.test(k)) && CLIENT_COWL.every(e => s.cage[e.k] === e.v), 'client: the validated J-3 file to the leaf but paint / finish / meta and its own cowl (' + CLIENT_COWL.map(e => e.k + ' ' + e.v).join(', ') + '; ' + dr.length + ' leaves)');
+      // (the validated J-3 WITH the client's three cowl rows, opened: what else the cowl moves - its measured openings,
+      //  its skin - moves the same on both)
+      const Vc = readJ(FILES.validated); for (const e of CLIENT_COWL) Vc.spec.cage[e.k] = e.v;
+      const V = LB().gameSpec(Vc), d = diffKeys(V, again).map(x => x[0]);
+      say(d.every(k => /^(paint|finish|meta)\./.test(k)), 'client: opened, the validated J-3 with this cowl as the game opens it, to the leaf but paint / finish / meta (' + d.length + ' leaves, ' +
         d.filter(k => !/^(paint|finish|meta)\./.test(k)).slice(0, 4).join(', ') + ')');
       say(s.meta.reg === 'N1938J' && s.finish.weather && s.finish.weather.age === 0.8, 'client: N1938J, the battered finish (weather age 0.8, the page\'s format of the September file\'s wear 0.8)');
     } else {

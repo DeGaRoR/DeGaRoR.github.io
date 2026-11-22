@@ -297,6 +297,15 @@ laws are in, the cards have not caught up.
 
 ### 7.1 The client Cub's cowl: the cylinder heads in the wind (build 5)
 
+> **Correction, 22 Nov late.** Build 5 cut the cowl of `builds/cub_2026-09-20_corrected.json`: that is the validated
+> J-3 (list:1), not the Client Cub. The user: "I said yes for cutting the client's cub, not the default one." The
+> validated J-3 is back on its own cowl, byte for byte. The cut cowl is on the Client Cub (list:26,
+> `builds/cub_2026-09-20.json`) and on the two tutorial cards built from it (`client_cub_upgraded`, `client_cub_floats`:
+> the tutorial's targets are its start plus their rows, so they carry the same cowl), written by the recipe
+> (`tools/tutorial_cubs.js` CLIENT_COWL: three existing rows). The figures below were measured on that one airframe
+> and hold for the Client Cub. The validated J-3, its heads covered, reads on build 10: top speed 145-148 (book 140,
+> +4 %), cruise 126-131 (book 117-121), climb +9 % (near), glide 9.7 (book 9.5).
+
 The user, 22 Nov: *"I'm OK with using the client Cub for opening the cowl and exposing cylinder heads. You'll need to
 reduce cowl.width, because it has a Super Cub cowl now, hiding the cylinder heads. And you will need to cut properly
 into the cowl for them to stick out. I'm OK with the functionality though, to be assessed against full cowl and no cowl."*
@@ -368,7 +377,7 @@ root's fillet): the fin has a fillet row, the wing had none, and nothing is draw
 | Stearman | top speed / climb | 200-217 / 4.27 | -11 ~ / -6 ~ | **-7 / 0** |
 | PA-18 on floats | climb | 4.70 | -21 ! | -11 ~ |
 | Cessna 172 | top speed / cruise / climb / glide | 228 / 206 / 3.66 / 9.0 | +2 / 0 / -1 / +3 | 0 / -3 / -3 ~ / +1 |
-| Piper Cub | top speed / cruise / climb / glide | 140 / 119 / 2.29 / 9.5 | +1 / +3 / +4 / -1 | +3 / +5 / +7 ~ / 0 |
+| Piper Cub (the validated J-3, its heads covered) | top speed / cruise / climb / glide | 140 / 119 / 2.29 / 9.5 | +1 / +3 / +4 / -1 | +4 / +6 / +9 ~ / +2 |
 | Chinook | top speed / glide | 153 / 10 | -1 / -8 | -9 ~ / -18 ~ |
 | Tiger Moth | top speed / climb | 172-175 / 2.5-3.4 | -1 / +2 | +4 / +11 |
 
@@ -376,7 +385,7 @@ root's fillet): the fin has a fillet row, the wing had none, and nothing is draw
 
 | card | change | why |
 |---|---|---|
-| the client Cub | cowl narrowed 0.395 → 0.30 and cut, cheeks off (7.1) | the user, 22 Nov |
+| the Client Cub (list:26) and its two tutorial cards | cowl narrowed 0.395 → 0.30, its cheeks cut out (7.1; three existing rows) | the user, 22 Nov. The validated J-3 (list:1) is NOT changed (it was, by mistake, for some hours) |
 | Tiger Moth, Camel | `s1LegFair 1` | their parents' gear struts are streamline sections |
 | Super Petrel V4_2 | `wgCons`, `w2Cons` 0 → 5 (aluminium tube + fabric) | the card's wings were moulded carbon by default and took a laminar credit; the real wing is tube spars, foam ribs and fabric |
 | Electric trainer | design point 120 km/h at 2300 rpm (a cut at 130); `accHandling 0` | its propeller is cut for the climb (POH-128: 90 KCAS on 35 kW, VH 93 KCAS: the propeller is past its limit at the top speed) - **identified against the handbook's rows, not a published pitch**; the parent has no steps or grab handles |

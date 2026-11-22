@@ -860,7 +860,7 @@
    "cw_fwLipRise": 0,
    "cw_fwLipIn": 0.025,
    "cw_cowlLen": 0.54,
-   "cw_aftW": 0.395,
+   "cw_aftW": 0.3,
    "cw_aftH": 0.34,
    "cw_taperW": 0.99,
    "cw_taperH": 0.77,
@@ -889,7 +889,7 @@
    "cw_lobeAmp": 0.022,
    "cw_lobeT": 0.45,
    "cw_lobeAz": 0,
-   "cw_lobeSig": 53,
+   "cw_lobeSig": 25,
    "cw_lobeTSig": 0.3,
    "cw_cutSpan": 0,
    "cw_cutAz": 270,
@@ -1147,7 +1147,8 @@
    "paxWinQ4Z": 1.823,
    "paxWinQ4Y": 0.202,
    "dashWas": 0,
-   "dashLegsWas": 1
+   "dashLegsWas": 1,
+   "cw_lobeStream": 2
   },
   "meta": {
    "name": "Client Cub",
@@ -1678,6 +1679,9 @@
   "outfit": {
    "seats": "sling",
    "trim": "bare"
+  },
+  "cooling": {
+   "face": 0.03773
   }
  },
  "plaque": null,

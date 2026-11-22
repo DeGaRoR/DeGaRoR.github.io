@@ -673,7 +673,7 @@
    "cw_fwLipRise": 0,
    "cw_fwLipIn": 0.025,
    "cw_cowlLen": 0.54,
-   "cw_aftW": 0.395,
+   "cw_aftW": 0.3,
    "cw_aftH": 0.34,
    "cw_taperW": 0.99,
    "cw_taperH": 0.77,
@@ -702,7 +702,7 @@
    "cw_lobeAmp": 0.022,
    "cw_lobeT": 0.45,
    "cw_lobeAz": 0,
-   "cw_lobeSig": 53,
+   "cw_lobeSig": 25,
    "cw_lobeTSig": 0.3,
    "cw_cutSpan": 0,
    "cw_cutAz": 270,
@@ -922,7 +922,8 @@
    "paxWinR1": 0.01,
    "paxWinR2": 0.19,
    "paxWinR3": 0.19,
-   "paxWinR4": 0.01
+   "paxWinR4": 0.01,
+   "cw_lobeStream": 2
   },
   "meta": {
    "name": "Client Cub",
