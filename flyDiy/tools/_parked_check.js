@@ -842,11 +842,21 @@ async function pageRows() {
   const C172 = rd('tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json').spec;
   const env = (name, spec) => JSON.stringify({ what: 'flydiy-build', v: 10, name, spec });
   const t0 = Date.now();
-  const P = await openPage({ quiet: true, storage: { 'flydiy.wip': env('cub', CUB), 'flydiy.build.parkC172': env('parkC172', C172) }, c2d: 'digest' });
+  // THE PAGE ROWS RUN THE PLAYER-DERIVED PROPS (?parktrio=0). Since 21 Nov the default is the STATIC TRIO (the user's call:
+  // the player's bakes deferred, three cooked props on the apron; parked.js STATIC_TRIO): under it PARKED.capture hands a
+  // static prop's record and the fleet is off, so nothing rows 11 / 11b / 12p measure exists there (22 Nov: row 11 threw on
+  // a record with no captured geometry). The player-derived path is still in the game behind its flag and stays guarded
+  // here, whole; the row below holds the default and the flag themselves.
+  { const line = (/const STATIC_TRIO = ([^;]+);/.exec(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8')) || [])[1];
+    const trio = q => { try { return new Function('W', 'return ' + line)({ location: { search: q } }); } catch (e) { return String(e); } };
+    check(!!line && trio('') === true && trio('?mode=sandbox') === true && trio('?parktrio=0') === false && trio('?x=1&parktrio=0&y=2') === false && trio('?parktrio=01') === true,
+      '11 the static trio is the default, ?parktrio=0 the player-derived props (parked.js STATIC_TRIO)', [trio(''), trio('?parktrio=0')].join(' / ')); }
+  const P = await openPage({ quiet: true, query: 'parktrio=0', storage: { 'flydiy.wip': env('cub', CUB), 'flydiy.build.parkC172': env('parkC172', C172) }, c2d: 'digest' });
   const PW = P.win;
   await P.until(() => PW.BOOT && PW.BOOT.state === 'gone', 900000);
   const K = PW.PARKED, G = PW.GARAGE_SPEC;
   if (!check(!!(K && G && K.capture && G.set), '11 the page booted the garage (PARKED, GARAGE_SPEC)', ((Date.now() - t0) / 1000).toFixed(0) + ' s')) return;
+  if (!check(K.staticTrio === false, '11 the page rows run the player-derived props (PARKED.staticTrio false under ?parktrio=0)', String(K.staticTrio))) return;
   K.quiet = true;
   const sha = x => crypto.createHash('sha1').update(x).digest('hex').slice(0, 16);
   const geomHash = rec => {

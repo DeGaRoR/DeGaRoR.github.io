@@ -1101,7 +1101,7 @@
     for (const kind of ['point', 'spot']) for (let i = 0; i < count[kind]; i++) {
       let light = probePadPool[kind][i];
       if (!light) {
-        light = kind === 'point' ? new THREE.PointLight(0, 0, 1) : new THREE.SpotLight(0, 0, 1);
+        light = kind === 'point' ? new THREE.PointLight(0, 0, 1) : new THREE.SpotLight(0, 0, 1);   // pre-ok: a ZERO-intensity padding light, in the garage's own scene (it adds no light: nothing for P to scale; ?probepad=1 only)
         light.position.set(0, 1000000, 0); light.name = 'probe:zero:' + kind + i;
         probePadPool[kind][i] = light;
       }

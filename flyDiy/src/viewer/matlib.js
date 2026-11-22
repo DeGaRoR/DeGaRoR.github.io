@@ -63,6 +63,7 @@ var MATLIB = (() => {
     glow:   { cls: 'MeshStandardMaterial', base: {} },
     basic:  { cls: 'MeshBasicMaterial', base: {} },
     shader: { cls: 'ShaderMaterial', base: {} },
+    raw:    { cls: 'RawShaderMaterial', base: {} },   // (22 Nov: the ground cache's bake and reader, captured GLSL whole - GATE ASSETS MATS)
     depth:  { cls: 'MeshDepthMaterial', base: {} },
     house:  { cls: 'MeshStandardMaterial', base: { color: 0xffffff, roughness: 1, metalness: 0 } },
     points: { cls: 'PointsMaterial', base: {} },
