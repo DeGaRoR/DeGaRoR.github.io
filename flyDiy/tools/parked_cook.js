@@ -63,13 +63,26 @@ function fixtureKeys() {
   return [...keys].sort();
 }
 
+// THE STATIC TRIO (perf-codex, the user 21 Nov: the player's bakes deferred): while parked.js parks the frozen trio by
+// default (?parktrio=0 is the exception), the page parks ONLY those three keys, every fixture key is drawn as one of them
+// (staticKey), and their packs load FROZEN - they bypass the running build's key (FROZEN_STOCK). So the keys to cook are
+// the trio's, and a manifest from an earlier build is not stale for them.
+function staticTrio() {
+  try {
+    const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8');
+    const on = /const STATIC_TRIO = !!\(W\.location && !\/\[\?&\]parktrio=0/.test(src);
+    const m = src.match(/const TRIO_KEYS = \[([^\]]*)\]/);
+    return on && m ? m[1].split(',').map(x => x.trim().replace(/^'|'$/g, '')).filter(Boolean) : null;
+  } catch (e) { return null; }
+}
 // ---- --check: the manifest against this tree's build, no browser ----------------------------------------------
 if (CHECK) {
   const man = readJSON(OUT), ver = readJSON(path.join(ROOT, 'version.json'));
-  const want = fixtureKeys();
+  const TRIO = staticTrio(), want = TRIO || fixtureKeys();
   if (!man) { console.log('parked_cook --check: no manifest (' + path.relative(ROOT, OUT) + ')'); process.exit(1); }
   const missing = want.filter(k => !(man.keys || {})[k]);
-  const same = ver && man.build === ver.build;
+  const same = (ver && man.build === ver.build) || !!TRIO;   // the trio's packs are frozen: no build key to match
+  if (TRIO) console.log('parked_cook --check: the static trio is the default (' + TRIO.join(', ') + '): frozen packs, the build key is not read; fixture keys drawn as the trio: ' + fixtureKeys().filter(k => !TRIO.includes(k)).join(', '));
   console.log('parked_cook --check: manifest build ' + man.build + ', this tree ' + (ver && ver.build) + (same ? ' (same)' : ' (STALE: every key is captured live until a re-cook)') +
     '; keys ' + Object.keys(man.keys || {}).join(', ') + (missing.length ? '; NOT COOKED: ' + missing.join(', ') : ''));
   process.exit(same && !missing.length ? 0 : 1);
@@ -154,7 +167,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     if (info.cook) throw new Error('the page has the cook ON - ?parkcook=0 did not reach it');
     if (/swiftshader|llvmpipe|software/i.test(info.gpu)) throw new Error('a software renderer (' + info.gpu + '): cook on the GPU');
     if (!info.build || (ver && info.build !== ver.build)) throw new Error('the page\'s build ' + info.build + ' is not version.json\'s ' + (ver && ver.build));
-    const want = opt('keys', null) === 'all' ? info.keys : opt('keys', null) ? opt('keys').split(',').filter(Boolean) : fixtureKeys();
+    const want = opt('keys', null) === 'all' ? info.keys : opt('keys', null) ? opt('keys').split(',').filter(Boolean) : (staticTrio() || fixtureKeys());
     for (const k of want) if (!info.keys.includes(k)) throw new Error('the page lists no ' + k + ' (' + info.keys.length + ' keys: ' + info.keys.slice(0, 6).join(', ') + ' ...)');
     console.log('  keys: ' + want.join(', '));
 
