@@ -311,6 +311,17 @@ console.log('9. NIGHT-SUN: the light seen');
   yes(has(wa, 'if (uWDisc.w > 0.0) {') && has(wa, 'iblRadiance = mix(iblRadiance, min(iblRadiance, wSk), wDm);') && has(wa, 'U.uWDisc.value.set(mv.x, mv.y, mv.z, NIGHT_SEA.disc * tS); else U.uWDisc.value.w = 0;')
       && has(wa, 'uniform vec4 uWGlint; uniform vec4 uWDisc; '),
       'at night the sea reflects the moon\'s disc once, by its direct highlight: the probe\'s lookup round the moon is held to the sky\'s, never raised (0 by day: the branch is not taken)');
+  // the user's picks of 22 Nov (the stills page): the night sea's sheen at 70 % and half of that on far water, the probe's moon at the moonlight's own
+  // level and colour, the aurora in the water's planar mirror - and ?nightsun=0 keeps the sea, the moon and the mirror as they were
+  yes(has(wa, 'const NIGHT_SEA = { k: 0.266, ') && has(wa, 'farK: 0.5, far: [150, 1500]') && has(wa, 'const NIGHT_SEA_MASTER = { k: 0.38, farK: 1 };')
+      && has(wa, 'kN = (nsOffN ? NIGHT_SEA_MASTER.k : NIGHT_SEA.k) * tN') && has(wa, 'mix(1.0, uWNight2.x, smoothstep(uWNight2.y, uWNight2.z, distance(vWP0, cameraPosition)))'),
+      'the night sea\'s sheen is at the user\'s pick (k 0.266, far water at half), fading over 150 m to 1.5 km from the eye');
+  yes(has(src, "const MOON_PROBE = { k: 'own', white: 1 }") && has(src, "MOON_PROBE.k === 'own' ? moonProbeOwn(day)") && has(src, 'U.moonP.value[3] = 0;'),
+      'the probe\'s moon is at the moonlight\'s own level and colour (the user\'s pick); ?nightsun=0 keeps the dome\'s own disc');
+  { const au = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'aurora.js'), 'utf8');
+    yes(has(au, 'mirror() { return meshes.length && mirMesh && MIR.k > 0 && !(W.ATMO && W.ATMO.NIGHTSUN_OFF) ? mirMesh : null; }') && has(au, 'uniforms: U, vertexShader: VS, fragmentShader: FS,')
+        && has(wa, 'if (aurM) { MIR.skyScene.add(aurM); aurM.position.copy(mc.position);') && has(wa, 'if (aurM) MIR.skyScene.remove(aurM);'),
+        'the aurora is in the water\'s planar mirror: a second sphere of the SAME program (no added shader), in the mirror\'s sky pass for the one draw'); }
   // the mist's forward peak: the key light's, none for a set light
   yes(has(src, 'mistScalars[7] = MIST.fwd * kf;') && has(src, 'const kd = NIGHTSUN_OFF ? day.sun : kl;') && has(src, 'SEEN.keyMoon ? SEEN.moon.hor * (lumA > 0 ? Math.max(0, 1 - lumS / lumA) : 0) : SEEN.sun.hor'),
       'the mist\'s forward peak is the key light\'s and goes with its disc (by day: the sun\'s, x 1)');

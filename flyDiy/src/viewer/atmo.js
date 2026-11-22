@@ -285,7 +285,9 @@ var ATMO = (function () {
   // the terrain's share as app.js walked it this frame, un-eased (thirds: three rays), and when it last moved: the probe takes it
   // once it has held for PROBE_TER_MS (a crest crossing the disc is not three bakes), and fades on its own
   let terRaw = 0, terRawAt = 0; const PROBE_TER_MS = 600;
-  const MOON_PROBE = { k: 1, white: 0 }, _tmP = [0, 0, 0];
+  // (the user's pick, 22 Nov, of the three shown - "a bit bothered with the moonlight level": the probe's moon at THE MOONLIGHT'S OWN level and colour,
+  // k 'own' + white 1; k 1 + white 0 = the dome's own disc, as it was - the land under a full moon reads 7 to 11 % lower, the orange streaks on metal go)
+  const MOON_PROBE = { k: 'own', white: 1 }, _tmP = [0, 0, 0];
   // the level at which the probe's moon disc carries exactly the key's moonlight: the key's illuminance (light_rig moonE: NIGHT.moon x the phase law)
   // over the dome disc's own (a Lambert sphere of albedo 0.12: 0.08 r^2 at the full moon x its phase function)
   function moonProbeOwn(day) {

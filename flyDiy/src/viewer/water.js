@@ -1884,13 +1884,16 @@ const WATER = (() => {
   // OFF SWITCH: ?glint=0 (a rig's A/B) = master to the bit; WATER.glint.<key> live.
   const GLINT = { vis: 1, gain: 1, calm: 0.3, cap: 6 };
   const GLINT_OFF = typeof location !== 'undefined' && /[?&]glint=0/.test(location.search || '');
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 1, cap: 2.2, glintFar: 1, lamps: 1, disc: 1, farK: 1, far: [150, 1500], shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  // NIGHT-SUN (the user, 22 Nov, on the aurora night's stills: "a little too blue there ... tone it down a little bit ... this big blue carpet ... make it
+  // darker" - and their pick of the three levels shown): the sheen at 70 % (k 0.38 -> 0.266) and, on far water, at half of that (farK 1 -> 0.5)
+  const NIGHT_SEA_MASTER = { k: 0.38, farK: 1 };   // ?nightsun=0: the sea as it was
+  const NIGHT_SEA = { k: 0.266, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 1, cap: 2.2, glintFar: 1, lamps: 1, disc: 1, farK: 0.5, far: [150, 1500], shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
-      const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), kN = NIGHT_SEA.k * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
+      const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), nsOffN = typeof ATMO !== 'undefined' && ATMO.NIGHTSUN_OFF, kN = (nsOffN ? NIGHT_SEA_MASTER.k : NIGHT_SEA.k) * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
       U.uWNight.value.set(NIGHT_SEA.col[0] * kN, NIGHT_SEA.col[1] * kN, NIGHT_SEA.col[2] * kN, NIGHT_SEA.flat);
-      if (U.uWNight2) U.uWNight2.value.set(NIGHT_SEA.farK, NIGHT_SEA.far[0], Math.max(NIGHT_SEA.far[0] + 1, NIGHT_SEA.far[1]), 0);
+      if (U.uWNight2) U.uWNight2.value.set(nsOffN ? NIGHT_SEA_MASTER.farK : NIGHT_SEA.farK, NIGHT_SEA.far[0], Math.max(NIGHT_SEA.far[0] + 1, NIGHT_SEA.far[1]), 0);
       // NIGHT-BRIGHT, the user 4 Nov: "more ripples on the water, because they make the beautiful reflections": up to 5 x at night, capped at the level seen in the shot (3.1).
       // NIGHT-RIPPLE: here, every frame, eased with the sheen: in setWind (which runs when the wind CHANGES) it latched through the next day or never came on at a calm dusk. The day's to the bit
       const zD = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8), zC = GLINT_OFF ? zD : S.detailK * Math.min(1, Math.max(0.12, GLINT.calm) + IN.wind[0] / 8);   // LOOK-GLINT: the day's calm floor, faded out on the night's ramp

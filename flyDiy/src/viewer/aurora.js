@@ -103,7 +103,7 @@
       return true;
     },
     // the mirror's sphere while the aurora is on (water.js mirrorRender adds it to its sky scene for the one draw), else null
-    mirror() { return meshes.length && mirMesh && MIR.k > 0 ? mirMesh : null; }, mirrorK: MIR,
+    mirror() { return meshes.length && mirMesh && MIR.k > 0 && !(W.ATMO && W.ATMO.NIGHTSUN_OFF) ? mirMesh : null; }, mirrorK: MIR,
     off() { for (const m of meshes) { if (m.parent) m.parent.remove(m); m.geometry.dispose(); } meshes = []; if (mat) { mat.dispose(); mat = null; }
       if (mirMesh) { if (mirMesh.parent) mirMesh.parent.remove(mirMesh); mirMesh.geometry.dispose(); mirMesh = null; } if (mirMat) { mirMat.dispose(); mirMat = null; } },
   };
