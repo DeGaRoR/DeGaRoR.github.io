@@ -702,7 +702,12 @@
   // =================================================================================================================
   // THE PAGE'S RECORDER: one, from this script on
   // =================================================================================================================
-  const REC = make();
+  // PERF-TRACE (22 Nov; PERF-LEAD): A LONGER RING FOR ONE RUN. ?recring=131072 (or 262144; a power of two, nothing else is
+  // taken) keeps that many frames instead of 65 536: a 27-minute scripted journey at 60 fps is 97 000 frames, and its
+  // take-off was gone from the log. A frame's record is 216 bytes (52 columns of 4 + its time): 14 MB by default, 28 MB
+  // at 131 072, 57 MB at 262 144, allocated once at this line; the saved log grows with it. The default is unchanged.
+  const RING = (() => { const m = /[?&]recring=(\d+)(?:&|$)/.exec(q), n = m ? +m[1] : 0; return n === 131072 || n === 262144 ? n : 0; })();
+  const REC = make(RING ? { frames: RING } : undefined);
   // the loop's view of it: every hook is a no-op until app.js attaches (and for ever under ?rec=0)
   const NOOP = () => {};
   const API = {
