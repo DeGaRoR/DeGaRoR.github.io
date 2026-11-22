@@ -276,6 +276,18 @@ function houseWorkerBody(G, port) {
     port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
       mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0, strips: st.strips || 0, stripMs: Math.round(st.stripMs || 0), patchChunks: st.patchChunks || 0, patchMs: Math.round(st.patchMs || 0) } });
   }
+  // PERF-WORLDBUILD (22 Nov): THE MATERIAL MAP (render_premises.js paintMaterialsSteps): the page's own raster function, by
+  // its source text (m.src: self-contained, it reads its arguments only), run on this composition; the bytes transferred
+  function matmap(m) {
+    if (m.epoch !== st.epoch || !st.O) { port.post({ cmd: 'matmapf', epoch: m.epoch, seq: m.seq, miss: 'stale' }); return; }
+    const t0 = now();
+    try {
+      const fn = (new Function('return (' + m.src + ')'))(), d = new Uint8Array(m.N * m.N * 4);
+      const any = fn(st.O, d, m.N, m.mb, m.MW, m.MH, m.slots);
+      st.bytes += d.byteLength;
+      send({ cmd: 'matmapf', epoch: m.epoch, seq: m.seq, d, any: !!any, ms: now() - t0 }, [d.buffer]);
+    } catch (e) { port.post({ cmd: 'matmapf', epoch: m.epoch, seq: m.seq, miss: 'error: ' + (e && e.message) }); }
+  }
   // every array a packed result holds (the page takes them: nothing is copied back)
   function transfers(r) {
     const tr = [], seen = new Set();
@@ -287,7 +299,7 @@ function houseWorkerBody(G, port) {
   // returned promise is the harness's (tools/_page_node.js acks a message when it settles), a browser ignores it
   let chain = Promise.resolve();
   port.on(m => {
-    chain = chain.then(() => (m.cmd === 'init' ? init(m) : m.cmd === 'compose' ? compose(m) : m.cmd === 'jobs' ? jobs(m) : m.cmd === 'strips' ? strips(m) : m.cmd === 'patch' ? patch(m) : null))
+    chain = chain.then(() => (m.cmd === 'init' ? init(m) : m.cmd === 'compose' ? compose(m) : m.cmd === 'jobs' ? jobs(m) : m.cmd === 'strips' ? strips(m) : m.cmd === 'patch' ? patch(m) : m.cmd === 'matmap' ? matmap(m) : null))
       .catch(e => { st.err = String(e && e.message || e); port.post({ cmd: 'fail', why: st.err, stack: String(e && e.stack || '') }); });
     return chain;
   });
@@ -302,7 +314,7 @@ function houseWorkerSource(url) {
 // ---- THE PAGE'S SIDE ---------------------------------------------------------------------------------------------------
 const HOUSE_WORKER = (() => {
   const S = { on: false, why: 'not started', w: null, ready: false, failed: false, epoch: 0, composed: -1, stats: {}, got: 0, bytes: 0, initMs: 0, composeMs: 0, t0: 0 };
-  let onResult = null, onFail = null, onStrip = null, onPatch = null, waiters = [];
+  let onResult = null, onFail = null, onStrip = null, onPatch = null, onMatmap = null, waiters = [];
   const W = typeof window !== 'undefined' ? window : {};
   const wake = () => { const w = waiters; waiters = []; for (const f of w) f(); };
   function off(why) { S.on = false; S.why = why; return null; }
@@ -356,6 +368,7 @@ const HOUSE_WORKER = (() => {
     else if (m.cmd === 'result') { S.got++; if (onResult) onResult(m); }
     else if (m.cmd === 'strip') { if (onStrip) onStrip(m); }   // (PERF-WORLDBUILD: a strip's geometry, render_world's)
     else if (m.cmd === 'patchf') { if (onPatch) onPatch(m); }   // (...the patch's queries, render_premises')
+    else if (m.cmd === 'matmapf') { if (onMatmap) onMatmap(m); }   // (...the material map's bytes)
     wake();
   }
   // the renderer's side: its composition (a new epoch), its batches of work, its results
@@ -369,7 +382,7 @@ const HOUSE_WORKER = (() => {
   const api = {
     start, compose, post,
     ok: () => S.on && !S.failed,
-    set onResult(f) { onResult = f; }, set onFail(f) { onFail = f; }, set onStrip(f) { onStrip = f; }, set onPatch(f) { onPatch = f; },
+    set onResult(f) { onResult = f; }, set onFail(f) { onFail = f; }, set onStrip(f) { onStrip = f; }, set onPatch(f) { onPatch = f; }, set onMatmap(f) { onMatmap = f; },
     // a promise that settles on the worker's next message (the town step waits on it instead of spinning)
     next: () => new Promise(res => { if (!S.on) res(); else waiters.push(res); }),
     stats: () => Object.assign({ on: S.on, why: S.why, ready: S.ready, failed: S.failed, results: S.got, initMs: Math.round(S.initMs), composeMs: Math.round(S.composeMs) }, S.stats),

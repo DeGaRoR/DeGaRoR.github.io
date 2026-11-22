@@ -81,6 +81,34 @@ function farWant(eye, need, shown) {
   return true;
 }
 // ---- PATCH FAR (G3088) END --------------------------------------------------------------------------------------------
+// PERF-WORLDBUILD (22 Nov 2026): THE MATERIAL MAP'S RASTER, SELF-CONTAINED - paintMaterials' loop (the record's material
+// polygons' weights, O.materialWeight, into the N x N RGBA bytes D over the world box mb / MW / MH; slots[q]: material q's
+// channel, -1 none). The page runs it; with ?patchw=1 the house worker runs THIS SOURCE TEXT on its own composition
+// (house_worker.js 'matmap') and the page takes the bytes: 1.2-1.7 s of one main-thread task of the world step (node).
+// It reads nothing but its arguments. -> whether any texel was written.
+function PREM_MATERIAL_RASTER(O, D, N, mb, MW, MH, slots) {
+  const mats = O.materials || [], F = O.frame;
+  let any = false;
+  for (let q = 0; q < mats.length; q++) {
+    const m = mats[q], k = slots[q]; if (!(k >= 0)) continue;
+    // the pixels the polygon and its fade band cover, in the bounds' raster
+    const bb = m.bbox, f = m.fade;
+    // (a turned frame: the four corners of the local box, not two of them)
+    const cw = [[bb.x0, bb.z0], [bb.x1, bb.z0], [bb.x1, bb.z1], [bb.x0, bb.z1]].map(c => F.toWorld(c[0], c[1]));
+    const px0 = Math.max(0, Math.floor((Math.min(...cw.map(c => c[0])) - mb.x0) / MW * N) - 2), px1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(c => c[0])) - mb.x0) / MW * N) + 2);
+    const pz0 = Math.max(0, Math.floor((Math.min(...cw.map(c => c[1])) - mb.z0) / MH * N) - 2), pz1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(c => c[1])) - mb.z0) / MH * N) + 2);
+    const lo = Math.min(px0, px1) - Math.ceil(f / MW * N) - 1, hi = Math.max(px0, px1) + Math.ceil(f / MW * N) + 1, lz = Math.min(pz0, pz1) - Math.ceil(f / MH * N) - 1, hz = Math.max(pz0, pz1) + Math.ceil(f / MH * N) + 1;
+    for (let j = Math.max(0, lz); j <= Math.min(N - 1, hz); j++) for (let i = Math.max(0, lo); i <= Math.min(N - 1, hi); i++) {
+      const wx = mb.x0 + (i + 0.5) / N * MW, wz = mb.z0 + (j + 0.5) / N * MH, L = F.toLocal(wx, wz);
+      const w = O.materialWeight(m, L[0], L[1]); if (w <= 0) continue;
+      const at = (j * N + i) * 4;
+      for (let c = 0; c < 4; c++) D[at + c] = Math.round(D[at + c] * (1 - w));
+      D[at + k] = Math.min(255, D[at + k] + Math.round(255 * w));
+      any = true;
+    }
+  }
+  return any;
+}
 function make(THREE, scene, world, rec0, opts) {
   const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null, game: false, editing: () => true, patchMat: null, patchUV: null }, opts || {});
   let rec = PG.normalise(rec0 || PG.DEF());
@@ -493,7 +521,10 @@ function make(THREE, scene, world, rec0, opts) {
         '  }\n#include <color_fragment>');
   }
   // the map painted: every material polygon in priority order, "over" per pixel with its fade weight
-  function paintMaterials() {
+  // (PERF-WORLDBUILD: cut in three - the set-up (the bounds, the slots, the tiles), the raster (PREM_MATERIAL_RASTER: here,
+  // or the house worker's under ?patchw=1 - paintMaterialsSteps below), the finish (the uniforms, the slot count))
+  function paintMaterials() { const S = matSetup(); matFinish(PREM_MATERIAL_RASTER(O, MMD, MMN, mb, MW, MH, S.slots), S.mats); }
+  function matSetup() {
     const mats = O.materials || [], F = O.frame, N = MMN;
     const D = MMD; D.fill(0);
     // the bounds: the bench's window; the game's the polygons' union with their fades and a texel's margin
@@ -506,27 +537,15 @@ function make(THREE, scene, world, rec0, opts) {
     uMB.value.set(mb.x0, mb.z0, MW, MH);
     for (let i = 0; i < 4; i++) SLOTS[i] = null;
     const slotOf = key => { let k = SLOTS.indexOf(key); if (k < 0) { k = SLOTS.indexOf(null); if (k < 0) return -1; SLOTS[k] = key; } return k; };
-    let any = false;
+    const slots = [];
     for (const m of mats) {
-      const k = slotOf(m.set); if (k < 0) { console.warn('premises: a fifth material set (' + m.set + ') has no slot'); continue; }
+      const k = slotOf(m.set); slots.push(k); if (k < 0) { console.warn('premises: a fifth material set (' + m.set + ') has no slot'); continue; }
       const tile = m.tile || (texSets()[m.set] || {}).tile || 2.4;
       uTile.value.setComponent(k, tile);
-      // the pixels the polygon and its fade band cover, in the bounds' raster
-      const bb = m.bbox, f = m.fade;
-      // (a turned frame: the four corners of the local box, not two of them)
-      const cw = [[bb.x0, bb.z0], [bb.x1, bb.z0], [bb.x1, bb.z1], [bb.x0, bb.z1]].map(q => F.toWorld(q[0], q[1]));
-      const px0 = Math.max(0, Math.floor((Math.min(...cw.map(q => q[0])) - mb.x0) / MW * N) - 2), px1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(q => q[0])) - mb.x0) / MW * N) + 2);
-      const pz0 = Math.max(0, Math.floor((Math.min(...cw.map(q => q[1])) - mb.z0) / MH * N) - 2), pz1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(q => q[1])) - mb.z0) / MH * N) + 2);
-      const lo = Math.min(px0, px1) - Math.ceil(f / MW * N) - 1, hi = Math.max(px0, px1) + Math.ceil(f / MW * N) + 1, lz = Math.min(pz0, pz1) - Math.ceil(f / MH * N) - 1, hz = Math.max(pz0, pz1) + Math.ceil(f / MH * N) + 1;
-      for (let j = Math.max(0, lz); j <= Math.min(N - 1, hz); j++) for (let i = Math.max(0, lo); i <= Math.min(N - 1, hi); i++) {
-        const wx = mb.x0 + (i + 0.5) / N * MW, wz = mb.z0 + (j + 0.5) / N * MH, L = F.toLocal(wx, wz);
-        const w = O.materialWeight(m, L[0], L[1]); if (w <= 0) continue;
-        const at = (j * N + i) * 4;
-        for (let c = 0; c < 4; c++) D[at + c] = Math.round(D[at + c] * (1 - w));
-        D[at + k] = Math.min(255, D[at + k] + Math.round(255 * w));
-        any = true;
-      }
     }
+    return { mats, slots };
+  }
+  function matFinish(any, mats) {
     for (let i = 0; i < 4; i++) uSet[i].value = SLOTS[i] ? setTex(SLOTS[i]) : null;
     uMatOn.value = any ? 1 : 0;
     // the slot count the programs declare (G527.1): a change recompiles every ground that takes the injection
@@ -534,6 +553,25 @@ function make(THREE, scene, world, rec0, opts) {
     if (used !== NSLOT) { NSLOT = used; groundMat.needsUpdate = true; for (const M of patchMatOwn) if (M) M.needsUpdate = true; }
     matTex.needsUpdate = true;
     stats.materials = mats.length;
+  }
+  // the game's first rebuild (rebuildSteps): the raster asked of the house worker under ?patchw=1 - the page sets up, sleeps
+  // on the answer through the host (FLYDIY_WORLD_WAIT), takes the bytes and finishes; any miss rasters here, as before
+  function* paintMaterialsSteps() {
+    const S = matSetup();
+    let any = null;
+    if (PATCHW.on && S.mats.length && typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true && hwOn()) {
+      const seq = ++PATCHW.seq; let ans = null;
+      HWK.onMatmap = m => { if (m.seq === seq) ans = m; };
+      if (HWK.post({ cmd: 'matmap', epoch: HWQ.epoch, seq, N: MMN, mb: { x0: mb.x0, z0: mb.z0 }, MW, MH, slots: S.slots, src: String(PREM_MATERIAL_RASTER) })) {
+        const tW = performance.now();
+        while (!ans && hwOn()) { window.FLYDIY_WORLD_WAIT = HWK.next(); yield 'materials: the map'; }
+        PATCHW.waitMs += performance.now() - tW;
+        if (ans && ans.d && ans.d.length === MMD.length) { MMD.set(ans.d); any = !!ans.any; PATCHW.matmap = 'worker'; PATCHW.matMs = Math.round(ans.ms || 0); }
+        else if (ans && ans.miss) console.warn('house worker: the material map (' + ans.miss + ') - rastered here');
+      }
+    }
+    if (any === null) { any = PREM_MATERIAL_RASTER(O, MMD, MMN, mb, MW, MH, S.slots); PATCHW.matmap = 'here'; }
+    matFinish(any, S.mats);
   }
   const OV = document.createElement('canvas'); OV.width = OV.height = 1024;
   const ovTex = new THREE.CanvasTexture(OV); ovTex.flipY = false; ovTex.wrapS = ovTex.wrapT = THREE.ClampToEdgeWrapping;
@@ -5027,7 +5065,7 @@ function make(THREE, scene, world, rec0, opts) {
       // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
       if (groundDirty) { const pb = patchPartFor(dirty); if (pb) yield* buildPatchSteps(pb); else yield* buildPatchSteps(); n = 1; }
       yield 'materials';
-      paintMaterials();
+      yield* paintMaterialsSteps();   // (PERF-WORLDBUILD: the raster the house worker's under ?patchw=1)
       yield 'lots';
       placeLots();
       yield 'roads';
@@ -5242,7 +5280,8 @@ function make(THREE, scene, world, rec0, opts) {
     kit: KIT, kitSet,             // C3b: the town kit's look review (?kitab=...): .host (.stats, .rungs(), .setBand), kitSet('kit' | 'unique' | toggle)
     kitTown: KT, kitTownStats: ktStats, kitOf, city: CITY, cityStats,   // G3417: the town host from its pack (?cityhost=1)
       // C3c: Metlakatla on the kit (the town on): its state, its census, a plot's table row (-1: unique)
-    materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
+    materialMap: () => ({ sum: () => { let h = 2166136261; for (let i = 0; i < MMD.length; i++) { h ^= MMD[i]; h = Math.imul(h, 16777619); } return h >>> 0; },   // (the map's bytes, hashed: GATE PATCHWORKER)
+      on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },
     get overlay() { return O; },
