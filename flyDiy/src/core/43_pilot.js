@@ -797,6 +797,7 @@ function makePilot(sim, def, world, opts) {
   // circuit planned from there), 'land' (the nearest strip this gear lands on with room)
   ap.drawn = null;
   let routeGo = false, routePerfV = null;
+  const TO_SCREEN_K = 1.2;   // TAKEOFF-SCREEN: the floor under the 15 m screen, x the stall in the flap as set (the POH's 56 KIAS at 10 deg)
   ap.routePerf = () => routePerfV || (routePerfV = (typeof routePerf === 'function' ? routePerf(sheetOf(), A, bankLim) : null));
   // a drawn leg's speed: the point's own, inside the aeroplane's Vmin..Vmax; none, the cruise (the leg is flown AND
   // filleted at it - buildAirPath's speedOf)
@@ -2726,7 +2727,7 @@ function makePilot(sim, def, world, opts) {
     // G2125 PILOT-PROFILE: THE TAKE-OFF CLIMB'S SPEEDS (44_vprofile.js climbSpeeds, off the machine sheet): the stall in
     // the flap as set, the floor 1.3 x it, Vy / Vx raised to the floor, the attitude cap of a full-power climb at the floor
     // speed (a person's over-rotation on top: the expert's is 0)
-    const climbKit = () => VPROFILE.climbSpeeds(SH, A, { flap: c.flap, flapLdg: FS ? (FS.ldg ?? 1) : 1, alphaAt: tAlphaAt, extra: PRA ? (PRF.overRotate || 0) : 0 });
+    const climbKit = (stallK) => VPROFILE.climbSpeeds(SH, A, { stallK, flap: c.flap, flapLdg: FS ? (FS.ldg ?? 1) : 1, alphaAt: tAlphaAt, extra: PRA ? (PRF.overRotate || 0) : 0 });
     // ...AND WHAT STANDS AHEAD OF THE CLIMB-OUT: the corridor's tops (the terrain or water + trees, houses, the drawn
     // trunks: VPROFILE.topAt) every 50 m to 2 km along the take-off direction, sampled ONCE a departure and kept; the
     // steepest gradient they ask from where the aeroplane is now, `clear` metres over them
@@ -4761,7 +4762,7 @@ function makePilot(sim, def, world, opts) {
         // capped at a full-power climb's attitude at the floor speed, and never nose-up under the floor (TECS vFloor).
         // The water's and the high thrust line's lift-offs keep the attitude law above (G396, G435)
         if (!sim.hydro && !highThrust) {
-          const K = climbKit();
+          const K0 = climbKit();
           // PILOT-UNIFY (the user, 13 Nov: the Jodel must take off from Jumbo Mine): THE VALLEY DEPARTURE. Past Jumbo Mine's far end
           // the ground on the runway line rises 24 m at 300 m, 98 at 400, 139 at 500 (a mountain); 20-40 deg off it falls into a
           // valley. The Jodel lifted off 52 m before the end, ran on level in ground effect to Vx (10 s, 230 m) and met the
@@ -4799,7 +4800,17 @@ function makePilot(sim, def, world, opts) {
           }
           const valley = ap.valleyHdg != null;
           const vBank = clamp(0.05 + 0.04 * aglL, 0.05, 0.26);
-          const Vt = valley ? K.Vfloor : (depNeed(15, 1500) > 0 || !!(ap.dep && ap.dep.stol)) ? K.Vx : K.Vy;   // STOL-PILOT: a STOL departure accelerates to Vx only
+          // TAKEOFF-SCREEN (A0 + FLAGSHIP 22 Nov, L40J: GATE TAKEOFF's C172 to 15 m in 794 m against the POH's 514): THE 15 M SCREEN
+          // IS CLIMBED AT Vx, AS THE HANDBOOK FLIES IT. The run-up accelerated to Vy + 0.5 at 2 m (the C172 refit 28.3 -> 36.8 m/s,
+          // 12 s and 400 m in ground effect at 0.6 m/s2: Vs 25.7, Clb -0.075, the stab chord 0.87) and only then climbed. The C172S
+          // POH's take-off distances fly Vr 51 KIAS and 56 KIAS to the 50 ft screen with 10 deg of flap - 1.2 Vs in that flap - and
+          // Vy above it. So under the screen (this phase: CLIMB takes over at hSafe) every land departure's run-up is to Vx, and
+          // the floor is 1.2 Vs in the flap as set (TO_SCREEN_K; Vx is still 7 % over it and never under the sheet's own Vx).
+          // CLIMB keeps the 1.3 Vs floor and Vy, so the speed is gained once the screen is cleared. Measured (pilot_one_trace,
+          // L40J base): the C172 refit 794 -> 674 m (band 308-720), the Cub 300 -> 284, the Jodel 539 -> 431, the lift-offs as before.
+          // The valley departure keeps its own floor (its turn is flown at it)
+          const K = valley ? K0 : Object.assign({}, K0, (({ Vfloor, Vx }) => ({ Vfloor, Vx }))(climbKit(TO_SCREEN_K)));
+          const Vt = valley ? K.Vfloor : K.Vx;   // STOL-PILOT: a STOL departure accelerates to Vx only
           // (to the climb speed itself: the ground effect is where the speed is cheap - and where a rotation from 4 to 16
           // deg at the floor speed sent the Jodel back under it)
           const obstTO = Vt === K.Vx && K.Vx < K.Vy;
