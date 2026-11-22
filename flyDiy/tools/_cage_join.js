@@ -763,8 +763,9 @@ function cageJoinSpec(P, M, T) {
       const d = num('s1_linkArmW', 0.04), panel = Math.round(num('s1_linkPanel', 0)) === 1, vee = Math.round(num('s1_linkVee', 1)) === 1;
       legs.push({ L: r3(L), d: r3(d), sec: panel ? 'panel' : faired ? 'fair' : 'round' });             // the leg (a covered V is one panel)
       if (vee && !panel) legs.push({ L: r3(L), d: r3(d), sec: faired ? 'fair' : 'round' });             // its V partner
-      if (Math.round(num('s1_linkX', 0)) === 1) legs.push({ L: r3(Math.hypot(drop, num('s1X', 0.9))), d: r3(d), sec: 'round' });   // the crossed strut, to the far side
-      if (Math.round(num('s1_linkAxle', 0)) === 1) legs.push({ L: r3(num('s1X', 0.9)), d: r3(d), sec: 'round' });                 // half the cross axle
+      // (the leg-fairing row streamlines the gear's tubes, the crossed strut and the axle with them; the shock stays as it is)
+      if (Math.round(num('s1_linkX', 0)) === 1) legs.push({ L: r3(Math.hypot(drop, num('s1X', 0.9))), d: r3(d), sec: faired ? 'fair' : 'round' });   // the crossed strut, to the far side
+      if (Math.round(num('s1_linkAxle', 0)) === 1) legs.push({ L: r3(num('s1X', 0.9)), d: r3(d), sec: faired ? 'fair' : 'round' });                 // half the cross axle
       const sk = Math.round(num('s1_shockKind', 0));
       legs.push(sk === 3 ? { L: r3(0.8 * L), d: r3(num('s1_oleoDia', 0.06)), sec: 'round' } : { L: r3(0.5 * L), d: 0.03, sec: 'round' });   // the shock: an oleo strut, else a coil / bungee / rubber unit
     } else if (kind === 2) {
