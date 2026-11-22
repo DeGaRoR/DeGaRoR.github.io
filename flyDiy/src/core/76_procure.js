@@ -197,7 +197,7 @@ const PROCURE_MODELS = {
     id: 'pinson', maker: 'vernier', name: 'mdl.pinson.name', line: 'mdl.pinson.line', designs: { wheels: 'jodel' },
     opts: {
       engine:   { def: 'a65', vals: { a65: { eng: 'a65', eff: { jodel: {} } },
-                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 32120, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -94, tankL: 0, seats: 0 }) } },
+                                      o200: { eng: 'o200', eff: { jodel: PE_({ cost: 32120, emptyKg: 8, massKg: 8, toM: -67, cruiseKmh: 24, rangeKm: -97, tankL: 0, seats: 0 }) } },
                                       vw: { eng: 'vw', eff: { jodel: PE_({ cost: -2473, emptyKg: -18, massKg: -18, toM: 3, cruiseKmh: -5, rangeKm: 25, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { jodel: {} } },
                                       long: { tank: 1.5, eff: { jodel: PE_({ cost: 919, emptyKg: 9, massKg: 25, toM: 30, cruiseKmh: -3, rangeKm: 196, tankL: 23.8, seats: 0 }) } } } },
@@ -206,6 +206,10 @@ const PROCURE_MODELS = {
                                         ifr: { fit: 'ifr', eff: { jodel: PE_({ cost: 10681, emptyKg: 7, massKg: 7, toM: 10, cruiseKmh: -1, rangeKm: -2, tankL: 0, seats: 0 }) } } } },
       finish:   { def: 'factory', cosmetic: true, vals: PROCURE_FINISH },
     } },
+  // PHYSICS-AUDIT (22 Nov): five effects re-emitted (the gate's own measured figures) for PHYSICS_V 10 - the Cessna on
+  // floats' two engine swaps (cruise -29 -> -22 and -16 -> -9 km/h, range 36 -> 41 and 21 -> 26 km: its floats now pay
+  // their own drag and each propeller is cut for its aeroplane, so a smaller engine costs less speed than it did) and
+  // the Pinson's O-200 (range -94 -> -97 km)
   // REAL-CANON (15 Nov): twelve effects re-emitted (_procure_check.js --emit) for PHYSICS_V 9 - PHYS-SCALE's masses and
   // drag (the take-off deltas, the tundra tyres 7 -> 3 kg) and ELEC-SYSTEMS' harness (the avionics fits' kilos and cost)
   // FLOAT-DECK (10 Nov): the c172f and twinf effects' toM re-emitted (_procure_check.js --emit) - the float designs' base
@@ -216,9 +220,9 @@ const PROCURE_MODELS = {
       gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
       engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
                                        o320: { eng: 'o320', eff: { c172: PE_({ cost: -13364, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
-                                                                   c172f: PE_({ cost: -13347, emptyKg: -77, massKg: -77, toM: 71, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
+                                                                   c172f: PE_({ cost: -13347, emptyKg: -77, massKg: -77, toM: 71, cruiseKmh: -22, rangeKm: 41, tankL: 0, seats: 0 }) } },
                                        io360: { eng: 'io360', eff: { c172: PE_({ cost: -12946, emptyKg: -54, massKg: -54, toM: 16, cruiseKmh: -5, rangeKm: 24, tankL: 0, seats: 0 }),
-                                                                     c172f: PE_({ cost: -12935, emptyKg: -54, massKg: -54, toM: 34, cruiseKmh: -16, rangeKm: 21, tankL: 0, seats: 0 }) } } } },
+                                                                     c172f: PE_({ cost: -12935, emptyKg: -54, massKg: -54, toM: 34, cruiseKmh: -9, rangeKm: 26, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
                                       long: { tank: 1.5, eff: { c172: PE_({ cost: 810, emptyKg: 7, massKg: 16, toM: 7, cruiseKmh: 2, rangeKm: 47, tankL: 13.3, seats: 0 }),
                                                                 c172f: PE_({ cost: 808, emptyKg: 7, massKg: 16, toM: 9, cruiseKmh: 1, rangeKm: 53, tankL: 13.3, seats: 0 }) } } } },
@@ -421,6 +425,12 @@ function procureFpP1(spec, sv, pv) {
   if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (PROCURE_STATE_ROWS.test(k)) delete c.cage[k];
   // G2820: a STOL record at "every device off" (null) is the absent key (bench.js's rule)
   if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object') { if (w.stol == null) delete w.stol; if (w.tipShape == null) delete w.tipShape; }   // (HULL-B26: the tip's own shape, null = the kind's - as stol)
+  // PHYSICS-AUDIT step 2 (2026-11-22): the join STATES the flying wires' section and the tail's bracing in both states
+  // (A3: null when the row is back at its default, so the garage's merge takes it off). A null is the absent key every
+  // build before the rows carried - it hashes as absent, so no certificate is withdrawn for a row nobody touched
+  // (found red: GATE BENCH, "the load door still builds the body that was stamped" on the shipped Rufus)
+  if (c.bracing && typeof c.bracing === 'object' && c.bracing.wireSection == null) delete c.bracing.wireSection;
+  if (c.tail && typeof c.tail === 'object' && c.tail.brace == null) delete c.tail.brace;
   if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);   // G2827: the rows at "off" are absent
   if (sv == null) sv = typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0;
   if (pv == null) pv = typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0;

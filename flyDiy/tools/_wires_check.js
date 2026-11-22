@@ -14,6 +14,10 @@
 // 3. the row outranks the skin, both ways
 // 4. a biplane's wires: round = the old sum; streamline = cdStream / cdRound of the wires' share, the struts untouched
 // 5. the keys: clampSpec deletes anything but the stated values; genStolCageOff drops the rows at 0
+// 6. NO CERTIFICATE IS WITHDRAWN FOR A ROW NOBODY TOUCHED: the join states both keys as null at the rows' default (A3);
+//    a null hashes as the absent key in every fingerprint the game keeps (the bench's, the certificate rule's, the
+//    procurement's) - and a streamline wire, or a stated tail bracing, IS another aeroplane
+//    (found red on 2026-11-22: GATE BENCH, the shipped Rufus's body 68880996 against the stamped cc88a9ce)
 //   node tools/_wires_check.js  -> "GATE WIRES: PASS|FAIL"   (seconds)
 'use strict';
 const path = require('path');
@@ -69,6 +73,33 @@ const cg = C.genStolCageOff({ stBrace: 0, bpWireSec: 0, wgSpan: 9 });
 check(!('stBrace' in cg) && !('bpWireSec' in cg) && cg.wgSpan === 9, '5. genStolCageOff drops the two rows at 0');
 const cg1 = C.genStolCageOff({ stBrace: 2, bpWireSec: 1 });
 check(cg1.stBrace === 2 && cg1.bpWireSec === 1, '5. ...and keeps them when set');
+
+// ---- 6: the stated null is the absent key in every hash ----------------------------------------------------------------
+{
+  const fs = require('fs'), vm = require('vm');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'bench.js'), 'utf8'), m = { exports: {} };
+  vm.runInNewContext(src, Object.assign({ module: m, exports: m.exports, console, Math, JSON, parseFloat, isFinite, Number, String, Array, Object,
+    Uint8ClampedArray, Infinity, setTimeout, clearTimeout, setInterval, clearInterval, performance, Date, Symbol },
+    { certMajorOf: C.certMajorOf, certStrip: C.certStrip, certGroupsChanged: C.certGroupsChanged, certChangeLine: C.certChangeLine }), { filename: 'bench.js' });
+  const BE = m.exports;
+  const plain = clone(C.GEN_DEFAULT);
+  const nul = clone(plain); nul.bracing = Object.assign({}, nul.bracing, { wireSection: null }); nul.tail = Object.assign({}, nul.tail, { brace: null });
+  const strm = clone(plain); strm.bracing = Object.assign({}, strm.bracing, { wireSection: 'streamline' });
+  const brc = clone(plain); brc.tail = Object.assign({}, brc.tail, { brace: 'none' });
+  const hashes = { 'the bench certificate (benchFingerprint)': o => BE.benchFingerprint(o, null),
+                   'the certificate rule (certStrip -> certMajorOf)': o => C.certMajorOf(C.certStrip(o)).fp,
+                   'the procurement (procureFp)': o => C.procureFp(o),
+                   'the procurement, first scheme (procureFpP1)': o => C.procureFpP1(o) };
+  for (const [lbl, h] of Object.entries(hashes)) {
+    let a = null, b = null, c = null, d = null; try { a = h(plain); b = h(nul); c = h(strm); d = h(brc); } catch (e) { check(false, '6. ' + lbl + ' hashes (' + e.message + ')'); continue; }
+    check(!!a && a === b, '6. ' + lbl + ': wireSection null and tail.brace null hash as the absent keys (' + a + ')');
+    check(c !== a && d !== a, '6. ...and a streamline wire, or a tail stated unbraced, is another aeroplane');
+  }
+  // the join does state them (so the garage's merge can take a row back off): the three biplane cards say streamline
+  const D = require(path.join(__dirname, '_cage_design.js'));
+  const cards = (D.ARCHETYPES || []).filter(a => a.over && a.over.cage && Math.round(+a.over.cage.bpWireSec || 0) === 1).map(a => a.key);
+  check(['tigermoth', 'stearman', 'camel'].every(k => cards.includes(k)), '6. the Tiger Moth, Stearman and Camel cards state streamline wire (their bpWireSec row: ' + cards.join(' ') + ')');
+}
 
 console.log('GATE WIRES: ' + (bad.length ? 'FAIL' : 'PASS'));
 process.exit(bad.length ? 1 : 0);
