@@ -611,13 +611,20 @@
   // src/missions/<id>.json (fetched by index.html's career loader: window.FLYDIY_PACK_TEXT) over the contract tables,
   // ?pack=draft the mission editor's draft (flydiy.missionEditor.draft, the same origin) - once, before the first offers
   // (73b_missions.js missionPackUse: a pack that does not validate changes nothing, said in the console)
+  // THE SWITCH-OVER (STORY-REVAMP, 22 Nov; the user 13 Nov: "the switch-over to the mission system"): A PLAYER'S CAREER
+  // READS THE STORY PACK with no flag - the career loader names it (window.FLYDIY_PACK_ID, build.js CAREER_PACK_DEFAULT:
+  // a career of the welcome menu, never the dev career ?career=1 that the gates' fixtures ride) and fetches it; its
+  // text is kept (flydiy.pack.<id>) so a career starts on its own pack with no network. The career adopts it once
+  // (73b careerPackAdopt, playerLoad below).
   const CAREER_PACK = (() => {
     if (!CAREER_DEV || typeof missionPackUse !== 'function') return null;
     let id = null; try { id = (/[?&]pack=([\w.-]+)/.exec(window.location.search || '') || [])[1] || null; } catch (e) { id = null; }
+    if (!id && !CAREER_DEVFLAG) try { id = window.FLYDIY_PACK_ID || null; } catch (e) { id = null; }
     if (!id) return null;
     let txt = null;
     try { txt = id === 'draft' ? window.localStorage.getItem('flydiy.missionEditor.draft') : (window.FLYDIY_PACK_TEXT || null); } catch (e) { txt = null; }
-    if (!txt) { console.warn('flyDiy (missions): ?pack=' + id + ' - no pack text (not fetched, or no editor draft)'); return { id, ok: false }; }
+    if (id !== 'draft') try { if (txt) window.localStorage.setItem('flydiy.pack.' + id, txt); else txt = window.localStorage.getItem('flydiy.pack.' + id) || null; } catch (e) {}
+    if (!txt) { console.warn('flyDiy (missions): pack ' + id + ' - no pack text (not fetched, none kept, or no editor draft)'); return { id, ok: false }; }
     try {
       const r = missionPackUse(JSON.parse(txt));
       if (r.ok) console.info('flyDiy (missions): pack ' + id + ' in use - ' + r.n + ' missions' + (r.held.length ? ', ' + r.held.length + ' held (' + r.held.slice(0, 3).map(h => h.id + ': ' + h.why).join('; ') + ')' : ''));
@@ -631,9 +638,25 @@
     const P = (CAREER_PACK && CAREER_PACK.projects || []).find(p => p.id === e.project), name = (P && P.name) || e.project;
     if (e.k === 'works') return name + ': the works started - ready in ' + Math.round((e.ready - (+now || 0)) / 86400) + ' days' + (e.cost ? ' (' + Math.round(e.cost).toLocaleString('en-GB') + ' paid)' : '');
     if (e.k === 'step') return name + ': a step done';
-    if (e.k === 'projectDone') return name + ': done' + (e.abilities && e.abilities.length ? ' - the hangar gains: ' + e.abilities.join(', ') : '');
+    if (e.k === 'projectDone') return name + ': done';
+    // (STORY-REVAMP) what a step or a project gives: the machinery (a kit's name, the machine shop's segment)
+    if (e.k === 'gives') { const m = /^(tech|kit):(.+)$/.exec(e.what || '');
+      const w = m && m[1] === 'kit' && typeof HANGAR_KITS !== 'undefined' && HANGAR_KITS[m[2]] ? 'the ' + HANGAR_KITS[m[2]].name.toLowerCase() : m && m[1] === 'tech' && typeof techName === 'function' && techName(+m[2]) ? 'the machine shop: ' + techName(+m[2]) : null;
+      return w ? 'Given: ' + w : null; }
     return null;
   }
+  // (STORY-REVAMP) THE PROJECTS MEET THE CLOCK: a step's missions done start its works, works ready finish the step - its
+  // world stage noted for the next composition (stageNote), its machinery given. At a flight's end, at the load and
+  // when the clock is saved on the ground with works due (a wait). -> the events' lines (the caller shows them or not)
+  function projectsNow(d) {
+    if (!CAREER_DEV || !d || !d.career || !CAREER_PACK || !CAREER_PACK.ok || !CAREER_PACK.projects || !CAREER_PACK.projects.length) return { doc: d, lines: [] };
+    const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now), lines = [];
+    for (const e of pj.events) { const L = projectLine(e, now); if (L) lines.push(L); }
+    // (at the load the stages' queue does not exist yet - it is made further down: the note is owed, paid there)
+    if (pj.events.some(e => e.k === 'unlock')) try { stageNote(pj.doc); } catch (e) { projStageOwed = true; }
+    return { doc: pj.events.length ? pj.doc : d, lines };
+  }
+  let projStageOwed = false;
   // G3380 (STORY-INTRO): the opening's arm - set by a NEW career's story start (playerLoad), once; Continue never sets it
   let stIntroArm = false;
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
@@ -676,6 +699,14 @@
       const r = CAREER_DEV ? (skip ? storySkip(player, args) : storyNewCareer(player, args)) : { ok: false, why: 'not a career' };
       if (r.ok) { player = r.doc; stIntroArm = !skip; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
     } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
+    // THE SWITCH-OVER (STORY-REVAMP): the career ADOPTS the pack in use, once (73b careerPackAdopt: the hangars' starting
+    // kits, an accepted mission the pack no longer holds dropped), then its projects meet the clock (works that came
+    // ready while away)
+    if (CAREER_DEV && STORY_PAGE && CAREER_PACK && CAREER_PACK.ok && typeof careerPackAdopt === 'function') try {
+      const a = careerPackAdopt(player, CAREER_PACK);
+      if (a.doc !== player) { player = a.doc; for (const n of a.notes) console.info('flyDiy (missions): ' + n); }
+      player = projectsNow(player).doc;
+    } catch (e) { console.warn('flyDiy (missions): the career did not adopt its pack -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
     // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
@@ -720,6 +751,9 @@
     DAY_CLOCK.career({
       get: () => (CAREER_DEV ? careerDay(playerLoad()) : null),
       put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day;
+        // (STORY-REVAMP) a wait on the ground past a project's works: the step is done now (never in flight: the flight's end ticks)
+        try { if (inGarage && CAREER_PACK && CAREER_PACK.ok && player.career.projects) { const nowS = dayAbs(player.career.day);
+          if (Object.keys(player.career.projects).some(k => { const W = player.career.projects[k].works; return W && W.ready <= nowS; })) player = projectsNow(player).doc; } } catch (e) {}
         // G2665 (NIGHT-OPS): the sky it saw rides beside the day (an overcast hides the moon from the next offers)
         try { const cv = CAREER_DEV && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') player.career.cover = Math.round(cv * 100) / 100; } catch (e) {}   // WEATHER-FIXES F7: the effective cover
         playerSave(); } },
@@ -10172,7 +10206,7 @@
       if (out.moved && out.moved.kind === 'in' && out.moved.hangar && out.moved.hangar !== d.here && !out.room) { const g = playerGoTo(d, out.moved.hangar); if (g.ok) { d = g.doc; out.room = out.moved.hangar; } }
       // PROJECTS (13 Nov): the pack's projects meet the stop - a step's missions done start its works, works ready finish
       // the step and set its site's state, the last step grants its abilities (73b careerProjectsTick, the career's day)
-      if (CAREER_DEV && d.career && CAREER_PACK && CAREER_PACK.projects && CAREER_PACK.projects.length) { const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now); d = pj.doc; if (out.career) for (const e of pj.events) { const L = projectLine(e, now); if (L) out.career.lines.push({ k: 'project', ok: true, text: L }); } }
+      { const pj = projectsNow(d); d = pj.doc; if (out.career) for (const L of pj.lines) out.career.lines.push({ k: 'project', ok: true, text: L }); }
       if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
@@ -10376,6 +10410,7 @@
   const STAGE_Q = (CAREER_DEV && typeof stageHost === 'function' && WB.STAGE && WB.STAGE.view) ? stageHost({ tracks: WB.STAGE.tracks }) : null;
   let stageRevealNext = [];
   function stageNote(doc) { if (STAGE_Q && typeof stageTracksOf === 'function') try { STAGE_Q.note(stageTracksOf(doc), 'flight'); } catch (e) { console.warn('stages:', e && e.message); } }
+  if (projStageOwed) { projStageOwed = false; try { stageNote(playerLoad()); } catch (e) {} }   // (STORY-REVAMP: a project's stage that came due at the load)
   const stageWantKey = () => (STAGE_Q ? stageKey(STAGE_Q.pending || STAGE_Q.composed) : '');
   function stageCompose(phase) {
     if (!STAGE_Q) return null;

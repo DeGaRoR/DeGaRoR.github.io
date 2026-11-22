@@ -1135,6 +1135,7 @@ function buildViewer(core) {
   // sw.js's cache) is said in the console and the page boots as it would without the career code: CAREER_DEV false.
   // dev.html loads the same nine files by their own tags (data-career), promoted only under the same rule.
   const CAREER = writeCareerCore(core.careerBody);
+  const CAREER_PACK_DEFAULT = 'story';   // THE SWITCH-OVER (STORY-REVAMP): the pack a player's career reads (src/missions/<id>.json)
   const CAREER_WANT = `window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };`;
   const CAREER_LOADER = `<script>
 (function () {
@@ -1148,9 +1149,13 @@ function buildViewer(core) {
       // MISSIONS-LIVE switch (dev): ?pack=<id> fetches src/missions/<id>.json beside the career core (app.js CAREER_PACK
       // installs it before the first offers; ?pack=draft reads the mission editor's draft there instead)
       var pk = (/[?&]pack=([A-Za-z0-9_.-]+)/.exec(location.search || '') || [])[1];
-      if (pk && pk !== 'draft') return fetch('src/missions/' + pk + '.json').then(function (r) { return r.ok ? r.text() : null; }).then(function (p) { window.FLYDIY_PACK_TEXT = p; return true; }, function () { return true; });
-      // sw.js keeps it for the next (offline) career boot: the worker caches it on this word (and on its install)
+      // THE SWITCH-OVER (STORY-REVAMP, 22 Nov): a PLAYER'S career (the welcome menu's; never the dev career ?career=1, the
+      // gates' fixture) reads the story pack with no flag - named here, fetched beside the career core, used by app.js
+      if (!pk && window.FLYDIY_MODE === 'career' && !/[?&]career=1(&|$)/.test(location.search || '')) pk = ${JSON.stringify(CAREER_PACK_DEFAULT)};
+      window.FLYDIY_PACK_ID = pk || null;
+      // sw.js keeps the core for the next (offline) career boot: the worker caches it on this word (and on its install)
       try { if (navigator.serviceWorker) navigator.serviceWorker.ready.then(function (r) { if (r.active) r.active.postMessage({ flydiy: 'career-core', src: SRC }); }); } catch (e) {}
+      if (pk && pk !== 'draft') return fetch('src/missions/' + pk + '.json').then(function (r) { return r.ok ? r.text() : null; }).then(function (p) { window.FLYDIY_PACK_TEXT = p; return true; }, function () { return true; });
       return true;
     }, function (e) { console.warn('flyDiy: the career core did not load (' + (e && e.message) + '); the page boots without the career'); return false; });
   });

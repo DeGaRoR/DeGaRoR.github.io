@@ -17,6 +17,8 @@
 //     sandbox's final state on every track a project builds; every aerodrome used
 //   15 the start and the machinery: a career adopts the pack once (its hangars lose the kits the start names), the
 //     projects give them back, nothing is bought; a career begun on another pack keeps what the pack still holds
+//   16 the projects board's record; 17 THE SWITCH-OVER: the built page's career loader run as written - a player's career
+//     names and fetches the story pack, the dev career / the map page / the sandbox do not; app.js adopts and ticks
 //   8 pack.clients: a client the pack brings stands in the providers table while the pack is in use, and leaves with it
 //   node tools/_storypack_check.js   -> "GATE STORYPACK: PASS|FAIL"
 'use strict';
@@ -342,13 +344,62 @@ C.missionPackUse(mk({ jobs: 'none' }));
     const use3 = C.missionPackUse(SP), a3 = C.careerPackAdopt(e, use3);
     ok(a3.doc.career.contracts.accepted.join() === 'field.01,' + j && a3.notes.some(n => /no longer on any board: field\.03/.test(n)),
        '15 a career begun on the built-in pack: the mission the story pack does not hold is dropped and said; the one it holds and an accepted drawn job (kept as offered) stay', a3.notes.join(' | '));
+    // a career that adopted the story pack, on a page where another pack (or none of its own) is in use: its board is closed
+    ok(C.missionPackId() === 'story' && C.careerOfferIds(d).length > 0, '15 the adopted career, its pack in use: a board');
+    C.missionPackUse(B);
+    ok(C.missionPackId() === 'builtin' && C.careerOfferIds(d).length === 0 && C.careerOfferIds(career('a')).some(id => /^job:/.test(id)),
+       '15 ...another pack in use (its own could not load): NO board for it - never another pack\'s missions, never a drawn job; a career that adopted none is as before');
+    C.missionPackUse(SP);
     const bad = C.missionPackValidate(Object.assign({}, SP, { start: { sheds: { HOME: { without: ['park', 'laser'] } }, money: 5 } }));
     ok(bad.some(w => /the bare shed stays/.test(w)) && bad.some(w => /no hangar kit laser/.test(w)) && bad.some(w => /start\.money is not known/.test(w)), '15 a start that takes the bare shed, names no kit or says something else: refused', bad.slice(0, 3).join('; '));
   }
-  C.missionPackUse(B);
+  // 16 THE PROJECTS BOARD'S RECORD (the page draws it): locked / open / done, the current step, the works running
+  { const use4 = C.missionPackUse(SP); let d = career('a'); d.wallet = 1e6;
+    let Bd = C.careerProjectsBoard(d, use4.projects, 0);
+    const row = id => Bd.find(x => x.id === id);
+    ok(Bd.length === 10 && row('home').state === 'open' && row('home').step === 0 && row('home').steps[0].state === 'current' && row('home').steps[1].state === 'later'
+       && row('observatory').state === 'locked' && row('observatory').needs.join() === 'hangar', '16 a new career: home open at its first step; the observatory locked behind the old hangar', Bd.map(x => x.id + ':' + x.state).join(' '));
+    for (const m of row('home').steps[0].missions) finish(d, m.id);
+    let r = C.careerProjectsTick(d, use4.projects, 100); d = r.doc; Bd = C.careerProjectsBoard(d, use4.projects, 100);
+    ok(row('home').steps[0].state === 'works' && row('home').steps[0].ready === 100 + 2 * C.MISSION_DAY_S && row('home').steps[0].missions.every(m => m.done), '16 the first step\'s missions done: its works run, their end said', J(row('home').steps[0]).slice(0, 200));
+    r = C.careerProjectsTick(d, use4.projects, 100 + 2 * C.MISSION_DAY_S); d = r.doc; Bd = C.careerProjectsBoard(d, use4.projects, 0);
+    ok(row('home').step === 1 && row('home').steps[0].state === 'done' && row('home').steps[1].state === 'current' && row('home').steps[1].gives.join() === 'kit:wood' && row('home').steps[1].track === 'home:2' && row('home').steps[1].site === 'w1',
+       '16 the works done: the next step current - its world stage, what it gives and its site on the record'); }
+  // 17 THE SWITCH-OVER: a player's career reads the story pack with no flag; the dev career and the sandbox do not
+  { const vm = require('vm');
+    const BLD = fs.readFileSync(path.join(T, 'build.js'), 'utf8'), APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), IDX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const dflt = (/const CAREER_PACK_DEFAULT = '([\w.-]+)';/.exec(BLD) || [])[1];
+    ok(dflt === 'story' && fs.existsSync(path.join(ROOT, 'src', 'missions', dflt + '.json')), '17 build.js names the pack a player\'s career reads, and the file is there', dflt);
+    // the career loader of the BUILT page, run as written: which pack it names and fetches, per way in
+    const a = IDX.indexOf('window.FLYDIY_CAREER_WANT = function'), s0 = IDX.lastIndexOf('(function () {', a), s1 = IDX.indexOf('})();', a) + 5;
+    const loader = IDX.slice(s0, s1);
+    const way = async (search, mode) => {
+      const fetched = [], win = { FLYDIY_MODE: mode || undefined, FLYDIY_BOOT: Promise.resolve(true) };
+      const ctx = vm.createContext({ window: win, location: { search }, navigator: {}, console: { warn() {}, info() {} }, Promise, JSON,
+        fetch: u => { fetched.push(u); return Promise.resolve({ ok: true, text: () => Promise.resolve(/missions/.test(u) ? '{"pack":1}' : '/* core */') }); } });
+      vm.runInContext(loader, ctx);
+      await win.FLYDIY_CAREER_LOAD;
+      return { id: win.FLYDIY_PACK_ID, text: win.FLYDIY_PACK_TEXT || null, fetched: fetched.filter(u => /missions/.test(u)).join(), core: fetched.some(u => /career_core/.test(u)) };
+    };
+    (async () => {
+      const W = { player: await way('', 'career'), mode: await way('?mode=career', 'career'), dev: await way('?career=1', undefined), devMode: await way('?career=1', 'career'),
+                  sandbox: await way('', undefined), flag: await way('?career=1&pack=demo_p1', undefined), draft: await way('?pack=draft', 'career'), map: await way('?map=1', undefined) };
+      ok(W.player.id === 'story' && W.player.fetched === 'src/missions/story.json' && W.player.text && W.mode.id === 'story', '17 the welcome menu\'s career: the loader names the story pack and fetches it beside the core', J(W.player));
+      ok(W.dev.id === null && !W.dev.fetched && W.dev.core && W.devMode.id === null && W.map.id === null && !W.map.fetched, '17 the dev career (?career=1) and the map page: no pack - the gates\' fixtures keep the built-in tables', J([W.dev, W.devMode, W.map]));
+      ok(W.sandbox.id === undefined && !W.sandbox.core && !W.sandbox.fetched, '17 the sandbox: nothing asked for at all', J(W.sandbox));
+      ok(W.flag.id === 'demo_p1' && W.flag.fetched === 'src/missions/demo_p1.json' && W.draft.id === 'draft' && !W.draft.fetched, '17 ?pack=<id> still wins (and ?pack=draft fetches nothing: the editor\'s draft)', J([W.flag, W.draft]));
+      ok(/if \(!id && !CAREER_DEVFLAG\) try \{ id = window\.FLYDIY_PACK_ID \|\| null; \}/.test(APP), '17 app.js takes the loader\'s pack only outside the dev career');
+      ok(/window\.localStorage\.setItem\('flydiy\.pack\.' \+ id, txt\); else txt = window\.localStorage\.getItem\('flydiy\.pack\.' \+ id\)/.test(APP), '17 ...keeps its text for a start with no network, and reads it back then');
+      ok(/if \(CAREER_DEV && STORY_PAGE && CAREER_PACK && CAREER_PACK\.ok && typeof careerPackAdopt === 'function'\) try \{\s+const a = careerPackAdopt\(player, CAREER_PACK\);/.test(APP), '17 the career adopts its pack at the load (a player\'s career only)');
+      ok(/\{ const pj = projectsNow\(d\); d = pj\.doc;/.test(APP) && /if \(pj\.events\.some\(e => e\.k === 'unlock'\)\) try \{ stageNote\(pj\.doc\); \}/.test(APP) && /player = projectsNow\(player\)\.doc;/.test(APP),
+         '17 the projects meet the clock at a flight\'s end, at the load and on a wait; a step\'s world stage is noted for the next composition');
+      finishGate();
+    })().catch(e => { ok(false, '17 the loader ran', String(e && e.stack || e).slice(0, 300)); finishGate(); });
+  }
 }
 
-// ---- 7 the source ------------------------------------------------------------------------------------------------------------
+// ---- 7 the source (run last: section 17 is asynchronous) -----------------------------------------------------------------------
+function finishGate() {
 const S74 = fs.readFileSync(path.join(ROOT, 'src', 'core', '74_career.js'), 'utf8');
 ok(/if \(!R \|\| R\.jobs !== 'none'\) for \(const j of contractJobs\(/.test(S74) && (S74.match(/contractJobs\(c\.seed/g) || []).length === 1,
    '7 the board draws jobs in one place, behind the rule');
@@ -359,3 +410,4 @@ ok(C.missionPackRules() === null && J(walk('jolene', 8)) === J(before), '7 the b
 console.log(n + ' checks, ' + fails + ' failed');
 console.log('GATE STORYPACK: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
+}

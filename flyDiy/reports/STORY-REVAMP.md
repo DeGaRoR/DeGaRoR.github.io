@@ -13,13 +13,12 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 
 | ready | content | state |
 |---|---|---|
-| story-1 | THE RULES ON THE PACK: `rules.jobs: 'none'` (no drawn job, no drawn shady job), `unflyable: 'offer'`, repeating authored contracts, a project step moves its world track and gives machinery, GATE STORYPACK | PUSHED `claude/ready/story-1` 2e319695c |
-| story-2 | THE PACK'S OWN CLIENTS, FOUR PROJECT TRACKS, THE STORY PACK v0 (`src/missions/story.json`): 85 missions, 9 projects, 38 steps; a whole career walked in the gate | gated, being pushed |
-| story-3 | THE TUTORIAL ON NODE: `tools/story_run.js`, GATE TUTORWALK (core) + GATE TUTORFLY (full) | the walk passes; the flown run is running |
-| story-4 | THE AERO CLUB: the competition events on the existing scoring; the STOL / attitude samples wired on the page and in the rig | in progress |
-| story-5 | WORKSHOPS AND THE LADDER: machinery given by contracts and projects, no buying | queued |
-| story-6 | THE FLIP: a career reads the story pack by default (for Game's review; touches the page) | queued |
-| feasibility | every mission of the story pack flown on node (`tools/mission_feas.js`, 3 shards) | running (67 missions to fly) |
+| story-1 | THE RULES ON THE PACK: no drawn job, no drawn shady job, an unflyable mission offered, repeating authored contracts, a project step moves its world track and gives machinery; GATE STORYPACK | PUSHED `claude/ready/story-1` 2e319695c |
+| story-2 | THE PACK'S OWN CLIENTS, FOUR PROJECT TRACKS, THE STORY PACK v0; a whole career walked in the gate | PUSHED `claude/ready/story-2` 2f9def0e8 |
+| story-3 | THE TUTORIAL ON NODE (`tools/story_run.js`, GATE TUTORWALK core + TUTORFLY full); THE AERO CLUB (six events, the STOL / attitude samples wired on the page and in the rig, results kept on the career); THE MACHINERY GIVEN (the pack's start, kits given by projects, the career adopts its pack once) | on the branch (abe740cc3), gates running |
+| story-4 | THE SWITCH-OVER: a player's career reads the story pack with no flag (the career loader, app.js, the adoption at the load, the projects on the clock); the projects board's record | coded, gated in node (GATE STORYPACK 16-17), a headless browser boot running |
+| feasibility | every mission of the story pack flown on node (`tools/mission_feas.js`, 3 shards) | running in the background |
+| the tutorial flown | `node tools/story_run.js` (4 flights + the job's 2) | running in the background |
 
 ## The rules this work is held to
 
@@ -33,37 +32,75 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 | the tutorial playable start to end on node | `tools/story_run.js`: the eight beats with the page's events, the four flights flown, the end held to the checkpoint |
 | no rendering / performance work | nothing here adds a shader program or load-time work; the pack is fetched only by a career that names it |
 
-## The story pack v0 (structure)
+## The story pack (structure)
 
 `src/missions/story.json`, written by `tools/_story_pack.js` (`--table` prints this, `--check` is in the gate).
 
-- 85 missions: 73 contracts, 8 aircraft orders, 3 surveys, 1 challenge. 30 kept from the built-in pack by id, 55 new.
-- 30 contracts in any order across 5 clients; 55 missions are steps of projects; 4 missions repeat (the regular work).
-- 7 clients: the game's five + 2 the pack brings (home, community).
-- Words: 138 text keys, every one marked a draft.
+- 91 missions: 74 contracts, 8 aircraft orders, 3 surveys, 6 challenges. 30 kept from the built-in pack by id, 61 new.
+- 34 contracts in any order across 6 clients; 57 missions are steps of projects; 8 missions repeat (4 clients' regular
+  work + 4 club events).
+- 8 clients: the game's five + 3 the pack brings (home, community, the Aero Club).
+- Words: 156 text keys, every one marked a draft.
+- The start: both of the career's hangars begin without the metal shop and the wood shop. Nothing is bought.
 
 | project | client | site | steps | missions | world track | gives | opens after |
 |---|---|---|---|---|---|---|---|
-| the old wartime hangar | field | HOME | 3 | 5 | field 1-3 | the metal shop kit, segment 2 | - |
+| the old wartime hangar | field | HOME | 3 | 5 | field 1-3 | the metal shop, segment 2 | - |
 | the old mine | minedock | mn_strip | 4 | 4 | minedock 1-2 | - | - |
 | the harbour | minedock | SEA | 2 | 2 | minedock 3-4 | - | the old mine |
 | the lumber camp | minedock | mk_sea | 3 | 4 | lumber 1-3 | - | the harbour |
 | Skyline in summer | resort | tw_ski | 3 | 4 | resort 1-3 | - | - |
 | the totem site | field | nv_strip | 2 | 2 | heritage 1-2 | - | the old mine |
 | the observatory | survey | mt_strip | 6 | 9 | observatory 1-3 | segment 3 | the old hangar |
-| home improvement | home | w1, cb_sea | 7 | 14 | home 1-6 | the home hangar | - |
+| home improvement | home | w1, cb_sea | 7 | 14 | home 1-6 | the wood shop, the home hangar | - |
 | the community's runway | community | w6, w7 | 8 | 11 | community 1-7 | - | - |
+| the club house | Aero Club | HOME | 2 | 2 | clients 1-2 | - | - |
 
-The walk of GATE STORYPACK (a whole career, every offer done in turn, the projects ticked a day apart): 85 of 85
-missions done, 9 of 9 projects done, 38 of 38 steps reached in order, 31 world stages unlocked once each, the same
-career for three seeds. It found one authoring error (two projects sharing a track out of order: fixed) and one mission
-that can never be offered (the 6 g order: no aerobatic certificate; left out, listed below).
+The Aero Club's events (all on the existing scoring, 73c):
+
+| event | kind | where | scored on | repeats | rival (fixed ghost) |
+|---|---|---|---|---|---|
+| the short landing | STOL landing | the rough strip 02R/20L | metres from the line to the stop; short = foul | yes | yes |
+| the spot landing | STOL spot | the concrete band of 02/20 | metres from the line at the first touch | yes | - |
+| the pylons | a timed lap, 4 gates | round the field | seconds, +3 s a pylon touched | yes | yes |
+| the regularity run | a lap to MATCH | 2 gates 4 km apart | seconds off the target | yes | - |
+| the island tour | a 3-leg course | field > Fishing Village > Cannery > field | the sum of three laps | once (club house step) | yes |
+| the flying breakfast | a timed gathering | field > Skyline | arrive inside the limit | once (club house step) | - |
+
+The walk of GATE STORYPACK (a whole career, every offer done in turn, the projects ticked a day apart): 91 of 91
+missions done, 10 of 10 projects done, 40 of 40 steps reached in order, every world stage unlocked once, EVERY track at
+its max at the end (the sandbox's world), EVERY aerodrome of the island used, the same career for three seeds. It found
+one authoring error (two projects sharing a track out of order: fixed) and one mission that can never be offered (the
+6 g order: no aerobatic certificate; left out, listed below).
+
+## The ladder (a proposal: three lines of the generator)
+
+| what | given by | when |
+|---|---|---|
+| the machine shop's segment 1 (tube, wood and fabric) | the start | - |
+| the metal shop (kit) + segment 2 (sheets and bolts) | the old wartime hangar | its last step |
+| the wood shop (kit) | home improvement | the new cabin |
+| segment 3 (composite and electronics) | the observatory | its last step |
+
+The mechanism is gated (GATE STORYPACK 15); WHO gives WHAT is the user's and Game's call. The user's two rulings it
+encodes: "Old hangar -> metal shop", "Start = tube and fabric (not woodworking)".
+
+## The switch-over
+
+A career of the welcome menu reads the story pack with no flag: the career loader of the built page names it and
+fetches it beside the career core; the page keeps its text for a start with no network; the career adopts it once.
+The dev career (`?career=1`), `?map=1` and the sandbox never ask for a pack: every gate's fixture career keeps the
+built-in tables, and the sandbox is the game as it is. `?pack=<id>` still wins. GATE STORYPACK 17 runs the built
+page's loader as written over eight ways in.
+
+A career saved before the switch keeps what the story pack still holds; an accepted mission it no longer holds is
+dropped at the adoption and said in the console; an accepted drawn job is kept as it was offered and can be finished.
 
 ## Who can fly what (the capability rule, before any flight)
 
 | class | missions |
 |---|---|
-| a validated design flies it (Cub, Jodel, Cessna 172, Cessna 172 on floats) | 63 |
+| a validated design flies it (Cub, Jodel, Cessna 172, Cessna 172 on floats) | 69 |
 | an aircraft order (the player builds it) | 8 |
 | a delivery NO validated design can fly: offered all the same, the player builds the aeroplane | 14 |
 
