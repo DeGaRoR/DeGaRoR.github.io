@@ -407,16 +407,22 @@ function careerOfferIds(doc) {
   const done = careerDoneIds(doc), taken = new Set(done.concat(C.accepted));
   const out = [];
   const A = contractAuthored(), sky = careerOfferSky(doc);
+  // STORY-REVAMP (the user 13 Nov: "NO GENERATED JOBS at all: everything deterministic"): the pack in use states the
+  // board's rules (73b missionPackRules; none stated = today's board). An authored mission that REPEATS
+  // (repeat: { every: n }) is free again once n other contracts are done after its last time - the board's regular work
+  const R = typeof missionPackRules === 'function' ? missionPackRules() : null;
+  const again = id => { const r = A[id], e = r && r.kind !== 'job' && r.repeat ? +r.repeat.every : 0; return e >= 1 && done.length - 1 - done.lastIndexOf(id) >= e; };
+  const free = id => !C.accepted.includes(id) && (!done.includes(id) || again(id));
   for (const p of Object.keys(CONTRACT_PROVIDERS)) {
     const P = CONTRACT_PROVIDERS[p];
     const next = P.arc.find(r => !done.includes(r.id));
     // (G2320) a contract the certificate cannot answer is HELD OUT (73_ contractCertifiable: the aerobatic box)
     if (next && !taken.has(next.id) && careerNeedsOk(doc, A[next.id]) && contractCertifiable(A[next.id])) out.push(next.id);
-    for (const b of P.builds || []) if (!taken.has(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
+    for (const b of P.builds || []) if (free(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
     // (G2665 NIGHT-OPS) the provider's authored night work, each once its needs are met - held out while no validated
     // design can fly it (73_ contractFlyable: the stretcher case)
-    for (const r of P.night || []) if (!taken.has(r.id) && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);
-    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep, sky })) if (!taken.has(j.id)) out.push(j.id);
+    for (const r of P.night || []) if (free(r.id) && careerNeedsOk(doc, A[r.id]) && ((R && R.unflyable === 'offer') || contractFlyable(A[r.id]))) out.push(r.id);
+    if (!R || R.jobs !== 'none') for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep, sky })) if (!taken.has(j.id)) out.push(j.id);
   }
   // TUTORIAL v2 (TUTORIAL-LOCK): the story's own job is offered while its beat holds, whatever its chain's `after` says
   // (field.02 waits for field.01 in the career; the tutorial teaches it alone) - first on the list
@@ -425,7 +431,7 @@ function careerOfferIds(doc) {
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
   if (loan && !taken.has(loan)) out.unshift(loan);
   // CERT-GATES: the "no questions asked" job, from the second refresh on (76_ econShadyOffer)
-  const shady = typeof econShadyOffer === 'function' ? econShadyOffer(doc) : null;
+  const shady = typeof econShadyOffer === 'function' && !(R && (R.shady === false || (R.jobs === 'none' && R.shady !== true))) ? econShadyOffer(doc) : null;
   if (shady && !taken.has(shady) && careerContract(doc, shady)) out.push(shady);
   // follow-ups: the last of each delivered build contract's chain
   const builds = done.filter(id => { if (/^job:/.test(id)) return false; const r = careerContract(doc, id); return r && r.kind === 'build'; });
@@ -620,6 +626,8 @@ function careerComplete(d, rec, live, medal, events) {
 function careerOnDone(d, rec, od, events) {
   if (od.say) events.push({ k: 'say', id: rec.id, say: od.say });
   if (typeof od.pay === 'number' && isFinite(od.pay) && od.pay > 0) { playerCharge(d, -od.pay, 'contract', rec.id); events.push({ k: 'bonus', id: rec.id, pay: od.pay }); }
+  // STORY-REVAMP: what the done GIVES (machinery: 73b careerAbilityGrant - "a contract/project gives the machinery")
+  if (Array.isArray(od.gives) && typeof careerAbilityGrant === 'function') for (const g of od.gives) careerAbilityGrant(d, g, events, rec.id);
   const S = od.site;
   if (S && typeof S.id === 'string') {
     const c = d.career;

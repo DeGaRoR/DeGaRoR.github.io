@@ -1239,6 +1239,7 @@ const GATES = [
   // scenario library, the trace's keys; --selftest breaks each rule
   { id: 'PERFBENCH', file: '_perfbench_check.js', argv: ['--selftest'], tier: 'core', wall: 5 },
   { id: 'PROJECTS', file: '_projects_check.js', tier: 'core', wall: 15 },   // PROJECTS (13 Nov): a pack's projects - steps, works, site states, abilities (73b_missions.js, 74_career.js)
+  { id: 'STORYPACK', file: '_storypack_check.js', tier: 'core', wall: 15 },   // STORY-REVAMP (22 Nov): the career's rules on the pack - no drawn job, repeats, a step's world stage, what is given (73b_missions.js, 74_career.js)
   // MISSION-FEASIBILITY: the harness that flies every mission the game's way (tools/mission_feas.js, mission_feas_lib.js:
   // the career stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop) held on three demo
   // missions (tools/fixtures/missionfeas/demo.json): one feasible - flown, stand to stand -, one infeasible on purpose

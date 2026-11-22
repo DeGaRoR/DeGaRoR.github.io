@@ -682,7 +682,7 @@ const contractFlyable = (rec, fields) => contractDoers(contractSubsOf(rec).filte
 //           (ldgDistM, cargoL)
 const CONTRACT_RUNTIME_PENDING = [];
 const CONTRACT_RUNTIME_WAITS = [];
-const CONTRACT_ONDONE = ['say', 'pay', 'site'];
+const CONTRACT_ONDONE = ['say', 'pay', 'site', 'gives'];
 function contractRuntimeOk(rec) {
   const r = rec || {};
   for (const k of CONTRACT_RUNTIME_PENDING) if (r[k] != null && !(Array.isArray(r[k]) && !r[k].length)) return k + ': no runtime yet';

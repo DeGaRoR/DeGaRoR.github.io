@@ -260,6 +260,7 @@ function missionPackNormalise(p) {
   // { id, name, client, requires: { projects, rep: { provider: n }, abilities }, offer, steps: [{ id, order, missions,
   //   works: { cost, days } | null, site: { id, state } | null }], onDone: { abilities, projects, missions, clients } }
   o.projects = (Array.isArray(o.projects) ? o.projects : []).map(missionProjectNormalise);
+  if (o.rules != null) o.rules = missionPackRulesNorm(o.rules);   // STORY-REVAMP: the career's rules ride on the pack (below)
   return o;
 }
 
@@ -562,6 +563,7 @@ function missionPackValidate(pack, opts) {
   for (const k of ['campaigns', 'missions']) if (!Array.isArray(P[k])) why.push(k + ' is not a list');
   if (P.projects != null && !Array.isArray(P.projects)) why.push('projects is not a list');
   else if (Array.isArray(P.projects)) why.push(...missionProjectsWhy(Object.assign({}, P, { projects: P.projects.map(missionProjectNormalise) })));
+  if (P.rules != null) why.push(...missionPackRulesWhy(P.rules));
   if (why.length) return why;
   const T = missionText(P), F = opts.fields || CONTRACT_FIELDS;
   for (const k of Object.keys(P.text || {})) if (!msObj(P.text[k]) || typeof P.text[k].t !== 'string') why.push('text ' + k + ' is not { t }');
@@ -729,7 +731,10 @@ function missionProjectNormalise(p) {
     steps: (Array.isArray(P.steps) ? P.steps : []).map((s, i) => { const S = msObj(s) ? s : {};
       const W = msObj(S.works) && msNum(S.works.days) ? { cost: msNum(S.works.cost) ? +S.works.cost : 0, days: +S.works.days } : null;
       const st = msObj(S.site) && typeof S.site.id === 'string' ? { id: S.site.id, state: S.site.state } : null;
-      return { id: typeof S.id === 'string' && S.id ? S.id : 's' + (i + 1), order: MISSION_PROJECT_ORDERS.includes(S.order) ? S.order : 'any', missions: arr(S.missions), works: W, site: st }; }),
+      const o = { id: typeof S.id === 'string' && S.id ? S.id : 's' + (i + 1), order: MISSION_PROJECT_ORDERS.includes(S.order) ? S.order : 'any', missions: arr(S.missions), works: W, site: st };
+      if (S.track != null) o.track = S.track;                    // STORY-REVAMP: the world stage this step builds ('<track>:<n>', 76_stages)
+      if (S.gives != null) o.gives = arr(S.gives);               // ...and the machinery it gives (abilities: careerAbilityGrant)
+      return o; }),
     onDone: { abilities: arr(D.abilities), projects: arr(D.projects), missions: arr(D.missions), clients: arr(D.clients) } };
 }
 // the projects' own refusals (missionPackValidate adds them): ids, steps, missions that exist, projects named that exist
@@ -741,6 +746,15 @@ function missionProjectsWhy(P) {
     pids.add(p.id);
     if (!p.steps.length) why.push('project ' + p.id + ' has no step');
     for (const s of p.steps) for (const m of s.missions) if (!ids.has(m)) why.push('project ' + p.id + ' step ' + s.id + ' names no mission ' + m);
+    // STORY-REVAMP: a step's world stage is a track's value (never going down along the steps), what it gives an ability
+    const at = {};
+    for (const s of p.steps) {
+      if (s.track != null) { const m = /^(\w+):(\d+)$/.exec(s.track), T = m && typeof CONTRACT_TRACKS !== 'undefined' ? CONTRACT_TRACKS[m[1]] : null;
+        if (!m || !T || +m[2] < 1 || +m[2] > T.max) why.push('project ' + p.id + ' step ' + s.id + ': track is <track>:<1..max> (76_stages), got ' + JSON.stringify(s.track));
+        else { if (+m[2] <= (at[m[1]] || 0)) why.push('project ' + p.id + ' step ' + s.id + ': track ' + s.track + ' does not go up'); at[m[1]] = +m[2]; } }
+      for (const g of s.gives || []) { const w = missionAbilityWhy(g); if (w) why.push('project ' + p.id + ' step ' + s.id + ': ' + w); }
+    }
+    for (const g of p.onDone.abilities) { const w = missionAbilityWhy(g); if (w) why.push('project ' + p.id + ': ' + w); }
   }
   for (const p of P.projects || []) for (const r of p.requires.projects.concat(p.onDone.projects)) if (!pids.has(r)) why.push('project ' + p.id + ' names no project ' + r);
   return why;
@@ -784,10 +798,14 @@ function careerProjectsTick(doc, projects, now) {
       if (st.works && t < S.works.ready) continue;
       S.step = (S.step | 0) + 1; S.works = null;
       if (st.site) { c.sites[st.site.id] = st.site.state; events.push({ k: 'site', id: st.site.id, state: st.site.state, project: p.id }); }
+      // STORY-REVAMP: the step's world stage (the track moves like a contract's unlock: 74_ careerComplete) and its machinery
+      const tm = /^(\w+):(\d+)$/.exec(st.track || '');
+      if (tm) { c.tracks = msObj(c.tracks) ? c.tracks : {}; if ((c.tracks[tm[1]] || 0) < +tm[2]) { c.tracks[tm[1]] = +tm[2]; events.push({ k: 'unlock', unlock: st.track, project: p.id, step: st.id }); } }
+      for (const g of st.gives || []) careerAbilityGrant(d, g, events, p.id + ':' + st.id);
       events.push({ k: 'step', project: p.id, step: st.id });
       if (S.step >= p.steps.length) {
         S.done = true;
-        for (const a of p.onDone.abilities) if (!c.abilities.includes(a)) c.abilities.push(a);
+        for (const a of p.onDone.abilities) careerAbilityGrant(d, a, events, p.id);
         events.push({ k: 'projectDone', project: p.id, abilities: p.onDone.abilities.slice(), projects: p.onDone.projects.slice(), missions: p.onDone.missions.slice(), clients: p.onDone.clients.slice() });
       }
       moved = true;
@@ -812,7 +830,54 @@ function missionPackUse(pack, providers, text) {
     for (const k of ['arc', 'builds', 'night']) { base[p][k] = I.providers[p][k] || []; n += base[p][k].length; }
   }
   Object.assign(T, I.text || {});
-  return { ok: true, n, held: I.held, why: '', projects: missionPackNormalise(pack).projects };   // (PROJECTS: the page ticks them)
+  const N = missionPackNormalise(pack);
+  MISSION_RULES_LIVE = N.rules || null;                       // STORY-REVAMP: the career reads the pack's rules from now on
+  return { ok: true, n, held: I.held, why: '', projects: N.projects, rules: MISSION_RULES_LIVE };   // (PROJECTS: the page ticks them)
+}
+
+// ---- THE PACK'S RULES (STORY-REVAMP, the user 13 Nov: "NO GENERATED JOBS at all: everything deterministic") --------------
+// pack.rules { jobs: 'generated' | 'none', shady: true | false, unflyable: 'hold' | 'offer' } - how the career fills its
+// board while this pack is in use (74_ careerOfferIds). jobs 'none': no job is drawn from the seed - the board is the
+// pack's missions and nothing else; shady false: no drawn "no questions asked" job either (an authored one is a mission
+// like any other); unflyable 'offer': a mission no validated design can fly is offered all the same (the user 16 Nov:
+// "this is a game about building planes" - the player builds the plane; 'hold' keeps it off the board, as today). A pack
+// that states no rules keeps today's board (the built-in pack). The Trust's loan job stays: one fixed errand, not a draw.
+const MISSION_PACK_RULES = { jobs: ['generated', 'none'], shady: [true, false], unflyable: ['hold', 'offer'] };
+let MISSION_RULES_LIVE = null;
+const missionPackRules = () => MISSION_RULES_LIVE;
+function missionPackRulesNorm(r) {
+  const R = msObj(r) ? r : {}, o = {};
+  for (const k of Object.keys(MISSION_PACK_RULES)) if (R[k] !== undefined) o[k] = R[k];
+  return o;
+}
+function missionPackRulesWhy(r) {
+  if (!msObj(r)) return ['rules is not an object'];
+  const why = [];
+  for (const k of Object.keys(r)) {
+    if (!MISSION_PACK_RULES[k]) why.push('rules.' + k + ' is not a rule (' + Object.keys(MISSION_PACK_RULES).join(', ') + ')');
+    else if (!MISSION_PACK_RULES[k].includes(r[k])) why.push('rules.' + k + ' is ' + MISSION_PACK_RULES[k].join(' | ') + ', got ' + JSON.stringify(r[k]));
+  }
+  return why;
+}
+// THE ABILITIES (what a project, a step or a mission GIVES - the user 13 Nov: "no buying machinery. A contract/project
+// GIVES the machinery"): a word kept once in career.abilities. 'tech:<n>' opens the machine shop's segment n (79b: never
+// down); 'kit:<id>' a hangar kit's machines (26_ HANGAR_KITS); any other word is the pack's own (a requires.abilities key)
+function missionAbilityWhy(a) {
+  if (typeof a !== 'string' || !/^[a-z][\w.-]*(:[\w.-]+)?$/.test(a)) return 'an ability is a word or <kind>:<id>, got ' + JSON.stringify(a);
+  const m = /^(tech|kit):(.+)$/.exec(a);
+  if (m && m[1] === 'tech' && !(typeof TECH_SEGS !== 'undefined' ? TECH_SEGS[m[2]] : /^[1-3]$/.test(m[2]))) return 'no machine shop segment ' + m[2];
+  if (m && m[1] === 'kit' && typeof HANGAR_KITS !== 'undefined' && !HANGAR_KITS[m[2]]) return 'no hangar kit ' + m[2];
+  return '';
+}
+function careerAbilityGrant(d, a, events, from) {
+  const c = d.career;
+  c.abilities = Array.isArray(c.abilities) ? c.abilities : [];
+  if (c.abilities.includes(a)) return false;
+  c.abilities.push(a);
+  const m = /^tech:(\d+)$/.exec(a);
+  if (m && c.tech && typeof techNormalise === 'function') { const t = techNormalise(c.tech); t.seg = Math.max(t.seg, Math.min(TECH_MAX, +m[1])); c.tech = t; }
+  if (events) events.push({ k: 'gives', what: a, from: from || null });
+  return true;
 }
 
 // ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------
