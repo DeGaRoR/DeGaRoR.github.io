@@ -32,6 +32,12 @@
   const shellOf = id => { try { const d = W.FLYDIY_PLAYER.doc(); return (d.sheds[id] && d.sheds[id].shell) || 'club'; } catch (e) { return 'club'; } };
   // the hangar's own words: "the club hangar at Home" -> "The club hangar" (the aerodrome only when the list holds two places)
   const nameOf = (g, places) => { let n = String(g.name || g.id); if (places < 2) n = n.replace(/ at .*$/, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
+  // the list's line: the hangar's words alone; the place under it, without the runway's numbers ("Jolene AFB 13/31" -> "Jolene AFB")
+  const shortOf = g => { const n = String(g.name || g.id).replace(/ at .*$/, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
+  const placeOf = g => { const m = / at (.*)$/.exec(String(g.name || '')); return m ? m[1].replace(/\s+\d{2}\s*\/\s*\d{2}$/, '').trim() : ''; };
+  // what stands in it: a saved slot's name; the one you are in, the aeroplane on its stand as the top bar names it (an unsaved build)
+  const standOf = g => { if (g.stand) return String(g.stand); if (g.planes && g.planes[0]) return String(g.planes[0]);
+    if (g.here) { const nm = $('fbName'); const t = nm ? String(nm.textContent || '').trim() : ''; if (t) return t; } return 'empty'; };
 
   function close() {
     if (!S.list) return;
@@ -51,8 +57,9 @@
       const row = mk('button', 'hsRow' + (g.here ? ' here' : '') + (g.locked ? ' locked' : ''));
       row.type = 'button'; row.setAttribute('role', 'menuitem'); row.dataset.hangar = g.id;
       row.innerHTML = outline(shellOf(g.id));
-      const t = mk('span', 'hsName', nameOf(g, places));
-      t.appendChild(mk('span', 'hsSub', g.locked ? (g.why || 'not yours yet') : (g.stand || (g.planes && g.planes[0]) || 'empty')));
+      const t = mk('span', 'hsName', shortOf(g)), pl = places > 1 ? placeOf(g) : '';
+      t.title = nameOf(g, places);
+      t.appendChild(mk('span', 'hsSub', g.locked ? (g.why || 'not yours yet') : (pl ? pl + ' · ' : '') + standOf(g)));
       row.appendChild(t);
       row.appendChild(mk('span', 'hsTick', g.here ? '✓' : ''));
       if (g.locked) row.disabled = true;
