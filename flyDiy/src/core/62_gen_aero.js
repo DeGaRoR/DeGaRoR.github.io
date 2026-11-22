@@ -636,6 +636,14 @@ function radialCowlK(K, S) {
 }
 // DRAG-SCALE (2026-11-09): the skin-friction factor of a body or a chord of length L against the calibrated length
 // lCal (GEN_DRAG.reynolds): 1 up to lCal, Schlichting's turbulent Cf ratio beyond
+// THE LAMINAR SHARE OF A SURFACE (GEN_DRAG.laminar's header): { k: the mixed plate over the turbulent one, x: the share }
+function genLamK(chord, key, wash, tripped) {
+  const L = GEN_DRAG.laminar, R = GEN_DRAG.reynolds;
+  const x = L && L.x && L.x[key] > 0 && !tripped ? L.x[key] * (1 - Math.max(0, Math.min(1, wash || 0))) : 0;
+  if (!(x > 0) || !(chord > 0)) return { k: 1, x: 0 };
+  const Re = R.vRef * chord / R.nu, cfT = r => 0.455 / CORE_MATH.pow(Math.log10(r), 2.58), cfL = r => 1.328 / Math.sqrt(r);
+  return { k: (cfT(Re) - x * (cfT(x * Re) - cfL(x * Re))) / cfT(Re), x };
+}
 function genReK(L, lCal) {
   const R = GEN_DRAG.reynolds;
   if (!R || !(L > lCal)) return 1;
@@ -1854,10 +1862,15 @@ function genParams(S, fr, strips) {
   // G185: ONE POLAR PER PLANE — its own aspect ratio, section, sweep and tip;
   // DRAG-SCALE (2026-11-09): a surface's profile drag at its own chord's Reynolds number (genReK; the finish's own
   // matCd0 kept) - 1 on every chord up to GEN_DRAG.reynolds.cSurf, so the light aeroplanes' polars are as before
-  const reP = (P, chord, matCd0) => {
-    const k = genReK(chord, GEN_DRAG.reynolds.cSurf);
-    return k === 1 || !P ? P : Object.assign({}, P, { Cd0: (P.Cd0 - matCd0) * k + matCd0 });
+  // FUSELAGE-DRAG (2026-11-22; GEN_DRAG.laminar): ...and the share of the chord its layer stays laminar (lam: genLamK)
+  const reP = (P, chord, matCd0, lam) => {
+    const k = genReK(chord, GEN_DRAG.reynolds.cSurf), kl = lam && lam.x > 0 ? lam.k : 1, xl = lam && lam.x > 0 ? lam.x : 0;
+    return (k === 1 && kl === 1) || !P ? P : Object.assign({}, P, { Cd0: (P.Cd0 - matCd0) * k * kl + matCd0 * (1 - xl), ...(xl > 0 ? { lamX: xl } : {}) });
   };
+  // the propellers' wash: discs on the nose wet the inner wing and the whole tail; discs on the wing, their own span
+  const unpowL = typeof genUnpowered === 'function' && genUnpowered(S), nEngL = unpowL ? 0 : ((S.engines && S.engines.length) || 0);
+  const noseProp = nEngL > 0 && !(S.engAt || []).some(e => e && e.mount && e.mount !== 'nose');
+  const propD = (S.prop && S.prop.D) || 0;
   // the bracing penalty on Oswald is the fuselage strut's for plane 0 and
   // the interplane strut's for both planes of a biplane. genOswald itself is
   // untouched: it is the plane's SELF term, and the mutual term between the
@@ -1868,9 +1881,12 @@ function genParams(S, fr, strips) {
   const polarWings = S.wings.map((wk, k) => {
     const Gk = (G.planes && G.planes[k]) || G;
     const MW = genSurfMaterial(S, 'wing', k);
+    const stl = wk.stol || null, tripped = !!(stl && ((stl.slat && stl.slat !== 'none') || stl.vg > 0 || stl.cuff > 0));
+    const spanK = 2 * ((k === 0 ? G.semi : (Gk.semi != null ? Gk.semi : 0.5 * wk.span)) || 1);
+    const lam = genLamK(Gk.cBar, genSurfKey(S, 'wing', k), nEngL > 0 && propD > 0 ? nEngL * propD / spanK : 0, tripped);
     return reP(genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, MW.cd0, MW.clmaxK,
                     wk.sweepEff != null ? wk.sweepEff : wk.sweep,
-                    (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e), Gk.cBar, MW.cd0);
+                    (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e), Gk.cBar, MW.cd0, lam);
   });
   // PRICE-CAL step 2: an old airframe's surfaces (GEN_AGING dragK on each polar's Cd0; absent spec.aging: x1)
   const AGk = genAgingOf(S).dragK, aged = P => (AGk === 1 || !P ? P : Object.assign({}, P, { Cd0: P.Cd0 * AGk }));
@@ -1878,7 +1894,8 @@ function genParams(S, fr, strips) {
   const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
   const polarTail = aged(reP(genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0), S.tail.Sh / Math.max(1e-6, S.tail.hSpan),
-                             genSurfMaterial(S, 'stab').cd0));   // G213
+                             genSurfMaterial(S, 'stab').cd0,
+                             genLamK(S.tail.Sh / Math.max(1e-6, S.tail.hSpan), genSurfKey(S, 'stab'), noseProp ? 1 : 0, false)));   // G213
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
   // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
   // which overstated directional stiffness and rudder power by ~25% and made
@@ -1897,7 +1914,8 @@ function genParams(S, fr, strips) {
            : (S.tail.stabH || 0) >= 0.3 ? 'cruci' : 'conv';
   const vARe = vAR * (EP[tt] == null ? 1 : EP[tt]);
   const polarFin = aged(reP(genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0), S.tail.Sv / Math.max(1e-6, S.tail.vHeight),
-                            genSurfMaterial(S, 'fin').cd0));     // G213
+                            genSurfMaterial(S, 'fin').cd0,
+                            genLamK(S.tail.Sv / Math.max(1e-6, S.tail.vHeight), genSurfKey(S, 'fin'), noseProp ? 1 : 0, false)));     // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)

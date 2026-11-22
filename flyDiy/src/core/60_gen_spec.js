@@ -2091,6 +2091,18 @@ const GEN_DRAG = {
   // cSurf the factor is 1: every light aeroplane is as calibrated. The finish's own penalty (matCd0: laps, rivets,
   // roughness) does not scale: a rough skin is in the fully rough regime.
   reynolds: { vRef: 60, nu: 1.46e-5, lBody: 8.0, cSurf: 2.0 },
+  // A LIGHT LAMINAR / TURBULENT MODEL FOR THE LIFTING SURFACES (FUSELAGE-DRAG, 2026-11-22; the user: "a whole laminar
+  // turbulent model, which is not too heavy, is something that we are indeed missing a lot"). ONE transition point per
+  // surface: the share of the chord its layer stays laminar, by what the surface is built of. The section's profile
+  // drag (the polars' 0.0055 + 0.018 t: a turbulent section) is scaled by the mixed plate over the turbulent one,
+  //   k = (Cf_t(Re) - x (Cf_t(x Re) - Cf_l(x Re))) / Cf_t(Re)      Cf_t Schlichting's, Cf_l = 1.328 / sqrt(Re)
+  // at the chord's Reynolds number at reynolds.vRef, and the finish's own penalty (matCd0) is paid on the turbulent
+  // share only. x by construction: a MOULDED shell (carbon, glass) holds the layer to half its chord on a section
+  // drawn for it; a D-tube to its spar; sanded plywood a fifth. Riveted alloy and fabric on ribs are the turbulent
+  // reference the formula was fitted on: 0, so every aeroplane of the middle of the roster is as calibrated, bit for
+  // bit. NONE in a propeller's wash (the share of the span its disc covers; the whole tail behind a nose propeller)
+  // or behind a slat, a cuff or vortex generators. First values, the study's 6.3: the D-tube's is to be sourced.
+  laminar: { x: { carbon: 0.50, glass: 0.50, dtube: 0.30, wood: 0.20 } },
   // the cylinders that stand outside the cowl: a bare finned block's Cd on
   // its own frontal (the nacelle rule's 0.9)
   cdBlock: 0.9,
