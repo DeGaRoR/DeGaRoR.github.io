@@ -185,9 +185,16 @@ var AUDIO = (function () {
   // loadings"): the first boot, the roll-out, a change of place - whenever BOOT's overlay is up (loading / landing /
   // waiting; 'ready' and 'gone' are the overlay down).
   let welcome = 1, garage = 0;
+  // AUDIO-ROBUST 4 (22 Nov 2026, the user's garage-first loading via PERF-LEAD): the world keeps building BEHIND the
+  // garage, and Go stays clickable before it is done (a short loading screen covers the rest). The loading music must be
+  // ONE stream from the menu click to the world: the loading screen, the garage while the world builds behind it, the Go
+  // screen - no restart, no gap. AUDIO.loadingBehind(true) (the garage-first boot sets it while it builds; false once the
+  // world is in) holds the loading screens' context; it is the same context as a loading screen, so the song plays on
+  // across every change of screen and fades into the game's mix (XFADE_S, music.js) only when the loading is over.
+  const LB = new Float64Array(1);
   const welcomeNow = () => {
     const B = W.BOOT;
-    welcome = B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting') ? 1 : 0;
+    welcome = (B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting')) || LB[0] > 0 ? 1 : 0;
     return welcome;
   };
   // the listener, handed to audioParams; its position in a typed slot (a double written into an object field is a fresh
@@ -215,6 +222,7 @@ var AUDIO = (function () {
     // G1672: the shed as update() last saw it; G1723: the loading screen read NOW (BOOT's state - a press of #bootMusic or a
     // setting between two frames is answered on the screen that is up, not on the last frame's)
     get inGarage() { return garage === 1; }, get welcome() { return welcomeNow() === 1; },
+    loadingBehind(on) { LB[0] = on ? 1 : 0; emit('loading', LB[0]); }, get loadingBehindOn() { return LB[0] > 0; },   // AUDIO-ROBUST 4
     get pumped() { return LAST[1]; }, pump: () => pump(),   // G1723: the stalled-loop pump (the count; one tick, for the gate)
     bus: name => N[name] || null,
     get: k => set[k],
@@ -683,6 +691,11 @@ var AUDIO = (function () {
   api.stall = STALL; api.stalls = STALLS; api.robust = ROBUST;
 
   arm();
+  // AUDIO-ROBUST 5: THE MENU'S CLICK IS THE GESTURE. The menu (welcome.js) runs before this file exists; a player who
+  // clicked there has already given the page its permission for sound (the browser's sticky user activation), so the
+  // context is made now - the menu's song (menu_music.js) is taken over by music.js at its connect and plays on through
+  // the loading screens, with no second click asked for. A page nobody has clicked yet waits for the first gesture as before.
+  try { const ua = W.navigator && W.navigator.userActivation; if (ua && ua.hasBeenActive) unlock(); } catch (e) {}
   // G1730: the shot on photo mode's own event (GAME-MENUS G3744 fires 'flydiy:shutter' at the take: the round shutter and
   // FLYDIY_PHOTO.take) - neither file edits the other's
   if (W.addEventListener) W.addEventListener('flydiy:shutter', () => { shutter(); });
