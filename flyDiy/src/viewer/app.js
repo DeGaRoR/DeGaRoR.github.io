@@ -1540,10 +1540,14 @@
   // room's own hand-drawn outdoors. FLYDIY_GVIEW_ON: a rig's switch over both (true / false: the before and the after in one boot)
   const gviewOn = () => { try { const w = window.FLYDIY_GVIEW_ON; return w === true || (w !== false && !/[?&]gview=0\b/.test(location.search || '')); } catch (e) { return false; } };
   const gviewPacks = new Map();   // a pack's base -> its load (one fetch a scene, shared by the rooms it serves)
-  let gviewFor = null, gviewJob = null;
+  let gviewFor = null, gviewJob = null, gviewTicks = 0;
+  // THE FIRST SCENE OF A SESSION WAITS FOR THE GARAGE TO HAVE RUN (GVIEW_WAIT of its own frames, about 10 s): never inside a boot step. GATE
+  // FRAMECOST, 22 Nov, the door view on by default: its 6.2 MB of vertex data and 3 program links stood in the boot's 'garage:landing' step.
+  // A room entered later asks at once; the boot's list may ask earlier, at the step it chooses, through GARAGE_VIEW.prelink().
+  const GVIEW_WAIT = 600;
   // GARAGE_VIEW.prelink() -> the room's scene job (found, fetched, built held down, its programs linked by compileSliced, shown), GARAGE_VIEW.ready: for the
   // boot's list (PERF-LEAD, 22 Nov: "not on the path of the first view ... through compileSliced ... one entry point I can call")
-  if (typeof GARAGE_VIEW !== 'undefined') { GARAGE_VIEW.ready = false; GARAGE_VIEW.prelink = () => { gviewTick(); return gviewJob || Promise.resolve(null); }; }
+  if (typeof GARAGE_VIEW !== 'undefined') { GARAGE_VIEW.ready = false; GARAGE_VIEW.prelink = () => { gviewTicks = GVIEW_WAIT; gviewTick(); return gviewJob || Promise.resolve(null); }; }
   // the clouds through the door by the game's own pass (aa's pre hook, the room's draws): the probe's level is put back first
   function gviewCloudPre(r, cam, rt, drawnScene) {
     if (!hangar || !hangar.gviewCloudCam || typeof CLOUDS === 'undefined') return;
@@ -1557,6 +1561,7 @@
   }
   function gviewTick() {
     if (!gviewOn() || !hangar || !hangar.gviewFrom || gviewFor === hangar || typeof GARAGE_VIEW === 'undefined') return;
+    if (++gviewTicks < GVIEW_WAIT) return;   // (the session's first scene: after the garage has run; later rooms find the count long past)
     gviewFor = hangar; const H = hangar, tFind = performance.now(); GARAGE_VIEW.ready = false;
     gviewJob = GARAGE_VIEW.find(window.FLYDIY_WORLD, roomBase(), roomId()).then(row => { if (!row || hangar !== H) return null;
       if (!gviewPacks.has(row.base)) gviewPacks.set(row.base, GARAGE_VIEW.load(((typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '') + row.base, THREE));

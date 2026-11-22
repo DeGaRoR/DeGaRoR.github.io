@@ -217,6 +217,7 @@ const PAGE = `(() => {
       const ROOMS = opt('rooms') ? opt('rooms').split(',') : null;   // (--rooms HOME: only these sheds' rooms)
       for (const TAG of TAGS) for (const Rm of S) { const shell = Rm.shell || 'club'; if (ROOMS && !ROOMS.includes(Rm.id)) continue;
         await rig.ev('window.FLYDIY_GVIEW_ON = ' + (TAG === 'gview' ? 'true' : 'false'));
+        if (TAG === 'gview') await rig.ev('(() => { try { GARAGE_VIEW.prelink(); return 1; } catch (e) { return 0; } })()');   // (asked for now: the session's first scene otherwise waits for the garage to have run)
         { const r = await roomAt(Rm.id, shell); log('garage: room ' + Rm.id + ' (' + shell + ') -> ' + JSON.stringify(r)); await rig.frames(60); await rig.settleLoad(); await rig.frames(120);
           if (!r || !r.ok) { META.steps['garage_' + TAG + '_' + shell] = { err: 'room ' + Rm.id + ': ' + (r && r.why) }; save(); continue; } }
         const I = await info(); log('garage ' + shell + ': ' + JSON.stringify(I)); if (!I || I.err) { META.steps['garage_' + TAG + '_' + shell] = I; continue; }

@@ -92,6 +92,8 @@ for (const P of PK.packs) {
       '5k the room\'s probe is shot at the room\'s level and the frame\'s draw puts the day back; the game\'s composite material is never disposed with a room'); }
   ok(/GARAGE_VIEW\.prelink = \(\) =>/.test(app) && /H\.gviewFrom\(pack, true\)/.test(app) && /compileSliced\(B\.group, aa && aa\.target \? aa\.target\(\) : null, hangarScene\)/.test(app) && /H\.gviewShow\(\); GARAGE_VIEW\.ready = true;/.test(app),
     '5l the programs of a scene link OFF the frame (built held down, compileSliced, then shown), behind one entry point (GARAGE_VIEW.prelink, GARAGE_VIEW.ready)');
+  ok(/const GVIEW_WAIT = (\d+);/.test(app) && +app.match(/const GVIEW_WAIT = (\d+);/)[1] >= 300 && /if \(\+\+gviewTicks < GVIEW_WAIT\) return;/.test(app) && /gviewTicks = GVIEW_WAIT; gviewTick\(\);/.test(app),
+    '5m the first scene of a session waits for the garage to have run (never inside a boot step); the boot list may ask earlier through prelink()');
   ok(/gviewTick\(\)/.test(app) && /GARAGE_VIEW\.find\(window\.FLYDIY_WORLD, roomBase\(\), roomId\(\)\)/.test(app), '5f app.js asks for the room\'s scene by its world, field and shed, behind the room (gviewTick, GARAGE_VIEW.find)');
 }
 console.log(fails ? 'GATE GARAGEVIEW: FAIL (' + fails + ')' : 'GATE GARAGEVIEW: PASS');
