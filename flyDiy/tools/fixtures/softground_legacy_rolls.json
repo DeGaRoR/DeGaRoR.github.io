@@ -1,86 +1,86 @@
 {
- "what": "GATE SOFTGROUND: the cg after 4 s at full power + 2 s braked with 0.3 of rudder, on flat ground of each legacy SURFACE code 0-7, stock buildGen() and its tricycle; read off origin/master 6ccacc63c (train L40d built; fb8fb633b only re-cooked the parked aircraft) with ITS OWN flight_core.js, in a clean worktree - re-recorded 15 Nov (A0's ask) because L40d's real-canon physics (the ULTRALIGHT G fix, physics 9) moved the ground roll by centimetres in the same train that landed SNOW-MUD FINISH; before: 6a8d705c4 (train L40a, re-recorded 14 Nov when L40a moved the brakes), first 23ce68c1 (train L39b), before SNOW-MUD touched the solver",
+ "what": "GATE SOFTGROUND: the cg after 4 s at full power + 2 s braked with 0.3 of rudder, on flat ground of each legacy SURFACE code 0-7, stock buildGen() and its tricycle; read off origin/master 6ccacc63c (train L40d built; fb8fb633b only re-cooked the parked aircraft) with ITS OWN flight_core.js, in a clean worktree - re-recorded 15 Nov (A0's ask) because L40d's real-canon physics (the ULTRALIGHT G fix, physics 9) moved the ground roll by centimetres in the same train that landed SNOW-MUD FINISH; before: 6a8d705c4 (train L40a, re-recorded 14 Nov when L40a moved the brakes), first 23ce68c1 (train L39b), before SNOW-MUD touched the solver (re-blessed 2026-11-22: PHYSICS-AUDIT, PHYSICS_V 10 - the stock's fixed-pitch propeller is now cut for its own top speed (genPropFit: the static thrust the same to the bit, the fall-off kV2 0.1941 -> 0.1964), so 4 s at full power end 4-34 mm from where 6ccacc63c left them; re-recorded off this branch's core, on purpose)",
  "master": "6ccacc63c",
  "rolls": {
   "stock:0": [
-   -23.155699946990662,
-   1.3829946169389915,
-   4.485313417377696
+   -23.14935803480735,
+   1.3829161966981824,
+   4.475500146967503
   ],
   "stock:1": [
-   -21.732999342842923,
-   1.3605028018055552,
-   4.209099610704138
+   -21.728290642817104,
+   1.360486450373176,
+   4.200976471817188
   ],
   "stock:2": [
-   -13.598332363241678,
-   1.3306401511792947,
-   5.843632044204608
+   -13.606389450536838,
+   1.3307169997618007,
+   5.820410340563764
   ],
   "stock:3": [
-   -18.733622802768675,
-   1.377876209630229,
-   4.505206359018112
+   -18.729372163500038,
+   1.3780160127643566,
+   4.491505897811223
   ],
   "stock:4": [
-   -0.6967943036336016,
-   1.2090934380338,
-   0.3621910976106903
+   -0.6961205617539015,
+   1.2090936749758812,
+   0.3607464371830042
   ],
   "stock:5": [
-   -25.5962296394426,
-   1.2321275223703396,
-   4.684289503520163
+   -25.588817334031877,
+   1.2306124879279776,
+   4.6752526079790275
   ],
   "stock:6": [
-   -24.445688467122014,
-   1.4155247010975565,
-   4.916365037879458
+   -24.436099518824243,
+   1.4156725266122756,
+   4.90411756102815
   ],
   "stock:7": [
-   -18.733622802768675,
-   1.377876209630229,
-   4.505206359018112
+   -18.729372163500038,
+   1.3780160127643566,
+   4.491505897811223
   ],
   "tri:0": [
-   -20.1712481577233,
-   1.281334462161721,
-   16.600749885278983
+   -20.153748455570252,
+   1.2813475086246033,
+   16.60018654607999
   ],
   "tri:1": [
-   -19.449963592136633,
-   1.2816621691050838,
-   14.865816670967101
+   -19.43436570744995,
+   1.281672420115403,
+   14.866161910109199
   ],
   "tri:2": [
-   -12.863399748299209,
-   1.280569467654073,
-   6.600763034546678
+   -12.854579605938325,
+   1.2805646001077844,
+   6.602758688397633
   ],
   "tri:3": [
-   -16.75108375669465,
-   1.2811844259148917,
-   10.838134125279746
+   -16.739845668898468,
+   1.2811905160603299,
+   10.837045374288332
   ],
   "tri:4": [
-   -0.07679475122267548,
-   1.2734384584912248,
-   -0.11508895551924464
+   -0.07584836188325418,
+   1.2734406582556126,
+   -0.11258929343182682
   ],
   "tri:5": [
-   -21.250002867354322,
-   1.3066518132188703,
-   20.57975023409678
+   -21.216612867151575,
+   1.3061484676123263,
+   20.59173826605278
   ],
   "tri:6": [
-   -20.503561439577474,
-   1.2809038630022274,
-   17.821264262273566
+   -20.48349134884407,
+   1.2809171202681986,
+   17.820980810603466
   ],
   "tri:7": [
-   -16.75108375669465,
-   1.2811844259148917,
-   10.838134125279746
+   -16.739845668898468,
+   1.2811905160603299,
+   10.837045374288332
   ]
  }
 }
