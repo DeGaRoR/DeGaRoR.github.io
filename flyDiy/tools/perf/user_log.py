@@ -148,6 +148,23 @@ def main():
             for i in over100[:12]: P('    %+6.2f s  %4.0f ms  calls %s  [%s]' % ((t[i] - t[i0]) / 1000.0, dt[i], calls[i], top3(i)))
             for i in (nor + thin)[:8]: P('    %+6.2f s  a frame with %s draw calls%s' % ((t[i] - t[i0]) / 1000.0, calls[i], ' (not rendered)' if fl[i] & FL.get('noRender', 0) else ''))
             for e in errs[:5]: P('    %+6.2f s  caught: %s' % ((e[0] - t[i0]) / 1000.0, str(e[2:])[:160]))
+            # THE SCREEN (23 Nov): a held frame costs 100-230 ms in the frame times and puts NOTHING on the screen; the game
+            # logs every run of them as 'still' (ms from the last presented frame to the next one). THAT is the freeze.
+            st = [e for e in ev if e[1] == 'still' and t[i0] - 1000 <= e[0] <= t[i0] + 20000 and e[2]]
+            if st:
+                w = max(st, key=lambda e: e[2]); keep = bool((w[3] or {}).get('keep')) if isinstance(w[3], dict) else False
+                P('    THE SCREEN: %d stretches with no new picture, %.1f s in all; the longest %.0f ms (ending %+.1f s after), %s' % (len(st), sum(e[2] for e in st) / 1000.0, w[2], (w[0] - t[i0]) / 1000.0, 'the last picture frozen (keepframe)' if keep else 'THE PAGE SHOWN (row 15)'))
+                P('    ROW 14 READ ON THE SCREEN: the longest wait for a new picture is %.0f ms (target 250)' % max(w[2], dt[worst]))
+            elif not any(e[1] == 'still' for e in ev):
+                P('    (this log has no \'still\' events: either no frame was held, or the build is older than 23 Nov and its frame times do NOT show the time the screen stood still)')
+    # ROW 15 OVER THE WHOLE LOG: every stretch the screen showed no new picture (held frames), wherever it was
+    st = [e for e in ev if e[1] == 'still' and e[2]]
+    if st:
+        P('')
+        P('## Row 15, the screen with no new picture (held frames), the whole log')
+        pg = [e for e in st if not (isinstance(e[3], dict) and e[3].get('keep'))]
+        P('- %d stretches, %.1f s in all, the longest %.0f ms; %d of them showed the PAGE (no keepframe): %.1f s' % (len(st), sum(e[2] for e in st) / 1000.0, max(e[2] for e in st), len(pg), sum(e[2] for e in pg) / 1000.0))
+        for e in sorted(st, key=lambda e: -e[2])[:10]: P('    t %.1f s  %5.0f ms  %s' % (e[0] / 1000.0, e[2], str(e[3])[:80]))
     text = '\n'.join(out)
     print(text)
     if md: io.open(md, 'w', encoding='utf-8', newline='\n').write(text + '\n')

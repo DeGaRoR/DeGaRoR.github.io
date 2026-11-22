@@ -22174,6 +22174,24 @@
     if ((!inGarage || studioOn) && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();   // (G3726: no shed in the studio)
     if (aa) framePresented = aa.render(inGarage && !introAt ? garageScene() : scene, camera) !== 'held';
     else renderer.render(inGarage && !introAt ? garageScene() : scene, camera);
+    // PERF-LEAD (23 Nov, ROWS 14 / 15): THE TIME THE SCREEN SHOWED NO NEW PICTURE. A held frame costs its 100-230 ms in the
+    // recorder's frame times - and puts nothing on the screen: the Cub's crash read "worst frame 233 ms" while the screen
+    // stood still (or showed the page) for 4-9 s (the user, 23 Nov: "the 200 ms quoted before are rubbish, it freezes for
+    // several seconds"). So every run of held frames is an event in the flight log: 'still', its length from the last
+    // PRESENTED frame to the next one, the frames it swallowed, and whether the canvas kept its picture (?keepframe=1:
+    // a frozen picture) or not (the page shows). One branch a frame; the log's reader counts it as ONE frame of that length.
+    if (typeof window !== 'undefined') {
+      const ST = window.FLYDIY_STILL || (window.FLYDIY_STILL = { shownAt: 0, frames: 0, runs: 0, heldFrames: 0, worstMs: 0, lastMs: 0 });
+      const tS = performance.now();
+      if (!framePresented) { ST.frames++; ST.heldFrames++; }
+      else {
+        if (ST.frames && ST.shownAt) {
+          const ms = tS - ST.shownAt; ST.runs++; ST.lastMs = ms; if (ms > ST.worstMs) ST.worstMs = ms;
+          if (window.FLIGHT_REC && window.FLIGHT_REC.event) window.FLIGHT_REC.event('still', Math.round(ms), { f: ST.frames, keep: /[?&]keepframe=1(&|$)/.test(location.search || '') ? 1 : 0 });
+        }
+        ST.frames = 0; ST.shownAt = tS;
+      }
+    }
     if (shedSh) SHED_SHADOW.post();
     if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
     if (drawGuard && !inShed) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
