@@ -3078,8 +3078,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                                         (m0.userData.vesSet ||
                                                          m0.userData.charKey ||
                                                          m0.userData.panelSet ||
-                                                         m0.userData.propMat ||
-                                                         m0.userData.tyreTex))
+                                                         m0.userData.tyreTex ||   // (WHEEL-TEX: a textured tyre keeps its uv too)
+                                                         m0.userData.propMat))
                                                        ? [] : null });
         const lv0 = G3.pos.length / 3;
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
