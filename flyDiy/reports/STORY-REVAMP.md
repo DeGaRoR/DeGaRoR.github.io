@@ -19,7 +19,7 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 | story-4 | THE SWITCH-OVER: a player's career reads the story pack with no flag (the career loader of both pages, app.js, the adoption at the load, the projects on the clock); the projects board's record; `mission_feas --official`; `tools/story_feas.js`; the HANDOVER entry | PUSHED `claude/ready/story-4` 7667a826b |
 | story-5 | THE MISSION EDITOR: a row on the start menu, a way back, "Try it in the game", and the story pack's own structure editable (rules, clients, starting kits, projects and steps) | PUSHED `claude/ready/story-5` a02d9d81c |
 | story-6 | story.json IS THE EDITOR'S: the file in the editor's save format, the generator deleted, GATE STORYPACK 9-13 as rules (never today's counts or names), a frozen copy of the pack for the mechanism rows | PUSHED `claude/ready/story-6` |
-| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`) | running in the background; 8 of 91 rows: 4 feasible, 4 infeasible as flown - read one by one in "The flights so far" below (2 causes are master's, 1 is a datum of the lake, 1 under diagnosis) |
+| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`) | running in the background; 12 of 91 rows: 9 feasible, 3 infeasible as flown - read one by one in "The flights so far" below (the Cessna's slip: master's; Cabin Lake: a datum of the lake). Two club events were red and are corrected and re-flown |
 | the tutorial flown | `node tools/story_run.js`: 8 beats, 4 flights + the job's 2, 3 753 s flown. GATE TUTORFLY at 89d00aa76 with the story pack in use and adopted from the career's birth: PASS, 19 of 19 checks (49 min) | flown twice, the same times |
 
 ## The rules this work is held to
@@ -133,10 +133,10 @@ instead (neither target fails the airworthiness tier) and stand in for the bench
 The walk with the pack in use found a bug of the switch-over: the tutorial's one job sat second on a board whose
 contracts come in any order; it leads it again.
 
-## The flights so far (8 of 91)
+## The flights so far (12 of 91)
 
-Every row is kept AS FLOWN (`reports/STORY-REVAMP/feasibility/<id>.json`); none is re-pinned or dropped. Four missions
-are feasible (hangar.01, home.01, club.stol in the Cub; community.01 in the Cessna 172). Four are not, read one by one
+Every row is kept AS FLOWN (`reports/STORY-REVAMP/feasibility/<id>.json`); none is re-pinned or dropped. Nine missions
+are feasible (hangar.01, home.01, obs.01, community.02 and the club's three in the Cub; community.01 in the Cessna 172; lumber.01 on floats). Five were not, read one by one
 with the harness's whole leg record (`phases`, the pilot's own verdicts, the landing):
 
 | mission | the flight | what the trace says | whose |
@@ -144,7 +144,8 @@ with the harness's whole leg record (`phases`, the pilot's own verdicts, the lan
 | mine.04 | HOME > mn_strip, 2 passengers, the Cessna 172: on its back in the flare at 780 s | the pilot says "250 m of strip for a 249 m landing run - no margin", raises its approach speed (the elevator on its stop), slips on the short final, the aileron goes to its stop against 15 deg of bank, capsized | MASTER'S: the built-in pack's `minedock.02` is the same flight and ends the same way, to the second, on a plain origin/master worktree (9349a62c) |
 | home.03 | w3 > w1 (the Cabin Strip, 383 m), 250 kg, the Cessna 172: broke up on the second leg | the same aeroplane, the same end of a landing | the same cause as above (not re-flown on master: no built-in mission lands the Cessna on w1) |
 | home.08 | SEA > cb_sea (Cabin Lake), 150 kg, the Cessna on floats: on its back on the final at 550 s | the lake (103 m) lies between ridges: 190 m over the water 750 m beyond its north-east end, 115 m at 1 km beyond the south-west end. The pilot picks the north-east final, is 99 to 223 m over the slope, slips, capsizes | A DATUM OF THE LAKE: with the landing direction forced the other way (the lane's `approach: 0`) the same flight LANDS - two go-arounds, 1 278 s, touched 844 m in, stopped with 98 m of lane left. With `approach: 1` it is the crash above, to the tenth of a second |
-| club.pylons | HOME > the four gates > HOME, the Cub then the Jodel: both land after 922 s with gate 1 not counted | under diagnosis (re-flown with each gate's closest pass recorded) | to be read |
+| club.pylons | HOME > the four gates > HOME: landed with no medal | the Cub flies the four gates (each passed within 6 m of its middle, 100 m up); its lap is 215.9 s and the bronze time was 215 s - a guess, 0.9 s under the slowest validated aeroplane | MINE, CORRECTED: bronze and the target 250 s (gold 130 and silver 165 as they were). Re-flown: FEASIBLE, 942 s. (The second aeroplane tried, the Jodel, had no gate counted at all: still being read) |
+| club.spot | HOME > w2, the spot 300 m in: "the sp spot was not measured" | 73c measures a touchdown only when it runs the line's `dir`, and every line of the stop must be measured; the pilot took the wind's end of w2 and landed the other way (touched 397 m in from the far end) | MINE, CORRECTED IN THE HARNESS: a competitor lands the line's way, so for that flight the field's record names it (`mission_feas_lib.js`; the row says so). Re-flown: FEASIBLE, 95.3 m from the spot (bronze); club.stol the same 197.8 m. On the page it is the player who lands it: the brief must say which way (words: the story's writer) |
 
 What follows from the three that are read:
 

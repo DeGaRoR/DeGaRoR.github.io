@@ -29,10 +29,12 @@
    ]
   }
  ],
- "notes": [],
+ "notes": [
+  "the sp spot line names the landing way (204 deg): flown that way, whatever the wind"
+ ],
  "untested": false,
  "key": "3b6fa1c5c97a",
  "where": "contract",
  "pool": "validated",
- "wallS": 583
+ "wallS": 350
 }

@@ -29,10 +29,12 @@
    ]
   }
  ],
- "notes": [],
+ "notes": [
+  "the ld landing line names the landing way (204 deg): flown that way, whatever the wind"
+ ],
  "untested": false,
  "key": "98e5096d686a",
  "where": "contract",
  "pool": "validated",
- "wallS": 573
+ "wallS": 341
 }
