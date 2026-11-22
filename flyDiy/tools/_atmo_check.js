@@ -307,6 +307,10 @@ console.log('9. NIGHT-SUN: the light seen');
   yes(has(wa, 'wGR = uWGlint.w; wGV = uWGlint.x;') && has(wa, '(wGV * mix(1.0, uWGlint.y, wGR))') && has(wa, 'float wGR = 0.0, wGV = 1.0,'),
       'the water\'s direct highlight takes the key\'s visibility at every hour (the directional loop only: a lamp keeps 1)');
   yes(has(gl, '(o.seen != null ? Math.max(0, Math.min(1, o.seen)) : 1)') && has(ap, 'seen: hE, isMoon: L.isMoon'), 'the flare takes the disc\'s share over the eye\'s horizon');
+  // a disc is reflected once: at night the water's probe lookup is held to the sky's round the key moon (the direct highlight carries the disc)
+  yes(has(wa, 'if (uWDisc.w > 0.0) {') && has(wa, 'iblRadiance = mix(iblRadiance, min(iblRadiance, wSk), wDm);') && has(wa, 'U.uWDisc.value.set(mv.x, mv.y, mv.z, NIGHT_SEA.disc * tS); else U.uWDisc.value.w = 0;')
+      && has(wa, 'uniform vec4 uWGlint; uniform vec4 uWDisc; '),
+      'at night the sea reflects the moon\'s disc once, by its direct highlight: the probe\'s lookup round the moon is held to the sky\'s, never raised (0 by day: the branch is not taken)');
   // the mist's forward peak: the key light's, none for a set light
   yes(has(src, 'mistScalars[7] = MIST.fwd * kf;') && has(src, 'const kd = NIGHTSUN_OFF ? day.sun : kl;') && has(src, 'SEEN.keyMoon ? SEEN.moon.hor * (lumA > 0 ? Math.max(0, 1 - lumS / lumA) : 0) : SEEN.sun.hor'),
       'the mist\'s forward peak is the key light\'s and goes with its disc (by day: the sun\'s, x 1)');
