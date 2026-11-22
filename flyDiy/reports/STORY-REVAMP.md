@@ -15,10 +15,11 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 |---|---|---|
 | story-1 | THE RULES ON THE PACK: no drawn job, no drawn shady job, an unflyable mission offered, repeating authored contracts, a project step moves its world track and gives machinery; GATE STORYPACK | PUSHED `claude/ready/story-1` 2e319695c |
 | story-2 | THE PACK'S OWN CLIENTS, FOUR PROJECT TRACKS, THE STORY PACK v0; a whole career walked in the gate | PUSHED `claude/ready/story-2` 2f9def0e8 |
-| story-3 | THE TUTORIAL ON NODE (`tools/story_run.js`, GATE TUTORWALK core + TUTORFLY full); THE AERO CLUB (six events, the STOL / attitude samples wired on the page and in the rig, results kept on the career); THE MACHINERY GIVEN (the pack's start, kits given by projects, the career adopts its pack once) | on the branch (abe740cc3), gates running |
-| story-4 | THE SWITCH-OVER: a player's career reads the story pack with no flag (the career loader, app.js, the adoption at the load, the projects on the clock); the projects board's record | coded, gated in node (GATE STORYPACK 16-17), a headless browser boot running |
-| feasibility | every mission of the story pack flown on node (`tools/mission_feas.js`, 3 shards) | running in the background |
-| the tutorial flown | `node tools/story_run.js` (4 flights + the job's 2) | running in the background |
+| story-3 | THE TUTORIAL ON NODE (`tools/story_run.js`, GATE TUTORWALK core + TUTORFLY full); THE AERO CLUB (six events, the STOL / attitude samples wired on the page and in the rig, results kept on the career); THE MACHINERY GIVEN (the pack's start, kits given by projects, the career adopts its pack once) | PUSHED `claude/ready/story-3` 6c076ee23 |
+| story-4 | THE SWITCH-OVER: a player's career reads the story pack with no flag (the career loader of both pages, app.js, the adoption at the load, the projects on the clock); the projects board's record; `mission_feas --official`; `tools/story_feas.js` | gated at the tip; the feasibility harness gate at the tip is the last check before the push |
+| story-5 | THE MISSION EDITOR: a row on the start menu, a way back, "Try it in the game", and the story pack's own structure editable (rules, clients, starting kits, projects and steps) | on the branch, gates running |
+| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`) | running in the background; rows land in `reports/STORY-REVAMP/feasibility/` |
+| the tutorial flown | `node tools/story_run.js`: 8 beats, 4 flights + the job's 2, 3 753 s flown, PASS (on e5df77487); again at the tip with the story pack in use: running | flown once |
 
 ## The rules this work is held to
 
@@ -109,10 +110,54 @@ The 14: the totem site's two (150 m strip; 300 kg in one 3 m piece), six of the 
 
 ## The tutorial on node
 
-`node tools/story_run.js --dry`: T0 -> T7 in order, the effects applied (the hangar, the client's Cub, the gift, the
-checkpoint); both builds' rows all open on the start file and all met on the target (5 + 4); the end = the checkpoint
-(17 July, 12 000, the one seed) = the state of "New career, no tutorial"; then the story pack's board: 28 missions,
-none drawn, 5 projects open. The flown run (4 flights + the job's 2) is running; its table lands here.
+`node tools/story_run.js --dry` (GATE TUTORWALK, core): T0 -> T7 in order with the story pack in use and adopted at the
+career's birth; the effects applied (the hangar, the client's Cub, the gift, the checkpoint); both builds' rows all open
+on the start file and all met on the target (5 + 4); the end = the checkpoint (17 July, 12 000, the one seed) = the
+state of "New career, no tutorial"; then the board: the pack's, none drawn.
+
+`node tools/story_run.js` (GATE TUTORFLY, full), flown on e5df77487: PASS.
+
+| beat | flight | aeroplane | from > to | flown |
+|---|---|---|---|---|
+| T1 | the move | the starter | cabin strip (w1) > the field (HOME) | 1 132 s |
+| T4 | the delivery | the client's Cub, upgraded | HOME > the owner's strip (w6) | 1 201 s |
+| T6 | the one job, its load aboard | the same Cub | HOME > w3 > HOME (2 flights, the career's stops) | 1 062 s |
+| T7 | the floats | the Cub on floats | the seaplane base (SEA) > SEA | 358 s |
+
+Every one boarded, started, taxied, took off, flew, landed and stopped where the beat asks. Total 3 753 s.
+What node does NOT run: the bench's structural tests (the page's); the design check's two certificate tiers are read
+instead (neither target fails the airworthiness tier) and stand in for the bench's signature.
+The walk with the pack in use found a bug of the switch-over: the tutorial's one job sat second on a board whose
+contracts come in any order; it leads it again.
+
+## The mission editor
+
+Where: the start menu's "Mission editor" row (new), or `flyDiy/tools/mission_editor.html`. A light page: the game is not
+loaded. "<- The game" brings back; "Try it in the game" opens a new tab on the TEST career playing the pack being
+written (never a player's own career).
+
+| it could already | it can now |
+|---|---|
+| a tree: campaign > chapter > mission > leg > step | + projects > steps > their missions |
+| a mission's form with labelled fields, the in-game card's preview, the island map to pick places, the game's own validator | + "Comes back" (after n others), "After these projects", "It gives" |
+| open the built-in pack or a file, save a file | + open the story pack (one button), try the draft in the game |
+| - | the pack's own form: how the job board is filled (three plain choices), the clients it brings, what a career starts without, its projects |
+| - | a client's form: name, short name, face, airfields, track, colour |
+| - | a step's form: its missions, the days and cost of its works, where, what it builds (a stage, by its caption), what it gives |
+
+Checked by driving it in a headless browser (not a gate): the forms above, an edit kept in the draft, the pack still
+checking out, no page error; then "Try it in the game": the game's page on the test career, pack story in use, 91
+missions, the project renamed in the editor showing that name.
+A bug fixed on the way: `?pack=draft` handed the game the editor's draft WRAPPER ({ file, pack }), never a pack, so a
+draft could not be tried at all.
+
+NOT in the editor yet (listed, not hidden): the competition fields (a STOL line, a regularity lap, a course, a ghost) are
+edited through "Advanced: the raw JSON" only; the pack's text for a client's short name is edited, its portrait is
+picked among the existing faces only.
+
+WHO OWNS story.json: today `tools/_story_pack.js` writes it and GATE STORYPACK 9 holds the file to the tool, so a pack
+saved from the editor over `src/missions/story.json` turns that row red. The hand-over (the editor becomes the source,
+the tool is retired, the gate's fixed counts become structural rules) is one small ready, on the user's word.
 
 ## Baseline and reds (origin/master 9349a62c, this container)
 
@@ -138,4 +183,7 @@ Re-pin: GATE CONTRACTS' track list and a new career's tracks (the four project t
 | the two clients the pack brings wear stand-in faces (home: sophie; community: james) | portraits | 72_people.js |
 | a project's works cost nothing but at home (0 everywhere else); home's missions pay nothing | economy pass (ready 5) | the pack |
 | the machinery pop-up animation and the reveal's panning shot | local GPU work | out of scope here |
-| the Projects board on the page (the steps, the works running) | page work, after the flip | app.js shows project lines on the arrival card only |
+| the Projects board on the page (the steps, the works running) | page work (Game); its record exists: `careerProjectsBoard` | app.js shows project lines on the arrival card only |
+| a "restart this flight" on the page (the free restart of every flight) | page work | a crash resets the aeroplane, free; no voluntary restart |
+| the full feasibility table: the sim flies at about the game's speed, the whole pack is ~40 hours of one core | box time (`node tools/story_feas.js --fly --workers=N`, then `--table`; `--check` becomes GATE STORYFEAS when no row is missing) | the flights |
+| 8 deliveries no OFFICIAL plane can fly: the totem (300 kg into 150 m), the digger (450 kg into 383 m), six of the observatory's (a loaded ski plane off 210 m of snow) | planes the player builds: a STOL hauler, a ski hauler | `mission_feas --official` |
