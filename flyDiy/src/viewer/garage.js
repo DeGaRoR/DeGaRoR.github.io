@@ -30,6 +30,27 @@
 // (0 = leading edge) and v = span fraction (0 root, 1 tip).
 // ============================================================
 
+// CAR (13 Nov, the Fleet's contract with the game coordinator): THE KIND OF A BUILD - 'car' when the garage's car switch
+// is ON (spec.cage.isCar 1: an explicit row, "no (an aeroplane)" is 0) or the build carries the first cars' legacy
+// spec.meta.car; 'plane' otherwise ('trailer' later). One rule, read by the Fleet's filters and the roll-out
+// (the rule itself is src/viewer/vehicle_kind.js, loaded before this file - spec.kind as the save wrote it first; this
+// is its stand-in when that file is absent, e.g. a gate that boots garage.js alone)
+function vehicleKind(spec) {
+  if (typeof window !== 'undefined' && window.VEHICLE_KIND && window.VEHICLE_KIND !== vehicleKind) return window.VEHICLE_KIND(spec);
+  const s = spec && spec.spec && typeof spec.spec === 'object' ? spec.spec : spec;
+  if (!s || typeof s !== 'object') return 'plane';
+  if (s.cage && s.cage.isCar != null && s.cage.isCar !== '') return +s.cage.isCar > 0 ? 'car' : 'plane';
+  if (s.kind === 'car' || s.kind === 'trailer') return s.kind;
+  if (s.meta && s.meta.car) return 'car';
+  return 'plane';
+}
+if (typeof window !== 'undefined' && !window.VEHICLE_KIND) window.VEHICLE_KIND = vehicleKind;
+// what a save writes: spec.kind for a car (or a trailer), no key for an aeroplane (A0: no plane file gains a key)
+function stampKind(s) {
+  if (!s || typeof s !== 'object') return;
+  const k = vehicleKind(s);
+  if (k === 'plane') delete s.kind; else s.kind = k;
+}
 const GEN_TEX = 1024;                     // paint sheet, up from 512
 const GEN_RIBS = 13;                      // rib tapes across the semispan
 
@@ -773,6 +794,23 @@ function garageInit(api) {
     const dev = /dev\.html/.test((window.location && window.location.pathname) || '') || !!(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
     return listsP.then(l => l.filter(p => p && (dev || (PLAYER_CLASSES.includes(p.list) && labOk(p) && !p.rides))).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
   };
+  // CAR (13 Nov; the user's must-land list: "a ROBUST car detection: a vehicle kind on the save/spec, not a guess from its
+  // shape ... cars live in builds/lists/vehicles.json ... put apart in the fleet manager"): THE VEHICLES LIST (FLAGSHIP's
+  // file; the CAR session's to read). A row is { kind ('car' when absent), name, file, thumb?, note? }; it opens through
+  // openListed like a plane row. The kind of a BUILD is window.VEHICLE_KIND below (the Fleet's contract)
+  const VEHICLES_FILE = 'builds/lists/vehicles.json';
+  let vehP = null;
+  const vehicleList = () => {
+    if (!vehP) {
+      // (the layers and the switches: VEHICLE_KIND.layers, src/viewer/vehicle_kind.js - the list is validated then candidate,
+      // each row carrying its layer as `layer`)
+      vehP = (typeof fetch === 'function' ? fetch(VEHICLES_FILE).then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
+        .then(j => { const L = window.VEHICLE_KIND && window.VEHICLE_KIND.layers ? window.VEHICLE_KIND.layers(j) : { validated: [], candidate: [] };
+          return L.validated.map(v => Object.assign({ layer: 'validated' }, v)).concat(L.candidate.map(v => Object.assign({ layer: 'candidate' }, v))); }, () => []);
+      vehP.then(l => { if (!l.length) vehP = null; });
+    }
+    return vehP;
+  };
   const openListed = p => {
     // a SHAPE ROW (list:55 Spitfire, list:56 Skymaster: `shape`, no file) is built from its chooser shape (new_plane.js openShape)
     if (p.shape) { const why = window.NEW_PLANE && window.NEW_PLANE.openShape ? window.NEW_PLANE.openShape(p.shape) : 'the chooser is not loaded'; if (why) alert(p.name + ': ' + why); return; }
@@ -1224,6 +1262,7 @@ function garageInit(api) {
     // shelf row wins, because it is the one you typed.
     if (!spec.meta || typeof spec.meta !== 'object') spec.meta = {};
     spec.meta.name = typed;
+    stampKind(spec);                // CAR: the build's kind travels with it (spec.kind; an aeroplane carries none)
     // PREM-S2: a save over this slot whose FINISH changed is a repaint (it resets the airframe's outside wear)
     let repainted = false;
     try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');
@@ -1259,6 +1298,7 @@ function garageInit(api) {
   // exports.") It is a ribbon verb now; the popup keeps the NOUNS.
   function exportFile() {
     commit();
+    stampKind(spec);
     const name = slotName || 'flydiy-build';
     const blob = new Blob([envelope(name, spec, plaque, log, true)],
                           { type: 'application/json' });
@@ -1566,6 +1606,9 @@ function garageInit(api) {
       planeLists, openListed, officialPool, listed: () => (listedRow && listedRow.spec === spec ? { file: listedRow.file, row: listedRow.row } : null),
       // THE FLEET (fleet_screen.js): the saved builds as data and their doors
       fleet: fleetModel, fleetDo: fleetVerbs,
+      // THE VEHICLES (A0 for the user, 15 Nov): builds/lists/vehicles.json in its two layers (VEHICLE_KIND.layers; each row's
+      // `layer` validated | candidate, validated first), the switches showVehicles / showCandidates applied - fleet_screen.js's door
+      vehicleLists: vehicleList,
       candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log, null, lvOf(g)); },

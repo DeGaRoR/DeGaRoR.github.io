@@ -83,7 +83,7 @@ const TRL_WX = {
          grime: [0.070, 0.060, 0.048, 0.92], rust: [0.200, 0.075, 0.030, 0.95], zinc: [0.42, 0.43, 0.42, 0.92] },   // (AERO_WX_COL; zinc: the white rust)
   // per material [dirt gain, corrosion 0 none / 1 zinc / 2 iron, silvering, saturation]
   mat: { galv: [1, 1, 0, 1], galvDk: [1.1, 1, 0, 1], wheel: [0.9, 2, 0, 1], drum: [1, 2, 0, 1], rubber: [0.8, 0, 0, 1], chock: [0.7, 0, 0, 1],
-         plank: [0.8, 0, 0.6, 0.5], timber: [0.8, 0, 0.6, 0.5], alu: [0.6, 0, 0, 1], black: [0.7, 0, 0, 1], chrome: [0.35, 0, 0, 1],
+         plank: [0.8, 0, 0.3, 0.7], timber: [0.8, 0, 0.3, 0.7], alu: [0.6, 0, 0, 1], black: [0.7, 0, 0, 1], chrome: [0.35, 0, 0, 1],
          white: [0.5, 0, 0, 1], red: [0.3, 0, 0, 1], amber: [0.3, 0, 0, 1], strap: [0.6, 0, 0, 1], carpet: [0.8, 0, 0, 1] },
 };
 const TRL_WX_VS_HEAD = '\nvarying vec3 vTrlP;\nvarying vec3 vTrlN;\n';

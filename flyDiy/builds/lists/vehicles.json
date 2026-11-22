@@ -2,9 +2,38 @@
  "what": "flydiy-vehicles",
  "v": 1,
  "note": "THE VEHICLES (FLAGSHIP's choice (b), 12 Nov, via A0): a car is not a plane - no registration, no class, no REAL-FIGURES check - so the cars live here, not in plane_lists.json or the candidates pool. Moved here at the TOW-LAUNCH x master merge from the car branch's plane-list rows 50/51 and pool entries; the CAR session owns this list (what the garage reads from it is theirs). Each row carries its kind ('car'; the trailer 'trailer'): window.VEHICLE_KIND (src/viewer/vehicle_kind.js) is the one rule for a build.",
+ "switches": "THE GARAGE'S VEHICLES CATEGORY (A0 for the user, 15 Nov): showVehicles false = no Vehicles category in the garage's Fleet at all; showCandidates false = the candidate layer hidden, the validated kept. The rule: VEHICLE_KIND.layers (src/viewer/vehicle_kind.js); the gate: GATE VEHICLE (tools/_vehicle_list_check.js).",
+ "showVehicles": true,
+ "showCandidates": true,
+ "statusNote": "status: validated | candidate (absent = candidate). The user, 15 Nov via A0: VALIDATED the Field Wagon van (all three liveries; the stock car and the tow car) and the boat-tail roadster (the easter egg); CANDIDATES the Ranch Hand UTV and the Dune Bug. The Conquer '89 pickup (an imported model, no garage build) stays selectable in the game, not a default, until the built cars are proven.",
  "vehicles": [
   {
    "kind": "car",
+   "status": "validated",
+   "name": "Field Wagon Retro (van)",
+   "file": "builds/vehicles/utility_retro_2026-11.json",
+   "note": "CAR-3: the airfield's official tow & utility van - a 1940s-style large van from the Cessna 172 card (two pax bays, rear doors, tow hitch, 4WD); the Retro livery: cream over navy, 'Home Field' lettering. Tows the glider and the floatplane trailer",
+   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)"
+  },
+  {
+   "kind": "car",
+   "status": "validated",
+   "name": "Field Wagon (van)",
+   "file": "builds/vehicles/utility_2026-11.json",
+   "note": "CAR-3: the same van, its first livery (TOW 1)",
+   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)"
+  },
+  {
+   "kind": "car",
+   "status": "validated",
+   "name": "Field Wagon Alpine (van)",
+   "file": "builds/vehicles/utility_mountain_2026-11.json",
+   "note": "CAR-3: the same van in the Alpine livery (the 'mountains' kit pattern)",
+   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)"
+  },
+  {
+   "kind": "car",
+   "status": "validated",
    "name": "Boat-tail roadster (car)",
    "file": "builds/candidates/roadster_2026-11.json",
    "thumb": "cand:roadster_2026-11.json",
@@ -13,11 +42,33 @@
   },
   {
    "kind": "car",
+   "status": "candidate",
+   "name": "Ranch Hand (UTV)",
+   "file": "builds/vehicles/utv_2026-11.json",
+   "note": "CAR-4: a two-seat utility vehicle from the Cub card - the twin booms as its chassis, the stabiliser as its bed; tows the light motorglider",
+   "from": "CAR session (tools/_rejoin_build.js + builds/edits/)"
+  },
+  {
+   "kind": "car",
+   "status": "candidate",
    "name": "Dune Bug (buggy)",
    "file": "builds/candidates/buggy_2026-11.json",
    "thumb": "cand:buggy_2026-11.json",
    "note": "CAR-2: a dune buggy built from Rufus - its open tube frame is the roll cage, no wing, tail or prop, the Rotax 912 exposed in front, four tundra wheels on wishbones and coil-overs; it DRIVES (tools/car_sheet.js), it does not fly",
    "from": "CAR-2 (tools/_rejoin_build.js + builds/edits/buggy_2026-11.edits.json)"
+  },
+  {
+   "kind": "car",
+   "status": "selectable",
+   "name": "Conquer '89 (pickup)",
+   "file": null,
+   "sheet": "src/cars/car_conquer.json",
+   "note": "the imported pickup model (cars_car.js / cars_lods.js / cars_packs.json): selectable in the game, NOT a default - the van is the stock and tow car. No garage build, so the garage's Vehicles category does not list it. Removed once the built cars are proven (the user, 15 Nov)."
   }
- ]
+ ],
+ "stockCar": {
+  "file": "builds/vehicles/utility_retro_2026-11.json",
+  "sheet": "src/cars/car_utility.json",
+  "note": "THE STOCK CAR (the user, 15 Nov: \"the van is the default, with the dark blue livery\"): the drive, the line tow and the trailer tow take this build when no car is handed - src/viewer/drive_mode.js stockVan (VAN), captured through parked.js; the Conquer pickup drives with ctx.stock 'pickup' or where no editor can capture (node, the gates)."
+ }
 }

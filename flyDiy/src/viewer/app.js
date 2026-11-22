@@ -3109,6 +3109,16 @@
       // A BAKED PIECE'S OWN MATERIAL (session 4d): the key from the hardware
       // kit keeps its textures — the props registry rebuilds the very
       // material the editor drew it with
+      // WHEEL-TEX (CAR-3): a textured tyre or rim - its maps redrawn by the very factory the garage drew it with
+      // CAR-TEX (16 Nov): the plate's and the tow sign's faces, redrawn by the factory the garage drew them with
+      if (data.cage && m.carTex && window.CAGE_CARTEX) {
+        const cm = window.CAGE_CARTEX.material(m.carTex);
+        if (cm) return matCache[mn] = cm;
+      }
+      if (data.cage && m.tyreTex && window.CAGE_WHEELTEX) {
+        const tm = window.CAGE_WHEELTEX.material(m.tyreTex);
+        if (tm) return matCache[mn] = tm;
+      }
       if (data.cage && m.propMat && typeof propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');
@@ -16555,6 +16565,7 @@
       return;
     }
     if (inGarage && launchAsk()) return;   // TOW-LAUNCH: a float or hull build - on the water, or from the trailer
+    if (inGarage && carBuild()) { DRIVE.enter(); return; }   // CAR: a car rolls out to DRIVE (its own sheet and meshes)
     if (inGarage) {
       // ROLL OUT & FLY flies WHAT YOU DESIGNED (G47.1, user: "roll out
       // and fly still gives the old yellow plane"). Since G65 that is not a
@@ -20987,7 +20998,7 @@
     // later (under load, after the roll-out screen has lifted) - it used to rebuild the aeroplane and
     // walk the flight back into the shed. Measured on Jolene headless: every roll-out ended in the
     // garage 5 s after it began. A late spec waits for the next visit to the garage.
-    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
+    apply(spec) { genSpec = spec; LAST_BAL = null; if (typeof carPreload === 'function') carPreload(); $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     ledger: () => (curKey === 'gen' && def && def.parts ? def.parts.ledger : null),   // G2806: the bill by section
     shake: () => shakeOf(),
@@ -23129,6 +23140,28 @@
   // and distance, hud(), drawMap(), flTrip(), planSet() (the To picker), gmHold() (Pause), fullReset() (Restart), the
   // view key. The menu's "Drive the pickup" / "Back to the aeroplane" row; ?drive=1 drives once the boot lifts.
   const DRIVE_Q = (() => { try { return /[?&]drive(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
+  // CAR (13 Nov; the user's must-land list: "put the car in the garage, roll out, pick a destination, drive there"): a
+  // garage build whose car switch is on (window.VEHICLE_KIND, garage.js) rolls out to DRIVE, not to fly - measured on the
+  // stand first (src/vehicle/car_sheet_core.js carFromGarage: its sheet, its tune, a rig of its own meshes), then rolled
+  // out, then handed to the drive mode as its vehicle (DRIVE_MODE.vehicleSource); any other build drives the pickup
+  function carBuild() { try { return curKey === 'gen' && !!genSpec && typeof window.VEHICLE_KIND === 'function' && window.VEHICLE_KIND(genSpec) === 'car'; } catch (e) { return false; } }
+  // the car's measure and its shell fetched as soon as a car stands in the garage (so a synchronous ask - the start
+  // chooser's FLYDIY_GARAGE_CAR - finds them loaded)
+  function carPreload() { try { if (window.FLYDIY_LAZY && typeof window.VEHICLE_KIND === 'function' && genSpec && window.VEHICLE_KIND(genSpec) === 'car') window.FLYDIY_LAZY(['vehicle', 'car_sheet_core']); } catch (e) {} }
+  // TOW-LAUNCH's start chooser (window.FLYDIY_START, its go() without a car) asks the garage for THE CAR ON THE STAND:
+  // { sheet (with its tune), mesh (the body, in the sheet's frame), wheels { <sheet wheel id>: Object3D about its hub },
+  // name } - carFromGarage's own pieces (a fresh rig each call: the drive owns what it is handed); null when the stand
+  // holds no car or its measure is not loaded yet
+  window.FLYDIY_GARAGE_CAR = () => {
+    if (!carBuild()) return null;
+    const C = window.CAR_SHEET; if (!C || typeof vehicleDef !== 'function') { carPreload(); return null; }
+    try {
+      const src = C.carFromGarage(window), def = vehicleDef(src.sheet, src.tune), rig = src.buildRig(THREE, def), wheels = {};
+      def.wheels.forEach((w, i) => { wheels[w.id] = rig.wheels[i]; rig.g.remove(rig.wheels[i]); });
+      const mesh = rig.g.children[0]; rig.g.remove(mesh);
+      return { sheet: Object.assign({}, src.sheet, { tune: src.tune }), mesh, wheels, name: src.name };
+    } catch (e) { console.warn('flyDiy: the car on the stand cannot drive -', e && e.message); return null; }
+  };
   const DRIVE = { busy: false,
     // o (FLYDIY_START, the sandbox's start chooser): { at: [x, y, z] the start (a place's), car: { sheet | sheetUrl, mesh,
     // meshMatrix, wheels, name } the garage's car (drive_mode useCar; absent: the stock pickup) } - returns the promise
@@ -23136,10 +23169,13 @@
       if (driveOn() || DRIVE.busy || !window.FLYDIY_LAZY) return Promise.reject(new Error(driveOn() ? 'already driving' : 'busy'));
       DRIVE.busy = true;
       let done = null, fail = null; const P = new Promise((a, b) => { done = a; fail = b; });
+      // (CAR: the car - the chooser's o.car, else, from the garage, THE CAR ON THE STAND measured before the roll-out
+      //  takes the garage away: FLYDIY_GARAGE_CAR; else the stock pickup)
+      let car = (o && o.car) || null;
       const go = () => {
         const cg = sim.cgPos(), at = o && o.at ? o.at : [cg[0], cg[1], cg[2]];
         window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'drive_mode'])
-          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, (o && o.car) || {}, o && o.loop ? { loop: true } : {})))
+          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, car || {}, o && o.loop ? { loop: true } : {})))
           .then(() => {
             DRIVE.busy = false; running = false; started = false;
             if (craft && craft.parent) craft.parent.remove(craft);
@@ -23152,6 +23188,12 @@
           })
           .catch(e => { DRIVE.busy = false; if (window.DRIVE_MODE && window.DRIVE_MODE.on) window.DRIVE_MODE.leave(); console.warn('flyDiy: the drive mode could not start -', e && e.message); fail(e); });
       };
+      if (inGarage && !car && carBuild()) {
+        window.FLYDIY_LAZY(['vehicle', 'car_sheet_core'])
+          .then(() => { car = window.FLYDIY_GARAGE_CAR(); if (!car) throw new Error('the car on the stand could not be measured'); DRIVE.car = car; rollOut(go); })
+          .catch(e => { DRIVE.busy = false; DRIVE.car = null; alert('This car cannot drive yet: ' + ((e && e.message) || e)); fail(e); });
+        return P;
+      }
       if (inGarage) rollOut(go); else go();
       return P;
     },
@@ -23168,7 +23210,8 @@
     menu() {
       if (!window.FLYDIY_MENU) return;
       const on = !!driveOn();
-      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive the pickup', when: () => !inGarage || on,
+      const nm = DRIVE.car && carBuild() ? DRIVE.car.name : 'the pickup';
+      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive ' + nm, when: () => !inGarage || on,
         act: () => { window.FLYDIY_MENU.close(); if (driveOn()) DRIVE.leave(); else DRIVE.enter(); }, before: 'contracts' });
     } };
   if (typeof window !== 'undefined') window.DRIVE = DRIVE;

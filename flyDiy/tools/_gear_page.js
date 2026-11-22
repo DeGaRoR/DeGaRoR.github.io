@@ -185,25 +185,54 @@ const WHEEL_ROWS = [
   ['whSlick', 'tundra tread', 0, 2, 1, ['bush lugs', 'smooth', 'bevelled lugs'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01, notCycle],
   ['whRibs', 'ribs', 1, 5, 1, notCycle],
-  ['whRim', 'rim', 0, 3, 1, ['cast disc', 'spoked', 'lightened', 'steel disc + lock ring'], notCycle],
+  ['whRim', 'rim', 0, 4, 1, ['cast disc', 'spoked', 'lightened', 'steel disc + lock ring', 'pressed, round holes'], notCycle],
   ['whRimD', 'rim diameter (× the wheel\'s; 0 = the carcass\'s own)', 0, 0.85, 0.01, notCycle],   // CAR-1
   ['whWide', 'tyre width (× the carcass\'s; 0 = its own)', 0, 1.5, 0.01, notCycle],   // CAR-1
   ['whBolts', 'rim bolts', 3, 10, 1, notCycle],
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat'], notCycle],
   ['whValve', 'valve stem', 0, 1, 1, notCycle],
-  ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum'], notCycle],
+  ['whBrake', 'brake type', 0, 2, 1, ['disc', 'drum', 'car drum (inside the rim)'], notCycle],
   ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
+  // CAR-3 (WHEEL-TEX): the tyres' and rims' own PBR maps - the tread, the sidewall's lettering, the wear and the dirt
+  // (absent = the plain materials); the pattern (auto: a car all-season, an aeroplane ribbed) and the dirt. Not on the
+  // bicycle wheel (wheelCycle draws its own)
+  ['whTex', 'textured tyres and rims (PBR)', 0, 1, 1, { when: notCycle.when, absent: 0 }],
+  ['whTexPat', 'tread pattern', 0, 3, 1, ['auto', 'vintage wavy ribs', 'modern all-season', 'aviation ribbed'], { when: P => notCycle.when(P) && +P.whTex === 1, absent: 0 }],
+  ['whTexDirt', 'tyre and rim dirt', 0, 1, 0.01, { when: P => notCycle.when(P) && +P.whTex === 1, absent: 0.4 }],
   // CAR (12 Nov): THE CAR SWITCH and the car-only rows (absent = an aeroplane; nothing changes for one)
   ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
   ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],
+  // CAR-3: the rear station as a car's beam axle on leaf springs (absent = the leg as drawn)
+  ['carBeamR', 'rear suspension', 0, 1, 1, ['the leg as drawn', 'beam axle on leaf springs'], { when: P => +P.isCar || +P.carBeamR, absent: 0 }],
   ['carChassisKg', 'chassis mass (frame, axles, transfer case) kg', 0, 600, 5, { when: P => +P.isCar }],
   ['archOn', 'wheel arches (cut in the body)', 0, 3, 1, ['none', 'rear', 'front', 'rear and front'], { when: P => +P.isCar || +P.archOn }],
   ['archGap', 'wheel arch clearance (m)', 0.01, 0.15, 0.005, { when: P => +P.archOn }],
+  // CAR-3: the trailer's tail lamps on the rear corners (absent = none)
+  ['carTail', 'tail lamps (stop, indicator, reverse) on the rear corners', 0, 1, 1, { when: P => +P.isCar || +P.carTail }],
+  // CAR-3: mud guards (rounded 1940s / square military), their clearance over the tyres, the running board
+  ['carFender', 'mud guards', 0, 2, 1, ['none', 'rounded (1940s)', 'square (military)'], { when: P => +P.isCar || +P.carFender, absent: 0 }],
+  ['carFenderGap', 'mud guard clearance over the tyre (m)', 0.02, 0.25, 0.005, { when: P => +P.carFender > 0, absent: 0.07 }],
+  ['carStep', 'running board (step) between the guards', 0, 1, 1, { when: P => +P.carFender > 0, absent: 0 }],
+  ['carStepY', 'step height (up, m)', -0.10, 0.25, 0.005, { when: P => +P.carFender > 0, absent: 0 }],   // CAR-3 (13 Nov: "the step goes up 10 cm")
+  // CAR-3: a pressed licence plate on the rear (its text spec.meta.plate; absent = none)
+  ['carPlate', 'licence plate (rear)', 0, 1, 1, { when: P => +P.isCar || +P.carPlate, absent: 0 }],
+  // CAR-3 TOW KIT (13 Nov): a sign on the windscreen's header, roof beacons, wipers on the windscreen and rear windows
+  ['carTowSign', 'tow sign (over the windscreen)', 0, 1, 1, { when: P => +P.isCar || +P.carTowSign, absent: 0 }],
+  ['carBeacon', 'roof beacons', 0, 1, 1, { when: P => +P.isCar || +P.carBeacon, absent: 0 }],
+  ['carWipers', 'wipers (windscreen + rear windows)', 0, 1, 1, { when: P => +P.isCar || +P.carWipers, absent: 0 }],
+  ['carTailAt', 'tail lamps\' face', 0, 1, 1, ['on the corner (45 degrees)', 'flat on the back'], { when: P => +P.carTail, absent: 0 }],
   // CAR-1: a spare wheel on the body's flank (absent = none)
-  ['spareOn', 'spare wheel on the flank', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],
-  ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn }],
-  ['spareSide', 'spare wheel side', -1, 1, 2, ['left', 'right'], { when: P => +P.spareOn }],
+  ['spareOn', 'spare wheel', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],
+  ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn && +P.spareAt !== 1 }],
+  // (13 Nov: the cage's +x is the PORT side (G209) - the labels read 'left' for -1 and put the van's spare on the
+  // wrong door; the values are unchanged, only their names: -1 the right (starboard), 1 the left (port))
+  ['spareSide', 'spare wheel side', -1, 1, 2, ['right', 'left'], { when: P => +P.spareOn }],
   ['spareY', 'spare wheel up / down (m)', -0.4, 0.4, 0.005, { when: P => +P.spareOn }],
+  // CAR-3: the spare on the REAR WALL (a van's door), spareX across, spareK its size (absent = the flank, full size)
+  ['spareAt', 'spare wheel mount', 0, 1, 1, ['the flank', 'the rear wall (door)'], { when: P => +P.spareOn, absent: 0 }],
+  ['spareX', 'spare wheel across, from the centre (m; rear wall)', 0, 1.2, 0.005, { when: P => +P.spareOn && +P.spareAt === 1, absent: 0 }],
+  ['spareK', 'spare wheel size (x the road wheels)', 0.6, 1.0, 0.01, { when: P => +P.spareOn, absent: 1 }],
+  ['spareStrap', 'spare wheel strap (leather, buckled)', 0, 1, 1, { when: P => +P.spareOn, absent: 1 }],
   // CAR-4: the twin booms' wheels outboard of the booms (m; absent 0 = under the boom)
   ['twBoomOut', 'boom wheels outboard of the booms (m)', 0, 0.8, 0.005, { when: P => +P.boomTwin }],
   // CAR-3/4: the bumpers and the hitch (absent = none)

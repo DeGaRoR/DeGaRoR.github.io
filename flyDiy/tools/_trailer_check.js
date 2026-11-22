@@ -251,7 +251,7 @@ const clipWords = c => (c.n ? c.n + ' points inside a tyre (the worst ' + (c.wor
   }
   // (13 Nov) THE WEATHERING (the user: "a little weathering ... the same system as the planes and the field"): every material
   // patched with the planes' grunge sheet, every anchor of three's physical program hit, its uniforms in, its own program key;
-  // the wood at half its saturation; the macros one shared write
+  // the wood at 0.7 of its saturation (13 Nov, the user: "in the middle of the two options"); the macros one shared write
   { const R = rig('floats'), Mw = TM.buildTrailerModel(THREE, R.L.trailer, { ao: false }), bad = [];
     let n = 0;
     for (const [k, m] of Object.entries(Mw.materials)) { if (!m || !m.isMaterial) continue; n++;
@@ -263,7 +263,7 @@ const clipWords = c => (c.n ? c.n + ' points inside a tyre (the worst ' + (c.wor
     }
     const satW = TM.TRL_WX.mat.timber[3], satP = TM.TRL_WX.mat.plank[3];
     const w0 = TM.trailerWeather(THREE), w1 = TM.trailerWeather(THREE, { mud: 0.8 }), w2 = TM.trailerWeather(THREE, { mud: w0.mud });
-    const okW = bad.length === 0 && n >= 12 && satW === 0.5 && satP === 0.5 && w1.mud === 0.8 && w2.mud === w0.mud && w0.age > 0 && w0.age < 0.6;
+    const okW = bad.length === 0 && n >= 12 && satW === 0.7 && satP === 0.7 && w1.mud === 0.8 && w2.mud === w0.mud && w0.age > 0 && w0.age < 0.6;
     ok = ok && okW;
     surf += '; THE WEATHERING: ' + (n - bad.length) + ' / ' + n + ' materials patched (the planes\' grunge sheet, the program \'trl-wx\')' + (bad.length ? ' - NOT ' + bad.join(', ') : '') +
       ', the macros age ' + f(w0.age, 2) + ' mud ' + f(w0.mud, 2) + ' rain ' + f(w0.rain, 2) + ' (one shared write), the wood at ' + satW + ' x its saturation' + (okW ? '' : ' - FAILED');

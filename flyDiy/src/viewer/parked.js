@@ -463,7 +463,11 @@
     return n;
   }
   function capture(key, spec0) {
-    if (STATIC_TRIO) { key = staticKey(key); if (!REC[key]) enqueue(key); return REC[key] || null; }
+    // VAN-TOW (the user 22 Nov: the validated van is THE glider tow car, "I don't want [it] built every time"): a CAR handed with
+    // its own spec (drive_mode.js stockVan, at the drive's / the tow's start - never at boot) is captured live, not stood in
+    // by the static trio's aeroplanes
+    const carLive = !!spec0 && typeof key === 'string' && key.lastIndexOf('car:', 0) === 0;
+    if (STATIC_TRIO && !carLive) { key = staticKey(key); if (!REC[key]) enqueue(key); return REC[key] || null; }
     if (REC[key]) return REC[key];
     if (!canCapture()) return null;
     flush();                                   // a batch in flight holds the editor: finish it first
@@ -717,6 +721,8 @@
         return cache[ck] = onBlock(s);
       }
       if (m.panel && rec.panel && rec.panel[m.panel]) return cache[ck] = rec.panel[m.panel];
+      if (m.carTex && W.CAGE_CARTEX) { const cm = W.CAGE_CARTEX.material(m.carTex); if (cm) return cache[ck] = cm; }   // CAR-TEX: the plate, the tow sign
+      if (m.tyreTex && W.CAGE_WHEELTEX) { const tm = W.CAGE_WHEELTEX.material(m.tyreTex); if (tm) return cache[ck] = tm; }   // WHEEL-TEX
       if (m.propMat && typeof W.propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');
