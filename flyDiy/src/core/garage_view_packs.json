@@ -1,0 +1,108 @@
+{
+ "v": 1,
+ "packs": [
+  {
+   "id": "jolene_cabin",
+   "world": "jolene",
+   "field": "w1",
+   "sheds": [
+    {
+     "id": "w1",
+     "x": 2648.06,
+     "y": 193.83,
+     "z": -15898.54,
+     "ry": 3.5599
+    }
+   ],
+   "base": "media/garage_view/jolene_cabin/",
+   "files": [
+    "media/garage_view/jolene_cabin/scene.json",
+    "media/garage_view/jolene_cabin/scene.bin",
+    "media/garage_view/jolene_cabin/ground_mid.jpg",
+    "media/garage_view/jolene_cabin/ground_near_w1.jpg",
+    "media/garage_view/jolene_cabin/ground_wide.jpg",
+    "media/garage_view/jolene_cabin/far.webp",
+    "media/garage_view/jolene_cabin/layers.webp",
+    "media/garage_view/jolene_cabin/trees_col.webp",
+    "media/garage_view/jolene_cabin/trees_nrm.webp",
+    "media/garage_view/jolene_cabin/props.jpg",
+    "media/garage_view/jolene_cabin/ground_mid.ktx2",
+    "media/garage_view/jolene_cabin/ground_near_w1.ktx2",
+    "media/garage_view/jolene_cabin/ground_wide.ktx2",
+    "media/garage_view/jolene_cabin/far.ktx2",
+    "media/garage_view/jolene_cabin/layers.ktx2",
+    "media/garage_view/jolene_cabin/trees_col.ktx2",
+    "media/garage_view/jolene_cabin/trees_nrm.ktx2",
+    "media/garage_view/jolene_cabin/props.ktx2"
+   ],
+   "rev": 23,
+   "sig": "9a21ab48465d",
+   "tris": 109753,
+   "meshes": 7,
+   "bytes": {
+    "bin": 5971088,
+    "textures": 10886034,
+    "fallback": 7784643,
+    "gpu": 60222187
+   },
+   "ktx2": 8,
+   "made": "2026-11-22T18:44:55.385Z"
+  },
+  {
+   "id": "jolene_home",
+   "world": "jolene",
+   "field": "HOME",
+   "sheds": [
+    {
+     "id": "HOME",
+     "x": -172.09,
+     "y": 30.6,
+     "z": 640.58,
+     "ry": 3.9968
+    },
+    {
+     "id": "HOME.2",
+     "x": -132.25,
+     "y": 30.67,
+     "z": 698.4,
+     "ry": 3.9968
+    }
+   ],
+   "base": "media/garage_view/jolene_home/",
+   "files": [
+    "media/garage_view/jolene_home/scene.json",
+    "media/garage_view/jolene_home/scene.bin",
+    "media/garage_view/jolene_home/ground_mid.jpg",
+    "media/garage_view/jolene_home/ground_near_HOME.jpg",
+    "media/garage_view/jolene_home/ground_near_HOME_2.jpg",
+    "media/garage_view/jolene_home/ground_wide.jpg",
+    "media/garage_view/jolene_home/far.webp",
+    "media/garage_view/jolene_home/layers.webp",
+    "media/garage_view/jolene_home/trees_col.webp",
+    "media/garage_view/jolene_home/trees_nrm.webp",
+    "media/garage_view/jolene_home/props.jpg",
+    "media/garage_view/jolene_home/ground_mid.ktx2",
+    "media/garage_view/jolene_home/ground_near_HOME.ktx2",
+    "media/garage_view/jolene_home/ground_near_HOME_2.ktx2",
+    "media/garage_view/jolene_home/ground_wide.ktx2",
+    "media/garage_view/jolene_home/far.ktx2",
+    "media/garage_view/jolene_home/layers.ktx2",
+    "media/garage_view/jolene_home/trees_col.ktx2",
+    "media/garage_view/jolene_home/trees_nrm.ktx2",
+    "media/garage_view/jolene_home/props.ktx2"
+   ],
+   "rev": 23,
+   "sig": "77745520b1ca",
+   "tris": 110885,
+   "meshes": 9,
+   "bytes": {
+    "bin": 5854964,
+    "textures": 13241014,
+    "fallback": 7510515,
+    "gpu": 61039339
+   },
+   "ktx2": 9,
+   "made": "2026-11-22T18:43:07.638Z"
+  }
+ ]
+}
