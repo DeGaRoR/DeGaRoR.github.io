@@ -241,7 +241,61 @@ the D-tube's laminar share (0.25 here) is the figure to source before it lands; 
 | the gear's truss billed by its members (the cross struts, the shock struts) | about +0.04 | estimate; today one 50 mm tube a side |
 | **the Cub then** | **about 0.81** | inside its gate |
 
-## 7. Limits
+## 7. The build so far (22 Nov, on the session branch `claude/focused-pasteur-f8vawq`; NOT on `claude/physics-audit`)
+
+A0, 22 Nov: the built plan (steps 0-6) rides its own train; this work is a later ref. Four pieces are in the core, each
+measured off the drawing by the editor and carried to the spec as a measured block (excluded from every fingerprint:
+the shipped Rufus's body hash has not moved):
+
+| build | what | where |
+|---|---|---|
+| 1 | the body's shape measured off the drawn sheet: `spec.bodyShape` | `_cage_gen cageBodyShape`, the page's build, the load door, the join |
+| 2 | the body's drag by that shape: friction x form x (1 + 0.9 sharp) + 0.7 steps + 0.18 base, a laminar share | `62_gen_aero genFusCdA`, `GEN_DRAG.body` |
+| 3 | one transition point per lifting surface, by its construction; none in a propeller's wash | `genLamK`, `GEN_DRAG.laminar` |
+| 4 | the main legs by the members the gear layer draws: `spec.gearShape` | the join, `genGearLegsCdA`, `GEN_DRAG.legSec` |
+
+The undercarriage as it was: every main leg 0.66 m of 50 mm tube, whatever was drawn. As drawn, one side:
+Cessna 172 a 0.85 m streamlined blade (0.002 m²); Velis a 0.51 m blade (0.006); Cub a covered V, a crossed strut and
+a bungee unit (0.072); PC-6 two 1.06 m tubes and an oleo strut (0.166); DC-3 an oleo and its brace (0.212).
+
+`real_check --quick`, the as-built plan → builds 2-4 (error against the book; `~` near, `!` outside;
+`evidence/.../build4_vs_plan.md`):
+
+| plane | figure | book | the plan | builds 2-4 |
+|---|---|---|---|---|
+| **Pilatus PC-6** | max cruise | 232 | 284 (+23!) | **247 (+7)** |
+| | climb | 5.13 | 6.57 (+28!) | 5.77 (+13~) |
+| **Velis Electro** | glide | 15.0 | 12.8 (-15~) | **14.4 (-4)** |
+| | VH at 2300 rpm | 172 | 181 (+5) | 200 (+16~) |
+| | climb at 48 kW | 3.29 | 3.19 (-3) | 3.65 (+11~) |
+| Archaeopteryx | glide | 28 | 16.6 (-41!) | 19.7 (-30!) |
+| Stearman | top speed / climb | 200-217 / 4.27 | 186 (-11~) / 4.00 (-6~) | **194 (-7) / 4.27 (0)** |
+| PA-18 on floats | climb | 4.70 | 3.73 (-21!) | 4.11 (-12~) |
+| Cessna 172 | top speed / cruise / climb / glide | 228 / 204-207 / 3.66 / 9.0 | +2 / 0 / -1 / +3 | +3 / +1 / +2 / +4 |
+| Douglas DC-3 | top speed | 370 | 362 (-2) | 362 (-2) |
+| Piper Cub | top speed / climb | 140 / 2.29 | 142 (+1) / 2.38 (+4) | 147 (+5~) / 2.54 (+11~) |
+| Tiger Moth | top speed | 172-175 | 173 (-1) | 161 (-7~) |
+| Sopwith Camel | top speed | 182-185 | 178 (-3) | 169 (-8~) |
+| Chinook | top speed / glide | 153 / 10 | 151 (-1) / 9.2 (-8) | 140 (-8~) / 8.3 (-18~) |
+| Super Petrel | max cruise / glide | 185 / 10 | 208 (+12~) / 11.6 (+16~) | 217 (+17!) / 12.3 (+23!) |
+
+Verdicts over every scored row (inside / near / outside): 61 / 14 / 18 → 55 / 22 / 16. **Not yet better overall:** the
+laws are in, the cards have not caught up.
+
+**What each away-mover is waiting for:**
+- **Cub family**: the cylinders standing out of the cowl (about +0.07 m²; the user's validated Cub's cowl sides: the
+  user's call).
+- **Tiger Moth, Camel**: their gear struts are streamline sections; the cards draw bare round tube (the leg-fairing row).
+- **Velis, top speed and climb**: with its real drag the model's propeller is cut coarser (it is fitted to the
+  aeroplane's own top speed). The real one is finer than the climb class: at 172 km/h it turns 2300 rpm on 49 kW while
+  the airframe needs about half of that power. The propeller's own design rows (`cw_rpm`, `cw_tas`) are on the card and
+  unread: the redline speed should come from them.
+- **Super Petrel**: a carbon wing takes the laminar credit and its blade legs are small; its parent says 0.59 m². Its
+  wing's construction row and what its struts and hull carry are to be checked on the card.
+- **Chinook**: its pod ends abruptly (base 0.065 m²) and its truss legs are billed bare.
+- **Archaeopteryx**: 19.7 of 28. Its pod is billed as tent cloth and its D-tube wing at 0.30 laminar; both want a source.
+
+## 8. Limits
 
 - The constants are handbook orders of magnitude from memory (Hoerner's fuselage and windscreen chapters, the usual
   form-factor fits); none was re-read this session. Only the windscreen's figure was fitted, on the 172.
