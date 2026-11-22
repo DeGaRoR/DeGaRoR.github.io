@@ -1,5 +1,5 @@
-FAIL (13 of 65 gates run; PARTIAL: 2 of 8 chunks, 299 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF
+FAIL (16 of 72 gates run; PARTIAL: 3 of 8 chunks, 292 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE
 L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. Eight chunks of the gate table, in table order, each kept as it ended (this container restarted once today and a single run loses every verdict). --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -920,6 +920,88 @@ GATE RODROW: PASS
   ok   G the kit billed ultralight: +0.64 kg on the gear's row (GEN_RULES.ulGear.retractKg 0.6)
   ok   G it flies as a retract: params.retract with the tail wheel fixed (fixedTw true), the sim's gear present
 GATE ULTRALIGHT: PASS
+######## chunk 2 of 8 (7 gates) ########
+=== ENGINELESS ===
+D. IT FLIES
+  ok   D dropped at 300 m at 1.5 Vs (19.5 m/s), hands off, 10 s: finite true, the CG at 284.0 m
+GATE ENGINELESS: PASS
+=== PROFILE ===
+  PASS  3 on final the lowest node >= 10 m over every tree top within 15 m of the track - 67.4 m (611 m before the threshold); the approach {"technique":"short","gs":0.105,"reqGs":0.118,"aimIn":10,"displaced":null}
+(811 s)
+GATE PROFILE: PASS
+=== DESTTO ===
+--- shard 0/3 (778.2 s) ---
+ltd:cub: 3 failed (363 s) [shard 0/3]
+  air:cub: ok (135 s) [shard 0/3]
+  air:metal: ok (273 s) [shard 0/3]
+  FAIL career:cub@w3: accepted: the job (tracked) and the Trust's first arc contract
+  FAIL career:cub@w3: the same stop moves the Trust's arc to its stage 2 (land at HOME), now tracked
+  FAIL career:cub@w3: the arrival card's lines: Tools for Fishing Village Strip: complete, paid 1 710 / wallet 87 110 (+1 710)
+DESTTO: 3 failure(s), 778 s [shard 0/3]
+GATE DESTTO: FAIL
+[stderr]
+SHARD 0/3: 3 of 8 heavy jobs
+(exit code 1)
+--- shard 1/3 (1598.0 s) ---
+  OPEN ltd:metal: no crash, the fuel only went down - an impact of 9 g 149.65329728443842 [owner the Pilot Coordinator (CESSNA-VREF G2500), opened 2026-10-08]
+DESTTO: 0 failure(s), 1598 s [shard 1/3]
+GATE DESTTO: PASS
+--- shard 2/3 (1383.6 s) ---
+  ltd:twinFloats: ok (567 s) [shard 2/3]
+DESTTO: 0 failure(s), 1383 s [shard 2/3]
+GATE DESTTO: PASS
+=== ROUTE ===
+--- shard 0/3 (720.9 s) ---
+  persona:student: ok (257 s) [shard 0/3]
+ROUTE: 0 failure(s), 721 s [shard 0/3]
+GATE ROUTE: PASS
+--- shard 1/3 (816.2 s) ---
+  persona:hamfist: ok (265 s) [shard 1/3]
+ROUTE: 0 failure(s), 816 s [shard 1/3]
+GATE ROUTE: PASS
+--- shard 2/3 (624.4 s) ---
+fly:metal: WP1 631 m of 1388, +160.7 m
+  fly:metal: WP2 295 m of 402, -9.2 m
+  fly:metal: WP3 58 m of 150, -1.2 m
+  fly:metal: WP4 35 m of 150, -1.4 m
+  fly:metal: WP5 0 m of 150, +1.7 m
+  fly:metal: HOLD>ROLL>LIFTOFF>CLIMB>ROUTE>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 749 s; vs flown outside 0.0 s (worst 0.00, the hand-over's first 10 s -0.80 m/s past); route 88-398 s, min 151 m agl, reversals 3.1/20.3
+  fly:metal: 4 failed (388 s) [shard 2/3]
+  fly:cub/club: WP1 231 m of 320, +8.1 m
+  fly:cub/club: WP2 128 m of 216, -5.6 m
+  fly:cub/club: WP3 27 m of 150, -0.4 m
+  fly:cub/club: WP4 18 m of 150, -0.9 m
+  fly:cub/club: WP5 0 m of 150, +1.2 m
+  fly:cub/club: HOLD>ROLL>LIFTOFF>CLIMB>ROUTE>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 988 s; vs flown outside 0.0 s (worst 0.00, the hand-over's first 10 s -0.09 m/s past); route 80-612 s, min 151 m agl, reversals 6.7/4.9
+  persona:club: ok (236 s) [shard 2/3]
+  FAIL fly:metal: the drawn profile is clean for this aeroplane (no conflict, no point it cannot make) - WP1 climbs 2.5 m/s, plan limit +2.4
+  FAIL fly:metal: WP1 at 175 m +-15 - +160.7 m
+  FAIL fly:metal: the hands: reversals on the route under PILOTACT's 12/min - da 3.1 dr 20.3 /min over 310 s
+  FAIL fly:metal: the pilot's own captures agree with the trace - 1215 295 58 35 0
+ROUTE: 4 failure(s), 624 s [shard 2/3]
+GATE ROUTE: FAIL
+[stderr]
+SHARD 2/3: 2 of 8 heavy jobs
+(exit code 1)
+=== VEHICLE ===
+ok   TRAPS     a traced road round R 150 m (2.5 m vertices, ~1 deg each): patternPath (bends < 2 deg are dots) strays 62.9 m off it, its curvature 0.0000; vehPath 0.002 m; the world's road 3 (9650 m) as one pattern path: 3196 samples at 3.02 m (GP_MAXPTS) - the driver samples 1500 m windows at 1 m
+ok   BITS      the vehicle is not in MANIFEST.core; tools/flight_core.js fresh from src/core (592165d5d4fc3bbc) - the aeroplane's core is not touched
+GATE VEHICLE: PASS
+=== DRIVE-TRIP ===
+ok   CARPLACES the car's own places on HOME's network: Cedar Harbour harbour front 12.6 km (76 m off a road), the village 8.5 km (8 m off a road), Skyline Tramway valley station 13.1 km (30 m off a road), the cannery at Cannery Runway 14.2 km (47 m off a road) (4 of 4 reachable); the car's To list without the runway ends: yes; drive mode takes a given car (useCar): yes; THE GARAGE ROADSTER (car_roadster.json, its measured sheet) HOME -> the village: ARRIVED in 13.1 min, 0.24 m from the stop, 64 km/h at most, 0.00 m off the road at worst
+ok   PAGE    lazy: 5 of 5 files in MANIFEST.lazy, none in MANIFEST.core; app.js hooks 11 of 11 (loop, target, camera, hud, map, trip, picker, pause, restart, refill, ?drive=1)
+GATE DRIVE-TRIP: PASS
+=== TOW ===
+ok   LAUNCH   the motorglider (engine off, 301 kg; the hook 2 nodes) on 400 m of line behind the Conquer at 28 m/s, Jolene AFB 13/31 from runway 13's end: lift-off 13.2 s, 24.7 m/s, 176 m down the runway; released at 363 m, 47 s (the top of the launch (the line 65 deg up)); 370 m at most; the line 4.87 kN at most (weak link 6.0 kN, k 2500 N/m, c 867 N s/m); the car on the runway (0 corner samples off it)
+ok   GLIDE    released, 15 s gliding (tow.js's hands: wings level, the glide attitude): 26.4-34.3 m/s, bank 0.8 deg at most, 353 m at the end
+ok   RELEASE  the key at 100 m: off at 100.2 m (released by the pilot); the car's pull gone, the car at 26.6 m/s
+ok   WEAK     a 1.2 kN weak link: the weak link broke (3.5 kN) at 1.6 s, 0.9 m up - the glider let go, never dragged past its link
+ok   AUTOPILOT the glider launched by the autopilot: released at 363 m, the pilot from 49 s: CLIMB -> GLIDE; 40 s after the release 305 m up at 24.9 m/s
+ok   TAKEUP   the take-up to the lift-off - motorglider - CG release: at rest 5.3 deg; to 10 m/s: pitch 5.3 at its lowest (0.0 under its base), bank 0.0 deg; to the lift-off: 1.4 (0.0), 0.8 deg (13.2 s at 24.7 m/s) | the nose hook (before): at rest 5.3 deg; to 10 m/s: pitch 2.3 at its lowest (0.0 under its base), bank 0.0 deg; to the lift-off: -0.7 (0.7), 2.2 deg (14.8 s at 26.4 m/s); archaeopteryx - CG release: at rest -9.1 deg; to 10 m/s: pitch -12.0 at its lowest (2.9 under its base), bank 2.3 deg; to the lift-off: -12.0 (2.9), 9.0 deg (8.7 s at 16.7 m/s) | the nose hook (before): at rest -9.1 deg; to 10 m/s: pitch -10.0 at its lowest (0.9 under its base), bank 2.9 deg; to the lift-off: -10.0 (0.9), 9.0 deg (8.7 s at 17.0 m/s)
+ok   CIRCUIT  motorglider: released at 363 m; right-hand at Jolene AFB 13/31, heading 311 deg, downwind 420 m out, glide ratio flown 13.2: burn 357 m, downwind 192 m, base 103 m, final 66 m; landed on the runway, 881 m in (367 past the aim), 2.4 m off the centreline, sink 0.29 m/s, 1037 m left (completed)
+FAIL CIRCUIT  archaeopteryx: released at 18 m; NO CIRCUIT; landed on the runway, 2170 m in (1656 past the aim), 2.3 m off the centreline, sink 14.05 m/s, 156 m left (completed)
+[spawn error] ETIMEDOUT after 1800000 ms
+(exit code null)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -987,6 +1069,13 @@ NACELLE   PASS   114.3 s
 LIGHTWING PASS   262.3 s
 RODROW    PASS   464.9 s
 ULTRALIGHT PASS   760.8 s
-wall (the chunks' own, summed) 6191.8 s  (jobs 4)
+ENGINELESS PASS    26.8 s
+PROFILE   PASS   811.5 s
+DESTTO    FAIL  1598.0 s  [3 shards]
+ROUTE     FAIL   816.2 s  [3 shards]
+VEHICLE   PASS    10.7 s
+DRIVE-TRIP PASS    78.2 s
+TOW       FAIL  1800.1 s
+wall (the chunks' own, summed) 9011.3 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 13 red (52 PASS, 13 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 16 red (56 PASS, 16 FAIL, 0 SKIP of 364)
