@@ -218,10 +218,17 @@ const PORTRAIT_BODY = `(o, root, fwd0, craft) => {
   const c = box.getCenter(V()), W = o.w * o.ss, H = o.h * o.ss, aspect = o.w / o.h;
   // the fit's points: the drawn vertices themselves (a few hundred a mesh), not the box's corners - a 3/4 eye throws a
   // box's corners far wider than the aeroplane (the 20:50 take's heroes filled half the frame, off centre)
+  // (what a frame end IS, for the log: the mesh, its parents, its material - the 22 Nov hunt for B-ITES' invisible nose end)
+  const desc = m => { const ch = []; for (let p = m.parent; p && ch.length < 6; p = p.parent) ch.push(p.name || p.type);
+    const M = [].concat(m.material || [])[0] || {}, pa = m.geometry && m.geometry.attributes && m.geometry.attributes.position;
+    return (m.name || '(unnamed)') + ' <' + ch.join('<') + '> ' + (M.type || '?') + (M.name ? ':' + M.name : '') + ' op ' + (M.opacity != null ? (+M.opacity).toFixed(2) : '?') +
+      (M.transparent ? ' transp' : '') + (M.depthWrite === false ? ' noDepth' : '') + (M.side === 2 ? ' double' : '') + ' layers ' + (m.layers ? m.layers.mask : '?') +
+      ' verts ' + (pa ? pa.count : 0) + (m.isInstancedMesh ? ' inst ' + m.count : '') + ' ud ' + Object.keys(m.userData || {}).slice(0, 6).join(','); };
   const corners = [], pv = V(), ends = { lo: [1e9, ''], hi: [-1e9, ''] };
   root.traverseVisible(m => { const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa || !DR(m)) return;
     const step = Math.max(1, Math.floor(pa.count / 300)); for (let i = 0; i < pa.count; i += step) { const q = pv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c); corners.push(q);
-      const f = q.dot(fwd); if (f < ends.lo[0]) ends.lo = [f, m.name || ((m.parent && m.parent.name) || '?')]; if (f > ends.hi[0]) ends.hi = [f, m.name || ((m.parent && m.parent.name) || '?')]; } });
+      const f = q.dot(fwd); if (f < ends.lo[0]) ends.lo = [f, m]; if (f > ends.hi[0]) ends.hi = [f, m]; } });
+  ends.lo[1] = ends.lo[1] ? desc(ends.lo[1]) : '?'; ends.hi[1] = ends.hi[1] ? desc(ends.hi[1]) : '?';
   if (!corners.length) for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
   const fill = o.fill || 0.84;
   // the aeroplane's own frame: the drawn points' extents along the nose, the left wing and up - the orthos' one scale
