@@ -18,7 +18,7 @@
 'use strict';
 const path = require('path'), fs = require('fs'), { spawn } = require('child_process');
 const T = __dirname, FLY = path.join(T, '..');
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', c172: 'builds/cessna172_2026-09-20.json',
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', c172: 'builds/cessna172r_2026-11-08.json',
                  twin: 'builds/candidates/Twin_busher_floats_4b.json' };
 const argv = process.argv.slice(2);
 
@@ -110,7 +110,9 @@ function child(k) {
   // ---- DRAW: the fit, and the pages in both themes ------------------------------------------------------------------------
   {
     const M = D.model, s = 84, res = {};
-    for (const [view, w, h, ox, oy, rot] of [['side', 700, 300, 147, 191, 1.5], ['plan', 1000, 700, 501, 113, 0]]) {   // (the picture wider than the plane: every node lands on it)
+    // (the picture wider than the plane: every node lands on it - ONE-CESSNA 15 Nov: THE Cessna, list:50, runs to u 718 px on
+    //  the side picture, so the side picture is 800 px wide, was 700)
+    for (const [view, w, h, ox, oy, rot] of [['side', 800, 300, 147, 191, 1.5], ['plan', 1000, 700, 501, 113, 0]]) {
       const a = new Uint8Array(w * h), c = Math.cos(rot * Math.PI / 180), sn = Math.sin(rot * Math.PI / 180);
       for (const nd of M.nodes) {
         const p = view === 'side' ? [nd[0], -nd[1]] : [nd[2], nd[0]], u = (p[0] * c - p[1] * sn) * s + ox, v = (p[0] * sn + p[1] * c) * s + oy;

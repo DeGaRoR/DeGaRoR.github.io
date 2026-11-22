@@ -3148,7 +3148,7 @@
   "list:41": {
    "name": "Super Petrel LS",
    "file": "",
-   "listFile": "builds/candidates/superpetrel_V4_1.json",
+   "listFile": "tools/fixtures/test_copies/superpetrel_V4_1.json",
    "listRow": "list:41",
    "data": {
     "name": "Super Petrel LS",
@@ -3692,7 +3692,7 @@
    "listRow": "list:50",
    "data": {
     "name": "Cessna 172",
-    "reg": "F-HCSN",
+    "reg": "T-RUEX",
     "dims": {
      "span": 11.02,
      "length": 8.22,
@@ -4220,7 +4220,7 @@
   "list:40": {
    "name": "Cessna 172 (career)",
    "file": "cessnaMetal",
-   "listFile": "bugReports/cessnaMetal (1).json",
+   "listFile": "tools/fixtures/test_copies/cessnaMetal (1).json",
    "listRow": "list:40",
    "data": {
     "name": "Cessna 172 (career)",

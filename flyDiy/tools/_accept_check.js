@@ -75,8 +75,8 @@ function flyAll() {
 
 // ---- the builds (static) -----------------------------------------------------------------------------------------
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-                 c172: 'builds/cessna172_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json',
-                 eTrainer: 'bugReports/flydiy-build (4).json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+                 c172: 'builds/cessna172r_2026-11-08.json', metal: 'builds/cessna172r_2026-11-08.json',
+                 eTrainer: 'builds/candidates/flydiy-build (4).json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 function staticFixtures() {
   const D = {};
   for (const k of Object.keys(BUILDS)) {

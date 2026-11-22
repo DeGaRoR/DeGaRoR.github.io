@@ -60,7 +60,7 @@ const BUILDS = {
   skymaster,
   tri: () => layout('tri'),
   quad: () => layout('quad'),
-  twin: () => readSpec('tools/fixtures/build_v7_twin_2026-09-04.json'),
+  twin: () => readSpec('tools/fixtures/test_copies/build_v7_twin_2026-09-04.json'),
   // ENGINE-CONFIGS-2: THE SINGLE'S OWN POWER CUT, the reference for a centreline engine stopping - its torque, its
   // P-factor and its slipstream's swirl on the fin all go at once, and the fin's side force with them
   single: () => clone(C.GEN_DEFAULT),
@@ -69,7 +69,9 @@ const BUILDS = {
   fixTrimotor: () => clone(LB.loadBuild(FIXF('trimotor')).spec),
   fixFour: () => clone(LB.loadBuild(FIXF('four')).spec),
 };
-function FIXF(k) { return `tools/fixtures/build_v10_engcfg_${k}_2026-10-22.json`; }
+// (CANON-CLEAN 13 Nov: the three test copies by NAME - GATE PLANELISTS finds a test copy's reader by its file name)
+const ENGCFG_FILES = { pushpull: 'build_v10_engcfg_pushpull_2026-10-22.json', trimotor: 'build_v10_engcfg_trimotor_2026-10-22.json', four: 'build_v10_engcfg_four_2026-10-22.json' };
+function FIXF(k) { return 'tools/fixtures/test_copies/' + ENGCFG_FILES[k]; }
 const FIXES = [['fixPushpull', 'pushpull', 'pushPull', 1], ['fixTrimotor', 'trimotor', 'tri', 0], ['fixFour', 'four', 'quad', 2]];
 
 // ---- a child: one flight ---------------------------------------------------------------------------------------------
@@ -244,7 +246,7 @@ const kidsDone = PINMODE ? null : runKids();
 // checked the 18 load digests identical between L35a and master; on top of master the notch moves the Cub's and the
 // Jodel's def (their landing flap) and gives the pusher fixture back its 28 Oct def; every flown digest is master's.
 say('1 IDENTITY - the saved builds and the single mounts, digested against master (1bcd01d3e + the landing notch)');
-const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/repro/rufus_2026-10-18_certified.json']));
+const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/test_copies/rufus_2026-10-18_certified.json']));
 // ENGINE-COOLING (12 Nov, claude/festive-faraday-w3w40x): re-pinned with --pin on the branch, against the same rows run on
 // its base 594a1a05. The cooling drag is now the momentum of the air the DRAWN openings pass (62_gen_aero genCooling):
 // every def digest moves (the drag carries `coolBy`, the shakedown its `cooling` summary); the flown digest moves where
@@ -257,15 +259,17 @@ const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat([
 const PIN = {
   'builds/cub_2026-09-20_corrected.json': '3648bf163799cae9 811852016151aab6',
   'builds/jodel_2026-09-20_corrected.json': '071aec8b30f75954 91de808589c2b7bd',
-  'builds/cessna172_2026-09-20_corrected.json': '8c3f5c1cccb19132 b4a926d9ce6d6b33',
+  // ONE-CESSNA (15 Nov): the corrected C172 and the metal Cessna were two Cessnas - one now, THE Cessna list:50; its pin taken on
+  // claude/canon-onecessna (master 58c681347's core, no physics moved by the chantier): the two rows' old pins were other files'
+  // (15 Nov, on real-canon 123c7b63f's core: re-pinned there - real-canon moves every row's def, its other rows are its own reds)
+  'builds/cessna172r_2026-11-08.json': '29b63f0af774d526 e7d6edfc42051ef7',
   'builds/chinook_2026-09-21_corrected.json': '23410ab32b1cb6c1 9a62a6a61fcc8556',
   'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'd2ed8ef26a86b6c5 a04a230e8d631667',
-  'tools/fixtures/build_v8_twin-boom_2026-09-11.json': 'fe78edfd3ef1fea5 77b62ab7c4146aaa',
-  'tools/fixtures/build_v7_twin_2026-09-04.json': '9ea1934fc404b8fc 221d6c2405b15e1e',
-  'tools/fixtures/build_v8_pusher_2026-09-11.json': '888ebfdf96341e38 1e888903ddfb652c',
-  'bugReports/cessnaMetal (1).json': '7de0372430b4c28c 0188260fec73712c',
+  'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json': 'fe78edfd3ef1fea5 77b62ab7c4146aaa',
+  'tools/fixtures/test_copies/build_v7_twin_2026-09-04.json': '9ea1934fc404b8fc 221d6c2405b15e1e',
+  'builds/candidates/build_v8_pusher_2026-09-11.json': '888ebfdf96341e38 1e888903ddfb652c',
   'bugReports/cessnaFloatsWOrks.json': 'ec60bc853a4a12a8 55bf1eec20118296',   // FLOAT-DECK 10 Nov: the def moves (a float build rests at deck 0), the flown steps do not
-  'tools/fixtures/repro/rufus_2026-10-18_certified.json': '5ef573483ffd5d4d 210d8b580d8fe556',
+  'tools/fixtures/test_copies/rufus_2026-10-18_certified.json': '5ef573483ffd5d4d 210d8b580d8fe556',
   'stock nose': 'e959f1716ede56c4 31cce33943cc578a',
   'stock pusher': 'd4a273f9985f43a7 5613f19c025bd3cf',
   'stock wingTop': '76401b1f0fa1c967 53a5929a6f5191d4',
@@ -281,11 +285,12 @@ const IDS = {
   'stock pusher+nose (clamped to one)': stockMount('pusher', 'nose'),
 };
 const ID_KEYS = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-20_corrected.json',
-  'builds/cessna172_2026-09-20_corrected.json', 'builds/chinook_2026-09-21_corrected.json',
-  'tools/fixtures/build_v7_ultralight_2026-09-05.json', 'tools/fixtures/build_v8_twin-boom_2026-09-11.json',
-  'tools/fixtures/build_v7_twin_2026-09-04.json', 'tools/fixtures/build_v8_pusher_2026-09-11.json',
-  // (A0, 22 Oct: the metal Cessna is the user's own file, and the Cessna on floats is in - both loaded the game's way)
-  'bugReports/cessnaMetal (1).json', 'bugReports/cessnaFloatsWOrks.json', 'tools/fixtures/repro/rufus_2026-10-18_certified.json',
+  'builds/cessna172r_2026-11-08.json', 'builds/chinook_2026-09-21_corrected.json',
+  'tools/fixtures/build_v7_ultralight_2026-09-05.json', 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json',
+  'tools/fixtures/test_copies/build_v7_twin_2026-09-04.json', 'builds/candidates/build_v8_pusher_2026-09-11.json',
+  // (A0, 22 Oct: the metal Cessna is the user's own file, and the Cessna on floats is in - both loaded the game's way;
+  //  ONE-CESSNA 15 Nov: the metal Cessna's row is THE Cessna's, list:50, above - one row)
+  'bugReports/cessnaFloatsWOrks.json', 'tools/fixtures/test_copies/rufus_2026-10-18_certified.json',
   ...Object.keys(IDS)];
 for (const k of ID_KEYS) {
   let got;

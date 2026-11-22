@@ -28,7 +28,7 @@ const fs = require('fs'), path = require('path'), cp = require('child_process');
 const T = __dirname, ROOT = path.join(T, '..');
 
 const FILES = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-                c172: 'builds/cessna172_2026-09-20_corrected.json' };
+                c172: 'builds/cessna172r_2026-11-08.json' };
 const FLIGHTS = { cub: { build: 'cub', flat: true }, jodel: { build: 'jodel', flat: true }, c172: { build: 'c172', flat: true },
                   cubA: { build: 'cub', flat: false } };
 

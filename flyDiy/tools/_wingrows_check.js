@@ -154,10 +154,10 @@ const rd = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8
 const BUILDS = [
   ['cub', 'builds/cub_2026-09-20_corrected.json'],
   ['jodel', 'builds/jodel_2026-09-20_corrected.json'],
-  ['cessna', 'bugReports/cessnaMetal (1).json'],
+  ['cessna', 'builds/cessna172r_2026-11-08.json'],
   ['cessna floats', 'bugReports/cessnaFloatsWOrks.json'],
   ['twin on floats', 'tools/fixtures/build_v7_ultralight_2026-09-05.json'],
-  ['mosquito', 'tools/fixtures/repro/mosquito_3.json'],
+  ['mosquito', 'tools/fixtures/test_copies/mosquito_3.json'],
 ];
 const flownWing = P => { const S = C.resolveSpec(cageJoinSpec(P, {}, JT)).spec; return JSON.stringify([S.wings, S.controls]); };
 function kept() {
@@ -215,7 +215,7 @@ function stationRow(key, f, over, opts) {
   return !bad.length;
 }
 const JODEL = 'builds/jodel_2026-09-20_corrected.json', CUB = 'builds/cub_2026-09-20_corrected.json',
-      CESSNA = 'bugReports/cessnaMetal (1).json';
+      CESSNA = 'builds/cessna172r_2026-11-08.json';
 const STATIONS = [
   ['jodel, fore / aft at the aft end -1.5 (inside)', JODEL, { wgDx: -1.5 }],
   ['jodel, fore / aft at the forward end 1.8 (§9.2: drawn 1.16 m ahead of the flown)', JODEL, { wgDx: 1.8 }],

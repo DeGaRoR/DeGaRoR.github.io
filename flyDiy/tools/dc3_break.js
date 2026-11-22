@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // dc3_break.js - DC3-2 (G3570-G3579, cloud, 2026-10-24): WHY THE DC-3 BREAKS, THROUGH THE GAME'S PATH. A TOOL, not a gate.
-// The user's page runs (damage ON, Jolene, HOME 13/31, the fixture tools/fixtures/dc3_2026-10.json at 8 527 kg):
+// The user's page runs (damage ON, Jolene, HOME 13/31, the fixture tools/fixtures/test_copies/dc3_2026-10.json at 8 527 kg):
 //   run 1  taxiing under the user's hand, 29 s in: "crashed: a tail member broke", peak strain 89 %, 0.0 km
 //   run 2  the pilot from the line-up: the circuit, a balloon to 7.7 m, a drop at 4.6 m/s, a rebound, 3.85 m/s, "the
 //          fuselage broke", peak strain 1719 %
@@ -40,7 +40,7 @@ const TR = require('./_tour_lib.js');
 const IN = require('./island_node.js');
 const r2 = v => v == null || !isFinite(v) ? null : Math.round(v * 100) / 100;
 
-const FILE = opt('file', 'tools/fixtures/dc3_2026-10.json');
+const FILE = opt('file', 'tools/fixtures/test_copies/dc3_2026-10.json');
 // --kappa 0: the tail cone's root as DC3-BUILD left it (GEN_RULES.shellHoldKappa off: the bare skin's buckling) - the before
 if (opt('kappa') != null) C.GEN_RULES.shellHoldKappa = +opt('kappa');
 let CERT = null;
