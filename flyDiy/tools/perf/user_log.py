@@ -8,6 +8,7 @@
 #   row 13  the frame rate: seconds with 29 frames or more, frames on time, in the garage and in the world
 #   rows 7 / 8  frames over 100 ms in the garage / in the world, each with its time, height and the three longest slots
 #   row 9   20-second blocks of the world with a frame over 35 ms (the profiler's orange bar) / over 100 ms (red)
+#   row 14  each crash: the frames of the 20 s after the impact, the frames that drew nothing, the errors caught
 #   what the excess over 50 ms is made of, by slot; the water mirror's share of the time; the uploads of 30 ms+
 # Everything is the recorder's own columns and events (flight_recorder.js v2); PERF-TRACE's freeze_ledger.js and
 # big_uploads.js go deeper on the same file.
@@ -113,6 +114,40 @@ def main():
             mb = sorted(e[3]['buf'][2] / 1024.0 for e in big)
             P('- %d of them, %.1f s in all, median %.0f MB, the largest %.0f MB' % (len(big), sum(e[3]['buf'][1] for e in big) / 1000.0, mb[len(mb) // 2], mb[-1]))
         else: P('- none')
+    # ROW 14, THE CRASH: an impact is read from the frames (no crash event in the recorder yet): low over the ground, the
+    # speed falling by 8 m/s or more within half a second. For each, the 20 s after it (and the second before).
+    spd, calls = col('spd'), col('calls')
+    if world:
+        imp = []; k = 0
+        while k < len(world):
+            i = world[k]
+            if agl[i] is not None and agl[i] < 6 and spd[i] is not None:
+                j = k
+                while j + 1 < len(world) and t[world[j + 1]] - t[i] <= 500: j += 1
+                lo = min((spd[world[m]] for m in range(k, j + 1) if spd[world[m]] is not None), default=spd[i])
+                if spd[i] - lo >= 8 and spd[i] >= 10:
+                    imp.append(i)
+                    while k < len(world) and t[world[k]] - t[i] < 20000: k += 1
+                    continue
+            k += 1
+        P('')
+        P('## Row 14, the crash (target: no frame over 250 ms, no frame that draws nothing)')
+        if not imp: P('- no impact found in this log (a speed loss of 8 m/s in half a second under 6 m)')
+        t0w = t[world[0]]
+        for i0 in imp:
+            win = [i for i in world if t[i0] - 1000 <= t[i] <= t[i0] + 20000]
+            pre = sorted(calls[i] for i in world if t[i0] - 5000 <= t[i] < t[i0] and calls[i])
+            med = pre[len(pre) // 2] if pre else 0
+            worst = max(win, key=lambda i: dt[i])
+            over250 = [i for i in win if dt[i] > 250]; over100 = [i for i in win if dt[i] > 100]
+            nor = [i for i in win if fl[i] & FL.get('noRender', 0)]
+            thin = [i for i in win if med and calls[i] is not None and calls[i] < 0.1 * med and not (fl[i] & FL.get('noRender', 0))]
+            errs = [e for e in ev if e[1] == 'catch' and t[i0] - 1000 <= e[0] <= t[i0] + 20000]
+            P('- impact at t+%.1f s (%.0f m/s, AGL %.1f m): the worst frame of the next 20 s is %.0f ms (%+.1f s after) [%s]' % ((t[i0] - t0w) / 1000.0, spd[i0], agl[i0], dt[worst], (t[worst] - t[i0]) / 1000.0, top3(worst)))
+            P('    frames over 250 ms: %d; over 100 ms: %d; frames not rendered: %d; frames drawing under a tenth of the usual %d calls: %d; errors caught in the loop: %d' % (len(over250), len(over100), len(nor), med, len(thin), len(errs)))
+            for i in over100[:12]: P('    %+6.2f s  %4.0f ms  calls %s  [%s]' % ((t[i] - t[i0]) / 1000.0, dt[i], calls[i], top3(i)))
+            for i in (nor + thin)[:8]: P('    %+6.2f s  a frame with %s draw calls%s' % ((t[i] - t[i0]) / 1000.0, calls[i], ' (not rendered)' if fl[i] & FL.get('noRender', 0) else ''))
+            for e in errs[:5]: P('    %+6.2f s  caught: %s' % ((e[0] - t[i0]) / 1000.0, str(e[2:])[:160]))
     text = '\n'.join(out)
     print(text)
     if md: io.open(md, 'w', encoding='utf-8', newline='\n').write(text + '\n')

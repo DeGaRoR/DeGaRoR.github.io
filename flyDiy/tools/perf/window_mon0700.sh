@@ -7,6 +7,7 @@
 #   0. A REAL SMOKE LOAD, every switch on, with a departure watched to the flight: if it does not load, nothing else runs
 #   1. ?latelinks=bg with Go 6 s after the reveal, watched 60 s: the cost of an early Go, or a hang (the train waits for it)
 #   2. the best load twice beside the base, Go after 45 s; then the best load with Go after 12 s
+#   2c. THE CRASH (row 14, new): the Cub into the ground from its climb, as today and with ?latelinks=bg
 #   3. the journey's first 8 minutes with the flight switches and the far terrain at 2 px (?fartol=2): the detail choice
 #   4. PERF-WORLDBUILD's three workers again (their queue's fix, if it is in the build)
 W="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$W" || exit 9          # flyDiy/
@@ -54,6 +55,20 @@ else say "part 2 SKIPPED: $(left) min left"; fi
 if [ $(left) -ge 6 ]; then say "part 2b: the best load, Go 12 s after the reveal"
   LM_HELD=1 LM_AFTER=12 LM_SECS=330 LM_EST=200 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=20 bash tools/perf/load_matrix.sh tools/perf/rows/mon-0700-go12.txt "$OUT/go12" 5 2>&1 | tee -a "$LOG"
 else say "part 2b SKIPPED: $(left) min left"; fi
+
+# 2c. ROW 14 (the user, 22 Nov eve: "less than 250 ms freeze on crash, and no sky blue screen"): the Cub put into the
+#     ground from its climb, as the game is today and with ?latelinks=bg (the scuff's programs are what that switch moves).
+#     On the LAB build: the Deform Coordinator owns the crashes and has a later version - this is the lab's baseline only.
+for cq in base latebg; do
+  if [ $(left) -ge 7 ]; then
+    Q="recring=131072"; [ $cq = latebg ] && Q="$Q&latelinks=bg"
+    say "part 2c: the crash, $cq ($Q), cap 6 min"
+    ( cd "$LAB/flyDiy" && timeout 360 nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/crash_cub.json --runner page --headed --live --size 5120x1271 --q "$Q" --out "$OUT/crash_$cq" --cap 320 ) 2>&1 | tail -12 | tee -a "$LOG"
+    J=$(ls -t "$OUT"/crash_$cq/*.flightlog.json 2>/dev/null | head -1)
+    if [ -n "$J" ]; then nice -n 19 python tools/perf/user_log.py "$J" --md "$OUT/crash_$cq/against-objectives.md" 2>&1 | sed -n '/^## Row 14/,/^## /p' | head -30 | tee -a "$LOG"
+    else say "NO FLIGHT LOG for the $cq crash"; fi
+  else say "part 2c ($cq) SKIPPED: $(left) min left"; fi
+done
 
 # 3. the flight with the far terrain at 2 px
 JM=${MON_JOURNEY_MIN:-12}
