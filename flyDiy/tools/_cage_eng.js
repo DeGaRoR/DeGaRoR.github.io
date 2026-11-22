@@ -1137,7 +1137,10 @@ function drawPylonMount(group, f, P, GK, aft, C) {
 if (typeof window !== 'undefined') window.CAGE_PYLON = { caster: pylonCaster, hug: pylonHug, NS: PYLON_NS };
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
 // MONOWHEEL: THE HUGGING BODY for another layer - the gear layer's faired skid is this blade hung under the keel
-window.CAGE_PYLON = { pylonCaster, pylonHug, pylonOutline, drawPylonBlade };
+// (MASTER-GREEN 22 Nov: ONE object. This line replaced WILGA-GEAR's { caster, hug, NS } four lines up - two branches, each its
+// own assignment, the second winning - and the trailing-link leg's fitted root (lvJoint 1 / 2) threw "CP.caster is not a
+// function" in the gear layer: no gear drawn (GATE WILGAGEAR, 4 rows). Both sets of names, added to the first)
+Object.assign(window.CAGE_PYLON, { pylonCaster, pylonHug, pylonOutline, drawPylonBlade });
 function pylonMeshes(group, fair, jb, blendTop) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   // (PETREL-LS: the fairing's own livery section, 'pylon' - following the engine mount's when unset, as matOf did)
