@@ -11,6 +11,10 @@
 //     as a reveal; a track that does not exist, passes its max or goes down along the steps is refused
 //   6 what a step, a project or a mission gives: an ability kept once; 'tech:<n>' opens the machine shop's segment
 //   7 the source: the board's draws sit behind the rule
+//   9-13 THE STORY PACK (src/missions/story.json): a fresh write of its tool; valid; every mission a contract in an
+//     any-order chapter or a step of one project; a whole career WALKED to its end - every mission done, every project
+//     done, no drawn job, one career for three seeds; every project step reached in its order; the story's end = the
+//     sandbox's final state on every track a project builds; every aerodrome used
 //   8 pack.clients: a client the pack brings stands in the providers table while the pack is in use, and leaves with it
 //   node tools/_storypack_check.js   -> "GATE STORYPACK: PASS|FAIL"
 'use strict';
@@ -214,6 +218,91 @@ C.missionPackUse(mk({ jobs: 'none' }));
   bad(q => { q.clients[0].person = 'nobody'; }, /nobody is not in the people table/, 'a client whose person is nobody');
   bad(q => { q.clients[0].id = 'gatetwo'; q.text['prov.gatetwo.name'] = { t: 'x' }; q.text['prov.gatetwo.desc'] = { t: 'x' }; }, /text key prov\.gatetwo\.short does not resolve/, 'a client with no short name');
   bad(q => { q.clients = []; }, /no provider gateclub/, 'a mission of a client the pack does not declare'); }
+
+// ---- 9-13 THE STORY PACK (src/missions/story.json, written by tools/_story_pack.js) ------------------------------------------
+{ const cp = require('child_process');
+  const SP = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8'));
+  const fresh = cp.spawnSync(process.execPath, [path.join(T, '_story_pack.js'), '--check'], { encoding: 'utf8' });
+  ok(fresh.status === 0, '9 story.json is a fresh write of tools/_story_pack.js', (fresh.stdout || fresh.stderr || '').trim().slice(0, 160));
+  const w = C.missionPackValidate(SP);
+  ok(!w.length, '9 the story pack validates', w.slice(0, 3).join('; '));
+  ok(J(SP.rules) === J({ jobs: 'none', shady: false, unflyable: 'offer' }), '9 its rules: no drawn job, no drawn shady job, a mission no validated design flies is offered', J(SP.rules));
+  const use = C.missionPackUse(SP), N = C.missionPackNormalise(SP);
+  const real = N.missions.filter(m => m.tutorial == null), ids = real.map(m => m.id);
+  ok(use.ok && !use.held.length && use.n === real.length, '9 in use: every mission installed, none held', use.why + ' ' + use.n + '/' + real.length + ' ' + J(use.held.slice(0, 3)));
+  ok(N.campaigns.every(c => c.tutorial || (c.order === 'any' && c.chapters.every(h => h.order === 'any'))), '9 CONTRACTS IN ANY ORDER: every chapter of every campaign is any-order (no arc)');
+  ok(Object.keys(C.CONTRACT_PROVIDERS).every(p => !C.CONTRACT_PROVIDERS[p].arc.length), '9 ...so no provider holds an arc');
+  const inStep = {}; for (const q of N.projects) q.steps.forEach((st, k) => { for (const m of st.missions) inStep[m] = { q: q.id, k }; });
+  const inChap = new Set([].concat(...N.campaigns.filter(c => !c.tutorial).map(c => [].concat(...c.chapters.map(h => h.missions)))));
+  ok(ids.every(id => (inStep[id] ? 1 : 0) + (inChap.has(id) ? 1 : 0) === 1), '9 every mission is a contract of one chapter or a step of one project, never both, never neither',
+     ids.filter(id => (inStep[id] ? 1 : 0) + (inChap.has(id) ? 1 : 0) !== 1).join(','));
+  ok(N.projects.length === 9 && N.projects.every(q => q.steps.length >= 2 && q.steps.every(st => st.missions.length >= 1 && st.site && st.site.id && C.CONTRACT_FIELDS[st.site.id])),
+     '9 nine projects; every step has a mission and a SITE that is an aerodrome of the island', N.projects.map(q => q.id + ':' + q.steps.length).join(' '));
+  ok(typeof C.STORY_JOB === 'undefined' || ids.includes(C.STORY_JOB), '9 the tutorial\'s one job is a mission of the pack');
+  ok(Object.keys(SP.text).every(k => SP.text[k].draft === true), '9 every word of the pack is marked a draft');
+
+  // 10 THE WALK: a whole career, every offer done in turn (the first on the board; a repeating one twice at most), the
+  // projects ticked a day apart - to the end
+  const walkS = seed => {
+    let d = career(seed), day = 0; d.wallet = 1e6;
+    const log = [], firstOn = {}, lastOn = {}, events = [];
+    for (let i = 0; i < 400; i++) {
+      const offers = C.careerOfferIds(d);
+      for (const id of offers) { if (firstOn[id] == null) firstOn[id] = i; lastOn[id] = i; }
+      log.push(offers.join(','));
+      const times = id => d.career.contracts.done.filter(x => x.id === id).length;
+      const AU = C.contractAuthored();                           // (a delivered order's follow-up '<id>+n' is the client coming back: not a mission of the pack, left on the board)
+      const next = offers.find(id => AU[id] && times(id) < (AU[id].repeat ? 2 : 1));
+      // done the career's own way (74_ careerComplete: the pay, the client's reputation, the mission's own unlock, the done row)
+      if (next) C.careerComplete(d, AU[next], { got: {} }, null, events);
+      day += C.MISSION_DAY_S;
+      const r = C.careerProjectsTick(d, use.projects, day); d = r.doc; events.push(...r.events.map(e => Object.assign({ i }, e)));
+      if (!next && !r.events.length && !Object.values(d.career.projects).some(S => S.works)) break;
+    }
+    return { d, log, firstOn, lastOn, events, days: day / C.MISSION_DAY_S };
+  };
+  const W1 = walkS('a'), W2 = walkS('b'), W3 = walkS('jolene');
+  const doneIds = new Set(W1.d.career.contracts.done.map(x => x.id));
+  ok(ids.every(id => doneIds.has(id)), '10 the walk completes EVERY mission of the pack', ids.filter(id => !doneIds.has(id)).join(',') || W1.d.career.contracts.done.length + ' done in ' + W1.days + ' days');
+  ok(N.projects.every(q => (W1.d.career.projects[q.id] || {}).done), '10 ...and every project', N.projects.filter(q => !(W1.d.career.projects[q.id] || {}).done).map(q => q.id).join(','));
+  ok(W1.log.every(L => !drawn(L.split(',')).length), '10 no drawn job at any step of it', W1.log.length + ' steps');
+  ok(J(W1.log) === J(W2.log) && J(W1.log) === J(W3.log) && J(W1.d.career) === J(Object.assign({}, W2.d.career, { seed: 'a' })), '10 three seeds, one career: the same board at every step, the same document at the end');
+  const end = W1.log[W1.log.length - 1].split(',').filter(Boolean);
+  const AU = C.contractAuthored(), follow = end.filter(id => /\+\d+$/.test(id)), reg = end.filter(id => !/\+\d+$/.test(id));
+  ok(reg.length > 0 && reg.every(id => AU[id] && AU[id].repeat), '10 at the end the board holds the regular work (the missions that repeat)', reg.join(','));
+  ok(follow.every(id => AU[id.replace(/\+\d+$/, '')] && AU[id.replace(/\+\d+$/, '')].kind === 'build'), '10 ...and the delivered orders\' follow-ups (the client coming back: one per order, GQ26)', follow.length + ' follow-ups');
+  // 11 EVERY PROJECT STEP REACHABLE, IN ORDER: a step's missions come on the board only once the step before is done
+  { let bad = [];
+    for (const q of N.projects) q.steps.forEach((st, k) => {
+      const stepDone = k2 => (W1.events.find(e => e.k === 'step' && e.project === q.id && e.step === q.steps[k2].id) || {}).i;
+      for (const m of st.missions) {
+        if (W1.firstOn[m] == null) bad.push(m + ' never offered');
+        else if (k > 0 && !(W1.firstOn[m] > stepDone(k - 1))) bad.push(m + ' offered at ' + W1.firstOn[m] + ', before step ' + q.steps[k - 1].id + ' was done (' + stepDone(k - 1) + ')');
+        else if (W1.lastOn[m] > stepDone(k)) bad.push(m + ' still offered after its step was done');
+      }
+      if (stepDone(k) == null) bad.push(q.id + ':' + st.id + ' never done');
+    });
+    ok(!bad.length, '11 every step of every project is reached, in its order: its missions on the board only while the project stands at it', bad.slice(0, 4).join('; ') || N.projects.reduce((a, q) => a + q.steps.length, 0) + ' steps');
+    const req = N.projects.filter(q => q.requires.projects.length).every(q => { const first = W1.firstOn[q.steps[0].missions[0]];
+      return q.requires.projects.every(r => first > Math.max(...W1.events.filter(e => e.k === 'projectDone' && e.project === r).map(e => e.i))); });
+    ok(req, '11 a project that requires another opens only once that one is done'); }
+  // 12 THE WORLD: the story's end is the sandbox's final state on every track a project builds
+  { const MAX = C.stageMaxes(), tr = W1.d.career.tracks;
+    const built = new Set([].concat(...N.projects.map(q => q.steps.filter(st => st.track).map(st => st.track.split(':')[0]))));
+    ok([...built].every(t => tr[t] === MAX[t]), '12 every track a project builds ends at its max: the story\'s end = the sandbox\'s final state there', [...built].map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' '));
+    const rest = Object.keys(MAX).filter(t => tr[t] !== MAX[t]);
+    ok(rest.join() === 'clients', '12 the tracks the story does not finish yet: clients (the Aero Club\'s, ready 4) - named, not hidden', rest.map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' '));
+    const unl = W1.events.filter(e => e.k === 'unlock' && e.project).map(e => e.unlock);
+    ok(new Set(unl).size === unl.length && unl.length === N.projects.reduce((a, q) => a + q.steps.filter(st => st.track).length, 0), '12 every step with a world stage unlocked it exactly once', unl.length + ' unlocks');
+    ok(J(W1.d.career.abilities) === J(['kit:metal', 'tech:2', 'hangar:home', 'tech:3']) || W1.d.career.abilities.slice().sort().join() === 'hangar:home,kit:metal,tech:2,tech:3',
+       '12 what the story gives: the metal shop and segment 2 (the old hangar), segment 3 (the observatory), the home hangar', W1.d.career.abilities.join()); }
+  // 13 THE ISLAND IS USED: every aerodrome is a place of some mission
+  { const used = new Set();
+    for (const id of ids) for (const u of C.contractSubsOf(C.contractAuthored()[id])) for (const k of ['from', 'to', 'at']) if (u[k]) used.add(u[k]);
+    const not = Object.keys(C.CONTRACT_FIELDS).filter(f => !used.has(f));
+    ok(not.join() === 'w2,xw_rough', '13 every aerodrome of the island is a place of some mission, but Jolene\'s two crosswind strips (the Aero Club\'s, ready 4)', not.join() || 'all'); }
+  C.missionPackUse(B);
+}
 
 // ---- 7 the source ------------------------------------------------------------------------------------------------------------
 const S74 = fs.readFileSync(path.join(ROOT, 'src', 'core', '74_career.js'), 'utf8');
