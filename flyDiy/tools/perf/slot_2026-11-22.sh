@@ -34,7 +34,17 @@ say "slot start, $MIN min, lab $LAB ($(cat "$LAB/flyDiy/version.json" 2>/dev/nul
 P1=${SLOT_P1_MIN:-95}
 say "part 1: pass 1, cap $P1 min"
 LM_HELD=1 LM_DRY=$SLOT_DRY LM_BRIEF_ARGS="${LM_BRIEF_ARGS:---steps compile,frames,worldCompile --miss 1}" LM_BRIEF_LINES=${LM_BRIEF_LINES:-40} LM_STOP_FIRST=1 bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass1.txt" "$OUT/pass1" $P1 2>&1 | tee -a "$LOG"
-[ "${PIPESTATUS[0]}" = 5 ] && { say "ABORT: the first row did not load; the box is freed, nothing else runs"; exit 5; }
+if [ "${PIPESTATUS[0]}" = 5 ]; then
+  # THE SAFETY NET: the build of 11:55 (04740cf1c7aa, gated, without PERF-TRACE's last delivery) waits beside the lab
+  # build; if the lab build's first row does not load, it takes its place and pass 1 starts again, once.
+  if [ -d "$LAB-safe" ] && [ -z "$SLOT_DRY" ]; then
+    say "FALLBACK: the first row failed on the lab build; the safe build takes its place and pass 1 starts again"
+    mv "$LAB" "$LAB-failed" && mv "$LAB-safe" "$LAB" || { say "ABORT: the folders could not be swapped"; exit 5; }
+    JOURNEY_Q="recring=131072"
+    LM_HELD=1 LM_BRIEF_ARGS="${LM_BRIEF_ARGS:---steps compile,frames,worldCompile --miss 1}" LM_BRIEF_LINES=${LM_BRIEF_LINES:-40} LM_STOP_FIRST=1 bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass1.txt" "$OUT/pass1_safe" $(( $(left) - 75 )) 2>&1 | tee -a "$LOG"
+    [ "${PIPESTATUS[0]}" = 5 ] && { say "ABORT: the first row did not load on the safe build either; the box is freed"; exit 5; }
+  else say "ABORT: the first row did not load; the box is freed, nothing else runs"; exit 5; fi
+fi
 
 # 2. the journey + the freeze ledger, run from the LAB build's own tools (page_rig serves the tree it runs in).
 #    PERF-TRACE's command (22 Nov); headed at the user's canvas is asked through page_rig's options in the script's env
@@ -42,7 +52,7 @@ JOURNEY_MIN=${SLOT_JOURNEY_MIN:-42}
 if [ $(left) -ge $(( JOURNEY_MIN + 5 )) ]; then
   say "part 2: the journey, cap $JOURNEY_MIN min"
   if [ -z "$SLOT_DRY" ]; then
-    ( cd "$LAB/flyDiy" && timeout $(( JOURNEY_MIN * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/main_journey.json --runner page --headed --live --size 5120x1271 --q "recring=131072" --out "$OUT/journey" --cap 2400 ) 2>&1 | tail -40 | tee -a "$LOG"
+    ( cd "$LAB/flyDiy" && timeout $(( JOURNEY_MIN * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/main_journey.json --runner page --headed --live --size 5120x1271 --q "${JOURNEY_Q:-recring=131072&recup=1}" --out "$OUT/journey" --cap 2400 ) 2>&1 | tail -40 | tee -a "$LOG"
     J=$(ls -t "$OUT"/journey/*.flightlog.json 2>/dev/null | head -1)
     [ -n "$J" ] && ( cd "$LAB/flyDiy" && nice -n 19 node tools/freeze_ledger.js "$J" --md "$OUT/journey/freezes.md" --show 60 ) 2>&1 | tail -20 | tee -a "$LOG"
   fi
