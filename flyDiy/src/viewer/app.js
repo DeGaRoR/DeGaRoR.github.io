@@ -239,7 +239,7 @@
   // (?lampsfixed=1 is render_premises.js's: the lamp pool's count kept by day.)
   const LABQ = k => typeof location !== 'undefined' && new RegExp('[?&]' + k + '(&|$)').test(location.search || '');
   const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
-    groundFirst: LABQ('groundfirst=1'), ground: { at: {}, n: 0, err: null }, paveFirst: LABQ('pavefirst=1'), pave: { handed: false, at: 0, readyAt: 0, sig: null, sigCompile: null, err: null },
+    groundFirst: LABQ('groundfirst=1'), ground: { at: {}, n: 0, keys: [], keysCompile: null, same: null, err: null }, paveFirst: LABQ('pavefirst=1'), pave: { handed: false, at: 0, readyAt: 0, sig: null, sigCompile: null, err: null },
     lateBg: LABQ('latelinks=bg'), bg: { armed: false, revealed: false, revealAt: 0, running: false, done: false, xrayRun: false, startedAt: 0, xrayMs: 0, ms: 0, xrayLinks: 0, scuffLinks: 0, twins: 0, noTwin: 0, err: null } };
   if (LAB.noLogs && renderer.debug) renderer.debug.checkShaderErrors = false;
   if (typeof window !== 'undefined') window.FLYDIY_LAB = LAB;
@@ -943,6 +943,11 @@
   // reading). The ring and its twin exist at the world build's 'ring lod' yield, the fine tiles' at 'far terrain', the far
   // ring's at 'water': at each, every material of the ground family not handed over yet goes to compileSliced on a
   // stand-in of the mesh that wears it, dressed as the pavement's hand-over is. Not awaited.
+  // (the proof, PERF-WORLDBUILD's: the family's own key at the hand-over and again in worldCompile - every early key among the
+  // frame's = the early links were the frame's. A key is long: its length and a hash of it are kept)
+  const groundKeyOf = m => { let k = ''; try { k = String(m.customProgramCacheKey ? m.customProgramCacheKey() : ''); } catch (e) {} let h = 0; for (let i = 0; i < k.length; i++) h = (Math.imul(h, 31) + k.charCodeAt(i)) | 0; return m.type + ':' + k.length + ':' + (h >>> 0).toString(16); };
+  function groundKeysNow() { const out = []; scene.traverse(o => { if (!o.isMesh || !o.material) return;
+    for (const m of (Array.isArray(o.material) ? o.material : [o.material])) if (m && m.groundFamily) { const k = groundKeyOf(m); if (out.indexOf(k) < 0) out.push(k); } }); return out; }
   const GROUND_HANDED = new WeakSet();
   function groundFirstHand(lab) {
     const B = LAB.ground; if (B.at[lab] || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn || typeof renderer.compileAsync !== 'function') return;
@@ -950,7 +955,8 @@
     const g = new THREE.Group();
     scene.traverse(o => { if (!o.isMesh || !o.material) return;
       for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (!m || !m.groundFamily || GROUND_HANDED.has(m)) continue;
-        GROUND_HANDED.add(m); try { g.add(PROG_WARM.standIn(o, m)); B.n++; } catch (e) { B.err = String(e && e.message); } } });
+        GROUND_HANDED.add(m); const k = groundKeyOf(m); if (B.keys.indexOf(k) < 0) B.keys.push(k);
+        try { g.add(PROG_WARM.standIn(o, m)); B.n++; } catch (e) { B.err = String(e && e.message); } } });
     if (!g.children.length) return;
     try { if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.apply) SHADOW_NEAR.apply(); } catch (e) {}
     compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, fn => craftLightsGuess(fn)).catch(e => { B.err = String(e && e.message); });
@@ -16517,7 +16523,8 @@
       if (WF.lampsArm && WF.lampsWant) WF.lampsArm(WF.lampsWant());
       return craftInWorld(() => {
         worldSettle();   // (in the one loading: the lights as the stand will have them, before their programs are keyed)
-        if (LAB.paveFirst) LAB.pave.sigCompile = lightSig(scene);   // (?pavefirst=1: the light set this step keys with, against the early hand-over's)
+        if (LAB.paveFirst) LAB.pave.sigCompile = lightSig(scene);
+        if (LAB.groundFirst) { const B = LAB.ground; B.keysCompile = groundKeysNow(); B.same = B.keys.every(k => B.keysCompile.indexOf(k) >= 0); B.sig = B.sig || null; B.sigCompile = lightSig(scene); }   // (?groundfirst=1: the family's keys now, against the hand-overs')   // (?pavefirst=1: the light set this step keys with, against the early hand-over's)
         const tgt = aa && aa.target ? aa.target() : null, warn = e => console.warn('world compile:', e && e.message);
         return shaderProgress(LAB.wcSliced   // (?wcsliced=1: the dress in every task, as 'frames' - craftInWorld's own hold spans tasks)
           ? compileSliced(scene, tgt, null, false, craftInWorldNow).catch(warn).then(() => compileDepthVariants(scene, true, craftInWorldNow))
