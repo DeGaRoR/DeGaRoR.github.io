@@ -122,7 +122,7 @@ const POWERLINE = (() => {
   function material(THREE) {
     if (MAT) return MAT;
     // the tram rope's tone (render_premises' ropeMat): weathered dark metal, a little shine left
-    MAT = new THREE.MeshStandardMaterial({ color: 0x24262a, roughness: 0.62, metalness: 0.65 });
+    MAT = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / power lines / cable' }, color: 0x24262a, roughness: 0.62, metalness: 0.65 });
     MAT.name = 'powerline';
     return MAT;
   }

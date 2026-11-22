@@ -109,7 +109,7 @@
       // Frozen reference light uniforms: the comparison scene must not replace
       // the world's prepared lighting with its own empty light list.
       lights: false, toneMapped: false
-    });
+    }, 'terrain / ground cache / tile bake');   // (PERF-TRACE: the owner, program_id.js)
     const size = o.size || 256, width = o.cacheWidth || size, height = o.cacheHeight || size, rect = o.rect;
     if (!rect || rect.length !== 4) throw Error('material cache: rect [x,z,width,depth] required');
     const target = new THREE.WebGLRenderTarget(width, height, {
@@ -176,7 +176,7 @@
     const eye = { value: new THREE.Vector3() }, size = { value: new THREE.Vector2(1, 1) };
     const stats = { packed, pairs: 0, sourceBuilds: 0, renders: 0, width: 1, height: 1, bytes: 16, failures: [], sources: [], slowDraws: [] };
     const originalCompile = renderer.compile, originalRender = renderer.render;
-    const invisible = new THREE.Material(); invisible.visible = false;
+    const invisible = new THREE.Material(); invisible.visible = false; invisible.userData.progOwner = 'terrain / ground cache / invisible placeholder (never drawn)';
     const builderLights = new THREE.Scene();
     builderLights.matrixWorldAutoUpdate = false;
     let inside = false;

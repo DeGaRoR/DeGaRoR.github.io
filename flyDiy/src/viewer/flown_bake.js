@@ -842,10 +842,12 @@
     const map = mk(d.levels[0], true), nmap = mk(d.levels[1], false), orm = mk(d.levels[2], false);
     const o = { map, normalMap: nmap, normalMapType: THREE.TangentSpaceNormalMap, roughnessMap: orm, metalnessMap: orm,
                 roughness: 1, metalness: 1, side: THREE.DoubleSide };
+    // progOwner: mat.userData.progOwner, three lines below (both branches)
     const mat = d.cc ? new THREE.MeshPhysicalMaterial(Object.assign(o, { clearcoat: 1, clearcoatMap: orm, clearcoatRoughness: 1 }))
-                     : new THREE.MeshStandardMaterial(o);
+                     : new THREE.MeshStandardMaterial(o);   // progOwner: mat.userData.progOwner, just below
     mat.name = set === 'in' ? 'flown:baked:in' : 'flown:baked';
     mat.userData.flownBaked = 1;
+    mat.userData.progOwner = 'aircraft / flown bake / baked skin';   // PERF-TRACE (program_id.js): whose programs these are
     mat.userData.aeroD = W.AEROSKIN.aeroSharedU(THREE);   // the craft frame, the cabin, the footwell: the flight's own block
     mat.onBeforeCompile = FB_HOOK;
     return mat;

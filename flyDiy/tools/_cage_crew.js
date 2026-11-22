@@ -42,7 +42,7 @@ const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 // switch: `M.cushion` has to answer differently after it is thrown, and there
 // are 45 call sites that must not each learn about it. The Lambert set stays
 // underneath as MFALL and is what a bench with no AEROSKIN loaded still gets.
-const lam = c => new THREE.MeshLambertMaterial({ color: c });
+const lam = c => new THREE.MeshLambertMaterial({ userData: { progOwner: 'aircraft / cockpit seats and controls / plain fallback' }, color: c });
 const MFALL = {
   dark:    lam(0x363b42),
   cushion: lam(0x7a4f33),

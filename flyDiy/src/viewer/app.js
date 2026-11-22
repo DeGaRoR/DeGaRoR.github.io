@@ -2944,7 +2944,8 @@
       const ud = m.userData; m.userData = {};
       let c; try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
       const scClass = SCUFF.S.OPT.specialize && k === 'live' ? SCUFF.S.clsOf(ud && ud.aeroFinish || '') : -1;
-      c.userData = Object.assign({}, ud, { scuff: k, scuffClass: scClass, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U, SCUFF.W, scClass) });
+      c.userData = Object.assign({}, ud, { scuff: k, scuffClass: scClass, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U, SCUFF.W, scClass),
+        progOwner: [].concat(ud.progOwner || 'aircraft / skin / undeclared').map(o => o + ' + scuff') });   // PERF-TRACE: the scuffed copy says so (program_id.js)
       if (m.defines) c.defines = Object.assign({}, m.defines);
       for (const q of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[q] !== undefined && c[q] !== undefined) c[q] = m[q];
       // the glass's blend follows the pooled pane's (aeroSetGlassBlend flips the pool's, live)
@@ -3188,6 +3189,7 @@
         // flat-colour groups: opaque unless the payload asks for opacity < 1
         // (the c172 interior is all flat colour and must write depth)
         : Object.assign({ color: m.color !== undefined ? m.color : 0xaad4ea }, common));
+      std.userData.progOwner = 'aircraft / model / body groups';   // PERF-TRACE (program_id.js): whose programs these are
       // G206.1: a bucket the join marked as inside (the crew, a liner that
       // is not AEROSKIN's) takes the cabin's darkness through the small hook
       if (m.inside && typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroCabinHook)
@@ -5930,7 +5932,7 @@
     // drew sky only once a Cub parted. And the material's OWN hook, not ATMO's accessor's wrapped one: wrapped twice)
     const ud = m.userData; m.userData = {};
     try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
-    c.userData = Object.assign({}, ud); c.name = (m.name || '') + ':cut';
+    c.userData = Object.assign({}, ud, { progOwner: [].concat(ud.progOwner || 'aircraft / skin / undeclared').map(o => o + ' + cutaway') }); c.name = (m.name || '') + ':cut';   // (PERF-TRACE: the cut copy says so)
     if (m.defines) c.defines = Object.assign({}, m.defines);
     const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
     const f = function (sh, r) { if (own) own.call(this, sh, r); brkCutInject(sh); };
@@ -7950,7 +7952,7 @@
     else {
       const pg = new THREE.BufferGeometry();
       pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 3), 3));
-      pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+      pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ userData: { progOwner: 'fx / water spray / points (fallback)' }, color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
       pts2.frustumCulled = false; pts2.renderOrder = 4;
     }
     craft.add(pts2);
@@ -8649,13 +8651,13 @@
     bPos = new Float32Array(nb * 6); bCol = new Float32Array(nb * 6);
     bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
     bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
-    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true }));   // G2750: see applySkinVis
+    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ userData: { progOwner: 'aircraft / flex cage / beams' }, vertexColors: true, transparent: true }));   // G2750: see applySkinVis
     lines.frustumCulled = false;
     craft.add(lines);
     pGeo = new THREE.BufferGeometry();
     pPos = new Float32Array(sim.n * 3);
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-    pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
+    pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ userData: { progOwner: 'aircraft / flex cage / nodes' }, color: 0xc8d8ea,
       size: 0.06, transparent: true }));
     pts.frustumCulled = false;
     craft.add(pts);
@@ -12397,6 +12399,11 @@
     if (!r.ok) return Promise.resolve({ ok: false, why: r.why, stand: null });
     player = r.doc; playerSave();
     baseId = player.sheds[player.here].base;
+    // PERF-TRACE (22 Nov): THE USER'S OBJECTIVES 5 AND 4, MARKED. The click and the arrival as 'act' events in the flight
+    // log: tools/freeze_ledger.js reads click -> first frame -> the last frame over 100 ms it caused, against the table
+    // (change garage < 5 s with no frame over 100 ms; world -> garage 3 s). Two events, nothing else.
+    const actFR = window.FLIGHT_REC && window.FLIGHT_REC.event ? window.FLIGHT_REC : null, actA = inGarage ? 'garage-change' : 'world-to-garage', actT = actFR ? performance.now() : 0;
+    if (actFR) actFR.event('act', null, { a: actA, s: 1, to: id });
     return new Promise(res => {
       const arrive = () => {
         try {
@@ -12410,6 +12417,7 @@
           } else if (!n) standEmptySet(standEmptyAt(playerLoad(), id));   // EMPTY-STAND: nothing in there - the stand empty
           storeChanged(); try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}   // (the base line follows)
         } catch (e) { console.warn('flyDiy: the garage could not take its plane -', e && e.message); }
+        if (actFR) actFR.event('act', performance.now() - actT, { a: actA, s: 0, to: id });
         res({ ok: true, why: '', stand: slotOnStand() || null });
       };
       if (inGarage) arrive();
@@ -14089,7 +14097,7 @@
     }
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ userData: { progOwner: 'ui / garage labels / sprite' },
       map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
     sp.scale.set(0.220, 0.028, 1);
     sp.renderOrder = 999;
@@ -14256,7 +14264,7 @@
       const a = new THREE.Vector3().fromArray(M(p)), b = new THREE.Vector3().fromArray(M(q));
       const d = new THREE.Vector3().subVectors(b, a), L = d.length();
       if (!(L > 1e-4)) return;
-      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });  // pre-ok: the garage's design aid (P = 1 there)
+      const mat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / design aids / arrows' }, color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });  // pre-ok: the garage's design aid (P = 1 there)
       const hl = head ? Math.min(0.35 * L, r * 7) : 0;
       const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L - hl, 8), mat);
       m.position.copy(a).addScaledVector(d, (L - hl) / 2 / L);
@@ -14375,7 +14383,7 @@
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
       g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(Cc), 3));
-      const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true }));
+      const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / design aids / lines' }, vertexColors: true, depthTest: false, transparent: true }));
       ls.frustumCulled = false; ls.renderOrder = 997;
       gGrp.add(UIL ? UIL.claim(ls) : ls); gAid.push(ls);
     }
@@ -14539,10 +14547,10 @@
       // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
       // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
       // next build - G1027's trap; one link on the first build is the phone's cost)
-      gIndMeshMat = gIndMeshMat || (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { vertexColors: true, side: THREE.DoubleSide });  // pre-ok: the garage's design aid (P = 1 there)
+      gIndMeshMat = gIndMeshMat || (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { vertexColors: true, side: THREE.DoubleSide }, 'editor / design aids / indicator prisms');  // pre-ok: the garage's design aid (P = 1 there)
       gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
       g.dispose();
-    } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
+    } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / design aids / indicator lines' }, vertexColors: true }));
     gInd.frustumCulled = false;
     gGrp.add(UIL ? UIL.claim(gInd) : gInd);
     // DESIGN-AIDS: the other aids, off the same balance the posts stand on (b: the balance job's, else the sheet's)
@@ -14679,7 +14687,7 @@
     // near-black 0x2a2016 came back 255,252,246, so the colour was doing
     // nothing at all. Standard is the family the hangar was lit for and reads
     // ~191,175,144 here, with real per-bag shading.
-    const bagMat = new THREE.MeshStandardMaterial({ color: 0x8a6f4a, roughness: 0.95,
+    const bagMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / load test / sandbags' }, color: 0x8a6f4a, roughness: 0.95,
                                                     metalness: 0 });
     const bags = rg.bags.map(b => {
       const s = 0.11 + 0.20 * Math.sqrt(b[1] / maxF);
@@ -14698,14 +14706,14 @@
     // disappearing inside the covering.
     const bar = (col, order) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));  // pre-ok: the load test's debug bars (not light)
+        new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / load test / debug bars' }, color: col, depthTest: false }));  // pre-ok: the load test's debug bars (not light)
       m.frustumCulled = false; m.renderOrder = order; m.visible = false;
       grp.add(m); return m;
     };
     // THE RED FLAG is a marker, not a recoloured member: the covering is
     // normally on during a test, and a red line under fabric is no flag at all.
     const flag = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8),
-      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));  // pre-ok: the load test's debug flag (not light)
+      new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / load test / debug flag' }, color: 0xff2a1e, depthTest: false }));  // pre-ok: the load test's debug flag (not light)
     flag.frustumCulled = false; flag.visible = false; flag.renderOrder = 1000;
     grp.add(flag);
     craft.add(grp);
@@ -22546,7 +22554,7 @@
     const shadowLs = shadowW ? lights.filter(L => L.castShadow && L.shadow && L.shadow.mapSize) : [], scratch = new Map();
     if (shadowW) SHADOW_WARM_LIGHTS = shadowLs.length;
     if (shadowW && !shadowLs.length) return Promise.resolve(0);
-    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial())) : null;  // pre-ok: a warm draw's stand-in, never on screen
+    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial({ userData: { progOwner: 'engine / warm draw / stand-in (never visible)' } }))) : null;  // pre-ok: a warm draw's stand-in, never on screen
     const shadowSwap = () => shadowLs.map(L => {
       const S = L.shadow, C = S.camera;
       const k = [S.map, S.mapSize.x, S.mapSize.y, S.autoUpdate, S.needsUpdate, S.matrix.clone(),

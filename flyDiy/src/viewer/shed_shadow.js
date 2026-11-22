@@ -119,12 +119,12 @@ var SHED_SHADOW = (function () {
     let E = LT.get(L); if (E) return E;
     const TH = T();
     const g = new TH.BufferGeometry(); g.setAttribute('position', new TH.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
-    const q = new TH.Mesh(g, new TH.MeshBasicMaterial({ side: TH.DoubleSide }));
+    const q = new TH.Mesh(g, new TH.MeshBasicMaterial({ userData: { progOwner: 'garage / shed shadow cache / copy quad colour stand-in' }, side: TH.DoubleSide }));
     q.name = 'shedShadowCopy'; q.castShadow = false; q.receiveShadow = false; q.userData.noPick = true; q.userData.shedShadowCopy = true;
     q.raycast = () => {};
     q.intersectsFrustum = fr => fr === L.shadow.getFrustum();   // only its own light's pass: the main pass, the glass, the probes cull it
     if (copyRenderer !== R) { for (const m of copyMats) m.dispose(); copyMats.length = 0; copyRenderer = R; }
-    q.customDepthMaterial = copyMats.pop() || new TH.ShaderMaterial({ name: 'shedShadowCopy', uniforms: { tDepth: { value: null } },
+    q.customDepthMaterial = copyMats.pop() || new TH.ShaderMaterial({ userData: { progOwner: 'garage / shed shadow cache / static depth copy' }, name: 'shedShadowCopy', uniforms: { tDepth: { value: null } },
       vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: 'uniform highp sampler2D tDepth;\nvoid main() { gl_FragDepth = texelFetch(tDepth, ivec2(gl_FragCoord.xy), 0).r; gl_FragColor = vec4(1.0); }',
       side: TH.DoubleSide, depthTest: true, depthWrite: true });

@@ -155,7 +155,7 @@ function skinDraw(THREE, a, dec, geos) {
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeBoundingSphere();
   g.userData.parts = parts.slice(); g.userData.rows = rows;   // which meshes it draws, each one's row (GATE MATLIB)
-  const mat = MATLIB.arr.material(THREE, { side, flat: false, pages });
+  const mat = MATLIB.arr.material(THREE, { owner: 'animals / skinned draw / texture array', side, flat: false, pages });
   return { parts, geo: g, mat, name: parts.map(i => dec.meshes[i].name).join('+') };
 }
 
@@ -182,7 +182,7 @@ function loomMats(THREE, b) {
                 transparent: true, opacity: 0, depthTest: false, depthWrite: false,
                 side: rec.dbl ? THREE.DoubleSide : THREE.FrontSide, toneMapped: true, fog: false };
     if (rec.map && typeof propTexture === 'function') o.map = propTexture(THREE, rec.map, true, 'color');
-    const m = MATLIB.make(THREE, 'basic', o);  // pre-ok: its colour held x P on the next line
+    const m = MATLIB.make(THREE, 'basic', o, 'animals / sea loom / unlit colour');  // pre-ok: its colour held x P on the next line
     m.name = 'animalLoom:' + b.a.key;
     if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.preHold) LIGHT_RIG.preHold(m.color, 'rgb');   // G2620: an unlit colour in the world's frame x P
     return m;

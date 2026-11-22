@@ -127,7 +127,7 @@ var BOOMBOX = (function () {
     const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat);
     tex.needsUpdate = true;
     const mat = MATLIB.make(THREE, 'basic', { color: 0xffd9a0, map: tex, transparent: true, opacity: 0.42, depthWrite: false,
-      blending: THREE.AdditiveBlending, toneMapped: false });
+      blending: THREE.AdditiveBlending, toneMapped: false }, 'props / boombox / cue halo');
     halo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
     halo.name = 'boomboxHalo';
     halo.rotation.x = -Math.PI / 2;

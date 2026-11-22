@@ -216,8 +216,8 @@ const TOW_AOA = { low: 6, high: 9 };
 // pair laid along the line to the first point of the drawn rope. Bright galvanised steel; ~1.3 k triangles.
 function towRingRig(T) {
   const g = new T.Group(); g.name = 'towRings';
-  const steel = new T.MeshStandardMaterial({ color: 0xc9ccd0, metalness: 0.85, roughness: 0.32 });
-  const rope = new T.MeshStandardMaterial({ color: 0xf2e6c8, metalness: 0, roughness: 0.9 });
+  const steel = new T.MeshStandardMaterial({ userData: { progOwner: 'vehicles / tow line / ring steel' }, color: 0xc9ccd0, metalness: 0.85, roughness: 0.32 });
+  const rope = new T.MeshStandardMaterial({ userData: { progOwner: 'vehicles / tow line / rope eye' }, color: 0xf2e6c8, metalness: 0, roughness: 0.9 });
   const big = new T.Mesh(new T.TorusGeometry(0.027, 0.003, 10, 32), steel);
   const small = new T.Mesh(new T.TorusGeometry(0.020, 0.0028, 10, 28), steel);
   // (the eye: 0.8 of a loop, its gap turned to face along the line - the two legs leave it forward into the doubled rope)

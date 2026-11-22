@@ -434,7 +434,7 @@ function build(key) {
   for (var name in dec) {
     var g = dec[name];
     var mk = matKeyOf(payload, name);
-    if (!mats[mk]) mats[mk] = new THREE.MeshStandardMaterial({ name: 'ref:' + mk });
+    if (!mats[mk]) mats[mk] = new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / reference plane / model' }, name: 'ref:' + mk });
     var geo = new THREE.BufferGeometry();
     // NOT a copy: nothing here ever mutates a position, so the reference and
     // the flight model share one set of arrays and the second aeroplane in

@@ -122,13 +122,13 @@ function wsSkinMat(THREE, spec) {
   const map = load(typeof genPaintDataURI === 'function' ? genPaintDataURI : null, true);
   const bump = load(typeof genBumpDataURI === 'function' ? genBumpDataURI : null, false);
   const mr = load(typeof genMrDataURI === 'function' ? genMrDataURI : null, false);
-  const o = { side: THREE.DoubleSide, roughness: 0.62, metalness: 0.04,
+  const o = { userData: { progOwner: 'garage / workshop pieces / painted skin' }, side: THREE.DoubleSide, roughness: 0.62, metalness: 0.04,
               envMapIntensity: 1 };
   if (map) { o.map = map; o.color = 0xffffff; }
   else o.color = (spec.paint && spec.paint.base) || 0xc8c3b4;
   if (bump) { o.normalMap = bump; o.normalScale = new THREE.Vector2(0.9, 0.9); }
   if (mr) { o.roughnessMap = mr; o.metalnessMap = mr; }
-  return new THREE.MeshStandardMaterial(o);
+  return new THREE.MeshStandardMaterial(o);   // progOwner: 'garage / workshop pieces / painted skin', declared in the literal `o` above (wsSkinMat)
 }
 
 // ---- the pieces ------------------------------------------------------------
@@ -503,7 +503,7 @@ function wsEngineMesh(THREE, def) {
       ? A.aeroHardMat(THREE, 'eng', nm, hex, { side: THREE.DoubleSide }) : null;
     if (am) return am;
     const pr = (P && P.PROPS[nm]) || [0.55, 0.5];
-    return new THREE.MeshStandardMaterial({ color: hex, metalness: pr[0],
+    return new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / workshop pieces / bench engine flat colour' }, color: hex, metalness: pr[0],
       roughness: pr[1], side: THREE.DoubleSide });
   });
   const mesh = new THREE.Mesh(geo, mats);

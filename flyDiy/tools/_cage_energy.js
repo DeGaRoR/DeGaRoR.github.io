@@ -2198,7 +2198,7 @@ function vesselMat(o) {
               col: O.col == null ? 0xffffff : O.col };
   const bad = !!O.bad;
   const S = (VTEX() || {})[F.set];
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / fuel tanks and batteries / vessel finish' },
     color: new THREE.Color(O.tint == null ? F.col : O.tint),
     // with the maps bound the scalars are MULTIPLIERS and 1.0 means "what the
     // scan measured"; without them they are the scan's own means, so a page
@@ -2299,7 +2299,7 @@ function slotMat(slot, bad, i, v) {
 let wetMat = null;
 function matWet(bad) {
   if (!wetMat) {
-    wetMat = new THREE.MeshStandardMaterial({ color: 0x4a8fd6, roughness: 0.30,
+    wetMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / fuel tanks and batteries / wet wing fuel' }, color: 0x4a8fd6, roughness: 0.30,
       metalness: 0.10, transparent: true, opacity: 0.40, side: THREE.DoubleSide });
     wetMat.userData.aeroskin = 1;
     wetMat.userData.env0 = 1;
@@ -2455,7 +2455,7 @@ function fuelMat() {
   const key = EN.fuel || 'avgas100LL';
   if (fuelMats[key]) return fuelMats[key];
   const col = /avgas/i.test(key) ? 0x3a7fd8 : 0xd9b14a;
-  const m = new THREE.MeshStandardMaterial({ color: col, roughness: 0.25,
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / fuel tanks and batteries / fuel liquid' }, color: col, roughness: 0.25,
     metalness: 0.05, transparent: true, opacity: 0.55, depthWrite: false });
   m.userData.aeroskin = 1;
   return (fuelMats[key] = m);
@@ -2465,14 +2465,14 @@ let CLASH_GEO = null, CLASH_MAT = null;
 function clashGeo() { return CLASH_GEO || (CLASH_GEO = new THREE.SphereGeometry(0.014, 12, 8)); }
 function clashMat() {
   if (CLASH_MAT) return CLASH_MAT;
-  CLASH_MAT = new THREE.MeshBasicMaterial({ color: 0xff2a1a, depthTest: false, transparent: true, opacity: 0.95 });
+  CLASH_MAT = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / tank fit / clash beads' }, color: 0xff2a1a, depthTest: false, transparent: true, opacity: 0.95 });
   CLASH_MAT.userData.aeroskin = 1;
   return CLASH_MAT;
 }
 let ghostMat = null;
 function ghost() {
   if (ghostMat) return ghostMat;
-  ghostMat = new THREE.MeshStandardMaterial({ color: 0x64a8ff, roughness: 0.8,
+  ghostMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'editor / tank fit / bay ghost box' }, color: 0x64a8ff, roughness: 0.8,
     metalness: 0, transparent: true, opacity: 0.10, depthWrite: false,
     side: THREE.DoubleSide });
   ghostMat.userData.aeroskin = 1;

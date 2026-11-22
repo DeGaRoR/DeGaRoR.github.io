@@ -1206,7 +1206,7 @@ if (process.argv.includes('--selftest')) {
         'markings: the bake can paint from the bare export (no meta: the far model wears F-PGAR, not the registration)');
   // THE OVERLAY DRAWS OVER EVERYTHING AND STAYS IN FLIGHT (G2750): transparent from birth (an opaque line sorts before
   // every transparent pavement whatever its renderOrder), in the see-through band when x-rayed, reset in the shed
-  check(/new THREE\.LineBasicMaterial\(\{ vertexColors: true, transparent: true \}\)/.test(APP) && /size: 0\.06, transparent: true \}\)/.test(APP),
+  check(/new THREE\.LineBasicMaterial\(\{(?: userData: \{ progOwner: '[^']*' \},)? vertexColors: true, transparent: true \}\)/.test(APP) && /size: 0\.06, transparent: true \}\)/.test(APP),
         'overlay: the frame lines are opaque again — the runway (transparent, drawn after) paints over the x-ray');
   check(/lines\.renderOrder = overlay \? AERO_CLEAR \+ 998 : 998; pts\.renderOrder = overlay \? AERO_CLEAR \+ 999 : 999;/.test(APP),
         'overlay: the x-rayed frame is not above the craft\'s see-through band (the glass, the clouds\' composite)');

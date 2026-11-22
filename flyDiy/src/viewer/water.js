@@ -1011,10 +1011,10 @@ const WATER = (() => {
     F.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); F.quad.frustumCulled = false; F.scene.add(F.quad);
     F.kern = fieldKernel(KERN_P); F.gain = fieldKernelGain(F.kern, KERN_P);
     const v4 = () => new THREE.Vector4();
-    F.stepMat = new THREE.ShaderMaterial({ vertexShader: FIELD_VERT, fragmentShader: FIELD_STEP, depthTest: false, depthWrite: false,
+    F.stepMat = new THREE.ShaderMaterial({ userData: { progOwner: 'water / interaction field / step' }, vertexShader: FIELD_VERT, fragmentShader: FIELD_STEP, depthTest: false, depthWrite: false,
       uniforms: { uPrev: { value: null }, uShift: { value: new THREE.Vector2() }, uK: { value: v4() }, uKern: { value: F.kern }, uNu: { value: F.nu },
         uStampA: { value: Array.from({ length: FIELD_MAXS }, v4) }, uStampB: { value: Array.from({ length: FIELD_MAXS }, v4) }, uNStamp: { value: 0 }, uTexel: { value: 1 / FIELD_N } } });
-    F.deriveMat = new THREE.ShaderMaterial({ vertexShader: FIELD_VERT, fragmentShader: FIELD_DERIVE, depthTest: false, depthWrite: false,
+    F.deriveMat = new THREE.ShaderMaterial({ userData: { progOwner: 'water / interaction field / derive' }, vertexShader: FIELD_VERT, fragmentShader: FIELD_DERIVE, depthTest: false, depthWrite: false,
       uniforms: { uState: { value: null }, uTexel: { value: 1 / F.L[0].N }, uDx: { value: F.L[0].dx }, uState1: { value: null }, uTexel1: { value: 1 / F.L[1].N }, uDx1: { value: F.L[1].dx } } });
     F.ready2 = true;
     return true;
@@ -1647,7 +1647,7 @@ const WATER = (() => {
     T3 = THREE;
     if (mat) return mat;
     makeU(THREE);
-    mat = new THREE.MeshPhysicalMaterial({
+    mat = new THREE.MeshPhysicalMaterial({ userData: { progOwner: 'water / sea / surface' },
       color: 0xffffff, roughness: 0.05, metalness: 0.0, ior: 1.333, specularIntensity: 1.0,
       transparent: true, depthWrite: true, side: THREE.DoubleSide, fog: true,
       envMapIntensity: (opts && opts.envMapIntensity != null) ? opts.envMapIntensity : 1.0,

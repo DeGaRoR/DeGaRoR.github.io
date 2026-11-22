@@ -318243,3 +318243,55 @@ NEW REDS (named):
 - MONOWHEEL: E, parked on the wheel + nose skid + one wingtip skid - FLAGSHIP (the E811 change / electric trainer) to check.
 - TAILWHEEL: I, down & out lands HOME at 22.57 m/s, roll-out 0 deg - Pilot / FLAGSHIP to check against the E811 change.
 NAMED for list:50 (rides L40i): DMGCERT BROKE UP with no BROKE AT (18 wing members kink at 7.4 g, nothing detaches).
+
+## PERF-TRACE - THE ENGINE EXPLAINS ITSELF: every program named by its owner, what each loading step waited for, the freeze ledger (PERF-TRACE, 22 Nov 2026; claude/perf-trace on claude/perf-codex)
+THE USER (21-22 Nov): "requiring new shader programs to identify themselves and their dependencies"; "retro fit shader identity and force the new
+ones to explicitly declare themselves". The independent review (reports/ARCHITECTURE-PERF-REVIEW-2026-11-20.md): attribution before coordination.
+Nothing here changes a pixel, a program key or a shader text; everything reads ONE file, the flight recorder's log.
+
+THE DECLARATION (src/viewer/program_id.js): a material says whose it is, `material.userData.progOwner = 'feature / system / variant'` (a string,
+or an array: a shared material has several owners). Forms: the key in the constructor's literal (`userData: { progOwner: '...' }`), MATLIB's
+owner argument (`make(THREE, shape, params, owner)`, `shared(.., scope, owner)`, `arr.material(THREE, { owner })` - outside the share signature),
+`PROGRAMS.own(m, owner)` (adds), or `m.userData.progOwner = ...` just after. NEVER in customProgramCacheKey, a define, the GLSL or material.name
+(three r186 writes the name into every program: `#define SHADER_NAME <material.name>`). A clone and a warm-up twin are their source's; a warmed
+depth program is its casters' ('shadow pass / depth <- town / houses / walls', shader_warm.js). Every site in src/ and in the generators the build
+ships from tools/ is labelled; the FEATURES (first word) are tools/program_sites.js FEATURES - the decision table's rows.
+
+THE REGISTRY (program_id.js, hooked by flight_recorder.js; off under ?rec=0 and ?progid=0; ?progid=lite = no source hash): one row a
+gl.linkProgram. link number -> three's WebGLProgram (info.programs.push: its .program IS the GL object) -> the materials renderer.compile()
+returns / the rendered scene holds (properties.get(m).programs) -> their owners. READY = the bracket of THREE'S OWN poll (COMPLETION_STATUS_KHR,
+asked by compileAsync / the shaders' screen / the pacer): last seen pending, first seen ready. NO GL CALL IS ADDED (a status poll of its own
+changed the benchmark it measured: Codex). First use and its cost (from three's first status query to the switch), a draw HELD on a link
+(the blocking query, ms), made in compile / render (LATE) / shadow, the source's hash and size, the prefix #defines (the variant).
+Log events: 'prog' { n, id, name, type, own, mat, obj, key, fp, vs, fs, ctx, step, rt }, 'progready' ms [n, lastPending, via, polls],
+'proguse' ms n, 'linkwait' ms n (it names its program now); the saved log's `programs` table (with the defines and a census of the holders),
+`resources` (the browser's resource timing, buffer raised to 4000), `premises` (the stream's slow builds and dearest frame).
+ALSO NEW IN THE LOG: 'gpuup' ms { at, tex: [calls, ms, megapixels, compressed KB], buf: [calls, ms, KB], sub: [calls, KB], mip, geo, texNew } - a
+frame that made 1 ms or more of GPU data (texture / buffer creation timed; bufferSubData counted, no clock); 'premslow' { built: [[id, ms]], worst }
+on a frame whose premises slot took 60 ms or more; 'act' { a: 'garage-change' | 'world-to-garage' | 'interior-view', s } (objectives 5, 4, 6).
+A STREAMER SAYS WHAT IT DELIVERED with FLIGHT_REC.event('deliver', ms, { s: 'cover', n, what }) - the ledger prints it under the frame.
+COST: 0.05-0.1 ms a program (the hash of ~60 KB of GLSL), a WeakMap read a program switch and a status poll, nothing on a draw.
+
+THE TOOLS (each: node tools/<tool>.js <flydiy-flightlog-*.json[.gz]>; the usage is at the top of the file)
+- program_report.js: per loading step, the programs submitted / awaited / still pending, the LAST one ready and the gap to the step's end
+  ("ended WITH its last program" = it waited on that link); per second submitted / seen ready / in flight against the pacer's N; a step is
+  QUEUE-BOUND (in flight at N), HEAVY-BOUND (one program, alone) or PAGE-BOUND (below N); each program's pending time, PENDING SHARE (the link
+  queue's wall time it stands for: an upper bound, not a CPU measurement) and CROWD; by owner; unowned, late, held, never drawn, the largest
+  sources, programs held under 2+ material names. `--pin garage-cold|world-noon|world-night [--until garage|reveal|s] [--reason "..."]`
+  writes tools/perf/program_owners.json (a feature whose count rose is refused without the reason).
+- freeze_ledger.js: every frame over 50 ms with what is KNOWN to have filled it and an explicit UNATTRIBUTED remainder; overrun / spike /
+  outside; what ARRIVED in it (GPU data, programs first used, deliveries, premises built); rows 7-10 of PERF-OBJECTIVES.md. Row 9 over BOTH
+  windows, by name: 20-second blocks (the table) and perf_trace.js's 120-frame meter windows. Orange = 35 ms: flight_recorder.js's own meter line.
+- load_timeline.js: a Chrome-trace JSON (ui.perfetto.dev, DevTools) - lanes: milestones, the loading steps by their own names, the loop, tasks,
+  network, programs by owner, held draws, scene; arrows ONLY where a link is recorded (a step that ended with its last program) or declared
+  (TRIP_STEPS deps) - and per step what BOUND it: main thread / programs / network / NOT PROVEN (workers leave no event yet).
+- decision_table.js: per feature and system: programs, link-queue share, own steps, frame ms, freeze ms; the marginal delay to garage / to
+  flight is UNKNOWN unless a measured on / off pair is given (--ab).
+- program_sites.js: every material site and how it declares its owner (--todo: the undeclared; --owners: every owner string).
+GATE PROGRAMS (tools/_program_check.js; parts 6-8 in tools/_progid_check.js): 6 the real three on the fake GL with the recorder and the registry
+hooked - the link tied, the owner the declared one and in no key or source, late programs, the bracket, held draws, first use, GPU data, the
+context asked exactly what it is asked without the registry; 7 EVERY MATERIAL SITE DECLARES ITS OWNER (a new material without one fails with its
+file and line); 8 the standard boots' census: none unowned, a rise has its reason. (Part 4's sandbox was given the real probeLightPadding: the
+gate threw before its verdict on perf-codex.)
+KNOWN, OLDER THAN THIS WORK: GATE FLIGHTREC fails 3 app.js source checks on claude/perf-codex itself (begin / end round the frame clock,
+holdRender to PACE.end, worldPrelinkGfx).
