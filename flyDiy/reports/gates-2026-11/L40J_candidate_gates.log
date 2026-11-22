@@ -1,5 +1,5 @@
-FAIL (22 of 113 gates run; PARTIAL: 7 of 23 chunks, 251 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE
+FAIL (26 of 119 gates run; PARTIAL: 8 of 23 chunks, 245 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN
 L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -1583,6 +1583,546 @@ GATE DMGWIND: PASS
   --    REPORT metal Cessna: a nose-over at 4 m/s (DMG-DRIVE's): strike stoppage, the nose on the ground 15 cm (spinner, 1436 J, 14.0 kN), 0 broken
   41/41 checks
 GATE DMGNOSE: PASS
+######## chunk 07 of 23 (6 gates) ########
+=== DMGFALL ===
+3. A WHOLE FLIGHT
+  PASS the Cub's circuit: no crash, DMG.rest null ({"crashed":false,"rest":null,"finite":true})
+GATE DMGFALL: PASS
+=== DMGCLUSTERS ===
+(664 s, 6 builds)
+Cub:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 6.68 / 20.29 / 11.71 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.08 kN.m, the statics 0.08 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.001 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.038 (FIN root, twist; 0.06 of first yield)
+  ok    load test 5.7 g, the stab: 0.011 (FIN root, bend; 0.02 of first yield)
+  ok    flown pull (TREECRASH's, from 42 m/s): 0.011 (FIN root, bend; 0.02 of first yield)
+  ok    drop at FAR 23.473 (7.0 ft/s): 0.012 (FIN root, bend; 0.02 of first yield)
+  ok    drop at 10 ft/s: 0.016 (FIN root, bend; 0.02 of first yield)
+  ok    a circuit with the pilot: 0.018 (FIN root, bend; 0.03 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.001)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.85 s (6.68 kN.m bending, -10.35 torque; limits 6.68 / 20.29 / 11.71), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.20 m off; clusters now FIN:13
+Jodel:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    2 clusters, each with its root cut: SHELL root 74.59 / 75.39 / 86.58 (its bay); SHELL station 52.21 / 52.77 / 60.60 (its bay); FIN root 0.76 / 3.01 / 1.74 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    SHELL root: read 4.02 kN.m, the statics 4.02 (52 nodes)
+  ok    SHELL station: read 1.74 kN.m, the statics 1.74 (44 nodes)
+  ok    FIN root: read 0.07 kN.m, the statics 0.07 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.001 (SHELL root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.401 (FIN root, bend; 0.46 of first yield)
+  ok    load test 5.7 g, the stab: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 50 m/s): 0.168 (FIN root, bend; 0.19 of first yield)
+  ok    drop at FAR 23.473 (7.2 ft/s): 0.046 (FIN root, bend; 0.05 of first yield)
+  ok    drop at 10 ft/s: 0.064 (FIN root, bend; 0.07 of first yield)
+  ok    a circuit with the pilot: 0.101 (FIN root, twist; 0.12 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.010)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.93 s (0.76 kN.m bending, -1.07 torque; limits 0.76 / 3.01 / 1.74), 16 members broken (fin:attach, 0 others), the part rigid to 0.2 mm and 1.15 m off; clusters now SHELL:22, FIN:13
+  ok    the SHELL levered over an obstacle at its mid-span station (bay 2; the station pushed up, the tail down): SHELL station by bend at 4.78 s (52.21 kN.m bending, 9.48 torque; limits 52.21 / 52.77 / 60.60), 10 members broken (its bay, 0 others), the part rigid to 0.1 mm and 1.00 m off; clusters now SHELL:12, FIN:17, SHELL/aft:10
+  ok    SHELL split at its station, then reset (Fly again): every cluster back to its as-built omega (G2640)
+metal Cessna:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    2 clusters, each with its root cut: SHELL root 44.89 / 46.20 / 52.54 (its bay); SHELL station 31.42 / 32.34 / 36.78 (its bay); FIN root 5.03 / 25.38 / 14.65 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  --    SHELL root: the part is half the aeroplane
+  ok    SHELL station: read 3.02 kN.m, the statics 3.01 (53 nodes)
+  ok    FIN root: read 0.01 kN.m, the statics 0.01 (17 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.001 (SHELL twist bay, twist)
+  ok    load test 5.7 g, the fin: 0.282 (FIN root, bend; 0.44 of first yield)
+  ok    load test 5.7 g, the stab: 0.004 (SHELL twist bay, twist)
+  ok    flown pull (TREECRASH's, from 68 m/s): 0.611 (SHELL root, bend; 0.61 of first yield)
+  ok    drop at FAR 23.473 (8.4 ft/s): 0.135 (SHELL root, bend; 0.13 of first yield)
+  ok    drop at 10 ft/s: 0.149 (SHELL root, bend; 0.15 of first yield)
+  ok    a circuit with the pilot: 0.112 (FIN root, bend; 0.18 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.054)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  FAIL  the FIN pulled sideways (n g on the fin, ramped): FIN root by member at 1.47 s (0.39 kN.m bending, -1.33 torque; limits 5.03 / 25.38 / 14.65), 16 members broken (fin:attach, 0 others), the part rigid to 0.1 mm and 2.44 m off; clusters now SHELL:22, FIN:17
+  ok    the SHELL levered over an obstacle at its mid-span station (bay 2; the station pushed up, the tail down): SHELL station by bend at 4.00 s (31.42 kN.m bending, 3.61 torque; limits 31.42 / 32.34 / 36.78), 10 members broken (its bay, 0 others), the part rigid to 0.3 mm and 1.06 m off; clusters now SHELL:12, FIN:21, SHELL/aft:10
+  ok    SHELL split at its station, then reset (Fly again): every cluster back to its as-built omega (G2640)
+Cessna floats:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: SHELL root 67.21 / 59.63 / 71.95 (its bay); SHELL station 47.05 / 41.74 / 50.36 (its bay); FIN root 6.85 / 25.27 / 14.59 (fin:attach); FLTL root 2825.46 / 2901.96 / 256.85 (floatL:strut); FLTR root 2825.46 / 2901.96 / 256.85 (floatR:strut)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    SHELL root: read 7.87 kN.m, the statics 7.87 (51 nodes)
+  ok    SHELL station: read 2.69 kN.m, the statics 2.69 (43 nodes)
+  ok    FIN root: read 0.16 kN.m, the statics 0.16 (13 nodes)
+  ok    FLTL root: read 0.59 kN.m, the statics 0.60 (15 nodes)
+  ok    FLTR root: read 0.59 kN.m, the statics 0.60 (15 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (SHELL root, twist; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.144 (FIN root, twist; 0.23 of first yield)
+  ok    load test 5.7 g, the stab: 0.001 (SHELL twist bay, twist)
+  ok    flown pull (TREECRASH's, from 65 m/s): 0.317 (SHELL root, bend; 0.32 of first yield)
+  ok    drop at FAR 23.473 (8.2 ft/s), onto the water: 0.212 (SHELL root, bend; 0.21 of first yield)
+  ok    drop at 10 ft/s, onto the water: 0.254 (SHELL root, bend; 0.25 of first yield)
+  ok    the 5 m/s level pancake on the water: 0.566 (SHELL root, bend; 0.57 of first yield)
+  ok    a circuit with the pilot (on the water): 0.095 (SHELL root, bend; 0.09 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.028)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  FAIL  the FIN pulled sideways (n g on the fin, ramped): FIN root by twist at 4.27 s (2.70 kN.m bending, -14.59 torque; limits 6.85 / 25.27 / 14.59), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.16 m off; clusters now SHELL:22, FIN:13, FLTL:15, FLTR:15
+  ok    the SHELL levered over an obstacle at its mid-span station (bay 2; the station pushed up, the tail down): SHELL station by bend at 4.20 s (47.05 kN.m bending, 5.99 torque; limits 47.05 / 41.74 / 50.36), 10 members broken (its bay, 0 others), the part rigid to 0.1 mm and 1.13 m off; clusters now SHELL:12, FIN:17, FLTL:15, FLTR:15, SHELL/aft:10
+  ok    SHELL split at its station, then reset (Fly again): every cluster back to its as-built omega (G2640)
+  ok    the FLTL dug in (its bow driven up and aft, ramped): FLTL root by member at 0.95 s (279.58 kN.m bending, -24.09 torque; limits 2825.46 / 2901.96 / 256.85), 12 members broken (floatL:strut, 0 others), the part rigid to 0.0 mm and 0.52 m off; clusters now SHELL:22, FIN:17, FLTL:15, FLTR:15
+  ok    the FLTR dug in (its bow driven up and aft, ramped): FLTR root by member at 0.95 s (279.58 kN.m bending, 24.09 torque; limits 2825.46 / 2901.96 / 256.85), 12 members broken (floatR:strut, 0 others), the part rigid to 0.0 mm and 0.52 m off; clusters now SHELL:22, FIN:17, FLTL:15, FLTR:15
+5. the water
+  ok    the float nose-in at its own V_S0 (90 km/h, 5.0 m/s, 20 deg): the worst cut 0.591 (SHELL root, bend); the floats' roots FLTL 0.01 bend / 0.02 twist, FLTR 0.01 bend / 0.02 twist; damage on: no cluster parts; groups - - finite
+  REPORT  the float nose-in at its own V_S0 (90 km/h, 5.0 m/s, 20 deg): the float fittings held (§7.4)
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst cut 2.111 (SHELL root, bend); the floats' roots FLTL 0.05 bend / 0.14 twist, FLTR 0.05 bend / 0.14 twist; damage on: SHELL root by bend at 0.15 s, SHELL station by bend at 0.15 s, FIN root by bend at 0.44 s; groups eng:mount@0.182 fin:attach@0.444 stab:attach@0.474; CRASHED (broke up: the fuselage parted (TPB off the core)) - finite
+  REPORT  SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the float fittings held (§7.4)
+twin floatplane:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: ROD root 10.31 / 10.31 / 9.35 (its bay); ROD station 7.22 / 7.22 / 6.55 (its bay); FIN root 7.91 / 36.12 / 20.86 (fin:attach); FLTL root 620.59 / 634.54 / 104.84 (floatL:strut); FLTR root 620.59 / 634.54 / 104.84 (floatR:strut)
+  ok    ROD: its mid-span station at bay 2 (at 0.7 of the tube), the twist limits per bay 9.35 / 9.35 / 6.55 / 9.35
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    ROD root: read 3.62 kN.m, the statics 3.65 (57 nodes)
+  ok    ROD station: read 1.66 kN.m, the statics 1.65 (49 nodes)
+  ok    FIN root: read 0.19 kN.m, the statics 0.19 (13 nodes)
+  ok    FLTL root: read 0.30 kN.m, the statics 0.30 (15 nodes)
+  ok    FLTR root: read 0.30 kN.m, the statics 0.30 (15 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (ROD station, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.057 (FIN root, twist; 0.08 of first yield)
+  ok    load test 5.7 g, the stab: 0.007 (ROD twist bay, twist)
+  ok    flown pull (TREECRASH's, from 43 m/s): 0.828 (ROD root, bend; 1.54 of first yield)
+  ok    drop at FAR 23.473 (7.0 ft/s), onto the water: 0.349 (ROD root, bend; 0.65 of first yield)
+  ok    drop at 10 ft/s, onto the water: 0.561 (ROD root, bend; 1.04 of first yield)
+  ok    the float nose-in at its own V_S0 (51 km/h, 2.8 m/s, 20 deg): 0.874 (ROD root, bend; 1.62 of first yield)
+  ok    a circuit with the pilot (on the water): 0.301 (ROD root, bend; 0.56 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.106)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 9.93 s (26.16 kN.m bending, -16.15 torque; limits 7.91 / 36.12 / 20.86), 16 members broken (fin:attach, 0 others), the part rigid to 0.1 mm and 1.02 m off; clusters now ROD:22, FIN:13, FLTL:15, FLTR:15
+  ok    the ROD loaded down at its tail (n g on the tube and the tail, ramped): ROD root by bend at 1.23 s (10.31 kN.m bending, 0.75 torque; limits 10.31 / 10.31 / 9.35), 10 members broken (its bay, 0 others), the part rigid to 3.6 mm and 0.70 m off; clusters now ROD:18, FIN:17, FLTL:15, FLTR:15
+  ok    the ROD levered over an obstacle at its mid-span station (bay 2; the station pushed up, the tail down): ROD station by bend at 3.10 s (7.22 kN.m bending, 0.53 torque; limits 7.22 / 7.22 / 6.55), 10 members broken (its bay, 0 others), the part rigid to 1.0 mm and 0.70 m off; clusters now ROD:12, FIN:17, FLTL:15, FLTR:15, ROD/aft:10
+  ok    ROD split at its station, then reset (Fly again): every cluster back to its as-built omega (G2640)
+  ok    the ROD twisted (a torque on its last ring, ramped): ROD station by twist at 2.13 s (1.15 kN.m bending, -6.55 torque; limits 7.22 / 7.22 / 6.55), 10 members broken (its bay, 0 others), the part rigid to 1.4 mm and 0.75 m off; clusters now ROD:12, FIN:17, FLTL:15, FLTR:15, ROD/aft:10
+  ok    the FLTL dug in (its bow driven up and aft, ramped): FLTL root by member at 1.27 s (38.00 kN.m bending, 9.31 torque; limits 620.59 / 634.54 / 104.84), 12 members broken (floatL:strut, 0 others), the part rigid to 0.0 mm and 0.93 m off; clusters now ROD:22, FIN:17, FLTL:15, FLTR:15
+  ok    the FLTR dug in (its bow driven up and aft, ramped): FLTR root by member at 1.27 s (38.00 kN.m bending, -9.31 torque; limits 620.59 / 634.54 / 104.84), 12 members broken (floatR:strut, 0 others), the part rigid to 0.0 mm and 0.93 m off; clusters now ROD:22, FIN:17, FLTL:15, FLTR:15
+5. the water
+  ok    the float nose-in at its own V_S0 (51 km/h, 2.8 m/s, 20 deg): the worst cut 0.874 (ROD root, bend); the floats' roots FLTL 0.01 bend / 0.01 twist, FLTR 0.01 bend / 0.01 twist; damage on: no cluster parts; groups -
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst cut 9.461 (ROD root, bend); the floats' roots FLTL 0.10 bend / 0.12 twist, FLTR 0.11 bend / 0.12 twist; damage on: ROD root by bend at 0.08 s; groups -; CRASHED (broke up: the fuselage parted (TPB off the core)) - finite
+  REPORT  SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the float fittings held (§7.4)
+  ok    SEVERE for the twin: 90 km/h, 5 m/s, 20 deg nose-in (2.6 x its FAR 23.527 load): the worst cut 0.984 (ROD root, bend); the floats' roots FLTL 0.02 bend / 0.02 twist, FLTR 0.02 bend / 0.02 twist; damage on: no cluster parts; groups - - the overload lands on the boom (ROD) root, in bending, at 0.93-1.00 of its limit (0.962 since G2640 drew the fin where it is), nothing parts
+twin boom (FIXTURE, report only):
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: BML root 25.10 / 20.45 / 20.23 (boomL:attach); BML station 17.57 / 14.31 / 14.16 (its bay); BMR root 25.10 / 20.45 / 20.23 (boomR:attach); BMR station 17.57 / 14.31 / 14.16 (its bay); FINR root 5.61 / 41.50 / 23.96 (finR:attach); FINL root 5.61 / 41.50 / 23.96 (finL:attach)
+  ok    BML: its mid-span station at bay 1 (at 0.7 of the tube), the twist limits per bay 20.23 / 14.16
+  ok    BMR: its mid-span station at bay 1 (at 0.7 of the tube), the twist limits per bay 20.23 / 14.16
+4. the parts come off cleanly (the FIXTURE: reported)
+  REPORT  (clean) the FINR pulled sideways (n g on the fin, ramped): FINR root by bend at 1.98 s (5.62 kN.m bending, 2.31 torque; limits 5.61 / 41.50 / 23.96), 16 members broken (finR:attach, 0 others), the part rigid to 0.0 mm and 0.90 m off; clusters now BML:17, BMR:17, FINR:13, FINL:17
+  REPORT  (clean) the FINL pulled sideways (n g on the fin, ramped): FINL root by bend at 1.98 s (5.62 kN.m bending, 2.31 torque; limits 5.61 / 41.50 / 23.96), 16 members broken (finL:attach, 0 others), the part rigid to 0.0 mm and 0.90 m off; clusters now BML:17, BMR:17, FINR:17, FINL:13
+  REPORT  (clean) the BML loaded down at its tail (n g on the tube and the tail, ramped): BML root by bend at 3.58 s (25.07 kN.m bending, -0.11 torque; limits 25.10 / 20.45 / 20.23), 24 members broken (boomL:attach, 0 others), the part rigid to 0.5 mm and 0.59 m off; clusters now BML:9, BMR:17, FINR:17, FINL:17
+  REPORT  (clean) the BMR loaded down at its tail (n g on the tube and the tail, ramped): BMR root by bend at 3.58 s (25.07 kN.m bending, 0.11 torque; limits 25.10 / 20.45 / 20.23), 24 members broken (boomR:attach, 0 others), the part rigid to 0.5 mm and 0.59 m off; clusters now BML:17, BMR:9, FINR:17, FINL:17
+  REPORT  (clean) the BML levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BML station by bend at 3.27 s (17.57 kN.m bending, -0.02 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.1 mm and 0.76 m off; clusters now BML:14, BMR:17, FINR:17, FINL:16, BML/aft:3
+  REPORT  (ok) BML split at its station, then reset (Fly again): every cluster back to its as-built omega (G2640)
+  REPORT  (clean) the BMR levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BMR station by bend at 3.27 s (17.57 kN.m bending, 0.02 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.1 mm and 0.76 m off; clusters now BML:17, BMR:14, FINR:16, FINL:17, BMR/aft:3
+  REPORT  (ok) BMR split at its station, then reset (Fly again): every cluster back to its as-built omega (G2640)
+  94/96 checks
+GATE DMGCLUSTERS: FAIL
+(exit code 1)
+=== DMGINST ===
+1. G1800: sim-diverged (the numbers) vs broke-up (the structure)
+  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); 'broke-up' only when the structure's refs part (DMG.brokeUp)
+  ok    the load test's NaN verdict is 'SIM DIVERGED' (65_gen_loadtest.js); 'BROKE UP' only on the damage layer's breaks (1)
+  ok    the crosswind probe's NaN ending is 'sim-diverged' (42_crosswind.js)
+  ok    no code writes 'broke-up' but the structure's ending (DMG.brokeUp): none of the 11 readers / writers
+  ok    the Cub's load test with a 1e300 kick in its ramp: 'SIM DIVERGED'
+  ok    the bench card: SIM DIVERGED - "the simulation diverged before the ultimate load (a numerical fault, not a member)"
+  ok    a BROKE UP (the structure, D1b / D2) still reads as a member that let go: "a member let go before the ultimate load"
+2. G1801: the velocity guard (150 m/s off the CG)
+  FAIL  every k x 5 in flight (past the integrator's limit): tripped at frame 1 as 'speed' (node 65 at 744.16 m/s off the CG), every number finite, stats().bad; it never went NaN in 600 frames - the old watchdog would have flown it on (at rest the fastest node read 0.16 m/s)
+  ok    reset() clears it
+  ok    damage OFF, every k x 5: no speed fault, the guard not run (G1898.10: the layer off runs the master path)
+  ok    a 1e300 kick (GATE SIMWORKER-EDGES' divergence): tripped the first frame ('nan')
+  ok    the whole aeroplane at 195.21 m/s (200 m/s true at 20 km): not tripped - the fastest node 4.34 m/s off the CG
+  FAIL  the worker host's diverged() (its snapshot's F_DIVERGED, the page's sw.diverged): false, then true on the blown lattice with p still finite
+        Cub: a flown 3.8 g pull: the fastest node 10.01 m/s off the CG
+        Cub: a 10 ft/s drop: the fastest node 3.30 m/s off the CG
+        Jodel: a flown 3.8 g pull: the fastest node 12.71 m/s off the CG
+        Jodel: a 10 ft/s drop: the fastest node 3.46 m/s off the CG
+        metal Cessna: a flown 3.8 g pull: the fastest node 18.08 m/s off the CG
+        metal Cessna: a 10 ft/s drop: the fastest node 6.59 m/s off the CG
+        Cessna floats: a flown 3.8 g pull: the fastest node 8.38 m/s off the CG
+        Cessna floats: a 10 ft/s drop: the fastest node 2.47 m/s off the CG
+        twin floatplane: a flown 3.8 g pull: the fastest node 9.88 m/s off the CG
+        twin floatplane: a 10 ft/s drop: the fastest node 2.01 m/s off the CG
+        Super Petrel: a flown 3.8 g pull: the fastest node 12.99 m/s off the CG
+        Super Petrel: a 10 ft/s drop: the fastest node 2.35 m/s off the CG
+        the Cub: a circuit with the pilot: the fastest node 3.30 m/s off the CG
+        the Cub: 30 m/s into a trunk (crash): the fastest node 20.94 m/s off the CG
+        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 31.20 m/s off the CG
+        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 28.26 m/s off the CG
+        the Cub: SEVERE 180 km/h, 10 m/s, 60 deg into the water: the fastest node 57.06 m/s off the CG
+        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 81.89 m/s off the CG
+  ok    the census: 18 runs, never tripped; the worst 81.89 m/s (the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in), under 3/4 of the guard
+3. G1802: the plastic work per beam
+  ok    DMG.wB: a Float64Array, one per beam (404), on sim.damage()
+  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (64938.108 J against 64938.108 J)
+  ok    146 beams carry work, every one of them yielded or bent; none negative
+        by section: fuselage 37.1 kJ, wings 11.6 kJ, engines 6.4 kJ, gear 4.3 kJ, vessel 3.3 kJ, tail 2.2 kJ
+  ok    the metal Cessna's: 83150.871 J against 83150.871 J
+  ok    reset() after a crash zeroes every beam's work
+4. G1803: every beam carries its ledger section
+  ok    Cub: 404 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 52, wing > bracing 12, tail > tail 180, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    Jodel: 502 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 68, wing > bracing 118, tail > tail 156, wire > tail 4, gear > gear 15, fus > vessel 9
+  ok    metal Cessna: 492 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 62, fus > wings 6, wing > bracing 74, tail > tail 199, wire > tail 4, gear > gear 15
+  ok    Cessna floats: 543 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 23, wing > wings 62, wing > bracing 74, tail > tail 156, wire > tail 4, gear > gear 106, fus > vessel 9
+  ok    twin floatplane: 500 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, wing > wings 52, wing > bracing 12, fus > engines 28, tail > tail 180, wire > tail 4, gear > gear 106, fus > vessel 9
+  ok    Super Petrel: 845 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, wing > wings 118, cabane > wings 35, wing > bracing 218, interplane > bracing 6, fus > engines 15, tail > tail 189, wire > tail 4, gear > gear 151
+5. G1804: the damage view's colours (src/viewer/dmg_overlay.js)
+  ok    calm: |F| / limit up to 0.25 draws the frame's neutral [0.34,0.49,0.69]
+  ok    stress: ramps to amber [1,0.78,0.12] at the limit, held past it; between the ends in between
+  ok    set: from 0.01 % (orange stretched, cyan crushed), full at 3 %; under it no set
+  ok    the precedence: broken > set > stress > calm
+  ok    the Cub's 30 m/s crash drawn: {"calm":243,"stress":0,"set":33,"broken":128} - every broken member red, every set member orange / cyan
+  ok    a member stretched to its yield reads 1.000000, crushed to its crush load 1.000000
+  ok    the layer off (params.damage false): all 3286 members of the five builds calm
+  ok    under the probe (sim.damagePeak()) the ratio is the member's peak, tension or compression
+  ok    app.js: the view is off unless ?dmgview=1 or the overlays pill; off, sync() is the strain colouring; dmg_overlay.js is in the page (build.js) before app.js
+        the legend:
+          calm   |F| / limit <= 0.25    rgb 0.340 0.490 0.690  #577db0
+          stress |F| / limit = 0.625    rgb 0.670 0.635 0.405  #aba267
+          stress |F| / limit >= 1       rgb 1.000 0.780 0.120  #ffc71f
+          set    stretched 0.01 %       rgb 0.737 0.556 0.419  #bc8e6b
+          set    stretched >= 3 %       rgb 1.000 0.600 0.240  #ff993d
+          set    crushed 0.01 %         rgb 0.322 0.706 0.822  #52b4d2
+          set    crushed >= 3 %         rgb 0.310 0.850 0.910  #4fd9e8
+          broken k = 0                  rgb 0.890 0.180 0.170  #e32e2b
+  32/34 checks
+GATE DMGINST: FAIL
+(exit code 1)
+=== DMGFPS ===
+  ok    worker host, turns of 4, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  145/145 checks
+GATE DMGFPS: PASS
+=== DMGINTEGRITY ===
+(100 s, 6 builds + the V-tail Cub)
+Cub:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 40 frames with a new break, no live strip on two pieces; 128 broken, 3 strips dropped (the old rule: 6), 0 split; CRASHED (a fus member broke)
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 7 frames with a new break, no live strip on two pieces; 13 broken, 2 strips dropped (the old rule: 2), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 3 frames with a new break, no live strip on two pieces; 15 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    28 limiters (engine-firewall) with the layer on, none off; the build's own 404 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.16 (HELD), a flown pull to 4.20 g 1.16, FAR 23.473's drop 1.16
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters MNTBR 0.31 m into bay 0, MNTBL 0.31 m into bay 0, CGE 0.29 m into bay 0, MNTTL 0.20 m into bay 0, MNTTR 0.20 m into bay 0, ENGR 0.18 m into bay 0, ENGL 0.08 m into bay 0; with them none (15 broken, CRASHED, finite)
+  REPORT  the probe elsewhere, with them (not a limiter's: a detached part or a folded panel, §8.2): stab:HF 0.05 m bay 5 @1.85
+4. the cost
+  REPORT  a break event (12 members, the union-find over 404 beams / 97 nodes, 28 strips): 21.4 us
+Jodel:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 8 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 1/1, wing0L:root 1/1, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 4 frames with a new break, no live strip on two pieces; 32 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 2 frames with a new break, no live strip on two pieces; 17 broken, 0 strips dropped (the old rule: 2), 0 split; CRASHED (a tail member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 4 frames with a new break, no live strip on two pieces; 30 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (an impact of 9 g)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    28 limiters (engine-firewall) with the layer on, none off; the build's own 502 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.13 (HELD), a flown pull to 4.08 g 1.13, FAR 23.473's drop 1.13
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters MNTTR 0.38 m into bay 0, MNTBL 0.29 m into bay 0, MNTTL 0.29 m into bay 0, ENGL 0.26 m into bay 1, MNTBR 0.25 m into bay 0, CGE 0.23 m into bay 0, MNTTL 0.17 m into bay 1, ENGR 0.15 m into bay 0, ENGL 0.14 m into bay 0; with them none (30 broken, CRASHED, finite)
+4. the cost
+  REPORT  a break event (12 members, the union-find over 502 beams / 115 nodes, 28 strips): 33.4 us
+metal Cessna:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 33 strips live, none on two pieces
+  ok    92 members a strip holds, each broken alone (no group): 192 of the 192 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (32 / 32 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 20 frames with a new break, no live strip on two pieces; 97 broken, 0 strips dropped (the old rule: 2), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 8 frames with a new break, no live strip on two pieces; 31 broken, 0 strips dropped (the old rule: 7), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 6 frames with a new break, no live strip on two pieces; 33 broken, 0 strips dropped (the old rule: 1), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    28 limiters (engine-firewall) with the layer on, none off; the build's own 492 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.08 (HELD — over yield), a flown pull to 4.74 g 1.08, FAR 23.473's drop 1.08
+  FAIL  THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters MNTBR 0.25 m into bay 0, MNTBL 0.25 m into bay 0, ENGL 0.17 m into bay 0, ENGR 0.15 m into bay 0, CGE 0.12 m into bay 5 (off its mount), ENGR 0.10 m into bay 4 (off its mount), CGE 0.07 m into bay 0; with them ENGR 0.17 m into bay 3 (off its mount) (33 broken, CRASHED, finite)
+  REPORT  the probe elsewhere, with them (not a limiter's: a detached part or a folded panel, §8.2): wing0R:WR 0.18 m bay 3 off @1.77; wing0R:WF 0.12 m bay 4 off @1.68; wing0R:WR 0.11 m bay 5 off @3.32; stab:HF 0.09 m bay 0 off @0.35; stab:HF 0.09 m bay 0 off @0.35; wing0R:WR 0.08 m bay 5 off @3.13
+4. the cost
+  REPORT  a break event (12 members, the union-find over 492 beams / 117 nodes, 33 strips): 40.9 us
+Cessna floats:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 27 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 160 of the 160 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 9 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/0, wing0R:strut 0/0, wing0L:root 0/0, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, floatL:strut 0/0, floatR:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a severe float nose-in (150 km/h, 10 m/s, 60 deg): after each of the 10 frames with a new break, no live strip on two pieces; 89 broken, 1 strips dropped (the old rule: 1), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    28 limiters (engine-firewall) with the layer on, none off; the build's own 543 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.12 (HELD), a flown pull to 5.00 g 1.11, FAR 23.473's drop 1.11
+4. the cost
+  REPORT  a break event (12 members, the union-find over 543 beams / 134 nodes, 27 strips): 26.8 us
+twin floatplane:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, engL:mount 0/0, engR:mount 0/0, stab:attach 0/0, fin:attach 0/0, floatL:strut 0/0, floatR:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a severe float nose-in (150 km/h, 10 m/s, 60 deg): after each of the 8 frames with a new break, no live strip on two pieces; 34 broken, 0 strips dropped (the old rule: 3), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    0 limiters (none: no nose engine) with the layer on, none off; the build's own 500 members either way (the limiters are no members)
+4. the cost
+  REPORT  a break event (12 members, the union-find over 500 beams / 123 nodes, 28 strips): 24.9 us
+Super Petrel:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 42 strips live, none on two pieces
+  ok    114 members a strip holds, each broken alone (no group): 242 of the 242 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 14 groups broken alone: no strip on two pieces, no break-up (wing0R:root 0/1, wing0L:root 0/1, wing1R:root 0/1, wing1L:root 0/1, wing1L:interplane 0/0, wing1R:interplane 0/0, eng:mount 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0, wing1L:strut 0/0, wing1R:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (40 / 40 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 19 frames with a new break, no live strip on two pieces; 357 broken, 12 strips dropped (the old rule: 14), 0 split; CRASHED (a gear member broke)
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 15 frames with a new break, no live strip on two pieces; 89 broken, 4 strips dropped (the old rule: 10), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 12 frames with a new break, no live strip on two pieces; 53 broken, 0 strips dropped (the old rule: 6), 0 split; CRASHED (a wing member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 51 body nodes and nothing of a group's part
+  FAIL  the fuselage cut across behind ring 3 (10 members): no break-up
+3. SUPPORT limiters (G1822)
+  ok    0 limiters (none: no nose engine) with the layer on, none off; the build's own 845 members either way (the limiters are no members)
+4. the cost
+  REPORT  a break event (22 members, the union-find over 845 beams / 184 nodes, 42 strips): 39.4 us
+The V-tail Cub (its tail strips read the body axes: the SPLIT path):
+  ok    stab:attach + tw:gear broken: 2 tail strips split onto the core (they kept 75 %, 75 % of their weight; renormalised to 1.000, 1.000), 2 dropped (50 %, 50 % on the core: under 70 %); none on two pieces
+Broke up (the flight over at once): metal Cessna, a trunk at 30 m/s, the centreline: at 1.29 s (TPB); metal Cessna, a trunk at 30 m/s, the wing 2.5 m out: at 1.81 s (TPB); metal Cessna, a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): at 0.24 s (TPB); Cessna floats, a severe float nose-in (150 km/h, 10 m/s, 60 deg): at 0.15 s (TPB); twin floatplane, a severe float nose-in (150 km/h, 10 m/s, 60 deg): at 0.12 s (TPB)
+  62/64 checks
+GATE DMGINTEGRITY: FAIL
+(exit code 1)
+=== DMGSKIN ===
+(110 s, 5 builds, damage on; TEAR 0.15)
+Cub:
+  the skin measured: 9 groups (genWing's and every member's tube), 11596 vertices, 21452 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 128 broken, 35 frames with a new break, the skin checked on 220 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 70 payloads over 300 snapshots, 453501 bytes (6479 a payload), 22.247 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":2.917,"mesh":"members","cage":false,"tri":1554}); the worst stretch of an edge of 2 cm or more 1.6441; HELD by cover ties on 192 frames, up to 0 held triangles, their worst edge stretch 0.000
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 2580 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -10.00 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 1334 of 1334 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 0 of 554990 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 45.2 ms generated (whole), 22.1 ms cage (nearest nodes; 11596 vertices); 144 events, 3.64 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 9469, cage 7798; torn (stretched past TEAR): generated 7615, cage 6464; vertices on detached pieces up to 1161; the drape's deepest sag 1.3 cm; the nodes' frames 0.253 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (720 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 13 broken, 5 frames with a new break, the skin checked on 219 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 52 payloads over 300 snapshots, 28375 bytes (546 a payload), 1.42 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.02 mm from it ({"t":1.867,"mesh":"skin","cage":false,"tri":3658}); the worst stretch of an edge of 2 cm or more 1.5585; HELD by cover ties on 215 frames, up to 1472 held triangles, their worst edge stretch 1.747
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 400 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -10.00 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 276 of 276 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 0 of 120028 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 9.0 ms generated (whole), 3.7 ms cage (nearest nodes; 11596 vertices); 38 events, 3.08 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1320, cage 1228; torn (stretched past TEAR): generated 1044, cage 952; vertices on detached pieces up to 1072; the drape's deepest sag 17.9 cm; the nodes' frames 0.166 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (729 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 15 broken, 2 frames with a new break, the skin checked on 236 frames; pieces up to 1
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 24 payloads over 240 snapshots, 17206 bytes (717 a payload), 1.175 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.01 mm from it ({"t":0.717,"mesh":"members","cage":false,"tri":4019}); the worst stretch of an edge of 2 cm or more 1.3218
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 192 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -11.84 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 96 of 96 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 0 of 45120 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 8.8 ms generated (whole), 3.1 ms cage (nearest nodes; 11596 vertices); 15 events, 0.49 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 508, cage 586; torn (stretched past TEAR): generated 412, cage 490; vertices on detached pieces up to 0; the drape's deepest sag 0.0 cm; the nodes' frames 0.116 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.584 us a snapshot
+Jodel:
+  the skin measured: 8 groups (genWing's and every member's tube), 12328 vertices, 22494 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 32 broken, 3 frames with a new break, the skin checked on 222 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 17 payloads over 300 snapshots, 27444 bytes (1614 a payload), 6.665 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":1.333,"mesh":"members","cage":false,"tri":16041}); the worst stretch of an edge of 2 cm or more 1.5460
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 762 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -10.00 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 397 of 397 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 0 of 175576 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 139.4 ms generated (whole), 19.0 ms cage (nearest nodes; 12328 vertices); 14 events, 11.31 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 683, cage 747; torn (stretched past TEAR): generated 286, cage 350; vertices on detached pieces up to 1026; the drape's deepest sag 0.0 cm; the nodes' frames 0.275 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (624 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a tail member broke), 17 broken, 2 frames with a new break, the skin checked on 219 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 20 payloads over 300 snapshots, 4477 bytes (224 a payload), 0.674 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.03 mm from it ({"t":1.383,"mesh":"skin","cage":false,"tri":2708}); the worst stretch of an edge of 2 cm or more 1.5167
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 544 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -11.84 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 276 of 276 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 434 of 119940 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 8.6 ms generated (whole), 3.8 ms cage (nearest nodes; 12328 vertices); 13 events, 4.59 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 299, cage 538; torn (stretched past TEAR): generated 23, cage 262; vertices on detached pieces up to 1026; the drape's deepest sag 8.0 cm; the nodes' frames 0.174 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (648 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (an impact of 9 g), 30 broken, 2 frames with a new break, the skin checked on 235 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 61 payloads over 240 snapshots, 16744 bytes (274 a payload), 1.378 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.01 mm from it ({"t":0.117,"mesh":"members","cage":false,"tri":3566}); the worst stretch of an edge of 2 cm or more 1.4941
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 768 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -11.84 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 384 of 384 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 0 of 178944 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 10.4 ms generated (whole), 8.0 ms cage (nearest nodes; 12328 vertices); 10 events, 2.08 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 830, cage 841; torn (stretched past TEAR): generated 446, cage 457; vertices on detached pieces up to 1026; the drape's deepest sag 0.0 cm; the nodes' frames 0.198 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (40 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (1920 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.787 us a snapshot
+metal Cessna:
+  the skin measured: 9 groups (genWing's and every member's tube), 12004 vertices, 21924 triangles; the wing not fabric
+  a trunk at 30 m/s, the centreline: CRASHED (broke up: the fuselage parted (TPB off the core)), 97 broken, 17 frames with a new break, the skin checked on 223 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 39 payloads over 300 snapshots, 126118 bytes (3234 a payload), 7.751 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":1.533,"mesh":"skin","cage":false,"tri":1663}); the worst stretch of an edge of 2 cm or more 1.6457; HELD by cover ties on 223 frames, up to 0 held triangles, their worst edge stretch 0.000
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 2414 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -10.00 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 1289 of 1289 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 892 of 555940 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 84.9 ms generated (whole), 26.6 ms cage (nearest nodes; 12004 vertices); 84 events, 2.44 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 10144, cage 6667; torn (stretched past TEAR): generated 8839, cage 5378; vertices on detached pieces up to 5013; the drape's deepest sag 0.0 cm; the nodes' frames 0.294 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (693 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (broke up: the fuselage parted (TPB off the core)), 31 broken, 5 frames with a new break, the skin checked on 220 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 75 payloads over 300 snapshots, 84561 bytes (1127 a payload), 4.805 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":1.833,"mesh":"members","cage":false,"tri":13372}); the worst stretch of an edge of 2 cm or more 1.6466; HELD by cover ties on 215 frames, up to 0 held triangles, their worst edge stretch 0.000
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 926 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -10.00 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 613 of 613 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 172 of 252106 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 9.8 ms generated (whole), 4.1 ms cage (nearest nodes; 12004 vertices); 29 events, 2.15 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 6031, cage 5781; torn (stretched past TEAR): generated 5407, cage 5168; vertices on detached pieces up to 4914; the drape's deepest sag 0.0 cm; the nodes' frames 0.192 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (720 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 33 broken, 5 frames with a new break, the skin checked on 235 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 34 payloads over 240 snapshots, 49283 bytes (1450 a payload), 4.038 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":0.133,"mesh":"members","cage":false,"tri":3601}); the worst stretch of an edge of 2 cm or more 1.5824; HELD by cover ties on 81 frames, up to 0 held triangles, their worst edge stretch 0.000
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 544 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -11.84 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 274 of 274 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 0 of 116542 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 15.6 ms generated (whole), 5.8 ms cage (nearest nodes; 12004 vertices); 21 events, 2.24 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 4902, cage 4738; torn (stretched past TEAR): generated 4608, cage 4464; vertices on detached pieces up to 4914; the drape's deepest sag 0.0 cm; the nodes' frames 0.170 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (45 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  FAIL  nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.284 us a snapshot
+Cessna floats:
+  the skin measured: 10 groups (genWing's and every member's tube), 13308 vertices, 24356 triangles; the wing not fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 89 broken, 11 frames with a new break, the skin checked on 232 frames; pieces up to 6
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 19 payloads over 240 snapshots, 23665 bytes (1246 a payload), 3.511 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":3.4,"mesh":"members","cage":false,"tri":9919}); the worst stretch of an edge of 2 cm or more 1.6118; HELD by cover ties on 232 frames, up to 0 held triangles, their worst edge stretch 0.000
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 1544 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -10.52 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 836 of 836 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 0 of 374588 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 56.7 ms generated (whole), 18.2 ms cage (nearest nodes; 13308 vertices); 43 events, 3.92 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 7527, cage 8523; torn (stretched past TEAR): generated 6687, cage 7687; vertices on detached pieces up to 4446; the drape's deepest sag 0.0 cm; the nodes' frames 0.275 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (80 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.575 us a snapshot
+twin floatplane:
+  the skin measured: 9 groups (genWing's and every member's tube), 12264 vertices, 22404 triangles; the wing fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 34 broken, 6 frames with a new break, the skin checked on 235 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 17 payloads over 240 snapshots, 15812 bytes (930 a payload), 2.389 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break; G2040: a covering reaches across only through a node the physics TIES to its piece)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members; G2040: a covering's, unless the physics ties that pair - and never a torn tie's)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm (G2040: but a HELD covering triangle - the physics' tie decides): the worst -0.00 mm from it ({"t":0.4,"mesh":"skin","cage":false,"tri":2928}); the worst stretch of an edge of 2 cm or more 1.6221
+  ok    every skin position finite
+  ok    cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (0 corners not, of up to 556 copies)
+  ok    cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst -10.00 mm from it
+  ok    cut-through: the triangles removed across a parting are drawn cut, not dropped - 300 of 300 at the end
+  ok    cut-through: the cut runs through the triangles, not along their edges - 0 of 136724 clipped copies have the plane within 2 mm of a corner (before the jag)
+    the cost (node): the first break's binding 59.8 ms generated (whole), 16.4 ms cage (nearest nodes; 12264 vertices); 48 events, 4.16 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 5469, cage 5707; torn (stretched past TEAR): generated 5159, cage 5407; vertices on detached pieces up to 4572; the drape's deepest sag 14.5 cm; the nodes' frames 0.231 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (45 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.575 us a snapshot
+  ok    app.js: the skin's break path (38 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  159/160 checks
+GATE DMGSKIN: FAIL
+(exit code 1)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -1698,6 +2238,12 @@ SKIS      FAIL   152.5 s
 DMGCERTCOST PASS   318.4 s
 DMGWIND   PASS   920.7 s
 DMGNOSE   PASS   603.1 s
-wall (the chunks' own, summed) 15723.2 s  (jobs 4)
+DMGFALL   PASS   252.1 s
+DMGCLUSTERS FAIL   663.8 s
+DMGINST   FAIL   287.6 s
+DMGFPS    PASS   170.3 s
+DMGINTEGRITY FAIL   100.1 s
+DMGSKIN   FAIL   110.2 s
+wall (the chunks' own, summed) 17019.7 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 22 red (91 PASS, 22 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 26 red (93 PASS, 26 FAIL, 0 SKIP of 364)
