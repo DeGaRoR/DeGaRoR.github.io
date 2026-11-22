@@ -1,4 +1,4 @@
-FAIL (68 of 292 gates run; PARTIAL: 20 of 23 chunks, 72 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H], PARKED [NEW], OBSTACLE [L40H], HITBOX [NEW], SNOWMUDFX [NEW], ROUGHWHEEL [L40H], WATERDAMP [NEW]
+FAIL (72 of 311 gates run; PARTIAL: 21 of 23 chunks, 53 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H], PARKED [NEW], OBSTACLE [L40H], HITBOX [NEW], SNOWMUDFX [NEW], ROUGHWHEEL [L40H], WATERDAMP [NEW], WINGSTRUCT [L40H], STORAGE [L40H], ACCEPT [L40H], POD [L40H]
 NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME SCENERYED PARKED HITBOX SNOWMUDFX WATERDAMP
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
@@ -6175,6 +6175,156 @@ GATE PAVEMENT: PASS
 PASS the shader's holes, hazards and relief are the field's, line for line (37 GLSL lines, 28 JS lines), on the field's v (the ribbon's flipped)
 PASS the ribbon's (u, v) is the field's (u, -v) at 71 vertices of w7 (0 off by more than 1 cm)
 GATE MICRO: PASS
+######## chunk 20 of 23 (19 gates) ########
+=== AFB0220 ===
+  ok   flown off w2 onto the mud lane, the C172 lands fine (lateral -0.78 m, 278 m from the centre (phase FLARE); none crashed, 0 members broken)
+39 checks, 0 failed
+GATE AFB0220: PASS
+=== RWYTREES ===
+  w1        today 73.0 | 65.4 | -33.8   map 73.0 | 8.8 | -33.8   mapx 73.0 | 8.8 | -33.8
+  mt_strip  today 733.7 | 631.0 | 625.5   map 733.7 | 631.0 | 625.5   mapx 733.7 | 631.0 | 625.5
+GATE RWYTREES: PASS
+=== LIFE ===
+PASS the world pack loads it before the renderer
+PASS the world ticks the premises while the life is on
+GATE LIFE: PASS
+=== FLOATS ===
+PASS an idle taxi 20 s after the touch: -0.7 m/s (bound 5)
+
+GATE FLOATS: PASS
+=== WIPLINE ===
+PASS level in roll (0.12 deg)
+
+GATE WIPLINE: PASS
+=== HULL ===
+PASS the run holds its line: heading swing 0.8 deg (bound 30), roll 11.0 deg (bound 15)
+
+GATE HULL: PASS
+=== FLOATSCLASSIC ===
+  ok    the ledger bills the pair: Wipline 2100 55,000 (gear row 56,993 cr), the same rows as an EDO 15,600 (17,674 cr)
+25/25 checks
+GATE FLOATSCLASSIC: PASS
+=== PETRELTRIM ===
+PASS (c) LEVEL: the highest pitch on the water 8.3 deg <= the boom's upsweep 15.4 deg (at most parallel)
+PASS (d) AWAY: 30 kt at 19.9 s, lift-off at 28.7 s (inside 90 s)
+GATE PETRELTRIM: PASS
+=== FLOATLETTERS ===
+12 checks
+GATE FLOATLETTERS: PASS
+=== PLANEFICHE ===
+selftest: 59 of 59 caught
+GATE PLANEFICHE: PASS
+=== WINGSTRUCT ===
+cub plane 0R cub 8532t
+  cub plane 0L cub 8532t
+  jodel plane 0R dbox 5798t
+  jodel plane 0L dbox 5798t
+  metal plane 0R alloy 10488t
+  metal plane 0L alloy 10488t
+  floats plane 0R alloy 11064t
+  floats plane 0L alloy 11064t
+  twinFloats plane 0R cub 10146t
+  twinFloats plane 0L cub 10146t
+  petrel plane 0R carbon 1224t
+  petrel plane 0L carbon 1224t
+  petrel plane 1R carbon 1176t
+  petrel plane 1L carbon 1176t
+  selftest: 19 of 19 caught
+  FAIL build.js loads it with the viewer
+  229 checks
+GATE WINGSTRUCT: FAIL
+(exit code 1)
+=== PLAYER ===
+54 checks
+GATE PLAYER: PASS
+=== GAMEPREM ===
+674 checks
+GATE GAMEPREM: PASS
+=== STORAGE ===
+- PREM_STORE.spots is the cooked pack's count per aerodrome (w2 12, xw_rough 0, HOME 12, w3 12, SEA 12, mk_sea 12, mn_strip 0, nv_strip 5, tw_ski 2, w5 7, w6 12, w7 12, w4 12, w8 12, w1 3, cb_sea 12, mt_strip 0)
+94 checks
+GATE STORAGE: FAIL (1 of 94)
+(exit code 1)
+=== STORESPOT ===
+(986 s)
+GATE STORESPOT: PASS
+=== STOREDRAW ===
+  ok   without the residents in the context, the inside one is refused (the defect: its resident never filled)
+  ok   app.js hands the residents to FLEET_STAND (fleetCtx inside: fleetInside)
+GATE STOREDRAW: PASS
+=== ACCEPT ===
+THE LEGS (5 min, 75 % throttle, HOME + 300 m; TAS calm-air)        TAS km/h  VCruise (clamp)    flow           endurance flown / shakedown   range
+    cub                                                                   126.7   112.7 (129.4)      10.887 kg/h 15.12 L/h 178.6 min / 199 min   345.3 km (shakedown 375)
+    jodel                                                                   137   125.6 (150.9)      10.887 kg/h 15.12 L/h 202.4 min / 226 min   427.8 km (shakedown 473)
+    c172                                                                  195.6   183.6 (208.4)      26.569 kg/h 36.9 L/h  344.7 min / 385 min   1075 km (shakedown 1178)
+    metal                                                                 195.6   183.6 (208.4)      26.569 kg/h 36.9 L/h  344.7 min / 385 min   1075 km (shakedown 1178)
+  FAIL app.js: the leg ticked and signed beside the HUD (ACCEPT_REC.frame; GAME-MENUS' hudWind and RETRACT's hudGear may sit between)
+  (the flights: 842 s wall on 4 processes; reports/evidence/ACCEPT/flights.json)
+  238 checks, 1 failed
+GATE ACCEPT: FAIL
+(exit code 1)
+=== POD ===
+FAIL cub: pod off, the whole def is the base's bytes (20929531:143813)
+  FAIL cub: pod off, the shakedown sheet is the base's bytes (b6714fb9:10149)
+  FAIL jodel: pod off, the whole def is the base's bytes (c0b1b67b:170949)
+  FAIL jodel: pod off, the shakedown sheet is the base's bytes (fcdd4d73:10151)
+  FAIL c172: pod off, the whole def is the base's bytes (bf8dd73:163634)
+  FAIL c172: pod off, the shakedown sheet is the base's bytes (b5602b8b:10084)
+  FAIL floats: pod off, the whole def is the base's bytes (6f03d2dc:180547)
+  FAIL floats: pod off, the shakedown sheet is the base's bytes (8a5b2834:9910)
+  FAIL twinf: pod off, the whole def is the base's bytes (bfa58365:159791)
+  FAIL twinf: pod off, the shakedown sheet is the base's bytes (388e0d41:9854)
+  FAIL metal: pod off, the whole def is the base's bytes (d198086a:154842)
+  FAIL metal: pod off, the shakedown sheet is the base's bytes (2f7d9c7e:9995)
+  -- the clearance, per build and attitude (the default pod: 2.0 x 0.56 x 0.28 m) --
+  cub    level, tail up 0.0 deg: 0.459 m | three-point, at rest 11.2 deg: 0.190 m | mains 0.000 -> fits
+  jodel  level, tail up 0.0 deg: 0.504 m | three-point, at rest 13.1 deg: 0.222 m | mains 0.211 -> fits
+  c172   level, at rest 0.0 deg: 0.197 m | rotated to the tail strike 15.8 deg: 0.268 m | mains 0.257 -> fits
+  floats at rest on the water 0.0 deg: 0.455 m -> fits
+  twinf  at rest on the water 0.0 deg: 0.297 m -> fits
+  metal  level, at rest 0.0 deg: 0.197 m | rotated to the tail strike 15.8 deg: 0.268 m | mains 0.257 -> fits
+  -- the drag and its cost (measured on each aeroplane's own probe) --
+  cub    CdA 0.0239 m2 (4.1 % of the body) · cruise 113.0 -> 112.0 km/h (-0.90 %) · climb -0.036 m/s · VCruise (clamped) 113.0 -> 112.0 · range 376 -> 372 km
+  jodel  CdA 0.0241 m2 (5.9 % of the body) · cruise 125.2 -> 122.0 km/h (-2.55 %) · climb -0.058 m/s · VCruise (clamped) 126.7 -> 122.0 · range 421 -> 406 km
+  c172   CdA 0.0237 m2 (6.3 % of the body) · cruise 184.5 -> 181.0 km/h (-1.94 %) · climb -0.066 m/s · VCruise (clamped) 186.1 -> 181.8 · range 1194 -> 1166 km
+  floats CdA 0.0238 m2 (5.1 % of the body) · cruise 207.2 -> 204.2 km/h (-1.44 %) · climb -0.066 m/s · VCruise (clamped) 204.1 -> 204.5 · range 104 -> 105 km
+  twinf  CdA 0.0238 m2 (2.4 % of the body) · cruise 139.0 -> 138.0 km/h (-0.75 %) · climb -0.037 m/s · VCruise (clamped) 130.0 -> 131.4 · range 111 -> 112 km
+  metal  CdA 0.0237 m2 (6.3 % of the body) · cruise 184.5 -> 181.0 km/h (-1.94 %) · climb -0.066 m/s · VCruise (clamped) 186.1 -> 181.8 · range 1194 -> 1166 km
+  cub    full 73 kg: CG 24.1 -> 34.0 % MAC, margin 0.163 -> 0.064, the corners' range 24.1-38.5 % (inside), -7 kg against the design gross · bench: POD FITS
+  jodel  full 73 kg: CG 27.4 -> 32.4 % MAC, margin 0.035 -> -0.015, -7 kg against the design gross · bench: POD REFUSED — full, its static margin is -0.01
+  c172   full 73 kg: CG 23.2 -> 23.7 % MAC, margin 0.310 -> 0.305, -87 kg against the design gross · bench: POD FITS
+  floats full 73 kg: CG 30.0 -> 30.9 % MAC, margin 0.210 -> 0.200, -86 kg against the design gross · bench: POD FITS
+  twinf  full 72 kg: CG 31.0 -> 32.1 % MAC, margin 0.145 -> 0.134, 76 kg against the design gross · bench: POD FITS
+  metal  full 73 kg: CG 23.2 -> 23.7 % MAC, margin 0.310 -> 0.305, -87 kg against the design gross · bench: POD FITS
+  the Cub, pod full (73 kg), certified in 51.3 s: the fittings carry 9.7 kg / 9.7 kg / 31.7 kg / 31.7 kg; pod limit share of the node's certified envelope 2 % / 2 % / 14 % / 14 %
+  -- the acceptance leg (5 min, 75 % throttle, HOME + 300 m, calm) --
+  cub    TAS 127.1 / 124.7 / 121.8 km/h · flow 10.89 / 10.89 / 10.89 · range 347 / 340 / 332 km (off / on / full)
+  jodel  TAS 137.7 / 133.6 / 125.2 km/h · flow 10.89 / 10.89 / 10.89 · range 376 / 364 / 342 km (off / on / full)
+  c172   TAS 195.9 / 192 / 189.2 km/h · flow 26.57 / 26.57 / 26.57 · range 1076 / 1055 / 1040 km (off / on / full)
+  -- BELLY-POD-2: the volume the editor sets, mapped by the core (genPodFromVolume) --
+  cub    60 L @0 2.322x0.387x0.194 | 250 L @0 3.666x0.611x0.306 | 60 L @0.5 1.754x0.439x0.219 | 250 L @0.5 2.714x0.678x0.339 | 60 L @1 1.082x0.541x0.271 | 250 L @1 1.843x0.921x0.461
+  jodel  60 L @0 2.43x0.405x0.203 | 250 L @0 3.774x0.629x0.315 | 60 L @0.5 1.772x0.443x0.222 | 250 L @0.5 2.79x0.698x0.349 | 60 L @1 1.085x0.543x0.271 | 250 L @1 1.7x0.85x0.425
+  c172   60 L @0 2.477x0.413x0.206 | 250 L @0 3.587x0.598x0.299 | 60 L @0.5 1.836x0.459x0.23 | 250 L @0.5 2.781x0.695x0.348 | 60 L @1 1.102x0.551x0.275 | 250 L @1 1.723x0.862x0.431
+  floats 60 L @0 2.346x0.391x0.196 | 250 L @0 3.663x0.61x0.305 | 60 L @0.5 1.764x0.441x0.221 | 250 L @0.5 2.746x0.687x0.343 | 60 L @1 1.085x0.542x0.271 | 250 L @1 1.696x0.848x0.424
+  twinf  60 L @0 2.373x0.396x0.198 | 250 L @0 4.146x0.691x0.346 | 60 L @0.5 1.76x0.44x0.22 | 250 L @0.5 3.124x0.781x0.391 | 60 L @1 1.084x0.542x0.271 | 250 L @1 2.101x1.05x0.525
+  metal  60 L @0 2.477x0.413x0.206 | 250 L @0 3.587x0.598x0.299 | 60 L @0.5 1.836x0.459x0.23 | 250 L @0.5 2.781x0.695x0.348 | 60 L @1 1.102x0.551x0.275 | 250 L @1 1.723x0.862x0.431
+  -- the flown pod (61_gen_frame G2678): its nodes, its mass, its members, the step --
+  FAIL cub: no pod - the certificate (893b5bdd:379204) and 300 flown steps (6b5b76a3) are the base core's, to the bit
+  FAIL jodel: no pod - the certificate (48dd7008:473326) and 300 flown steps (9993081c) are the base core's, to the bit
+  FAIL c172: no pod - the certificate (f1265360:474417) and 300 flown steps (b7561a65) are the base core's, to the bit
+  FAIL floats: no pod - the certificate (bac82699:502492) and 300 flown steps (37a54f28) are the base core's, to the bit
+  FAIL twinf: no pod - the certificate (176bb484:473570) and 300 flown steps (460688cd) are the base core's, to the bit
+  FAIL metal: no pod - the certificate (f1265360:474417) and 300 flown steps (b7561a65) are the base core's, to the bit
+  FAIL c172: its datums are the join's (zFw 2.4554, yD -0.4879)
+  the drawn pod: cub 0 draws · cub 6 draws, 16890 tris · c172 6 draws, 17010 tris · floats 6 draws, 17010 tris (31646 ms headless)
+  (the flights: 788 s wall on 4 processes; reports/evidence/POD/flights.json)
+  414 checks, 19 failed (313 s)
+GATE POD: FAIL
+(exit code 1)
+=== PODEDITOR ===
+cub:  belly pod fitted volume hold volume 120 L shape 0.61 nose fairing 22 % tail fairing 30 % position fore / aft auto 1.07 m door left side right side mounting bolted strapped dimensions length 2.00 m width 0.56 m depth 0.28 m what it does hold 120 L · floor 0.50 m² (73 kg rated) weight · price +9.9 kg empty · 2,901 cr cost take-off +5 m · climb −0.14 m/s · cruise −1.0 km/h drag 0.024 m² · cruise −1.0 km/h · range −3 km CG empty +27 mm (24.8 % MAC) CG full +167 mm with 73 kg · margin 0.06 level, tail up 0.46 m three-p
+  39 checks, 0 failed (24 s)
+GATE PODEDITOR: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -6469,6 +6619,25 @@ WATERDAMP FAIL    49.9 s
 WETFX     PASS    34.0 s
 PAVEMENT  PASS    20.1 s
 MICRO     PASS   138.4 s
-wall (the chunks' own, summed) 32724.0 s  (jobs 4)
+AFB0220   PASS   749.7 s
+RWYTREES  PASS   126.6 s
+LIFE      PASS     0.3 s
+FLOATS    PASS   102.8 s
+WIPLINE   PASS    18.2 s
+HULL      PASS   118.1 s
+FLOATSCLASSIC PASS    45.8 s
+PETRELTRIM PASS   100.2 s
+FLOATLETTERS PASS     0.0 s
+PLANEFICHE PASS    12.3 s
+WINGSTRUCT FAIL    10.4 s
+PLAYER    PASS     0.5 s
+GAMEPREM  PASS    14.9 s
+STORAGE   FAIL     2.1 s
+STORESPOT PASS  1007.1 s
+STOREDRAW PASS     0.4 s
+ACCEPT    FAIL   893.8 s
+POD       FAIL   314.0 s
+PODEDITOR PASS    24.6 s
+wall (the chunks' own, summed) 33857.7 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 68 red (224 PASS, 68 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 72 red (239 PASS, 72 FAIL, 0 SKIP of 364)
