@@ -15,6 +15,8 @@
 #            first row that names it is cold and the next ones are a returning player's (WARM)
 #   MODE     H5K = headed, window 5120,1440 (default) | HL = headless 1920,1080 (the old ledger's way) | HxW,H = headed W,H
 #   EXTRA    more boot_perf arguments, or '-' (e.g. --chrome --gpu-program-cache-size-kb=1048576)
+#            --rollout presses Go after the load and times the departure (the roll-out screen, flying, the programs
+#            before -> after); --pre-rollout-file <js> runs one expression in the garage first (the clock set to noon)
 #
 # Usage:  bash tools/perf/load_matrix.sh <rows file> <out dir> [minutes: the hard cap, default 55]
 #   LM_DRY=<a boot_perf log>  a dry run: no lock, no tokens, no Chrome; every row "runs" by copying that log, so the rows
@@ -102,6 +104,6 @@ for i in $(seq 0 $((N - 1))); do
   if [ -z "$LM_DRY" ] && [ -s "$OUT/$TAG.flightlog.json" ] && [ -f "$T/load_brief.js" ]; then
     { echo "=== $TAG  q=$Q${X:+  $X}"; nice -n 19 node "$T/load_brief.js" "$OUT/$TAG.flightlog.json" --label "$TAG" 2>&1 | head -14; } >> "$OUT/briefs.txt"; fi
   g=$(grep -o 'overlay gone [0-9]*' "$L" | awk '{printf "%.1f", $3/1000}')
-  echo "$TAG [$KIND]: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o '\(HEADED\|headless\) window.*' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | package ${t} C -> $(TEMP) C | q=$Q${X:+ | $X} | $(grep -o '^  eval .*' "$L" | head -1 | cut -c3-) | $(sizes "$UDD")" | tee -a "$SUM"
+  echo "$TAG [$KIND]: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o '\(HEADED\|headless\) window.*' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | package ${t} C -> $(TEMP) C | q=$Q${X:+ | $X} | $(grep -o '^  eval .*' "$L" | head -1 | cut -c3-) | $(grep -o '^  rollout: .*' "$L" | head -1 | cut -c3-) | $(sizes "$UDD")" | tee -a "$SUM"
 done
 echo "done $(date '+%H:%M')" | tee -a "$SUM"
