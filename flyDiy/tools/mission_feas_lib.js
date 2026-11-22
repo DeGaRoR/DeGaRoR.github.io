@@ -82,19 +82,33 @@ function widePool() {
   if (WIDE) return WIDE;
   const base = planePool(), have = new Set(base.map(p => p.file)), out = base.slice();
   let FSITE = null; try { FSITE = require(path.join(T, '_freight_site.js')); } catch (e) { FSITE = null; }
+  // measured once a core and a build file (minutes for the whole list: the hold is swept off the mesh): kept in the OS
+  // temp dir by content, as GATE CONTRACTS keeps its designs
+  const crypto = require('crypto'), os = require('os');
+  const coreSha = (fs.readFileSync(path.join(T, 'flight_core.js'), 'utf8').split('\n')[1] || '').slice(0, 200);
+  const measure = r => {
+    const h = crypto.createHash('sha256'); h.update(coreSha + '|' + r.file + '|'); h.update(fs.readFileSync(path.join(ROOT, r.file)));
+    const f = path.join(os.tmpdir(), 'flydiy-feas-wide-' + h.digest('hex').slice(0, 16) + '.json');
+    try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { /* measure */ }
+    // (the FULL shakedown: planeDef's is the flight's lean one - no envelope, no take-off run)
+    const P = planeDef(r.file), sp = P.spec, k = 'L' + r.n, s = C.genShakedown(C.buildGen(sp));
+    const D = { id: k, label: r.name, build: r.file, gear: C.stripGear(sp) === 'floats' || s.gearType === 'floats' ? 'floats' : 'wheels', seats: s.envelope.seats,
+                bagKg: (sp.cabin && sp.cabin.baggage) || 0, massKg: s.mass, emptyKg: s.empty, toM: s.TORun, cruiseKmh: s.VCruise * 3.6, rangeKm: s.rangeKm, spanM: s.span,
+                cost: s.cost, tankL: s.energyL, power: s.energyKind };
+    let card = null; try { card = FSITE ? FSITE.freightMeasureFile(r.file, D) : null; } catch (e) { card = null; }
+    const M = { D, card };
+    try { fs.writeFileSync(f, JSON.stringify(M)); } catch (e) { /* a read-only temp: measured every run */ }
+    return M;
+  };
   for (const r of officialRows()) {
     if (have.has(r.file)) continue;
     try {
-      const P = planeDef(r.file), s = P.shake, sp = P.spec, k = 'L' + r.n;
-      const D = { id: k, label: r.name, build: r.file, gear: C.stripGear(sp) === 'floats' || s.gearType === 'floats' ? 'floats' : 'wheels', seats: s.envelope.seats,
-                  bagKg: (sp.cabin && sp.cabin.baggage) || 0, massKg: s.mass, emptyKg: s.empty, toM: s.TORun, cruiseKmh: s.VCruise * 3.6, rangeKm: s.rangeKm, spanM: s.span,
-                  cost: s.cost, tankL: s.energyL, power: s.energyKind };
+      const M = measure(r), D = M.D, card = M.card, k = D.id;
       if (![D.seats, D.massKg, D.emptyKg, D.toM, D.rangeKm].every(v => typeof v === 'number' && isFinite(v))) continue;
-      let card = null; try { card = FSITE ? FSITE.freightMeasureFile(r.file, D) : null; } catch (e) { card = null; }
       C.CONTRACT_DESIGNS[k] = D;
       if (card) C.FREIGHT_CARDS[k] = card;
       out.push({ design: k, file: r.file, name: r.name, reg: r.reg || null, list: r.list, n: r.n, card: card && card.hold ? card : null, wide: true });
-    } catch (e) { /* a file the load door refuses is not a plane of the pool */ }
+    } catch (e) { (widePool.skipped = widePool.skipped || []).push(r.name + ': ' + String(e && e.message || e).slice(0, 80)); }
   }
   return (WIDE = out);
 }
