@@ -69,6 +69,9 @@ const P={
   // lobes / cut
   lobeN:2, lobeAmp:0.022, lobeAz:0, lobeSig:34.0, lobeT:0.45, lobeTSig:0.3,
   cutSpan:0, cutAz:270.0,
+  /* THE FLANK CUT-OUTS (FUSELAGE-DRAG 2026-11-22, the user: "you will need to cut properly into the cowl for them to
+     stick out"): an opening a side, where a flat engine's cylinders stand through a narrow cowl (the J-3's) */
+  headCut:0, headCutZ0:0.05, headCutZ1:0.35, headCutSpan:50,
   // PROPER-COWLS (2026-11-08): the cooling air's and the exhaust's way out at the bottom of the aft edge (the user:
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
@@ -519,6 +522,15 @@ function exitAt(th,z){
   } else wz=1-clamp(z/Math.max(1e-3,P.exitLen*zEnd()),0,1);   // linear: the bottom TILTS from the firewall
   return -P.exitGap*wv*wz;
 }
+/* THE FLANK CUT-OUTS (headCut): one opening a side, mirrored - headCutSpan degrees round each flank (azimuth 0 and
+   180), from headCutZ0 to headCutZ1 metres off the firewall. The skin's panels inside it are not drawn; the cylinders
+   that stand there are the engine's own, and what the drag bills is what the join measures outside the skin
+   (coolHeads: spec.cooling.headsOut), cut or not - the cut is the drawing's honesty, not the physics' switch. */
+function inHeadCut(th,z){
+  if(!(P.headCut>0) || z<P.headCutZ0 || z>P.headCutZ1) return false;
+  const half=P.headCutSpan*DEG/2;
+  return Math.abs(angDiff(th,0))<half || Math.abs(angDiff(th,Math.PI))<half;
+}
 /* THE EXHAUST CUT: a notch in the aft edge, exCutSpan wide round exCutAz (270 = the bottom), exCutLen deep */
 function inExCut(th,z){
   return P.exCut>0 && z<P.exCutLen && Math.abs(angDiff(th,P.exCutAz*DEG))<P.exCutSpan*DEG/2;
@@ -800,6 +812,7 @@ function buildSurface(group,mats,aps){
     for(let j=0;j<SEG;j++){
       if(cutA>0 && Math.abs(angDiff(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2,cutC))<cutA/2) continue;
       if(Math.round(P.exCut)===1 && inExCut(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2, 0.5*(pz[i][j]+pz[i+1][j]))) continue;
+      if(P.headCut>0 && inHeadCut(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2, 0.5*(pz[i][j]+pz[i+1][j]))) continue;
       const j2=(j+1)%SEG;
       let poly=[V(i,j),V(i,j2),V(i+1,j2),V(i+1,j)];
       let gv=[[i,j],[i,j2],[i+1,j2],[i+1,j]];

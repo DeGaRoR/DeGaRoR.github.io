@@ -982,6 +982,16 @@ function genFusCdA(S, fr, o) {
       const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
       heads = D.cdBlock * 2 * out * (2 * E.cylR) * 2;      // both banks, each bank's reach x its height
     }
+    // FUSELAGE-DRAG (2026-11-22, "what sticks out"; the user: the client Cub's cylinder heads through a narrower, cut
+    // cowl): HEADS THAT STAND OUT OF A COWL THAT IS ON. The join measures the cylinders' frontal outside the drawn skin
+    // and in all (spec.cooling.headsOut / headsAll: the cooling flow already reads them, the drag did not). They pay
+    // the bare engine's own figure in the measured share - all of them out is exactly the uncowled engine's row.
+    const Cm = S.cooling && typeof S.cooling === 'object' ? S.cooling : null;
+    if (E && cowlOn && covers.sides && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' &&
+        Cm && Cm.headsOut > 0 && Cm.headsAll > 0) {
+      const bareOut = Math.max(0, E.cylReach - E.halfW);
+      heads = D.cdBlock * 2 * bareOut * (2 * E.cylR) * 2 * Math.min(1, Cm.headsOut / Cm.headsAll);
+    }
   }
   // ENGINE-COOLING: a MEASURED cowl (the join's spec.cooling) or drawn wing radiators pay the momentum the cooling air
   // loses (genCooling), at the aeroplane's own climb and cruise speeds (GEN_VRATIO x Vs, the speeds genAP gives it); a

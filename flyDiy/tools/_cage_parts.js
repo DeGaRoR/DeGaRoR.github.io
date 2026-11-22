@@ -1018,7 +1018,7 @@ const CAGE_PARTS = [
       ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
                             'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount', 'cw_lobeStream', 'cw_lobeNose', 'cw_lobeTail',
                             'cw_cylOn', 'cw_cylAz', 'cw_cylOff', 'cw_cylR', 'cw_cylZ0', 'cw_cylZ1', 'cw_cylNose', 'cw_cylTail', 'cw_cylRin', 'cw_cylOffIn', 'cw_cylBlend', 'cw_cylOgive', 'cw_cylProfile', 'cw_cylFront', 'cw_cylInlet', 'cw_cylVert', 'cw_cylSq', 'cw_cylLipT', 'cw_cylDuctLen', 'cw_cylDuctEnd', 'cw_cylDuctBack',
-                            'cw_cutSpan', 'cw_cutAz']],
+                            'cw_cutSpan', 'cw_cutAz', 'cw_headCut', 'cw_headCutZ0', 'cw_headCutZ1', 'cw_headCutSpan']],
       ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
                   'cw_apOffX', 'cw_apOffY', 'cw_apLift', 'cw_pairX', 'cw_pairW',
                   'cw_pairH', 'cw_pairY', 'cw_pairSq']],

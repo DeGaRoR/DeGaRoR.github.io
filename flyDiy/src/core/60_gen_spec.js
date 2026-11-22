@@ -3674,7 +3674,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 // (PHYSICS-AUDIT step 2, 2026-11-21: the tailplane's bracing, stBrace 0 = by its skin, and the flying wires' section,
 //  bpWireSec 0 = round cable)
-const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, cw_headCut: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
                                brkHold: 0, wgStrutSec: 0, wgJury: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)

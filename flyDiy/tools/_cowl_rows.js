@@ -199,6 +199,11 @@ const COWL_ROWS = [
     { k: 'cylSq', label: 'cylinders: section (round → square)', lo: 0, hi: 1, step: 0.01, when: 'P.cylOn>0' },
     { k: 'cutSpan', label: 'cut-out span (horseshoe)', lo: 0, hi: 200, step: 1 },
     { k: 'cutAz', label: 'cut-out azimuth', lo: 0, hi: 359, step: 1, when: 'P.cutSpan>0' },
+    // FUSELAGE-DRAG (2026-11-22): the flank cut-outs a flat engine's cylinders stand through (the J-3's cowl)
+    { k: 'headCut', label: 'cylinder cut-outs (the flanks)', lo: 0, hi: 1, step: 1, names: ['none', 'one a side'] },
+    { k: 'headCutZ0', label: 'cylinder cut-outs: from (m off the firewall)', lo: 0, hi: 1.2, step: 0.005, when: 'P.headCut>0' },
+    { k: 'headCutZ1', label: 'cylinder cut-outs: to (m off the firewall)', lo: 0.02, hi: 1.4, step: 0.005, when: 'P.headCut>0' },
+    { k: 'headCutSpan', label: 'cylinder cut-outs: height round the flank (deg)', lo: 10, hi: 120, step: 1, when: 'P.headCut>0' },
   ] },
   // ---- Inlets ----
   { id: 'g_ap', name: 'Inlets', rows: [

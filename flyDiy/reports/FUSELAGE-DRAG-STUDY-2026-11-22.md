@@ -295,6 +295,37 @@ laws are in, the cards have not caught up.
 - **Chinook**: its pod ends abruptly (base 0.065 m²) and its truss legs are billed bare.
 - **Archaeopteryx**: 19.7 of 28. Its pod is billed as tent cloth and its D-tube wing at 0.30 laminar; both want a source.
 
+### 7.1 The client Cub's cowl: the cylinder heads in the wind (build 5)
+
+The user, 22 Nov: *"I'm OK with using the client Cub for opening the cowl and exposing cylinder heads. You'll need to
+reduce cowl.width, because it has a Super Cub cowl now, hiding the cylinder heads. And you will need to cut properly
+into the cowl for them to stick out. I'm OK with the functionality though, to be assessed against full cowl and no cowl."*
+
+- **The functionality.** The editor already measured the cylinders' frontal area outside the drawn skin
+  (`spec.cooling.headsOut` of `headsAll`) and the cooling flow read it; the drag did not. Now heads that stand out of a
+  cowl that is on pay the bare engine's own figure in the measured share (`genFusCdA`): all of them out is exactly the
+  uncowled engine's row.
+- **The cut.** Four new cowl rows, "cylinder cut-outs (the flanks)": one opening a side, mirrored, by its two stations
+  off the firewall and its height round the flank. Absent at their defaults: no saved build gains a key. The cut is the
+  drawing's honesty; what the drag bills is what is measured outside the skin, cut or not.
+- **The card.** `builds/cub_2026-09-20_corrected.json`: no cheeks, the cowl's half-width at the firewall 0.395 → 0.30,
+  the cut-outs on from 0.08 to 0.40 m over 50 degrees.
+
+Assessed on the client Cub (builds 2-4 in; the what-if of `cw_aftW`, the cheeks off):
+
+| cowl | heads outside the skin, m² of 0.157 | heads' drag | cooling drag | whole aeroplane | top speed | climb | cooling margin (hot climb) |
+|---|---|---|---|---|---|---|---|
+| full (the Super Cub cowl, as it was) | 0 | 0 | 0.011 | 0.749 | 149 | 3.26 | 2.1 |
+| narrower, 0.30 (**the card now**) | 0.050 | 0.035 | 0 | **0.771** | 147 | 3.20 | 3.1 |
+| narrower, 0.26 | 0.066 | 0.045 | 0 | 0.781 | 146 | 3.18 | 3.3 |
+| narrower, 0.22 | 0.092 | 0.063 | 0 | 0.799 | 145 | 3.14 | 3.8 |
+| no cowl | 0.157 | 0.109 | 0.009 | 0.851 | 142 | 3.02 | 4.5 |
+
+(Top speed and climb here are the what-if's own light weight; at gross the card reads 146 km/h against the book's 140.)
+Monotonic both ways: more head in the wind, more drag and more cooling. The real J-3 implies 0.85: the bare engine's
+figure. The card at 0.30 leaves a third of the head out because the drawn A-65 reaches 0.31 m from the centreline where
+the real one reaches 0.40: its cylinder rows are the next thing to true.
+
 ## 8. Limits
 
 - The constants are handbook orders of magnitude from memory (Hoerner's fuselage and windscreen chapters, the usual
