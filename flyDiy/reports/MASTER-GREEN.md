@@ -22,6 +22,14 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
   on the trunk, drawn"; "nothing broken ...: no payload, no release, no strike"), **DMGWALL** (metal: "places past 8
   slots" on four cases), **DMGLOOK** (metal trunk-0, "c. the plan ... worst plan 2.00 ms": a per-event time, which the
   8 Nov cloud sweep already read as this box's speed - treat DMGLOOK as TIME, not as a red).
+- **20:05 UTC - A SECOND GROUP IN THE NEW LIST, NOT THE CESSNA: "nothing broken" is no longer nothing.** Five damage
+  gates fail on the same kind of row - with no break, the candidate records or sends something master does not:
+  DMGSKIN ("nothing broken ...: no payload, no byte, no key in the meta"), DMGWRECK ("nothing broken (a FAR 23.473 drop,
+  0 yields): no payload, no release, no strike"), DMGSCUFF ("intact: no payload, no record, nothing drawn"; and the
+  wing-low slide scrapes the HIGH wing: 128 vertices, 92 beyond 1.32 m right), DMGSCAR (four rows "only the wheels
+  touch - nothing recorded, no scar"), and probably DMGUPLOAD. Look for one change to what a wheel-only ground contact
+  records (the scuff / scar path), not five causes. DMGSKIN passes on master L40h on this box, so the group is the
+  candidate's.
 - **THE NEW REDS SO FAR, read by check (14:40 UTC; none is this box: no memory kill, no timeout, all deterministic):**
   - **TAKEOFF**: "technique c172: to 15 m 794 m in [0.6, 1.4] x 514 m (C172S POH)" - the C172's take-off to 15 m is
     1.54 x the book's.
