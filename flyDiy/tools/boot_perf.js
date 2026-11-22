@@ -203,7 +203,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
     // the button is #bGo today ("Fly the circuit"); the 'roll out' text is the September page's. Pressed again every
     // 2 s until the roll-out's screen shows or the page flies (RIG-PROCEDURE: "click #bGo until flying").
     const GO = "(()=>{const b=document.getElementById('bGo');if(b){b.click();return 1;}let n=0;[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>{x.click();n++;});return n;})()";
-    await ev(GO);
+    await ev(GO); let goClicks = 1;   // (a click DURING the roll-out shot skips the shot: the count says whether this run's did)
     let goneWall = null, lastGo = Date.now(), seen = false, flyWall = null; const rt = new Map();
     // --rollout-watch N (22 Nov eve): how long the page is watched AFTER the roll-out's screen lifts for the flight to begin
     // (default 8.5 s, the stills' span). With links still pending the reveal waits for them (app.js programsReady) and
@@ -215,7 +215,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
       try { const f = JSON.parse(await ev("(()=>{const c=document.body.classList;return JSON.stringify({fly:c.contains('mode-fly')&&!c.contains('mode-ws')&&!c.contains('rollShot'),set:window.BOOT&&BOOT.set,state:window.BOOT&&BOOT.state});})()"));
         if (f.set === 'rollout' && f.state !== 'gone') seen = true;
         if (f.fly && !flyWall) flyWall = Date.now();
-        if (!seen && !f.fly && Date.now() - lastGo > 2000) { lastGo = Date.now(); await ev(GO); } } catch (e) {}
+        if (!seen && !f.fly && Date.now() - lastGo > 2000) { lastGo = Date.now(); await ev(GO); goClicks++; } } catch (e) {}
       let s = null; try { s = JSON.parse(await ev(`(() => { const B = window.BOOT; const st = (window.TREE_FILL && TREE_FILL.ringStat) ? TREE_FILL.ringStat() : null;
         return JSON.stringify({ state: B.state, set: B.set, phase: B.current && B.current.id, ring: st, flying: /TAXI|DOWNWIND|FINAL|STOPPED/.test(document.body.innerText) }); })()`)); } catch (e) { continue; }
       if (s.set === 'rollout' && s.state === 'gone' && !goneWall) { goneWall = Date.now(); rollout = { screenMs: goneWall - t0r, ring: s.ring }; }
@@ -223,7 +223,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
       if (flag('shots') && !goneWall && s.phase && !rt.has('ph:' + s.phase)) { rt.set('ph:' + s.phase, 1); await snap('rollout_' + s.phase); }
     }
     if (!rollout) rollout = { screenMs: null, note: 'the roll-out screen never lifted in ' + RSECS + ' s' };
-    rollout.flyMs = flyWall ? flyWall - t0r : null; rollout.programs0 = progs0; rollout.pre = preOut;
+    rollout.flyMs = flyWall ? flyWall - t0r : null; rollout.goClicks = goClicks; rollout.programs0 = progs0; rollout.pre = preOut;
     rollout.still = { lift_vs_3s: stillness(rt.get(0.3), rt.get(3)), s3_vs_8s: stillness(rt.get(3), rt.get(8)) };
     try { rollout.log = JSON.parse(await ev("JSON.stringify(BOOT.log.filter(e => e.k === 'step' || e.k === 'show' || e.k === 'ready' || e.k === 'fail').slice(-12))")); } catch (e) {}
     try { rollout.ringAfter = JSON.parse(await ev("JSON.stringify(TREE_FILL.ringStat ? TREE_FILL.ringStat() : null)")); } catch (e) {}
@@ -318,7 +318,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   console.log(`  stillness (mean |dpx|, 0 = nothing changed after the drop): drop->2s ${still.drop_vs_2s}  drop->5s ${still.drop_vs_5s}  2s->5s ${still.s2_vs_5s}`);
   console.log(`  network ${(out.netTotalKB / 1024).toFixed(1)} MB / ${out.netRequests} req (failed ${out.netFailed})  ` + Object.entries(byType).map(([k, v]) => k + ' ' + (v / 1024).toFixed(1) + ' MB').join(', '));
   console.log('  media by table: ' + out.bytesBySub.slice(0, 14).map(([k, kb, n]) => k.replace(/^media\//, '') + ' ' + (kb / 1024).toFixed(1) + ' MB/' + n).join(', '));
-  if (rollout) console.log('  rollout: screen ' + rollout.screenMs + ' ms, flying after ' + rollout.flyMs + ' ms, programs ' + rollout.programs0 + ' -> ' + rollout.programs + (rollout.pre ? ', pre-rollout ' + String(rollout.pre).slice(0, 200) : ''));
+  if (rollout) console.log('  rollout: screen ' + rollout.screenMs + ' ms, flying after ' + rollout.flyMs + ' ms (Go clicked ' + rollout.goClicks + 'x' + (rollout.goClicks > 1 ? ': the 2nd click skips the roll-out shot, about 11 s when it plays' : ': the roll-out shot played') + '), programs ' + rollout.programs0 + ' -> ' + rollout.programs + (rollout.pre ? ', pre-rollout ' + String(rollout.pre).slice(0, 200) : ''));
   if (rollout) console.log('  ROLL-OUT: screen ' + rollout.screenMs + ' ms  steps ' + ((rollout.log || []).filter(e => e.k === 'step').map(e => e.id + ':' + e.ms).join(' ')) + '  ring at lift ' + JSON.stringify(rollout.ring) + '  after ' + JSON.stringify(rollout.ringAfter) + '  programs ' + rollout.programs + '  stillness lift->3s ' + rollout.still.lift_vs_3s + '  3s->8s ' + rollout.still.s3_vs_8s + (rollout.note ? '  ' + rollout.note : ''));
   console.log('  props landed ' + M.props.length + '  chars ' + M.chars.length + '  ASSET_FETCH ' + M.fetches.length);
   console.log('  inclusive ms: ' + out.inclusive.slice(0, 16).map(([k, v]) => pad(k.split(' @')[0], 18) + v).join('\n                '));
