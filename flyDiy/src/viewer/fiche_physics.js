@@ -271,7 +271,7 @@
   // (FUSELAGE-DRAG 2026-11-22: `corners` and `base` - what a measured body's sharp edges and its too-quick closure cost;
   //  `screen` is then the windscreen and every other step the body puts in the flow)
   const DRAGROW = { fuselage: ['Fuselage', 'structure'], corners: ['Sharp corners', 'structure'], base: ['Blunt closure', 'structure'],
-    cooling: ['Engine cooling & exhaust', 'engine'], screen: ['Windscreen', 'fittings'],
+    cooling: ['Engine cooling & exhaust', 'engine'], screen: ['Windscreen', 'fittings'], sticks: ['Fittings & hinges', 'fittings'],
     junct: ['Wing & tail roots', 'structure'], mainGear: ['Main gear', 'gear'], third: ['Tail wheel', 'gear'], struts: ['Lift struts', 'structure'],
     wires: ['Bracing wires', 'structure'], nacelles: ['Engine nacelle', 'engine'], pod: ['Belly pod', 'fittings'], strutPods: ['Strut tanks', 'engine'] };
   function sideMap(pic, box) {

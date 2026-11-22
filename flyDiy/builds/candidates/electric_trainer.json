@@ -373,7 +373,7 @@
    "accAccess": 1,
    "accInstr": 1,
    "accAerials": 1,
-   "accHandling": 1,
+   "accHandling": 0,
    "accDetail": 1,
    "stOn": 1,
    "stCut": 1,
@@ -3216,6 +3216,12 @@
     "who": "session",
     "step": "fit",
     "line": "FUSELAGE-DRAG: the propeller is cut for the climb - it meets its redline at 130 km/h at full throttle (the handbook's VY is 75 KIAS; POH-128: 90 KCAS on 35 kW and VH 93 KCAS, so the propeller absorbs well under its rated power at the top speed). With the body's real drag the pitch class alone left VH at 200 km/h; at 130 the card reads VH 184 (book 172), take-off roll 237 m (book 240). Identified against the handbook's rows, not a published pitch: for the user's review {\"cw_redKmh\":130}"
+   },
+   {
+    "date": "2026-11-22T19:50",
+    "who": "session",
+    "step": "fit",
+    "line": "FUSELAGE-DRAG: no boarding steps or grab handles - the parent has none, and what the fittings page draws is now paid in drag (two steps and three handles: 0.021 m2 on a 0.25 m2 aeroplane) {\"accHandling\":0}"
    }
   ]
  }

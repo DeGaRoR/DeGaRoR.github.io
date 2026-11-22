@@ -165,7 +165,7 @@ function genFicheGearTerms(S, D) {
 // (FUSELAGE-DRAG 2026-11-22: a MEASURED body - params.gen.drag.shape - shows what its shape costs: its friction and form
 //  under `fuselage`, its sharp corners, its steps with the windscreen (the fixed `screen` figure is 0 on such a body, an
 //  open cockpit keeps its own), the area it closes too fast)
-const GEN_FICHE_DRAG_GROUPS = { fuselage: ['body', 'bodyFric'], corners: ['corners'], cooling: ['cool', 'heads', 'exh'], screen: ['screen', 'steps'], base: ['base'], junct: ['junct'],
+const GEN_FICHE_DRAG_GROUPS = { fuselage: ['body', 'bodyFric'], corners: ['corners'], cooling: ['cool', 'heads', 'exh'], screen: ['screen', 'steps'], base: ['base'], junct: ['junct'], sticks: ['sticks'],
   mainGear: ['g:wheels', 'g:legs', 'g:lever', 'g:floats', 'g:floatStruts'], third: ['g:third', 'g:thirdLeg'], struts: ['g:struts'], wires: ['brace'],
   nacelles: ['nacelles'], pod: ['pod'], strutPods: ['strutPods'] };
 function genFicheDrag(def) {
@@ -184,7 +184,7 @@ function genFicheDrag(def) {
   const terms = genFicheGearTerms(S, D);
   const rows = {};
   let known = 0;
-  for (const r of ['body', 'cool', 'heads', 'screen', 'junct', 'exh', 'gear', 'brace', 'pod', 'strutPods']) {
+  for (const r of ['body', 'cool', 'heads', 'screen', 'junct', 'exh', 'sticks', 'gear', 'brace', 'pod', 'strutPods']) {   // (sticks: FUSELAGE-DRAG build 9)
     if (D[r] > 0) rows[r] = D[r];
     known += D[r] || 0;
   }

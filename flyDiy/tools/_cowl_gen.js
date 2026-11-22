@@ -2330,6 +2330,23 @@ function coolHeads(R, toCowl){
   const L=R&&R.place;
   if(!L||!L.ang||!L.ang.length||!(L.cylLen>0)||!(L.headR>0)) return null;
   const ze=toCowl?zEnd():0, NR=12, NT=6;
+  // (FUSELAGE-DRAG build 9, 2026-11-22: a head inside the cowl's HEAD CYLINDERS (cylOn: the pods merged over the heads -
+  //  the Carbon Cub's) is covered, not in the wind: the base section alone read 46 % of that card's heads as out, and
+  //  since build 5 the drag bills what is out)
+  const pods=(toCowl&&+P.cylOn>0)?cylSpan():null;
+  const inPod=(x,y,z)=>{
+    if(!pods||z<pods[0]||z>pods[1]) return false;
+    const Rz=cylRad(z); if(!(Rz>0)) return false;
+    for(const sg of [-1,1]){ const c=cylAxisAt(z,sg); if(cylNorm(x-c[0],y-c[1])<Rz) return true; }
+    return false;
+  };
+  // ...and so is a head under one of the cowl's CHEEKS (lobeAt: the bulges over the heads; sectF is the bare section -
+  // "lobes ignored"): the point pulled in by the bulge's height along its own radius, against the section
+  const underSkin=(x,y,z)=>{
+    if(sectF(x,y,z)<1) return true;
+    const cy=sectionAtZ(z).cy, dy=y-cy, Lr=Math.hypot(x,dy)||1, d=lobeAt(Math.atan2(dy,x),z);
+    return d>0&&sectF(x-x/Lr*d,y-dy/Lr*d,z)<1;
+  };
   let out=0, all=0;
   for(let i=0;i<L.ang.length;i++){
     const a=L.ang[i], s=Math.sin(a), c=Math.cos(a), px=Math.cos(a), py=-Math.sin(a), z=L.zOf(L.stn[i]);
@@ -2340,7 +2357,7 @@ function coolHeads(R, toCowl){
       if(!toCowl){ out+=dA; continue; }
       const q=toCowl(s*r+px*t, c*r+py*t, z);
       if(q[2]<0) continue;
-      if(q[2]>ze||sectF(q[0],q[1],q[2])>=1) out+=dA;
+      if((q[2]>ze||!underSkin(q[0],q[1],q[2]))&&!inPod(q[0],q[1],q[2])) out+=dA;
     }
   }
   return { out:+out.toFixed(5), all:+all.toFixed(5) };

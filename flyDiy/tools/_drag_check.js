@@ -80,7 +80,8 @@ const CHECKS = {
   headsCost: (bare, cowled) => bare.drag.heads > cowled.drag.heads,
   bubbleCleaner: (flat, bub) => bub.drag.screen < flat.drag.screen,
   gearAdds: m => m.drag.gear >= 0,
-  sumHolds: m => Math.abs((m.drag.body + m.drag.cool + m.drag.heads + m.drag.screen + m.drag.junct + m.drag.exh + m.drag.gear + m.drag.brace) - m.drag.axial) < 1e-6,
+  // (FUSELAGE-DRAG build 9: + the `sticks` row - the fittings and the hinge hardware, 62_gen_aero genSticksOutCdA)
+  sumHolds: m => Math.abs((m.drag.body + m.drag.cool + m.drag.heads + m.drag.screen + m.drag.junct + m.drag.exh + (m.drag.sticks || 0) + m.drag.gear + m.drag.brace) - m.drag.axial) < 1e-6,
 };
 
 // the stock aeroplane and its variants (spec-level, no join: the directions)

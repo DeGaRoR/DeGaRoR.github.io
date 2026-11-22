@@ -905,6 +905,66 @@ function genBodyShapeOf(S) {
   if (!ok(h.sharp) || !ok(h.stepM2) || !ok(h.baseM2) || !ok(h.trip)) return null;
   return { sharp: Math.min(1, h.sharp), stepM2: Math.min(20, h.stepM2), baseM2: Math.min(20, h.baseM2), trip: Math.min(1, h.trip) };
 }
+// WHAT STICKS OUT (FUSELAGE-DRAG build 9; 60_gen_spec GEN_DRAG.sticks): the fittings by their form and drawn size, the
+// control surfaces' hinges, horns and pushrods by the kit's own counts. Returns { sum, fittings, hinges, horns, links }
+// (m2). Read off the resolved spec alone: nothing is measured, nothing is asked of the player.
+function genSticksOutCdA(S) {
+  const K = GEN_DRAG.sticks, out = { sum: 0, fittings: 0, hinges: 0, horns: 0, links: 0 };
+  if (!K || !S) return out;
+  // ---- the fittings ----
+  let R = null, list = [];
+  try { R = genAccessNeeds(S); list = genAccessList(R); } catch (e) { list = []; }
+  const fit = (form, z) => {
+    z = z || {};
+    switch (form) {
+      case 'capProud': case 'capFlush': case 'puckAerial': case 'lightBeacon': return K.stub * (z.d || 0) * (z.h || 0);
+      case 'capSight': return K.stub * (z.d || 0) * (z.h || 0) + K.cyl * (z.wire || 0) * 0.003;
+      case 'drainValve': return K.cyl * (z.d || 0) * (z.h || 0);
+      case 'venturi': return Math.PI * (z.d || 0) * (z.d || 0) / 4 + 2 * K.cyl * (z.stand || 0) * K.legD;
+      case 'probeOAT': return K.cyl * (z.d || 0) * (z.len || 0);
+      case 'bladeAerial': return K.blade * (z.h || 0) * (z.t || 0);
+      case 'wireAerial': return 2 * K.cyl * (z.h || 0) * K.mastD;                 // its two masts; the wire runs along the stream
+      case 'whipAerial': return K.cyl * (z.h || 0) * (z.d || 0);
+      case 'stepBoard': return K.cyl * (z.reach || 0) * 2 * (z.r || 0) + K.plate * (z.w || 0) * 2 * (z.r || 0);
+      case 'handleGrab': return 2 * K.cyl * (z.reach || 0) * 2 * (z.r || 0);     // two legs; the bar lies along the stream
+      case 'ringTiedown': return K.cyl * Math.PI * (z.d || 0) * (z.t || 0) / 2;
+      default: return 0;                                                         // flush: a plate, a door, a port
+    }
+  };
+  const cg = S.cage || {}, row = (k, d) => (cg[k] == null || !isFinite(+cg[k])) ? d : +cg[k];
+  const drawn = key => row('accOn', 1) > 0 && (!K.family[key] || row(K.family[key], 1) > 0);
+  for (const r of list) if (drawn(r.key)) out.fittings += r.n * fit(r.form, r.size);
+  if (R && Array.isArray(R.items) && R.items.includes('asi')) out.fittings += K.cyl * K.pitotH * K.pitotD;
+  // ---- the control surfaces' hardware ----
+  const H = GEN_HINGE, sz = Math.max(0.4, row('hgSize', 1)), famOver = Math.round(row('hgFamily', 0)), nOver = Math.round(row('hgCount', 0));
+  const horns = Math.round(row('hgHorn', 1)) > 0, links = horns && Math.round(row('hgLink', 1)) > 0, fair = Math.round(row('hgFair', 0)) > 0;
+  const hornLen = Math.max(0.02, row('hgHornLen', H.hornReach));
+  const strap = 2 * K.plate * H.strapW * sz * H.strapT * Math.sqrt(sz) + K.stub * 2 * H.pinR * sz * H.strapW * sz;
+  const bracket = K.plate * (H.bracketW || 0.025) * sz * (2 * H.pinR * sz + 0.004);
+  const horn = K.plate * (H.hornT * sz * hornLen + K.eye * sz * sz);
+  const rod = K.cyl * K.rodSin3 * K.rodLen * hornLen * 2 * H.linkR * sz;
+  const w0 = (S.wings && S.wings[0]) || {}, semi = (w0.span || 0) / 2, ct = S.controls || {}, tl = S.tail || {};
+  const surfs = [];                                  // [kit row, span m, how many, the surface's material key]
+  const wKey = genSurfKey(S, 'wing', 0);
+  if (ct.aileron && ct.aileron.span > 0 && semi > 0) surfs.push(['ail', ct.aileron.span * semi, 2, wKey]);
+  if (ct.flap && ct.flap.type && ct.flap.type !== 'none' && ct.flap.span > 0 && semi > 0) surfs.push(['flap', ct.flap.span * semi, 2, wKey]);
+  if (tl.hSpan > 0) surfs.push(['elev', tl.hSpan / 2, 2, genSurfKey(S, 'stab')]);
+  if (tl.vHeight > 0) surfs.push(['rud', tl.vHeight, 1, genSurfKey(S, 'fin')]);
+  for (const [kind, span, n, key] of surfs) {
+    const kit = GEN_HINGE_KIT[kind], faces = kit.faces || 1;
+    const fam = famOver === 1 ? 'strap' : famOver === 2 ? 'piano' : famOver === 3 ? 'bracket' : genHingeFamily(key);
+    const nH = genHingeStations(span, nOver).length;
+    const each = fam === 'piano' ? 0 : fam === 'bracket' ? bracket : strap * faces;
+    out.hinges += n * nH * each * K.hingeBL * (fair ? K.fair : 1);
+    if (horns && kit.horn !== 'none') {
+      out.horns += n * faces * horn;
+      if (links && kit.link === 'pushrod') out.links += n * rod;
+    }
+  }
+  out.sum = out.fittings + out.hinges + out.horns + out.links;
+  return out;
+}
+
 function genFusCdA(S, fr, o) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
@@ -976,8 +1036,13 @@ function genFusCdA(S, fr, o) {
     // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal (genHeadsFrontal counts the
     // same reach as a bare inlet; the expression stays here as it was, bit for bit)
     const E = S.engBox;
+    // (FUSELAGE-DRAG build 9: where the join has MEASURED the heads against the drawn cowl, the drawing decides - below;
+    //  the `covers.sides` flag billed the Carbon Cub's heads, which sit inside its cowl's pods, and the Tiger Moth's,
+    //  which its drawn cowl covers)
+    const Cm = S.cooling && typeof S.cooling === 'object' ? S.cooling : null;
+    const headsMeasured = !!(E && cowlOn && Cm && Cm.headsAll > 0 && Cm.headsOut != null);
     if (E && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' &&
-        (!cowlOn || !covers.sides)) {
+        (!cowlOn || !covers.sides) && !headsMeasured) {
       const at = cw.atEngine || {};
       const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
       heads = D.cdBlock * 2 * out * (2 * E.cylR) * 2;      // both banks, each bank's reach x its height
@@ -986,9 +1051,7 @@ function genFusCdA(S, fr, o) {
     // cowl): HEADS THAT STAND OUT OF A COWL THAT IS ON. The join measures the cylinders' frontal outside the drawn skin
     // and in all (spec.cooling.headsOut / headsAll: the cooling flow already reads them, the drag did not). They pay
     // the bare engine's own figure in the measured share - all of them out is exactly the uncowled engine's row.
-    const Cm = S.cooling && typeof S.cooling === 'object' ? S.cooling : null;
-    if (E && cowlOn && covers.sides && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' &&
-        Cm && Cm.headsOut > 0 && Cm.headsAll > 0) {
+    if (headsMeasured && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' && Cm.headsOut > 0) {
       const bareOut = Math.max(0, E.cylReach - E.halfW);
       heads = D.cdBlock * 2 * bareOut * (2 * E.cylR) * 2 * Math.min(1, Cm.headsOut / Cm.headsAll);
     }
@@ -1025,14 +1088,16 @@ function genFusCdA(S, fr, o) {
   junct += 3 * D.junct.tail;
   const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
   const exh = electric || none ? 0 : D.exhStack * (radial ? 4 : 2) * nEng;
+  const stk = genSticksOutCdA(S), sticks = stk.sum;   // (FUSELAGE-DRAG build 9: what sticks out)
   const out = {
-    fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
+    fusCdA: [body + cool + heads + screen + junct + exh + sticks, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
-            body, cool, heads, screen, junct, exh, ...(reK !== 1 ? { reK } : {}),
+            body, cool, heads, screen, junct, exh, sticks, sticksBy: { fittings: stk.fittings, hinges: stk.hinges, horns: stk.horns, links: stk.links },
+            ...(reK !== 1 ? { reK } : {}),
             ...(hullK !== 1 ? { hullK } : {}), ...(radialWake > 0 ? { radialWake } : {}),
             ...(shapeRows ? { shape: { friction: shapeRows.friction, corners: shapeRows.corners, steps: shapeRows.steps, base: shapeRows.base,
-                                       lam: shapeRows.lam, sharp: shapeRows.sharp } } : {}),
+                                       lam: shapeRows.lam, sharp: shapeRows.sharp, cf: shapeRows.cf } } : {}),
             coolBy: coolSheet && coolSheet.kind === 'measured' ? 'momentum' : 'perKW' },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the

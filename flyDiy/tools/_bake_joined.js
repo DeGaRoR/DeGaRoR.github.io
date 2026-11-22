@@ -102,7 +102,9 @@ function bakeJoined(spec0) {
     outer.add(inner); r.scene.add(outer);
     r.scene.updateMatrixWorld(true);
   }
-  W.CAGE_UI = { P: r.P };
+  // (FUSELAGE-DRAG, 2026-11-22: the body's shape off the built sheet, as the page's build and the load door measure it -
+  //  a card baked here flew the old body law with the new gear and fittings rows on top)
+  W.CAGE_UI = { P: r.P, ...(W.CAGE2 && W.CAGE2.cageBodyShape && r.built && r.built.mesh ? { bodyShape: W.CAGE2.cageBodyShape(r.built.mesh, r.FS) } : {}) };
   joinIn(W);
   const J = W.CAGE_JOIN.export();
   const errors = W.CAGE_JOIN.errors(), notes = W.CAGE_JOIN.notes();

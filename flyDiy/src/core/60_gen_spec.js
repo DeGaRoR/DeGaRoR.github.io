@@ -2122,6 +2122,30 @@ const GEN_DRAG = {
   junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003 },
   // an exhaust stack in the wind
   exhStack: 0.003,
+  // WHAT STICKS OUT (FUSELAGE-DRAG build 9, 2026-11-22; the user: "itemize what sticks out"; 62_gen_aero genSticksOutCdA).
+  // Every fitting the aeroplane carries (GEN_ACCESS, by what its systems need: an aerial for a radio, a venturi for
+  // suction dials, a step for a high sill) and the hardware its control surfaces hang on (GEN_HINGE, GEN_HINGE_KIT, the
+  // hinge rows) pays its own frontal area x a coefficient for its shape, at the sizes the tables already draw them:
+  //   cyl    a round member across the stream, below the drag crisis (Hoerner ch. 3): a whip, a probe, a step's tube
+  //   blade  a streamline blade on its thickness at a small Reynolds number (ch. 6): a blade aerial
+  //   stub   a low cap or dome standing in the boundary layer, on its frontal area (ch. 5): a filler cap, a beacon
+  //   plate  a plate's edge and its bolt heads: a horn, a hinge bracket, a step board
+  // A flush plate, door or port pays nothing here (its seam is in the skin's factor); a piano hinge lies in the gap;
+  // a cable runs along the stream (cross-flow by sin^3: nothing). `rodSin3` is a pushrod's slope out of the wing
+  // (about 60 deg), `rodLen` its exposed length in horn reaches, `fair` what a hinge fairing leaves of a hinge's drag.
+  // The pitot (63_gen_skin draws it) is a mast under the wing: pitotH x pitotD of round tube. `hingeBL`: a hinge stands a
+  // centimetre proud at the hinge line, inside the surface's thick aft boundary layer and half in the gap - it sees
+  // about half the stream's dynamic pressure (Hoerner ch. 5, a protuberance as tall as the layer).
+  sticks: { cyl: 1.2, blade: 0.15, stub: 0.5, plate: 1.1, rodSin3: 0.65, rodLen: 1.5, fair: 0.3, hingeBL: 0.5, pitotH: 0.12, pitotD: 0.012,
+            mastD: 0.008, legD: 0.010, eye: 0.00024,
+            // WHAT IS DRAWN IS WHAT IS PAID: each fitting's family switch on the fittings page (tools/_cage_access.js
+            // FAMILY - the same map; the gate holds the two together). A family switched off is not on the aeroplane:
+            // a builder who wants a clean machine takes the steps and the handles off
+            family: { doorHandle: 'accHandling', step: 'accHandling', grabHandle: 'accHandling', tieDownTail: 'accHandling',
+                      fuelCap: 'accFluids', fuelCapWing: 'accFluids', fuelCapWing2: 'accFluids', fuelDrain: 'accFluids', staticDrain: 'accFluids',
+                      staticPort: 'accInstr', venturi: 'accInstr', oatProbe: 'accInstr',
+                      commAerial: 'accAerials', navAerial: 'accAerials', xpdrAerial: 'accAerials', gpsAerial: 'accAerials', eltAerial: 'accAerials',
+                      beacon: 'accBeacon' } },
   // THE SPAN EFFICIENCY OF A SLENDER WING (PHYSICS-AUDIT step 1, 2026-11-21; 62_gen_aero genOswald): the inviscid span
   // loading of a straight tapered wing (eInv) and the profile drag's growth with CL^2 (kv: a turbulent riveted or
   // fabric surface 0.007 - with it the law meets Raymer's fit at an aspect ratio of 7.9; a smooth composite skin,

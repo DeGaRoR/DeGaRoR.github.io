@@ -36,12 +36,25 @@ check(near(stock.params.gen.drag.gear, C.genGearCdA(stock.spec, stock.spec.geom.
 { const sp = LB.loadBuild('builds/candidates/superpetrel_V4_2.json').spec, def = C.buildGen(clone(sp)), d = def.params.gen.drag;
   const FF = d.FF, bare = d.swet * d.cdWet * FF * d.boxK * (d.reK || 1);
   check(def.spec.gear.hull && Array.isArray(def.spec.gear.hull.sta) && d.hullK === D.hullK, '3. the Super Petrel is a hull (gear.hull) and says so (hullK ' + d.hullK + ')');
-  check(near(d.body, D.hullK * bare, 1e-9), '3. its body row is hullK x the wetted build-up (' + d.body.toFixed(3) + ' = ' + D.hullK + ' x ' + bare.toFixed(3) + ' m2)'); }
+  // (re-stated 2026-11-22, FUSELAGE-DRAG: a body the editor measured is billed by its shape - GEN_DRAG.body: the hull's
+  //  factor multiplies the FRICTION row (the skin, its form and the chines), and the body is its four shape rows; an
+  //  unmeasured body keeps the wetted build-up this check always held)
+  if (d.shape) {
+    const B = D.body, fr = d.swet * d.shape.cf * (1 - d.shape.lam * B.lamCf) * (B.kSkin[def.spec.material] || B.kSkinDefault) * FF * D.hullK;
+    check(near(d.shape.friction, fr, 1e-9) && near(d.body, d.shape.friction + d.shape.corners + d.shape.steps + d.shape.base, 1e-9),
+          '3. its body is its four shape rows, the friction row hullK x the skin\'s (' + d.body.toFixed(3) + ' m2, friction ' + d.shape.friction.toFixed(3) + ' = ' + D.hullK + ' x ' + (fr / D.hullK).toFixed(3) + ')');
+  } else check(near(d.body, D.hullK * bare, 1e-9), '3. its body row is hullK x the wetted build-up (' + d.body.toFixed(3) + ' = ' + D.hullK + ' x ' + bare.toFixed(3) + ' m2)'); }
 // ---- 4: a bare radial ---------------------------------------------------------------------------------------------------
 { const sp = LB.loadBuild('builds/candidates/stearman_2026-10.json').spec, def = C.buildGen(clone(sp)), d = def.params.gen.drag, E = def.spec.engBox;
   const whole = d.swet * d.cdWet * d.FF * d.boxK * (d.reK || 1), cover = Math.min(1, Math.PI * E.cylReach * E.cylReach / d.frontal);
   console.log('the Stearman-alike: a bare radial, its disc over ' + (100 * cover).toFixed(0) + ' % of the body\'s frontal; body ' + whole.toFixed(3) + ' -> ' + d.body.toFixed(3) + ' m2');
-  check(d.radialWake > 0 && near(d.radialWake, D.radialWake * cover * (d.FF - 1) / d.FF * whole) && near(d.body, whole - d.radialWake), '4. a bare radial on the nose: the body row less the form share its disc covers (' + d.radialWake.toFixed(3) + ' m2)');
+  // (re-stated 2026-11-22, FUSELAGE-DRAG: on a measured body the engine's wake covers the form share of the friction and
+  //  corner rows - the steps and the base are not in it)
+  if (d.shape) {
+    const formPart = d.shape.friction + d.shape.corners, sum = formPart + d.shape.steps + d.shape.base;
+    check(d.radialWake > 0 && near(d.radialWake, D.radialWake * cover * (d.FF - 1) / d.FF * formPart) && near(d.body, sum - d.radialWake),
+          '4. a bare radial on the nose: the body\'s shape rows less the form share its disc covers (' + d.radialWake.toFixed(3) + ' m2 of ' + sum.toFixed(3) + ')');
+  } else check(d.radialWake > 0 && near(d.radialWake, D.radialWake * cover * (d.FF - 1) / d.FF * whole) && near(d.body, whole - d.radialWake), '4. a bare radial on the nose: the body row less the form share its disc covers (' + d.radialWake.toFixed(3) + ' m2)');
   const tm = C.buildGen(LB.loadBuild('builds/candidates/tigermoth_2026-10.json').spec).params.gen.drag;
   check(!('radialWake' in tm), '4. an inline engine\'s body is whole (the Tiger Moth-alike)');
   const cm = C.buildGen(LB.loadBuild('builds/candidates/camel_2026-10.json').spec).params.gen.drag;
