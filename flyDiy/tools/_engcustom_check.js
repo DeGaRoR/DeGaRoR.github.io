@@ -86,7 +86,9 @@ const CU = { name: 'custom flat 4-cyl 3.2 L', mass: 62, powerW: 52000,
       family: 'warp', cooling: 'phase-change' }) }];
   const c = clampSpec(s);
   const cu = c.engines[0].custom;
-  ok(!!cu && cu.mass <= 900 && cu.powerW <= 1000000,
+  // (MASTER-GREEN 22 Nov: the cap is 2 MW since ENGINE-DIALS A 75e9863bb, train L38c2 - "custom power cap 1 -> 2 MW
+  // (Merlin)"; the row pinned the old 1 MW. The 9 GW giant must come back AT the cap, not merely under it)
+  ok(!!cu && cu.mass <= 900 && cu.powerW === 2000000,
      'a smuggled giant is clamped to the envelope');
   ok(cu && cu.family === 'four' && cu.cooling === 'air',
      'unknown enums fall back the legacy way');
@@ -116,9 +118,13 @@ console.log('resolveSpec + genFrame: the custom engine flies');
         rC = resolveSpec(clampSpec(sC)).spec;
   ok(rC.pplant && rC.pplant.engine.mass === 62,
      'resolveSpec flies the custom mass (S.pplant)');
-  ok(rC.prop.Tstatic > 0 &&
+  // (MASTER-GREEN 22 Nov: since ENGINE-DIALS A 75e9863bb, train L38c2 - "a custom engine inherits nothing from the A-65 ...
+  // a custom engine's default prop is 1.80 m, not the A-65's" - the two discs differ (1.88 m against 1.80 m), and the
+  // static thrust of momentum theory goes as (P D)^(2/3). The row compared watts alone and read 1.018 against 1.048; with
+  // each side's own disc the law holds to the bit. The disc is asserted, so the row cannot pass on a prop that did not move)
+  ok(rC.prop.Tstatic > 0 && r0.prop.D === 1.88 && rC.prop.D === 1.8 &&
      Math.abs(rC.prop.Tstatic / r0.prop.Tstatic
-              - Math.pow(52000 / 48500, 2 / 3)) < 0.02,
+              - Math.pow((52000 * rC.prop.D) / (48500 * r0.prop.D), 2 / 3)) < 0.02,
      'Tstatic follows the custom watts on the P^(2/3) curve');
   const f0 = genFrame(r0), fC = genFrame(rC);
   const dM = fC.cg0[3] - f0.cg0[3];
