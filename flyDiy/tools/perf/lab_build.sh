@@ -32,5 +32,5 @@ echo "lab build: branch $(git branch --show-current) $(git log --oneline -1 | cu
 git log --oneline -30 >> "$NEW/LAB-BUILD.txt"
 if [ -d "$DEST" ]; then rm -rf "$DEST-prev"; mv "$DEST" "$DEST-prev"; fi
 mv "$NEW" "$DEST" && echo "== stood at $DEST: $(head -1 "$DEST/LAB-BUILD.txt")"
-for k in farslots mirpace latelinks=bg roadw; do grep -q "$k" "$DEST/flyDiy/dev.html" && echo "switch in the page: $k" || echo "SWITCH MISSING from the page: $k"; done
+for k in farslots mirpace latelinks=bg roadw; do grep -rqs "$k" "$DEST/flyDiy/index.html" "$DEST/flyDiy/src/viewer/render_premises.js" && echo "switch in the build: $k" || echo "SWITCH MISSING from the build: $k"; done
 echo "== end $(date +%H:%M)"

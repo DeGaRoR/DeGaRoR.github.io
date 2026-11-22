@@ -20,7 +20,8 @@ BR="--steps compile,frames,worldCompile --miss 1"
 # lab build must be the one with tonight's switches
 nice -n 19 node -e "require('./tools/_core_fresh.js').assertFresh(require('path').resolve('tools/flight_core.js'))" || { say "REFUSED: tools/flight_core.js is not this tree's (run tools/perf/lab_build.sh)"; exit 4; }
 [ -f "$LAB/flyDiy/dev.html" ] || { say "REFUSED: no lab build at $LAB"; exit 2; }
-for k in farslots mirpace latelinks=bg; do grep -q "$k" "$LAB/flyDiy/dev.html" || { say "REFUSED: the lab build has no $k (rebuild first)"; exit 2; }; done
+# (index.html holds the inlined scripts, src/viewer/ the ones it loads by name: dev.html holds neither)
+for k in farslots mirpace latelinks=bg roadw; do grep -rqs "$k" "$LAB/flyDiy/index.html" "$LAB/flyDiy/src/viewer/render_premises.js" || { say "REFUSED: the lab build has no $k (rebuild first)"; exit 2; }; done
 [ -f "$LAB/flyDiy/tools/flight_scripts/perf/journey_first8.json" ] || { say "REFUSED: the lab build has no journey_first8.json"; exit 2; }
 HOLD; ( while :; do sleep 300; HOLD; done ) & REF=$!
 trap 'kill $REF 2>/dev/null; rm -f "$TK"/${WHO}_[0-9].tok; bash $B drop gpu $WHO' EXIT

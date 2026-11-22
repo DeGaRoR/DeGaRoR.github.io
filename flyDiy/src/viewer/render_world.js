@@ -3022,6 +3022,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const seaFloor = world.island.seaFloor, lakeBed = world.island.lakeBed, qs = FH.side / 4;
       const FARLOD = { tolPx: BUD && BUD.terrain > 1 ? BUD.terrain : 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
                        stats: { nodes: 0, tris: 0, quads: 0, rebuilds: 0, cached: 0, ms: 0 } };
+      // PERF-LEAD LAB (?fartol=N, 22 Nov; a DIAL for an A/B, nothing changes without it): the far terrain's error tolerance
+      // in pixels. At 1 px on a 5120-wide view the cruise at 700 m drew 65 million triangles a frame for 412..437 s of the
+      // journey (GPU 46.5 ms against 29.2; PERF-TRACE), each quadrant drawn by the view, the water mirror and the shadows.
+      // A visible choice (the far relief's silhouette): shown before / after before any default moves.
+      { const q = typeof location !== 'undefined' && /[?&]fartol=([0-9.]+)(?:&|$)/.exec(location.search || ''); if (q && +q[1] >= 1) FARLOD.tolPx = +q[1]; }
       const boxOf = n => { const s = FH.side / (1 << n.d); return [FH.bounds.x0 + n.ix * s, FH.bounds.z0 + n.iz * s, s]; };
       const underRing = (ox, oz, s) => ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250;   // fully under the inner ring
       const nearRing = (ox, oz, s) => ox < INNER + 250 && ox + s > -INNER - 250 && oz < INNER + 250 && oz + s > -INNER - 250;
