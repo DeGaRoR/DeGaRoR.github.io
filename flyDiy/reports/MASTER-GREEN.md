@@ -25,7 +25,7 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
 - **22:35 UTC - THE BATTERY IS COMPLETE: 273 PASS, 91 FAIL, 0 SKIP of 364.** 32 names are not in L40h's FAIL list;
   MONOWHEEL and GFX, red on L40h, pass. The log's first lines sort the 32:
   - **24 are the candidate's.** Proven by the same gate passing alone on master L40h on this box: DMGSKIN DMGSETTLE
-    HITBOX CONTRACTS MISSIONS FREIGHT; proven inside the candidate's history: TAKEOFF (green on 9eee1de09, red on the
+    DMGUPLOAD (22:52 UTC) HITBOX CONTRACTS MISSIONS FREIGHT; proven inside the candidate's history: TAKEOFF (green on 9eee1de09, red on the
     merge of one-cessna-4). By their rows: the Cessna - ROUTE DMGWALL DMGDRIVE WATERDAMP LIVERYSET FIN GEOPARITY FRAMES
     DASH GPSFACE AUDIOENG PARKED; "nothing broken records nothing" - DMGWRECK DMGSCAR DMGSCUFF DMGUPLOAD; FMIST.
   - **1 is the candidate commit's packaging:** COMMITHYGIENE.
