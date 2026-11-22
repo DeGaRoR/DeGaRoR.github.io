@@ -78,8 +78,11 @@ function planePool() {
 // stands in CONTRACT_DESIGNS / FREIGHT_CARDS under 'L<list n>' FOR THIS PROCESS ONLY (the game's tables are not written).
 // The validated designs come first, in their order: the smallest capable career design still flies a mission it can.
 let WIDE = null;
-function widePool() {
-  if (WIDE) return WIDE;
+// `also` (the user 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK"):
+// plane-list numbers added to the pool whatever their list - the PC-6 stands on the wip list (57 on wheels, 58 on floats)
+function widePool(also) {
+  const alsoN = (also || []).map(Number).filter(n => n > 0), wk = alsoN.join();
+  if (WIDE && WIDE.key === wk) return WIDE.out;
   const base = planePool(), have = new Set(base.map(p => p.file)), out = base.slice();
   let FSITE = null; try { FSITE = require(path.join(T, '_freight_site.js')); } catch (e) { FSITE = null; }
   // measured once a core and a build file (minutes for the whole list: the hold is swept off the mesh): kept in the OS
@@ -100,8 +103,10 @@ function widePool() {
     try { fs.writeFileSync(f, JSON.stringify(M)); } catch (e) { /* a read-only temp: measured every run */ }
     return M;
   };
-  for (const r of officialRows()) {
+  const extra = planeList().filter(r => alsoN.includes(r.n) && r.file && !r.rides && fs.existsSync(path.join(ROOT, r.file)) && !OFFICIAL_LISTS.includes(r.list));
+  for (const r of officialRows().concat(extra)) {
     if (have.has(r.file)) continue;
+    have.add(r.file);
     try {
       const M = measure(r), D = M.D, card = M.card, k = D.id;
       if (![D.seats, D.massKg, D.emptyKg, D.toM, D.rangeKm].every(v => typeof v === 'number' && isFinite(v))) continue;
@@ -110,7 +115,8 @@ function widePool() {
       out.push({ design: k, file: r.file, name: r.name, reg: r.reg || null, list: r.list, n: r.n, card: card && card.hold ? card : null, wide: true });
     } catch (e) { (widePool.skipped = widePool.skipped || []).push(r.name + ': ' + String(e && e.message || e).slice(0, 80)); }
   }
-  return (WIDE = out);
+  WIDE = { key: wk, out };
+  return out;
 }
 // the official rows a BUILD order is judged against (every official file: the player's own design could be any of them)
 function officialRows() { return planeList().filter(r => OFFICIAL_LISTS.includes(r.list) && r.file && !r.rides && fs.existsSync(path.join(ROOT, r.file))); }
@@ -575,7 +581,7 @@ function judgeMission(env, packRow, m, opts) {
   R.static = S;
   if (S.broken.length) { R.verdict = 'broken'; R.why = S.broken.join('; '); return R; }
   const subs = C.contractSubsOf(rec);
-  const pool = o.official ? widePool() : planePool();
+  const pool = o.official ? widePool(o.also) : planePool();
   R.pool = pool.map(p => p.design);
   // on offer at all? (the career's own offer list, with everything before it done) - an order is judged on it first; a
   // job after the game's capability rule (its reason - the load, the gear, the strip - is the more specific one)
@@ -612,6 +618,9 @@ function judgeMission(env, packRow, m, opts) {
     const doers = C.contractDoers(subs, C.CONTRACT_FIELDS, Object.fromEntries(pool.map(p => [p.design, C.CONTRACT_DESIGNS[p.design]])));
     R.doers = doers;
     order = pool.filter(p => doers.includes(p.design));
+    // (the wider pool) the career's designs first, as before; then the others THE SHORTEST TAKE-OFF RUN FIRST - what a short
+    // strip asks for is tried before what merely carries the load
+    if (o.official) order = order.filter(p => !p.wide).concat(order.filter(p => p.wide).sort((a, b) => C.CONTRACT_DESIGNS[a.design].toM - C.CONTRACT_DESIGNS[b.design].toM));
     // THE SEATS THE STOP COUNTS: app.js careerStopApply hands careerStopRecord the BUILD's occupants (spec.occupants - the
     // garage's seat-fill), not the job's passengers (a passengers-only job has no loading-view door: "they board, they
     // don't fit"). A plane that seats too few for the job's passengers is tried last, and said

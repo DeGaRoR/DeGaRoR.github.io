@@ -9,6 +9,19 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
+## Status for A0 (Mon 23 Nov)
+
+- `claude/ready/story-7` 784d85bfe rides L40K: noted. I rebase `claude/story-revamp` on master once L40K is there.
+- THE USER'S FOUR LARGE MISSION STORIES ARE IN story-7 (since story-2): four projects of the pack - the remote community
+  (8 steps), home improvement (7), the observatory (6), the heritage site (2) - with short draft words. Their VERBATIM
+  text is not committed, on the user's own word (22 Nov, asked "commit the four stories verbatim?": "no"). So no ready is
+  owed for the stories themselves; what they still lack is listed under Gaps (scenery for four tracks, the clear-day
+  rule, the fly-in's other aeroplanes, the words).
+- A story-8 WILL come (rebased on master after L40K, for L40M): the feasibility flights with the wider pool the user
+  asked for on 23 Nov ("you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK ...
+  maybe you can even build a quick [STOL Cessna] to clear these"): every official plane + the PC-6 (wip list, 57 / 58).
+- The container was recycled overnight: the flights stopped at 12 of 91 rows and are restarted from the kept rows.
+
 ## Where it stands
 
 | ready | content | state |

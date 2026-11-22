@@ -20,6 +20,7 @@ const T = __dirname, ROOT = path.join(T, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const has = k => argv.includes('--' + k);
+const ALSO = '57,58';   // builds/lists/plane_lists.json: the PC-6 Turbo Porter, the PC-6 on Wiplines (the wip list)
 const ROWS = path.resolve(ROOT, opt('rows', 'reports/STORY-REVAMP/feasibility'));
 const PACK = path.join(ROOT, 'src', 'missions', 'story.json');
 
@@ -63,15 +64,18 @@ async function fly() {
     const m = todo[next++];
     if (!m) return res(false);
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy-storyfeas-out-')), t0 = Date.now();
-    const args = [path.join(T, 'mission_feas.js'), '--only=' + m.id, '--rerun', '--packs=' + packs, '--out=' + out, '--quiet', '--tries=' + opt('tries', '2')];
-    if (!m.validated && !m.order) args.push('--official');
+    const args = [path.join(T, 'mission_feas.js'), '--only=' + m.id, '--rerun', '--packs=' + packs, '--out=' + out, '--quiet', '--tries=' + opt('tries', '4')];
+    // (the user 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK ... the
+    // players will not be limited to existing planes, they will modify them, and that's the point") EVERY mission is flown
+    // with the wider pool: the career's designs first, then every official plane and the PC-6 (ALSO), the shortest take-off first
+    if (!m.order) args.push('--official', '--also=' + opt('also', ALSO));
     const ch = cp.spawn(process.execPath, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     let err = ''; ch.stderr.on('data', d => { err += d; }); ch.stdout.on('data', () => {});
     ch.on('close', code => {
       let R = null;
       try { R = JSON.parse(fs.readFileSync(path.join(out, 'reruns', 'rerun_' + m.id + '.json'), 'utf8')).rows.find(x => x.id === m.id); } catch (e) { R = null; }
       const row = R ? slim(R) : { id: m.id, verdict: 'broken', why: 'the rig ended with no row (exit ' + code + '): ' + err.slice(-300) };
-      Object.assign(row, { key: m.key, where: m.where, pool: !m.validated && !m.order ? 'official' : 'validated', wallS: Math.round((Date.now() - t0) / 1000) });
+      Object.assign(row, { key: m.key, where: m.where, pool: m.order ? 'validated' : 'official+' + opt('also', ALSO), wallS: Math.round((Date.now() - t0) / 1000) });
       fs.writeFileSync(rowFile(m.id), JSON.stringify(row, null, 1) + '\n');
       done++;
       console.log('  ' + String(done).padStart(3) + '/' + todo.length + ' ' + row.verdict.toUpperCase().padEnd(10) + ' ' + m.id.padEnd(15) + ' ' + (row.plane || '-').padEnd(24) + ' ' + String(row.timeS || 0).padStart(5) + ' s flown, ' + row.wallS + ' s wall' + (row.verdict === 'feasible' ? '' : '  ' + (row.why || '').slice(0, 160)));
@@ -96,7 +100,7 @@ function slim(R) {
 function classOf(m, r) {
   if (m.order) return 'order';
   if (r && r.verdict === 'feasible') return 'feasible';
-  if (r && r.verdict === 'infeasible' && r.pool === 'official' && /no official plane can do it/.test(r.why || '')) return 'player-built';
+  if (r && r.verdict === 'infeasible' && /^official/.test(r.pool || '') && /no official plane can do it/.test(r.why || '')) return 'player-built';
   return null;
 }
 function table() {
