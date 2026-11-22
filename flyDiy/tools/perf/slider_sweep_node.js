@@ -31,6 +31,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
 const TICKS = +opt('ticks', 10), QUERY = opt('query', ''), FRESH = flag('fresh');
+const BUDGET = +opt('budget', 0), FORCE = opt('force', null);   // --force held|lite|live: CAGE_UI.dragBudgetForce   // --budget <ms>: CAGE_UI.dragBudgetMs (fix 1, the drag budget), the held / live ticks counted
 const OUT = path.resolve(opt('out', path.join(__dirname, 'slider_sweep_node_' + Date.now() + '.json')));
 const FAMILIES = opt('rows', null) ? opt('rows').split(',').map(k => [k]) : [['wgSpan', 'wgChord'], ['paxLen', 'halfW', 'boomLen'], ['s1X', 'engY', 'stX']];
 const PLAYER = ['reproduction', 'story', 'original', 'wip'];
@@ -81,17 +82,20 @@ function selfTop(p, n) {
     await P.until(() => false, 6000);
     W.__realNow = now;
     U = W.CAGE_UI;
+    if (BUDGET > 0) U.dragBudgetMs = BUDGET;
+    if (FORCE) U.dragBudgetForce = FORCE;
     return Date.now() - t0;
   };
   const load = async p => {
     W.__SW = 'pending';
+    const s0 = run('JSON.stringify(GARAGE_SPEC.get())');
     run('(() => { const p = ' + JSON.stringify({ file: p.file, n: p.n, name: p.name }) + '; try { Promise.resolve(GARAGE_SPEC.openListed(p)).then(() => { window.__SW = "ok"; }, e => { window.__SW = "err " + (e && e.message); }); } catch (e) { window.__SW = "threw " + e.message; } })()');
     await P.until(() => W.__SW !== 'pending', 600000);
     if (W.__SW !== 'ok') return W.__SW;
     await P.until(() => false, 4000);
     if (U.releaseFlush) U.releaseFlush();
-    const got = run('(() => { const l = GARAGE_SPEC.listed && GARAGE_SPEC.listed(); return l ? l.file : null; })()');
-    return got === p.file ? 'ok' : 'the stand holds ' + got;
+    // (GARAGE_SPEC.listed() goes null when the load's own sync replaces the spec: on the stand = the spec changed)
+    return run('JSON.stringify(GARAGE_SPEC.get())') !== s0 ? 'ok' : 'the spec on the stand did not change';
   };
   const snapD = (a, b) => ({ draws: sum(b.draws) - sum(a.draws), calls: sum(b.calls) - sum(a.calls), tris: sum(b.tris) - sum(a.tris),
     upKB: Math.round(((b.bytes.bufferData || 0) + (b.bytes.bufferSubData || 0) - (a.bytes.bufferData || 0) - (a.bytes.bufferSubData || 0)) / 1024) });
@@ -102,18 +106,20 @@ function selfTop(p, n) {
     const Ev = W.Event, PE = W.PointerEvent || W.Event;
     const lo = +el.min, hi = +el.max, x0 = +el.value, st = +el.step || 0.001, dir = (hi - x0) > (x0 - lo) ? 1 : -1, span = Math.abs(dir > 0 ? hi - x0 : x0 - lo) * 0.5;
     const o = { k, x0, x1: null, ticks: [], path: {}, layers: {}, frame: [], frameMs: [] };
+    const bg0 = U.budget ? [U.budget.held, U.budget.rests, U.budget.live, U.budget.lites] : null;
     U.dragSettleMs = 1e9;
     el.dispatchEvent(new PE('pointerdown'));
     for (let i = 1; i <= TICKS; i++) {
       el.value = String(lo + Math.round((x0 + dir * span * i / TICKS - lo) / st) * st);
       const pv0 = U.preview.n, df0 = U.preview.deform, L0 = W.CAGE_CHAIN && W.CAGE_CHAIN.last, s0 = bare ? null : P.rec.snapshot();
       const t0 = now(); el.dispatchEvent(new Ev('input')); o.ticks.push(now() - t0);
-      const pth = U.preview.deform > df0 ? 'deform' : U.preview.n > pv0 ? 'preview' : 'whole';
+      const pth = U.preview.deform > df0 ? 'deform' : U.preview.n > pv0 ? (U.budget && U.budget.last === 'lite' ? 'lite' : 'preview') : (U.budget && U.budget.last === 'held' ? 'held' : 'whole');
       o.path[pth] = (o.path[pth] || 0) + 1;
       if (W.CAGE_CHAIN && W.CAGE_CHAIN.last !== L0) for (const [name, ms] of layersNow()) o.layers[name] = (o.layers[name] || 0) + ms;
       if (!bare) { const t1 = now(); await P.frames(1); o.frameMs.push(now() - t1); o.frame.push(snapD(s0, P.rec.snapshot())); }
     }
     o.x1 = +el.value;
+    if (bg0) o.budget = { held: U.budget.held - bg0[0], rests: U.budget.rests - bg0[1], live: U.budget.live - bg0[2], lites: U.budget.lites - bg0[3], full: r1(U.budget.full.get(k)), lone: r1(U.budget.lone.get(k)) };
     U.dragSettleMs = 350;
     const rl0 = U.release ? U.release.n : 0, rw0 = U.release ? U.release.whole : 0;
     const tR = now();
@@ -170,7 +176,7 @@ function selfTop(p, n) {
         }
         await post('Profiler.disable'); S.disconnect();
       }
-      row.errors = P.errors.length;
+      row.errors = P.errors.length; row.errorsLast = P.errors.slice(-4).map(e => String(e).slice(0, 220));
     } catch (e) { row.error = String(e && e.stack || e).split('\n').slice(0, 3).join(' | '); first = true; }
     R.planes.push(row); save();
     log(('list:' + p.n).padEnd(8) + String(p.name).slice(0, 26).padEnd(27) + (row.error ? 'ERROR ' + row.error.slice(0, 160)
