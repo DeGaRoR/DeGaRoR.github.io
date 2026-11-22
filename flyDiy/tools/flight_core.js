@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b03633cb59572e45
+// body-sha256: b6ad7d0b11e36932
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37680,7 +37680,15 @@ const GEN_DRAG = {
   // interference per junction (Hoerner ch. 8, at these chords): a wing
   // root 0.006 m2, a low wing without a fillet half again, a strutted high
   // wing on its cabane less; a tail junction 0.003
-  junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003 },
+  // FUSELAGE-DRAG build 10 (2026-11-22, the user: "size the junction rows to the aeroplane. Definitely"): THE JUNCTION
+  // BY ITS OWN ROOT. Hoerner (Fluid-Dynamic Drag, ch. 8, a wing or strut meeting a wall): the interference drag on the
+  // root's thickness squared is 0.75 t/c - 0.0003 / (t/c)^2, so per junction
+  //     dCdA = c^2 (kT (t/c)^3 - k0)      c the root chord, t/c the section's thickness
+  // a 1.2 m root 12 % thick 0.0014 m2, a 1.7 m one 0.0029, the DC-3's 4.6 m root 15 % thick 0.048 - where the flat
+  // 0.006 gave a foot-launch glider and an airliner the same. A thin tail root (tailT) pays next to nothing. The
+  // position factors stay (lowBare, strutHigh). `fillet`: what a root fillet leaves of it (Hoerner: a fillet takes most
+  // of the interference away; the cage row wgFillet). `wing` / `tail`: the flat figures, for a spec with no root chord.
+  junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003, kT: 0.75, k0: 0.0003, tailT: 0.09, fillet: 0.3 },
   // an exhaust stack in the wind
   exhStack: 0.003,
   // WHAT STICKS OUT (FUSELAGE-DRAG build 9, 2026-11-22; the user: "itemize what sticks out"; 62_gen_aero genSticksOutCdA).
@@ -39264,7 +39272,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 // (PHYSICS-AUDIT step 2, 2026-11-21: the tailplane's bracing, stBrace 0 = by its skin, and the flying wires' section,
 //  bpWireSec 0 = round cable)
-const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, cw_headCut: 0, cw_redKmh: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, cw_headCut: 0, cw_redKmh: 0, wgFillet: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
                                brkHold: 0, wgStrutSec: 0, wgJury: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
@@ -50570,11 +50578,14 @@ function genFusCdA(S, fr, o) {
   // the junctions
   const strut = !!(S.bracing && S.bracing.type === 'strut');
   let junct = 0;
+  // (FUSELAGE-DRAG build 10: each junction by its own root - GEN_DRAG.junct's header)
+  const JN = D.junct, jRoot = (c, tc, flat) => c > 0 && tc > 0 ? Math.max(0, c * c * (JN.kT * tc * tc * tc - JN.k0)) : flat;
+  const filletK = S.cage && Math.round(+S.cage.wgFillet || 0) > 0 ? JN.fillet : 1;
   for (const w of (S.wings || [])) {
-    const k = w.position === 'low' && !strut ? D.junct.lowBare : strut ? D.junct.strutHigh : 1;
-    junct += 2 * D.junct.wing * k;
+    const k = w.position === 'low' && !strut ? JN.lowBare : strut ? JN.strutHigh : 1;
+    junct += 2 * jRoot(+w.chord, (((+w.naca || 0) | 0) % 100) / 100, JN.wing) * k * filletK;
   }
-  junct += 3 * D.junct.tail;
+  { const tl = S.tail || {}; junct += 2 * jRoot(+tl.hChord, JN.tailT, JN.tail) + jRoot(+tl.vChord, JN.tailT, JN.tail); }
   const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
   const exh = electric || none ? 0 : D.exhStack * (radial ? 4 : 2) * nEng;
   const stk = genSticksOutCdA(S), sticks = stk.sum;   // (FUSELAGE-DRAG build 9: what sticks out)
