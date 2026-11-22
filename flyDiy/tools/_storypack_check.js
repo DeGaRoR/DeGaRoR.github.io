@@ -11,6 +11,7 @@
 //     as a reveal; a track that does not exist, passes its max or goes down along the steps is refused
 //   6 what a step, a project or a mission gives: an ability kept once; 'tech:<n>' opens the machine shop's segment
 //   7 the source: the board's draws sit behind the rule
+//   8 pack.clients: a client the pack brings stands in the providers table while the pack is in use, and leaves with it
 //   node tools/_storypack_check.js   -> "GATE STORYPACK: PASS|FAIL"
 'use strict';
 const fs = require('fs');
@@ -176,6 +177,43 @@ C.missionPackUse(mk({ jobs: 'none' }));
   const p = mk({ jobs: 'none' }); p.projects[0].steps[1].gives = ['tech:7', 'kit:nope', 'Not A Word'];
   const w = C.missionPackValidate(p);
   ok(w.some(x => /no machine shop segment 7/.test(x)) && w.some(x => /no hangar kit nope/.test(x)) && w.some(x => /an ability is a word/.test(x)), '6 a segment, a kit or a word that does not exist: refused', w.slice(0, 3).join('; ')); }
+
+// ---- 8 the pack's own clients -----------------------------------------------------------------------------------------------
+{ const withClient = () => { const p = mk({ jobs: 'none' });
+    p.clients = [{ id: 'gateclub', fields: ['HOME', 'w3'], track: 'clients', person: 'stig', colour: '#336699' }];
+    p.text = Object.assign({}, p.text, { 'prov.gateclub.name': { t: 'Gate club' }, 'prov.gateclub.desc': { t: 'A client the pack brings.' }, 'prov.gateclub.short': { t: 'Club' } });
+    p.missions.push(pick('field.02', 'g.club', { provider: 'gateclub', rep: { provider: 'gateclub', gain: 0.5 } }));
+    delete p.missions[p.missions.length - 1].client;
+    p.campaigns.push({ id: 'c.club', provider: 'gateclub', order: 'any', chapters: [{ id: 'c.club.any', order: 'any', missions: ['g.club'] }] });
+    return p; };
+  const p = withClient(), w = C.missionPackValidate(p);
+  ok(!w.length, '8 a pack with a client of its own validates', w.slice(0, 3).join('; '));
+  ok(!C.CONTRACT_PROVIDERS.gateclub, '8 validating does not touch the live table');
+  const u = C.missionPackUse(p);
+  const row = C.CONTRACT_PROVIDERS.gateclub;
+  ok(u.ok && !u.held.length && row && row.pack === true && row.night.length === 1 && row.jobs.length === 0, '8 in use: the client stands in the providers table with its mission, no job table', u.why + J(u.held));
+  let d = career('a');
+  ok(C.careerOfferIds(d).includes('g.club'), '8 its mission is on the board');
+  ok(C.careerContract(d, 'g.club').client === 'stig', '8 a mission of the client with no client of its own is its person\'s');
+  const map = C.careerMapRecord(d, null, {}), tab = map.providers.find(x => x.id === 'gateclub');
+  ok(tab && tab.name === 'Gate club' && tab.short === 'Club' && tab.colour === '#336699' && tab.client && tab.client.id === 'stig', '8 the map\'s record lists it: its name, its colour, its person', J(tab).slice(0, 160));
+  // flown to its end: the reputation is the client's own
+  d = C.careerAccept(d, 'g.club').doc;
+  const stopAt = (aero, o) => C.careerStopRecord(Object.assign({ how: 'stopped', aero, occupants: 1, cargoKg: 0, row: { from: 'HOME', to: aero, t: 300 }, hour: 12 }, o || {}));
+  let s = C.careerOnStop(d, stopAt('w3'), {}); if (s.ok) d = s.doc;
+  s = C.careerOnStop(d, stopAt('HOME', { cargoKg: 40, row: { from: 'w3', to: 'HOME', t: 300 } }), {});
+  ok(s.ok && s.doc.career.providers.gateclub && s.doc.career.providers.gateclub.rep === 0.5, '8 flown to its end: the reputation earned is the client\'s', s.ok ? J(s.doc.career.providers.gateclub) : s.why);
+  C.missionPackUse(mk({ jobs: 'none' }));
+  ok(!C.CONTRACT_PROVIDERS.gateclub, '8 another pack in use: the client left with its pack');
+  C.missionPackUse(p); C.missionPackUse(B);
+  ok(!C.CONTRACT_PROVIDERS.gateclub && Object.keys(C.CONTRACT_PROVIDERS).join() === 'field,minedock,resort,survey,clients', '8 the built-in pack back: the game\'s five providers, nothing else');
+  const bad = (f, re, what) => { const q = withClient(); f(q); const x = C.missionPackValidate(q); ok(x.some(y => re.test(y)), '8 ' + what + ': refused', x.slice(0, 2).join('; ')); };
+  bad(q => { q.clients[0].id = 'field'; }, /a provider of the game already/, 'a client named like a provider of the game');
+  bad(q => { q.clients[0].fields = ['w99']; }, /field w99 is not a field/, 'a client on a field that does not exist');
+  bad(q => { q.clients[0].track = 'nowhere'; }, /no track nowhere/, 'a client on a track that does not exist');
+  bad(q => { q.clients[0].person = 'nobody'; }, /nobody is not in the people table/, 'a client whose person is nobody');
+  bad(q => { q.clients[0].id = 'gatetwo'; q.text['prov.gatetwo.name'] = { t: 'x' }; q.text['prov.gatetwo.desc'] = { t: 'x' }; }, /text key prov\.gatetwo\.short does not resolve/, 'a client with no short name');
+  bad(q => { q.clients = []; }, /no provider gateclub/, 'a mission of a client the pack does not declare'); }
 
 // ---- 7 the source ------------------------------------------------------------------------------------------------------------
 const S74 = fs.readFileSync(path.join(ROOT, 'src', 'core', '74_career.js'), 'utf8');
