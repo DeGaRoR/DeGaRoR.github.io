@@ -264,6 +264,12 @@ async function placed() {
     const bad = [...mats].filter(m => !m.isMeshStandardMaterial || MAT.rowOf(m) < 0);
     const maps = [...mats].filter(m => m.map || m.normalMap || m.roughnessMap).length;
     row('PLACED', mats.size > 0 && !bad.length, mats.size + ' materials on a winch, every one a MeshStandardMaterial made by MATLIB (' + maps + ' with maps in node - the house library\'s scans are the page\'s Images, HOUSE_TEX_SETS)' + (bad.length ? '; NOT: ' + bad.map(m => m.type + ':' + m.name).join(', ') : '')); }
+  // 4b the censuses see the whole winch (GATE TAXICLEAR, the fleet spots: _taxiclear_lib GEN_BB, a generated prop's box -
+  //    without it the winch was an unknown key's 0.6 m disc): that box holds the built winch's own Box3
+  { const TL = require('./_taxiclear_lib.js'), bb = TL.GEN_BB && TL.GEN_BB['gen:winch'], g0 = WG.build({ wx: 1, cableLen: 0, chute: 0 }); g0.updateMatrixWorld(true);
+    const B = new THREE.Box3().setFromObject(g0), mn = B.min.toArray(), mx = B.max.toArray();
+    const ok = !!bb && mn.every((v, i) => bb[i] <= v + 1e-6) && mx.every((v, i) => bb[i + 3] >= v - 1e-6);
+    row('PLACED', ok, 'the censuses\' box for gen:winch ' + (bb ? '[' + bb.join(', ') + ']' : 'MISSING') + ' holds the built winch [' + mn.map(v => f(v, 2)).join(', ') + ' .. ' + mx.map(v => f(v, 2)).join(', ') + ']'); }
   // 5 the page's hooks (render_premises' generated prop, world_boot's lazy ask)
   { const rd = q => { try { return fs.readFileSync(path.join(ROOT, q), 'utf8'); } catch (e) { return ''; } };
     const RP = rd('src/viewer/render_premises.js'), WB = rd('src/viewer/world_boot.js');
