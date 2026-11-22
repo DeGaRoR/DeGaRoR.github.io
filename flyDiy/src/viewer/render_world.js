@@ -1752,6 +1752,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   };
 
   let drawnLakeSD = () => -1e9;   // G753: the drawn lakes' field (the terrain block's lakeRsd), for the cover ring's test
+  // PERF-WORLDBUILD (22 Nov, PERF-LEAD's ?pavefirst=1): the fog (set at the top), the environment (the 'sky' step's probe,
+  // baked there) and the lights (the hemisphere, the sun and the craft's near shadow light, just above) all stand: every
+  // scene input of a lit program's key. A host that matches this label hands PAVEMENT.warmMesh(THREE) to its compiler
+  // here, ~40 s before the first strip's draw would key it. This step does nothing itself.
+  yield 'pavement program';
   yield 'terrain';
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
     // home ±4500 so river carves resolve, coarse ~100 m strips out to

@@ -97,6 +97,25 @@ async function load() {
   for (const t of TAPS) { v += t.verts; if (t.diff.length) bad.push('strip ' + t.id + ' differs from the inline build: ' + t.diff.slice(0, 4).join('; ')); }
   say('2. compared ' + TAPS.length + ' strips, ' + v + ' vertices: ' + TAPS.filter(t => !t.diff.length).length + ' equal byte for byte' + (TAPS.some(t => t.diff.length) ? ' - DIFFER: ' + TAPS.filter(t => t.diff.length).map(t => t.id).join(', ') : ''));
   chk(TAPS.length === S.used, 'the tap saw ' + TAPS.length + ' strips, the build stood ' + S.used);
+  // ---- 2b. THE TABLE PROGRAM'S STAND-IN (PAVEMENT.warmMesh, the generator's 'pavement program' yield): what a host hands
+  // to the compiler ~40 s before the first strip is drawn must key the SAME program as the drawn pavement: the one
+  // material object, a mesh flagged as the drawn ones are, and the attribute names three's key and the hook read
+  {
+    const wm = PAV.warmMesh ? PAV.warmMesh(W.THREE) : null, names = g => Object.keys(g.attributes).sort().join(',');
+    if (chk(!!wm, 'PAVEMENT.warmMesh gave no stand-in (the table path is the one the game draws with)')) {
+      chk(PAV.warmMesh(W.THREE) === wm, 'warmMesh made a second stand-in');
+      chk(!wm.parent, 'the stand-in is in a scene (it is handed over, never drawn)');
+      chk(wm.geometry.attributes.position.count === 3 && !wm.geometry.index, 'the stand-in is not one bare triangle');
+      const drawn = []; W.WORLD.scene.traverse(o => { if (o.isMesh && o.material === wm.material) drawn.push(o); });
+      const sets = new Map(); for (const o of drawn) { const k = names(o.geometry) + ' | receiveShadow ' + !!o.receiveShadow + ' | morph ' + Object.keys(o.geometry.morphAttributes || {}).length; sets.set(k, (sets.get(k) || 0) + 1); }
+      const mine = names(wm.geometry) + ' | receiveShadow ' + !!wm.receiveShadow + ' | morph 0';
+      say('2b. the stand-in: ' + mine + '; the scene draws ' + drawn.length + ' meshes on its material: ' + [...sets].map(([k, n]) => n + ' x ' + k).join(' || '));
+      chk(drawn.length > 0, 'no drawn mesh is on the material of the stand-in (the table material is not the one the strips draw with)');
+      for (const [k, n] of sets) chk(k === mine, n + ' drawn pavement meshes differ from the stand-in (' + k + '): an early link would key another program');
+      let steps = null; try { steps = /yield 'pavement program';\s*yield 'terrain';/.test(String(W.buildWorldSceneSteps)); } catch (e) {}
+      chk(steps === true, 'buildWorldSceneSteps has no "pavement program" yield just before "terrain" (after the probe and the lights)');
+    }
+  }
   // ---- 3. another rung: the ground held, every strip asked again with the page's scales
   const HWK = W.HOUSE_WORKER, HQ = W.WORLD.premises.hw;
   let moved = 0, asked2 = 0, equal2 = 0;
