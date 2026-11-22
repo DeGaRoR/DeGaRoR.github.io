@@ -4704,11 +4704,12 @@ return {
       const geo = new THREE.PlaneGeometry(sp.diam, sp.diam); geo.translate(0, sp.cy, 0);
       const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, sp.u0 + uv.getX(i) * (sp.u1 - sp.u0));
       // GARAGE-FIXES (the user 21 Nov: "the trees all show their roots"): the sheet's level view shows each tree's root flare at its
-      // ground line - the card's foot is CUT 4 % of its height above that line (its bottom vertices raised, their v with them) and
-      // the card set down by the cut, so the trunk goes into the ground and no root is drawn
-      { const cut = 0.04 * sp.diam, bot = sp.cy - sp.diam / 2, ps = geo.attributes.position;
+      // ground line - the card's foot is CUT 8 % of its height above that line (its bottom vertices raised, their v with them) and
+      // the card set down by the cut and 2 % more, so the trunk goes into the ground (a hillside's too) and no root is drawn
+      // (the 22 Nov in-game still: at 4 % the nearest trees still showed their flare)
+      { const cut = 0.08 * sp.diam, sink = 0.02 * sp.diam, bot = sp.cy - sp.diam / 2, ps = geo.attributes.position;
         for (let i = 0; i < ps.count; i++) if (ps.getY(i) < sp.cy && bot < cut) { ps.setY(i, cut); uv.setY(i, (cut - bot) / sp.diam); }
-        geo.translate(0, -cut, 0); ps.needsUpdate = true; uv.needsUpdate = true; }
+        geo.translate(0, -cut - sink, 0); ps.needsUpdate = true; uv.needsUpdate = true; }
       const nr = geo.attributes.normal; for (let i = 0; i < nr.count; i++) nr.setXYZ(i, 0, 0.72, 0.69);
       const im = new THREE.InstancedMesh(geo, mat, L.length); im.name = 'room:trees:' + (sp.key || k);
       L.forEach((t, i) => { e.set(0, t.yaw, 0); q.setFromEuler(e); p.set(t.x, t.y, t.z); sc.setScalar(t.s); M4.compose(p, q, sc); im.setMatrixAt(i, M4); });
