@@ -102,6 +102,14 @@
    "moved": [
     "c172v2"
    ]
+  },
+  {
+   "date": "2026-11-22",
+   "reason": "CHINOOK-USER (22 Nov): list:8 is the user's modified Chinook (span 9.75 -> 10.6 m, chord 1.47 -> 1.21 m; the user: much better looking and accurate) - chinookm moved",
+   "core": "c2d790d51e890c3b",
+   "moved": [
+    "chinookm"
+   ]
   }
  ],
  "planes": {
@@ -572,58 +580,58 @@
   "chinookm": {
    "stamp": {
     "file": "builds/chinook_2026-09-21_corrected.json",
-    "blob": "80bb261ad9d2b7105765e70744bb359eebf4fe02",
+    "blob": "6becf4cfddeaa16368a333cf255c680a7a8a40e2",
     "core": "c2d790d51e890c3b"
    },
    "facts": {
-    "empty": 196.462,
+    "empty": 186.066,
     "fuelKg": 27.36
    },
    "dims": {
-    "S": 13.132,
+    "S": 12.5478,
     "Sh": 2.85519,
-    "Sv": 1.46121,
-    "cRoot": 1.47,
-    "cTip": 1.47,
+    "Sv": 1.38974,
+    "cRoot": 1.21,
+    "cTip": 1.21,
     "hSpan": 3.12433,
-    "height": 2.31814,
-    "length": 5.26,
-    "span": 9.76,
-    "track": 1.6
+    "height": 2.12393,
+    "length": 5.54,
+    "span": 10.6,
+    "track": 1.54
    },
    "cases": {
     "min": {
-     "mass": 273.302,
-     "Vs": 51.6368,
-     "V75": 143.715,
-     "Vmax": 158.541,
-     "roc": 7.70706,
-     "LD": 9.18078,
-     "TOgrass": 39,
-     "cgMAC": 41.3998,
-     "sm": 1.96669
+     "mass": 262.906,
+     "Vs": 51.6423,
+     "V75": 133.087,
+     "Vmax": 151.534,
+     "roc": 5.36951,
+     "LD": 9.2575,
+     "TOgrass": 67,
+     "cgMAC": 44.0014,
+     "sm": 1.05056
     },
     "typ": {
-     "mass": 290.142,
-     "Vs": 53.2038,
-     "V75": 143.396,
-     "Vmax": 158.329,
-     "roc": 7.17101,
-     "LD": 9.18078,
-     "TOgrass": 44,
-     "cgMAC": 39.0224,
-     "sm": 4.57738
+     "mass": 279.746,
+     "Vs": 53.2706,
+     "V75": 132.634,
+     "Vmax": 151.249,
+     "roc": 4.96073,
+     "LD": 9.2575,
+     "TOgrass": 72,
+     "cgMAC": 40.4514,
+     "sm": 5.02636
     },
     "mtow": {
      "mass": 476,
-     "Vs": 68.1461,
-     "V75": 137.97,
-     "Vmax": 154.924,
-     "roc": 3.57536,
-     "LD": 9.18078,
-     "TOgrass": 142,
-     "cgMAC": 38.5893,
-     "sm": 8.29106
+     "Vs": 69.4878,
+     "V75": 123.645,
+     "Vmax": 146.15,
+     "roc": 2.122,
+     "LD": 9.2575,
+     "TOgrass": 185,
+     "cgMAC": 41.8256,
+     "sm": 9.55165
     }
    }
   },
@@ -859,64 +867,6 @@
     }
    }
   },
-  "petrel42": {
-   "stamp": {
-    "file": "builds/candidates/superpetrel_V4_2.json",
-    "blob": "4746836193e8371c5665d81cad239e800a90fcf8",
-    "core": "c2d790d51e890c3b"
-   },
-   "facts": {
-    "empty": 391.915,
-    "fuelKg": 68.4
-   },
-   "dims": {
-    "S": 14.5085,
-    "Sh": 1.74978,
-    "Sv": 1.17371,
-    "cRoot": 1,
-    "cTip": 1,
-    "hSpan": 2.70448,
-    "height": 3.09261,
-    "length": 5.92658,
-    "span": 8.86,
-    "track": 1.72
-   },
-   "cases": {
-    "min": {
-     "mass": 479.015,
-     "Vs": 65.4517,
-     "V75": 178.724,
-     "Vmax": 199.727,
-     "roc": 5.86931,
-     "LD": 10.3643,
-     "TOgrass": 98,
-     "cgMAC": 36.4768,
-     "sm": 1.80359
-    },
-    "typ": {
-     "mass": 506.115,
-     "Vs": 67.2777,
-     "V75": 177.98,
-     "Vmax": 199.242,
-     "roc": 5.44068,
-     "LD": 10.3643,
-     "TOgrass": 105,
-     "cgMAC": 35.4981,
-     "sm": 2.99237
-    },
-    "mtow": {
-     "mass": 649,
-     "Vs": 76.1849,
-     "V75": 172.964,
-     "Vmax": 196.162,
-     "roc": 3.69791,
-     "LD": 10.3643,
-     "TOgrass": 143,
-     "cgMAC": 25.483,
-     "sm": 14.3017
-    }
-   }
-  },
   "dc3r": {
    "stamp": {
     "file": "builds/candidates/dc3_2026-10.json",
@@ -972,6 +922,64 @@
      "TOgrass": 426,
      "cgMAC": 66.2879,
      "sm": 1.99331
+    }
+   }
+  },
+  "petrel42": {
+   "stamp": {
+    "file": "builds/candidates/superpetrel_V4_2.json",
+    "blob": "4746836193e8371c5665d81cad239e800a90fcf8",
+    "core": "c2d790d51e890c3b"
+   },
+   "facts": {
+    "empty": 391.915,
+    "fuelKg": 68.4
+   },
+   "dims": {
+    "S": 14.5085,
+    "Sh": 1.74978,
+    "Sv": 1.17371,
+    "cRoot": 1,
+    "cTip": 1,
+    "hSpan": 2.70448,
+    "height": 3.09261,
+    "length": 5.92658,
+    "span": 8.86,
+    "track": 1.72
+   },
+   "cases": {
+    "min": {
+     "mass": 479.015,
+     "Vs": 65.4517,
+     "V75": 178.724,
+     "Vmax": 199.727,
+     "roc": 5.86931,
+     "LD": 10.3643,
+     "TOgrass": 98,
+     "cgMAC": 36.4768,
+     "sm": 1.80359
+    },
+    "typ": {
+     "mass": 506.115,
+     "Vs": 67.2777,
+     "V75": 177.98,
+     "Vmax": 199.242,
+     "roc": 5.44068,
+     "LD": 10.3643,
+     "TOgrass": 105,
+     "cgMAC": 35.4981,
+     "sm": 2.99237
+    },
+    "mtow": {
+     "mass": 649,
+     "Vs": 76.1849,
+     "V75": 172.964,
+     "Vmax": 196.162,
+     "roc": 3.69791,
+     "LD": 10.3643,
+     "TOgrass": 143,
+     "cgMAC": 25.483,
+     "sm": 14.3017
     }
    }
   },

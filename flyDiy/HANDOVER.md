@@ -318361,3 +318361,16 @@ GATE PREMISES runs every tools/fixtures/premises_v*_*.json. Codex's 8b38df7dc ad
 - Run on this tree: PREMISES PASS; the two unit checks that read the fixture pass.
 - NOT perf-codex's, checked against the WHOLE block of master's L40h log: CONTACT's five rows and TERRAINMATCH's six are master's own, number for number. (A first reading of mine said four of CONTACT's came with perf-codex: wrong, corrected the same hour.) A survey bisect agrees: tools/ground_surface.js --grid / --sep give identical rows with Codex's boundedRoads off, with the terrain memo's legacy hash, and with both.
 - OWED by the scenery's owner, not here: check 7 does not know a 'ramp' entry; a gate fixture that carries one will throw the same way.
+## CHINOOK-USER - the user's modified Chinook is list:8 (FLAGSHIP, Sun 22 Nov 2026; claude/ready/chinook-user on one-cessna-4)
+
+The user (21-22 Nov): "I have modified the Chinook, not yet tested, but much better looking and accurate, to be replaced in
+game"; "send my new chinook for quick testing and inclusion". builds/chinook_2026-09-21_corrected.json is the user's card
+(D:/Dev/flydiy-notes/user-reports-2026-11-21/chinook_modified_4.json, their bytes; the names kept: name birdman, meta chinook,
+reg C-ICHK). 351 cage rows moved: span 9.75 -> 10.6 m, chord 1.47 -> 1.21 m, taper 0.25 -> 0.65 m, cabin 0.70 -> 1.06 m.
+QUICK TEST (node): it builds; it flies HOME's circuit (tw_probe circuit: roll 176 m, lift-off 15 s, touchdown 1.61 m/s at
+19.8 m/s, rolled out and STOPPED); real_check chinookm: every indicator INSIDE its band (empty 186 kg, Vs1 54-69, V75
+124-132, Vmax 146-151, ROC 2.1-4.9, L/D 9.3, TO 76-185 m); REALBAND re-pinned (chinookm alone moved). Gates: PLANELISTS
+REALBAND REALREFS FLAPS RODROW DASH PLANEFICHE PASS; GEN (cruise quiet in wind: the default generated plane), TANKMOUNT
+(the Archaeopteryx), FLEX (the generator archetypes) and ENGCONFIG (every build against its master pin) red - none reads
+the Chinook's flight: master's.
+NAMED, NOT RETUNED (the user's card): the static margin at the lightest load is 1 % (CG 44 % MAC) - near neutral solo.
