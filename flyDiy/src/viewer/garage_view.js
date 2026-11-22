@@ -49,7 +49,7 @@ var GARAGE_VIEW = (() => {
                         // room's own level (a sky at a quarter of the game's by day, near black at night)
     cloudPass: 1,       // the clouds through the door by the GAME's pass (clouds.js draw: the half-size march, its history, the composite) - the same
                         // programs the flight draws with; 0 = the room's own cloud sphere (one march a pixel, no history: grainy)
-    lamps: 1,           // the room's lamps on what stands outside the door (the light that spills out at night): a gain on their own candela
+    lamps: 2.5,         // the room's lamps on what stands outside the door (the light that spills out at night): a gain on their own candela
     treeCut: 0.40, treeAlpha: 6, treeSoft: 4,   // the cards' coverage by the game's own curve (render_world impostorMat: (a - cut) x gain + 0.5, softer far)
     treeGain: 1.45,      // the cards' gain: the game lights a leaf by its environment too (measured 22 Nov at noon: the cards a third of the game's against the sky)
     shadow: 0.92,       // the shed's own shadow on the apron: this much of the SUN's share of the light goes (the sky's stays)
@@ -119,7 +119,7 @@ var GARAGE_VIEW = (() => {
     const J = await (await fetch(base + 'scene.json')).json();
     const buf = await (await fetch(base + 'scene.bin')).arrayBuffer();
     const tex = {};
-    const dress = (t, T) => { t.flipY = false; t.colorSpace = T.srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.magFilter = THREE.LinearFilter;
+    const dress = (t, T) => { t.flipY = false; t.colorSpace = T.srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = t.wrapT = T.mirror ? THREE.MirroredRepeatWrapping : THREE.ClampToEdgeWrapping;   // (mirror: the wide ground past its own picture, cook.js) t.magFilter = THREE.LinearFilter;
       t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8; return t; };
     const st = { ktx2: 0, plain: 0 };
     await Promise.all(Object.keys(J.textures || {}).map(async k => {

@@ -97,8 +97,22 @@ for (const Sd of S) { const id = Sd.id.replace(/\W/g, '_'), F = mos('near_' + id
   const st = 20, nu = Math.round(F_WIDE.U / st), nv = Math.round(F_WIDE.V / st);
   const inMid = (x, z, m) => { const dx = x - F_MID.o[0], dz = z - F_MID.o[1], u = dx * F_MID.eu[0] + dz * F_MID.eu[1], v = dx * F_MID.ev[0] + dz * F_MID.ev[1]; return u > m && v > m && u < F_MID.U - m && v < F_MID.V - m; };
   const wxz = (u, v) => [F_WIDE.o[0] + F_WIDE.eu[0] * u + F_WIDE.ev[0] * v, F_WIDE.o[1] + F_WIDE.eu[1] * u + F_WIDE.ev[1] * v];
-  const A = grid(F_WIDE, nu, nv, { skip: (u, v) => { const q = wxz(u, v); return inMid(q[0], q[1], st * 1.5) || (FAR && Math.hypot(q[0] - FAR.eye[0], q[1] - FAR.eye[2]) > FAR.R + 2.5 * st); }, drop: (u, v) => { const q = wxz(u, v); return inMid(q[0], q[1], 0.5) ? -0.35 : 0; } });
-  A.nrm = smoothN(A); mesh('ground:wide', 'ground', mos('wide') ? copyTex('ground_wide', mos('wide').file) : null, A, { order: 0 }); }
+  // THE LAND GOES ALL THE WAY ROUND, out to the far band (the user, 22 Nov, on the large hangar's back window: "the actual terrain ends at a
+  // few dozen / hundred metres ... we need to patch that hole"): the wide picture was shot ahead of the doors and reached 350 m behind
+  // them, the grid stopped with it. The grid now covers the far band's whole circle on the same 20 m lattice; past the picture's own
+  // frame the texture is MIRRORED (scene.json textures.ground_wide.mirror: the page sets the wrap) - the same land's look carried on
+  // over the real terrain's heights, where the trees stand on it. A capture with wide tiles behind the sheds would be the true ground.
+  let FB = F_WIDE, u0 = 0, v0 = 0;
+  if (FAR) { const dx = FAR.eye[0] - F_WIDE.o[0], dz = FAR.eye[2] - F_WIDE.o[1], uc = dx * F_WIDE.eu[0] + dz * F_WIDE.eu[1], vc = dx * F_WIDE.ev[0] + dz * F_WIDE.ev[1], R = FAR.R + 3 * st;
+    u0 = Math.min(0, Math.floor((uc - R) / st) * st); v0 = Math.min(0, Math.floor((vc - R) / st) * st);
+    const u1 = Math.max(F_WIDE.U, Math.ceil((uc + R) / st) * st), v1 = Math.max(F_WIDE.V, Math.ceil((vc + R) / st) * st);
+    FB = { o: [F_WIDE.o[0] + F_WIDE.eu[0] * u0 + F_WIDE.ev[0] * v0, F_WIDE.o[1] + F_WIDE.eu[1] * u0 + F_WIDE.ev[1] * v0], eu: F_WIDE.eu, ev: F_WIDE.ev, U: u1 - u0, V: v1 - v0 }; }
+  const nuB = Math.round(FB.U / st), nvB = Math.round(FB.V / st), bxz = (u, v) => [FB.o[0] + FB.eu[0] * u + FB.ev[0] * v, FB.o[1] + FB.eu[1] * u + FB.ev[1] * v];
+  const A = grid(FB, nuB, nvB, { skip: (u, v) => { const q = bxz(u, v); return inMid(q[0], q[1], st * 1.5) || (FAR && Math.hypot(q[0] - FAR.eye[0], q[1] - FAR.eye[2]) > FAR.R + 2.5 * st); }, drop: (u, v) => { const q = bxz(u, v); return inMid(q[0], q[1], 0.5) ? -0.35 : 0; },
+    uvOf: (u, v) => [(u + u0) / F_WIDE.U, 1 - (v + v0) / F_WIDE.V] });
+  A.nrm = smoothN(A); mesh('ground:wide', 'ground', mos('wide') ? copyTex('ground_wide', mos('wide').file) : null, A, { order: 0 });
+  if (SCENE.textures.ground_wide && (u0 < 0 || v0 < 0 || FB.U > F_WIDE.U || FB.V > F_WIDE.V)) SCENE.textures.ground_wide.mirror = true;
+  SCENE.stats.wide = { frame: [F_WIDE.U, F_WIDE.V], grid: [FB.U, FB.V], back: [-u0, -v0], mirrored: !!(SCENE.textures.ground_wide && SCENE.textures.ground_wide.mirror) }; }
 if (!FAR) { // THE RING (only without a far band): from the wide picture's edge out to 32 km, the land's own heights (the skyline), coloured by what the land is
   const NA = 180, NR = 34, ROUT = 32000, cx = F_WIDE.o[0] + F_WIDE.eu[0] * F_WIDE.U / 2 + F_WIDE.ev[0] * F_WIDE.V / 2, cz = F_WIDE.o[1] + F_WIDE.eu[1] * F_WIDE.U / 2 + F_WIDE.ev[1] * F_WIDE.V / 2;
   const pos = [], col = [], idx = [], canopy = (x, z) => (W.island && W.island.canopyAt) ? W.island.canopyAt(x, z) : 0;
