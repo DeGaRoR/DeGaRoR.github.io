@@ -442,8 +442,41 @@ the model knowing why.
 
 ### Gates
 
-**In progress (22 Nov):** the core tier of gates is running on the final tree; this paragraph is replaced by its result,
-the reds read against master by check name, and every re-pin with its reason.
+**Not the full battery.** The core tier is about 23 hours of CPU. This session ran the gates that build, fly or
+certify an aeroplane or read the editor's rows, as far as a cloud container allowed (list below), each red read against
+master `9349a62c1` by check name on a master worktree. The rest of the core tier, the full tier and anything in a
+browser were not run.
+
+| | gates |
+|---|---|
+| New, pass | WIRES (the two rows, and no certificate withdrawn for a row nobody touched), PROPFIT (the fit, the redline, the governed law), IDLEPROP, DRAGROWS |
+| Pass on the final tree | ATMOS FLAPS GE STRESS FLIGHTSCRIPT PILOT PILOTCANFLY PILOTACT NAV STRIPSURF TAKEOFF PLAN LINEUP LIGHTWING ULTRALIGHT ENGINELESS HONEST WEIGHT DRAG BIPLANE MASS COOL CARDDRAG CARDS PLANELISTS REALBAND DMGCERTCOST ENERGY ELEC PANEL RPM ROUTE BUILD BUILT COMMITHYGIENE, and 40 more that do not read the physics |
+| Mine, re-pinned, each in its own commit with the reason | REALBAND (the baseline, at every step). RPM (the census names the governed piston row; two engine-off thrust checks). STOL (the baseline re-captured on this tree; the slat-seam bound follows the lighter base). SOFTGROUND (the stock's legacy rolls, 4-34 mm). PROCURE (five catalogue effects re-emitted) |
+| Mine, a real fault, fixed in source | BENCH "the load door still builds the body that was stamped": the join's stated-null wire section moved every cage build's certificate fingerprint. A null now hashes as the absent key in the three fingerprints; the Rufus's body is `cc88a9ce` again |
+
+**Left red, mine, truthful (not weakened):**
+
+| gate, check | master → branch | for whom |
+|---|---|---|
+| BENCH "stamped under this game (physics 9; now 10)" | the shipped Rufus certificate predates the bump | A0: re-stamp it in the game (the bench's run-all, the game's own save, the GPU box), then `SHIPPED_CERTS` takes the new hash |
+| GLIDE "FAIL300": the C172-alike, engine dead at 300 m | lands 66 m in → lands 110 m short, capsized (glide flown 9.5 → 8.7) | Pilot: the glider circuit (`43_pilot.js` GLIDE: the float, `need()`, 0.9 x the flown ratio) was tuned on a glide with no propeller drag; a dead propeller now costs 0.10 x q x disc |
+| UNIFY "EMERG": the Cessna 172, engine dead at 600 m | expert: on the runway → 10.8 m off it; student: 1.2 m off (red on master) → no landing | Pilot: the same law |
+| PROFILE "2 cessnaMetal: altitude reversals in the cruise" | 1 in 528 s, the terrain guard once → 3 in 506 s, the guard twice (limit 2) | Pilot: the mountain trip is climb-limited on both trees; the second guard event is new |
+| TOW "LAUNCH": the motorglider on 400 m of line behind the car | the car's corners off the runway: 0 samples → 21. The launch itself is the same within 1 % (lift-off 13.2 → 13.0 s, release 363 → 364 m, line 4.87 → 4.82 kN) | the tow's owner: the car's track under the line's pull |
+
+The plan said it: step 4 "is the largest behavioural change ... Pilot must re-check the approach laws, the flare and the
+landing gates before it lands." PILOT, TAKEOFF, PILOTCANFLY and the six validated builds' full circuits (the STOL
+capture) pass; the pilot's three rows above are what did not.
+
+**Master's own reds met on the way** (the same check name fails on master): GROUNDQUERY, FLIGHTREC, GEN ("cruise is
+quiet in wind"), RADIALDIV (both Mosquitos, the Cub hands off), TAXICLEAR, ALTIPORT (2, 3, 4), SLOPE, TAILWHEEL (E, I),
+MONOWHEEL (E), DESTTO, GLIDE "CIRCUIT archaeopteryx", UNIFY "STRIP the user's Cub" (x3), WINGROWS, JOINPARITY, SAVE,
+PARTS, DESIGN, CANDIDATES. One of master's reds is green here: UNIFY "TAIL the Cessna 172 HOME>tw_ski, the expert".
+
+Counted: 109 of the core tier's 367 gates were run on the branch (84 in the battery, 18 picked for the files touched,
+and the 7 run on their own). TRAILER and master's RADIALDIV and TOW went red or timed out under the container's load
+and were re-run alone (TRAILER passes; the other two are read by the rows above). The triage log is in the session's
+scratchpad, not in the repository; this section is its summary.
 
 Sources checked on the web this session: the 172R's POH figures (123 kt at sea level, 122 kt at 80 % / 8000 ft, 720
 fpm) on [172guide.com](https://172guide.com/models/172R.htm) and a [POH scan](https://kerrville.cap.gov/media/cms/Cessna_172R_POH_712F3D6CCB3C7.pdf);
