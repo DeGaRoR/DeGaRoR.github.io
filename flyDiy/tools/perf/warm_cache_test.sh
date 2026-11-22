@@ -27,7 +27,7 @@ TEMP() { curl -s -m 5 localhost:8085/data.json | grep -o '"Text":"CPU Package","
 COOL() {    # start a load only under 80 C (A0's thermal rule, 22 Nov); no reading for 2 min = stop, never run blind
   local t n=0; while :; do t=$(TEMP); [ -n "$t" ] && [ "$t" -lt 80 ] && { echo $t; return 0; }
     n=$((n + 1)); [ -z "$t" ] && [ $n -ge 6 ] && return 1; [ $n -ge 45 ] && return 1; sleep 20; done; }
-# THE BOX'S CPU TOKENS (A0, 22 Nov: at most 4 CPU runs on the box, D:/Dev/flydiy-notes/cpu_token.sh). A TIMING run
+# THE BOX'S CPU TOKENS (A0, 22 Nov: at most 3 CPU runs on the box, D:/Dev/flydiy-notes/cpu_token.sh). A TIMING run
 # holds ALL of them for its whole window, so no other session starts a run beside it: NTOK token files under this name,
 # touched before every load (a token older than 45 min is ignored), removed on exit. It first waits (10 min at
 # most) for the runs other sessions already have going.
@@ -35,6 +35,8 @@ TK="D:/Dev/flydiy-notes/cpu_tokens"; mkdir -p "$TK"
 NTOK=${CPU_TOKENS:-4}
 HOLD() { for i in $(seq 1 $NTOK); do echo "PERF-LEAD $(date +%H:%M:%S) warm_cache_test (timing: all tokens)" > "$TK/PERF-LEAD_$i.tok"; done; }
 OTHERS() { local n=0 f a; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */PERF-LEAD_[0-9].tok) continue ;; esac
+  local pid=$(grep -o 'pid=[0-9]*' "$f" 2>/dev/null | head -1 | cut -d= -f2)   # cpu_token.sh v2: a token lives as long as its run's pid
+  if [ -n "$pid" ]; then [ -e "/proc/$pid" ] && n=$((n + 1)); continue; fi
   a=$(( ($(date +%s) - $(stat -c %Y "$f")) / 60 )); [ $a -le 45 ] && n=$((n + 1)); done; echo $n; }
 bash $B take gpu PERF-LEAD "warm-cache test, 6-8 loads, headed $SIZE" || { echo "no gpu lock"; exit 3; }
 SRV=
