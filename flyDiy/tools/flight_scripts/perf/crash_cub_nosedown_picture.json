@@ -1,0 +1,97 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_crash_cub_nosedown_picture",
+ "what": "THE BLUE SCREEN, LOOKED FOR IN THE PICTURE (the user, 22 Nov: \"Do you 'see' the blue screens in your logs? Those are totally unacceptable in any circumstances\"): crash_cub_nosedown with nine pixels of the lower half of the canvas read after every frame - a frame whose samples are one flat colour shows no world; its time, colour, the eye's place and the ground under it are kept. Not a timing run.",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "HOME",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "roll-out",
+   "do": "start",
+   "until": {
+    "phase": [
+     "TAXI",
+     "DEPART",
+     "LINEUP",
+     "STOP",
+     "HOLD"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "skip to the start",
+   "do": "skip",
+   "until": {
+    "phase": [
+     "HOLD",
+     "ROLL",
+     "LIFTOFF",
+     "CLIMB"
+    ]
+   },
+   "capS": 90
+  },
+  {
+   "name": "the picture sampler on",
+   "do": "page",
+   "js": "(() => {\n  const AA = window.FLYDIY_AA, R = window.FLYDIY_RENDERER, P = window.FLIGHT_PROBE;\n  if (!AA || !R) return 'no FLYDIY_AA / FLYDIY_RENDERER';\n  if (window.__BLUE) return 'sampler already on';\n  const gl = R.getContext(), S = window.__BLUE = { n: 0, flat: [], ctx: [], t0: performance.now(), last: null, err: null };\n  const prev = AA.render, px = new Uint8Array(4);\n  const PTS = [[.2,.12],[.5,.12],[.8,.12],[.2,.3],[.5,.3],[.8,.3],[.35,.45],[.65,.45],[.5,.2]];\n  AA.render = function () {\n    const r = prev.apply(this, arguments);\n    try {\n      const c = R.domElement, w = c.width, h = c.height; gl.bindFramebuffer(gl.FRAMEBUFFER, null);\n      let lo = [255,255,255], hi = [0,0,0];\n      for (const [fx, fy] of PTS) { gl.readPixels((w * fx) | 0, (h * fy) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);\n        for (let k = 0; k < 3; k++) { if (px[k] < lo[k]) lo[k] = px[k]; if (px[k] > hi[k]) hi[k] = px[k]; } }\n      S.n++; S.last = [lo, hi];\n      if (hi[0] - lo[0] <= 8 && hi[1] - lo[1] <= 8 && hi[2] - lo[2] <= 8) {\n        const t = Math.round(performance.now() - S.t0);\n        S.flat.push([t, S.n, lo[0], lo[1], lo[2]]);\n        if (S.ctx.length < 6) { let o = { t, n: S.n, rgb: lo.slice(), calls: R.info.render.calls };\n          try { const g = P.camGet(), e = g.eye, wd = P.world(); o.eye = e.map(v => +v.toFixed(1)); o.groundUnderEye = wd && wd.terrainH ? +wd.terrainH(e[0], e[2]).toFixed(1) : null; o.agl = +(+P.agl()).toFixed(1); o.cam = P.camModeNow(); } catch (x) { o.ctxErr = String(x.message); }\n          S.ctx.push(o); }\n      }\n    } catch (e) { S.err = String(e && e.message); }\n    return r;\n  };\n  return 'picture sampler on (9 pixels a frame)';\n})()",
+   "until": {
+    "s": 1
+   },
+   "capS": 10
+  },
+  {
+   "name": "take-off to 50 m",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "DOWNWIND",
+     "ENROUTE"
+    ],
+    "agl": 50
+   },
+   "capS": 240
+  },
+  {
+   "name": "the nose down, into the ground",
+   "do": "page",
+   "js": "(() => { const P = window.FLIGHT_PROBE; P.setManual(true, 'rig'); const I = P.input(); I.setAxis('pitch', -1); return 'manual ' + P.manual() + ', pitch axis ' + I.axis('pitch') + ', agl ' + (+P.agl()).toFixed(1); })()",
+   "until": {
+    "s": 16
+   },
+   "capS": 40,
+   "allow": [
+    "crash",
+    "yield",
+    "dent",
+    "prop-strike"
+   ]
+  },
+  {
+   "name": "orbit the wreck",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 15,
+   "dist": 20
+  },
+  {
+   "name": "the picture's report",
+   "do": "page",
+   "js": "(() => { const S = window.__BLUE; if (!S) return 'no sampler';\n  const runs = []; let cur = null;\n  for (const f of S.flat) { if (cur && f[1] === cur.n1 + 1) { cur.n1 = f[1]; cur.t1 = f[0]; } else { cur = { t0: f[0], t1: f[0], n0: f[1], n1: f[1], rgb: [f[2], f[3], f[4]] }; runs.push(cur); } }\n  return JSON.stringify({ frames: S.n, flatFrames: S.flat.length, runs: runs.slice(0, 12).map(r => ({ atMs: r.t0, frames: r.n1 - r.n0 + 1, lastsMs: r.t1 - r.t0, rgb: r.rgb })), ctx: S.ctx, err: S.err, lastRange: S.last }); })()",
+   "until": {
+    "s": 1
+   },
+   "capS": 10,
+   "allow": [
+    "crash",
+    "yield",
+    "dent",
+    "prop-strike"
+   ]
+  }
+ ]
+}

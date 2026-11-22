@@ -70,8 +70,8 @@ function loadScenario(arg) {
   S.file = f;
   return S;
 }
-const DO = new Set(['board', 'start', 'leg', 'lift', 'skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout', 'wait']);
-const PAGE_ONLY = new Set(['skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout']);   // (PERF-TRACE-FORMAT.md: the node runner says it skips them)
+const DO = new Set(['board', 'start', 'leg', 'lift', 'skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout', 'wait', 'page']);
+const PAGE_ONLY = new Set(['skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout', 'page']);   // (PERF-TRACE-FORMAT.md: the node runner says it skips them)
 const UNTIL = new Set(['phase', 'agl', 'engine', 'stoppedAt', 'declined', 's']);
 const ALLOW = new Set(['yield', 'prop-strike', 'dent', 'declined', 'crash']);   // ('crash': the benchmark's CRASHES - the crash is the segment)
 function checkScenario(S) {
@@ -86,6 +86,9 @@ function checkScenario(S) {
     if (st.do && !DO.has(st.do)) bad.push(tag + ': do "' + st.do + '" unknown');
     if (st.do === 'leg' && !st.to) bad.push(tag + ': a leg needs its to');
     if (st.do === 'lift' && !(typeof st.by === 'number' && isFinite(st.by))) bad.push(tag + ': a lift needs its by (metres)');
+    // (22 Nov, the user's crash: "just get it nose down when it's 20 meters up" - a page step runs ONE expression in the page:
+    // the hand on the stick, an obstacle set; the Deform Coordinator's crash-prelink branch adds the same kind)
+    if (st.do === 'page' && !(typeof st.js === 'string' && st.js.trim())) bad.push(tag + ': a page step needs its js (one expression)');
     for (const k of Object.keys(st.until || {})) if (!UNTIL.has(k)) bad.push(tag + ': until.' + k + ' unknown');
     for (const a of st.allow || []) if (!ALLOW.has(a)) bad.push(tag + ': allow "' + a + '" unknown');
     if (st.until && !(st.capS > 0)) bad.push(tag + ': a step that waits needs its capS');
@@ -390,6 +393,7 @@ async function runPage(S, opt) {
       else if (st.do === 'leg') { const r = await setSel('selDest', st.to); const ok = await rig.ev('window.FLIGHT_PROBE.nextLeg()'); say('  leg to ' + st.to + ': ' + r + (ok ? '' : ' (no Fly on)'));
         s = await rig.J(ST); t0 = s ? s.t : 0; }   // (a leg is a new pilot: its clock restarts at 0, the step's with it)
       else if (st.do === 'lift') await rig.ev(`window.FLIGHT_PROBE.place({ by: [0, ${+st.by}, 0] })`);
+      else if (st.do === 'page') say('  page: ' + String(await rig.ev(st.js)).slice(0, 4000));
       else if (st.do === 'board') { if (!s) failed = { step: si, name: st.name, why: { what: 'not ready to board: no sim / pilot on the page' } }; }
       if(o.refreshState)s=await rig.J(ST);   // opt-in ending snapshots; keep an in-progress comparison's protocol fixed
       const U = st.until || null, al = new Set(st.allow || []), cap = st.capS || 0;
