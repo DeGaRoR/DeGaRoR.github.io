@@ -106,14 +106,25 @@ async function pass(name, q, out, o) {
     onNavigate: async r => {
       if (flag('noload')) return;
       if (flag('menu')) {   // the menu: wait for it, press Sandbox with a trusted click (the gesture), record from there
-        let at = null;
-        for (let i = 0; i < 120 && !at; i++) { at = await r.J("(() => { const b = document.querySelector('#welcome [data-mode=sandbox]'); if (!b) return null; const q = b.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; })()").catch(() => null); if (!at) await sleep(250); }
-        if (!at) throw new Error('stall_rig: the welcome menu never showed (?welcome=1)');
+        // (22 Nov, the 09:56 turn lost: a FRESH profile with ?welcome=1 shows the GRAPHICS CARD first (welcome.js: a first
+        // run takes the card, then the menu) - its button '.wplay' ("Use <preset>") is pressed the same way, then the menu)
+        const where = sel => `(() => { const b = document.querySelector('${sel}'); if (!b || !b.offsetParent) return null; const q = b.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; })()`;
+        const click = async xy => { for (const type of ['mousePressed', 'mouseReleased']) await r.cmd('Input.dispatchMouseEvent', { type, x: xy[0], y: xy[1], button: 'left', clickCount: 1 }); };
+        let at = null, carded = 0;
+        for (let i = 0; i < 160 && !at; i++) {
+          at = await r.J(where('#welcome [data-mode=sandbox]')).catch(() => null);
+          if (!at && carded < 3) { const c = await r.J(where('#welcome .wplay')).catch(() => null); if (c) { await click(c); carded++; console.log('stall_rig: the graphics card shown first - its button pressed (' + name + ')'); await sleep(800); continue; } }
+          if (!at) await sleep(250);
+        }
+        res.menuCard = carded;
+        if (!at) console.log('stall_rig: NO welcome menu within 40 s - the gesture falls back to the plain click (' + name + ')');
+        else {
         res.menuRow = await r.J("(() => { const b = document.querySelector('#welcome .wmusicbtn'), s = document.querySelector('#welcome .wmusicsel'); return b ? { pill: b.textContent, station: s && s.value } : null; })()").catch(() => null);
-        for (const type of ['mousePressed', 'mouseReleased']) await r.cmd('Input.dispatchMouseEvent', { type, x: at[0], y: at[1], button: 'left', clickCount: 1 });
+        await click(at);
         await sleep(1500);
         res.menuMusic = await r.J("window.MENU_MUSIC ? { playing: MENU_MUSIC.playing, track: MENU_MUSIC.track, station: MENU_MUSIC.station } : null").catch(() => null);
         console.log('stall_rig: the menu pressed; its music ' + JSON.stringify(res.menuMusic) + ' (' + name + ')');
+        }
       }
       // the gesture: a TRUSTED click (CDP input) as soon as the page has a body and AUDIO is armed
       for (let i = 0; i < 240; i++) { if (await r.ev("!!(document.body && window.AUDIO && window.AUDIO.enabled)").catch(() => false)) break; await sleep(250); }
