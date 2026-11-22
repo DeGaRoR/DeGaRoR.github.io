@@ -192,7 +192,10 @@ var COVER_RING = (() => {
   // a mix's forest.rockUp [h0, h1, k] multiplies its rocks by 1 + k x smoothstep(h0, h1, the cell's ground) and fades the rows' exposed
   // rule out over the same band (the flat summits keep their rocks); forest.alpRockK multiplies a mix's rocks (the scree); the rocks'
   // own ring registers its big rocks as trunk-law hit sets (TREE_HITS.lying, world.treeHits: the solver meets them as it meets trees)
-  let ALP_ON = true; try { const m = /[?&]alprocks=([01])/.exec(location.search); if (m) ALP_ON = m[1] === '1'; } catch (e) {}
+  // (THE LAB BUILD ONLY, PERF-LEAD 22 Nov: OFF unless ?alprocks=1. MOUNTAIN-VEG's own verdict in game this morning: almost no
+  // visible change for 45.6 k rocks, 621 hit sets and a worst cell of 27.8 ms; it is being retuned. So the lab's BASE rows
+  // are the game as it ships, and ?alprocks=1 is the scatter's price tag. Its own branch keeps its default.)
+  let ALP_ON = false; try { const m = /[?&]alprocks=([01])/.exec(location.search); if (m) ALP_ON = m[1] === '1'; } catch (e) {}
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
   // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
   const FIELD_TYPES = {

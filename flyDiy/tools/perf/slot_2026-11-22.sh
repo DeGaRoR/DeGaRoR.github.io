@@ -16,6 +16,7 @@
 OUT=${1:-D:/Dev/flydiy-notes/evidence/perf-slot-2026-11-22}; MIN=${2:-175}
 LAB=${SLOT_LAB:-D:/Dev/perf-lab-built}
 T="$(cd "$(dirname "$0")/.." && pwd)"; B=/d/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh
+cd "$T/.." || exit 9      # flyDiy/: the rows name their files from here (tools/perf/pre_noon.js ...)
 TK="D:/Dev/flydiy-notes/cpu_tokens"; NTOK=${CPU_TOKENS:-4}; WHO=PERF-LEAD
 START=$(date +%s); END=$(( START + MIN * 60 )); left() { echo $(( (END - $(date +%s)) / 60 )); }
 mkdir -p "$OUT"; LOG="$OUT/slot.log"; say() { echo "[$(date +%H:%M)] $*" | tee -a "$LOG"; }
@@ -53,7 +54,7 @@ for oq in on off; do
   if [ $(left) -ge $(( ORBIT_MIN + 5 )) ]; then
     say "part 2b: the alpine orbit, rocks $oq, cap $ORBIT_MIN min"
     if [ -z "$SLOT_DRY" ]; then
-      OQ=; [ $oq = off ] && OQ="alprocks=0"
+      OQ=; [ $oq = on ] && OQ="alprocks=1"   # (the lab build has the scatter OFF by default)
       ( cd "$LAB/flyDiy" && timeout $(( ORBIT_MIN * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/alp_rocks_orbit.json --runner page --headed --live --size 5120x1271 ${OQ:+--q "$OQ"} --out "$OUT/orbit_rocks_$oq" --cap $(( ORBIT_MIN * 60 - 30 )) ) 2>&1 | tail -15 | tee -a "$LOG"
       J=$(ls -t "$OUT"/orbit_rocks_$oq/*.flightlog.json 2>/dev/null | head -1)
       [ -n "$J" ] && ( cd "$LAB/flyDiy" && nice -n 19 node tools/freeze_ledger.js "$J" --md "$OUT/orbit_rocks_$oq/freezes.md" --show 20 ) 2>&1 | tail -12 | tee -a "$LOG"

@@ -7,7 +7,7 @@
 # under 92 C, and frees the lock on exit.
 OUT=${1:-D:/Dev/flydiy-notes/evidence/perf-slot-2026-11-22/smoke}; MIN=${2:-13}
 T="$(cd "$(dirname "$0")/.." && pwd)"; B=/d/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh
-cd "$T" || exit 9
+cd "$T/.." || exit 9      # flyDiy/ ($T is tools/: the 11:35 smoke stopped here, "tools/perf/load_matrix.sh: No such file")
 bash $B take gpu PERF-LEAD "lab build smoke, 3 loads" || { echo "no gpu lock"; exit 3; }
 trap 'bash $B drop gpu PERF-LEAD' EXIT
 LM_HELD=1 LM_NOTOK=1 LM_COOL=92 LM_EST=190 LM_BRIEF_ARGS="--steps compile,frames,worldCompile --miss 1" LM_BRIEF_LINES=40 \

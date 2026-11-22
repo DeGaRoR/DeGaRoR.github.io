@@ -43,9 +43,9 @@ GARAGE_2    ; D:/Dev/perf-lab-built ; profile=phone&gfx=gamer ; new ; H5K ; -
 HEADLESS_1  ; D:/Dev/perf-lab-built ; - ; new ; HL ; -
 # Game's perf-simplify (9b4130e40, L40K): the based planes + storage put back (the default holds them: the user's call)
 BASED_1     ; D:/Dev/perf-lab-built ; based=1 ; new ; H5K ; -
-# MOUNTAIN-VEG's alpine rock scatter (default on in its ref; ?alprocks=0 = off). Its ref IS in the lab build (8e6f87dae), so BASE
-# carries the scatter: the load must not move (nothing of it is built before the reveal); its frames need an alpine orbit, not a load.
-ALPROCKS0_1 ; D:/Dev/perf-lab-built ; alprocks=0 ; new ; H5K ; -
+# MOUNTAIN-VEG's alpine rock scatter: OFF by default in the lab build (its own verdict in game: not ready, being retuned),
+# ON with ?alprocks=1. The load must not move (nothing of it is built before the reveal); its frames need an alpine orbit, not a load.
+ALPROCKS1_1 ; D:/Dev/perf-lab-built ; alprocks=1 ; new ; H5K ; -
 # A RETURNING PLAYER (the 06:00 result: worldCompile 36 -> 4 s on a second visit, but the garage's 'compile' step 2 -> 10-20 s
 # and the load only 114 -> 93-106 s). The same three loads on the lab build, whose flight log names what 'compile' waits for.
 WARM_1      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
