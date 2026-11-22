@@ -1240,6 +1240,8 @@ const GATES = [
   { id: 'PERFBENCH', file: '_perfbench_check.js', argv: ['--selftest'], tier: 'core', wall: 5 },
   { id: 'PROJECTS', file: '_projects_check.js', tier: 'core', wall: 15 },   // PROJECTS (13 Nov): a pack's projects - steps, works, site states, abilities (73b_missions.js, 74_career.js)
   { id: 'STORYPACK', file: '_storypack_check.js', tier: 'core', wall: 15 },   // STORY-REVAMP (22 Nov): the career's rules on the pack - no drawn job, repeats, a step's world stage, what is given (73b_missions.js, 74_career.js)
+  { id: 'TUTORWALK', file: '_tutorfly_check.js', argv: ['--dry'], tier: 'core', wall: 120 },   // STORY-REVAMP (22 Nov): the tutorial walked T0 -> the checkpoint on node, the page's events, the builds' rows, the hand-over to the story pack (tools/story_run.js --dry)
+  { id: 'TUTORFLY', file: '_tutorfly_check.js', tier: 'full', weight: 1, wall: 2400, timeout: 5400_000 },   // ...and PLAYED: its four flights and its one job flown through the game's host (the stand, the taxi, the pilot, the load)
   // MISSION-FEASIBILITY: the harness that flies every mission the game's way (tools/mission_feas.js, mission_feas_lib.js:
   // the career stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop) held on three demo
   // missions (tools/fixtures/missionfeas/demo.json): one feasible - flown, stand to stand -, one infeasible on purpose

@@ -96,7 +96,15 @@ function spotsPack() {
 // install a pack the way GATE MISSIONS does (the boot's merge): its contracts over the providers, its words over the text
 const BASE_PROV = {};
 for (const p of Object.keys(C.CONTRACT_PROVIDERS)) BASE_PROV[p] = { arc: C.CONTRACT_PROVIDERS[p].arc, builds: C.CONTRACT_PROVIDERS[p].builds, night: C.CONTRACT_PROVIDERS[p].night };
+const BUILTIN = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'builtin.json'), 'utf8'));
 function installPack(pack) {
+  // (STORY-REVAMP 22 Nov) THE PAGE'S OWN LOADER FIRST (73b missionPackUse, app.js CAREER_PACK): the pack's rules live
+  // (no drawn job, a mission no validated design flies offered), its own clients in the providers table. A pack that
+  // does not validate changes nothing there - the rig then installs it the old way so the static read can say what is
+  // broken in it (the built-in pack first: no rule or client of the pack before is left standing)
+  const U = typeof C.missionPackUse === 'function' ? C.missionPackUse(pack) : { ok: false };
+  if (U.ok) return { providers: C.CONTRACT_PROVIDERS, held: U.held, text: {} };
+  if (typeof C.missionPackUse === 'function') C.missionPackUse(BUILTIN);
   for (const p of Object.keys(BASE_PROV)) Object.assign(C.CONTRACT_PROVIDERS[p], BASE_PROV[p]);
   const I = C.missionPackInstall(pack);
   for (const p of Object.keys(I.providers)) if (C.CONTRACT_PROVIDERS[p]) for (const k of ['arc', 'builds', 'night']) C.CONTRACT_PROVIDERS[p][k] = I.providers[p][k];
@@ -167,6 +175,14 @@ function careerWith(rec, design) {
   for (const a of needsOf(rec)) addAfter(a);
   if (P && P.arc) { const i = P.arc.findIndex(r => r.id === rec.id); for (let k = 0; k < i; k++) addAfter(P.arc[k].id); }
   d.career.contracts.done = [...done].map(id => ({ id, t: 0 }));
+  // (STORY-REVAMP) a project step's mission is on the board while its project stands at that step, the projects it
+  // requires done (73b missionProjectNeeds, 74_ careerNeedsOk): the career as the steps before leave it
+  const N0 = rec.needs || {};
+  if (N0.project || (N0.projects || []).length) {
+    d.career.projects = d.career.projects || {};
+    if (N0.project) d.career.projects[N0.project.id] = { step: N0.project.step | 0 };
+    for (const q of N0.projects || []) d.career.projects[q] = { step: 99, done: true };
+  }
   if (P && d.career.providers[rec.provider]) d.career.providers[rec.provider].rep = Math.max(d.career.providers[rec.provider].rep || 0, (rec.needs && rec.needs.rep) || 0);
   d = C.careerNormalise(d); C.careerRefresh(d);
   const r = C.careerAccept(d, rec.id);
