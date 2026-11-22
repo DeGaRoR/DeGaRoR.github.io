@@ -318243,3 +318243,68 @@ NEW REDS (named):
 - MONOWHEEL: E, parked on the wheel + nose skid + one wingtip skid - FLAGSHIP (the E811 change / electric trainer) to check.
 - TAILWHEEL: I, down & out lands HOME at 22.57 m/s, roll-out 0 deg - Pilot / FLAGSHIP to check against the E811 change.
 NAMED for list:50 (rides L40i): DMGCERT BROKE UP with no BROKE AT (18 wing members kink at 7.4 g, nothing detaches).
+
+## STORY-REVAMP - THE GAME LAYER ON THE MISSION SYSTEM: THE CAREER'S RULES AND CLIENTS RIDE ON THE PACK, THE STORY PACK (91 MISSIONS, 10 PROJECTS, 40 STEPS, NO DRAWN JOB), THE TUTORIAL PLAYED ON NODE, THE AERO CLUB'S SCORING WIRED, THE MACHINERY GIVEN, THE SWITCH-OVER (22 Nov 2026, cloud - node + one headless boot; branch claude/story-revamp off L40H 9349a62c; readies claude/ready/story-1..n; progress file reports/STORY-REVAMP.md)
+
+THE USER (13 Nov, relayed): "NO GENERATED JOBS at all: everything deterministic"; "contracts in any order; projects as ordered steps tied
+to a site and its meshes"; "no buying machinery. A contract/project GIVES the machinery"; "competitions are a priority from the start";
+(16 Nov) "this is a game about building planes"; (17 Nov) the sandbox = the final stage, a story stage = the final state minus removals;
+(22 Nov) four backbone stories for the large missions (the remote community, home improvement, the observatory, the cultural heritage
+site) - the direction of the projects below. Words in the pack are DRAFTS (draft: true) for whoever writes the story.
+
+WHAT A PACK CAN SAY NOW (src/core/73b_missions.js; all optional - a pack that says none of it behaves as before):
+- `rules { jobs: 'generated' | 'none', shady: true | false, unflyable: 'hold' | 'offer' }` - how the career fills its board while the
+  pack is in use (74_ careerOfferIds reads missionPackRules()): none = no job drawn from the seed; shady false = no drawn "no questions"
+  job; unflyable offer = a mission no validated design can fly is on the board all the same (the player builds the plane). The
+  Trust's loan job stays (one fixed errand).
+- a mission's `repeat: { every: n }` (kind other than job): free again once n other contracts are done after its last time.
+- `clients [{ id, name, desc, fields, track, person, colour }]` - a provider that stands in CONTRACT_PROVIDERS only while its pack is
+  in use (no job table); its words are the pack's (prov.<id>.name / .desc / .short). The built-in pack keeps the game's five.
+- a project step's `track: '<track>:<n>'` (the world stage it builds: CONTRACT_TRACKS, never going down along the steps; the tick moves
+  career.tracks and emits { k: 'unlock' }) and `gives: [abilities]`; a mission's or a step's `onDone.gives`. An ability is a word kept
+  once in career.abilities (careerAbilityGrant): 'tech:<n>' opens the machine shop's segment, 'kit:<id>' stands a hangar kit.
+- `start { sheds: { <hangar>: { without: [kits] } } }` - the kits a career on this pack does not start with; careerPackAdopt(doc, use)
+  applies it ONCE a career (career.pack { id, without }) and drops an accepted mission no table knows any more.
+- careerProjectsBoard(doc, projects, now): the projects as a record for the page (locked / open / done, the current step, the works).
+- 74_: the done row keeps a competition's result (laps, course, stol); careerBest(doc, id); contractOnStop keeps r.scores / r.course.
+- 72_ CONTRACT_TRACKS + 76_ STAGE_REVEALS: four project tracks - home 6, community 7, heritage 2, lumber 3 (every reveal world: false
+  until the scenery wears them).
+
+THE STORY PACK (src/missions/story.json, WRITTEN BY tools/_story_pack.js - edit the tool, run it, never the json; --table prints the
+structure, --check is in the gate): rules none / no shady / offer; 3 clients of its own (home, community, aeroclub; stand-in faces);
+91 missions (30 kept from the built-in pack by id); 10 projects: the old hangar (field 1-3 -> the metal shop + segment 2), the old mine
+(minedock 1-2), the harbour (minedock 3-4, after the mine), the lumber camp (lumber 1-3), Skyline (resort 1-3), the totem site
+(heritage 1-2), the observatory (observatory 1-3 -> segment 3), home improvement (home 1-6 -> the wood shop), the community's runway
+(community 1-7), the club house (clients 1-2). The Aero Club: six events on 73c's scoring (a STOL landing, a spot landing, four pylons,
+a regularity run, a three-leg course, a timed gathering), four of them repeating.
+
+THE SWITCH-OVER (ready story-4): build.js CAREER_PACK_DEFAULT = 'story' and CAREER_PACK_LOAD (one rule for both pages) - index.html's
+career loader and dev.html name and fetch the pack for a career of the welcome menu (window.FLYDIY_MODE === 'career' without
+?career=1); app.js CAREER_PACK uses it, keeps its text in flydiy.pack.<id> for a start with no network; the career adopts it at the
+load (playerLoad) and its projects meet the clock at a flight's end, at the load and on a wait (projectsNow; a step's world stage
+noted for the next composition). A career that adopted a pack has a board ONLY while that pack is in use (74_ careerOfferIds). THE
+DEV CAREER (?career=1), ?map=1 and the sandbox are untouched: every gate's fixture career keeps the built-in tables. The tutorial's
+one job leads the board even when it is on it already (found by walking the tutorial with the pack in use).
+
+THE COMPETITIONS' SEAMS (COMPETE-SCORE's 1 and 2, closed): mission_live.js tick(t, x, y, z, agl, more) hands gnd / v / hdg / pitch /
+roll to 73c; a contract with a STOL line open arms a tracker with no gate; such a flight samples at RATE_STOL (30 Hz). app.js
+missionLiveFrame builds the sample off the sim. tools/mission_feas_lib.js feeds the same sample.
+
+TOOLS: tools/story_run.js (the tutorial T0 -> the checkpoint on node, the story pack in use and adopted; --dry the walk, else its four
+flights and its one job flown), tools/_story_pack.js, tools/story_feas.js (the pack's feasibility table kept ROW BY ROW: --fly one
+mission a process, a row keyed by the mission's record; --table; --check = GATE STORYFEAS-to-be, not registered while rows are
+missing: the whole pack is tens of hours of one core), tools/mission_feas.js --official (every official plane in the pool:
+widePool), tools/mission_feas_lib.js (installPack goes through missionPackUse; a project step's mission is put on offer with its
+project standing at that step; the page's STOL / attitude sample).
+
+GATES: STORYPACK (new, core, ~30 s, 119 checks): the rules, the board to the id without rules, one career for three seeds, repeats, a step's track
+and its reveal, what is given, the pack's clients, THE STORY PACK WALKED TO ITS END (every mission, every project, every step in
+order, every track at its max, every aerodrome used), the Aero Club's events, the start and the machinery, the board's record, the
+switch-over (the built page's loader run as written). TUTORWALK (new, core): story_run --dry. TUTORFLY (new, full): the tutorial
+flown. MISSIONLIVE +13 (the story pack's short landing through the page's own call; selftest 12/12). CONTRACTS re-pinned (the track
+list and a new career's tracks name the four project tracks; its own commit).
+
+WHAT IS NOT DONE (reports/STORY-REVAMP.md, the gaps): no scenery wears home / community / heritage / lumber (18 of 31 world stages
+change nothing yet); claude/ready/community-airport and claude/ready/docks-lodge are not on master; 14 missions need a plane no
+validated design can fly; no glider, no aerobatic plane; the Projects board and the machinery's pop-up are the page's (Game, local
+GPU); the economy of the pack is not calibrated (GATE ECON reads the built-in tables).
