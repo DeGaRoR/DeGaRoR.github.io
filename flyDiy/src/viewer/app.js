@@ -7603,8 +7603,14 @@
     // run down the lane, the circuit, the landing back onto it
     // G1375: the lane the route names (any water aerodrome: Jolene has two), the old SEA when it names land
     const wet = typeof stripSurface === 'function' ? (a => a && stripSurface(a).cls === 'water') : (a => a && a.kind === 'water');
-    if (sim.hydro && (wet(from) || gearNow === 'floats')) {
-      const sea = wet(from) ? from : (world.aerodromes.find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
+    // WATER-START (SEAPLANES 22 Nov, in game: the Petrel - a hull on a retractable tricycle, an AMPHIBIAN to stripGear -
+    // launched with "Start from: On the water" stood on HOME's asphalt apron): the roll-out's own choice, ON THE WATER, puts
+    // any floating build (an amphibian too) on the water lane, as it says ("the base's water lane"); floats always did
+    if (sim.hydro && (wet(from) || gearNow === 'floats' || (START_WATER && gearNow === 'amphibian'))) {
+      // (WATER-START: an amphibian put on the water by the player's choice takes the NEAREST water lane to its field; floats as before)
+      const near = (START_WATER && gearNow === 'amphibian' && !wet(from) && Array.isArray(from.spawn)) ? world.aerodromes.filter(wet).filter(a => Array.isArray(a.spawn))
+        .sort((p, q) => Math.hypot(p.spawn[0] - from.spawn[0], p.spawn[1] - from.spawn[1]) - Math.hypot(q.spawn[0] - from.spawn[0], q.spawn[1] - from.spawn[1]))[0] : null;
+      const sea = wet(from) ? from : (near || world.aerodromes.find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
       placeAtAerodrome(sim, sea);
       patternVisFor(sea, null);
       ap.setRoute(sea, did === 'CIRCUIT' || to === from ? sea : to);
@@ -22831,6 +22837,9 @@
   // flown off it (drive_mode.js DM.trailerStart, trailer.js, trailer_model.js): the menu's "Launch from the trailer" (or
   // ?trailer=1) - an exception to the floats-start-on-water rule, the player's choice, until "Back to the water".
   // trailerWanted(): the build floats (its hydro carries a float or a hull) and the trailer is asked for
+  // WATER-START: the roll-out's choice ON THE WATER (launchAsk below) - an amphibian starts on the water lane, not its stand.
+  // A var (hoisted): applyRoute reads it before this line has run
+  var START_WATER = false;
   const TRAILER = { want: (() => { try { return /[?&]trailer(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })() };
   function trailerAble() { return curKey === 'gen' && !!def && !!(sim && sim.hydro && sim.hydro.floats && sim.hydro.floats.some(f => !f.rec.tip)); }
   function trailerWanted() { return TRAILER.want && trailerAble(); }
@@ -22849,7 +22858,7 @@
         '<button type="button" class="verb" data-k="trailer">From the trailer<span>behind the car on Jolene AFB 13/31</span></button>';
       el.addEventListener('click', e => {
         const b = e.target.closest('button[data-k]'); if (!b) return;
-        TRAILER.want = b.dataset.k === 'trailer'; TOWS.failed = null; el.hidden = true;
+        TRAILER.want = b.dataset.k === 'trailer'; START_WATER = b.dataset.k === 'water'; TOWS.failed = null; el.hidden = true;
         LASK.go = true; try { $('bGo').onclick(); } finally { LASK.go = false; }
       });
       document.addEventListener('keydown', e => { if (e.key === 'Escape' && LASK.el && !LASK.el.hidden) LASK.el.hidden = true; });
