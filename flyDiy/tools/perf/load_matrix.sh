@@ -22,8 +22,10 @@
 #   LM_SECS=300               the cap on one load (boot_perf --secs); LM_AFTER=20: each load ends 20 s after its loading
 #                             screen is gone (boot_perf --after), so a row costs its load + ~35 s, not a fixed watch
 #   LM_EVAL=<js file>         one expression read in the page at the end of each load, printed in the row (boot_perf
-#                             --eval-file); default tools/perf/load_matrix_eval.js; LM_DUMP=<js file>: a large result (a
-#                             saved flight log) written to <out>/<TAG>.dump (boot_perf --dump-file)
+#                             --eval-file); default tools/perf/load_matrix_eval.js
+#   LM_DUMP=<js file>         a LARGE page result saved per row as <out>/<TAG>.flightlog.json (boot_perf --dump-file);
+#                             default tools/perf/load_matrix_dump.js = the flight recorder's log, on which PERF-TRACE's
+#                             tools/load_brief.js is run: its ten lines per row collect in <out>/briefs.txt
 #   LM_EST=170                the seconds one row is expected to take (the planning figure for the cap)
 # Takes the GPU lock and ALL the box's CPU tokens for its window (a TIMING run: nothing else may start beside it), frees
 # both on exit, kills only its own servers, never starts a row that could not end inside the cap. A MEASUREMENT, not a gate.
@@ -35,6 +37,7 @@ TK="D:/Dev/flydiy-notes/cpu_tokens"; NTOK=${CPU_TOKENS:-4}; WHO=${LM_WHO:-PERF-L
 SECS=${LM_SECS:-300}; AFTER=${LM_AFTER:-20}; PER=${LM_EST:-170}; END=$(( $(date +%s) + MIN * 60 )); PORT0=${LM_PORT:-8793}
 mkdir -p "$OUT"; SUM="$OUT/summary.txt"
 EVALF=${LM_EVAL:-$T/perf/load_matrix_eval.js}; [ -f "$EVALF" ] || EVALF=
+DUMPF=${LM_DUMP:-$T/perf/load_matrix_dump.js}; [ -f "$DUMPF" ] || DUMPF=
 trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"; printf '%s' "$s"; }
 TEMP() { curl -s -m 5 localhost:8085/data.json | grep -o '"Text":"CPU Package","Min":"[^"]*","Value":"[0-9]*' | tail -1 | grep -o '[0-9]*$'; }
 COOL() {    # a load starts under 80 C; no reading for 2 min, or 15 min too hot = stop, never run blind
@@ -93,8 +96,11 @@ for i in $(seq 0 $((N - 1))); do
   else
     t=$(COOL) || { echo "$TAG: NOT RUN - the package stayed at 80 C or more for 15 min, or the sensor feed is gone: STOP" | tee -a "$SUM"; exit 4; }
     serve "$DIR"; HOLD
-    timeout $(( SECS + 90 )) node "$T/boot_perf.js" --url "$URL" --udd "$UDD" --secs $SECS --after $AFTER --tag $TAG --out "$OUT/$TAG.json" ${EVALF:+--eval-file "$EVALF"} ${LM_DUMP:+--dump-file "$LM_DUMP" "$OUT/$TAG.dump"} $M $X > "$L" 2>&1 || mine "$UDD"
+    timeout $(( SECS + 90 )) node "$T/boot_perf.js" --url "$URL" --udd "$UDD" --secs $SECS --after $AFTER --tag $TAG --out "$OUT/$TAG.json" ${EVALF:+--eval-file "$EVALF"} ${DUMPF:+--dump-file "$DUMPF" "$OUT/$TAG.flightlog.json"} $M $X > "$L" 2>&1 || mine "$UDD"
   fi
+  # PERF-TRACE's ten lines on the row's flight log (the step's kind, the programs that held it, first uses, long tasks)
+  if [ -z "$LM_DRY" ] && [ -s "$OUT/$TAG.flightlog.json" ] && [ -f "$T/load_brief.js" ]; then
+    { echo "=== $TAG  q=$Q${X:+  $X}"; nice -n 19 node "$T/load_brief.js" "$OUT/$TAG.flightlog.json" --label "$TAG" 2>&1 | head -14; } >> "$OUT/briefs.txt"; fi
   g=$(grep -o 'overlay gone [0-9]*' "$L" | awk '{printf "%.1f", $3/1000}')
   echo "$TAG [$KIND]: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o '\(HEADED\|headless\) window.*' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | package ${t} C -> $(TEMP) C | q=$Q${X:+ | $X} | $(grep -o '^  eval .*' "$L" | head -1 | cut -c3-) | $(sizes "$UDD")" | tee -a "$SUM"
 done

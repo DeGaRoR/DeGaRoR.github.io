@@ -215,6 +215,21 @@
     new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
+  // THE PERF LAB'S SWITCHES (PERF-LEAD, 22 Nov 2026). Each is OPT-IN by the URL and changes nothing without it: one
+  // question each for a same-build A/B on the box (tools/perf/load_matrix.sh), not features.
+  //   ?shaderlogs=0  three's FIRST USE of a program (getUniforms) reads its info log, both shaders' logs and LINK_STATUS
+  //                  before the uniform queries, because renderer.debug.checkShaderErrors is on by default and nothing
+  //                  here ever turned it off. Off: a program that fails to link says nothing (a lab run only).
+  //   ?wcsliced=1    the 'worldCompile' step through compileSliced and the sliced depth variants, as 'frames' does,
+  //                  in place of ONE synchronous renderer.compile of every key the prelinks did not meet (a long task
+  //                  under the loading screen: the user's row 10, "the screen remains responsive").
+  //   ?firstuse=1    first use paid OUTSIDE the frame where the game already waits for the links: after the lamp
+  //                  pool's background compile (dusk, dawn) and for a material the draw guard held in flight.
+  // (?lampsfixed=1 is render_premises.js's: the lamp pool's count kept by day.)
+  const LABQ = k => typeof location !== 'undefined' && new RegExp('[?&]' + k + '(&|$)').test(location.search || '');
+  const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1') };
+  if (LAB.noLogs && renderer.debug) renderer.debug.checkShaderErrors = false;
+  if (typeof window !== 'undefined') window.FLYDIY_LAB = LAB;
   const groundCache = typeof GROUND_MATERIAL_CACHE !== 'undefined' && typeof location !== 'undefined' && /[?&]groundcache=[12](&|$)/.test(location.search || '')
     ? GROUND_MATERIAL_CACHE.install(THREE, renderer, { packed: /[?&]groundcache=2(&|$)/.test(location.search || '') }) : null;
   if (typeof window !== 'undefined') window.FLYDIY_GROUND_CACHE = groundCache;
@@ -15972,12 +15987,12 @@
   // FLYDIY_SHADOW_WARM = { drawn, lights, firstUse: { n, paid, ms } }. ?shadowwarm=0: both off (the A/B)
   const SHADOW_WARM_OFF = /[?&]shadowwarm=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
   let SHADOW_WARM_LIGHTS = 0;
-  const firstUseSliced = () => new Promise(res => {
+  const firstUseSliced = budget => new Promise(res => {   // (budget: ms a task, 30 under a screen; ?firstuse=1 asks 4 in flight)
     const progs = (renderer.info && renderer.info.programs ? renderer.info.programs.slice() : []).filter(p => p && typeof p.getUniforms === 'function');
     let i = 0, paid = 0, ms = 0;
     const tick = () => {
       const t0 = performance.now();
-      while (i < progs.length && performance.now() - t0 < 30) {
+      while (i < progs.length && performance.now() - t0 < (budget || 30)) {
         const p = progs[i++], t1 = performance.now();
         if (p.isReady && !p.isReady()) continue;   // (still linking: programsReady's, not ours - its frame waits as before)
         try { p.getUniforms(); } catch (e) {}
@@ -16342,8 +16357,10 @@
       if (WF.lampsArm && WF.lampsWant) WF.lampsArm(WF.lampsWant());
       return craftInWorld(() => {
         worldSettle();   // (in the one loading: the lights as the stand will have them, before their programs are keyed)
-        return shaderProgress(compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
-          .then(() => compileDepthVariants()), 'world', 240000);
+        const tgt = aa && aa.target ? aa.target() : null, warn = e => console.warn('world compile:', e && e.message);
+        return shaderProgress(LAB.wcSliced   // (?wcsliced=1: the dress in every task, as 'frames' - craftInWorld's own hold spans tasks)
+          ? compileSliced(scene, tgt, null, false, craftInWorldNow).catch(warn).then(() => compileDepthVariants(scene, true, craftInWorldNow))
+          : compilePass(scene, tgt).catch(warn).then(() => compileDepthVariants()), 'world', 240000);
       });
     } },
     // two frames of the world rendered under the overlay: the passes, the
@@ -22238,7 +22255,7 @@
   // G1340 THE DRAW GUARD (shader_warm.js PROG_WARM.guard): in the world, a draw of a material with no program yet is held
   // a frame or a few while its program links on the driver's threads, never compiled and waited for inside the frame
   drawGuard = (typeof PROG_WARM !== 'undefined' && PROG_WARM.guard && typeof renderer.compileAsync === 'function' && !(typeof location !== 'undefined' && /[?&]guard=0(&|$)/.test(location.search)))
-    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity }) : null;
+    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity, firstUse: LAB.firstUse }) : null;
   // (the guard holds only behind the AA target: the scene pass draws there and a held frame is not resolved - aa.hold -
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
   if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
@@ -22250,6 +22267,7 @@
     const t0 = performance.now();
     return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
       .then(() => compileDepthVariants(scene, true, dress))
+      .then(() => (LAB.firstUse ? firstUseSliced(4) : null))   // (?firstuse=1: the re-keyed programs' first use here, not in the frame the pool switches)
       .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
   }
   // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit

@@ -222,8 +222,16 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   { const f = opt('eval-file', null);
     if (f) try { const v = await ev(fs.readFileSync(f, 'utf8')); evalOut = typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { evalOut = 'eval failed: ' + e.message; }
     const di = argv.indexOf('--dump-file');
-    if (di >= 0 && argv[di + 2]) try { const v = await ev(fs.readFileSync(argv[di + 1], 'utf8'));
-      fs.mkdirSync(path.dirname(path.resolve(argv[di + 2])), { recursive: true }); fs.writeFileSync(argv[di + 2], typeof v === 'string' ? v : JSON.stringify(v));
+    // (kept in the page and fetched 4 MB at a time: one CDP answer of a 15-30 MB flight log is slow or refused)
+    if (di >= 0 && argv[di + 2]) try { const ex = fs.readFileSync(argv[di + 1], 'utf8').replace(/^\s*\/\/[^
+]*
+/gm, '').replace(/[;\s]+$/, '');
+      const len = await ev('(window.__BPD = String((
+' + ex + '
+))).length'); let v = '';
+      for (let a = 0; a < len; a += 4000000) v += await ev('window.__BPD.slice(' + a + ', ' + (a + 4000000) + ')');
+      await ev('(window.__BPD = null, 0)');
+      fs.mkdirSync(path.dirname(path.resolve(argv[di + 2])), { recursive: true }); fs.writeFileSync(argv[di + 2], v);
       console.log('  dump ' + argv[di + 2] + ' ' + fs.statSync(argv[di + 2]).size + ' bytes'); } catch (e) { console.log('  dump failed: ' + e.message); } }
   const prof = (await cmd('Profiler.stop')).result.profile;
   // --window a,b (ms of the page's clock, roughly): the self time by function inside it

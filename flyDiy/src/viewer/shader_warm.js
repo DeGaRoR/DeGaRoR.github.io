@@ -184,6 +184,13 @@ var PROG_WARM = (() => {
       }
       return orig.apply(this, arguments);
     };
+    // opt.firstUse (?firstuse=1, PERF-LEAD 22 Nov): the held material's linked programs pay three's FIRST USE here
+    // (getUniforms: the info logs, the uniforms' locations), in the task that ends the wait, between two frames - and
+    // not inside the frame that draws the material first. G.stats.firstUseMs sums what it paid.
+    const firstUse = m => { let ms = 0;
+      try { const P = props.get(m).programs; if (P) for (const p of P.values()) if (p && typeof p.getUniforms === 'function' && (!p.isReady || p.isReady())) {
+        const t = performance.now(); p.getUniforms(); ms += performance.now() - t; } } catch (x) {}
+      G.stats.firstUseMs = (G.stats.firstUseMs || 0) + ms; };
     // the held compiles, after the frame (never inside a render: compile() swaps three's render state)
     G.flush = camera => {
       const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -199,7 +206,7 @@ var PROG_WARM = (() => {
           const e = queue.shift(); e.t = now;
           try {
             renderer.setRenderTarget(e.rt);
-            renderer.compileAsync(standIn(e.o, e.m), camera, e.scene).then(() => { e.done = true; G.stats.ready++; if (e.w) e.w[2] = Math.round(performance.now() - e.t); }, () => { e.done = true; });
+            renderer.compileAsync(standIn(e.o, e.m), camera, e.scene).then(() => { if (opt.firstUse) firstUse(e.m); e.done = true; G.stats.ready++; if (e.w) e.w[2] = Math.round(performance.now() - e.t); }, () => { e.done = true; });
             G.stats.compiles++; n++;
           } catch (x) { e.done = true; }
         }
