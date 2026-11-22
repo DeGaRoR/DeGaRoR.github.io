@@ -42,8 +42,7 @@ function brief(log, opt) {
 }
 function text(b) {
   const L = [], s = b.step, P = b.programs;
-  L.push((b.label ? '[' + b.label + '] ' : '') + 'build ' + (b.build || '?') + ': garage ' + (b.garageS == null ? '-' : b.garageS + ' s') + ', reveal ' + (b.revealS == null ? '-' : b.revealS + ' s') + '; ' + P.links + ' links (' + P.unowned + ' unowned), ' + P.sourceMB + ' MB of GLSL (' + P.distinctSourceMB + ' distinct), linking ' + P.linkingWallS + ' s of wall');
-  L.push('pacer N = ' + b.pace.n + ' (' + b.pace.how + '); whole load in flight: mean ' + b.load.mean + ', max ' + b.load.max + ', at N ' + b.load.atNPct + ' %, below ' + b.load.belowNPct + ' %, nothing linking ' + b.load.idlePct + ' %');
+  L.push((b.label ? '[' + b.label + '] ' : '') + 'build ' + (b.build || '?') + ': garage ' + (b.garageS == null ? '-' : b.garageS + ' s') + ', reveal ' + (b.revealS == null ? '-' : b.revealS + ' s') + '; ' + P.links + ' links (' + P.unowned + ' unowned), ' + P.sourceMB + ' MB of GLSL (' + P.distinctSourceMB + ' distinct), linking ' + P.linkingWallS + ' s of wall; pacer N = ' + b.pace.n + ', in flight over the load: mean ' + b.load.mean + ' (at N ' + b.load.atNPct + ' %, below ' + b.load.belowNPct + ' %)');
   if (s) { L.push(s.id + ': ' + s.s + ' s, ' + s.submitted + ' submitted, ' + s.awaited + ' awaited, ' + s.stillPending + ' left pending' + (s.flight ? '; in flight mean ' + s.flight.mean + ', at N ' + s.flight.atNPct + ' %, below ' + s.flight.belowNPct + ' %, idle ' + s.flight.idlePct + ' %' : ''));
     L.push('  ' + (s.kind || 'kind not judged (under 3 s or nothing awaited)') + (s.longest ? '; longest #' + s.longest.n + ' ' + s.longest.pendingS + ' s with ' + s.longest.crowd + ' others: ' + s.longest.who : '')); }
   else L.push('no compile step in this log');
