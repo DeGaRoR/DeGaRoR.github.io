@@ -35,7 +35,9 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 
 ## The story pack (structure)
 
-`src/missions/story.json`, written by `tools/_story_pack.js` (`--table` prints this, `--check` is in the gate).
+`src/missions/story.json`: THE USER'S FILE, edited in the mission editor (welcome menu > Mission editor > "Open story
+pack"; Save writes the file, which replaces `src/missions/story.json`). The script that wrote its first version is
+retired (22 Nov, on the user's word). The numbers below are the pack as handed over; GATE STORYPACK prints today's.
 
 - 91 missions: 74 contracts, 8 aircraft orders, 3 surveys, 6 challenges. 30 kept from the built-in pack by id, 61 new.
 - 34 contracts in any order across 6 clients; 57 missions are steps of projects; 8 missions repeat (4 clients' regular
@@ -51,7 +53,7 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 | the harbour | minedock | SEA | 2 | 2 | minedock 3-4 | - | the old mine |
 | the lumber camp | minedock | mk_sea | 3 | 4 | lumber 1-3 | - | the harbour |
 | Skyline in summer | resort | tw_ski | 3 | 4 | resort 1-3 | - | - |
-| the totem site | field | nv_strip | 2 | 2 | heritage 1-2 | - | the old mine |
+| the totem site | field | nv_strip | 2 | 2 | heritage 1-2 | - | - |
 | the observatory | survey | mt_strip | 6 | 9 | observatory 1-3 | segment 3 | the old hangar |
 | home improvement | home | w1, cb_sea | 7 | 14 | home 1-6 | the wood shop, the home hangar | - |
 | the community's runway | community | w6, w7 | 8 | 11 | community 1-7 | - | - |
@@ -155,9 +157,29 @@ NOT in the editor yet (listed, not hidden): the competition fields (a STOL line,
 edited through "Advanced: the raw JSON" only; the pack's text for a client's short name is edited, its portrait is
 picked among the existing faces only.
 
-WHO OWNS story.json: today `tools/_story_pack.js` writes it and GATE STORYPACK 9 holds the file to the tool, so a pack
-saved from the editor over `src/missions/story.json` turns that row red. The hand-over (the editor becomes the source,
-the tool is retired, the gate's fixed counts become structural rules) is one small ready, on the user's word.
+WHO OWNS story.json: THE EDITOR (the user 22 Nov: "Yes"). The file is in the editor's own save format (GATE STORYPACK
+9: opened and saved untouched, not a byte moves), `tools/_story_pack.js` is deleted, and the gate holds the file to
+RULES, never to today's content:
+
+| rule any edit must keep | check |
+|---|---|
+| the pack validates; it is as the editor saves it | 9 |
+| no drawn job | 9 |
+| every mission is a contract of an any-order chapter or a step of exactly one project | 9 |
+| every project has a step; every step has a mission and a site that is an aerodrome | 9 |
+| the tutorial's one job is in the pack | 9 |
+| a whole career walked to its end: every mission done, every project done, the same career for three seeds | 10 |
+| every step reached in its order | 11 |
+| every track a project builds ends at its max (a track no project finishes is printed, not failed) | 12 |
+| every kit the start takes out of a hangar is given back by the end | 12 |
+| every aerodrome of the island is used | 13 |
+| every scored mission (a lap, a STOL line, a course) is one the runtime runs | 13 |
+
+The mechanisms that need content of known shape (the Aero Club's six events, the start and the machinery, the board's
+record: 14-16, and GATE MISSIONLIVE's short landing) read a FROZEN copy of the pack as handed over
+(`tools/fixtures/storypack/story_v0.json`), so editing the story never turns them red. TUTORWALK's "hangar as the start
+left it" row reads the pack's own start. One invented prerequisite went with the hand-over: the totem site no longer
+waits for the old mine.
 
 ## Baseline and reds (origin/master 9349a62c, this container)
 

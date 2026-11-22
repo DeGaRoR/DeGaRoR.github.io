@@ -53,9 +53,9 @@ if (!DRY) {
   ok(R.totalFlownS > 600, '3 the tutorial\'s time in the air and on the taxiways', R.totalFlownS + ' s');
 }
 // 4
-ok(R.pack && R.pack.id === 'story' && R.pack.held === 0 && (R.adopted || []).length === 2, '4 the tutorial is played with the story pack in use and adopted at the career\'s birth (the page since the switch-over)', JSON.stringify([R.pack, R.adopted]));
+ok(R.pack && R.pack.id === 'story' && R.pack.held === 0 && Array.isArray(R.adopted), '4 the tutorial is played with the story pack in use and adopted at the career\'s birth (the page since the switch-over)', JSON.stringify([R.pack, R.adopted]));
 ok(E.board && E.board.n > 0 && E.board.drawn === 0 && E.board.projectsOpen >= 1 && E.pack === 'story', '4 after the tutorial: the board is the pack\'s, nothing drawn, projects open', JSON.stringify(E.board));
-ok(E.kits && !E.kits.includes('metal') && !E.kits.includes('wood') && E.kits.includes('bench'), '4 ...and the hangar still as the start left it: no metal shop, no wood shop (the checkpoint does not hand them back)', (E.kits || []).join());
+ok(E.kits && (E.without || []).every(k => !E.kits.includes(k)) && E.kits.includes('bench'), '4 ...and the hangar still as the pack\'s start left it (the checkpoint does not hand a kit back)', 'without ' + (E.without || []).join() + ' | has ' + (E.kits || []).join());
 console.log(n + ' checks, ' + bad + ' failed');
 console.log('GATE ' + ID + ': ' + (bad ? 'FAIL' : 'PASS'));
 process.exit(bad ? 1 : 0);

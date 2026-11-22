@@ -226,7 +226,8 @@ function run(liveSrc) {
   // tick() with the wheels, the ground speed and the attitude: an approach, a touchdown 60 m past the line, a roll to a
   // stop 150 m past it - then the career's stop: done, the metres kept, the medal, the done row, the best
   {
-    const SP = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8'));
+    // (the pack as handed over, frozen: src/missions/story.json is the user's to edit)
+    const SP = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'storypack', 'story_v0.json'), 'utf8'));
     const u2 = N.missionPackUse(SP);
     ok(u2.ok, 'the story pack is in use (' + (u2.why || '') + ')');
     let d = fresh();

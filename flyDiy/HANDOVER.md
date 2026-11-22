@@ -318317,3 +318317,12 @@ mission's "Comes back" / "After these projects" / "It gives"; it loads 79b_tech.
 unwraps the editor's draft ({ file, pack }): ?pack=draft could not work before. GATE STORYPACK 18 (133 checks). NOT in the editor:
 the competition fields (raw JSON only). story.json is still WRITTEN BY tools/_story_pack.js (GATE STORYPACK 9): the hand-over to the
 editor is its own small ready, on the user's word.
+
+STORY-REVAMP 8 - story.json IS THE EDITOR'S (ready story-6; the user 22 Nov: "Yes"): src/missions/story.json is in the mission
+editor's save format (JSON.stringify(missionPackNormalise(pack), null, 1) + newline; GATE STORYPACK 9 holds the round trip to the
+byte), tools/_story_pack.js is DELETED - edit the pack in the editor (or by hand), never regenerate it. GATE STORYPACK 9-13 are
+now RULES (valid, no drawn job, every mission placed once, a career walked to its end for three seeds, every step in order, every
+track a project builds at its max, every kit taken at the start given back, every aerodrome used, every scored mission runnable),
+never a count or a name; 14-16, GATE MISSIONLIVE's short landing and nothing else read the FROZEN copy of the pack as handed over,
+tools/fixtures/storypack/story_v0.json (do not edit it with the story; replace it only with the gate rows that read it). The
+totem site's project no longer requires the mine (an invented prerequisite). 132 checks.

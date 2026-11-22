@@ -206,8 +206,9 @@ function run(opt) {
   { const board = C.careerOfferIds(d);
     end.board = { n: board.length, drawn: board.filter(id => /^(job|shady):/.test(id)).length, projectsOpen: (USE.projects || []).filter(q => !q.requires.projects.length).length };
     end.kits = d.sheds && d.sheds.HOME ? d.sheds.HOME.kits.slice() : null; end.pack = d.career.pack ? d.career.pack.id : null;
+    end.without = ((USE.start && USE.start.sheds && USE.start.sheds.HOME) || {}).without || [];
     C.missionPackUse(BI);
-    if (!board.length || end.board.drawn || end.pack !== 'story') return fail('after the tutorial, the story pack\'s board: ' + JSON.stringify(end.board) + ' pack ' + end.pack); }
+    if (!board.length || end.board.drawn || end.pack !== USE.id) return fail('after the tutorial, the story pack\'s board: ' + JSON.stringify(end.board) + ' pack ' + end.pack); }
   R.ok = true;
   R.totalFlownS = R.flights.reduce((a, x) => a + (x.t || 0), 0);
   say((R.ok ? 'PASS' : 'FAIL') + ' the tutorial ' + (o.dry ? 'walked (dry)' : 'played') + ': ' + R.beats.length + ' beats, ' + R.flights.length + ' flights' + (o.dry ? '' : ', ' + R.totalFlownS + ' s flown') +

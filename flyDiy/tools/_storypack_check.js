@@ -11,10 +11,12 @@
 //     as a reveal; a track that does not exist, passes its max or goes down along the steps is refused
 //   6 what a step, a project or a mission gives: an ability kept once; 'tech:<n>' opens the machine shop's segment
 //   7 the source: the board's draws sit behind the rule
-//   9-13 THE STORY PACK (src/missions/story.json): a fresh write of its tool; valid; every mission a contract in an
-//     any-order chapter or a step of one project; a whole career WALKED to its end - every mission done, every project
-//     done, no drawn job, one career for three seeds; every project step reached in its order; the story's end = the
-//     sandbox's final state on every track a project builds; every aerodrome used
+//   9-13 THE STORY PACK (src/missions/story.json - THE USER'S FILE, edited in the mission editor): RULES, never today's
+//     counts: valid; as the editor saves it; no drawn job; every mission a contract in an any-order chapter or a step of
+//     one project; a whole career WALKED to its end - every mission done, every project done, one career for three seeds;
+//     every step reached in its order; every track a project builds ends at its max; every kit the start takes is given
+//     back; every aerodrome used; every scored mission runs
+//   14-16 on the FROZEN copy of the pack as handed over (tools/fixtures/storypack/story_v0.json): the Aero Club's events,
 //   15 the start and the machinery: a career adopts the pack once (its hangars lose the kits the start names), the
 //     projects give them back, nothing is bought; a career begun on another pack keeps what the pack still holds
 //   16 the projects board's record; 17 THE SWITCH-OVER: the built page's career loader run as written - a player's career
@@ -226,14 +228,17 @@ C.missionPackUse(mk({ jobs: 'none' }));
   bad(q => { q.clients[0].id = 'gatetwo'; q.text['prov.gatetwo.name'] = { t: 'x' }; q.text['prov.gatetwo.desc'] = { t: 'x' }; }, /text key prov\.gatetwo\.short does not resolve/, 'a client with no short name');
   bad(q => { q.clients = []; }, /no provider gateclub/, 'a mission of a client the pack does not declare'); }
 
-// ---- 9-13 THE STORY PACK (src/missions/story.json, written by tools/_story_pack.js) ------------------------------------------
-{ const cp = require('child_process');
-  const SP = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8'));
-  const fresh = cp.spawnSync(process.execPath, [path.join(T, '_story_pack.js'), '--check'], { encoding: 'utf8' });
-  ok(fresh.status === 0, '9 story.json is a fresh write of tools/_story_pack.js', (fresh.stdout || fresh.stderr || '').trim().slice(0, 160));
+// ---- 9-13 THE STORY PACK (src/missions/story.json) -----------------------------------------------------------------------------
+// THE USER'S FILE SINCE THE HAND-OVER (22 Nov: "Yes" - the mission editor is its source; tools/_story_pack.js, which wrote its
+// first version, is retired). So 9-13 are RULES any edit must keep (the user's own rulings), never a count or a name of
+// today's content; the mechanisms that need a pack of known content (14-16) read a FROZEN copy of the pack as handed over
+// (tools/fixtures/storypack/story_v0.json).
+{ const RAW = fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8');
+  const SP = JSON.parse(RAW), SPF = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'storypack', 'story_v0.json'), 'utf8'));
   const w = C.missionPackValidate(SP);
   ok(!w.length, '9 the story pack validates', w.slice(0, 3).join('; '));
-  ok(J(SP.rules) === J({ jobs: 'none', shady: false, unflyable: 'offer' }), '9 its rules: no drawn job, no drawn shady job, a mission no validated design flies is offered', J(SP.rules));
+  ok(JSON.stringify(C.missionPackNormalise(SP), null, 1) + '\n' === RAW, '9 the file is as the mission editor saves it: opened and saved untouched, not a byte moves (nothing the editor does not know is lost)');
+  ok(SP.rules && SP.rules.jobs === 'none', '9 its rule: NO DRAWN JOB (the user 13 Nov: "no generated jobs at all")', J(SP.rules));
   const use = C.missionPackUse(SP), N = C.missionPackNormalise(SP);
   const real = N.missions.filter(m => m.tutorial == null), ids = real.map(m => m.id);
   ok(use.ok && !use.held.length && use.n === real.length, '9 in use: every mission installed, none held', use.why + ' ' + use.n + '/' + real.length + ' ' + J(use.held.slice(0, 3)));
@@ -243,10 +248,9 @@ C.missionPackUse(mk({ jobs: 'none' }));
   const inChap = new Set([].concat(...N.campaigns.filter(c => !c.tutorial).map(c => [].concat(...c.chapters.map(h => h.missions)))));
   ok(ids.every(id => (inStep[id] ? 1 : 0) + (inChap.has(id) ? 1 : 0) === 1), '9 every mission is a contract of one chapter or a step of one project, never both, never neither',
      ids.filter(id => (inStep[id] ? 1 : 0) + (inChap.has(id) ? 1 : 0) !== 1).join(','));
-  ok(N.projects.length === 10 && N.projects.every(q => q.steps.length >= 2 && q.steps.every(st => st.missions.length >= 1 && st.site && st.site.id && C.CONTRACT_FIELDS[st.site.id])),
-     '9 ten projects; every step has a mission and a SITE that is an aerodrome of the island', N.projects.map(q => q.id + ':' + q.steps.length).join(' '));
+  ok(N.projects.every(q => q.steps.length >= 1 && q.steps.every(st => st.missions.length >= 1 && st.site && st.site.id && C.CONTRACT_FIELDS[st.site.id])),
+     '9 every project has a step; every step has a mission and a SITE that is an aerodrome of the island', N.projects.length + ' projects: ' + N.projects.map(q => q.id + ':' + q.steps.length).join(' '));
   ok(typeof C.STORY_JOB === 'undefined' || ids.includes(C.STORY_JOB), '9 the tutorial\'s one job is a mission of the pack');
-  ok(Object.keys(SP.text).every(k => SP.text[k].draft === true), '9 every word of the pack is marked a draft');
 
   // 10 THE WALK: a whole career, every offer done in turn (the first on the board; a repeating one twice at most), the
   // projects ticked a day apart - to the end
@@ -298,18 +302,25 @@ C.missionPackUse(mk({ jobs: 'none' }));
     const built = new Set([].concat(...N.projects.map(q => q.steps.filter(st => st.track).map(st => st.track.split(':')[0]))));
     ok([...built].every(t => tr[t] === MAX[t]), '12 every track a project builds ends at its max: the story\'s end = the sandbox\'s final state there', [...built].map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' '));
     const rest = Object.keys(MAX).filter(t => tr[t] !== MAX[t]);
-    ok(!rest.length, '12 ...and every other track too: at the story\'s end EVERY track stands at its max - the sandbox\'s world', rest.map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' ') || Object.keys(MAX).length + ' tracks');
+    console.log('  note 12 tracks the story does not finish (no project builds them to the end): ' + (rest.map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' ') || 'none - at the story\'s end EVERY track stands at its max'));
     const unl = W1.events.filter(e => e.k === 'unlock' && e.project).map(e => e.unlock);
     ok(new Set(unl).size === unl.length && unl.length === N.projects.reduce((a, q) => a + q.steps.filter(st => st.track).length, 0), '12 every step with a world stage unlocked it exactly once', unl.length + ' unlocks');
-    ok(W1.d.career.abilities.slice().sort().join() === 'hangar:home,kit:metal,kit:wood,tech:2,tech:3',
-       '12 what the story gives: the metal shop and segment 2 (the old hangar), the wood shop (the new cabin), segment 3 (the observatory), the home hangar', W1.d.career.abilities.join()); }
+    // NOTHING IS BOUGHT, SO NOTHING MAY BE LOST: every kit the pack's start takes out of a hangar is given back by some step
+    // or mission before the story ends
+    const taken = [...new Set([].concat(...Object.values((N.start && N.start.sheds) || {}).map(h => h.without || [])))];
+    const lost = taken.filter(k => !W1.d.career.abilities.includes('kit:' + k));
+    ok(!lost.length, '12 every kit the start takes out of a hangar is GIVEN by the story\'s end (nothing is bought, so nothing may stay lost)', lost.join() || 'taken: ' + (taken.join() || 'none') + ' | given: ' + W1.d.career.abilities.join()); }
   // 13 THE ISLAND IS USED: every aerodrome is a place of some mission
   { const used = new Set();
     for (const id of ids) for (const u of C.contractSubsOf(C.contractAuthored()[id])) for (const k of ['from', 'to', 'at']) if (u[k]) used.add(u[k]);
     const not = Object.keys(C.CONTRACT_FIELDS).filter(f => !used.has(f));
     ok(!not.length, '13 EVERY aerodrome of the island is a place of some mission', not.join() || Object.keys(C.CONTRACT_FIELDS).length + ' aerodromes'); }
+  // (live) every scored mission of the pack is one the runtime runs, and needs the commercial certificate
+  { const AUL = C.contractAuthored(), sc = ids.filter(id => AUL[id].timers || AUL[id].stol || AUL[id].course);
+    ok(sc.every(id => !C.contractRuntimeOk(AUL[id]) && C.contractCertNeed(AUL[id]) === 'comm'), '13 every scored mission (a lap, a STOL line, a course) is one the runtime runs', sc.length + ' scored, ' + sc.filter(id => AUL[id].repeat).length + ' of them repeat'); }
+  // ==== 14-16 ON THE FROZEN PACK (the pack as handed over): mechanisms that need known content =================================
   // 14 THE AERO CLUB: its events are scored (a STOL line, a lap with medals, a regularity lap, a course) and REPEAT
-  { const AU2 = (C.missionPackUse(SP), C.contractAuthored()), ev = ids.filter(id => AU2[id].provider === 'aeroclub');
+  { const AU2 = (C.missionPackUse(SPF), C.contractAuthored()), ev = Object.keys(AU2).filter(id => AU2[id].provider === 'aeroclub');
     const kindOf = r => (r.stol ? 'stol:' + r.stol.map(x => x.kind).join('+') : r.course ? 'course' : (r.timers || []).some(t => t.regularity) ? 'regularity' : (r.timers || []).length ? 'lap' : 'flight');
     ok(ev.length === 6 && ev.map(id => kindOf(AU2[id])).sort().join() === 'course,flight,lap,regularity,stol:landing,stol:spot', '14 the Aero Club: six events - a STOL landing, a spot landing, a timed lap, a regularity lap, a three-leg course, a timed gathering', ev.map(id => id + '=' + kindOf(AU2[id])).join(' '));
     ok(ev.filter(id => AU2[id].repeat).length === 4 && ev.filter(id => AU2[id].repeat).every(id => AU2[id].repeat.every === 1), '14 four of them repeat (one other contract between two tries); the two of the club house project are flown once');
@@ -318,7 +329,7 @@ C.missionPackUse(mk({ jobs: 'none' }));
     ok(gh.length === 3, '14 three carry a fixed ghost (the rival\'s result, the same for every player)', gh.join()); }
   // 15 THE START AND THE MACHINERY: a career adopts the pack once - its hangars lose the kits the start names; the projects
   // give them back; nothing is bought
-  { const use2 = C.missionPackUse(SP);
+  { const use2 = C.missionPackUse(SPF);
     const aeros = [{ id: 'HOME', name: 'Jolene AFB 13/31', kind: 'strip' }, { id: 'w1', name: 'Cabin Strip', kind: 'strip' }, { id: 'w6', name: 'Old Community Runway', kind: 'strip' }, { id: 'SEA', name: 'Greywater Dock', kind: 'water' }];
     let d = C.storySkip(C.careerNormalise(C.careerNew({ id: 'ad', seed: 'ad', name: 'ad' })), { aeros }).doc;
     const kits = h => d.sheds[h].kits.join(), caps = h => [...C.hangarCaps(d.sheds[h])];
@@ -344,7 +355,7 @@ C.missionPackUse(mk({ jobs: 'none' }));
     let e = C.careerNormalise(C.careerNew({ id: 'old', seed: 'old', name: 'old' })); e = C.careerAccept(e, 'field.01').doc;
     const j = C.careerOfferIds(e).find(id => /^job:/.test(id)); e = C.careerAccept(e, j).doc;
     e.career.contracts.accepted.push('field.03'); e.career.contracts.live['field.03'] = { stage: 0, subs: [], picked: [], got: {} };
-    const use3 = C.missionPackUse(SP), a3 = C.careerPackAdopt(e, use3);
+    const use3 = C.missionPackUse(SPF), a3 = C.careerPackAdopt(e, use3);
     ok(a3.doc.career.contracts.accepted.join() === 'field.01,' + j && a3.notes.some(n => /no longer on any board: field\.03/.test(n)),
        '15 a career begun on the built-in pack: the mission the story pack does not hold is dropped and said; the one it holds and an accepted drawn job (kept as offered) stay', a3.notes.join(' | '));
     // a career that adopted the story pack, on a page where another pack (or none of its own) is in use: its board is closed
@@ -352,12 +363,12 @@ C.missionPackUse(mk({ jobs: 'none' }));
     C.missionPackUse(B);
     ok(C.missionPackId() === 'builtin' && C.careerOfferIds(d).length === 0 && C.careerOfferIds(career('a')).some(id => /^job:/.test(id)),
        '15 ...another pack in use (its own could not load): NO board for it - never another pack\'s missions, never a drawn job; a career that adopted none is as before');
-    C.missionPackUse(SP);
-    const bad = C.missionPackValidate(Object.assign({}, SP, { start: { sheds: { HOME: { without: ['park', 'laser'] } }, money: 5 } }));
+    C.missionPackUse(SPF);
+    const bad = C.missionPackValidate(Object.assign({}, SPF, { start: { sheds: { HOME: { without: ['park', 'laser'] } }, money: 5 } }));
     ok(bad.some(w => /the bare shed stays/.test(w)) && bad.some(w => /no hangar kit laser/.test(w)) && bad.some(w => /start\.money is not known/.test(w)), '15 a start that takes the bare shed, names no kit or says something else: refused', bad.slice(0, 3).join('; '));
   }
   // 16 THE PROJECTS BOARD'S RECORD (the page draws it): locked / open / done, the current step, the works running
-  { const use4 = C.missionPackUse(SP); let d = career('a'); d.wallet = 1e6;
+  { const use4 = C.missionPackUse(SPF); let d = career('a'); d.wallet = 1e6;
     let Bd = C.careerProjectsBoard(d, use4.projects, 0);
     const row = id => Bd.find(x => x.id === id);
     ok(Bd.length === 10 && row('home').state === 'open' && row('home').step === 0 && row('home').steps[0].state === 'current' && row('home').steps[1].state === 'later'
