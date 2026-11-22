@@ -1676,10 +1676,14 @@ var COVER_RING = (() => {
       { const live = skinRing(); if (live !== skinLive) { skinLive = live; for (const m of skinMats) m.needsUpdate = true; } }
       // THE ALPINE ROCKS' LINE (PERF-LEAD, 22 Nov): every 15 s while it changes - the cells, the instances, the worst cell's main-thread ms,
       // the hit sets live and the ops sent to the sim worker (one per set landed or dropped)
-      if (ROCKS && ALP_ON && typeof performance !== 'undefined') { const tn = performance.now(); if (tn - ALP.t > 15000) { ALP.t = tn;
+      // (PERF-LEAD 22 Nov: the runner reads GLOBALS at a run's end - window.FLYDIY_ALPROCKS, refreshed every second; the line every 15 s)
+      if (ROCKS && ALP_ON && typeof performance !== 'undefined') { const tn = performance.now(); if (tn - (ALP.tg || 0) > 1000) { ALP.tg = tn;
         let ni = 0; for (const c of cells.values()) ni += c.n;
-        const line = 'alprocks: cells ' + cells.size + ', instances ' + ni + ', worst cell ms ' + ALP.worstMs.toFixed(1) + ', obstacles ' + ALP.sets + ' sets / ' + Math.round(ALP.hits) + ' cylinders, worker ops ' + ALP.ops;
-        if (line !== ALP.logged) { ALP.logged = line; console.log(line); } } }   // (the rock skin: on when the rock ring is)
+        const G = { cells: cells.size, instances: ni, worstMs: +ALP.worstMs.toFixed(1), sets: ALP.sets, cyl: Math.round(ALP.hits), ops: ALP.ops };
+        if (typeof window !== 'undefined') window.FLYDIY_ALPROCKS = G;
+        if (tn - ALP.t > 15000) { ALP.t = tn;
+          const line = 'alprocks: cells ' + G.cells + ', instances ' + G.instances + ', worst cell ms ' + G.worstMs + ', obstacles ' + G.sets + ' sets / ' + G.cyl + ' cylinders, worker ops ' + G.ops;
+          if (line !== ALP.logged) { ALP.logged = line; console.log(line); } } } }   // (the rock skin: on when the rock ring is)
       if (!S.on || S.off || !pack || !BIO) { if (root.visible) root.visible = false; return; }   // (S.off: the GRAPHICS row's 'off' - the field's own `on` is the A/B)
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
       const agl = Math.max(0, camera.position.y - gy); STAT.agl = agl;
