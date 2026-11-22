@@ -1,39 +1,47 @@
-# THE BIG PERF SLOT, Sun 22 Nov 2026: PASS 2 (after pass 1, the journey and AUDIO's recordings). Same build, same rules.
+# THE SLOT'S LOADS, RE-ORDERED AT 15:30 (PERF-LEAD, 22 Nov): the restart leaves about 80 minutes, some 24 loads, so the
+# rows are run in the order of what a decision waits for. Already in pass1b/: BASE_1, SMOKE_ALL, SMOKE_HOLD, PACE4_1,
+# PACE16_1 (and PACE32_1 if it finished). Same build, same rules; a row that does not fit the cap is skipped.
 # TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
 
-# ---- first: everything that helped in pass 1, together (EDIT THIS QUERY from pass 1's summary, during the journey) ----
-ALL_1       ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&pace=16 ; new ; H5K ; --rollout
-ALL_2       ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&pace=16 ; new ; H5K ; --rollout
-BASE_7      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
-# A0's owed pair for LOOK-1's rain (claude/rain 6c31caa22 against perf-codex 4421e5416, each its own built folder; these
-# two builds have no registry, so no flight log and no brief: the load line only)
-RAIN        ; D:/Dev/rain-built ; - ; new ; H5K ; -
-RAINBASE    ; D:/Dev/perfcodex-built ; - ; new ; H5K ; -
-
-# ---- pass 2: the same questions, the other order ----------------------------------------------------------------
-BASE_4      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
-N2NOONFIX_2 ; D:/Dev/perf-lab-built ; day=night&lampsfixed=1 ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
-N2NOON_2    ; D:/Dev/perf-lab-built ; day=night ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
-DAYFIX_2    ; D:/Dev/perf-lab-built ; lampsfixed=1 ; new ; H5K ; --rollout
-WORLDALL_2  ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout
-SETTLE_2    ; D:/Dev/perf-lab-built ; settle=near ; new ; H5K ; -
-NEARFIRST_2 ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; -
-STRIPW_2    ; D:/Dev/perf-lab-built ; stripw=1 ; new ; H5K ; -
-BASE_5      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
-BASED_2     ; D:/Dev/perf-lab-built ; based=1 ; new ; H5K ; -
-DMGOFF_2    ; D:/Dev/perf-lab-built ; dmglook=0&scuff=0&cracks=0 ; new ; H5K ; -
-SCUFFLITE_2 ; D:/Dev/perf-lab-built ; scuffopt=lite ; new ; H5K ; -
-WCS_2       ; D:/Dev/perf-lab-built ; wcsliced=1 ; new ; H5K ; -
-LOGS0_2     ; D:/Dev/perf-lab-built ; shaderlogs=0 ; new ; H5K ; -
-PACE16_2    ; D:/Dev/perf-lab-built ; pace=16 ; new ; H5K ; -
-PACE0_2     ; D:/Dev/perf-lab-built ; pace=0 ; new ; H5K ; -
-BASE_6      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
-# the 1 GiB program cache made a second visit's 'frames' step 4 -> 30-35 s at 06:00: one pair with the log, to name it
-BIGCACHE_1  ; D:/Dev/perf-lab-built ; - ; big ; H5K ; --chrome --gpu-program-cache-size-kb=1048576 --chrome --gpu-disk-cache-size-kb=1048576
-BIGCACHE_2  ; D:/Dev/perf-lab-built ; - ; big ; H5K ; --chrome --gpu-program-cache-size-kb=1048576 --chrome --gpu-disk-cache-size-kb=1048576
-PROGID0_2   ; D:/Dev/perf-lab-built ; progid=0 ; new ; H5K ; -
-REC0_1      ; D:/Dev/perf-lab-built ; rec=0 ; new ; H5K ; -
-CUBELEAN_2  ; D:/Dev/perf-lab-built ; cubelean=1 ; new ; H5K ; -
-WORKERS_2   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1 ; new ; H5K ; -
-ALPROCKS1_2 ; D:/Dev/perf-lab-built ; alprocks=1 ; new ; H5K ; -
-LATELINKS_2 ; D:/Dev/perf-lab-built ; latelinks=1 ; new ; H5K ; -
+BASE_2      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
+# (15:33, from the first six loads: pace 4 / 8 / 16 / 32 = 128 / 122 / 117 / 110 s, and from 16 up the step waits on the
+# pavement program alone, 56-63 s after it is handed over at the END of the world build. So: the fast pace with the
+# world build shortened, which hands the pavement over sooner; then the same with the two lean-compile switches.)
+BEST_1      ; D:/Dev/perf-lab-built ; pace=32&stripw=1&patchw=1&settle=near ; new ; H5K ; --rollout
+BEST_2      ; D:/Dev/perf-lab-built ; pace=32&stripw=1&patchw=1&settle=near&latelinks=1&cubelean=1 ; new ; H5K ; --rollout
+# the load without the programs linked for views that may never open; the reflection cube's compile made lean
+LATELINKS_1 ; D:/Dev/perf-lab-built ; latelinks=1 ; new ; H5K ; -
+CUBELEAN_1  ; D:/Dev/perf-lab-built ; cubelean=1 ; new ; H5K ; -
+# the damage look: off, and Codex's one-program lite scuff (the user's rule: PERF-LEAD decides with numbers)
+DMGOFF_1    ; D:/Dev/perf-lab-built ; dmglook=0&scuff=0&cracks=0 ; new ; H5K ; -
+SCUFFONE_1  ; D:/Dev/perf-lab-built ; scuffopt=liteone ; new ; H5K ; -
+# the world build off the page, and the settle's near rule
+WORKERS_1   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1 ; new ; H5K ; -
+SETTLE_1    ; D:/Dev/perf-lab-built ; settle=near ; new ; H5K ; --rollout
+# the departure after a night load with the clock set to noon in the garage: lamp pool as today / fixed count
+N2NOON_1    ; D:/Dev/perf-lab-built ; day=night ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
+N2NOONFIX_1 ; D:/Dev/perf-lab-built ; day=night&lampsfixed=1 ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
+BASE_3      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
+# the garage ALONE (no world): the floor of "menu to garage in 20 s"
+GARAGE_1    ; D:/Dev/perf-lab-built ; profile=phone&gfx=gamer ; new ; H5K ; -
+# the three compile switches one by one (SMOKE_ALL had them together: +87 programs and +20 s of worldCompile to explain)
+WCS_1       ; D:/Dev/perf-lab-built ; wcsliced=1 ; new ; H5K ; -
+DAYFIX_1    ; D:/Dev/perf-lab-built ; lampsfixed=1 ; new ; H5K ; -
+LOGS0_1     ; D:/Dev/perf-lab-built ; shaderlogs=0 ; new ; H5K ; -
+# near first, and the world's three switches together
+NEARFIRST_1 ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; --rollout
+WORLDALL_1  ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout
+# a returning player on the lab build (the log names what the garage's 'compile' waits for)
+WARM_1      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
+WARM_2      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
+SCUFFLITE_1 ; D:/Dev/perf-lab-built ; scuffopt=lite ; new ; H5K ; -
+STRIPW_1    ; D:/Dev/perf-lab-built ; stripw=1 ; new ; H5K ; -
+PROGID0_1   ; D:/Dev/perf-lab-built ; progid=0 ; new ; H5K ; -
+BASE_4      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
+NIGHT_1     ; D:/Dev/perf-lab-built ; day=night ; new ; H5K ; -
+NIGHTFIX_1  ; D:/Dev/perf-lab-built ; day=night&lampsfixed=1 ; new ; H5K ; -
+PACE32_1    ; D:/Dev/perf-lab-built ; pace=32 ; new ; H5K ; -
+OLDPAV_1    ; D:/Dev/perf-lab-built ; pavepolybound=0&pavereuse=0 ; new ; H5K ; -
+BASED_1     ; D:/Dev/perf-lab-built ; based=1 ; new ; H5K ; -
+ALPROCKS1_1 ; D:/Dev/perf-lab-built ; alprocks=1 ; new ; H5K ; -
+HEADLESS_1  ; D:/Dev/perf-lab-built ; - ; new ; HL ; -

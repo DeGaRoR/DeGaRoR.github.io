@@ -50,7 +50,7 @@ TEMP() { curl -s -m 5 localhost:8085/data.json | grep -o '"Text":"CPU Package","
 COOL() {    # a load starts under 80 C; no reading for 2 min, or 15 min too hot = stop, never run blind
   local t n=0; while :; do t=$(TEMP); [ -n "$t" ] && [ "$t" -lt ${LM_COOL:-80} ] && { echo $t; return 0; }
     n=$((n + 1)); [ -z "$t" ] && [ $n -ge 6 ] && return 1; [ $n -ge 45 ] && return 1; sleep 20; done; }
-HOLD() { [ -n "$LM_NOTOK" ] && return 0; for i in $(seq 1 $NTOK); do echo "$WHO $(date +%H:%M:%S) load_matrix (timing: all tokens)" > "$TK/${WHO}_$i.tok"; done; }
+HOLD() { [ -n "$LM_NOTOK" ] && return 0; local hk; for hk in $(seq 1 $NTOK); do echo "$WHO $(date +%H:%M:%S) load_matrix (timing: all tokens)" > "$TK/${WHO}_$hk.tok"; done; }   # (its own variable: `i` is the rows' loop, and LM_STOP_FIRST reads it)
 OTHERS() { local n=0 f a pid; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */${WHO}_*.tok) continue ;; esac   # (mine: the hold files, and the cpu_token wrapper this run started under)
   pid=$(grep -o 'pid=[0-9]*' "$f" 2>/dev/null | head -1 | cut -d= -f2)
   if [ -n "$pid" ]; then [ -e "/proc/$pid" ] && n=$((n + 1)); continue; fi
