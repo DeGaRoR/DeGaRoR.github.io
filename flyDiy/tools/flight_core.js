@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 865dec5c9b4bb26d
+// body-sha256: 811a3ff5b685b62d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -9276,7 +9276,9 @@ function hangarFit(dims, kitKeys, opts) {
     if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
     else out.prop = row.prop;
     const label = isRecipe ? row.recipe : row.prop;
-    if (!isRecipe && omit.has(row.prop)) { unplaced.push({ kit, key: label, at: row.at, reason: 'left out of this shed' }); return; }
+    // (GARAGE-FIXES 21 Nov: a shed may leave a named RECIPE out too - the user: "get rid of the wing in construction in the small
+    // hangar" - reported like a prop)
+    if (omit.has(label)) { unplaced.push({ kit, key: label, at: row.at, reason: 'left out of this shed' }); return; }
 
     // 1. bounds — even a `free` row: free waives the keepouts and the
     // packing (the hung wing is ALLOWED across the doorway), never the
@@ -58433,7 +58435,9 @@ const BASE_OFFERS = {
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
                    // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
-                   omit: ['panelsaw', 'bandsaw', 'jointer'],
+                   // (GARAGE-FIXES, the user 21 Nov: "Let's get rid of the wing in construction in the small hangar": the wing hung on the
+                   // doors and the wing on its stands both go; the fuselage on its trestles stays)
+                   omit: ['panelsaw', 'bandsaw', 'jointer', 'wipWingHang', 'wsWing'],
                    // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
                    // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
                    workLamp: { cd: 40 },
