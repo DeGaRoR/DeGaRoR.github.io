@@ -205,7 +205,12 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
     const GO = "(()=>{const b=document.getElementById('bGo');if(b){b.click();return 1;}let n=0;[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>{x.click();n++;});return n;})()";
     await ev(GO);
     let goneWall = null, lastGo = Date.now(), seen = false, flyWall = null; const rt = new Map();
-    while (Date.now() - t0r < RSECS * 1000 && !(goneWall && Date.now() - goneWall > 8500)) {
+    // --rollout-watch N (22 Nov eve): how long the page is watched AFTER the roll-out's screen lifts for the flight to begin
+    // (default 8.5 s, the stills' span). With links still pending the reveal waits for them (app.js programsReady) and
+    // 8.5 s saw no flight in three rows of the evening's window; a longer watch ends as soon as the flight is seen
+    // (and the 8.5 s of stills are in).
+    const WATCH = Math.max(8.5, +opt('rollout-watch', 8.5)) * 1000;
+    while (Date.now() - t0r < RSECS * 1000 && !(goneWall && (Date.now() - goneWall > WATCH || (flyWall && Date.now() - goneWall > 8500)))) {
       await sleep(250);
       try { const f = JSON.parse(await ev("(()=>{const c=document.body.classList;return JSON.stringify({fly:c.contains('mode-fly')&&!c.contains('mode-ws')&&!c.contains('rollShot'),set:window.BOOT&&BOOT.set,state:window.BOOT&&BOOT.state});})()"));
         if (f.set === 'rollout' && f.state !== 'gone') seen = true;
