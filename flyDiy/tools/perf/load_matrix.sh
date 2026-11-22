@@ -28,6 +28,9 @@
 #   LM_DUMP=<js file>         a LARGE page result saved per row as <out>/<TAG>.flightlog.json (boot_perf --dump-file);
 #                             default tools/perf/load_matrix_dump.js = the flight recorder's log, on which PERF-TRACE's
 #                             tools/load_brief.js is run: its ten lines per row collect in <out>/briefs.txt
+#   LM_HELD=1                 the caller already holds the GPU lock and the CPU tokens for a longer window (a slot
+#                             script running several parts): this run takes and frees neither, it only refreshes
+#                             the token files before each load
 #   LM_EST=170                the seconds one row is expected to take (the planning figure for the cap)
 # Takes the GPU lock and ALL the box's CPU tokens for its window (a TIMING run: nothing else may start beside it), frees
 # both on exit, kills only its own servers, never starts a row that could not end inside the cap. A MEASUREMENT, not a gate.
@@ -77,7 +80,9 @@ serve() {   # one static server at a time, restarted when the row's built dir ch
   [ "$1" = "$SRVDIR" ] && return 0
   [ -n "$SRV" ] && kill $SRV 2>/dev/null; SRV=
   nice -n 19 node "$T/_serve.js" $PORT0 "$1" > "$OUT/srv.log" 2>&1 & SRV=$!; SRVDIR=$1; sleep 3; }
-if [ -z "$LM_DRY" ]; then
+if [ -z "$LM_DRY" ] && [ -n "$LM_HELD" ]; then
+  trap '[ -n "$SRV" ] && kill $SRV 2>/dev/null' EXIT
+elif [ -z "$LM_DRY" ]; then
   mkdir -p "$TK"; HOLD                                   # the tokens first, then the lock (THERMAL-RULE, 22 Nov)
   trap '[ -n "$SRV" ] && kill $SRV 2>/dev/null; rm -f "$TK"/${WHO}_[0-9].tok; bash $B drop gpu $WHO' EXIT
   bash $B take gpu $WHO "load matrix, $N rows" || { echo "no gpu lock"; exit 3; }
