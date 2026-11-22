@@ -343,11 +343,11 @@ const PAGE = `(() => {
       await setTime(TIMES.includes('noon') ? 'noon' : 'now');
       const cc0 = (await JJ('JSON.stringify(GV.day())')).cloudCover; await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: 1 })'); await rig.frames(90);
       if (!META.grabs.some(g => g.name === 'card_props')) await shootCard('props', 12);
-      const RINGS = (opt('rings', '60,95,135,185,250,700')).split(',').map(Number), FOVS = 30, gy = await JJ(`FLIGHT_PROBE.world().terrainH(${M.mid.x}, ${M.mid.z})`), eye = [M.mid.x, gy + 2.0, M.mid.z];
+      const RINGS = (opt('rings', '60,72,86,104,125,150,180,220,270,340,700')).split(',').map(Number), FOVS = 30, YAW0 = yawOf(S[0].doorDir.x, S[0].doorDir.z), YAWS = [-80, -40, 0, 40, 80].map(d => YAW0 + d * Math.PI / 180), gy = await JJ(`FLIGHT_PROBE.world().terrainH(${M.mid.x}, ${M.mid.z})`), eye = [M.mid.x, gy + 2.0, M.mid.z];
       const pass = async tag => { let n = 0; for (let r = 0; r + 1 < RINGS.length; r++) { await rig.ev('GV.over = { near: ' + RINGS[r] + ', far: ' + RINGS[r + 1] + ', fov: ' + FOVS + ' }');
-          for (let k = 0; k < 9; k++) { await eyeAt(eye[0], eye[1], eye[2], k * 40 * Math.PI / 180, 0.05, k === 0 ? 30 : 10); await grab('slice_' + tag + '_' + r + '_' + k, { kind: 'slice', pass: tag, ring: r, near: RINGS[r], far: RINGS[r + 1], k, yawDeg: k * 40, eye }); n++; } } return n; };
+          for (let k = 0; k < YAWS.length; k++) { await eyeAt(eye[0], eye[1], eye[2], YAWS[k], 0.02, k === 0 ? 24 : 8); await grab('slice_' + tag + '_' + String(r).padStart(2, '0') + '_' + k, { kind: 'slice', pass: tag, ring: r, near: RINGS[r], far: RINGS[r + 1], k, yaw: YAWS[k], eye }); n++; } } return n; };
       // the eye at the middle first: the cover ring plants round it
-      await eyeAt(eye[0], eye[1], eye[2], 0, 0.05, 60); await rig.settleLoad(); await rig.frames(60);
+      await eyeAt(eye[0], eye[1], eye[2], YAW0, 0.02, 60); await rig.settleLoad(); await rig.frames(60);
       await JJ('JSON.stringify(GV.hide(' + JSON.stringify(['^treeRungs', '^premises:houses$', '^shed:', '^shell:', '^parked', '^contact:', '^fleetStand']) + ', ' + JSON.stringify(['fill', 'ser']) + ', { noShadow: true }))'); await rig.frames(6);
       const hidA = await JJ('JSON.stringify(GV.hidden())'); await alive('slices hide A');
       const nA = await pass('all');

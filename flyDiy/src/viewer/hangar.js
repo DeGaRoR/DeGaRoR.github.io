@@ -4061,7 +4061,6 @@ function setSkyFrame(yaw, eye) {
   return moved;
 }
 function applyDay(day, renderer) {
-  if (GVIEW && GVIEW.update) GVIEW.update(day);   // GARAGE-VIEW: the cooked outdoors' haze takes the day's sky
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.setPre) LIGHT_RIG.setPre(1);   // G2620: the shed has no pre-exposure (its lamps cap the exposure); the world sets its own on the way out
   if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
   if (!skyPhys && skyMesh) {
@@ -4087,6 +4086,8 @@ function applyDay(day, renderer) {
   // aim the key from the shed's frame, the frustum floor kept (see aimKey)
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
   dayDirShed[0] = s[0]; dayDirShed[1] = s[1]; dayDirShed[2] = s[2];
+  // GARAGE-VIEW: the cooked outdoors take the day - the haze's colour off the sky, the shed's own shadow on the apron off the light
+  if (GVIEW && GVIEW.update) GVIEW.update(day, { dir: s, cloudT: cloudT, isMoon: SKY_LIGHT.isMoon });
   // G2070 (GARAGE-LAPTOP): the key's POSE steps when the sun has moved 0.05 deg (~12 s of a 1x day; under a third of a
   // 2048 texel at the shed's far wall) - its shadow map is cached (shed_shadow.js) and re-bakes when the light moves, so a
   // key that crept every frame re-drew its 1 300 casters every frame; the flare (dayDirShed) keeps the live sun
@@ -4714,15 +4715,16 @@ return {
   gview: () => GVIEW,
   gviewFrom: pack => {
     if (GVIEW || !pack || !SHED_W || typeof GARAGE_VIEW === 'undefined') return null;
-    const B = GARAGE_VIEW.build(THREE, pack, { shed: SHED_W, outdoor: outdoor });
+    const B = GARAGE_VIEW.build(THREE, pack, { shed: SHED_W, outdoor: outdoor, dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE } });
     for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = false;
     if (ROOM_PAD) ROOM_PAD.visible = false;
     B.group.visible = !viewOut; G.add(B.group); GVIEW = B;
+    if (B.shadow) { B.shadow.visible = !viewOut; G.add(B.shadow); }   // the shed's shadow on the apron (the room's frame)
     return B;
   },
   outdoorsShow: (on, keepSky) => {
     viewOut = on === false; skyLive = viewOut && !!keepSky;
-    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut && (!GVIEW || o === GVIEW.group);   // (GARAGE-VIEW: the cooked scene alone while it stands)
+    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut && (!GVIEW || o === GVIEW.group || o === GVIEW.shadow);   // (GARAGE-VIEW: the cooked scene alone while it stands)
     // HANGAR-VIEW C (the 9 Nov sheet: a red-brown band past the Shed's door over the world's grass): the plot's pad hangs under
     // room:polish, which stays, and reaches 14 m out of the door - it is outdoors, the world's view draws the real ground there
     if (ROOM_PAD) ROOM_PAD.visible = !viewOut && !GVIEW;

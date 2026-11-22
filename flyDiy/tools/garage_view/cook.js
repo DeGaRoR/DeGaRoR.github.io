@@ -14,6 +14,9 @@
 //   trees    every tree the fill draws within --trees m (default 700), each a card of its species' own sheet, at its place,
 //            height and sink, facing the middle of the two sheds (the eye never leaves the rooms: 60 m and more away)
 //   props    the buildings and the vehicles near, the game's own shapes
+//   layers   what stands LOW between the apron and the trees (the shrubs, the ferns, the flowers, the rocks, the barrels, the
+//            fences: the cover ring and the small props, which no list exports), as the game draws it, in rings of distance:
+//            each ring a strip (the picture with them minus the picture of the ground alone) on a wall at the ring's distance
 //   far      everything past 700 m (the far forest, the ridges, the summits, the sea) as ONE band: the game's own pixels,
 //            shot from the middle of the sheds with the near plane at 700 m, on a wall at that distance all round
 // Nothing here is drawn by hand: every number is the game's (measure.js, census.js, capture.js).
@@ -26,6 +29,7 @@ const IN = require(path.join(T, 'island_node.js'));
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const MDIR = opt('measure', path.join(T, 'perf', 'garage_view')), CAP = opt('cap', null), GDIR = opt('ground', CAP), OUT = opt('out', path.join(MDIR, 'scene'));
+const LCAP = opt('layers', CAP), PCAP = opt('props', CAP);   // the captures the low layers and the things come from (a later run than the far band's and the sheets')
 const TREE_R0 = opt('trees', null);
 fs.mkdirSync(OUT, { recursive: true });
 const M = JSON.parse(fs.readFileSync(path.join(MDIR, 'measure.json'), 'utf8'));
@@ -141,6 +145,49 @@ if (FAR) {
   SCENE.stats.far = { strip: [PW, PH], covered: +(covered / (PW * PH)).toFixed(3), shots: FARG.length, R: FAR.R, card: !!lut };
 }
 
+// ================= THE LOW LAYERS: rings of distance, each a strip on its wall ===================================================
+if (LCAP && fs.existsSync(path.join(LCAP, 'capture.json'))) {
+  const CL = JSON.parse(fs.readFileSync(path.join(LCAP, 'capture.json'), 'utf8')), SL = CL.grabs.filter(g => g.kind === 'slice' && fs.existsSync(path.join(LCAP, g.name + '.png')));
+  const rings = Array.from(new Set(SL.map(g => g.ring))).sort((a, b) => a - b);
+  if (rings.length) {
+    const camS = g => { const m = g.cam.mw, pj = g.cam.pj, w = g.info.w, h = g.info.h; return { w, h, I: PNG.decode(fs.readFileSync(path.join(LCAP, g.name + '.png'))),
+      px: d => { const vx = m[0] * d[0] + m[1] * d[1] + m[2] * d[2], vy = m[4] * d[0] + m[5] * d[1] + m[6] * d[2], vz = m[8] * d[0] + m[9] * d[1] + m[10] * d[2], cw = pj[3] * vx + pj[7] * vy + pj[11] * vz; if (cw <= 1e-6) return null;
+        return [((pj[0] * vx + pj[4] * vy + pj[8] * vz) / cw * 0.5 + 0.5) * w, (1 - ((pj[1] * vx + pj[5] * vy + pj[9] * vz) / cw * 0.5 + 0.5)) * h]; } }; };
+    const tap = (I, x, y, o3) => { const X = Math.max(0, Math.min(I.w - 2, Math.floor(x - 0.5))), Y = Math.max(0, Math.min(I.h - 2, Math.floor(y - 0.5))), tx = Math.max(0, Math.min(1, x - 0.5 - X)), ty = Math.max(0, Math.min(1, y - 0.5 - Y)), c = I.ch, o = (Y * I.w + X) * c, o2 = o + I.w * c;
+      for (let k = 0; k < 3; k++) o3[k] = (I.data[o + k] * (1 - tx) + I.data[o + c + k] * tx) * (1 - ty) + (I.data[o2 + k] * (1 - tx) + I.data[o2 + c + k] * tx) * ty; };
+    // the card under the layers' sky (covered, no sun shadow): captured -> texture values
+    const cardG = CL.grabs.find(g => g.name === 'card_props'); let lut = null;
+    if (cardG) { const m = cardG.cam.mw, pj = cardG.cam.pj, I = PNG.decode(fs.readFileSync(path.join(LCAP, cardG.name + '.png'))), K = cardG.card, cs = Math.cos(K.yaw), sn = Math.sin(K.yaw), xs = [[], [], []], ys = [];
+      const px = (x, y, z) => { const dx = x - m[12], dy = y - m[13], dz = z - m[14], vx = m[0] * dx + m[1] * dy + m[2] * dz, vy = m[4] * dx + m[5] * dy + m[6] * dz, vz = m[8] * dx + m[9] * dy + m[10] * dz, cw = pj[3] * vx + pj[7] * vy + pj[11] * vz + pj[15]; return cw > 1e-6 ? [((pj[0] * vx + pj[4] * vy + pj[8] * vz + pj[12]) / cw * 0.5 + 0.5) * I.w, (1 - ((pj[1] * vx + pj[5] * vy + pj[9] * vz + pj[13]) / cw * 0.5 + 0.5)) * I.h] : null; };
+      for (let i = 0; i < 8; i++) { const lx = ((i % K.grid[0] + 0.5) / K.grid[0] - 0.5) * K.w, lz = ((Math.floor(i / K.grid[0]) + 0.5) / K.grid[1] - 0.5) * K.h, q = px(K.at[0] + lx * cs + lz * sn, K.at[1], K.at[2] - lx * sn + lz * cs); if (!q) continue;
+        const acc = [0, 0, 0]; let n = 0; for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) { const X = Math.round(q[0] + dx), Y = Math.round(q[1] + dy); if (X < 0 || Y < 0 || X >= I.w || Y >= I.h) continue; const o = (Y * I.w + X) * I.ch; acc[0] += I.data[o]; acc[1] += I.data[o + 1]; acc[2] += I.data[o + 2]; n++; }
+        if (n) { for (let k = 0; k < 3; k++) xs[k].push(acc[k] / n); ys.push(K.cols[i][0]); } }
+      if (ys.length >= 4) lut = [0, 1, 2].map(k => { const X = xs[k].slice(), t = new Uint8Array(256); for (let i = 1; i < X.length; i++) if (X[i] <= X[i - 1]) X[i] = X[i - 1] + 0.01;
+        for (let v = 0; v < 256; v++) { let i = 0; while (i < X.length - 2 && v > X[i + 1]) i++; t[v] = Math.max(0, Math.min(255, Math.round(ys[i] + (ys[i + 1] - ys[i]) * (v - X[i]) / (X[i + 1] - X[i])))); } return t; }); }
+    // the arc the rings were shot over (the first ring's yaws, the lens's half width more each side), and the strips' rows in one sheet
+    const g0 = SL.filter(g => g.ring === rings[0] && g.pass === 'all'), yaws = g0.map(g => g.yaw).sort((a, b) => a - b), hf = Math.atan(Math.tan(g0[0].cam.fov * Math.PI / 360) * g0[0].cam.aspect) * 0.92;
+    const A0 = yaws[0] - hf, A1 = yaws[yaws.length - 1] + hf, eye = g0[0].eye, PW = +opt('layw', 4096), ppr = PW / (A1 - A0), EYEH = 2.0, rows = [];
+    let PH = 0; for (const r of rings) { const g = SL.find(q => q.ring === r), T0 = -(EYEH + 1.0) / g.near, T1 = 8 / g.near, h = Math.max(8, Math.ceil(ppr * (T1 - T0))); rows.push({ r, near: g.near, far: g.far, Rm: Math.sqrt(g.near * g.far), T0, T1, y0: PH, h }); PH += h + 2; }
+    const sheet = new Uint8Array(PW * PH * 4), a3 = [0, 0, 0], b3 = [0, 0, 0]; let solid = 0;
+    for (const R of rows) { const pairs = []; for (const ga of SL.filter(g => g.ring === R.r && g.pass === 'all')) { const gb = SL.find(g => g.ring === R.r && g.pass === 'ground' && g.k === ga.k); if (gb) pairs.push({ a: camS(ga), b: camS(gb) }); }
+      for (let j = 0; j < R.h; j++) { const te = R.T1 - (j + 0.5) / R.h * (R.T1 - R.T0), ce = 1 / Math.hypot(1, te);
+        for (let i = 0; i < PW; i++) { const th = A0 + (i + 0.5) / PW * (A1 - A0), d = [Math.sin(th) * ce, te * ce, -Math.cos(th) * ce]; let r = 0, g = 0, b = 0, al = 0, ws = 0;
+          for (const P of pairs) { const q = P.a.px(d); if (!q) continue; const mg = Math.min(q[0], q[1], P.a.w - q[0], P.a.h - q[1]); if (mg < 2) continue; const wt = Math.min(1, mg / 60);
+            tap(P.a.I, q[0], q[1], a3); tap(P.b.I, q[0], q[1], b3); const df = Math.max(Math.abs(a3[0] - b3[0]), Math.abs(a3[1] - b3[1]), Math.abs(a3[2] - b3[2])), a = Math.max(0, Math.min(1, (df - 7) / 16));
+            r += a3[0] * wt; g += a3[1] * wt; b += a3[2] * wt; al += a * wt; ws += wt; }
+          if (!ws) continue; const o = ((R.y0 + j) * PW + i) * 4; r /= ws; g /= ws; b /= ws; al /= ws;
+          sheet[o] = lut ? lut[0][Math.round(r)] : r; sheet[o + 1] = lut ? lut[1][Math.round(g)] : g; sheet[o + 2] = lut ? lut[2][Math.round(b)] : b; sheet[o + 3] = Math.round(al * 255); if (al > 0.5) solid++; } } }
+    fs.writeFileSync(path.join(OUT, 'layers.png'), PNG.encode(PW, PH, 4, sheet)); SCENE.textures.layers = { file: 'layers.png', srgb: true };
+    // the walls: the far rings first (the near ones draw over them: alpha tested, depth written)
+    const NA = 72, pos = [], uv = [], nrm = [], idx = [];
+    for (const R of rows.slice().reverse()) { const b0 = pos.length / 3;
+      for (let a = 0; a <= NA; a++) { const th = A0 + a / NA * (A1 - A0), sx = Math.sin(th), sz = -Math.cos(th); for (const [tv, row] of [[R.T0, R.y0 + R.h], [R.T1, R.y0]]) { const pp = L(eye[0] + sx * R.Rm, eye[1] + tv * R.Rm, eye[2] + sz * R.Rm); pos.push(pp[0], pp[1], pp[2]); uv.push(a / NA, 1 - row / PH); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
+      for (let a = 0; a < NA; a++) { const i0 = b0 + a * 2; idx.push(i0, i0 + 1, i0 + 2, i0 + 2, i0 + 1, i0 + 3); } }
+    mesh('layers', 'far', 'layers', { pos: new Float32Array(pos), nrm: new Float32Array(nrm), uv: new Float32Array(uv), idx: new Uint32Array(idx) }, { alphaTest: 0.5, doubleSide: true });
+    SCENE.stats.layers = { rings: rows.map(R => [R.near, R.far]), sheet: [PW, PH], solid: +(solid / (PW * PH)).toFixed(3), arcDeg: +((A1 - A0) * 180 / Math.PI).toFixed(0), card: !!lut };
+  }
+}
+
 // ================= THE TREES ==================================================================================================
 const SHEETS = CAP && fs.existsSync(path.join(CAP, 'sheets.json')) ? JSON.parse(fs.readFileSync(path.join(CAP, 'sheets.json'), 'utf8')) : null;
 { const R = CEN.rec, SER = ['rungs', 'stand', 'snag'], near = []; for (let i = 0; i < CEN.trees.length; i += R) if (Math.hypot(CEN.trees[i + 2] - M.mid.x, CEN.trees[i + 4] - M.mid.z) < TREE_R) near.push(i);
@@ -205,7 +252,8 @@ const SHEETS = CAP && fs.existsSync(path.join(CAP, 'sheets.json')) ? JSON.parse(
 }
 
 // ================= WHAT STANDS NEAR ===========================================================================================
-if (CAP && fs.existsSync(path.join(CAP, 'capture.json'))) {
+if (PCAP && fs.existsSync(path.join(PCAP, 'capture.json'))) {
+  const CAP = PCAP;   // (the things' own capture)
   const CJ = JSON.parse(fs.readFileSync(path.join(CAP, 'capture.json'), 'utf8')), PR = (CJ.steps.props && CJ.steps.props.kept) || [];
   if (PR.length) {
     const f32 = b => { const u = Buffer.from(b, 'base64'); return new Float32Array(u.buffer, u.byteOffset, u.length / 4); }, u32 = b => { const u = Buffer.from(b, 'base64'); return new Uint32Array(u.buffer.slice(u.byteOffset, u.byteOffset + u.length)); };

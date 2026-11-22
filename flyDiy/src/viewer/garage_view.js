@@ -38,6 +38,7 @@ var GARAGE_VIEW = (() => {
     haze: 1.0,          // the haze's colour: the sky's irradiance x K_HEMI x this
     hazeK: 5.5e-5,      // its density (1 / m): the far ridges fade into the sky as the game's aerial perspective fades them
     treeGain: 1.0,      // the cards' albedo gain
+    shadow: 0.42,       // the shed's own shadow on the apron: how much of the light it takes at a clear noon (x the cloud's transmittance)
   };
   const NL = String.fromCharCode(10);
   const HZ = { value: null };   // (vec4: rgb the haze's colour in the scene's light, w its density) - one uniform, every material
@@ -66,15 +67,23 @@ var GARAGE_VIEW = (() => {
     const J = await (await fetch(base + 'scene.json')).json();
     const buf = await (await fetch(base + 'scene.bin')).arrayBuffer();
     const tex = {};
+    const dress = (t, T) => { t.flipY = false; t.colorSpace = T.srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.magFilter = THREE.LinearFilter;
+      t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8; return t; };
+    const st = { ktx2: 0, plain: 0 };
     await Promise.all(Object.keys(J.textures || {}).map(async k => {
-      const T = J.textures[k], blob = await (await fetch(base + T.file)).blob();
+      const T = J.textures[k];
+      // THE KTX2 TWIN (tools/garage_view/ktx2.js): transcoded in a worker to the GPU's own blocks, its mips inside - a quarter of
+      // the plain picture's memory and no decode or mip on the frame. KTX2.off says when the page cannot (?ktx2=0, no format)
+      if (T.ktx2 && typeof KTX2 !== 'undefined' && !KTX2.off('gview')) {
+        try { const r = await KTX2.load(base + T.ktx2, 'gview'), t = dress(new THREE.CompressedTexture(r.mipmaps, r.width, r.height, r.format, r.type), T);
+          t.generateMipmaps = false; t.minFilter = r.mipmaps.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter; t.needsUpdate = true; tex[k] = t; st.ktx2++; return; } catch (e) { /* the plain picture */ }
+      }
+      const blob = await (await fetch(base + T.file)).blob();
       // decoded off the main thread; the rows as the file has them (flipY is the texture's own, set below)
       const bmp = await createImageBitmap(blob, { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
-      const t = new THREE.Texture(bmp); t.flipY = false; t.colorSpace = T.srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
-      t.anisotropy = (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8; t.needsUpdate = true; tex[k] = t;
+      const t = dress(new THREE.Texture(bmp), T); t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.needsUpdate = true; tex[k] = t; st.plain++;
     }));
-    return { J, buf, tex, base };
+    return { J, buf, tex, base, pictures: st };
   }
 
   // ---- the scene, in a shed's room frame ---------------------------------------------------------------------------------
@@ -109,10 +118,32 @@ var GARAGE_VIEW = (() => {
       const m = new THREE.Mesh(g, mat); m.name = 'gview:' + M.name; m.castShadow = false; m.receiveShadow = false; m.renderOrder = M.kind === 'decal' ? 3 : (M.order || 0);
       m.matrixAutoUpdate = false; m.userData.gview = M.kind; group.add(m); tris += M.tris;
     }
+    // THE SHED'S OWN SHADOW ON THE APRON (the game's door view shows it; the room's key light only shadows the shed's box): the
+    // shed's block (its eave box and its ridge) thrown along the light onto the apron - one dark fan, in the ROOM's frame, moved
+    // when the light has moved; under the room's floor inside the walls, so only the apron wears it
+    let shadow = null, shDir = null; const D = o.dims;
+    if (D) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12 * 3), 3)); g.setIndex([0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 7, 0, 7, 8, 0, 8, 9, 0, 9, 10, 0, 10, 11]);
+      shadow = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x05070c, transparent: true, opacity: 0, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+      shadow.name = 'gview:shadow'; shadow.renderOrder = 4; shadow.frustumCulled = false; shadow.userData.outdoor = true; shadow.visible = false; mats.push(shadow.material); }
+    const throwShadow = (d, k) => { if (!shadow) return; if (!(d[1] > 0.035) || !(k > 0.01)) { shadow.material.opacity = 0; return; }
+      shadow.material.opacity = k;
+      if (shDir && d[0] * shDir[0] + d[1] * shDir[1] + d[2] * shDir[2] > 0.99999) return; shDir = d.slice();
+      // the block's top points thrown to the ground (a point at height h lands h / d.y along the light, capped at 400 m), and the
+      // footprint's corners: their hull, wound as a fan about its first point
+      const P = [], add = (x, y, z) => { const t = Math.min(400, y / d[1]); P.push([x - d[0] * t, z - d[2] * t]); };
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) { add(sx * D.HD, 0, sz * D.HW); add(sx * D.HD, D.EAVE, sz * D.HW); }
+      add(-D.HD, D.RIDGE || D.EAVE + 2.6, 0); add(D.HD, D.RIDGE || D.EAVE + 2.6, 0);
+      P.sort((a, b) => a[0] - b[0] || a[1] - b[1]); const cr = (o2, a, b) => (a[0] - o2[0]) * (b[1] - o2[1]) - (a[1] - o2[1]) * (b[0] - o2[0]), lo = [], up = [];
+      for (const p of P) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+      for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+      const H = lo.slice(0, -1).concat(up.slice(0, -1)), A = shadow.geometry.attributes.position;
+      for (let i = 0; i < 12; i++) { const p = H[Math.min(i, H.length - 1)]; A.setXYZ(i, p[0], S.sill + 0.016, p[1]); }
+      A.needsUpdate = true; };
     const E = [0, 0, 0];
-    return { group, mats, stats: { meshes: J.meshes.length, tris, textures: Object.keys(pack.tex).length, bytes: pack.buf.byteLength },
+    return { group, shadow, mats, stats: { meshes: J.meshes.length, tris, textures: Object.keys(pack.tex).length, pictures: pack.pictures || null, bytes: pack.buf.byteLength },
       // the haze takes the day's sky: its irradiance on the scale the room's light stands on
-      update(day) {
+      update(day, L) {
+        if (L && L.dir) throwShadow(L.dir, S.shadow * (L.cloudT == null ? 1 : L.cloudT) * (L.isMoon ? 0.5 : 1));
         if (!day || typeof ATMO === 'undefined' || !ATMO.skyIrradiance || typeof SKY_LIGHT === 'undefined') return;
         const K = SKY_LIGHT.K().K_HEMI; if (K == null) return;
         ATMO.skyIrradiance(0, day.sun, E); HZ.value.set(E[0] * K * S.haze, E[1] * K * S.haze, E[2] * K * S.haze, S.hazeK);

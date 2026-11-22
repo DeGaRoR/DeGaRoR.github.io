@@ -30,7 +30,7 @@ for key, T in J['textures'].items():
         k = A.max / max(im.size)
         im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
     stem = os.path.splitext(T['file'])[0]
-    cut = key in ('trees_col', 'far')            # the alpha is a cut-out the draw tests
+    cut = key in ('trees_col', 'far', 'layers')  # the alpha is a cut-out the draw tests
     if key == 'trees_nrm':
         out = stem + '.webp'; im.convert('RGB').save(os.path.join(A.scene, out), 'WEBP', lossless=True, method=4)
     elif cut:
