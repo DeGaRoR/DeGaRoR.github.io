@@ -235,6 +235,9 @@ function airframe(spec, lc, R, P) {
       // the roll at the row's power: the same aeroplane with its thrust law scaled (the propeller's two numbers)
       try {
         const d2 = loadedDef(spec, lc); d2.params.prop.Tstatic *= kP; d2.params.prop.kV2 *= kP;
+        // (a governed propeller flies the disc on the engine's power - step 6: the power itself, and the static cap by P^(2/3))
+        if (d2.params.prop.cs) { d2.params.prop.cs = { T0: d2.params.prop.cs.T0 * Math.pow(kP, 2 / 3), etaB: d2.params.prop.cs.etaB };
+                                 d2.params.engine = Object.assign({}, d2.params.engine, { powerW: d2.params.engine.powerW * kP }); }
         const s2 = C.makeSim(d2, null); s2.reset(0);
         const t2 = C.genTORunAt(s2, d2, W); if (t2 && t2.sRoll > 0) atRow[rk] = t2.sRoll;
       } catch (e) {}

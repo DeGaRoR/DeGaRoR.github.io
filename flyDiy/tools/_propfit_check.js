@@ -15,7 +15,10 @@
 //    past it the thrust is held and the tachometer stays on the redline; a lower rpm limit holds it sooner
 // 6. THE PITCH CLASSES: a climb propeller stands harder, is cut for less and meets its redline before the top speed; a
 //    cruise one the other way round and never meets it in level flight
-// 7. WHAT IS NOT FITTED: a governed propeller (the engine's cs) and an unpowered build are genPropSynth's own
+// 7. A GOVERNED PROPELLER FLIES THE DISC (step 6, genPropGovern, 30_solver csThrust): no pitch to cut and no redline -
+//    standing it holds its static cap (fm 0.65 x the blade-count factor), then the thrust is the actuator disc's at the
+//    blade's efficiency at every speed and in every air; the quadratic it still publishes is the estimate through the
+//    disc at 0.4 x and 1 x the design top speed. The Twin Wasp's Hydromatic is one. An unpowered build has no propeller.
 // 8. A FIXED POINT: the built spec rebuilds the same propeller
 //   node tools/_propfit_check.js  -> "GATE PROPFIT: PASS|FAIL"   (seconds)
 'use strict';
@@ -100,13 +103,50 @@ under(fast, 'a faster one (IO-360, metal)');
   check(cl.V1 * k < cl.Vtop && cr.V1 * k > cr.Vtop, '6. the climb propeller meets its redline before the top speed (' + kmh(cl.V1 * k) + ' of ' + kmh(cl.Vtop) + '), the cruise one never in level flight (' + kmh(cr.V1 * k) + ')');
 }
 
-// ---- 7: what is not fitted ----------------------------------------------------------------------------------------------
+// ---- 7: a governed propeller ----------------------------------------------------------------------------------------------
 {
   const csKey = Object.keys(C.POWERPLANTS).find(k => C.POWERPLANTS[k].engine && C.POWERPLANTS[k].engine.cs);
-  const d = build(s => { s.engines[0].type = csKey; }), q = d.spec.prop;
-  check(!(d.params.prop.V1 > 0) && Math.abs(q.Tstatic * q.V0 / q.powerW / C.GEN_RULES.propV0K - 1) < 1e-9, '7. a governed propeller (' + csKey + ') keeps the synthesis\'s curve and has no redline speed');
+  const d = build(s => { s.engines[0].type = csKey; }), q = d.spec.prop, pq = d.params.prop, EN = d.params.engine;
+  const cs = pq.cs, bl = 1 + 0.055 * ((q.blades || 2) - 2), eb = F.etaBlade[q.material] || F.etaBlade.wood;
+  const disc = (V, rho, pk) => C.genPropDiscT(EN.powerW * (pk == null ? 1 : pk), q.area, V, eb, rho == null ? RHO : rho);
+  console.log('a governed one: ' + csKey + ' (' + (EN.powerW / 1000).toFixed(0) + ' kW, ' + q.blades + ' ' + q.material + ' blades, D ' + q.D.toFixed(2) + ' m); design top speed ' + kmh(q.Vtop) +
+              ' km/h; static cap ' + (cs ? cs.T0.toFixed(0) : '-') + ' N, efficiency at the top speed ' + (q.etaD || 0).toFixed(3));
+  check(!!cs && cs.T0 > 0 && cs.etaB === eb && !(pq.V1 > 0), '7. a governed propeller (' + csKey + ') carries the disc law (params.prop.cs) and no redline speed');
+  if (cs) {
+    const T0x = F.fmGoverned * bl * Math.cbrt(2 * RHO * q.area) * Math.pow(EN.powerW, 2 / 3);
+    check(Math.abs(cs.T0 / T0x - 1) < 1e-12 && cs.T0 < disc(0), '7. its static cap is fm ' + F.fmGoverned + ' x the blade-count factor of the ideal (' + cs.T0.toFixed(0) + ' N, under the disc\'s own ' + disc(0).toFixed(0) + ')');
+    const sim = C.makeSim(d, null); sim.reset(0);
+    const nE = d.params.nEngines || 1;
+    check(Math.abs(sim.thrustAt(0, 0) / (cs.T0 * nE) - 1) < 1e-9, '7. standing, the sim pulls the cap (' + sim.thrustAt(0, 0).toFixed(0) + ' N)');
+    let w = 0, mono = true, pe = 0;
+    for (let V = 5; V <= 1.3 * q.Vtop; V += 5) {
+      const T = sim.thrustAt(V, 0) / nE, X = Math.min(cs.T0, disc(V)); w = Math.max(w, Math.abs(T / X - 1));
+      const e = T * V / EN.powerW; if (e < pe - 1e-12) mono = false; pe = e;
+    }
+    check(w < 1e-9, '7. ...and at every speed to 1.3 x its top speed the thrust is min(cap, the disc\'s) (worst ' + w.toExponential(1) + ')');
+    check(mono && pe < eb && pe > 0.9 * eb * 0.85, '7. its efficiency climbs with the speed and stays under the blade\'s ' + eb + ' (' + pe.toFixed(3) + ' at 1.3 x the top speed)');
+    check(Math.abs(law(q, q.Vtop) / disc(q.Vtop) - 1) < 1e-9 && Math.abs(law(q, 0.4 * q.Vtop) / Math.min(cs.T0, disc(0.4 * q.Vtop)) - 1) < 1e-9,
+          '7. the published quadratic is the estimate through the disc at 0.4 x and 1 x the design top speed');
+    check(pq.Tstatic === q.Tstatic && pq.kV2 === q.kV2, '7. ...and the def carries it (params.prop.Tstatic, kV2)');
+    const Vc = 0.8 * q.Vtop, lo = sim.thrustAt(Vc, 0, 0), hi = sim.thrustAt(Vc, 0, 3000);
+    check(hi > 0 && hi < lo, '7. in thin air (3000 m) it pulls less at the same speed (' + hi.toFixed(0) + ' against ' + lo.toFixed(0) + ' N at ' + kmh(Vc) + ' km/h)');
+    // flown: one step at full throttle at 0.8 x the top speed - the thrust the solver applies is the disc's in that air
+    sim.reset(600); sim.ctl.thr = 1;
+    const [xA] = sim.axes(); for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = -Vc * xA[0]; sim.v[i * 3 + 1] = -Vc * xA[1]; sim.v[i * 3 + 2] = -Vc * xA[2]; }
+    sim.step(1 / 600);
+    const air = sim.probeAir(), Tf = sim.out.thrust, Tx = Math.min(cs.T0 * (air.kT == null ? 1 : air.kT), disc(Vc, air.rho, air.power)) * nE;
+    console.log('  flown at ' + kmh(Vc) + ' km/h, full throttle: thrust ' + (Tf || 0).toFixed(0) + ' N (the disc in that air: ' + Tx.toFixed(0) + ')');
+    check(Tf > 0 && Math.abs(Tf / Tx - 1) < 0.02, '7. flown at full throttle the thrust is the disc\'s (within 2 %: the spool and the step\'s own speed)');
+    const nR = EN.rpm / (EN.gear > 0 ? EN.gear : 1);
+    check(C.genShaftRpm(EN, pq, 1, 0, 1, 1, true) === nR && C.genShaftRpm(EN, pq, 1, q.Vtop, 1, 1, true) === nR, '7. its governor holds the rated ' + nR.toFixed(0) + ' rpm standing and at the top speed');
+  }
+  // the Twin Wasp's Hydromatic is a constant-speed propeller (the registry row says so)
+  const tw = C.POWERPLANTS.r1830_hs23e50;
+  check(!!(tw && tw.engine && tw.engine.cs === true), '7. the R-1830 / Hamilton Standard 23E50 row is governed');
+  // a fixed-pitch build carries no disc law
+  check(!stock.params.prop.cs && !stock.spec.prop.cs, '7. a fixed-pitch build carries no disc law');
   let un = null; try { un = build(s => { s.engines = []; }); } catch (e) {}
-  if (un && C.genUnpowered && C.genUnpowered(un.spec)) check(!(un.params.prop && un.params.prop.V1 > 0) && !(un.spec.prop.Tstatic > 0), '7. an unpowered build has no propeller to fit');
+  if (un && C.genUnpowered && C.genUnpowered(un.spec)) check(!(un.params.prop && (un.params.prop.V1 > 0 || un.params.prop.cs)) && !(un.spec.prop.Tstatic > 0), '7. an unpowered build has no propeller to fit');
   else console.log('  (no unpowered build from the stock spec: row 7b not read)');
 }
 

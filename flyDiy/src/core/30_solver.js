@@ -2588,6 +2588,13 @@ function makeSim(def, world) {
   // speed, and on every def without V1 (a governed propeller, an old def): the thrust they always had, to the bit.
   // `rpmK` a lower limit than the rated speed (a book's "at 2300 rpm" on a 2500 rpm motor: sim.thrustAt's fourth).
   const PR_V1 = (PR && PR.V1 > 0 && !(EN && EN.cs)) ? PR.V1 : 0;
+  // A GOVERNED PROPELLER FLIES THE ACTUATOR DISC (PHYSICS-AUDIT step 6, 2026-11-22; 60_gen_spec genPropGovern): the
+  // thrust at full throttle is the disc's at the blade's efficiency, capped standing (params.prop.cs { T0, etaB }) - in
+  // this air: the power by the engine's own lapse, the cap by the static scaling (kT). No cs record: the quadratic.
+  const PR_CS = (PR && PR.cs && PR.cs.T0 > 0 && EN && EN.powerW > 0 && typeof genPropDiscT === 'function') ? PR.cs : null;
+  function csThrust(V, rhoA, kT, pk) {
+    return Math.min(PR_CS.T0 * kT, genPropDiscT(EN.powerW * pk, PROPA, V, PR_CS.etaB, rhoA));
+  }
   const SHAFT_K2 = (() => { const sh = (typeof GEN_SHAFT !== 'undefined') ? GEN_SHAFT : { staticK: 0.92 }; return sh.staticK * sh.staticK; })();
   function thrLimit(V, sg, pk, rpmK) {
     if (PR_V1 === 0) return 1;
@@ -3375,7 +3382,7 @@ function makeSim(def, world) {
       // many engines make it. `params.nEngines` says that, and every def
       // states it. The registry's Tstatic/kV2 are PER PROPELLER.
       const nE = def.params.nEngines || 1;
-      const Tcap = Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
+      const Tcap = PR_CS !== null ? csThrust(Vfwd, rho, PS.kT, PS.power) : Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
       const TLIM = THR_LIM = PR_V1 > 0 ? thrLimit(Vfwd, sig, PS.power, 1) : 1;   // (PHYSICS-AUDIT step 3: the redline)
       // G194: PER ENGINE. Each engine's thrust is the pilot's throttle times
       // its own lever (ctl.eng, null = every lever full and on), and each
@@ -4841,6 +4848,8 @@ function makeSim(def, world) {
   function thrustAt(V, floor = 0, hAlt, rpmK) {
     const A = airOf(), sg = A.sigma(hAlt == null ? hProbe : hAlt);
     const PS = atmosPropScale(sg, ASP, FLAT, CRIT);
+    // (step 6: a governed propeller's is the disc's)
+    if (PR_CS !== null) return Math.max(floor, csThrust(V, A.rho(hAlt == null ? hProbe : hAlt), PS.kT, PS.power)) * (def.params.nEngines || 1);
     // (step 3: at full throttle the redline holds the thrust past the propeller's redline speed; rpmK a lower limit)
     if (PR_V1 > 0) return Math.max(floor, (PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V) * thrLimit(V, sg, PS.power, rpmK))
                           * (def.params.nEngines || 1);

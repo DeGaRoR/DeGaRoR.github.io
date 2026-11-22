@@ -29,6 +29,9 @@ const check = (ok, label, extra) => {
 const cl = o => JSON.parse(JSON.stringify(o));
 const within = (x, ref, tol) => Math.abs(x - ref) <= tol * ref;
 
+// the piston rows whose propeller is a constant-speed one (their hub, by name)
+const GOVERNED_PISTONS = new Set(['r1830_hs23e50']);   // Hamilton Standard 23E50 Hydromatic
+
 function run() {
   fail.length = 0;
   // ---- 1. THE CENSUS: every row carries a rated speed ----------------------
@@ -36,8 +39,12 @@ function run() {
     const e = row.engine || {};
     check(e.rpm > 0 && e.rpm <= 14000, 'census: ' + k + ' carries a rated rpm');
     check(e.gear === undefined || (e.gear >= 1 && e.gear <= 5), 'census: ' + k + ' gear in 1..5');
-    check(!!e.cs === (e.aspiration === 'turbine'),
-      'census: cs (constant-speed) on every turbine row and no other', k);
+    // (re-stated 2026-11-22, PHYSICS-AUDIT step 6: it read "cs on every turbine row and no other". The R-1830's row is
+    //  sold with the Hamilton Standard 23E50 Hydromatic, a constant-speed propeller, and since step 6 `cs` is what makes
+    //  a propeller fly the governed law - so the row says so. The check stays as strict: every turbine row, the piston
+    //  rows NAMED here, and no other.)
+    check(!!e.cs === (e.aspiration === 'turbine' || GOVERNED_PISTONS.has(k)),
+      'census: cs (constant-speed) on every turbine row, the named governed piston rows, and no other', k);
   }
 
   // ---- 2. THE LAW, on the A-65 / 74CK -------------------------------------

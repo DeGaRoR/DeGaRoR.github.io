@@ -416,7 +416,10 @@ const POWERPLANTS = {
     price: 78000,   // PRICE-CAL: 65000 -> 78000 (overhaul $60-100k (est.))
     // 'super' since the blower model (2026-09-05): rated to 1 500 m, the
     // -92's 4 900 ft low-blower critical altitude
-    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2700, gear: 1.78 },
+    // (PHYSICS-AUDIT step 6, 2026-11-22: `cs` - the propeller of this row is the Hamilton Standard 23E50 Hydromatic, a
+    //  constant-speed propeller: it flies the governed law, 60_gen_spec genPropGovern, and its tachometer holds the
+    //  rated speed, as the turbines' rows do)
+    engine: { name: 'P&W R-1830 Twin Wasp', mass: 750, powerW: 895000, aspiration: 'super', critAlt: 1500, family: 'four', cooling: 'air', layout: 'radial', rpm: 2700, gear: 1.78, cs: true },
     prop:   { name: 'Hamilton Standard 23E50', D: 3.4, Tstatic: 11000, kV2: 0.543 },
   },
   io360_mccauley: {

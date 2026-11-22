@@ -2936,8 +2936,13 @@ function genPropSynth(pr, pitchKey) {
 //                          shaft law the tachometer already reads (00_registry genShaftRpm: n^2 = t nS^2 + (nR V /
 //                          V1)^2, V1 = Vred / sqrt(1 - staticK^2)), so the needle and the thrust agree; the solver
 //                          holds the throttle to what keeps n at the redline (30_solver thrLimit)
-// A constant-speed propeller (the engine's `cs`) is not fitted here: it keeps genPropSynth's curve until its own law
-// (the audit's step 6). An unpowered build has no propeller.
+// A CONSTANT-SPEED PROPELLER (the engine's `cs`; PHYSICS-AUDIT step 6, 2026-11-22; genPropGovern below) has no pitch to
+// be cut for: its governor turns the blades to absorb the power at every speed, so it flies the actuator disc ITSELF -
+// T = min(its static cap, genPropDiscT(P, A, V, etaBlade)) - from the take-off roll to the top speed, and has no
+// redline to meet (the governor holds the rpm). The quadratic cannot follow that curve: laid through its static and
+// top-speed thrust it over-reads the climb by 7-23 %. The solver flies the disc (30_solver csThrust, params.prop.cs);
+// Tstatic and kV2 are still written, as the quadratic through the disc's thrust at 0.4 x and 1 x the design top speed,
+// for the readers that estimate with them (the pilot's, the hull's and the drive's). An unpowered build has no propeller.
 const GEN_PROP_FIT = {
   etaBlade: { wood: 0.79, maple: 0.79, walnut: 0.79, alu: 0.84, carbon: 0.84 },
   design:   { climb: 0.85, standard: 1.0, cruise: 1.10, seaplane: 0.75 },
@@ -2947,6 +2952,10 @@ const GEN_PROP_FIT = {
   eBiplane: 1.1,
   // how far the quadratic may stand over the disc's thrust between the design speed and 1.5 x it
   over: 1.03,
+  // a governed propeller standing: the figure of merit of full-power constant-speed propellers tied down (FM 0.49-0.59,
+  // Hartzell and MT statics on the O-360, Flight Resource's tests for STC SA02245CH: fm = FM^(2/3) 0.62-0.70), x the
+  // blade-count factor genPropSynth uses
+  fmGoverned: 0.65,
 };
 // the actuator disc: the thrust a propeller of disc A absorbing P makes at V, at blade efficiency etaB (standing: the
 // momentum figure (2 rho A)^(1/3) (etaB P)^(2/3)). A fixed 12-pass relaxation: smooth in every argument
@@ -3027,6 +3036,25 @@ function genPropIdleK(eng, pr, state) {
   if (state === 'stopped') return K.stopped;
   if (state === 'dead') return e.cs ? K.governedDead : K.dead;
   return K.run;
+}
+
+// A GOVERNED PROPELLER'S NUMBERS (step 6): `pr` as genPropSynth left it, `o` as genPropFit's. Writes pr.cs { T0, etaB }
+// (the solver's law), the estimating quadratic (Tstatic, kV2, V0, VPeak) and Vtop; returns pr, or null (nothing to do)
+function genPropGovern(pr, o) {
+  const F = GEN_PROP_FIT;
+  if (!pr || pr.none || !(pr.Tstatic > 0) || !(pr.powerW > 0) || !o || !(o.f > 0) || !(o.W > 0) || !(o.S > 0) || !(o.eAR > 0)) return null;
+  const A = pr.area > 0 ? pr.area : Math.PI * pr.D * pr.D / 4, etaB = F.etaBlade[pr.material] || F.etaBlade.wood;
+  const T0 = F.fmGoverned * (1 + 0.055 * ((pr.blades || 2) - 2)) * Math.cbrt(2 * RHO * A) * CORE_MATH.pow(pr.powerW, 2 / 3);
+  pr.cs = { T0, etaB };
+  const Vt = genPropVtop({ P: pr.powerW, nE: o.nE > 0 ? o.nE : 1, A, etaB, f: o.f, W: o.W, S: o.S, eAR: o.eAR });
+  if (Vt > 0) {
+    const Ta = Math.min(T0, genPropDiscT(pr.powerW, A, 0.4 * Vt, etaB, RHO)), Tb = genPropDiscT(pr.powerW, A, Vt, etaB, RHO);
+    pr.kV2 = Math.max(1e-9, (Ta - Tb) / (Vt * Vt * (1 - 0.16)));
+    pr.Tstatic = Tb + pr.kV2 * Vt * Vt;
+    pr.V0 = Math.sqrt(pr.Tstatic / pr.kV2); pr.VPeak = pr.V0 / Math.sqrt(3);
+    pr.Vtop = Vt; pr.Vd = Vt; pr.etaD = Tb * Vt / pr.powerW;
+  }
+  return pr;
 }
 
 // WHICH PITCH THIS AEROPLANE WANTS, given the stall speed its wing actually
@@ -4404,6 +4432,9 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      step 5  (2026-11-22) the drag rows the study supports (GEN_DRAG.float / hullK / radialWake): a floatplane pays its floats and
 //              their struts where it paid a phantom wheeled gear, a hull half again a fuselage's body row, a bare
 //              radial's fuselage less the form drag the engine already pays - every float, hull and bare-radial build
+//      step 6  (2026-11-22) a governed propeller flies the actuator disc itself (genPropGovern, 30_solver csThrust):
+//              every build whose engine is `cs` - the turbines, and the Twin Wasp's Hydromatic (the registry row now
+//              says so) - climbs and cruises on etaBlade x the disc's ideal efficiency, and stands on fm 0.65
 const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
