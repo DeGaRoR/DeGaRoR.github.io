@@ -62,8 +62,8 @@ else say "part 2b SKIPPED: $(left) min left"; fi
 for cq in base latebg; do
   if [ $(left) -ge 9 ]; then
     Q="recring=131072"; [ $cq = latebg ] && Q="$Q&latelinks=bg"
-    say "part 2c: the crash, $cq ($Q), cap 9 min, crash_cub_quick (the taxi skipped: 215 s of it ran a 420 s cap out on 22 Nov)"
-    ( cd "$LAB/flyDiy" && timeout 520 nice -n 19 node tools/flight_script.js "$W/tools/flight_scripts/perf/crash_cub_quick.json" --runner page --headed --live --size 5120x1271 --q "$Q" --out "$OUT/crash_$cq" --cap 480 ) 2>&1 | tail -12 | tee -a "$LOG"
+    say "part 2c: the crash, $cq ($Q), cap 9 min, crash_cub_nosedown (the nose put down from 50 m by the hand: the user, 22 Nov - the 45 m drop is not representative)"
+    ( timeout 520 nice -n 19 node tools/flight_script.js "$W/tools/flight_scripts/perf/crash_cub_nosedown.json" --runner page --headed --live --size 5120x1271 --repo "$LAB" --q "$Q" --out "$OUT/crash_$cq" --cap 480 ) 2>&1 | tail -12 | tee -a "$LOG"
     J=$(ls -t "$OUT"/crash_$cq/*.flightlog.json 2>/dev/null | head -1)
     if [ -n "$J" ]; then nice -n 19 python tools/perf/user_log.py "$J" --md "$OUT/crash_$cq/against-objectives.md" 2>&1 | sed -n '/^## Row 14/,/^## /p' | head -30 | tee -a "$LOG"
     else say "NO FLIGHT LOG for the $cq crash"; fi
