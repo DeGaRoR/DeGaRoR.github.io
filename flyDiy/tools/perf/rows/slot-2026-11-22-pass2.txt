@@ -1,6 +1,11 @@
 # THE BIG PERF SLOT, Sun 22 Nov 2026: PASS 2 (after pass 1, the journey and AUDIO's recordings). Same build, same rules.
 # TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
 
+# ---- first: everything that helped in pass 1, together (EDIT THIS QUERY from pass 1's summary, during the journey) ----
+ALL_1       ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&pace=16 ; new ; H5K ; --rollout
+ALL_2       ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&pace=16 ; new ; H5K ; --rollout
+BASE_7      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
+
 # ---- pass 2: the same questions, the other order ----------------------------------------------------------------
 BASE_4      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
 N2NOONFIX_2 ; D:/Dev/perf-lab-built ; day=night&lampsfixed=1 ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
@@ -19,8 +24,3 @@ LOGS0_2     ; D:/Dev/perf-lab-built ; shaderlogs=0 ; new ; H5K ; -
 PACE16_2    ; D:/Dev/perf-lab-built ; pace=16 ; new ; H5K ; -
 PACE0_2     ; D:/Dev/perf-lab-built ; pace=0 ; new ; H5K ; -
 BASE_6      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
-
-# ---- last: everything that helped, together (EDIT THIS QUERY from pass 1's summary before it is reached) ---------
-ALL_1       ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&pace=16 ; new ; H5K ; --rollout
-ALL_2       ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&pace=16 ; new ; H5K ; --rollout
-BASE_7      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
