@@ -3,14 +3,22 @@
 Base: origin/master 9349a62c1 (train L40h), core battery 301 PASS / 61 FAIL on the box (A0's `land_L40H_gates.log`).
 Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is kept current: read the STATUS block first.
 
-## STATUS (updated 22 Nov, block 1)
+## STATUS (updated 22 Nov, block 2)
 
-- 61 reds. **16 have a fix or a reasoned re-pin on this branch** (green-1, below). 5 are in hand elsewhere. 40 are for
+- 61 reds. **17 have a fix or a reasoned re-pin on this branch** (green-1, below). 5 are in hand elsewhere. 39 are for
   owners or still being traced; every one has a first read in the table.
-- **green-1 is NOT pushed as a ready yet.** Each of its 16 gates passes when run alone here, except ACCEPT (a 300 s
-  gate, not re-run yet). The battery on the branch has not been run: the cloud baseline of master is still running
-  (the 61 reds first, then the 301 greens; 4 CPUs, about 3.5 h in all). The ready is pushed after both batteries, with
-  the two FAIL lists in its commit message.
+- **A REAL L40h REGRESSION, live on master (read this one first):** ELECTRIC-TRAINER cfe477466 added four garage rows
+  (`frLeanCap`, `boomRound`, `boomRoundAt`, `finVentralLand`) without a `CAGE_DEFAULT_ABSENT` entry, so the save writes
+  them at their defaults into EVERY joined build. Every validated build's bench / parked / certificate-store /
+  procurement key moved at L40h (GATE STOL: "keys MOVED" on all six builds at L40h, on the Cub alone at L40f / L40g).
+  Proven here: with the four declared absent the Cub's joined def is L40f's again but for REG-PLACE's three decal
+  numbers. The fix is one line; it is NOT in green-1 (it moves every fingerprint back, so the cooked packs must be
+  checked with it): it is green-2, next.
+- **green-1 is NOT pushed as a ready yet.** Each of its 17 gates passes when run alone here, except ACCEPT (a 300 s
+  gate, not re-run yet). The battery on the branch has not been run: the cloud baseline of master's 61 reds is
+  still running (this 4-CPU box runs the gates 2-3x slower than A0's). Then the whole core battery runs ON THE BRANCH,
+  once; its FAIL list is compared with A0's L40h list, and any gate red here and green there is run alone on master to
+  tell this box from a regression. The ready is pushed after that, with both lists in its commit message.
 - Nothing here weakens a gate. Every re-pin names the change that moved the pin and is its own commit.
 
 ### What A0 can relay now
@@ -18,7 +26,7 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
 | to | what |
 |---|---|
 | AIRCRAFT-LOOKS (livery) | NAMES: a livery mark is shown as "Alaska" (a real name by the user's table) and the row hint says "the twelve Alaska marks". |
-| FLAGSHIP | CANDIDATES (jodel_geo, superpetrel_V4_1 have no index row); FLEX + LOAD (the softShell cantilever folds); TANKMOUNT (the Archaeopteryx tank); the E811 rows already named (MONOWHEEL, TAILWHEEL). |
+| FLAGSHIP | **the four ELECTRIC-TRAINER rows written at their defaults (above)**; DESIGNCHECK (the carbon boom reads 2.4x softer than its drawn shell since HULL-B50's k x0.55); CANDIDATES (jodel_geo, superpetrel_V4_1 have no index row); FLEX + LOAD (the softShell cantilever folds); the Archaeopteryx card (TANKMOUNT's tank at x0.45; `GP_PARKED_FOOT.archaeopteryx` half 5.5 m against a 6.50 m half-span, TAXICLEAR 1); the E811 rows already named (MONOWHEEL, TAILWHEEL). |
 | TOW-LAUNCH | CANDIDATES (buggy, roadster have no index row); TERRAINMATCH's pavement budget (+2 %, the joined roads). |
 | SKYLINE-RESORT | RWYLIGHTS: the footpath `tw_p_launch` runs along tw_ski's light line, 7 of 24 lights left out. |
 | Deform | DMGDETERMINISM: 44 builtin `Math.sin / cos / pow` sites in src/core (list in the log); plus the older DMG rows below. |
@@ -68,18 +76,18 @@ owner named; **tracing** = this session is still on it.
 | RWYLIGHTS | REAL (scenery) | tw_ski (280 x 6) keeps 17 of 24: the dirt footpath `tw_p_launch` along the edge (6 left out, 2 flush) and the pad `tw_m_launch` (1); in with AFB-0220-B3's merge of skyline-resort-2 c5f99c8b3 | SKYLINE-RESORT | move the path off the light line, or declare 17 as w4 / w5 are declared | owner |
 | JOINPARITY | PIN + REAL | (1) Jodel node 470.666 vs page 469.732 kg: the page capture (15 Nov 04:43) is older than REAL-CANON's landing (L40d merge f1cb81f9e, 19:01; the harness +0.93 kg). (2) six tools read a validated build raw: large_hangar_shot, large_hangar_store_shot, _muddeposit_check, _qscut_check, _tutorlock_check, _unify_check | (1) orphan (2) HOME-DERELICT, GROUND-FX, QUICKSHOT, Game, Pilot | (1) re-capture the Jodel (running here, headless Chromium) (2) through tools/_load_build.js, or declared at its door | (1) tracing (2) owner |
 | DMGDETERMINISM | REAL | the census: 44 `sin / cos / pow` sites in src/core on the builtin, not CORE_MATH (00_registry groundSink*, 07e_soil_wet, 26b_strip_micro, 28c_biomes, 29_obstacles, 29c_ski, 32_hydro, 43_pilot gTerr, 60_gen_spec, 62_gen_aero, 62c gear) | Deform + each site's author | CORE_MATH at each site (bits may move: needs the battery) | owner |
-| DESIGNCHECK | ? | "200 N sideways at the post": 4.2 mm against the drawn carbon shell's 1.8 mm (2.37x, the band is 2x). Suspect HULL-B50's carbon k x0.55 (1 / 0.55 = 1.8) | FLAGSHIP | to bisect (a lifted probe is ready) | tracing |
+| DESIGNCHECK | REAL (a side effect of a wanted change) | "200 N sideways at the post": 4.20 mm against the drawn carbon shell's 1.77 mm (2.37x; the band is 2x). HULL-B50 4ab3c819d (carbon k x0.55): its parent reads 2.83 mm (1.60x), the commit 4.20 - bisected; on master since L35c's merge of seaplanes 7d6ad8b11 | FLAGSHIP | the shell cluster carries the boom's stiffness, or its owner re-argues the band; not widened here | owner |
 | FLEX | REAL | (1) the WEIGHT STUDY's `softShell` material in the matrix: "softShell cantilever" doubling 1.21x, folds 39 %, never reached cruise. (2) "tail arm: the tube factor is live" (since L31b gear-falls, 8 Nov sweep) | FLAGSHIP | (1) a soft shell is not a cantilever: the garage's rule or the matrix (2) owner | owner |
 | LOAD | REAL | the same row: "GEN softShell cantilever" does not survive the ultimate load | FLAGSHIP | as FLEX (1) | owner |
 | TANKMOUNT | ? | archaeopteryx x0.45: a tank that fits has vertices past a surface (2374) and 63 points inside it | FLAGSHIP | - | owner |
 | ENGTORQUE | ? | "SIGN swirl": both hands swing the same way. 8 Nov sweep: L31c, TAILWHEELS 3cfc6d101 (the new tail contact dominates the swing) | Pilot / FLAGSHIP | - | owner |
-| ENGCONFIG | ? (PIN likely) | every build's two hashes differ from the pinned master's | FLAGSHIP | to trace | tracing |
-| STOL | ? (PIN likely) | (1) three cards differ from master 9f77ac48f's bits: spitfire (fly), motorglider, etrainer (def, fly, draw). (2) six validated builds "joined here to master's spec DIFFERS" (the bench / parked / certificate-store / procurement keys moved) | Pilot / FLAGSHIP | to trace | tracing |
-| SKIS | ? (PIN likely) | seven builds' `def` hash moved; the sheet and 300 flown steps are the base's for six (carbon_cub_ss moved in all three) | FLAGSHIP | to trace | tracing |
-| POD | ? (PIN likely) | "pod off, the whole def is the base's bytes": moved on all six, and the certificate / 300 steps | Game | to trace | tracing |
+| ENGCONFIG | ? (PIN likely) | 1 IDENTITY: every build's two digests differ from the pinned master's (last re-pinned 12 Nov, ENGINE-COOLING 3; the physics canon and L40a's brakes / engine lump came after) | FLAGSHIP | to trace by train, then re-pin naming each change | tracing |
+| STOL | REAL + PIN | (1) three cards differ from master 9f77ac48f's bits: spitfire (fly, since L40g), motorglider and etrainer (def, fly, draw, L40h: the E811 change). (2) the six validated builds' joined spec differs and their keys MOVED: **the four leaked ELECTRIC-TRAINER rows** (L40h, real); under it L40e's colours and tank profile and L40g's REG-PLACE decals (wanted) | FLAGSHIP (the leak) | green-2: the four rows absent at default, then the baseline re-captured with each remaining move named | tracing |
+| SKIS | REAL + PIN | 1 "absent is as today": six builds' def digest moved while their sheet and 300 flown steps are the base's to the bit (the base: L40d). The Cub's def diff, measured: L40e's tints + two tank-profile numbers, L40g's three REG-PLACE decal numbers, L40h's four leaked rows. carbon_cub_ss moved in all three (CARBON-CUB-FINAL, wanted) | FLAGSHIP (the leak) | green-2, as STOL | tracing |
+| POD | ? (PIN likely) | "pod off, the whole def is the base's bytes": moved on all six, and the certificate / 300 steps. PASS on L38c2 4d7b99acf (its 12 Nov re-pin); the trains since are being run one by one | Game | to trace by train, then re-pin naming each change | tracing |
 | GEN | ? | "cruise is quiet in wind": bank p2p 11.6 deg | Pilot | - | owner |
 | RADIALDIV | ? | mosquito, mosquito_1: not airborne inside 300 s (new); cub hands off 20 s, the heading moved -176 deg (8 Nov sweep: first red a0aeeeee9, G2080 ENGINE-TORQUE, 12 Oct) | Pilot | - | owner |
-| TAXICLEAR | ? | (shard 0) the archaeopteryx footprint does not hold its nodes (half 6.50 / 5.5); (11c) the C172 off the altiport: the too-short take-off is not rejected | Pilot + FLAGSHIP | - | owner |
+| TAXICLEAR | REAL (data) + ? | (1) `GP_PARKED_FOOT.archaeopteryx` is [5.5, 0.6, 5.5] (25_airfield.js:659) and the card builds a 6.50 m half-span; (11c) the C172 off the altiport: the too-short take-off is not rejected | FLAGSHIP (1), Pilot (11c) | (1) the row to the card's span | owner |
 | ALTIPORT | ? | 2: the Cub's final begun under the circuit height; 3: the doctored arrival not caught; 4: the metal Cessna breaks up at tw_ski (8 Nov sweep: rows 2-3 since L31c pilot1-circuit) | Pilot | - | owner |
 | GLIDE | ? | CIRCUIT archaeopteryx (motor off): landed off the field, sink 17.5 m/s, capsized | Pilot + FLAGSHIP (the card's pitch) | - | owner |
 | UNIFY | ? | STRIP: the Cub off-strip at tw_ski (every person); TAIL: the C172 at tw_ski; EMERG: the student lands 1.2 m off Cannery Runway | Pilot | the 6 m roll-out (owed, A0's L40g note) | owner |
@@ -95,7 +103,7 @@ owner named; **tracing** = this session is still on it.
 | DMGDAMP | ? | angular momentum drifts in the vacuum spin, 15 rows (8 Nov sweep: since a69f31fda) | Deform | - | owner |
 | DMGTYRE | ? | taxi turns tighter than the band; the Cub's crosswind roll-out 28.9 deg (8 Nov sweep: since a69f31fda) | Deform | - | owner |
 | DMGFABRIC | PIN? | "damage OFF - the base's bits" on the Cub and the metal Cessna (8 Nov sweep: stale pin, probable) | Deform | - | owner |
-| WILGAGEAR | ? | the trailing link with the root fitted (lvJoint 1): no boot drawn on the legs | FLAGSHIP / Deform | - | owner |
+| WILGAGEAR | REAL (a garage bug) | tools/_cage_eng.js assigned `window.CAGE_PYLON` twice (WILGA-GEAR 6a6097c49 `{caster, hug, NS}`; the cabane pylon 1f0c59fa9 `{pylonCaster, ...}`): the second replaced the first and "leg fairing root: fitted to the body" threw `CP.caster is not a function` - no gear drawn at all | orphan | one object, both sets of names (59/59) | green-1 |
 | OBSTACLE | ? | against the wall under a third of throttle: 1.54 m/s into / off the wall (L40g: joint-tether / contact) | Deform / Pilot | - | owner |
 | ROUGHWHEEL | ? | A: the 0.15 m wheel does not stop at the 15 cm stone; the ordering of the wheels (L40g) | Deform / Pilot | - | owner |
 | CONTACT | ? | Jolene strip gravel / grass: the drawn surface off terrainH (p5 -13.6 mm); 02/20's band over other pavement (25749 of 38764) | DIRT-STRIP | - | owner |
@@ -106,7 +114,7 @@ owner named; **tracing** = this session is still on it.
 
 ## green-1: what it holds
 
-Seven commits on `claude/master-green`, in this order; the re-pins are their own commits.
+Eight commits on `claude/master-green`, in this order; the re-pins are their own commits.
 
 1. Three stale source pins: GROUNDQUERY, ACCEPT, WINGSTRUCT (gate files only).
 2. ENERGYBASE re-blessed (carbon, electric).
@@ -116,6 +124,7 @@ Seven commits on `claude/master-green`, in this order; the re-pins are their own
 5. ENGINE re-pinned (ENGINE-DIALS A).
 6. TREES, SHADOWSKY, LAKEBED re-pinned.
 7. WINGROWS re-pinned.
+8. WILGAGEAR: `CAGE_PYLON` one object (tools/_cage_eng.js).
 
 Still owed before the ready: the (built) commit, the gates that read the changed files, the battery, the two lists.
 
