@@ -140,6 +140,9 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   if (!HEADED) await cmd('Emulation.setDeviceMetricsOverride', { width: SW, height: SH, deviceScaleFactor: 1, mobile: false });
   let VP = [SW, SH];   // the viewport the screenshots clip to: the emulated one, or (headed) the window's own, read below
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: INJECT });
+  // --init-file <js file> (22 Nov): a script run in the page BEFORE any of its own (a window.FLYDIY_* switch a test
+  // needs set before the boot reads it). Named in the run's output: a seeded run is never mistaken for a plain one.
+  { const f = opt('init-file', null); if (f) { await cmd('Page.addScriptToEvaluateOnNewDocument', { source: fs.readFileSync(f, 'utf8') }); console.log('  init ' + f); } }
   // a same-origin page first, so the profiler survives the navigation (a
   // cross-origin hop would swap the renderer process)
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub

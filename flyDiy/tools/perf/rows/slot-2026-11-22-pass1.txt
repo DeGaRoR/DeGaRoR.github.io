@@ -25,6 +25,8 @@ DMGOFF_1    ; D:/Dev/perf-lab-built ; dmglook=0&scuff=0&cracks=0 ; new ; H5K ; -
 OLDPAV_1    ; D:/Dev/perf-lab-built ; pavepolybound=0&pavereuse=0 ; new ; H5K ; -
 STRIPW_1    ; D:/Dev/perf-lab-built ; stripw=1 ; new ; H5K ; -
 NEARFIRST_1 ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; --rollout
+# (on the box the worker may finish before the strips' stage: nothing is then held coarse. This row FORCES the landing path.)
+NEARHOLD_1  ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; --rollout --init-file tools/perf/init_striphold.js
 SETTLE_1    ; D:/Dev/perf-lab-built ; settle=near ; new ; H5K ; --rollout
 WORLDALL_1  ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout
 BASE_3      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
