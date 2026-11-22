@@ -5,6 +5,13 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
 
 ## FOR A0, 22 Nov 10:55 UTC - YOUR L40J CANDIDATE BATTERY
 
+- **PARTIAL RESULT, 11:50 UTC, chunk 1 of 8 (the first 52 gates of the table, COVERIDLE .. TAXICLEAR): 44 PASS, 8 FAIL.**
+  **NEW reds: FMIST, TAKEOFF.** L40h's own: GROUNDQUERY FLIGHTREC STOL GEN RADIALDIV TAXICLEAR. Neither new one is this
+  box (no memory kill, both deterministic):
+  - FMIST: three rows - "atmo.js: every pocket switch is a ternary whose off arm is what was there (5 sites)", "the
+    stored choice compiles the veil alone", "nothing stored, no flag: ON - the veil alone". Source rows on atmo.js.
+  - TAKEOFF: "technique c172: to 15 m 794 m in [0.6, 1.4] x 514 m (C172S POH)" - the C172's take-off to 15 m is 1.54 x
+    the book's.
 - **Running here since 10:52 UTC** on origin/claude/train/L40J-candidate f80229d71: the 364 core gates / 387 jobs,
   `GATES_CORE=1`, `--no-build`, `--jobs=4`, `node --max-old-space-size=4096`. 4 CPUs / 15 GB, about 1.5x slower per core
   than the box: 6-8 h.

@@ -1,0 +1,760 @@
+FAIL (8 of 52 gates run; PARTIAL: 1 of 8 chunks, 312 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF
+L40h reds that PASS here: none  (of the gates run so far)
+L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
+Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. Eight chunks of the gate table, in table order, each kept as it ended (this container restarted once today and a single run loses every verdict). --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
+A red marked [L40H] is in land_L40H_gates.log's FAIL list (master 9349a62c1, 61 reds); it may still fail on another check: compare the block. SKIP: none.
+######## chunk 0 of 8 (52 gates) ########
+=== COVERIDLE ===
+GATE COVERIDLE: PASS
+=== NIGHTVISIBILITY ===
+GATE NIGHTVISIBILITY: PASS
+=== NIGHTEXPOSURE ===
+GATE NIGHTEXPOSURE: PASS
+=== INTROSCENE ===
+GATE INTROSCENE: PASS
+=== INTROSTATE ===
+GATE INTROSTATE: PASS
+=== PACKINPUTS ===
+GATE PACKINPUTS: PASS
+=== HULLWARM ===
+GATE HULLWARM: PASS
+=== COOKWAIT ===
+  ok   synchronous transport throw preserves failure without pending deadline
+  ok   pending requests retain default/custom timeouts and fail as before
+GATE COOKWAIT: PASS
+=== FLIGHTEVIDENCE ===
+GATE FLIGHTEVIDENCE: PASS
+=== WINDRASTER ===
+GATE WINDRASTER: PASS
+=== SCENEDETAIL ===
+{"sampled":4,"offUs":0.798831233333334,"onUs":0.8962654333333339,"deltaUs":0.09743419999999992,"off":[0.717459599999999,0.7809084999999996,0.798831233333334,0.8188714000000005,0.8382667666666673],"on":[0.8696227333333316,0.8897737666666652,0.8962654333333339,1.1532290999999988,1.7571247333333342]}
+GATE SCENEDETAIL: PASS
+=== GROUNDQUERY ===
+
+[stderr]
+node:internal/assert/utils:77
+    throw err;
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(src.split(anchor).length === 2)
+
+    at Object.<anonymous> (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_groundquery_check.js:24:3)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.23.5
+(exit code 1)
+=== PLOTQUERY ===
+PLOTQUERY: PASS 17279 exact public cover queries; polygon checks 1000 vs 460500
+GATE PLOTQUERY: PASS
+=== PATCHBOUNDS ===
+PASS warm grid vertex reads 27 vs 67500 full walk
+PASS background cap; unchanged forced, explicit-nMax and cheap-quadrant limits
+GATE PATCHBOUNDS: PASS
+=== PACECADENCE ===
+GATE PACECADENCE: PASS
+=== SCENERYLIGHTS ===
+GATE SCENERYLIGHTS: PASS
+=== AA ===
+34/34 checks
+GATE AA: PASS
+=== POSTFX ===
+34/34 checks
+GATE POSTFX: PASS
+catcher run: {"reads":1,"eyeReads":0,"eyeAdapts":40,"queries":11,"trips":1,"events":1,"eyeMs":44}
+=== INPUT ===
+  club/keys: bank held 41° (ArrowRight → right), pitch +9.3° → re-engaged: peak |pitch| 12°, peak bank 27°, bank at 20-25 s 3.7°, alt loss 10 m, ENROUTE OK
+128/128 checks
+GATE INPUT: PASS
+=== ATMOS ===
+  ok   and clearing the weather restores the exact zero
+ISA to 0.2% over 11 km; sea level exact; hot-and-high 420 m / 35 C = DA 1133 m, sigma 0.896, piston thrust 89%, electric 96%
+GATE ATMOS: PASS
+=== HYPOT ===
+PASS random: 4000000 triples, 4000000 pairs - 0 / 0 differ
+PASS specials: 2366 combinations - 0 differ
+GATE HYPOT: PASS
+=== SUBSTEP ===
+  test_copies/build_v10_c172_wipline2350_2026-09-20.json the flight box: 200 -> 120 substeps, 66 wing springs softened (x0.27 at most), network 2.71
+41 builds, 9 on the dampers' step: 285 substeps saved between them; 18 fly the flight box: 1016 substeps saved between them
+GATE SUBSTEP: PASS
+=== PACE ===
+PASS   a rig: nothing drawn between steps (0 swaps), the newest step as before
+PASS   the positions moved outside the steps (a reset): the pair dropped, the aeroplane drawn where it now is (x -500)
+GATE PACE: PASS
+=== FLIGHTREC ===
+PASS the module publishes window.FLIGHT_REC
+PASS 1 each slot has its section's time (script 0.40, solver 2.00, world 1.50 with prem 0.50 / cover 0.25 out, render 3.00 with shadow 1.50 out)
+PASS   the split sums to the work (10.150 = 10.150 ms)
+PASS   the wall interval 33.3 ms, steps owed 2 / taken 2
+PASS   draws 9 and triangles 2500 (renderer.info after each render, summed)
+PASS   the probe: agl 100, speed 41, phase CLIMB, camera chase, flags 66
+PASS   G3322 the flight's columns: hdg 271.5, pitch 11.25, bank -3.5, beta 1.5, ias 22.5, ail 0.25 elev -0.125 rud -0.375 thr 1 brake 0 brd 0.5 flap 0.25, pilot club, wind 4.5 m/s from 250; 52 columns
+PASS   a link in the frame: shader 5.00 ms (link 2 + the status wait 3), render still 3.00, events link 2, linkwait 3
+PASS 3 the GL wrappers return what the GL returns (link-ret, log-of-7, true, other-35), the link made once
+PASS   render() and the shadow map's render() pass their arguments and return their values (5 renders, 5 shadow passes)
+PASS   the GPU time of the frame: 8 of 12 frames timed so far (3 in 4 are the recorder's; read in batches every 4th frame), 5 ms each, never nested
+PASS   another module's timer mid-frame, unasked: theirs ok, ours yielded (frame flagged, no GPU time, rogue 1) and stays off (0 of ours in the next 30 frames)
+PASS   a timer that asks: it timed 8 of 32 frames (refused 24), the recorder 30 of 30 it asked for, nested 0, rogue still 1
+PASS 2 a 400 ms interval is KEPT: dt 400, flagged freeze, an event (1), counted (1)
+PASS   the meter counts it: max 400 ms, 6.9 fps over the window
+PASS   a 3 s gap with the page hidden: flagged away (80), not a freeze (still 1)
+PASS   ...and the meter leaves it out (max 16.7 ms)
+PASS   a frame abandoned mid-loop is closed by the next begin (its world 4 ms kept)
+PASS   a held frame (the loading screen's) is a row flagged noRender
+PASS 4 3000 frames through a 1024 ring: chunks 0,1,2,3,4,5,6,7,8,9,10 handed on as they fill, chunk 5 holds frames 1280-1535 (x 1280..1535)
+PASS   the log's JSON parses: the ring's last 1024 frames (x 1976..2999), the header's 52 columns
+PASS   G3322 the header: format v2, the flight's 15 columns with their units, the pilot's codes, 0 flights
+PASS 5 a clean session: the phases boot 60, stand 60, taxi 56, take-off 60, climb 40, cruise 33 fps; the reveal found
+PASS   every ROLLOUT target PASS on it: frame100 PASS, slow3s PASS, stand50 PASS, taxi50 PASS, task1s PASS
+PASS   a session with a 150 ms freeze, 4 s at 20 fps climbing, a 40 fps taxi, a 1.2 s task: frame100 FAIL, slow3s FAIL, stand50 PASS, taxi50 FAIL, task1s FAIL
+PASS   the worst frame: 150 ms at the stand, with the long task and the link in its interval and the frame before's split
+PASS   the longest stretch below 30 fps: 4.00 s in the climb
+PASS   the frame-length distribution: <20 67 % · 20-40 28 % · 40-60 5.6 % · 60-100 0 % · 100-250 1 fr · 250-1000 0 % · >1000 0 % | p50 16.7 p90 25 p99 50 p99.9 50 ms | >1.5x cap 5.6 %, >3x 0.070 % | >100 ms 1, >1 s 0 (1439 fr)
+PASS   under the hand (the autopilot's phase ignored): boot 239, stand 120, taxi 120, take-off 120, climb 120, cruise 120, descent 120
+PASS   two reveals (a screen lifted by its timeout, then for good): scored from the first (2 reveals, 299 frames scored)
+PASS   the report prints (94 lines)
+PASS 5b G3322 one 'flight' event at the flight's start (asked 1x): HOME > w3, club, damage true; the header's flight is it
+PASS   the take-off: from HOLD, the reference heading 90.24 (the nose), the roll's rudder -0.30..0.30 with 2 reversals, its heading most off 5.7 deg
+PASS   the tail up at 3.00 s, the LIFTOFF at 6.00 s, the veer after it 35.6 deg, then CLIMB
+PASS   the wind at the start: 4 m/s from 0, cross -4.00 (from the left), head -0.02
+PASS   the report prints the flight and the take-off (130 lines)
+PASS   the same log as v1: the take-off found off the track (reference 90.0, the track over the first 30 m (no heading column: a v1 log)), no tail, no controls, the report prints
+PASS 6 the recorder's own time: 2.48 us a frame over 100000 frames of the loop's hook sequence (2 steps, 3 renders, 6 laps; budget 200 us, asserted < 20 us in node); its end() self-timed 0.65 us
+PASS   its allocation: 0.86 bytes a frame over 20 000 frames (the whole hook sequence with its sampled self-timing, a clock that cannot box): the frame's path allocates nothing
+PASS 7 the build's MANIFEST loads flight_recorder.js (at 1) before render_world, gfx_settings and app
+FAIL   app.js: begin after the frame clock says the frame is ours, end before PACE.end, end(false) on the boot's hold
+FAIL   app.js: a held frame (holdRender) reports itself to PACE.end flagged held, and the pace counts nothing of it (REVEAL)
+PASS   flight_recorder: header() makes no GL call (the GPU named once in wrapGL, rec.gpuInfo) - GARAGE-LINK
+PASS   the ratchet: a task under a screen span leaves taskWorst for screenTaskWorst (60), but a 1 s task under a screen still counts in tasks1s (batch A: no task over 1 s in any load); the screen's rows gated on their own; a run without spans reads as before (GATE-SCREEN)
+PASS   rollout_perf: BOOT.state from the first frame; a frame overlapping a screen leaves over100, a task the worst task (the 1 s count keeps every task), for gates.screen; the JSON carries the spans (GATE-SCREEN)
+FAIL   app.js: a world setting changed in the shed starts the world's link from the shed (worldPrelinkGfx: re-keyed only, per-task dress, no hold) - the roll-out's worldCompile finds it linked (REVEAL)
+PASS   app.js: the pilot's script and each solver step pushed (slots 0 and 1 are script and solver)
+PASS   app.js: the six laps in the loop
+PASS   render_world.js: the premises step, the cover ring and the fill pushed; a build is an event
+PASS   gfx_settings.js: the meter and the log's rows mounted, a setting an event, the freezes in the readout
+PASS   the F8 panel and the flyout's `frame rate` read rendered frames (no count of hud() calls or rAF callbacks)
+GATE FLIGHTREC: FAIL
+(exit code 1)
+=== AUDIO ===
+  ok   SELF-TEST the restored sources are the ones checked green
+  ok   SELF-TEST 398 / 398 mutations caught
+GATE AUDIO: PASS
+=== BOOMBOX ===
+  ok   SELF-TEST the sources are byte-identical after 40 mutations
+  ok   SELF-TEST 40 / 40 mutations caught
+GATE BOOMBOX: PASS
+=== MIXLEAD ===
+  ok   SELF-TEST the sources are byte-identical after 7 mutations (485919bb04a5)
+  ok   SELF-TEST 7 / 7 mutations caught
+GATE MIXLEAD: PASS
+=== DAY ===
+  ok   07_day.js has no Date, no THREE, no DOM
+four sites to the minute; the day boots 2026-06-21 10:00:00 AKDT, sun 45.8 deg at 118.3
+GATE DAY: PASS
+=== CLOCK ===
+780 checks
+GATE CLOCK: PASS
+=== CLOCKBAKE ===
+  ok   WAIT noon (sliced): a whole bake left the jump frame (the old path's worst other-pass frame exceeds the fix's by >= 6 faces)  (old 2410 vs fixed 522, one face 108)
+  (page errors: impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0) | impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0) | impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0))
+GATE CLOCKBAKE: PASS
+=== CLIMATE ===
+  ok   the sea can be re-applied without being redrawn, and walks after the wind
+  ok   the felt band is the draw’s, never re-decided
+GATE CLIMATE: PASS
+=== WEATHERPLAN ===
+  ok   the clouds panel in the career tells the decks and offers neither their rows nor another sky (clouds_ui.js, the guard TIME-CONTROLS left open)
+58 checks, 11.2 s
+GATE WEATHERPLAN: PASS
+=== SOILWET ===
+  ok   a cold hour under 60 ms (1.3 ms; an hour boundary warm is one window: the cache)
+19 checks, 0.5 s
+GATE SOILWET: PASS
+=== FOG ===
+  ok   it is live - no restart
+22 checks, 0 failed
+GATE FOG: PASS
+=== ATMO ===
+  ok   no reader left on the unscaled atlas
+96 checks, 0 failed
+GATE ATMO: PASS
+=== FMIST ===
+1. off is identical
+  ok   the mist GLSL off carries no pocket code
+  ok   the mist GLSL off declares the 7 lanes it always did
+  ok   the lanes array off is 28 floats (28)
+  FAIL atmo.js: every pocket switch is a ternary whose off arm is what was there (5 sites) -   const FM_VEIL = FM_ON && FMIST.C; |     MIST, apUniforms, GLSL: { MIST: MIST_GLSL, MIST_CLOUD: FM_ON && FMIST.A && !FM_VEIL ? MIST_GLSL + '\n' + FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : MIST_GLSL, AP: AP_SAMPLE_GLSL, STARS: STAR_FIELD_GLSL },   // density library only in passes that use it
+  ok   clouds.js: every pocket switch is a ternary whose off arm is what was there (4 sites)
+2. on
+  ok   ?fmist=ac turns both techniques on
+  ok   the density and the veil live inside MIST_GLSL, 13 lanes
+  ok   the lanes array on is 52 floats
+  ok   an unknown ?fmist value is off
+3. the map (Jolene)
+  ok   two bakes are bit-identical
+  ok   every texel finite, the weights in [0, 1]
+  ok   the open sea holds no pool (mean 0.000 - the sea fog is the F2 layer's)
+  ok   the hollows hold the pool, the ridges do not (floor 0.390, ridge 0.000)
+  info the 512^2 bake took 934 ms in node (pool mean 0.054, wisp mean 0.047)
+4. the law
+  ok   dry air (rh 0.5): no pocket of any kind
+  ok   the pool burns off with the lagged sun (1.00 > 0.70 > 0.40 > 0.00)
+  ok   a wind that takes the F2 layer takes the pool
+  ok   the wisps fade with the hours since rain (1.000 > 0.687 > 0.368 > 0.050 > 0.000)
+  ok   the first sun on a wet forest still steams (the burn takes the wisps by half)
+  ok   the cloud on the slopes needs a low base and a covered sky
+  ok   an overcast night keeps the ground warm: little radiation fog under it
+  ok   a dry, breezy day long after rain: no pool, no wisps
+5. the GRAPHICS row
+  ok   the row exists: a free reload row, ON by default (the user 10 Nov; the veil is compiled in at the start)
+  ok   no preset names it: the desktop presets stay frozen (GATE GFX), the player turns it on (0 preset keys)
+  ok   it sits in the sky group
+  FAIL the stored choice compiles the veil alone (the cards and the march stay behind ?fmist=)
+  FAIL nothing stored, no flag: ON - the veil alone (the user 10 Nov: on by default)
+  ok   the row stored off: off
+24 of 27 checks
+GATE FMIST: FAIL
+(exit code 1)
+=== CLOUD ===
+  ok   the resolve is in the warm list
+254 checks, 0 failed
+GATE CLOUD: PASS
+=== GE ===
+island ceiling: 2605 rectangles, 6071849 points, 0 above it; 0 without one; mean slack 12.61 m
+island ceiling A/B 30 s taxi out of HOME: identical | 96.9 % of node samples skipped (TAXI)
+GATE GE: PASS
+=== FLAPS ===
+GEN : clean CLmax=1.53 Vs=17.6 | flapped CLmax=2.09 Vs=15.0 | ratio=0.856 | drag x3.45
+AP servo: flap after 1 s = 0.200 (rate 0.2/s) | full at t=5 s
+GATE FLAPS: PASS
+=== STOL ===
+1. OFF IS THE BITS (32 cards against fixtures/stol_baseline.json.gz)
+  FAIL every card builds, flies 4 s and draws to the bit master 9f77ac48f did: spitfire fly, motorglider def fly draw, etrainer def fly draw
+  ok   the fixture holds the six validated builds as the game ships them (cub jodel metal floats twinFloats rufus)
+  ok   the wing layer's PAGE.defaults are the STOL rows' "off" (wgSlat 0, wgSlatSpan 1, wgVG 0, wgFence 0, wgCuff 0, wgCuffSpan 0.4, wgDroop 0, wgFowlerGrow 0)
+  ok   the hull-types rows' "off" here is the core's (genStolCageOff drops all 12)
+  ok   the neutral engine dials here are the core's (genStolCageOff drops all 24)
+  FAIL cub (builds/cub_2026-09-20_corrected.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (warn Vref 67.28 km/h, Vs0 51.75, TO 158 m)
+  FAIL jodel (builds/jodel_2026-09-20_corrected.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (warn Vref 80.30 km/h, Vs0 61.77, TO 216 m)
+  FAIL metal (builds/cessna172r_2026-11-08.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (pass Vref 101.08 km/h, Vs0 77.75, TO 387 m)
+  FAIL floats (bugReports/cessnaFloatsWOrks.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (pass Vref 113.90 km/h, Vs0 87.62, TO 207 m)
+  FAIL twinFloats (tools/fixtures/build_v7_ultralight_2026-09-05.json (+ its float patch)): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (warn Vref 65.98 km/h, Vs0 50.75, TO 53 m)
+  FAIL rufus (builds/rufus_2026-10-18_certified.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (pass Vref 57.64 km/h, Vs0 44.34, TO 76 m)
+  ok   a stol record of null is the absent key (strips, params, drawing; gone from the resolved spec)
+  ok   a stol record of {} is the absent key (strips, params, drawing; gone from the resolved spec)
+  ok   a stol record of every device 0 is the absent key (strips, params, drawing; gone from the resolved spec)
+  ok   the certificate fingerprint: stol null === absent (no certificate withdrawn)
+  ok   ...and a slat IS a different aeroplane
+  ok   the procurement fingerprint: the same rule
+  ok   the merge takes a device back off (the join states null, A3) and the aeroplane is the old one
+2. THE SPEC
+  ok   the tips are APPENDED (every saved wgTip index keeps its meaning): square clipped rounded elliptic hoerner winglet endplate drooped upturned
+  ok   GEN_SLATS: none, slot, auto (the cage index)
+  ok   genStolOf clamps every field and drops what it does not know: {"slat":"slot","slatSpan":1,"vg":1,"fences":2,"cuff":1,"cuffSpan":0.2,"droop":0.5,"grow":1}
+  ok   an unknown slat or a non-object is "off"
+  ok   genStolCage: a P without the rows says nothing (undefined)
+  ok   ...the default rows say null (STATED, A3)
+  ok   ...and a set of rows the record: {"slat":"auto","slatSpan":0.6,"vg":1,"fences":1,"droop":0.25,"grow":1}
+  ok   the droop row: index 0 / 1 / 2 -> droop 0 / 0.25 / 0.50 of a plain flap's travel (10.0 / 20.0 deg)
+  ok   the join: no rows -> no key; default rows -> null; a slat -> the record
+  ok   genStolLocked: nothing locked without a shop; the pack named when it is missing; ungated options never lock
+  ok   the Leading-edge tiles: greyed without the pack, live with it, live with no shop at all
+  ok   design row wgSlat: every tile has its drawing
+  ok   design row wgVG: every tile has its drawing
+  ok   design row wgFence: every tile has its drawing
+  ok   design row wgCuff: every tile has its drawing
+  ok   design row wgDroop: every tile has its drawing
+  ok   design row wgFowlerGrow: every tile has its drawing
+  ok   the wgSlat tiles are the row's twin and write it alone, every value (0 1 2)
+  ok   the wgVG tiles are the row's twin and write it alone, every value (0 1)
+  ok   the wgFence tiles are the row's twin and write it alone, every value (0 1 2)
+  ok   the wgCuff tiles are the row's twin and write it alone, every value (0 1)
+  ok   the wgDroop tiles are the row's twin and write it alone, every value (0 1 2)
+  ok   the wgFowlerGrow tiles are the row's twin and write it alone, every value (0 1)
+  ok   the Wing tips row offers Endplate and Drooped, in table order (and the lab upturned tip hidden with the switch off)
+3. THE PHYSICS (the Savannah-alike, as baked)
+       clean      CLmax 1.56 at 18.00 deg, Vs 70.1 km/h, D(2 deg) 409.3 N, D(12 deg) 988.4 N
+       slot       CLmax 2.04 at 25.75 deg, Vs 61.9 km/h, D(2 deg) 447.5 N, D(12 deg) 1024.0 N
+       auto slat  CLmax 2.15 at 27.50 deg, Vs 60.5 km/h, D(2 deg) 413.3 N, D(12 deg) 989.6 N
+       VGs        CLmax 1.72 at 20.50 deg, Vs 66.8 km/h, D(2 deg) 414.4 N, D(12 deg) 993.2 N
+       cuff       CLmax 1.58 at 18.00 deg, Vs 70.0 km/h, D(2 deg) 416.4 N, D(12 deg) 1007.6 N
+       fences x2  CLmax 1.59 at 19.25 deg, Vs 69.5 km/h, D(2 deg) 418.2 N, D(12 deg) 996.8 N
+       endplate   CLmax 1.56 at 17.50 deg, Vs 70.5 km/h, D(2 deg) 423.6 N, D(12 deg) 984.6 N
+       (square)   CLmax 1.56 at 18.00 deg, Vs 70.1 km/h, D(2 deg) 409.3 N, D(12 deg) 988.4 N
+  ok   the fixed slot: Vs x0.883 (in 0.80..0.92 - the 701 / Storch class)
+  ok   ...its stall attitude moves by its dAs (7.75 deg, 8.0 declared)
+  ok   the automatic slat out-lifts the fixed slot once it is out (Vs 0.863)
+  ok   the fixed slot pays its gap drag at cruise (D x1.093 at 2 deg)
+  ok   the automatic slat pays only its seam at cruise (D x1.0099)
+  ok   VGs: Vs x0.953 (the kit sheets' 3-5 mph on a Cub: 0.92..0.98)
+  ok   ...for under 2 % of cruise drag (x1.0124)
+  ok   the cuff: no worse a stall (x0.997) and its nose camber lifts below it
+  ok   fences price their area (CdA 0.0161 m2)
+  ok   the endplate: span efficiency up (eAR 16.17 vs square 14.94), its plates priced (CdA 0.0305 m2)
+  ok   ...and at climb alpha the endplate wing is the cheaper one (D(12) 984.6 vs 988.4 N)
+  ok   slot: the analytic stall moves with the measured one (analytic/measured 1.006 vs 1.022 clean)
+  ok   auto: the analytic stall moves with the measured one (analytic/measured 1.006 vs 1.022 clean)
+  ok   VGs: the analytic stall moves with the measured one (analytic/measured 1.014 vs 1.022 clean)
+  ok   the automatic slat's strips carry its gain as `sa` (deploys), not as a fixed dAs
+  ok   droop and growth do nothing flaps-up (clean CLmax and drag the same bits)
+  ok   drooped ailerons: + 0.095 CLmax flaps-down, and their drag
+  ok   Fowler growth: the same CLmax to within 8 % (2.14 vs 2.17 - the stand-in dCl was fitted to it) on a steeper lift curve, the grown chord's (0.0807 vs 0.0772 /deg)
+  ok   growth swaps the Fowler's stand-in camber for the slotted row's and grows the flapped strips only
+  ok   everything at once is capped (the stall moves 12.25 deg, cap 12.6)
+3b. TODAY'S PHYSICS (G2822): the stall angle as flown, the design check, the ladder, the damage layer
+  ok   no STOL strip: the wing's stall angle is the section's own, the same bits
+  ok   the fixed slot's wing stalls 6.92 deg later, area-weighted (8.02 on the slatted strips)
+  ok   fixed slot: CLmax +31 % (published 25..45), the stall 7.8 deg later (6..11), Vs x0.883
+  ok   automatic slat: CLmax +38 % (published 25..50), the stall 9.5 deg later (6..12), Vs x0.863
+  ok   VGs: CLmax +10 % (published 6..18), the stall 2.5 deg later (1..4), Vs x0.953
+  ok   ctl.flare: the slatted wing's stall is further from the stop (1.05 x Vs pass, clean 1 pass)
+  ok   no drooped aileron, no ctl.droop row
+       drooped 10 deg: 0.83 x the undrooped roll, warn - full aileron at 93.02 km/h, full flap: 83 % of the undrooped roll moment, pb/2V 0.225 (the cruise roll damping)
+       drooped 20 deg: 0.71 x the undrooped roll, warn - full aileron at 93.02 km/h, full flap: 71 % of the undrooped roll moment, pb/2V 0.193 (the cruise roll damping)
+  ok   drooping ailerons keep 83 % / 71 % of their roll at 10 / 20 deg (>= 60 %, less the further they droop)
+  ok   Vref 80.5 km/h on the slot (clean 90.7), 1.30 x the measured Vs0
+  ok   the touchdown attitude 15.04 deg is solved under the slatted wing's own cap (21.71)
+  ok   damage ON; the body's axial CdA is the clean one net of its cooling term (0.4885 m2) and the fences + endplates' 0.0467 m2 ride the strips (0.0467)
+  ok   an endplate alone: its plate's drag on each tip strip, no stall-angle term
+  ok   the right wing let go (18 members, 2 break groups): every right STOL strip parts with it, every left one stays on the core
+  ok   the devices' drawing (4280 vertices) hangs on wing nodes, one side each (0 astray): it comes off with its wing
+  ok   Fowler growth: the flapped lift slope x1.049 on the reference area, the grown area's c'/c x1.053 (within 10 %)
+4. THE DRAWING
+  ok   the fixed slot stands proud of the leading edge (588 vertices)
+  ok   ...over its own span: inboard edge at 2.30 m, half the 4.60 m semispan
+  ok   the VG row: 70 vanes, each a two-faced blade
+  ok   ...standing on the upper skin
+  ok   two fences a side, drawn at the strips' stations (1.74, 2.85 m)
+  ok   the endplate stands at the tip, outboard of the skin
+  ok   ...a plate 0.88 m tall, above and below the chord
+  ok   the drooped tip bends down (0.183 m below the Hoerner tip at the very end)
+  ok   drooping ailerons ride the flap lever (drive2 flap, 14.0 deg at full flap, the flap's own sense each side)
+5. THE BENCH (the makers' figures; Vs km/h, rolls m; measured / published (gap))
+   ICP Savannah S (Rotax 912, 100 hp) at 600 kg, devices {"slat":"slot"} (lands flapless - the trim solver's verdict)
+     Vs1 clean  without   77.4 ( +49 %)   with   67.7 ( +30 %)   sheet 52
+     Vs0 flaps  without   65.6 ( +46 %)   with   59.3 ( +32 %)   sheet 45
+     TO roll    without  163.0 (+172 %)   with  164.0 (+173 %)   sheet 60
+     LDG roll~  without   94.9 ( +36 %)   with   72.7 (  +4 %)   sheet 70
+     src: ICP data (perf_study REAL.savannah): Vs 52 km/h clean / 45 flaps, TO run 60 m, landing 70 m at 600 kg; the family flies a slatted wing (the classic) or a VG wing (the VG / S) - measured here with the fixed slot
+  ok   savannah Vs1: the devices move it toward the sheet (gap 49 -> 30 %) and not 15 % past it
+  ok   savannah Vs0: the devices move it toward the sheet (gap 46 -> 32 %) and not 15 % past it
+  ok   savannah LDG: the devices move it toward the sheet (gap 36 -> 4 %) and not 15 % past it
+  ok   savannah: the take-off roll is not lengthened past the devices' drag (163 -> 164 m)
+   Piper PA-18-150 Super Cub at 794 kg, devices {"vg":1} (lands flapless - the trim solver's verdict)
+     Vs1 clean  without   75.2 (  -1 %)   with   71.1 (  -6 %)   sheet 76
+     Vs0 flaps  without   66.5 (  -4 %)   with   63.4 (  -8 %)   sheet 69
+     TO roll    without  110.0 ( +80 %)   with  108.0 ( +77 %)   sheet 61
+     LDG roll~  without   89.8 ( -16 %)   with   80.3 ( -25 %)   sheet 107
+     src: POH PA-18-150: stall 47 mph flaps up / 43 mph flaps 50 deg at 1750 lb, ground roll 200 ft, landing roll 350 ft; the usual Micro VG kit
+  ok   supercub: the kit buys 4.1 km/h of clean stall (its claim: 3-8)
+  ok   supercub: the stock aeroplane is the POH's (Vs1 -1 %)
+  ok   supercub: the take-off roll is not lengthened past the devices' drag (110 -> 108 m)
+   Just Aircraft Highlander (Rotax 912 ULS) at 599 kg, devices {"vg":1,"droop":0.35}
+     Vs1 clean  without   64.9 (     -)   with   61.4 (     -)   sheet -
+     Vs0 flaps  without   56.7 ( +26 %)   with   53.2 ( +18 %)   sheet 45
+     TO roll    without  102.0 (+240 %)   with   97.0 (+223 %)   sheet 30
+     LDG roll~  without   51.0 ( +11 %)   with   44.9 (  -2 %)   sheet 46
+     src: Just Aircraft: stall 28 mph (flaps; no clean figure published), take-off 100 ft, landing 150 ft at 1320 lb; VGs and drooping ailerons stand in for its STOL kit
+  ok   highlander Vs0: the devices move it toward the sheet (gap 26 -> 18 %) and not 15 % past it
+  ok   highlander LDG: the devices move it toward the sheet (gap 11 -> 2 %) and not 15 % past it
+  ok   highlander: the take-off roll is not lengthened past the devices' drag (102 -> 97 m)
+6. THE USER'S CUB WITH A STOL KIT (tools/fixtures/test_copies/stol_cub_kit.json, flown)
+  ok   the editor's rows (wgSlat 1, wgVG 1, wgTip 7, wgDroop 1) join to the kit: {"slat":"slot","slatSpan":1,"vg":1,"droop":0.25}, tip drooped
+  ok   the game's snapshot: both ailerons ride the flap lever, 10.0 deg, each with its own side's flap sense
+     stock / kit             Vs1 km/h      Vs0 km/h      Vref km/h     TO (plaque) m   lift-off run m   landing roll m   lands
+     stock (master's lap)     57.6          51.8          67.3          158            105.5             95.0           flaps
+     STOL kit (flown here)    48.2  -16 %   42.4  -18 %   65.8   -2 %   116  -27 %     100.1   -5 %      78.0  -18 %    flaps   [completed, 387 s, 176 s wall]
+     the kit's design check: pitch.sm 0.027 (warn), ctl.elevator 0.077, ctl.flare 1.18 (warn), ctl.aileron 0.417, ctl.droop 0.99, ctl.rudder 11.6
+  ok   the kit's clean stall 16 % lower (the slot's -12..-17 % and the VGs' -6..-8 %, not simply added: 12..25 %)
+  ok   the elevator holds 55.7 km/h at the touchdown (the slatted stall 42.4; ctl.flare 1.18 warn): the ladder's Vs0 is the held 50.6, flaps down
+  ok   an approach no faster than the stock one: Vref 65.8 km/h (stock 67.3; R/STOL claims 15-25 mph slower - on this Cub the elevator decides)
+  ok   the kit's drooped ailerons keep their roll on the approach: 0.99 x, pass
+  ok   the pilot flies the kit's whole circuit: completed
+  ok   a shorter lift-off run (100.1 vs 105.5 m)
+  ok   the landing roll held to the stock one's neighbourhood (78 vs 95 m, <= +25 %: the touchdown is the elevator's, not the wing's)
+7. THE WEIGHTS AND PRICES (GEN_STOL.cost, the ledger's 'stol' row)
+  ok   no device, no row: the plain Savannah-alike's ledger has no 'stol'
+  ok   a fixed slot bills 3.68 kg and 1288 at its catalogue line (0.8 kg / 280 per metre)
+  ok   the automatic slat over the same span weighs and costs its tracks: 5.52 kg, 1932
+  ok   a VG row is grams and a kit price: 0.63 kg, 1100
+  ok   two fences a side: 1 kg, 360
+  ok   the droop's mixer and rods: 3 kg, 900
+  ok   the two tips bill their own: endplates 3 kg, drooped tips 1.2 kg
+  ok   the slat's mass on the front spar (x 0.71 m), the droop's on the rear (x 1.43 m)
+  ok   a full kit (full-span slot, VGs, droop, drooped tips): 12.2 kg, 5176 on a 61004 airframe
+8. THE SHOWCASE STOL CUB (builds/candidates/stol_cub_showcase.json)
+  ok   the editor's rows join to the showcase: rotax915_carbon, wheel radius 0.390 m, {"slat":"slot","slatSpan":1,"vg":1,"droop":0.25}, tip drooped
+  ok   the bigger tail: elevator chord 0.66 (stock 0.41), stab span 3.54 m (stock 2.84)
+  ok   the take-off run halved and more: plaque 56 m (stock 158)
+  ok   the clean stall 49.2 km/h (stock 57.6)
+  ok   the elevator holds the slatted stall in the flare on its own tank: the ladder's Vs0 42.6 km/h, the wing's 42.6, flaps down
+       on the stock's tank ({"litres":45,"tank":"nose"}) the elevator holds 43.5 km/h, the wing's 43.4
+  ok   a slower approach: Vref 56.6 km/h (stock 67.3)
+  ok   the kit is billed: 13.6 kg, 5596
+  ok   the design check: warn (ctl.flare 1.1, roll.spiral 15.61)
+9. THE STOL LAW AT THE TOUCH (the showcase: bush calm, expert in gusts, expert across 2 m/s)
+     bush   {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":0,"Vref":14.2,"stol":true},"landing":{"run":28,"sink":1.32,"V":11.2,"offCentre":0,"pastAim":15,"k":1,"three":true,"onStrip":true,"tdIn":25,"stopLeft":1047},"touches":1,"td":{"bank":-0.8,"sink":1.32,"V":11.2}}
+     gust   {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":1.2,"Vref":14.8,"stol":true},"landing":{"run":28,"sink":1.42,"V":11.8,"offCentre":1.1,"pastAim":20,"k":1,"three":false,"onStrip":true,"tdIn":30,"stopLeft":1042},"touches":1,"td":{"bank":-1.6,"sink":1.42,"V":11.8}}
+     xwind  {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":0,"Vref":14.2,"stol":true},"landing":{"run":28,"sink":1.32,"V":11.3,"offCentre":0.3,"pastAim":16,"k":1,"three":true,"onStrip":true,"tdIn":26,"stopLeft":1046},"touches":1,"td":{"bank":-1.1,"sink":1.32,"V":11.3}}
+  ok   bush: the STOL law flew it and landed first time (completed)
+  ok   bush (calm): three-point, one touch, 1.32 m/s at 11.2 m/s (three true, 1 touch(es)); roll 28 m
+  ok   gust: the STOL law flew it and landed first time (completed)
+  ok   gust: the day reads 1.2 m/s of gust - over stolGustMax 0.75, the gusty branch armed
+  ok   gust: one touch (1), bank -1.6 deg at the touch (< 5), 1.42 m/s (<= 1.6) at 11.8 m/s; roll 28 m
+  ok   xwind: the STOL law flew it and landed first time (completed)
+  ok   xwind 2 m/s: one touch (1), bank -1.1 deg at the touch (< 5), 1.32 m/s (<= 1.6) at 11.3 m/s; roll 28 m
+     [section 9: 214 s wall]
+SELFTEST (each break must be caught)
+  ok   selftest: an empty stol key on one strip moves the def hash
+  ok   selftest: an inserted tip is caught by the append rule
+  ok   selftest: a slot with no dAs fails the Vs band
+  ok   selftest: a null stol hashed raw differs from the absent key (what bench.js strips)
+FAILED CHECKS: every card builds, flies 4 s and draws to the bit master 9f77ac48f did: spitfire fly, motorglider def fly draw, etrainer def fly draw | cub (builds/cub_2026-09-20_corrected.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (warn Vref 67.28 km/h, Vs0 51.75, TO 158 m) | jodel (builds/jodel_2026-09-20_corrected.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (warn Vref 80.30 km/h, Vs0 61.77, TO 216 m) | metal (builds/cessna172r_2026-11-08.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (pass Vref 101.08 km/h, Vs0 77.75, TO 387 m) | floats (bugReports/cessnaFloatsWOrks.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (pass Vref 113.90 km/h, Vs0 87.62, TO 207 m) | twinFloats (tools/fixtures/build_v7_ultralight_2026-09-05.json (+ its float patch)): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (warn Vref 65.98 km/h, Vs0 50.75, TO 53 m) | rufus (builds/rufus_2026-10-18_certified.json): joined here to master's spec - DIFFERS + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys MOVED), def =, 4 s =, drawing =, design check + sheet = (pass Vref 57.64 km/h, Vs0 44.34, TO 76 m)
+(133 checks)
+GATE STOL: FAIL
+(exit code 1)
+=== STRESS ===
+GEN   full-deflection abuse: flap 3.0..3.4 deg  strain 0%  NaN=false  OK
+GATE STRESS: PASS
+=== FLIGHTSCRIPT ===
+  ok   5 a sample a second, each with its phase, height and speed  (553 samples for 553.8 s)
+every check passed
+GATE FLIGHTSCRIPT: PASS
+=== GEN ===
+--- shard 0/4 (581.2 s) ---
+PARKED PUSHER (10 s, calm): crept 0.069 m at 0.000 m/s | full throttle to the lift-off: V 23.7 m/s, worst pitch on the wheels 0.0 deg, the heading held within 4.0 deg
+QC: 76/76 checks | the circuit (flown in another shard)
+GATE GEN: PASS
+--- shard 1/4 (470.7 s) ---
+LATTICE: 95 nodes, 399 beams, 28 strips
+RIGIDITY: rank 279 / 279 required  (399 beams, 279 dof)
+SHAKEDOWN: 460 kg · S=15.5 m2 · w/l 29.8 kg/m2
+  Vs=17.5 VCruise=35.7 L/D=7.20 aCruise=2.84 deg
+  cg=0.742 np=1.144 staticMargin=25.1%
+  deck=8.9 deg · propClear=0.30 m · TORun=215 m · thrCruise=0.66
+  legs: mains 0.66 m (legDrop) · third 0.23 m · camber 0 deg
+  camber 20: contact 0.1879 m (R 0.2) legs 0.660 -> 0.660 m · deck twLeg .10/.23/.45 = 10.4/8.9/6.5 deg · trike auto 1.20 leg .95 9.26
+  cowl: 270 seating x engine cases, case covered in all, cylinders out in 109 · default 0.311 x 0.320/0.338 m, enclosed
+  prop: default 2-blade wood 1.88 m · T0 1202 N (registry 1202) · kV2 0.194 (registry 0.1941) · V0 283 km/h · 4.8 kg
+  prop knobs: D 3.0 -> T0 1641, fine pitch -> 1335, 4 blades -> 1334 N
+  gear members: inner 3 · leg 3 · tube 3 · wire 6
+LEDGER: 16 sections · 459.9 kg · 43096 cr
+SKIN: 2924 verts, 5686 tris in 6 groups (skin, pitot, liftstrut, wire, ailR, ailL)
+WING CAMBER: right 0.0159 · left 0.0159 (both must be > 0)
+ENGINES:
+  a65_sensenich74         65 hp     80 kg -> all-up   460 kg, nose-over  20.4°, gear   4%, stands
+  r1830_hs23e50         1200 hp    750 kg -> all-up  1406 kg, nose-over  33.7°, gear   4%, stands
+  io360_mccauley         180 hp    138 kg -> all-up   542 kg, nose-over  21.4°, gear   3%, stands
+  rotax277_pusher         28 hp     30 kg -> all-up   390 kg, nose-over  21.5°, gear   2%, stands
+  vw2180_wood             59 hp     66 kg -> all-up   439 kg, nose-over  20.0°, gear   5%, stands
+  rotax582_ivo            64 hp     43 kg -> all-up   409 kg, nose-over  21.4°, gear   2%, stands
+  jabiru2200_std          84 hp     60 kg -> all-up   432 kg, nose-over  19.9°, gear   5%, stands
+  rotax912_warp           80 hp     58 kg -> all-up   431 kg, nose-over  19.9°, gear   5%, stands
+  rotax912is_warp         99 hp   63.6 kg -> all-up   439 kg, nose-over  20.0°, gear   5%, stands
+  o200_eprops            100 hp     85 kg -> all-up   467 kg, nose-over  20.5°, gear   4%, stands
+  r985_hs2b20            451 hp    290 kg -> all-up   762 kg, nose-over  29.4°, gear   4%, stands
+  verner7u_wood          105 hp     78 kg -> all-up   459 kg, nose-over  20.5°, gear   4%, stands
+  clerget9b_wood         130 hp    173 kg -> all-up   594 kg, nose-over  27.7°, gear   3%, stands
+  merlin66_rotol4       1721 hp    744 kg -> all-up  1421 kg, nose-over  31.4°, gear   4%, stands
+  rotec3600_std          150 hp    102 kg -> all-up   494 kg, nose-over  21.1°, gear   3%, stands
+  mikron3_wood            64 hp     74 kg -> all-up   450 kg, nose-over  20.0°, gear   5%, stands
+  gipsymajor1_wood       130 hp    139 kg -> all-up   541 kg, nose-over  21.1°, gear   3%, stands
+  hirth508_wood          280 hp    186 kg -> all-up   614 kg, nose-over  24.5°, gear   3%, stands
+  argus10c_wood          236 hp    213 kg -> all-up   648 kg, nose-over  25.7°, gear   3%, stands
+  o320_mccauley          150 hp    122 kg -> all-up   519 kg, nose-over  21.1°, gear   3%, stands
+  o540_hartzell          235 hp    176 kg -> all-up   596 kg, nose-over  22.7°, gear   3%, stands
+  io550_hartzell3        310 hp    195 kg -> all-up   622 kg, nose-over  21.9°, gear   3%, stands
+  io720_hartzell3        400 hp    257 kg -> all-up   707 kg, nose-over  22.4°, gear   3%, stands
+  rotax915_carbon        141 hp     84 kg -> all-up   469 kg, nose-over  20.5°, gear   4%, stands
+  rotax916_carbon        157 hp   85.8 kg -> all-up   472 kg, nose-over  20.5°, gear   4%, stands
+  ranger440_wood         200 hp    170 kg -> all-up   587 kg, nose-over  22.9°, gear   3%, stands
+  w670_hs2b              220 hp    211 kg -> all-up   648 kg, nose-over  28.3°, gear   3%, stands
+  r755_hs2b              300 hp    230 kg -> all-up   677 kg, nose-over  28.6°, gear   3%, stands
+  m14p_v530              359 hp    214 kg -> all-up   656 kg, nose-over  26.5°, gear   3%, stands
+  r1340_hs12d40          599 hp    400 kg -> all-up   915 kg, nose-over  27.6°, gear   3%, stands
+  rotax503_wood           50 hp     38 kg -> all-up   402 kg, nose-over  21.5°, gear   2%, stands
+  emrax268_carbon        143 hp   20.3 kg -> all-up   373 kg, nose-over  21.5°, gear   2%, stands
+  outrunner2212_9x47       0 hp    0.1 kg -> all-up   343 kg, nose-over  21.8°, gear   3%, stands
+  outrunner3548_12x6       1 hp   0.35 kg -> all-up   343 kg, nose-over  21.8°, gear   3%, stands
+  outrunner6374_18x10      3 hp   0.75 kg -> all-up   344 kg, nose-over  21.8°, gear   3%, stands
+  eppg_direct_130         16 hp      7 kg -> all-up   354 kg, nose-over  21.7°, gear   3%, stands
+  fes_folding_100         30 hp      9 kg -> all-up   355 kg, nose-over  21.7°, gear   3%, stands
+  emrax228_3blade         74 hp   19.5 kg -> all-up   371 kg, nose-over  21.6°, gear   2%, stands
+  e811_velis              77 hp     53 kg -> all-up   410 kg, nose-over  21.4°, gear   2%, stands
+  sp260d_class           349 hp     68 kg -> all-up   433 kg, nose-over  21.5°, gear   3%, stands
+  pt6a114a_hartzell3     675 hp    160 kg -> all-up   615 kg, nose-over  23.1°, gear   2%, stands
+  pt6a34_hartzell4       751 hp    150 kg -> all-up   602 kg, nose-over  21.6°, gear   2%, stands
+  pt6a42_hartzell4       850 hp    183 kg -> all-up   649 kg, nose-over  21.2°, gear   2%, stands
+  pt6a60a_hartzell4     1050 hp    218 kg -> all-up   709 kg, nose-over  22.9°, gear   2%, stands
+  pt6a27_hartzell3       550 hp    149 kg -> all-up   592 kg, nose-over  22.2°, gear   2%, stands
+MATERIALS:
+  tubeFabric   substeps  76 | omega*dt 0.448 c*dt 0.356 | (flown in another shard)
+  wood         substeps  76 | omega*dt 0.448 c*dt 0.640 | flies to CLIMB
+  alloy        substeps 103 | omega*dt 0.446 c*dt 0.572 | (flown in another shard)
+  carbon       substeps  99 | omega*dt 0.447 c*dt 0.490 | (flown in another shard)
+  aluTube      substeps  69 | omega*dt 0.445 c*dt 0.305 | (flown in another shard)
+  glass        substeps  95 | omega*dt 0.434 c*dt 0.650 | flies to CLIMB
+  softShell    substeps  68 | omega*dt 0.447 c*dt 0.553 | (flown in another shard)
+SURFACE MESHES:
+  wing surfaces  meshes 4 da[-0.018 0.018] flap[-0.080 -0.080]  ok
+AILERON EXTENT: reaches 4.20 m, bow joint at 4.20  ok
+LOFT CUTS: rows at 1.23/1.41 m with cuts 106/106 vertices, without 0/0  ok
+V-TAIL: (conventional reference dYaw/dr 6485 dPitch/de 12594)
+  25 deg  S 5.99 m2 (eff Sh 4.92 Sv 1.07) | dYaw/dr  16025 dPitch/de  31455 x-talk 0.5% | SM 46.1%
+  33 deg  S 3.61 m2 (eff Sh 2.54 Sv 1.07) | dYaw/dr  12877 dPitch/de  18227 x-talk 0.5% | SM 32.5%
+  40 deg  S 4.10 m2 (eff Sh 2.40 Sv 1.69) | dYaw/dr  17139 dPitch/de  18779 x-talk 0.6% | SM 30.3%
+  45 deg  S 4.81 m2 (eff Sh 2.40 Sv 2.40) | dYaw/dr  21958 dPitch/de  20199 x-talk 0.8% | SM 28.5% (flown in another shard)
+  55 deg  S 7.30 m2 (eff Sh 2.40 Sv 4.90) | dYaw/dr  37052 dPitch/de  23974 x-talk 1.3% | SM 21.7%
+TIPS: eAR 14.77 15.64 15.78 16.29 (ordered)
+PLANFORM:
+  crank z=2.68 | node at kink yes | dihedral breaks yes | WF y 1.10 1.18 1.22 1.41 1.80
+  drone deck=1.00 crew=0 mass=387 kg | no windscreen step
+  winglet      stands, SM 24.3% (the frame is stock; the circuit is the crank's)
+  jodel crank  (flown in another shard)
+  drone        flies a circuit
+SWEEP:
+  np aft: 0.57 0.84 1.14 1.46 1.79 2.17 2.49  (monotonic)
+  a3d:    4.125 4.201 4.231 4.201 4.110 3.958 3.802  (sweep costs slope, symmetric)
+  -15 deg  SM  -0.9% | (flown in another shard)
+   12 deg  SM  46.7% | (flown in another shard)
+   30 deg  (flown in another shard)
+FLAPS:
+  none     no device — clean Vs 62.8 km/h
+  plain    dCl0 0.95 dCm0 -0.237 | CLmax 1.53 -> 1.83 | Vs 62.8 -> 58.0 km/h (0.916)
+  slotted  dCl0 1.60 dCm0 -0.400 | CLmax 1.53 -> 2.09 | Vs 62.8 -> 54.2 km/h (0.856)
+  fowler   dCl0 2.05 dCm0 -0.512 | CLmax 1.53 -> 2.28 | Vs 62.8 -> 51.9 km/h (0.821) | flies a circuit
+  split    dCl0 0.90 dCm0 -0.225 | CLmax 1.53 -> 1.81 | Vs 62.8 -> 58.3 km/h (0.922)
+  stol     dCl0 1.60 dCm0 -0.400 | CLmax 1.53 -> 2.09 | Vs 62.8 -> 54.2 km/h (0.856)
+SURFACES: elevTau 0.500 rudTau 0.550 ailTau 0.350 | anchored on the fleet | chord moves it
+SHAPES:
+  straight  half-widths 0.33 0.36 0.36 0.29 0.23 0.17 0.10 | tapers | distinct | (flown in another shard)
+  waisted   half-widths 0.33 0.36 0.36 0.34 0.29 0.21 0.10 | tapers | distinct | (flown in another shard)
+  boom      half-widths 0.33 0.36 0.36 0.22 0.17 0.13 0.10 | tapers | distinct | (flown in another shard)
+SUSPENSION: travel 25mm · 21mm · 16mm · 8mm | spring 2.70% · 2.24% · 1.76% · 0.85% | worst member 3.3% · 3.6% · 3.8% · 4.2% | all stand
+PLACEMENT:
+  wing back 0.4         rigid  | cg 0.86 margin   43% nose-over   21° stands
+  wing fwd 0.3          rigid  | cg 0.66 margin   11% nose-over   22° stands
+  wing up 0.25          rigid  | cg 0.74 margin   27% nose-over   21° stands
+  engine fwd 0.3        rigid  | cg 0.67 margin   30% nose-over   21° stands
+  engine back 0.3       rigid  | cg 0.82 margin   20% nose-over   20° stands
+  thrustline +0.3       rigid  | cg 0.74 margin   25% nose-over   21° stands
+  tail back 0.8         rigid  | cg 0.79 margin   23% nose-over   20° stands
+  tail fwd 0.8          rigid  | cg 0.76 margin   23% nose-over   20° stands
+  gear back 0.4         rigid  | cg 0.76 margin   24% nose-over  -44° RESTS ON AXLEL
+  gear fwd 0.4          rigid  | cg 0.73 margin   26% nose-over   38° stands
+  track +0.8            rigid  | cg 0.74 margin   25% nose-over   18° stands
+  everything at once    rigid  | cg 0.98 margin   77% nose-over   26° stands
+DECOUPLING: 8 front-spar nodes, worst deviation from a clean 0.400 m shift = 0.0000 m
+RIDE-ALONG stock          derived xLE 0.380 -> nudged 0.780
+RIDE-ALONG chord 2.0      derived xLE 0.320 -> nudged 0.720
+RIDE-ALONG noseGap 0.95   derived xLE 0.710 -> nudged 1.110
+FEEDBACK: gear aft -> rests on ENGL (nose-over -45°) · wing fwd -> margin 5%
+CONFIGURATIONS (every build stands and is rigid; core: four fly the circuit):
+  stock              strut           n 95 sub 76 rigid stands | land sink 0.56 z -0.0
+  cargo bay + 60 kg  strut           n 99 sub 82 rigid stands | (stands + rigid is the check)
+  tricycle           strut           n 95 sub 76 rigid stands | (flown in another shard)
+  open frame         strut           n 95 sub 83 rigid stands | (stands + rigid is the check)
+  pusher             strut           n 91 sub 73 rigid stands | (flown in another shard)
+  over the wing      strut           n 91 sub 73 rigid stands | (circuit under --all)
+  wing twin          strut           n 94 sub 79 rigid stands | (circuit under --all)
+  twin boom          strut           n122 sub103 rigid stands | (flown in another shard)
+  tricycle + oleo    strut           n 95 sub 76 rigid stands | (stands + rigid is the check)
+  spring steel       strut           n 95 sub 76 rigid stands | (stands + rigid is the check)
+  oleo               strut           n 95 sub 76 rigid stands | (stands + rigid is the check)
+  high cantilever    cantilever box  n111 sub 77 rigid stands | (circuit under --all)
+  mid wing           cantilever box  n111 sub 77 rigid stands | (circuit under --all)
+  low wing           strut           n 95 sub 74 rigid stands | (circuit under --all)
+  low cantilever     cantilever box  n111 sub 78 rigid stands | (circuit under --all)
+  low+trike+cargo    cantilever box  n115 sub 85 rigid stands | (circuit under --all)
+PAIRS (built, rigid, stands, the gear on the airframe) [shard 1/4]:
+  wingTop+tricycle   n 91 sub 73 rigid stands gear on the airframe
+  twinBoom+floats    n148 sub116 rigid stands gear on the airframe
+  biplane+pusher     n165 sub 80 rigid stands gear on the airframe
+AP GAINS (fleet band: roll w*tau .49-.82 zeta 1.3-2.4 | pitch 1.11-1.88 zeta .95-2.9)
+  stock          rollP 1.90 rollD 0.42 pitchP 1.59 pitchD 0.99 | roll 0.62/1.70 pitch 1.30/1.90
+  span 13        rollP 4.03 rollD 0.76 pitchP 1.68 pitchD 0.99 | roll 0.62/1.70 pitch 1.30/1.90
+  span 7.5       rollP 1.09 rollD 0.32 pitchP 1.45 pitchD 1.01 | roll 0.62/1.70 pitch 1.30/1.90
+  chord 2.0      rollP 1.97 rollD 0.44 pitchP 2.37 pitchD 1.24 | roll 0.62/1.70 pitch 1.30/1.90
+  180 hp         rollP 1.82 rollD 0.35 pitchP 1.55 pitchD 0.84 | roll 0.62/1.70 pitch 1.30/1.90
+  750 kg radial  rollP 1.26 rollD 0.22 pitchP 1.16 pitchD 0.60 | roll 0.62/1.70 pitch 1.30/1.90
+  wing back 0.6  rollP 1.89 rollD 0.42 pitchP 1.67 pitchD 1.09 | roll 0.62/1.70 pitch 1.30/1.90
+  tail fwd 1.0   rollP 1.87 rollD 0.42 pitchP 0.92 pitchD 0.76 | roll 0.62/1.70 pitch 1.30/1.90
+CRUISE QUIET (3 m/s + gusts): bank p2p 11.61 deg · aileron 1.24 deg/s · elevator 1.05 deg/s
+PARKED (12 s, breeze): tail-rig dev 1.8% | minTpbAgl 0.31 m
+PARKED PUSHER (10 s, calm): crept 0.069 m at 0.000 m/s | full throttle to the lift-off: V 23.7 m/s, worst pitch on the wheels 0.0 deg, the heading held within 4.0 deg
+QC: 76/77 checks — FAILED: cruise is quiet in wind | the circuit (flown in another shard)
+FAILED CHECKS: cruise is quiet in wind
+GATE GEN: FAIL
+[stderr]
+SHARD 1/4: 6 of 23 heavy jobs
+(exit code 1)
+--- shard 2/4 (453.9 s) ---
+WING (strut-braced, dihedral 3): flap 3.0..3.2 deg | chatter 0.1 deg/s
+QC: 76/76 checks
+GATE GEN: PASS
+--- shard 3/4 (397.1 s) ---
+PARKED PUSHER (10 s, calm): crept 0.069 m at 0.000 m/s | full throttle to the lift-off: V 23.7 m/s, worst pitch on the wheels 0.0 deg, the heading held within 4.0 deg
+QC: 76/76 checks | the circuit (flown in another shard)
+GATE GEN: PASS
+=== PILOT ===
+--- shard 0/3 (400.2 s) ---
+  ok     STOL: the gain rides the shakedown and the sheet (the first read 0 ms: no probe sims at the roll's start)
+   [STOL-QUAL part: 59 s wall]
+GATE PILOT: PASS
+--- shard 1/3 (417.1 s) ---
+-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified pilot --
+   (flown in another shard)
+GATE PILOT: PASS
+--- shard 2/3 (457.8 s) ---
+-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified pilot --
+   (flown in another shard)
+GATE PILOT: PASS
+=== PILOTCANFLY ===
+  roster:megan / c172w             -         -  land 216         -         -         -         -         -         -  land 216
+  (35.0 s)
+GATE PILOTCANFLY: PASS
+=== NAV ===
+  ok     units: 100 m = 328.1 ft
+  ok     units: degrees wrap and difference
+GATE NAV: PASS
+=== STRIPSURF ===
+(17.6 s)
+GATE STRIPSURF: PASS
+=== SOFTGROUND ===
+(163 s)
+GATE SOFTGROUND: PASS
+=== TAKEOFF ===
+crosswind limit 4 m/s (band 12.5 m, roll 11.78 m at the limit; first failure 4.5 m/s, 20.45 m) in 33.8 s CPU, 34.2 s wall
+THE TECHNIQUE (pilot_one_trace: Vr, Vlof, the lift-offs, the pitch rate, the run)
+  cub    wheels Vs 16.0 Vr 16.2 Vlof 17.4 (1.09 Vs)  lifts 1 (first at 17.4)  touch-after 0  qMax 2.7 deg/s  run 105 m  to 15 m 300 m
+  jodel  wheels Vs 19.0 Vr 18.9 Vlof 20.8 (1.09 Vs)  lifts 1 (first at 20.8)  touch-after 0  qMax 2.9 deg/s  run 180 m  to 15 m 539 m
+  c172   wheels Vs 25.7 Vr 26.1 Vlof 28.3 (1.10 Vs)  lifts 1 (first at 28.3)  touch-after 0  qMax 4.5 deg/s  run 301 m  to 15 m 794 m
+  wip    water  Vs 24.3 Vr 24.7 Vlof 28.3 (1.16 Vs)  lifts 1 (first at 28.3)  touch-after 0  qMax 9.6 deg/s  run 351 m  to 15 m 516 m
+  ultraf water  Vs 16.1 Vr 16.3 Vlof 20.3 (1.26 Vs)  lifts 1 (first at 20.3)  touch-after 0  qMax 10.1 deg/s  run 76 m  to 15 m 173 m
+  twinf  water  Vs 18.4 Vr 18.9 Vlof 30.4 (1.65 Vs)  lifts 1 (first at 30.4)  touch-after 0  qMax 7.4 deg/s  run 235 m  to 15 m 363 m
+  c172f  water  Vs 27.3 Vr - Vlof - (0.00 Vs)  lifts 0 (first at -)  touch-after 0  qMax 1.2 deg/s  run - m  to 15 m - m  ABORT rejected-takeoff
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 21.4 s; max |cross| 0.9 m, past an end -5.6 m, off the surface 0.0 s; LIFTOFF (airborne); backtrack,pivot,committed-takeoff
+  FAIL technique c172: to 15 m 794 m in [0.6, 1.4] x 514 m (C172S POH (recalled))
+GATE TAKEOFF: FAIL
+(exit code 1)
+=== RADIALDIV ===
+FAIL mosquito: FLIGHT airborne inside 300 s
+  FAIL mosquito_1: FLIGHT airborne inside 300 s
+  FAIL cub: HANDS OFF 20 s, the heading moved under 15 deg - -176
+GATE RADIALDIV: FAIL (3)
+(exit code 1)
+=== PILOTACT ===
+  c172:HOME:calm:stand                                 taxi 0/16.8  takeoff 0/7.3  climb 0/0  legs 3/4.5  downwind 0.5/0.5  base 3.9/5.2  final 1.1/3.2  landing 2/2
+  ../builds/cessna172r_2026-11-08.json:HOME:calm:stand taxi 0/19.4  takeoff 1.6/8.1  climb 0/0  legs 4.7/4.7  downwind 0.5/0.5  base 5.6/4.2  final 2.1/3.2  landing 6/6
+GATE PILOTACT: PASS
+=== TAXICLEAR ===
+--- shard 0/4 (1680.4 s) ---
+FAIL 1 archaeopteryx footprint holds its nodes  (half 6.50/5.5, nose 0.47/0.6, tail 4.26/5.5)
+  stock build     span 10.0 m: flown, nearest wing to a parked footprint 12.95 m (o3 at (-21.4, 679.3) in TAXI)
+  Cessna 172 (F-HCSN) span 11.0 m: flown, nearest wing to a parked footprint 12.60 m (o3 at (-20.0, 679.3) in TAXI)
+  Jolene: 279 stand / parked / route rows, Jumbo Mine Street's tightest 0.32 m over its need
+  KNOWN 9 Cessna 172 (F-HCSN) from the mill: tried, rejected on the roll - will not reach Vr: 1.45 m/s^2 needs 196 m more, 158 m left
+  Cessna 172 (F-HCSN) span 11.0 m from the mill: NOT airborne at 360 s, the wing 2.71 m off the nearest footprint (item mn_s_mine/clinic at (7255.8, -15353.0) in TAXI, t 15 s), 0 contacts, 0 trunk hits
+  the user's Cub  span 10.7 m from the mill: airborne at 49 s, the wing 2.63 m off the nearest footprint (item mn_s_mine/clinic at (7255.5, -15353.5) in TAXI, t 15 s), 0 contacts, 0 trunk hits
+  the Jodel       span 8.3 m from the mill: airborne at 98 s, the wing 4.01 m off the nearest footprint (item mn_s_mine/clinic at (7255.7, -15353.1) in TAXI, t 15 s), 0 contacts, 0 trunk hits
+  10 the fleet's spots: w2 12 (aaaaaaaaaaaa), xw_rough 0 (), HOME 12 (saaaaaaaaaaa), w3 12 (aaaaaaaaaaaa), SEA 12 (rrrrrrrrrrrr), mk_sea 12 (rrrrrrrrrrrr), mn_strip 0 (), nv_strip 5 (aaaar), tw_ski 2 (pp), w5 7 (rrrrrrr), w6 12 (aarrrrrrrrrr), w7 12 (aaarrrrrrrrr), w4 12 (aaaaaaaaaaaa), w8 12 (aaaaaaaarrrr), w1 3 (saa), cb_sea 12 (rrrrrrrrrrrr), mt_strip 0 (); 30231 rows in 1.3 s
+  11c the Cessna 172 (F-HCSN) from Jumbo Mine's street 45 m from its south end: NOT airborne at 150 s, the wing 2.83 m off (item mn_s_mine/mill at (7254.8, -15384.0) in ABORT, t 83 s), 0 contacts | pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot
+  11 the turn-around [shard 0/4] in 302 s
+  12 the plots: 7 censused, 3 with a way of their own
+GATE TAXICLEAR: FAIL (1)
+[stderr]
+SHARD 0/4: 3 of 10 heavy jobs
+(exit code 1)
+--- shard 1/4 (66.8 s) ---
+  11c the user's Cub   from the altiport apron after the slope roll-on: airborne at 46 s, the wing 5.10 m off (billboard ob:tw_g_launch at (315.3, -7807.4) in ROLL, t 34 s), 0 contacts | pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot
+  11 the turn-around [shard 1/4] in 56 s
+GATE TAXICLEAR: PASS
+--- shard 2/4 (556.3 s) ---
+11a the Jodel        194 turn-around plans, the tightest Infinity m over its need (w2 end1 -15 m the Jodel)
+  11c the Cessna 172 (F-HCSN) declines East Point (strip-too-short: East Point Clearing has 150 m of strip for a 241 m landing run (and a 411 m take-off) - not going there) - flown to 02/20
+  FAIL 11c the Cessna 172 (F-HCSN) from the altiport apron after the slope roll-on: the altiport (280 m) too short for it from where it lines up - the take-off rejected, said, and stopped on the strip  (no rejection said | LINEUP>STOP>HOLD>ROLL>LIFTOFF, stopped -136.5 m along / -0.3 m across the strip (len 280))
+  FAIL 11c the Cessna 172 (F-HCSN) from the altiport apron after the slope roll-on: touched nothing  (0 node contacts, 0 trunk hits, crashed true)
+  11c the Cessna 172 (F-HCSN) from the altiport apron after the slope roll-on: NOT airborne at 80 s, the wing 5.60 m off (billboard ob:tw_g_launch at (315.2, -7808.4) in ROLL, t 71 s), 0 contacts | pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot
+  11 the turn-around [shard 2/4] in 547 s
+GATE TAXICLEAR: FAIL (2)
+[stderr]
+SHARD 2/4: 2 of 10 heavy jobs
+(exit code 1)
+--- shard 3/4 (71.2 s) ---
+  11c the user's Cub   from Jumbo Mine's street 45 m from its south end: airborne at 56 s, the wing 2.83 m off (item mn_s_mine/clinic at (7255.7, -15352.9) in ROLL, t 37 s), 0 contacts | pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot
+  11 the turn-around [shard 3/4] in 64 s
+GATE TAXICLEAR: PASS
+
+──────── summary (all chunks) ────────
+COVERIDLE PASS     0.0 s
+NIGHTVISIBILITY PASS     0.1 s
+NIGHTEXPOSURE PASS     0.0 s
+INTROSCENE PASS     0.0 s
+INTROSTATE PASS     0.0 s
+PACKINPUTS PASS     0.0 s
+HULLWARM  PASS     0.0 s
+COOKWAIT  PASS     0.1 s
+FLIGHTEVIDENCE PASS     0.3 s
+WINDRASTER PASS     0.0 s
+SCENEDETAIL PASS     0.6 s
+GROUNDQUERY FAIL     0.0 s
+PLOTQUERY PASS     3.9 s
+PATCHBOUNDS PASS     1.1 s
+PACECADENCE PASS     0.4 s
+SCENERYLIGHTS PASS     0.1 s
+AA        PASS     0.3 s
+POSTFX    PASS     0.4 s
+INPUT     PASS   154.7 s
+ATMOS     PASS     1.7 s
+HYPOT     PASS     1.0 s
+SUBSTEP   PASS    39.4 s
+PACE      PASS     0.2 s
+FLIGHTREC FAIL     1.6 s
+AUDIO     PASS   291.4 s
+BOOMBOX   PASS     1.0 s
+MIXLEAD   PASS    35.0 s
+DAY       PASS     2.3 s
+CLOCK     PASS    17.5 s
+CLOCKBAKE PASS   273.0 s
+CLIMATE   PASS    24.7 s
+WEATHERPLAN PASS    11.3 s
+SOILWET   PASS     0.7 s
+FOG       PASS     0.0 s
+ATMO      PASS     1.6 s
+FMIST     FAIL     3.7 s
+CLOUD     PASS   698.3 s
+GE        PASS   242.3 s
+FLAPS     PASS     3.9 s
+STOL      FAIL   717.8 s
+STRESS    PASS    27.9 s
+FLIGHTSCRIPT PASS   722.7 s
+GEN       FAIL   581.2 s  [4 shards]
+PILOT     PASS   457.8 s  [3 shards]
+PILOTCANFLY PASS    42.0 s
+NAV       PASS     0.3 s
+STRIPSURF PASS    17.8 s
+SOFTGROUND PASS   162.8 s
+TAKEOFF   FAIL   524.2 s
+RADIALDIV FAIL  1683.0 s
+PILOTACT  PASS   210.1 s
+TAXICLEAR FAIL  1680.4 s  [4 shards]
+wall (the chunks' own, summed) 3508.4 s  (jobs 4)
+
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 8 red (44 PASS, 8 FAIL, 0 SKIP of 364)
