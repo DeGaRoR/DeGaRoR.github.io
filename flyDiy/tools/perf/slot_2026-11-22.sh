@@ -28,6 +28,16 @@ if [ -z "$SLOT_DRY" ]; then
   trap 'kill $REF 2>/dev/null; rm -f "$TK"/${WHO}_[0-9].tok; bash $B drop gpu $WHO' EXIT
   bash $B take gpu $WHO "the 14:00 perf slot" || { echo "no gpu lock"; exit 3; }
 fi
+# a QUIET window: the runs other sessions started before 14:00 are waited for (10 min at most), then named if still there
+OTHERS() { local n=0 f a pid; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */${WHO}_*.tok) continue ;; esac
+  pid=$(grep -o 'pid=[0-9]*' "$f" 2>/dev/null | head -1 | cut -d= -f2)
+  if [ -n "$pid" ]; then [ -e "/proc/$pid" ] && n=$((n + 1)); continue; fi
+  a=$(( ($(date +%s) - $(stat -c %Y "$f")) / 60 )); [ $a -le 45 ] && n=$((n + 1)); done; echo $n; }
+if [ -z "$SLOT_DRY" ]; then
+  for w in $(seq 1 30); do [ "$(OTHERS)" = 0 ] && break; [ $w = 1 ] && say "$(OTHERS) other CPU run(s) still going: waiting up to 10 min"; sleep 20; done
+  [ "$(OTHERS)" = 0 ] || say "NOTE: $(OTHERS) other CPU run(s) beside the first loads: $(ls "$TK" | grep -v "^${WHO}_" | grep tok | tr '
+' ' ')"
+fi
 say "slot start, $MIN min, lab $LAB ($(cat "$LAB/flyDiy/version.json" 2>/dev/null))"
 
 # 1. pass 1 (its own cap: what the journey, audio and a useful pass 2 leave it)
