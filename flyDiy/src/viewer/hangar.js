@@ -208,6 +208,8 @@ const outdoor = m => { OUTDOOR.push(m); return ground(m); };
 let ROOM_POLISH = null;   // G3534: what the room's polish stood (hangar.polish)
 let POLISH_OUT = null;    // G3534b: its pieces outside the walls, drawn only while the eye stands outside (polishFollow)
 let HO_TREES = null;     // HANGAR-OUTDOORS: the tree cards' places (the outdoors plant them; treesFrom stands the cards)
+let SHED_W = null;       // GARAGE-VIEW: the room's shed in the world ({ x, y, z, ry }: the site's hangar) - the cooked scene stands by it
+let GVIEW = null;        // GARAGE-VIEW: the cooked world out of the door (garage_view.js), once it has landed (gviewFrom)
 let ROOM_PAD = null;      // HANGAR-VIEW C: the plot's ground pad (under room:polish) - outdoors, so the world's view stands in for it
 
 // THE SEED IS RESETTABLE, and it has to be (G123). The canvas sheets below are
@@ -1722,6 +1724,7 @@ if (!EXT) {
   const SITE = (opts && opts.site) || ((typeof siteOf === 'function') ? siteOf('HOME') : null);
   const R = (HOME && typeof siteRunway === 'function') ? siteRunway(HOME) : null;
   const HGR = SITE ? SITE.hangar : null;
+  if (HGR && isFinite(HGR.x) && isFinite(HGR.z)) SHED_W = { x: +HGR.x, y: isFinite(HGR.y) ? +HGR.y : 0, z: +HGR.z, ry: isFinite(HGR.ry) ? +HGR.ry : -Math.PI / 2 };
 
   // ---- world rect -> the shed's own frame ---------------------------------
   const L = r => {
@@ -4058,6 +4061,7 @@ function setSkyFrame(yaw, eye) {
   return moved;
 }
 function applyDay(day, renderer) {
+  if (GVIEW && GVIEW.update) GVIEW.update(day);   // GARAGE-VIEW: the cooked outdoors' haze takes the day's sky
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.setPre) LIGHT_RIG.setPre(1);   // G2620: the shed has no pre-exposure (its lamps cap the exposure); the world sets its own on the way out
   if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
   if (!skyPhys && skyMesh) {
@@ -4696,16 +4700,32 @@ return {
       im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = false; im.frustumCulled = false;
       grp.add(im);
     });
-    grp.visible = !viewOut; G.add(grp); T.built = grp;
+    grp.visible = !viewOut && !GVIEW; G.add(grp); T.built = grp;
     return true;
   },
   treesPlanned: () => (HO_TREES ? HO_TREES.list.length : 0),
+  // GARAGE-VIEW (the user 22 Nov: the world out of the door "recreate as accurately as possible the real world ... the accurate
+  // distances for everything ... without costing much on the garage"): THE COOKED SCENE STANDS IN FOR THE HAND-DRAWN OUTDOORS.
+  // `pack` is GARAGE_VIEW.load's (it arrives behind the first garage view); the scene is built in this room's frame by the
+  // shed's TRUE yaw (SHED_W: the site's hangar) and the room's own outdoors - the field, the strip, the slab, the aprons, the
+  // box cars, the tree cards, the tufts, the plot's pad - go down while it stands (the sky and the walls' polish stay).
+  // -> the built scene ({ group, mats, stats }) or null (no pack, no place in the world, a shed the pack does not know)
+  shedWorld: () => SHED_W,
+  gview: () => GVIEW,
+  gviewFrom: pack => {
+    if (GVIEW || !pack || !SHED_W || typeof GARAGE_VIEW === 'undefined') return null;
+    const B = GARAGE_VIEW.build(THREE, pack, { shed: SHED_W, outdoor: outdoor });
+    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = false;
+    if (ROOM_PAD) ROOM_PAD.visible = false;
+    B.group.visible = !viewOut; G.add(B.group); GVIEW = B;
+    return B;
+  },
   outdoorsShow: (on, keepSky) => {
     viewOut = on === false; skyLive = viewOut && !!keepSky;
-    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut;
+    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut && (!GVIEW || o === GVIEW.group);   // (GARAGE-VIEW: the cooked scene alone while it stands)
     // HANGAR-VIEW C (the 9 Nov sheet: a red-brown band past the Shed's door over the world's grass): the plot's pad hangs under
     // room:polish, which stays, and reaches 14 m out of the door - it is outdoors, the world's view draws the real ground there
-    if (ROOM_PAD) ROOM_PAD.visible = !viewOut;
+    if (ROOM_PAD) ROOM_PAD.visible = !viewOut && !GVIEW;
     if (skyMesh) skyMesh.visible = !muted.sky && (!viewOut || skyLive);
     // HANGAR-VIEW C: the live sky behind the view (renderOrder before its -1001 / -1000 backdrop); the cloud layer in the OPAQUE list
     // between them (three blends a non-transparent material only by a custom blending), its alpha over the sky

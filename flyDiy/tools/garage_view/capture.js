@@ -15,6 +15,11 @@
 //            3D grass hidden - the ground alone. NEAR tiles from 12 m (about 1.1 cm a pixel) in front of each door,
 //            MID from 120 m (11 cm) over the whole pavement, WIDE from 1200 m
 //   trees    the impostor sheets of the species the census found (albedo + normal), for the far trees' cards
+//   garage   TODAY'S GARAGE from the same eyes (before the flight: the page boots in the shed; FLYDIY_ROOM_EYE), the club
+//            and the large hangar (GARAGE_ENV.setShell), at each asked hour - the 'before' of every side by side
+//   far      THE FAR WORLD AS A BAND: from the middle of the two sheds, all round, everything nearer than 700 m clipped
+//            away (the camera's near plane: the sky's dome goes with it), with and without the aerial perspective, and
+//            the same frames with the whole scene hidden (the background, to cut the band out); a 30 degree lens
 //
 //   node tools/garage_view/capture.js --measure <dir with measure.json> --out <dir> [--do graph,refs,card,ground,trees]
 //        [--times now,noon,golden,night] [--cap 1380] [--hide hide.json] [--q k=v] [--page index.html]
@@ -26,8 +31,9 @@ const T = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const MDIR = opt('measure', path.join(T, 'perf', 'garage_view')), OUT = opt('out', path.join(MDIR, 'capture'));
-const DO = opt('do', 'graph,refs,card,ground,props,trees').split(','), TIMES = opt('times', 'now,noon,golden,night').split(',');
+const DO = opt('do', 'refs,card,ground,props,trees,far').split(','), TIMES = opt('times', 'now,noon,golden,night').split(',');
 const CAP = +opt('cap', 1380);
+const TAG = opt('tag', 'today');   // the garage step's pictures: 'today' (the room as it is) or e.g. 'gview' (run with --q gview=1)
 const M = JSON.parse(fs.readFileSync(path.join(MDIR, 'measure.json'), 'utf8'));
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -54,11 +60,17 @@ const yawOf = (dx, dz) => Math.atan2(dx, -dz);
 const PAGE = `(() => {
   if (window.GV) return 'GV ok (again)';
   const AA = window.FLYDIY_AA; let scene = null; const prev = AA.render;
-  AA.render = function (s) { if (s && s.isScene && s !== (FLIGHT_PROBE.hangarScene && FLIGHT_PROBE.hangarScene())) scene = s; return prev.apply(this, arguments); };
+  let lastPj = null;
+  AA.render = function (s, cam) { const world = s && s.isScene && s !== (FLIGHT_PROBE.hangarScene && FLIGHT_PROBE.hangarScene()); if (world) scene = s;
+    // a rig's lens for this frame only (GV.over = { near, fov }): set as the frame is drawn, put back after it
+    let sv = null; if (GV.over && world && cam && cam.isPerspectiveCamera) { sv = [cam.near, cam.fov]; if (GV.over.near) cam.near = GV.over.near; if (GV.over.fov) cam.fov = GV.over.fov; cam.updateProjectionMatrix(); lastPj = { pj: Array.from(cam.projectionMatrix.elements), fov: cam.fov, near: cam.near }; }
+    const r = prev.apply(this, arguments);
+    if (sv) { cam.near = sv[0]; cam.fov = sv[1]; cam.updateProjectionMatrix(); }
+    return r; };
   const hidden = [];
   const GV = {
     scene: () => scene,
-    cam: () => { const c = FLIGHT_PROBE.camera(); c.updateMatrixWorld(); return { mw: Array.from(c.matrixWorld.elements), pj: Array.from(c.projectionMatrix.elements), fov: c.fov, aspect: c.aspect, near: c.near, far: c.far,
+    cam: () => { const c = FLIGHT_PROBE.camera(); c.updateMatrixWorld(); const O = GV.over && lastPj ? lastPj : null; return { mw: Array.from(c.matrixWorld.elements), pj: O ? O.pj : Array.from(c.projectionMatrix.elements), fov: O ? O.fov : c.fov, aspect: c.aspect, near: O ? O.near : c.near, far: c.far, over: !!O,
       pos: [c.position.x, c.position.y, c.position.z], canvas: [FLYDIY_RENDERER.domElement.width, FLYDIY_RENDERER.domElement.height], exposure: FLYDIY_RENDERER.toneMappingExposure }; },
     // hide every visible object whose name matches a pattern or whose userData carries a key; -> what went, by name
     hide: (pats, uds) => { const re = (pats || []).map(p => new RegExp(p)), by = {}; if (!scene) return { error: 'no scene yet' };
@@ -67,7 +79,8 @@ const PAGE = `(() => {
         if (hit) { o.visible = false; hidden.push(o); const k = n.replace(/[:|].*/, ':') || ('(ud ' + o.type + ')'); by[k] = (by[k] || 0) + 1; } });
       return by; },
     show: () => { const n = hidden.length; for (const o of hidden) o.visible = true; hidden.length = 0; return n; },
-    craft: v => { const c = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); if (c) c.visible = !!v; return !!c; },
+    hideAll: () => { let n = 0; if (scene) for (const o of scene.children) if (o.visible && !o.isLight) { o.visible = false; hidden.push(o); n++; } return n; },
+    craft: v => true,   // (never hidden: slot 1)
     graph: () => { const sig = o => { const m = Array.isArray(o.material) ? o.material[0] : o.material, g = o.geometry;
       return [o.name ? o.name.replace(/[:|].*/, ':*') : '-', o.type, o.isInstancedMesh ? 'inst' : '', m ? m.type + (m.name ? ':' + m.name : '') : '', g ? Object.keys(g.attributes || {}).sort().join('+') : '', Object.keys(o.userData || {}).slice(0, 6).join(','), 'ro' + (o.renderOrder || 0), o.visible ? '' : 'HIDDEN', m && m.transparent ? 'transp' : '', m && m.userData && m.userData.progOwner ? 'own=' + m.userData.progOwner : ''].join('|'); };
     const V3 = new THREE.Vector3();
@@ -136,8 +149,37 @@ const PAGE = `(() => {
   const JJ = async (expr, ms) => { const t = await rig.ev('Promise.resolve(' + expr + ').then(v => typeof v === "string" ? v : JSON.stringify(v === undefined ? null : v))', ms); return t == null ? null : JSON.parse(t); };
   try {
     META.gpu = rig.gpu; save();
+    // ---- TODAY'S GARAGE, from the same eyes (the page boots in the shed) ---------------------------------------------------
+    if (DO.includes('garage')) {
+      const info = async () => JJ('(() => { const D = GARAGE_ENV._debug && GARAGE_ENV._debug(), h = D && D.hangar; return JSON.stringify(h ? { shell: h.shell || (GARAGE_ENV.shell && GARAGE_ENV.shell()), dims: h.dims, door: h.door, body: document.body.className, fov: FLIGHT_PROBE.camGet().fov, day: (() => { const d = FLIGHT_PROBE.world().day; return { sunEl: d.sunEl, cloudCover: d.cloudCover }; })() } : { err: "no room", body: document.body.className }); })()');
+      const gshot = async (name, extra) => { const b = await rig.grab({ craft: false, settle: 10 }); fs.writeFileSync(path.join(OUT, name + '.png'), b); META.grabs.push(Object.assign({ name, info: b.info }, extra)); if (b.info.blank) { log('BLANK ' + name); META.blank = (META.blank || 0) + 1; } };
+      for (const shell of ['club', 'works']) {
+        if (shell === 'works') { const r = await rig.ev("(() => { try { return String(GARAGE_ENV.setShell('works')); } catch (e) { return 'FAILED ' + e.message; } })()", 140000); log('garage: setShell works -> ' + r); await rig.frames(60); await rig.settleLoad(); await rig.frames(120); }
+        const I = await info(); log('garage ' + shell + ': ' + JSON.stringify(I)); if (!I || I.err) { META.steps['garage_' + shell] = I; continue; }
+        // the cooked scene, when this run asks for it (?gview=1): wait for it to land in THIS room (30 s), and say what it is
+        if (/gview=1/.test(opt('q', ''))) { let G = null; for (let k = 0; k < 30 && !G; k++) { G = await JJ('(() => { const g = window.FLYDIY_GVIEW, h = GARAGE_ENV._debug().hangar; return JSON.stringify(g && h.gview && h.gview() ? { stats: g.stats, buildMs: g.buildMs, shedWorld: h.shedWorld() } : null); })()'); if (!G) await rig.frames(30); }
+          I.gview = G; log('garage ' + shell + ': gview ' + JSON.stringify(G)); await rig.frames(90); }
+        const HD = I.dims.HD, HWd = I.dims.HW;
+        for (const tm of TIMES) {
+          if (tm !== 'now') { await rig.ev(`(() => { try { DAY_CLOCK.preset(${JSON.stringify(tm)}); return 1; } catch (e) { return 0; } })()`); await rig.frames(90); await rig.settleLoad(); await rig.frames(60); }
+          const V = [['door_out', -HD - 0.3, 1.7, 0, 0], ['door_left', -HD - 0.3, 1.7, 0, -45], ['door_right', -HD - 0.3, 1.7, 0, 45], ['door_high', -HD - 0.3, 4.0, 0, 0], ['inside', HD * 0.55, 2.2, -HWd * 0.25, null]];
+          for (const [vn, lx, ey, lz, az] of V) {
+            const a = az === null ? -Math.atan2(HWd * 0.25, HD * 1.55) : az * Math.PI / 180, t = [lx - Math.cos(a) * 50, ey - 1.0, lz - Math.sin(a) * 50];
+            await rig.ev('FLYDIY_ROOM_EYE(' + JSON.stringify([lx, ey, lz]) + ', ' + JSON.stringify(t) + ')'); await rig.frames(16);
+            await gshot(TAG + '_' + tm + '_' + shell + '_' + vn, { kind: 'garage', tag: TAG, time: tm, shell, view: vn, eyeRoom: [lx, ey, lz], az: az === null ? +(a * 180 / Math.PI).toFixed(1) : az });
+          }
+        }
+        META.steps['garage_' + shell] = I; save();
+      }
+      await rig.ev('FLYDIY_ROOM_EYE(null)');
+      await rig.ev("(() => { try { GARAGE_ENV.setShell('club'); DAY_CLOCK.preset('afternoon'); return 1; } catch (e) { return 0; } })()", 140000); await rig.frames(60); await rig.settleLoad();
+    }
     await rig.fly(); await rig.pause();
-    await rig.place(M.mid.x, M.mid.z, 400, 30);   // the player's aeroplane 400 m over the two sheds, paused: out of every view, its shadow and its blobs off the apron (the world streams round it)
+    // the player's aeroplane off the stand: on the ground 30 m BEHIND the large hangar, paused - out of every door view and off the
+    // apron (slot 1, 22 Nov: with it placed 400 m up and hidden the page stopped answering; nothing is hidden or lifted now)
+    { const q = toWorld(S[1], S[1].HD + 30, 0); await rig.place(q[0], q[1], 1.2, 30); }
+    // ALIVE: two frames drawn within 20 s, or the step that came before is named and the run stops (a page that hangs holds the slot)
+    const alive = async tag => { try { await rig.ev('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))', 20000); } catch (e) { log('NOT ALIVE after ' + tag); META.hungAfter = tag; save(); throw new Error('the page stopped drawing after: ' + tag); } };
     log(await rig.ev(PAGE)); await rig.frames(4);
     META.plane = rig.plane; META.cam0 = await JJ('JSON.stringify(GV.cam())'); META.day0 = await JJ('JSON.stringify(GV.day())');
     log('flying, paused; fov ' + META.cam0.fov + ', canvas ' + META.cam0.canvas + ', day ' + JSON.stringify(META.day0));
@@ -154,7 +196,7 @@ const PAGE = `(() => {
       await rig.frames(30); await rig.settleLoad(); await rig.frames(60); return r; };
 
     // ---- graph + census + the boxes of what stands there --------------------------------------------------------------
-    if (DO.includes('graph')) {
+    if (DO.includes('graph')) {   // (slot 1 brought the graph, the census and the boxes: not asked again by default)
       const G = await JJ('JSON.stringify(GV.graph())', 60000); fs.writeFileSync(path.join(OUT, 'scene_graph.json'), JSON.stringify(G));
       const h = 1500, cx = M.mid.x, cz = M.mid.z;
       const C = await JJ(`(() => { const L = TREE_FILL.census ? TREE_FILL.census(${cx - h}, ${cz - h}, ${cx + h}, ${cz + h}) : null; if (!L) return JSON.stringify(null);
@@ -183,7 +225,7 @@ const PAGE = `(() => {
       await rig.ev('GV.craft(false)');
       await shootCard('ground12', 12); await shootCard('ground120', 120);
       const hid = await JJ('JSON.stringify(GV.hide(' + JSON.stringify(HIDE.ground) + ', ' + JSON.stringify(HIDE.groundUD) + '))');
-      log('ground: ' + r + '; hidden ' + JSON.stringify(hid));
+      log('ground: ' + r + '; hidden ' + JSON.stringify(hid)); await alive('ground hide');
       const cam = META.cam0, tanV = Math.tan(cam.fov * Math.PI / 360), asp = cam.canvas[0] / cam.canvas[1];
       // a tile set: the eye h over the ground, straight down, the picture's top toward the club door's line; the tiles
       // overlap by 12 %. `rect` in a shed's room frame [lx0, lx1, lz0, lz1], or a world box round the middle
@@ -210,8 +252,8 @@ const PAGE = `(() => {
     // ---- the reference views, hour by hour -----------------------------------------------------------------------------
     if (DO.includes('refs') || DO.includes('card')) for (const tm of TIMES) {
       const r = await setTime(tm); const day = await JJ('JSON.stringify(GV.day())'); log('time ' + tm + ': ' + r + ', sunEl ' + (day.sunEl != null ? (+day.sunEl).toFixed(1) : '?') + ', cloud ' + day.cloudCover);
-      await rig.ev('GV.craft(false)'); const hid = await JJ('JSON.stringify(GV.hide(' + JSON.stringify(HIDE.refs) + ', []))');
-      if (DO.includes('card')) await shootCard(tm);
+      const hid = {}; await alive('time ' + tm);
+      if (DO.includes('card')) { await shootCard(tm); await alive('card ' + tm); }
       if (DO.includes('refs')) for (const Sd of S) {
         const V = [['door_out', -Sd.HD - 0.3, 1.7, 0, 0], ['door_left', -Sd.HD - 0.3, 1.7, 0, -45], ['door_right', -Sd.HD - 0.3, 1.7, 0, 45], ['door_high', -Sd.HD - 0.3, 4.0, 0, 0], ['apron_out', -Sd.HD - 14, 1.7, 0, 0]];
         for (const [vn, lx, ey, lz, az] of V) {
@@ -220,7 +262,7 @@ const PAGE = `(() => {
           await grab('ref_' + tm + '_' + Sd.id.replace(/\W/g, '_') + '_' + vn, { kind: 'ref', time: tm, shed: Sd.id, view: vn, eyeRoom: [lx, ey, lz], az, day });
         }
       }
-      await rig.ev('GV.show()'); META.steps['refs_' + tm] = { hid, day }; save();
+      META.steps['refs_' + tm] = { hid, day }; save(); log('refs ' + tm + ': ' + META.grabs.length + ' grabs so far');
       if (tm === 'noon' && DO.includes('ground')) await ground('preset noon (with the noon views)');
     }
 
@@ -237,7 +279,7 @@ const PAGE = `(() => {
       await rig.ev('GV.craft(false)'); await shootCard('props', 12);
       // the eye near the things first: the houses and the props stand by distance (their LODs, the thrift)
       await eyeAt(S[0].doorCentre.x, floorY(S[0]) + 1.7, S[0].doorCentre.z, yawOf(S[0].doorDir.x, S[0].doorDir.z), -0.02, 40);
-      const all = await JJ('JSON.stringify(GV.things(' + M.mid.x + ', ' + M.mid.z + ', 260))', 60000);
+      const all = await JJ('JSON.stringify(GV.things(' + M.mid.x + ', ' + M.mid.z + ', 260))', 60000); await alive('things');
       const keep = all.filter(t => t.r > 0.6 && t.r < 60 && !/^parkedAt:|person_/.test(t.name));
       log('props: ' + all.length + ' things within 260 m, ' + keep.length + ' kept (no parked aircraft, no people, nothing under 0.6 m)');
       const tanV = Math.tan(META.cam0.fov * Math.PI / 360), PR = [];
@@ -262,6 +304,27 @@ const PAGE = `(() => {
       }
       await JJ('GV.solo(null)'); await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: ' + (+cc0 || 0) + ' })'); await rig.frames(30);
       META.steps.props = { all, kept: PR, cloudCoverBack: cc0 }; save(); log('props: ' + done + ' things, ' + PR.reduce((a, p) => a + p.tris, 0) + ' triangles');
+    }
+
+    // ---- the far world as a band -------------------------------------------------------------------------------------------------
+    if (DO.includes('far')) {
+      await setTime(TIMES.includes('noon') ? 'noon' : 'now');
+      const cc0 = (await JJ('JSON.stringify(GV.day())')).cloudCover; await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: 0 })'); await rig.frames(60);
+      await rig.ev('GV.craft(false)');
+      const NEARF = +opt('farnear', 700), FOVF = 30, gy = await JJ(`FLIGHT_PROBE.world().terrainH(${M.mid.x}, ${M.mid.z})`), eye = [M.mid.x, gy + 3, M.mid.z];
+      await rig.ev('GV.over = { near: ' + NEARF + ', fov: ' + FOVF + ' }');
+      let n = 0;
+      for (const ap of [1, 0]) {
+        await rig.ev('ATMO.setAP(' + (ap ? 'true' : 'false') + ')'); await rig.frames(20);
+        for (let k = 0; k < 9; k++) { const yaw = k * 40 * Math.PI / 180;
+          await eyeAt(eye[0], eye[1], eye[2], yaw, 0.07, 20);
+          await grab('far_' + (ap ? 'ap' : 'clear') + '_' + k, { kind: 'far', ap, k, yawDeg: k * 40, near: NEARF, eye }); n++;
+          if (ap === 1) { const hid = await JJ('GV.hideAll()'); await rig.frames(4); await grab('far_bg_' + k, { kind: 'farbg', k, yawDeg: k * 40, hid }); await rig.ev('GV.show()'); await rig.frames(4); n++; }
+        }
+      }
+      await rig.ev('ATMO.setAP(true)'); await rig.ev('GV.over = null');
+      await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: ' + (+cc0 || 0) + ' })'); await rig.frames(30);
+      META.steps.far = { near: NEARF, fov: FOVF, eye, grabs: n, cloudCoverBack: cc0 }; save(); log('far: ' + n + ' grabs');
     }
 
     // ---- the species' impostor sheets -------------------------------------------------------------------------------------------

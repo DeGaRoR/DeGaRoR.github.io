@@ -18,6 +18,9 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const IN = opt('in', path.join(T, 'perf', 'garage_view')), OUT = opt('out', IN);
 const WID = +opt('w', 1280), HEI = Math.round(WID * 9 / 16), WHICH = opt('scene', 'both');
+// --scene built --built <dir>: THE COOKED SCENE ITSELF (cook.js's scene.json + scene.bin), its own triangles and cards, through
+// the same eyes - the check that what was built stands where the measured world stands
+const BUILT = opt('built', null);
 const M = JSON.parse(fs.readFileSync(path.join(IN, 'measure.json'), 'utf8'));
 const CEN = fs.existsSync(path.join(IN, 'census.json')) ? JSON.parse(fs.readFileSync(path.join(IN, 'census.json'), 'utf8')) : null;
 const TREES = [];
@@ -190,6 +193,21 @@ function drawToday(RT, cam, S, Fm, labels) {
     tree(RT, cam, [x, -0.3 + yR(x, z), z], 17 * (0.85 + hash(i, row + 3) * 0.55), hash(i, row + 5) < 0.6 ? 'conifer' : 'broadleaf', i + row * 1000); } }
 }
 
+function drawBuilt(RT, cam, S, Fm) {
+  const J = JSON.parse(fs.readFileSync(path.join(BUILT, 'scene.json'), 'utf8')), B = fs.readFileSync(path.join(BUILT, 'scene.bin')), ab = B.buffer.slice(B.byteOffset, B.byteOffset + B.length);
+  const arr = a => a.t === 'f32' ? new Float32Array(ab, a.at, a.n) : new Uint32Array(ab, a.at, a.n), O = J.origin;
+  const N = M.terrain.near, surfAt = (x, z) => { const i = Math.round((x - N.x0) / N.step), j = Math.round((z - N.z0) / N.step); return (i >= 0 && j >= 0 && i < N.n && j < N.n) ? N.surf[j * N.n + i] : -1; };
+  for (const m of J.meshes) { const P = arr(m.pos), I = arr(m.idx), C = m.col ? arr(m.col) : null, cs = m.kind === 'decal' ? 4 : 3, wp = k => [P[k * 3] + O[0], P[k * 3 + 1] + O[1], P[k * 3 + 2] + O[2]];
+    for (let t = 0; t < I.length; t += 3) { const a = wp(I[t]), b = wp(I[t + 1]), c = wp(I[t + 2]), ra = Fm.R(a[0], a[1], a[2]), rb = Fm.R(b[0], b[1], b[2]), rc = Fm.R(c[0], c[1], c[2]);
+      let col;
+      if (m.kind === 'cards') col = (t / 3) % 2 ? [40, 80, 52] : [48, 92, 60];
+      else if (m.kind === 'props') col = [200, 184, 152];
+      else if (m.kind === 'ring') col = [C[I[t] * 3], C[I[t] * 3 + 1], C[I[t] * 3 + 2]].map(v => 255 * Math.pow(v, 1 / 2.2));
+      else if (m.kind === 'decal') col = [176, 172, 160];
+      else { const sf = surfAt((a[0] + b[0] + c[0]) / 3, (a[2] + b[2] + c[2]) / 3); col = sf < 0 ? [112, 128, 86] : SURF(sf); }
+      RT.tri(cam, ra, rb, rc, m.kind === 'cards' ? col : shade(col, lit(ra, rb, rc, Fm.sun))); } }
+}
+
 // ---- the views -------------------------------------------------------------------------------------------------------
 const VIEWS = S => [
   { name: 'door_out', label: 'standing in the door, looking straight out', eye: [-S.HD - 0.3, 1.7, 0], az: 0 },
@@ -199,10 +217,10 @@ const VIEWS = S => [
 ];
 fs.mkdirSync(OUT, { recursive: true });
 const META = [];
-for (const S of M.sheds) for (const scene of (WHICH === 'both' ? ['ref', 'today'] : [WHICH])) for (const V of VIEWS(S)) {
+for (const S of M.sheds) for (const scene of (WHICH === 'both' ? ['ref', 'today'] : WHICH.split(','))) for (const V of VIEWS(S)) {
   const t0 = Date.now(), a = V.az * Math.PI / 180, cam = makeCam(V.eye, [-Math.cos(a), -0.02, -Math.sin(a)], 46), RT = makeTarget(), Fm = frame(S), labels = [];
   sky(RT);
-  if (scene === 'ref') drawRef(RT, cam, S, Fm, labels); else drawToday(RT, cam, S, Fm, labels);
+  if (scene === 'ref') drawRef(RT, cam, S, Fm, labels); else if (scene === 'built') drawBuilt(RT, cam, S, Fm); else drawToday(RT, cam, S, Fm, labels);
   if (scene === 'ref') skyline(RT, cam, S, Fm);
   if (V.frameDoor) { // the room round the door: everything outside the door's opening is the wall, dark
     const hw = S.door.w / 2, C = [[-S.HD, 0, -hw], [-S.HD, 0, hw], [-S.HD, S.door.h, hw], [-S.HD, S.door.h, -hw]].map(p => cam.px(cam.toView(p)));
