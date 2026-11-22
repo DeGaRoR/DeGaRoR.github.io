@@ -195,7 +195,7 @@ function drawToday(RT, cam, S, Fm, labels) {
 
 function drawBuilt(RT, cam, S, Fm) {
   const J = JSON.parse(fs.readFileSync(path.join(BUILT, 'scene.json'), 'utf8')), B = fs.readFileSync(path.join(BUILT, 'scene.bin')), ab = B.buffer.slice(B.byteOffset, B.byteOffset + B.length);
-  const arr = a => a.t === 'f32' ? new Float32Array(ab, a.at, a.n) : new Uint32Array(ab, a.at, a.n), O = J.origin;
+  const arr = a => a.t === 'f32' ? new Float32Array(ab, a.at, a.n) : a.t === 'u16' ? new Uint16Array(ab, a.at, a.n) : new Uint32Array(ab, a.at, a.n), O = J.origin;
   const N = M.terrain.near, surfAt = (x, z) => { const i = Math.round((x - N.x0) / N.step), j = Math.round((z - N.z0) / N.step); return (i >= 0 && j >= 0 && i < N.n && j < N.n) ? N.surf[j * N.n + i] : -1; };
   for (const m of J.meshes) { const P = arr(m.pos), I = arr(m.idx), C = m.col ? arr(m.col) : null, cs = m.kind === 'decal' ? 4 : 3, wp = k => [P[k * 3] + O[0], P[k * 3 + 1] + O[1], P[k * 3 + 2] + O[2]];
     for (let t = 0; t < I.length; t += 3) { const a = wp(I[t]), b = wp(I[t + 1]), c = wp(I[t + 2]), ra = Fm.R(a[0], a[1], a[2]), rb = Fm.R(b[0], b[1], b[2]), rc = Fm.R(c[0], c[1], c[2]);

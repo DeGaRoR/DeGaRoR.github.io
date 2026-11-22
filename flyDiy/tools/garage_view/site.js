@@ -12,6 +12,10 @@
 //     trees    every drawn tree within this of the sheds' middle becomes a card
 //     mid      the low-resolution ground picture: u x v metres, its centre `out` metres out of the first shed's door
 //     near     the high-resolution one in front of each door: `out` metres out, `in` metres inside the sill, `side` each side
+//     far      the band of the game's own pixels past the trees' radius: from `low` to `top` degrees of elevation, `w` texels round
+//              (a plain: -1.6 .. 13; a valley wants its summits and its floor: measure.js prints the skyline's highest angle)
+//     slices   (optional) the low vegetation's rings of distance (m, from the sheds' middle) and the lens that shoots them
+//              (default 60 .. 700 m at 30 degrees: an apron on a plain; a small shed in a valley wants nearer rings and 60)
 //
 //   node tools/garage_view/site.js list [--world jolene]            every field with hangar plots, and the packs that exist
 //   node tools/garage_view/site.js new <field> [--pack name] [--world jolene] [--fixture island_jolene.json]
@@ -20,14 +24,14 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = path.join(__dirname, '..'), DIR = path.join(__dirname, 'sites');
-const DEF = { trees: 700, mid: { u: 560, v: 460, out: 110 }, near: { out: 46, in: 6, side: 10 }, times: ['now', 'noon', 'golden', 'night'] };
+const DEF = { trees: 700, mid: { u: 560, v: 460, out: 110 }, near: { out: 46, in: 6, side: 10 }, far: { low: -1.6, top: 13, w: 8192 }, times: ['now', 'noon', 'golden', 'night'] };
 const SHELL_NAME = { club: 'club hangar', works: 'large hangar', field: 'small hangar' };
 
 function read(p) {
   const f = fs.existsSync(p) ? p : path.join(DIR, p.replace(/\.json$/, '') + '.json');
   if (!fs.existsSync(f)) throw new Error('garage_view site: no site file ' + p + ' (node tools/garage_view/site.js list)');
   const S = Object.assign({}, DEF, JSON.parse(fs.readFileSync(f, 'utf8')));
-  S.mid = Object.assign({}, DEF.mid, S.mid || {}); S.near = Object.assign({}, DEF.near, S.near || {});
+  S.mid = Object.assign({}, DEF.mid, S.mid || {}); S.near = Object.assign({}, DEF.near, S.near || {}); S.far = Object.assign({}, DEF.far, S.far || {});
   for (const k of ['pack', 'world', 'fixture', 'field']) if (!S[k]) throw new Error('garage_view site ' + f + ': no "' + k + '"');
   if (!Array.isArray(S.sheds) || !S.sheds.length) throw new Error('garage_view site ' + f + ': no sheds');
   return S;

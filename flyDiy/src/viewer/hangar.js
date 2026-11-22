@@ -4061,6 +4061,61 @@ function setSkyFrame(yaw, eye) {
   if (moved) keyHeld = null;   // the key re-aims at once
   return moved;
 }
+// ---- GARAGE-VIEW: THE DOOR VIEW AS THE GAME SHOWS IT (the user, 22 Nov, on the first side by side: "the sky is absolutely not the same
+// thing ... why are we not just using the same method?") ---------------------------------------------------------------------------
+// While a cooked scene stands, what is OUTDOORS takes the world's light and the world's exposure: the scene itself (garage_view.js,
+// L.world), the sky dome (gvSky) and the clouds, which are drawn by the GAME's pass (clouds.js draw: the half-size march, its history,
+// the composite - the programs the flight draws with) from the room's eye stood in the world (gvCloudCam). The room keeps its own
+// light and its lamps' exposure: its probe is shot at the room's level (gvBake). Without a scene nothing here runs.
+let GV_EX = null, GV_BAKE = false, GV_COMP = null, GV_CAM = null, GV_M = null, GV_MI = null, GV_EYE = null;
+// the dome's scale is ATMO's one uniform; the room's applyDay has just written the room's (K_SUN x 1). It takes the world's x the
+// scene's exposure factor (the world's exposure over the room's at S.expose 1), and the clouds' scale with it
+function gvSky(WL) {
+  const L = GVIEW && GVIEW.light ? GVIEW.light() : null, ok = !!(L && L.world && WL && WL.scale > 0 && typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.scale);
+  if (!ok) { if (GV_EX) { GV_EX = null; GV_BAKE = false; if (skyPhys && skyMesh && skyMesh.material) { skyMesh.material.depthWrite = true; skyMesh.renderOrder = 0; } } return; }
+  if (GV_BAKE) { GV_BAKE = false; if (GVIEW.bake) GVIEW.bake(false); }
+  GV_EX = { room: ATMO.U.scale.value, out: WL.scale * L.exDay, exG: L.exG };
+  ATMO.U.scale.value = GV_EX.out;
+  const cu = cloudMesh && cloudMesh.material && cloudMesh.material.uniforms ? cloudMesh.material.uniforms.uScale : null; if (cu) cu.value = GV_EX.out;
+  // the sky is BEHIND the scene: its sphere stood 600 m out and wrote depth - the mountains' wall (700 m) and every tree past it were hidden
+  if (skyPhys && skyMesh && skyMesh.material) { skyMesh.material.depthWrite = false; skyMesh.renderOrder = -10; }
+}
+// the room's probe is shot at the ROOM's level (the walls and the aeroplane are lit as before); the frame's own draw puts the day back
+function gvBake(on) {
+  on = !!on; if (on === GV_BAKE || !GVIEW || !GV_EX) return GV_BAKE; GV_BAKE = on;
+  if (GVIEW.bake) GVIEW.bake(on);
+  ATMO.U.scale.value = on ? GV_EX.room : GV_EX.out;
+  const cu = cloudMesh && cloudMesh.material && cloudMesh.material.uniforms ? cloudMesh.material.uniforms.uScale : null; if (cu) cu.value = ATMO.U.scale.value;
+  if (on && GV_COMP) { GV_COMP.visible = false; if (cloudMesh && typeof CLOUDS !== 'undefined') cloudMesh.visible = !!CLOUDS.active; }
+  return GV_BAKE;
+}
+// the room's eye, stood in the WORLD (the room's frame turned by the shed's yaw, at the shed's place): the camera the game's cloud pass
+// marches from. null = the room's own cloud sphere draws (no scene, the pass switched off, no cloud in the sky)
+function gvCloudCam(cam) {
+  if (GV_BAKE) gvBake(false);
+  if (!GVIEW || !GV_EX || viewOut || !SHED_W || !cam || typeof CLOUDS === 'undefined' || !CLOUDS.compositeMesh || !CLOUDS.active || !(typeof GARAGE_VIEW !== 'undefined' && GARAGE_VIEW.S.cloudPass > 0)) { if (GV_COMP) GV_COMP.visible = false; return null; }
+  const cm = CLOUDS.compositeMesh(); if (!cm) return null;
+  if (!GV_COMP) {
+    // the composite: the game's own quad material on a quad of the room's (sharedGeo: disposeHangar leaves the game's material alone)
+    GV_COMP = new THREE.Mesh(cm.geometry, cm.material); GV_COMP.frustumCulled = false; GV_COMP.renderOrder = 1e6; GV_COMP.name = 'cloudComposite:room'; GV_COMP.visible = false;
+    GV_COMP.userData.sharedGeo = true; GV_COMP.userData.outdoor = true;
+    // ONE draw a frame: any other eye on the room (the probe's faces, a capture) sees the room's own cloud sphere
+    GV_COMP.onAfterRender = () => { GV_COMP.visible = false; if (cloudMesh && typeof CLOUDS !== 'undefined') cloudMesh.visible = !!CLOUDS.active; };
+    G.add(GV_COMP); GV_CAM = new THREE.PerspectiveCamera(); GV_CAM.matrixAutoUpdate = false; GV_M = new THREE.Matrix4(); GV_MI = new THREE.Matrix4();
+  }
+  G.updateMatrixWorld(); cam.updateMatrixWorld();
+  GV_M.makeRotationY(SHED_W.ry); GV_M.setPosition(SHED_W.x, SHED_W.y, SHED_W.z); GV_MI.copy(G.matrixWorld).invert();
+  GV_CAM.matrixWorld.multiplyMatrices(GV_M, GV_MI).multiply(cam.matrixWorld); GV_CAM.matrixWorldInverse.copy(GV_CAM.matrixWorld).invert();
+  GV_CAM.projectionMatrix.copy(cam.projectionMatrix); GV_CAM.projectionMatrixInverse.copy(cam.projectionMatrixInverse);
+  GV_CAM.near = cam.near; GV_CAM.far = cam.far; GV_CAM.fov = cam.fov; GV_CAM.aspect = cam.aspect; GV_CAM.position.setFromMatrixPosition(GV_CAM.matrixWorld);
+  return GV_CAM;
+}
+// the pass has marched: its composite shows in this frame's draw, the room's own sphere stands down for it
+function gvCloudDone() {
+  const cm = typeof CLOUDS !== 'undefined' && CLOUDS.compositeMesh ? CLOUDS.compositeMesh() : null; if (!GV_COMP || !cm) return false;
+  GV_COMP.visible = !!cm.visible; if (GV_COMP.visible && cloudMesh) cloudMesh.visible = false;
+  return GV_COMP.visible;
+}
 function applyDay(day, renderer) {
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.setPre) LIGHT_RIG.setPre(1);   // G2620: the shed has no pre-exposure (its lamps cap the exposure); the world sets its own on the way out
   if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
@@ -4071,6 +4126,14 @@ function applyDay(day, renderer) {
     // A6 (2026-09-20): depth-tested, or it painted over the walls and the aeroplane (the playtest's garage clouds)
     if (typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh && skyMesh.parent) { const c = CLOUDS.domeMesh(frameYaw, 598, 24, { depthTest: true }); if (c) { c.renderOrder = 1; skyMesh.parent.add(c); cloudMesh = c; } }
   }
+  // GARAGE-VIEW: while a cooked scene stands, the atmosphere's eye is the SHED's place in the world. The mist is a layer over the land,
+  // read at the eye's own place and height: from the world's origin at sea level (the call below, the room's own) the night's mist
+  // filled the whole door white once the sky was shown at the game's exposure (22 Nov)
+  if (renderer && GVIEW && SHED_W) { ATMO.update(renderer, day, SHED_W.y + 1.7, (GV_EYE || (GV_EYE = new THREE.Vector3())).set(SHED_W.x, SHED_W.y + 1.7, SHED_W.z));
+    // ...and the mist's COLOUR back at the room's level: the room's own air is a medium lit in the dome's unit (atmo.js "the room is a
+    // medium"), and the dome's scale is the outdoors' while a scene stands - at night that is x24 000: the whole room went white
+    if (GV_EX && ATMO.apUniforms && ATMO.apUniforms.uMist && ATMO.U.scale.value > 0) { const m = ATMO.apUniforms.uMist.value, k = GV_EX.room / ATMO.U.scale.value; m[4] *= k; m[5] *= k; m[6] *= k; } }
+  else
   if (renderer) ATMO.update(renderer, day, 0);           // the sky-view LUT at the field's own height
   // the clouds' day (the shed frame is not the world's: the splice stays off, the key takes the layer's transmittance)
   let cloudT = 1;
@@ -4083,6 +4146,8 @@ function applyDay(day, renderer) {
   // THE LAMPS SET THE NIGHT'S EXPOSURE: the schedule opens 15 stops for a starlit sky, but a shed
   // with 70 cd lamps is lit by its lamps, which were judged at the rows' exposure (~1.0); the cap
   // is that, half a stop over, so a golden hour still opens and the dusk and night hold the lamps' level
+  // GARAGE-VIEW: the WORLD's light for this day, asked BEFORE the room's own (which writes the dome's scale and the night grade back for the room)
+  const WL = (GVIEW && typeof window !== 'undefined' && window.WORLD_RIG && window.WORLD_RIG.lightFor) ? window.WORLD_RIG.lightFor(day, cloudT) : null;
   const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, keyGain: cloudT, altM: 0, exposureCap: LAMP_EX_CAP });
   // aim the key from the shed's frame, the frustum floor kept (see aimKey)
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
@@ -4090,8 +4155,12 @@ function applyDay(day, renderer) {
   // GARAGE-VIEW: the cooked outdoors take the day - the haze's colour off the sky, the shed's own shadow on the apron off the light
   // (the last day is KEPT: a scene lands behind the room, between two days - it takes this one at once, gviewFrom. 22 Nov: the
   // second scene stood black at the boot hour until the clock moved)
-  GV_LAST = [day, { dir: [s[0], s[1], s[2]], cloudT: cloudT, isMoon: SKY_LIGHT.isMoon, keyI: key.intensity, keyC: key.color }];
+  GV_LAST = [day, { dir: [s[0], s[1], s[2]], cloudT: cloudT, isMoon: SKY_LIGHT.isMoon, keyI: key.intensity, keyC: key.color, world: WL, exRoom: r ? r.exposure : null,
+    // the room's lamps as they burn (the light that spills out of the door onto the apron: garage_view.js gvLamps)
+    lamps: GVIEW ? lamps.slice(0, 5).map(l => { const p = l.parent ? l.parent.position : l.position, on = l.visible !== false && (!l.parent || l.parent.visible !== false); return [p.x, p.y + l.position.y, p.z, on ? l.intensity : 0]; }) : null,
+    lampC: [LAMP.rgb.r, LAMP.rgb.g, LAMP.rgb.b], lampAngle: lamps[0] ? lamps[0].angle : LAMP.angle, lampPen: lamps[0] ? lamps[0].penumbra : 0.45, lampDist: lamps[0] ? lamps[0].distance : 26 }];
   if (GVIEW && GVIEW.update) GVIEW.update(GV_LAST[0], GV_LAST[1]);
+  gvSky(WL);
   // G2070 (GARAGE-LAPTOP): the key's POSE steps when the sun has moved 0.05 deg (~12 s of a 1x day; under a third of a
   // 2048 texel at the shed's far wall) - its shadow map is cached (shed_shadow.js) and re-bakes when the light moves, so a
   // key that crept every frame re-drew its 1 300 casters every frame; the flare (dayDirShed) keeps the live sun
@@ -4717,9 +4786,13 @@ return {
   // -> the built scene ({ group, mats, stats }) or null (no pack, no place in the world, a shed the pack does not know)
   shedWorld: () => SHED_W,
   gview: () => GVIEW,
+  // the door view as the game shows it (above applyDay: gvSky, gvBake, gvCloudCam, gvCloudDone)
+  gviewBake: on => gvBake(on), gviewCloudCam: cam => gvCloudCam(cam), gviewCloudDone: () => gvCloudDone(),
+  gviewState: () => ({ ex: GV_EX, bake: GV_BAKE, comp: GV_COMP ? GV_COMP.visible : null, light: GVIEW && GVIEW.light ? GVIEW.light() : null, world: GV_LAST && GV_LAST[1] ? GV_LAST[1].world : null, exRoom: GV_LAST && GV_LAST[1] ? GV_LAST[1].exRoom : null,
+    cloudMs: typeof CLOUDS !== 'undefined' && CLOUDS.stats ? CLOUDS.stats.ms : null }),
   gviewFrom: pack => {
     if (GVIEW || !pack || !SHED_W || typeof GARAGE_VIEW === 'undefined') return null;
-    const B = GARAGE_VIEW.build(THREE, pack, { shed: SHED_W, outdoor: outdoor, dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE } });
+    const B = GARAGE_VIEW.build(THREE, pack, { shed: SHED_W, outdoor: outdoor, dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE }, door: { w: DOOR_W, h: DOOR_H, z: DOOR_Z } });
     for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = false;
     if (ROOM_PAD) ROOM_PAD.visible = false;
     B.group.visible = !viewOut; G.add(B.group); GVIEW = B;

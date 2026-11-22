@@ -8679,6 +8679,20 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // THE GROUND UNDER THE CRAFT: the class mix the belly sees, the albedo eased toward it, the cap the probe last baked
     groundUnder: () => Object.assign(groundUnder(), { baked: probe ? probe.cap : null, bakes: probe ? probe.bakes : 0, pin: GU.pin }),
     probeState: () => (probe ? { bakes: probe.bakes, fade: probe.fade, fading: probe.fading } : null),   // G1351 (the luma trace reads it)
+    // GARAGE-VIEW (22 Nov): THE WORLD'S LIGHT FOR A DAY, for a room that shows the world through its door - dayApply's own call to
+    // sky_light on stand-in lights, with no renderer and no pre-exposure: nothing of the world moves. The caller (hangar.js applyDay)
+    // makes it BEFORE its own SKY_LIGHT.applyDay, which writes the dome's scale and the night grade back for the room. The key has
+    // no cloud in it (the world shadows its sun per pixel); cT is the cloud's transmittance at the eye, for the hemisphere.
+    lightFor: (day, cT) => {
+      if (!ATMO_ON || typeof SKY_LIGHT === 'undefined' || !day) return null;
+      const k = { intensity: 0, color: new THREE.Color(1, 1, 1) }, h = { intensity: 0, color: new THREE.Color(1, 1, 1), groundColor: new THREE.Color(0, 0, 0) }, t = cT == null ? 1 : cT;
+      const r = SKY_LIGHT.applyDay(day, { key: k, hemi: h, renderer: null, unit: LIGHT_UNIT, nightVisibility: 1.4, sunGain: RIG.sun / 2.8,
+        hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(t) : 1), exposureK: rigCur.exposure / 0.92,
+        gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(), gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain, hemiGnd: rigCur.hemiGnd, gb, altM: 0, cloudT: t });
+      if (!r) return null;
+      return { isMoon: r.isMoon, exposure: r.exposure, sunI: k.intensity, sunC: [k.color.r, k.color.g, k.color.b], hemiI: h.intensity, hemiC: [h.color.r, h.color.g, h.color.b],
+               gndC: [h.groundColor.r, h.groundColor.g, h.groundColor.b], scale: (typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.scale) ? ATMO.U.scale.value : 0 };
+    },
     // THE WORLD'S MEAN ALBEDO and the hemisphere's ground half derived from it (the F8 readout, the rig)
     worldAlbedo: () => ({ alb: worldAlbedo(), src: WALB.pin ? 'pinned' : WALB.src, pin: WALB.pin,
                           img: albedoFromImagery(), cls: albedoFromClassifier(),   // both, so the scale gap between them is measured and not asserted

@@ -269,6 +269,10 @@
     // A6 (G436.7): the march runs BEFORE the scene (the previous frame's depth ends its rays) and the
     // composite is a quad in the world scene at the cloud's own depth - the silhouettes per MSAA sample
     aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt, true); });
+    // GARAGE-VIEW (22 Nov, the user: "why are we not just using the same method?"): while a cooked scene stands in the garage, the
+    // clouds through its door are the GAME's pass too (gviewCloudPre: marched from the room's eye stood in the world, the composite in
+    // the room's own draw). The world's line above stays word for word (GATE STORY and GATE INTROSCENE read it): this one adds the room.
+    aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt, true); else gviewCloudPre(r, cam, rt, drawnScene); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // THE POST PASSES (POST-FX study, 2026-09-21): src/viewer/post_fx.js - six rows of the GRAPHICS
@@ -1136,6 +1140,9 @@
   function bakeHangarEnv(o) {
     if (envDeferred || envAway) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
+    // GARAGE-VIEW: the room's probe is shot at the ROOM's level (a cooked scene shows the outdoors at the game's exposure: the walls and
+    // the aeroplane stay lit as before); the frame's own draw puts the day back (gviewCloudPre, or the next applyDay)
+    if (hangar.gviewBake) hangar.gviewBake(true);
     // G2662: `o.part` is one slice of the clock's sliced bake (envSliceStep, below): 'face' (o.face, 0-5: that face of
     // the cube only), 'room' (the PMREM of the faces already shot + the swap), 'outdoors' (the outdoor materials' sky).
     // No `o` = the one-shot bake every other caller asks for; it shoots everything now, so a sliced job is moot.
@@ -1532,6 +1539,17 @@
   const gviewOn = () => { try { return !!window.FLYDIY_GVIEW_ON || /[?&]gview=1\b/.test(location.search || ''); } catch (e) { return false; } };   // (FLYDIY_GVIEW_ON: a rig's switch, the before and the after in one boot)
   const gviewPacks = new Map();   // a pack's base -> its load (one fetch a scene, shared by the rooms it serves)
   let gviewFor = null;
+  // the clouds through the door by the game's own pass (aa's pre hook, the room's draws): the probe's level is put back first
+  function gviewCloudPre(r, cam, rt, drawnScene) {
+    if (!hangar || !hangar.gviewCloudCam || typeof CLOUDS === 'undefined') return;
+    if (hangar.gviewBake) hangar.gviewBake(false);
+    if (drawnScene !== hangarScene) return;
+    const wc = hangar.gviewCloudCam(cam); if (!wc) return;
+    // (the clouds take the air between: the atlas is the room's own day, ATMO.update in applyDay; the switch is off in the shed for the room's materials)
+    const ap = typeof ATMO !== 'undefined' && ATMO.setAP; if (ap) ATMO.setAP(true);
+    CLOUDS.draw(r, wc, rt, true); hangar.gviewCloudDone();
+    if (ap) ATMO.setAP(false);
+  }
   function gviewTick() {
     if (!gviewOn() || !hangar || !hangar.gviewFrom || gviewFor === hangar || typeof GARAGE_VIEW === 'undefined') return;
     gviewFor = hangar; const H = hangar;

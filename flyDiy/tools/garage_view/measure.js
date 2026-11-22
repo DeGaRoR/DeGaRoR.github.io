@@ -48,7 +48,11 @@ const r3 = v => +(+v).toFixed(3), r2 = v => +(+v).toFixed(2), r1 = v => +(+v).to
 // ---- the two sheds ------------------------------------------------------------------------------------------
 // the shells' default dims (26_hangar_fit.js SHELLS) and hangar.js's door rules (DOOR_W / DOOR_H, :147-165)
 const SH = (C.SHELLS && C.SHELLS.club && C.SHELLS.works) ? C.SHELLS : null;
-const dimsOf = k => (SH && SH[k] && SH[k].dims) ? SH[k].dims : (k === 'works' ? { HW: 22, HD: 30, EAVE: 9.5 } : k === 'field' ? { HW: 7, HD: 9, EAVE: 3.6 } : { HW: 15, HD: 12.5, EAVE: 7.0 });
+// ...and THE PLOT'S OWN over them (71_player_bases.js BASE_OFFERS: the Cabin Strip's shed is 18 x 22 m with a 10 m door, not the
+// field shell's 14 x 18 with 9 - playerAcquire builds the room from the same two)
+const OFF = C.BASE_OFFERS || null;
+const dimsOf = (k, id) => { const base = (SH && SH[k] && SH[k].dims) ? SH[k].dims : (k === 'works' ? { HW: 22, HD: 30, EAVE: 9.5 } : k === 'field' ? { HW: 7, HD: 9, EAVE: 3.6 } : { HW: 15, HD: 12.5, EAVE: 7.0 });
+  const P = OFF && OFF[SITE.field] && OFF[SITE.field].plots && OFF[SITE.field].plots[id]; return Object.assign({}, base, (P && P.dims && P.dims[k]) || {}); };
 const doorOf = (k, d) => k === 'works'
   ? { w: r2(0.8 * (2 * d.HW - 2) - 0.34), h: r2(Math.min(7.6, d.EAVE - 1.9)) }
   : k === 'field' ? { w: r2(d.door > 0 ? Math.min(d.door, 2 * d.HW - 1) : Math.max(6, 2 * d.HW - 5)), h: r2(d.EAVE - 0.5) }   // (the timber shed: its door nearly to the eave)
@@ -61,7 +65,7 @@ const frameOf = H => {
   };
 };
 const mkShed = (id, name, shell, H) => {
-  const d = dimsOf(shell), door = doorOf(shell, d), ry = H.ry !== undefined ? +H.ry : Math.PI - H.hdg;
+  const d = dimsOf(shell, id), door = doorOf(shell, d), ry = H.ry !== undefined ? +H.ry : Math.PI - H.hdg;
   const o = { id, name, shell, x: r3(H.x), z: r3(H.z), y: r2(W.terrainH(H.x, H.z)), ySite: H.y !== undefined ? +H.y : null, hdg: +H.hdg, ry: +ry.toFixed(4), HW: d.HW, HD: d.HD, EAVE: d.EAVE, door };
   const Fm = frameOf(o);
   const dc = Fm.toWorld(-d.HD, 0);

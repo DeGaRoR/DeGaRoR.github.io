@@ -45,11 +45,17 @@ const s2l = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.0
 // ---- the arrays' file -------------------------------------------------------------------------------------------------
 const BIN = []; let binAt = 0;
 const put = (arr) => { const b = Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength), pad = (4 - (b.length % 4)) % 4, at = binAt; BIN.push(b); if (pad) BIN.push(Buffer.alloc(pad)); binAt += b.length + pad;
-  return { at, n: arr.length, t: arr instanceof Float32Array ? 'f32' : arr instanceof Uint32Array ? 'u32' : arr instanceof Uint16Array ? 'u16' : 'u8' }; };
+  return { at, n: arr.length, t: arr instanceof Float32Array ? 'f32' : arr instanceof Uint32Array ? 'u32' : arr instanceof Uint16Array ? 'u16' : arr instanceof Int8Array ? 'i8' : 'u8' }; };
 const SCENE = { v: 1, what: 'GARAGE-VIEW scene: the world round the club hangar and the large hangar', made: new Date().toISOString(), pack: SITE.pack, world: SITE.world, field: SITE.field, fixture: SITE.fixture, rev: M.rev || null, origin: ORG.map(v => +v.toFixed(3)),
   sheds: S.map(s => ({ id: s.id, x: s.x, y: s.ySite !== null ? s.ySite : s.y, z: s.z, ry: s.ry, HW: s.HW, HD: s.HD })), meshes: [], textures: {}, stats: {} };
 const mesh = (name, kind, tex, A, extra) => { const m = Object.assign({ name, kind, tex: tex || null, tris: A.idx.length / 3, verts: A.pos.length / 3 }, extra || {});
-  for (const k of ['pos', 'nrm', 'uv', 'col', 'idx']) if (A[k]) m[k] = put(A[k]); SCENE.meshes.push(m); return m; };
+  // THE BIN'S DIET (GATE GARAGEVIEW's budget; scene 2's bin was 7.7 MB): a normal is three signed bytes (a unit vector needs no float), a
+  // card carries none (the page computes it: the quad's own face is the card's facing), an index is 16 bits where the mesh allows
+  const B = Object.assign({}, A);
+  if (kind === 'cards') delete B.nrm;
+  else if (B.nrm) { const q = new Int8Array(B.nrm.length); for (let i = 0; i < q.length; i++) q[i] = Math.max(-127, Math.min(127, Math.round(B.nrm[i] * 127))); B.nrm = q; }
+  if (B.idx && m.verts <= 65535) B.idx = Uint16Array.from(B.idx);
+  for (const k of ['pos', 'nrm', 'uv', 'col', 'idx']) if (B[k]) m[k] = put(B[k]); SCENE.meshes.push(m); return m; };
 const L = (x, y, z) => [x - ORG[0], y - ORG[1], z - ORG[2]];
 
 // ---- a draped grid over a frame { o: [x, z], eu, ev, U, V }: nu x nv cells; skip(u, v, i, j) leaves a cell out -------------------
@@ -114,7 +120,7 @@ if (FAR) {
   const camF = g => { const m = g.cam.mw, pj = g.cam.pj, w = g.info.w, h = g.info.h; return { w, h, I: PNG.decode(fs.readFileSync(path.join(CAP, g.name + '.png'))),
     px: d => { const vx = m[0] * d[0] + m[1] * d[1] + m[2] * d[2], vy = m[4] * d[0] + m[5] * d[1] + m[6] * d[2], vz = m[8] * d[0] + m[9] * d[1] + m[10] * d[2], cw = pj[3] * vx + pj[7] * vy + pj[11] * vz; if (cw <= 1e-6) return null;
       return [((pj[0] * vx + pj[4] * vy + pj[8] * vz) / cw * 0.5 + 0.5) * w, (1 - ((pj[1] * vx + pj[5] * vy + pj[9] * vz) / cw * 0.5 + 0.5)) * h]; } }; };
-  const cams = FARG.map(camF), PW = +opt('farw', 8192), E0 = -1.6 * Math.PI / 180, E1 = 13 * Math.PI / 180, T0 = Math.tan(E0), T1 = Math.tan(E1), PH = Math.round(PW / (2 * Math.PI) * (T1 - T0));
+  const cams = FARG.map(camF), FARS = Object.assign({ low: -1.6, top: 13, w: 8192 }, SITE.far || {}), PW = +opt('farw', FARS.w), E0 = FARS.low * Math.PI / 180, E1 = FARS.top * Math.PI / 180, T0 = Math.tan(E0), T1 = Math.tan(E1), PH = Math.round(PW / (2 * Math.PI) * (T1 - T0));
   const out = new Uint8Array(PW * PH * 4); let covered = 0;
   // the card under the band's light (noon, no cloud): captured -> texture values (the greys)
   const cardG = CJ0.grabs.find(g => g.name === 'card_ground12') || CJ0.grabs.find(g => g.name === 'card_noon'); let lut = null;
@@ -136,13 +142,19 @@ if (FAR) {
       out[o] = lut ? lut[0][Math.round(r)] : r; out[o + 1] = lut ? lut[1][Math.round(g)] : g; out[o + 2] = lut ? lut[2][Math.round(b)] : b; out[o + 3] = Math.round(al * 255); if (al > 0.5) covered++; } }
   // the colour bled one texel past the cut (no dark rim at the skyline)
   { const src = Uint8Array.from(out); for (let j = 1; j < PH - 1; j++) for (let i = 0; i < PW; i++) { const o = (j * PW + i) * 4; if (src[o + 3] > 0) continue; for (const q of [o + PW * 4, o - PW * 4, ((j * PW + (i + 1) % PW)) * 4, ((j * PW + (i + PW - 1) % PW)) * 4]) if (src[q + 3] > 0) { out[o] = src[q]; out[o + 1] = src[q + 1]; out[o + 2] = src[q + 2]; break; } } }
-  fs.writeFileSync(path.join(OUT, 'far.png'), PNG.encode(PW, PH, 4, out)); SCENE.textures.far = { file: 'far.png', srgb: true };
+  // THE BAND IN ROWS (GATE ASSETS: no picture over 4096 px; many GPUs stop there): the circle cut in equal arcs laid one under the other,
+  // a 4-texel gutter between them (each arc's own edge rows repeated: no bleed from its neighbour under the mips)
+  const FROWS = Math.max(1, Math.ceil(PW / 4096)), TW = Math.floor(PW / FROWS), GUT = FROWS > 1 ? 4 : 0, TH = FROWS * PH + (FROWS - 1) * GUT, ftex = new Uint8Array(TW * TH * 4);
+  for (let r = 0; r < FROWS; r++) { const y0 = r * (PH + GUT);
+    for (let j = -(r ? GUT / 2 : 0); j < PH + (r < FROWS - 1 ? GUT / 2 : 0); j++) { const sj = Math.max(0, Math.min(PH - 1, j)); ftex.set(out.subarray((sj * PW + r * TW) * 4, (sj * PW + r * TW + TW) * 4), ((y0 + j) * TW) * 4); } }
+  fs.writeFileSync(path.join(OUT, 'far.png'), PNG.encode(TW, TH, 4, ftex)); SCENE.textures.far = { file: 'far.png', srgb: true };
   // the wall: at the near plane's distance round the eye the band was shot from, its height the strip's own (linear in tan(elevation))
-  const NA = 96, pos = [], uv = [], nrm = [], idx = [];
-  for (let a = 0; a <= NA; a++) { const th = a / NA * 2 * Math.PI, sx = Math.sin(th), sz = -Math.cos(th); for (const [tv, v] of [[T0, 0], [T1, 1]]) { const pp = L(FAR.eye[0] + sx * FAR.R, FAR.eye[1] + tv * FAR.R, FAR.eye[2] + sz * FAR.R); pos.push(pp[0], pp[1], pp[2]); uv.push(a / NA, v); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
-  for (let a = 0; a < NA; a++) { const i0 = a * 2; idx.push(i0, i0 + 1, i0 + 2, i0 + 2, i0 + 1, i0 + 3); }
+  const NA = 96, NR = Math.round(NA / FROWS), pos = [], uv = [], nrm = [], idx = [];
+  for (let r = 0; r < FROWS; r++) { const b0 = pos.length / 3, y0 = r * (PH + GUT), vTop = 1 - (y0 + 0.5) / TH, vBot = 1 - (y0 + PH - 0.5) / TH, e = 0.5 / TW;
+    for (let a = 0; a <= NR; a++) { const th = (r + a / NR) / FROWS * 2 * Math.PI, sx = Math.sin(th), sz = -Math.cos(th); for (const [tv, v] of [[T0, vBot], [T1, vTop]]) { const pp = L(FAR.eye[0] + sx * FAR.R, FAR.eye[1] + tv * FAR.R, FAR.eye[2] + sz * FAR.R); pos.push(pp[0], pp[1], pp[2]); uv.push(e + a / NR * (1 - 2 * e), v); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
+    for (let a = 0; a < NR; a++) { const i0 = b0 + a * 2; idx.push(i0, i0 + 1, i0 + 2, i0 + 2, i0 + 1, i0 + 3); } }
   mesh('far', 'far', 'far', { pos: new Float32Array(pos), nrm: new Float32Array(nrm), uv: new Float32Array(uv), idx: new Uint32Array(idx) }, { alphaTest: 0.5, doubleSide: true, R: FAR.R });
-  SCENE.stats.far = { strip: [PW, PH], covered: +(covered / (PW * PH)).toFixed(3), shots: FARG.length, R: FAR.R, card: !!lut };
+  SCENE.stats.far = { strip: [PW, PH], sheet: [TW, TH], rows: FROWS, covered: +(covered / (PW * PH)).toFixed(3), shots: FARG.length, R: FAR.R, card: !!lut };
 }
 
 // ================= THE LOW LAYERS: rings of distance, each a strip on its wall ===================================================
@@ -167,11 +179,16 @@ if (LCAP && fs.existsSync(path.join(LCAP, 'capture.json'))) {
     // the arc the rings were shot over (the first ring's yaws, the lens's half width more each side), and the strips' rows in one sheet
     const g0 = SL.filter(g => g.ring === rings[0] && g.pass === 'all'), yaws = g0.map(g => g.yaw).sort((a, b) => a - b), hf = Math.atan(Math.tan(g0[0].cam.fov * Math.PI / 360) * g0[0].cam.aspect) * 0.92;
     const A0 = yaws[0] - hf, A1 = yaws[yaws.length - 1] + hf, eye = g0[0].eye, PW = +opt('layw', 4096), ppr = PW / (A1 - A0), EYEH = 2.0, rows = [];
-    let PH = 0; for (const r of rings) { const g = SL.find(q => q.ring === r), T0 = -(EYEH + 1.0) / g.near, T1 = 8 / g.near, h = Math.max(8, Math.ceil(ppr * (T1 - T0))); rows.push({ r, near: g.near, far: g.far, Rm: Math.sqrt(g.near * g.far), T0, T1, y0: PH, h }); PH += h + 2; }
+    // THE ROWS FOLLOW THE GROUND (a valley's shed: the first site was a plain, its rows stood at the eye's own height): each ring's strip
+    // spans 1 m under the ground to 10 m over it AT THE RING, direction by direction (gnd: the ground's tan(elevation) there, from the eye)
+    const gndOf = (th, Rm) => (Hh(eye[0] + Math.sin(th) * Rm, eye[2] - Math.cos(th) * Rm) - eye[1]) / Rm;
+    let PH = 0; for (const r of rings) { const g = SL.find(q => q.ring === r), T0 = -1.0 / g.near, T1 = 10 / g.near, h = Math.max(8, Math.ceil(ppr * (T1 - T0))), Rm = Math.sqrt(g.near * g.far), gnd = new Float32Array(PW);
+      for (let i = 0; i < PW; i++) gnd[i] = gndOf(A0 + (i + 0.5) / PW * (A1 - A0), Rm);
+      rows.push({ r, near: g.near, far: g.far, Rm, T0, T1, y0: PH, h, gnd }); PH += h + 2; }
     const sheet = new Uint8Array(PW * PH * 4), a3 = [0, 0, 0], b3 = [0, 0, 0]; let solid = 0;
     for (const R of rows) { const pairs = []; for (const ga of SL.filter(g => g.ring === R.r && g.pass === 'all')) { const gb = SL.find(g => g.ring === R.r && g.pass === 'ground' && g.k === ga.k); if (gb) pairs.push({ a: camS(ga), b: camS(gb) }); }
-      for (let j = 0; j < R.h; j++) { const te = R.T1 - (j + 0.5) / R.h * (R.T1 - R.T0), ce = 1 / Math.hypot(1, te);
-        for (let i = 0; i < PW; i++) { const th = A0 + (i + 0.5) / PW * (A1 - A0), d = [Math.sin(th) * ce, te * ce, -Math.cos(th) * ce]; let r = 0, g = 0, b = 0, al = 0, ws = 0;
+      for (let j = 0; j < R.h; j++) { const tj = R.T1 - (j + 0.5) / R.h * (R.T1 - R.T0);
+        for (let i = 0; i < PW; i++) { const te = R.gnd[i] + tj, ce = 1 / Math.hypot(1, te), th = A0 + (i + 0.5) / PW * (A1 - A0), d = [Math.sin(th) * ce, te * ce, -Math.cos(th) * ce]; let r = 0, g = 0, b = 0, al = 0, ws = 0;
           for (const P of pairs) { const q = P.a.px(d); if (!q) continue; const mg = Math.min(q[0], q[1], P.a.w - q[0], P.a.h - q[1]); if (mg < 2) continue; const wt = Math.min(1, mg / 60);
             tap(P.a.I, q[0], q[1], a3); tap(P.b.I, q[0], q[1], b3); const df = Math.max(Math.abs(a3[0] - b3[0]), Math.abs(a3[1] - b3[1]), Math.abs(a3[2] - b3[2])), a = Math.max(0, Math.min(1, (df - 7) / 16));
             r += a3[0] * wt; g += a3[1] * wt; b += a3[2] * wt; al += a * wt; ws += wt; }
@@ -179,9 +196,9 @@ if (LCAP && fs.existsSync(path.join(LCAP, 'capture.json'))) {
           sheet[o] = lut ? lut[0][Math.round(r)] : r; sheet[o + 1] = lut ? lut[1][Math.round(g)] : g; sheet[o + 2] = lut ? lut[2][Math.round(b)] : b; sheet[o + 3] = Math.round(al * 255); if (al > 0.5) solid++; } } }
     fs.writeFileSync(path.join(OUT, 'layers.png'), PNG.encode(PW, PH, 4, sheet)); SCENE.textures.layers = { file: 'layers.png', srgb: true };
     // the walls: the far rings first (the near ones draw over them: alpha tested, depth written)
-    const NA = 72, pos = [], uv = [], nrm = [], idx = [];
+    const NA = 144, pos = [], uv = [], nrm = [], idx = [];   // (144 columns: the wall bends with the ground, 1.4 degrees a column)
     for (const R of rows.slice().reverse()) { const b0 = pos.length / 3;
-      for (let a = 0; a <= NA; a++) { const th = A0 + a / NA * (A1 - A0), sx = Math.sin(th), sz = -Math.cos(th); for (const [tv, row] of [[R.T0, R.y0 + R.h], [R.T1, R.y0]]) { const pp = L(eye[0] + sx * R.Rm, eye[1] + tv * R.Rm, eye[2] + sz * R.Rm); pos.push(pp[0], pp[1], pp[2]); uv.push(a / NA, 1 - row / PH); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
+      for (let a = 0; a <= NA; a++) { const th = A0 + a / NA * (A1 - A0), sx = Math.sin(th), sz = -Math.cos(th), ga = R.gnd[Math.min(PW - 1, Math.round(a / NA * (PW - 1)))]; for (const [tv, row] of [[R.T0, R.y0 + R.h], [R.T1, R.y0]]) { const pp = L(eye[0] + sx * R.Rm, eye[1] + (ga + tv) * R.Rm, eye[2] + sz * R.Rm); pos.push(pp[0], pp[1], pp[2]); uv.push(a / NA, 1 - row / PH); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
       for (let a = 0; a < NA; a++) { const i0 = b0 + a * 2; idx.push(i0, i0 + 1, i0 + 2, i0 + 2, i0 + 1, i0 + 3); } }
     mesh('layers', 'far', 'layers', { pos: new Float32Array(pos), nrm: new Float32Array(nrm), uv: new Float32Array(uv), idx: new Uint32Array(idx) }, { alphaTest: 0.5, doubleSide: true });
     SCENE.stats.layers = { rings: rows.map(R => [R.near, R.far]), sheet: [PW, PH], solid: +(solid / (PW * PH)).toFixed(3), arcDeg: +((A1 - A0) * 180 / Math.PI).toFixed(0), card: !!lut };

@@ -169,6 +169,15 @@ const PAGE = `(() => {
   let rc = 0;
   // a page call's value as JSON (a call that already returns JSON text is taken as it is); ms: its own time limit
   const JJ = async (expr, ms) => { const t = await rig.ev('Promise.resolve(' + expr + ').then(v => typeof v === "string" ? v : JSON.stringify(v === undefined ? null : v))', ms); return t == null ? null : JSON.parse(t); };
+  // THE PAGE'S LIGHT STATE in one line (the renderer's exposure and its parts, the sky's scale, the eased lights, the day): read in the
+  // garage and in the world at the same hour, the two lines name the factor a picture cannot (22 Nov: the night's sky blown out in the garage)
+  const STATE_JS = '(() => { const o = {}; try { const R = window.FLYDIY_RENDERER, G = window.GFX, A = window.ATMO, L = window.LIGHT_RIG, E = window.LIGHT_EASE, d = FLIGHT_PROBE.world().day;' +
+    ' o.tmExp = R ? R.toneMappingExposure : null; o.base = G && G.exposureBase ? G.exposureBase() : null; o.eye = G && G.eye ? G.eye() : null; o.P = L && L.P ? L.P() : null;' +
+    ' o.scale = A && A.U ? A.U.scale.value : null; o.lutGain = A && A.U && A.U.lutGain ? A.U.lutGain.value : null; o.stars = A && A.U && A.U.stars ? A.U.stars.value : null; o.eMoon = A && A.U && A.U.eMoon ? A.U.eMoon.value : null;' +
+    ' o.ap = A && A.apUniforms ? Array.from(A.apUniforms.uAtmoAP.value) : null; o.mist = A && A.apUniforms ? Array.from(A.apUniforms.uMist.value).slice(0, 16) : null;' +
+    ' o.le = E ? { on: E.on, sunI: E.sunI, hemiI: E.hemiI, ex: E.ex, tEx: E.tEx } : null; o.rig = window.WORLD_RIG && WORLD_RIG.worldAlbedo ? (w => ({ hemiI: w.hemiI, gnd: w.gnd }))(WORLD_RIG.worldAlbedo()) : null;' +
+    ' o.day = { sunEl: d.sunEl, utc: d.utc, moonPhase: d.moonPhase, moonEl: d.moon ? Math.asin(d.moon[1]) * 57.2958 : null, cloudCover: d.cloudCover };' +
+    ' o.nightEye = L && L.nightU ? Array.from(L.nightU.uNightEye.value.toArray ? L.nightU.uNightEye.value.toArray() : L.nightU.uNightEye.value) : null; } catch (e) { o.err = e.message; } return JSON.stringify(o); })()';
   try {
     META.gpu = rig.gpu; save();
     // ---- TODAY'S GARAGE, from the same eyes (the page boots in the shed) ---------------------------------------------------
@@ -200,18 +209,28 @@ const PAGE = `(() => {
         if (TAG === 'gview' || /gview=1/.test(opt('q', ''))) { let G = null; for (let k = 0; k < 30 && !G; k++) { G = await JJ('(() => { const g = window.FLYDIY_GVIEW, h = GARAGE_ENV._debug().hangar; return JSON.stringify(g && h.gview && h.gview() ? { stats: g.stats, buildMs: g.buildMs, shedWorld: h.shedWorld() } : null); })()'); if (!G) await rig.frames(30); }
           I.gview = G; log('garage ' + shell + ': gview ' + JSON.stringify(G)); await rig.frames(90); }
         const HD = I.dims.HD, HWd = I.dims.HW;
+        // (--variants file.json: a list of garage_view.js S overrides shot from the same eyes, the first entry null = as it stands; --varviews: which views)
+        const VARS = opt('variants') ? JSON.parse(fs.readFileSync(opt('variants'), 'utf8')) : [null], VARV = opt('varviews', 'door_out,inside').split(',');
+        const S0G = TAG === 'gview' && VARS.length > 1 ? await JJ('JSON.stringify(GARAGE_VIEW.S)') : null;
         for (const tm of TIMES) {
           // 'now' is the hour the page booted in (put back for the second pass: the first one ends at night)
           if (tm === 'now') await rig.ev('(() => { try { DAY_CLOCK.set({ utc: ' + utc0 + ' }); return 1; } catch (e) { return 0; } })()');
           else await rig.ev(`(() => { try { DAY_CLOCK.preset(${JSON.stringify(tm)}); return 1; } catch (e) { return 0; } })()`);
           await rig.frames(90); await rig.settleLoad(); await rig.frames(60);
-          const V = [['door_out', -HD - 0.3, 1.7, 0, 0], ['door_left', -HD - 0.3, 1.7, 0, -45], ['door_right', -HD - 0.3, 1.7, 0, 45], ['door_high', -HD - 0.3, 4.0, 0, 0], ['inside', HD * 0.55, 2.2, -HWd * 0.25, null], ['back', -HD * 0.55, 1.8, 0, 180], ['back_high', -HD * 0.2, (I.dims.EAVE || 6) - 1.3, 0, 180]];
-          for (const [vn, lx, ey, lz, az] of V) {
+          if (TAG === 'gview') { const st = await JJ('(() => { const h = GARAGE_ENV._debug().hangar; return JSON.stringify(h.gviewState ? h.gviewState() : null); })()'); (META.steps.gvstate = META.steps.gvstate || {})[shell + '_' + tm] = st; log('gview state ' + shell + ' ' + tm + ': ' + JSON.stringify(st).slice(0, 520));
+            const ps = await JJ(STATE_JS); (META.steps.pstate = META.steps.pstate || {})['garage_' + shell + '_' + tm] = ps; log('page state garage ' + shell + ' ' + tm + ': ' + JSON.stringify(ps)); }
+          const V = [['door_out', -HD - 0.3, 1.7, 0, 0], ['door_left', -HD - 0.3, 1.7, 0, -45], ['door_right', -HD - 0.3, 1.7, 0, 45], ['door_high', -HD - 0.3, 4.0, 0, 0], ['inside', HD * 0.55, 2.2, -HWd * 0.25, null], ['back', -HD * 0.55, 1.8, 0, 180], ['back_high', HD - 2.5, (I.dims.EAVE || 6) - 1.3, 0, 180]];   // (back_high: 2.5 m from the window, past the lamps)
+          for (let vk = 0; vk < VARS.length; vk++) { const VT = TAG + (vk ? 'v' + vk : '');
+            if (TAG === 'gview' && VARS.length > 1) { await rig.ev('Object.assign(GARAGE_VIEW.S, ' + JSON.stringify(Object.assign({}, S0G, VARS[vk] || {})) + ')'); await rig.frames(90); log('variant ' + vk + ': ' + JSON.stringify(VARS[vk])); }
+            else if (vk) break;
+          for (const [vn, lx, ey, lz, az] of (vk ? V.filter(q => VARV.includes(q[0])) : V)) {
             // (back: the eye looks at the back wall's high window from the floor; back_high: level through it, the eye at its height)
             const a = az === null ? -Math.atan2(HWd * 0.25, HD * 1.55) : az * Math.PI / 180, t = vn === 'back' ? [HD, (I.dims.EAVE || 6) - 1.3, 0] : vn === 'back_high' ? [HD + 50, ey - 1.0, 0] : [lx - Math.cos(a) * 50, ey - 1.0, lz - Math.sin(a) * 50];
             await rig.ev('FLYDIY_ROOM_EYE(' + JSON.stringify([lx, ey, lz]) + ', ' + JSON.stringify(t) + ')'); await rig.frames(16);
-            await gshot(TAG + '_' + tm + '_' + shell + '_' + vn, { kind: 'garage', tag: TAG, time: tm, shell, view: vn, eyeRoom: [lx, ey, lz], az: az === null ? +(a * 180 / Math.PI).toFixed(1) : az });
+            await gshot(VT + '_' + tm + '_' + shell + '_' + vn, { kind: 'garage', tag: VT, time: tm, shell, view: vn, eyeRoom: [lx, ey, lz], az: az === null ? +(a * 180 / Math.PI).toFixed(1) : az });
           }
+          }
+          if (TAG === 'gview' && VARS.length > 1) { await rig.ev('Object.assign(GARAGE_VIEW.S, ' + JSON.stringify(S0G) + ')'); await rig.frames(30); }
         }
         META.steps['garage_' + TAG + '_' + shell] = I; save();
       }
@@ -224,7 +243,7 @@ const PAGE = `(() => {
     await rig.fly(); await rig.pause();
     // the player's aeroplane off the stand: on the ground 30 m BEHIND the large hangar, paused - out of every door view and off the
     // apron (slot 1, 22 Nov: with it placed 400 m up and hidden the page stopped answering; nothing is hidden or lifted now)
-    { const q = toWorld(S[1], S[1].HD + 30, 0); await rig.place(q[0], q[1], 1.2, 30); }
+    { const SL = S[S.length - 1], q = toWorld(SL, SL.HD + 30, 0); await rig.place(q[0], q[1], 1.2, 30); }   // (the LAST shed of the site: one shed is its own last)
     // ALIVE: two frames drawn within 20 s, or the step that came before is named and the run stops (a page that hangs holds the slot)
     const alive = async tag => { try { await rig.ev('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))', 20000); } catch (e) { log('NOT ALIVE after ' + tag); META.hungAfter = tag; save(); throw new Error('the page stopped drawing after: ' + tag); } };
     log(await rig.ev(PAGE)); await rig.frames(4);
@@ -241,6 +260,17 @@ const PAGE = `(() => {
     const setTime = async t => { if (t === 'now') return 'now';
       const r = await rig.ev(`(() => { try { DAY_CLOCK.preset(${JSON.stringify(t)}); return 'preset ' + ${JSON.stringify(t)}; } catch (e) { return 'FAILED ' + e.message; } })()`);
       await rig.frames(30); await rig.settleLoad(); await rig.frames(60); return r; };
+    // THE SITE MAY BE FAR FROM WHERE THE PAGE BOOTED (the Cabin Strip is 16 km from HOME): the eye stands at the first door and
+    // turns once round, the loads settle, before any picture - the fill plants its trees round the eye, the world streams by distance
+    { const Sd = S[0], y0 = floorY(Sd) + 1.7, yw = yawOf(Sd.doorDir.x, Sd.doorDir.z);
+      for (let k = 0; k < 4; k++) { await eyeAt(Sd.doorCentre.x, y0, Sd.doorCentre.z, yw + k * Math.PI / 2, -0.02, 40); await rig.settleLoad(); }
+      await eyeAt(Sd.doorCentre.x, y0, Sd.doorCentre.z, yw, -0.02, 120); await rig.settleLoad(); await alive('the warm-up at the site'); log('warm at the site (' + Sd.id + ')'); }
+
+    // ---- the world's own light state at each hour, and one picture from the first door (the garage's twin lines: 'page state garage') --------
+    if (DO.includes('probe')) for (const tm of TIMES) { const Sd = S[0];
+      await setTime(tm); await eyeAt(Sd.doorCentre.x, floorY(Sd) + 1.7, Sd.doorCentre.z, yawOf(Sd.doorDir.x, Sd.doorDir.z), -0.02, 300);   // (300 frames: the eased lights and the eye settle)
+      const ps = await JJ(STATE_JS); (META.steps.pstate = META.steps.pstate || {})['world_' + tm] = ps; save(); log('page state world ' + tm + ': ' + JSON.stringify(ps));
+      await grab('probe_' + tm + '_door_out', { kind: 'probe', time: tm }); }
 
     // ---- graph + census + the boxes of what stands there --------------------------------------------------------------
     if (DO.includes('graph')) {   // (slot 1 brought the graph, the census and the boxes: not asked again by default)
@@ -271,7 +301,10 @@ const PAGE = `(() => {
       const day = await JJ('JSON.stringify(GV.day())');
       await rig.ev('GV.craft(false)');
       await shootCard('ground12', 12); await shootCard('ground120', 120);
-      await JJ('JSON.stringify(GV.hide(' + JSON.stringify(HIDE.ground) + ', ' + JSON.stringify(HIDE.groundUD) + ', { noShadow: true }))'); await rig.frames(6);
+      // (a site whose ground IS its low cover - a grass strip: sites/<pack>.json ground: { cover: true } - keeps the cover ring in the tiles:
+      //  seen from above the blades are the ground's colour; the Cabin Strip's first tiles, 22 Nov, came out bare and pale without them)
+      const HG = (M.site && M.site.ground && M.site.ground.cover) ? HIDE.ground.filter(q => !/cover/.test(q)) : HIDE.ground;
+      await JJ('JSON.stringify(GV.hide(' + JSON.stringify(HG) + ', ' + JSON.stringify(HIDE.groundUD) + ', { noShadow: true }))'); await rig.frames(6);
       const hid = await JJ('JSON.stringify(GV.hidden())'); log('ground: ' + r + '; hidden a frame (no sun shadow) ' + JSON.stringify(hid)); await alive('ground hide');
       const cam = META.cam0, tanV = Math.tan(cam.fov * Math.PI / 360), asp = cam.canvas[0] / cam.canvas[1];
       // a tile set: the eye h over the ground, straight down, the picture's top toward the club door's line; the tiles
@@ -314,7 +347,7 @@ const PAGE = `(() => {
       if (DO.includes('refs')) {   // WHAT STANDS BEHIND each shed (its back window): the world's own sheds hidden, the garage's two back eyes
         await JJ('JSON.stringify(GV.hide(["^shed:", "^shell:"], [], {}))'); await rig.frames(6);
         for (const Sd of S) { const wy = (Sd.EAVE || 6) - 1.3, c = Math.cos(Sd.ry), s = Math.sin(Sd.ry), yw = yawOf(c, -s);   // (room +x in the world)
-          for (const [vn, lx, ey, pt] of [['back', -Sd.HD * 0.55, 1.8, Math.atan2(wy - 1.8, Sd.HD * 1.55)], ['back_high', -Sd.HD * 0.2, wy, -0.02]]) { const p = toWorld(Sd, lx, 0);
+          for (const [vn, lx, ey, pt] of [['back', -Sd.HD * 0.55, 1.8, Math.atan2(wy - 1.8, Sd.HD * 1.55)], ['back_high', Sd.HD - 2.5, wy, -0.02]]) { const p = toWorld(Sd, lx, 0);
             await eyeAt(p[0], floorY(Sd) + ey, p[1], yw, pt, 24);
             await grab('ref_' + tm + '_' + Sd.id.replace(/\W/g, '_') + '_' + vn, { kind: 'ref', time: tm, shed: Sd.id, view: vn, eyeRoom: [lx, ey, 0], az: 180, day }); } }
         await rig.ev('GV.show()'); await rig.frames(6); }
@@ -342,11 +375,13 @@ const PAGE = `(() => {
       const tanV = Math.tan(META.cam0.fov * Math.PI / 360), PR = [];
       let done = 0;
       for (const t of keep) {
-        if ((Date.now() - t0) / 1000 > CAP - 330) { log('props: stopping at ' + done + '/' + keep.length + ' (the slot)'); break; }
+        if ((Date.now() - t0) / 1000 > CAP - (+opt('reserve', 330))) { log('props: stopping at ' + done + '/' + keep.length + ' (the slot)'); break; }
         const shots = [];
         await JJ('GV.solo(' + t.i + ')');
         // from each door's eye, and from the point between them: the same line of sight, the thing filling ~60 % of the picture's height
-        const eyes = [[S[0].doorCentre.x, floorY(S[0]) + 1.7, S[0].doorCentre.z], [S[1].doorCentre.x, floorY(S[1]) + 1.7, S[1].doorCentre.z], [(S[0].doorCentre.x + S[1].doorCentre.x) / 2 + S[0].doorDir.x * 25, floorY(S[0]) + 1.7, (S[0].doorCentre.z + S[1].doorCentre.z) / 2 + S[0].doorDir.z * 25]];
+        // (a site of ONE shed: its door, 25 m out of it, and 18 m to each side of that point - a thing wants more than one line of sight)
+        const eyes = S.map(Sd => [Sd.doorCentre.x, floorY(Sd) + 1.7, Sd.doorCentre.z]); { const SL = S[S.length - 1], mx = (S[0].doorCentre.x + SL.doorCentre.x) / 2 + S[0].doorDir.x * 25, mz = (S[0].doorCentre.z + SL.doorCentre.z) / 2 + S[0].doorDir.z * 25;
+          eyes.push([mx, floorY(S[0]) + 1.7, mz]); if (S.length === 1) for (const sd of [-18, 18]) eyes.push([mx - S[0].doorDir.z * sd, floorY(S[0]) + 1.7, mz + S[0].doorDir.x * sd]); }
         for (let e = 0; e < eyes.length; e++) {
           const E = eyes[e], d = [t.c[0] - E[0], t.c[1] - E[1], t.c[2] - E[2]], L = Math.hypot(d[0], d[1], d[2]); if (L < 1) continue;
           if (E[0] > t.min[0] - 2 && E[0] < t.max[0] + 2 && E[2] > t.min[2] - 2 && E[2] < t.max[2] + 2) continue;   // the eye stands in the thing itself (a shed from its own door)
@@ -369,8 +404,10 @@ const PAGE = `(() => {
       await setTime(TIMES.includes('noon') ? 'noon' : 'now');
       const cc0 = (await JJ('JSON.stringify(GV.day())')).cloudCover; await rig.ev('FLIGHT_PROBE.world().setDay({ cloudCover: 1 })'); await rig.frames(90);
       if (!META.grabs.some(g => g.name === 'card_props')) await shootCard('props', 12);
-      const RINGS = (opt('rings', '60,72,86,104,125,150,180,220,270,340,700')).split(',').map(Number), FOVS = 30, YAW0 = yawOf(S[0].doorDir.x, S[0].doorDir.z), YAWS = [-80, -40, 0, 40, 80].map(d => YAW0 + d * Math.PI / 180), gy = await JJ(`FLIGHT_PROBE.world().terrainH(${M.mid.x}, ${M.mid.z})`), eye = [M.mid.x, gy + 2.0, M.mid.z];
-      const pass = async tag => { let n = 0; for (let r = 0; r + 1 < RINGS.length; r++) { await rig.ev('GV.over = { near: ' + RINGS[r] + ', far: ' + RINGS[r + 1] + ', fov: ' + FOVS + ' }');
+      const SLC = (M.site && M.site.slices) || {}, RINGS = (opt('rings') ? opt('rings').split(',') : SLC.rings || [60, 72, 86, 104, 125, 150, 180, 220, 270, 340, 700]).map(Number), FOVS = +SLC.fov || 30,   // (sites/<pack>.json slices: { rings, fov } - a steep site wants a taller lens, a small one nearer rings)
+       YAW0 = yawOf(S[0].doorDir.x, S[0].doorDir.z), YAWS = [-80, -40, 0, 40, 80].map(d => YAW0 + d * Math.PI / 180), gy = await JJ(`FLIGHT_PROBE.world().terrainH(${M.mid.x}, ${M.mid.z})`), eye = [M.mid.x, gy + 2.0, M.mid.z];
+      const pass = async tag => { let n = 0; for (let r = 0; r + 1 < RINGS.length; r++) { if ((Date.now() - t0) / 1000 > CAP - 200) { log('slices ' + tag + ': stopping at ring ' + r + ' (the slot: the far band and the sheets come after)'); break; }
+          await rig.ev('GV.over = { near: ' + RINGS[r] + ', far: ' + RINGS[r + 1] + ', fov: ' + FOVS + ' }');
           for (let k = 0; k < YAWS.length; k++) { await eyeAt(eye[0], eye[1], eye[2], YAWS[k], 0.02, k === 0 ? 24 : 8); await grab('slice_' + tag + '_' + String(r).padStart(2, '0') + '_' + k, { kind: 'slice', pass: tag, ring: r, near: RINGS[r], far: RINGS[r + 1], k, yaw: YAWS[k], eye }); n++; } } return n; };
       // the eye at the middle first: the cover ring plants round it
       await eyeAt(eye[0], eye[1], eye[2], YAW0, 0.02, 60); await rig.settleLoad(); await rig.frames(60);
@@ -395,10 +432,12 @@ const PAGE = `(() => {
       let n = 0;
       for (const ap of [1, 0]) {
         await rig.ev('ATMO.setAP(' + (ap ? 'true' : 'false') + ')'); await rig.frames(20);
-        for (let k = 0; k < 9; k++) { const yaw = k * 40 * Math.PI / 180;
-          await eyeAt(eye[0], eye[1], eye[2], yaw, 0.07, 20);
-          await grab('far_' + (ap ? 'ap' : 'clear') + '_' + k, { kind: 'far', ap, k, yawDeg: k * 40, near: NEARF, eye }); n++;
-          if (ap === 1) { await JJ('GV.hideAll()'); await rig.frames(4); await grab('far_bg_' + k, { kind: 'farbg', k, yawDeg: k * 40 }); await rig.ev('GV.show()'); await rig.frames(4); n++; }
+        // (the rows: one lens covers -11 .. 19 degrees; a site whose band goes higher (sites/<pack>.json far.top: a valley's summits) takes more rows, 26 degrees apart)
+        const FTOP = (M.site && M.site.far && +M.site.far.top) || 13, ROWS = 1 + Math.max(0, Math.ceil((FTOP - 17) / 26));
+        for (let rw = 0; rw < ROWS; rw++) for (let k = 0; k < 9; k++) { const yaw = k * 40 * Math.PI / 180, rt = rw ? 'r' + rw + '_' : '';
+          await eyeAt(eye[0], eye[1], eye[2], yaw, 0.07 + rw * 26 * Math.PI / 180, 20);
+          await grab('far_' + (ap ? 'ap' : 'clear') + '_' + rt + k, { kind: 'far', ap, k, row: rw, yawDeg: k * 40, near: NEARF, eye }); n++;
+          if (ap === 1) { await JJ('GV.hideAll()'); await rig.frames(4); await grab('far_bg_' + rt + k, { kind: 'farbg', k, row: rw, yawDeg: k * 40 }); await rig.ev('GV.show()'); await rig.frames(4); n++; }
         }
       }
       await rig.ev('ATMO.setAP(true)'); await rig.ev('GV.over = null');

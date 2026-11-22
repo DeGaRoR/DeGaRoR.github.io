@@ -44,6 +44,37 @@ first and the gpu lock inside (`gv.sh` writes it; RIG-PROCEDURE.md).
 - `src/viewer/garage_view.js` - the runtime: `load` (behind the first garage view), `build` (the scene in the shed's room
   frame by its true yaw; one haze uniform). `hangar.gviewFrom(pack)` stands it and takes the hand-drawn outdoors down.
 
+## 2b. The door view is judged against the game, in numbers
+
+The user, 22 Nov: "you are taking the in-game shots and then you compare ... we would like to minimise these differences,
+as simply as that." A shoot is read with the game's reference from the same eye beside it, and measured: the linear
+medians of five bands of the door view (sky top, sky low, tree line, apron far, apron near), the garage over the game
+(`gv_measure.py`: 1.00 is the game). What the first rounds taught, each one a fault the eye saw and the numbers named:
+
+- THE LIGHT LEVEL. The room draws its sky at the room's unit with the lamps' exposure: a quarter of the game's by day,
+  nothing at night. While a cooked scene stands, what is OUTDOORS (the scene, the sky dome, the clouds) takes the
+  world's own lights and the world's exposure: `WORLD_RIG.lightFor(day, cT)` (render_world.js: sky_light's call as the
+  world makes it, on stand-in lights) asked by `hangar.applyDay` before its own; `garage_view.js S.expose` (1 = the
+  game's). The room keeps its lamps' exposure, and its probe is shot at the room's level (`gviewBake`). First run:
+  the sky 0.77-0.92 of the game's at noon, the apron 0.82-1.08 (before: 0.25).
+- THE CLOUDS. The room's own cloud sphere marches once a pixel with no history (grainy, "harsh"). Through the door they
+  are the GAME's pass (`CLOUDS.draw` from the room's eye stood in the world, `hangar.gviewCloudCam`; the composite on a
+  quad of the room's): the flight's own programs. The air between (aerial perspective) is switched on for that pass
+  only. `S.cloudPass` 0 gives the room's sphere back.
+- THE MOUNTAIN LINE. The room's sky sphere stood 600 m out and wrote depth: the far band's wall (700 m) and every tree
+  past 600 m were hidden. While a scene stands the sky is drawn first and writes no depth.
+- THE TREES. A card cut at half its sheet's coverage is skinny. The game's own curve: `(a - 0.40) x 6 + 0.5`, softer
+  far, alpha to coverage (`S.treeCut / treeAlpha / treeSoft`); the game's leaf wrap in the light.
+- THE LAMPS. The scene's materials are unlit for three, so the room's lamps no longer reached the apron: the night went
+  black. They are back as one term (`gvLamps`: the room's five fittings, three's own spot law, through the door's
+  opening, at the room's level). The user: "you're gonna have to have them on at night."
+- THE SHED'S SHADOW takes the sun away and leaves the sky (a multiply by what is left, channel by channel): blue, as
+  the game's, not a neutral dark.
+- A CLOUD OVER THE DOOR darkens the sun near the door only; far from it the sun is the sky's mean (`S.cloudFar`).
+
+Keep it simple (the user: "let's not get too many subsystems into the garage"): every item above is one uniform or one
+call into the game's own code, behind the scene's switch; without a scene the garage is untouched.
+
 ## 3. Frames and traps
 
 - World metres: x east, z south (north = -z), y up. A shed stands at (x, y, z) turned by `ry = pi - hdg`, its door at

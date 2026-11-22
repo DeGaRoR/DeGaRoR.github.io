@@ -22,6 +22,7 @@ const files = ['scene.json', 'scene.bin'].concat(TX.map(t => t.file), TX.filter(
 for (const f of files) if (!fs.existsSync(path.join(SRC, f))) { console.error('install: ' + f + ' is named by scene.json and is not in ' + SRC); process.exit(1); }
 const DST = path.join(ROOT, 'media', 'garage_view', J.pack), size = f => fs.statSync(path.join(SRC, f)).size;
 const row = { id: J.pack, world: J.world, field: J.field, sheds: J.sheds.map(s => ({ id: s.id, x: s.x, y: s.y, z: s.z, ry: s.ry })), base: 'media/garage_view/' + J.pack + '/',
+  files: files.map(f => 'media/garage_view/' + J.pack + '/' + f),   // (GATE MEDIA's manifest: every file of the scene by its media/ path)
   rev: J.rev || null, sig: sigOf(J.rev || null, J.sheds), tris: J.meshes.reduce((a, m) => a + m.tris, 0), meshes: J.meshes.length,
   bytes: { bin: size('scene.bin'), textures: TX.reduce((a, t) => a + size(t.ktx2 || t.file), 0), fallback: TX.reduce((a, t) => a + size(t.file), 0),
     gpu: Math.round(TX.reduce((a, t) => a + (t.ktx2Size ? t.ktx2Size[0] * t.ktx2Size[1] * 1.33 : (t.size ? t.size[0] * t.size[1] * 5.33 : 0)), 0)) }, ktx2: TX.filter(t => t.ktx2).length, made: J.made };

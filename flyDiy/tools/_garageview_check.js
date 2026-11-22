@@ -50,7 +50,7 @@ for (const P of PK.packs) {
   const J = JSON.parse(fs.readFileSync(jf, 'utf8')), TXS = Object.keys(J.textures || {}).map(k => J.textures[k]), names = TXS.map(t => t.file).concat(TXS.filter(t => t.ktx2).map(t => t.ktx2)), miss = ['scene.bin'].concat(names).filter(f => !fs.existsSync(path.join(dir, f)));
   ok(!miss.length, '3a ' + P.id + ': every file the scene names is there (' + (names.length + 1) + ')', miss.join(', '));
   if (miss.length) continue;
-  const binN = fs.statSync(path.join(dir, 'scene.bin')).size, texN = TXS.reduce((a, t) => a + fs.statSync(path.join(dir, t.ktx2 || t.file)).size, 0), gpuN = TXS.reduce((a, t) => a + (t.ktx2Size ? t.ktx2Size[0] * t.ktx2Size[1] * 1.33 : (t.size ? t.size[0] * t.size[1] * 5.33 : 0)), 0), tris = J.meshes.reduce((a, m) => a + m.tris, 0), BYTES = { f32: 4, u32: 4, u16: 2, u8: 1 };
+  const binN = fs.statSync(path.join(dir, 'scene.bin')).size, texN = TXS.reduce((a, t) => a + fs.statSync(path.join(dir, t.ktx2 || t.file)).size, 0), gpuN = TXS.reduce((a, t) => a + (t.ktx2Size ? t.ktx2Size[0] * t.ktx2Size[1] * 1.33 : (t.size ? t.size[0] * t.size[1] * 5.33 : 0)), 0), tris = J.meshes.reduce((a, m) => a + m.tris, 0), BYTES = { f32: 4, u32: 4, u16: 2, u8: 1, i8: 1 };
   const over = []; for (const m of J.meshes) for (const k of ['pos', 'nrm', 'uv', 'col', 'idx']) if (m[k] && m[k].at + m[k].n * BYTES[m[k].t] > binN) over.push(m.name + '.' + k);
   const untex = J.meshes.filter(m => m.kind !== 'ring' && !m.tex).map(m => m.name);
   ok(!over.length, '3b ' + P.id + ': every array lies inside scene.bin', over.join(', '));
@@ -72,9 +72,22 @@ for (const P of PK.packs) {
   ok(/gviewFrom: pack =>/.test(han) && /GARAGE_VIEW\.build\(THREE, pack, \{ shed: SHED_W/.test(han), '5b the room stands a scene by its shed\'s place in the world (gviewFrom, SHED_W)');
   ok(/o\.visible = !viewOut && \(!GVIEW \|\| o === GVIEW\.group \|\| o === GVIEW\.shadow\)/.test(han) && /ROOM_PAD\.visible = !viewOut && !GVIEW/.test(han), '5c the hand-drawn outdoors stay down while a scene stands (outdoorsShow)');
   ok(/group\.rotation\.y = -sh\.ry/.test(gv) && !/siteToLocal/.test(gv), '5d the scene is placed by the shed\'s TRUE yaw (no siteToLocal quarter turn)');
-  ok(/fog: false/.test(gv) && /new THREE\.MeshBasicMaterial/.test(gv) && !/MeshStandardMaterial/.test(gv) && /customProgramCacheKey = \(\) => 'gview-lit' \+ \(nrm \? '-n' : ''\)/.test(gv),
+  // (re-pinned 22 Nov WITH ITS REASON: GATE ASSETS AS4a wants every material made in matlib.js, so the unlit material is MATLIB's 'basic' shape -
+  //  MeshBasicMaterial by matlib.js SHAPES; the rule held here is unchanged: unlit for three, never a Standard material)
+  ok(/fog: false/.test(gv) && /MATLIB\.make\(THREE, 'basic', Object\.assign\(\{ fog: false \}, p\)\)/.test(gv) && !/MeshStandardMaterial/.test(gv) && !/'std'|'house'|'cut'|'glass'|'glow'/.test(gv) && /customProgramCacheKey = \(\) => 'gview-lit' \+ \(nrm \? '-n' : ''\)/.test(gv),
     '5e the scene\'s materials carry the WORLD\'s light themselves (unlit for three: no room lamp, no probe, no room fog), two program keys at most');
   ok(/GV_LAST = \[day, /.test(han) && /if \(GV_LAST && B\.update\) B\.update\(GV_LAST\[0\], GV_LAST\[1\]\)/.test(han), '5g a scene that lands takes the last day of the room at once (it stood black at the boot hour until the clock moved)');
+  // THE DOOR VIEW AS THE GAME SHOWS IT (the user, 22 Nov: "why are we not just using the same method?")
+  { const rw = src('src/viewer/render_world.js');
+    ok(/lightFor: \(day, cT\) => \{/.test(rw) && /SKY_LIGHT\.applyDay\(day, \{ key: k, hemi: h, renderer: null, unit: LIGHT_UNIT,/.test(rw),
+      '5h the world hands its light for a day on stand-in lights, with no renderer (WORLD_RIG.lightFor: nothing of the world moves)');
+    ok(/const WL = \(GVIEW && [^\n]*WORLD_RIG\.lightFor\(day, cloudT\) : null;\n  const r = SKY_LIGHT\.applyDay\(day, \{ key, renderer, unit: 1,/.test(han),
+      '5i the room asks the world\'s light BEFORE its own applyDay, and only while a scene stands (the dome\'s scale and the night grade are written back for the room)');
+    ok(/aa\.setPre\(\(r, cam, rt, drawnScene\) => \{ if \(drawnScene === scene\) CLOUDS\.draw\(r, cam, rt, true\); else gviewCloudPre\(r, cam, rt, drawnScene\); \}\);/.test(app)
+      && /if \(drawnScene !== hangarScene\) return;\n    const wc = hangar\.gviewCloudCam\(cam\); if \(!wc\) return;\n/.test(app) && /CLOUDS\.draw\(r, wc, rt, true\); hangar\.gviewCloudDone\(\);/.test(app),
+      '5j the clouds through the door are the game\'s own pass, from the room\'s eye stood in the world (the world\'s branch of the hook unchanged)');
+    ok(/if \(hangar\.gviewBake\) hangar\.gviewBake\(true\);/.test(app) && /if \(hangar\.gviewBake\) hangar\.gviewBake\(false\);/.test(app) && /GV_COMP\.userData\.sharedGeo = true/.test(han),
+      '5k the room\'s probe is shot at the room\'s level and the frame\'s draw puts the day back; the game\'s composite material is never disposed with a room'); }
   ok(/gviewTick\(\)/.test(app) && /GARAGE_VIEW\.find\(window\.FLYDIY_WORLD, roomBase\(\), roomId\(\)\)/.test(app), '5f app.js asks for the room\'s scene by its world, field and shed, behind the room (gviewTick, GARAGE_VIEW.find)');
 }
 console.log(fails ? 'GATE GARAGEVIEW: FAIL (' + fails + ')' : 'GATE GARAGEVIEW: PASS');
