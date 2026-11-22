@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('fs'),path=require('path'),assert=require('assert'),{performance}=require('perf_hooks');
 global.CORE_MATH=require('./flight_core.js').CORE_MATH;
-const P=require('../src/core/27_premises.js'),fixture=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/premises_v1_perf_town_third.json'))),world={terrainH:()=>10,waterH:()=>-Infinity};
+const P=require('../src/core/27_premises.js'),fixture=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/perf_town_third.json'))),world={terrainH:()=>10,waterH:()=>-Infinity};
 let state=92381;const rnd=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
 const original=P.compose(fixture,world,{noPlace:true,boundedRoads:false}),bounded=P.compose(fixture,world,{noPlace:true,boundedRoads:true}),points=[];
 for(let i=0;i<8000;i++)points.push([(rnd()-.5)*18000,(rnd()-.5)*18000]);
