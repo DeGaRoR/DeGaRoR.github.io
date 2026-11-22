@@ -1,4 +1,4 @@
-FAIL (39 of 149 gates run; PARTIAL: 13 of 23 chunks, 215 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H]
+FAIL (40 of 150 gates run; PARTIAL: 14 of 23 chunks, 214 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H]
 NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
@@ -4021,6 +4021,156 @@ GATE FRAMECOST
   HINT: stand/taxi draws.shadow/main, uniforms up after an app.js / viewer edit? run `node tools/parked_cook.js --check` first - a STALE cook captures the parked aeroplanes live (re-cook with parked_cook.js; the train re-cooks on its final build)
 GATE FRAMECOST: FAIL (45)
 (exit code 1)
+######## chunk 13 of 23 (1 gates) ########
+=== ROUNDTRIP ===
+GATE ROUNDTRIP
+  ---- the trips, cub (the first boot)
+  ok   cub: the page booted and made its five trips
+  ok   the ONE LOADING ran the world's steps and the aeroplane's programs in its light  (ran world town parking trees ring settle snapshot spec images upload worldCompile frames craft)
+  ok   untouched, the loading screen lifted by itself (no hold, no wait)  (ready)
+  ok   G3649: the default boot runs the flight layout fl2 - no setup panel on its loading screen (the setup screen is the old layout, ?flui=old)  (FLYDIY_FL2.on true)
+  the world settled at the stand: {"n":514,"ms":1229,"rest":true,"near":0,"fill":{"live":247,"base":247,"fill":85,"queued":0,"busy":false,"budgetMs":4,"trees":603994,"gens":332}}
+  boot rows (the world's, now in the one loading):
+    world         links 17, gl.calls 173033, draws.total 13838, bytes.bufferData 536852944, world.terrainH 3770940, three.updateMatrixWorld 106005
+    town          links 53, gl.calls 966, three.updateMatrixWorld 5720
+    parking       three.updateMatrixWorld 3008
+    trees         nothing
+    ring          gl.calls 1005, draws.total 240, world.terrainH 947642, three.updateMatrixWorld 6646
+    settle        links 17, gl.calls 41562, draws.total 7022, bytes.bufferData 17967664, world.terrainH 8168872, three.updateMatrixWorld 35596
+    images        gl.calls 56, draws.total 2, world.terrainH 26, three.updateMatrixWorld 262
+    upload        gl.calls 4189
+    worldCompile  links 4, gl.calls 96, draws.total 2, world.terrainH 26, three.updateMatrixWorld 262
+    frames        links 7, gl.calls 136042, draws.total 9245, bytes.bufferData 606457218, bytes.bufferSubData 4551328, world.terrainH 104346, three.updateMatrixWorld 192466
+    craft         links 2, gl.calls 4443, draws.total 113, world.terrainH 15, three.updateMatrixWorld 56019
+    compile       links 38, gl.calls 46238, draws.total 6697, bytes.bufferData 1686848, three.updateMatrixWorld 17040
+    firstFrame    links 6, gl.calls 43420, draws.total 4175, bytes.bufferData 14794762, world.terrainH 3, three.updateMatrixWorld 2533
+  roll-out 1 (after the boot): ran [restore] skipped [snapshot bake spec craft shedWarm world stages town parking trees ring settle images upload worldCompile frames] anim played, 661 frames; cost links 1, gl.calls 6292870, draws.total 933208, bytes.bufferData 122268, bytes.bufferSubData 771162096, world.terrainH 225426, three.updateMatrixWorld 1909281
+      rollout:restore       gl.calls 1206, draws.total 90, world.terrainH 219667, three.updateMatrixWorld 1844
+  ok   roll-out 1 (after the boot): done
+  back 1: ran [shed board frames] skipped [] anim null, 3 frames; cost links 4, gl.calls 67495, draws.total 13266, bytes.bufferData 112728, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 19844
+      garage:shed           links 1, gl.calls 4654, draws.total 493, three.updateMatrixWorld 5540
+      garage:board          gl.calls 1002, draws.total 240, three.updateMatrixWorld 6243
+      garage:frames         links 3, gl.calls 61839, draws.total 12533, bytes.bufferData 112728, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 8061
+  ok   back 1: done
+  roll-out 2 (a slider moved): ran [snapshot spec craft shedWarm] skipped [bake world stages restore town parking trees ring settle images upload worldCompile frames] anim played, 661 frames; cost links 10, gl.calls 6478169, draws.total 971994, bytes.bufferData 51687032, bytes.bufferSubData 771744576, world.terrainH 96051, three.updateMatrixWorld 1992286
+      the export against the build last committed: @262: 1.876,"glazing":"glass","glazingMat":"acrylic","h":1.304881818,"halfW":0.3719116556,"len":1.31356348,"noseGap":0.99029896,"occupied":[1,0],"  VS  1.876,"glazing":"glass","glazingMat":"acrylic","h":1.304881818,"halfW":0.371911666,"len":1.31356348,"noseGap":0.99029896,"occupied":[1,0],"p
+      craft re-keyed: @1: m1|w|{"build":"gamer","pv":10,"ground":"far1","scale":1,"cove  VS  m3|w|{"build":"gamer","pv":10,"ground":"far1","scale":1,"cove
+      shedWarm re-keyed: @1: m1|{"build":"gamer","pv":10,"ground":"far1","scale":1,"cover"  VS  m3|{"build":"gamer","pv":10,"ground":"far1","scale":1,"cover"
+      rollout:snapshot      three.updateMatrixWorld 1404
+      rollout:spec          gl.calls 1049, draws.total 240, world.terrainH 2964, three.updateMatrixWorld 7131
+      rollout:craft         links 10, gl.calls 7462, draws.total 113, bytes.bufferData 32835936, world.terrainH 15, three.updateMatrixWorld 57547
+      rollout:shedWarm      gl.calls 6469658, draws.total 971641, bytes.bufferData 18851096, bytes.bufferSubData 771744576, world.terrainH 93072, three.updateMatrixWorld 1924098
+  ok   roll-out 2 (a slider moved): done
+  back 2: ran [shed board frames] skipped [] anim null, 3 frames; cost links 1, gl.calls 65202, draws.total 13271, bytes.bufferData 860, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 19879
+      garage:shed           gl.calls 4689, draws.total 498, three.updateMatrixWorld 5550
+      garage:board          gl.calls 1002, draws.total 240, three.updateMatrixWorld 6253
+      garage:frames         links 1, gl.calls 59511, draws.total 12533, bytes.bufferData 860, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 8076
+  ok   back 2: done
+  roll-out 3 (no change): ran [] skipped [snapshot bake spec craft shedWarm world stages restore town parking trees ring settle images upload worldCompile frames] anim played, 660 frames; cost gl.calls 5523898, draws.total 668584, bytes.bufferData 126720, bytes.bufferSubData 771546576, world.terrainH 8079, three.updateMatrixWorld 1910757
+  ok   roll-out 3 (no change): done
+  FAIL roll-out 1 after the boot runs NO step and links nothing  (ran restore, links 1 - ALLOWED up to 3 (rule c): PERF-WEEK W8: 3 programs for the screen colour space (srgb) first linked on the first take-off, since L29c, owner open)
+  ok   roll-out 3 with no change runs NO step and links nothing  (ran none, links 0)
+  ok   a slider of the editor was moved in the shed  (noseLen 0.48 -> 0.49)
+  ok   roll-out 2 (a slider moved) runs ONLY the aircraft's steps  (ran snapshot:key spec:key craft:key shedWarm:key)
+  ok   roll-out 2 runs no world step  (none)
+  FAIL roll-out 2 uploads no world texture and samples no ground en masse  (links 10, gl.calls 6478169, draws.total 971994, bytes.bufferData 51687032, bytes.bufferSubData 771744576, world.terrainH 96051, three.updateMatrixWorld 1992286)
+  ok   the way back runs the shed's three steps only  (shed board frames)
+  ok   the way back runs the shed's three steps only  (shed board frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - after the boot  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 30 frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - the shed, the slider moved in it  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 40 frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - the shed, untouched  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 40 frames)
+  the first 40 frames after roll-out 1: gl.calls 459343, draws.total 56089, bytes.bufferData 8532358, bytes.bufferSubData 171342136, world.terrainH 605695, three.updateMatrixWorld 583263
+  the first 40 frames after roll-out 2: gl.calls 452203, draws.total 56973, bytes.bufferData 19052292, bytes.bufferSubData 170976800, world.terrainH 8104, three.updateMatrixWorld 583866
+  the first 40 frames after roll-out 3: gl.calls 444314, draws.total 57013, bytes.bufferData 6720, bytes.bufferSubData 162935896, world.terrainH 8059, three.updateMatrixWorld 583044
+  ok   the first 40 frames of each flight link nothing (the one loading drew the world once, the craft compiled in its light)  (links 0 / 0 / 0)
+  ok   no background loading in flight: the first 40 frames after roll-outs 1 and 3 upload under 16 MB of buffers  (MB 9 / 19 / 0 (roll-out 2: the new aeroplane's own))
+  ok   the one loading let the world come to rest at the stand (the stream's near queue empty, the fill idle)  ({"n":514,"ms":1229,"rest":true,"near":0,"fill":{"live":247,"base":247,"fill":85,"queued":0,"busy":false,"budgetMs":4,"trees":603994,"gens":332}})
+  ok   the counters can see: in flight the world ticks  (worldUpdate 40, world updateMatrixWorld 570926 over 40 frames)
+  ok   trips: no script, timer or frame of the page threw
+  FAIL the physics worker (the default candidate) flew every flight: placed, live, the world version held  ({"flights":4,"inline":1,"reason":null,"phase":"live","placeOk":true,"wvBad":0,"strays":0,"errors":[],"prewarmed":true,"worldMs":6498.177121999994,"readyWaitFrames":2})
+  ---- the trips, cessna (builds/cessna172r_2026-11-08.json)
+  ok   cessna: the page booted and made its five trips
+  ok   the ONE LOADING ran the world's steps and the aeroplane's programs in its light  (ran world town parking trees ring settle snapshot spec images upload worldCompile frames craft)
+  ok   untouched, the loading screen lifted by itself (no hold, no wait)  (ready)
+  ok   G3649: the default boot runs the flight layout fl2 - no setup panel on its loading screen (the setup screen is the old layout, ?flui=old)  (FLYDIY_FL2.on true)
+  the world settled at the stand: {"n":514,"ms":1229,"rest":true,"near":0,"fill":{"live":247,"base":247,"fill":85,"queued":0,"busy":false,"budgetMs":4,"trees":603994,"gens":332}}
+  boot rows (the world's, now in the one loading):
+    world         links 17, gl.calls 173033, draws.total 13838, bytes.bufferData 536852944, world.terrainH 3770940, three.updateMatrixWorld 114176
+    town          links 53, gl.calls 966, three.updateMatrixWorld 9020
+    parking       three.updateMatrixWorld 2034
+    trees         nothing
+    ring          world.terrainH 944678
+    settle        links 17, gl.calls 41562, draws.total 7022, bytes.bufferData 17967664, world.terrainH 8168872, three.updateMatrixWorld 36041
+    images        gl.calls 44, draws.total 2, world.terrainH 26, three.updateMatrixWorld 531
+    upload        gl.calls 4192
+    worldCompile  links 3, gl.calls 85, draws.total 2, world.terrainH 26, three.updateMatrixWorld 531
+    frames        links 7, gl.calls 139132, draws.total 9397, bytes.bufferData 613372230, bytes.bufferSubData 3347200, world.terrainH 101081, three.updateMatrixWorld 194068
+    craft         links 2, gl.calls 4852, draws.total 119, world.terrainH 15, three.updateMatrixWorld 57750
+    compile       links 44, gl.calls 46479, draws.total 6697, bytes.bufferData 1686848, three.updateMatrixWorld 18398
+    firstFrame    links 6, gl.calls 43655, draws.total 4074, bytes.bufferData 18884322, world.terrainH 3, three.updateMatrixWorld 2737
+  roll-out 1 (after the boot): ran [restore] skipped [snapshot bake spec craft shedWarm world stages town parking trees ring settle images upload worldCompile frames] anim played, 675 frames; cost links 1, gl.calls 6899924, draws.total 1006135, bytes.bufferData 122268, bytes.bufferSubData 558112904, world.terrainH 225503, three.updateMatrixWorld 2379309
+      rollout:restore       gl.calls 1206, draws.total 90, world.terrainH 219676, three.updateMatrixWorld 2386
+  ok   roll-out 1 (after the boot): done
+  back 1: ran [shed board frames] skipped [] anim null, 3 frames; cost links 4, gl.calls 67059, draws.total 12959, bytes.bufferData 112728, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 22007
+      garage:shed           links 1, gl.calls 4842, draws.total 504, three.updateMatrixWorld 6011
+      garage:board          gl.calls 1002, draws.total 240, three.updateMatrixWorld 6807
+      garage:frames         links 3, gl.calls 61215, draws.total 12215, bytes.bufferData 112728, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 9189
+  ok   back 1: done
+  roll-out 2 (a slider moved): ran [snapshot spec craft shedWarm] skipped [bake world stages restore town parking trees ring settle images upload worldCompile frames] anim played, 675 frames; cost links 2, gl.calls 6921315, draws.total 1022629, bytes.bufferData 56260796, bytes.bufferSubData 558619388, world.terrainH 96037, three.updateMatrixWorld 2463013
+      the export against the build last committed: @107: nterplane":"none","interplaneAt":0.62,"jury":null,"section":null,"strutFoot":0.6851,"struts":1,"type":"strut","wires":"both"},"cabin":{"cano  VS  nterplane":"none","interplaneAt":0.62,"jury":null,"section":null,"strutFoot":0.6926,"struts":1,"type":"strut","wires":"both"},"cabin":{"cano
+      craft re-keyed: @1: m1|w|{"build":"gamer","pv":10,"ground":"far1","scale":1,"cove  VS  m2|w|{"build":"gamer","pv":10,"ground":"far1","scale":1,"cove
+      shedWarm re-keyed: @1: m1|{"build":"gamer","pv":10,"ground":"far1","scale":1,"cover"  VS  m2|{"build":"gamer","pv":10,"ground":"far1","scale":1,"cover"
+      rollout:snapshot      three.updateMatrixWorld 1590
+      rollout:spec          gl.calls 4661, draws.total 240, world.terrainH 2984, three.updateMatrixWorld 7970
+      rollout:craft         links 2, gl.calls 7964, draws.total 119, bytes.bufferData 31919424, world.terrainH 15, three.updateMatrixWorld 59270
+      rollout:shedWarm      gl.calls 6908690, draws.total 1022270, bytes.bufferData 24341372, bytes.bufferSubData 558619388, world.terrainH 93038, three.updateMatrixWorld 2391798
+  ok   roll-out 2 (a slider moved): done
+  back 2: ran [shed board frames] skipped [] anim null, 3 frames; cost links 1, gl.calls 64899, draws.total 12923, bytes.bufferData 860, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 22007
+      garage:shed           gl.calls 4698, draws.total 504, three.updateMatrixWorld 6011
+      garage:board          gl.calls 1002, draws.total 240, three.updateMatrixWorld 6807
+      garage:frames         links 1, gl.calls 59199, draws.total 12179, bytes.bufferData 860, bytes.bufferSubData 1920, world.terrainH 3, three.updateMatrixWorld 9189
+  ok   back 2: done
+  roll-out 3 (no change): ran [] skipped [snapshot bake spec craft shedWarm world stages restore town parking trees ring settle images upload worldCompile frames] anim played, 667 frames; cost gl.calls 5774892, draws.total 701817, bytes.bufferData 126720, bytes.bufferSubData 558483976, world.terrainH 8325, three.updateMatrixWorld 2352341
+  ok   roll-out 3 (no change): done
+  FAIL roll-out 1 after the boot runs NO step and links nothing  (ran restore, links 1 - ALLOWED up to 3 (rule c): PERF-WEEK W8: 3 programs for the screen colour space (srgb) first linked on the first take-off, since L29c, owner open)
+  ok   roll-out 3 with no change runs NO step and links nothing  (ran none, links 0)
+  ok   a slider of the editor was moved in the shed  (noseLen 0.9 -> 0.91)
+  ok   roll-out 2 (a slider moved) runs ONLY the aircraft's steps  (ran snapshot:key spec:key craft:key shedWarm:key)
+  ok   roll-out 2 runs no world step  (none)
+  FAIL roll-out 2 uploads no world texture and samples no ground en masse  (links 2, gl.calls 6921315, draws.total 1022629, bytes.bufferData 56260796, bytes.bufferSubData 558619388, world.terrainH 96037, three.updateMatrixWorld 2463013)
+  ok   the way back runs the shed's three steps only  (shed board frames)
+  ok   the way back runs the shed's three steps only  (shed board frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - after the boot  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 30 frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - the shed, the slider moved in it  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 40 frames)
+  ok   NOTHING TICKS THE WORLD IN THE SHED - the shed, untouched  (worldUpdate 0, premises tick 0, world updateMatrixWorld 0 over 40 frames)
+  the first 40 frames after roll-out 1: gl.calls 476688, draws.total 57654, bytes.bufferData 8449718, bytes.bufferSubData 126715320, world.terrainH 642582, three.updateMatrixWorld 605085
+  the first 40 frames after roll-out 2: gl.calls 462698, draws.total 58050, bytes.bufferData 19929108, bytes.bufferSubData 126522200, world.terrainH 7908, three.updateMatrixWorld 605583
+  the first 40 frames after roll-out 3: gl.calls 454529, draws.total 58097, bytes.bufferData 6720, bytes.bufferSubData 120726720, world.terrainH 7967, three.updateMatrixWorld 604579
+  ok   the first 40 frames of each flight link nothing (the one loading drew the world once, the craft compiled in its light)  (links 0 / 0 / 0)
+  ok   no background loading in flight: the first 40 frames after roll-outs 1 and 3 upload under 16 MB of buffers  (MB 8 / 20 / 0 (roll-out 2: the new aeroplane's own))
+  ok   the one loading let the world come to rest at the stand (the stream's near queue empty, the fill idle)  ({"n":514,"ms":1229,"rest":true,"near":0,"fill":{"live":247,"base":247,"fill":85,"queued":0,"busy":false,"budgetMs":4,"trees":603994,"gens":332}})
+  ok   the counters can see: in flight the world ticks  (worldUpdate 40, world updateMatrixWorld 584899 over 40 frames)
+  ok   trips: no script, timer or frame of the page threw
+  FAIL the physics worker (the default candidate) flew every flight: placed, live, the world version held  ({"flights":4,"inline":1,"reason":null,"phase":"live","placeOk":true,"wvBad":0,"strays":0,"errors":[],"prewarmed":true,"worldMs":6120.986239999998,"readyWaitFrames":2})
+  ok   setup: the page booted touched and lifted on Fly
+  ok   G3649: the setup child runs the old layout (?flui=old), where the setup screen lives  (FLYDIY_FL2.on false)
+  ok   the setup screen mounts the rail's sections  (route drawn start engines controls camera instruments map trace screen night weather gfx.perf gfx.light gfx.terrain gfx.water gfx.sky gfx.post gfx.town gfx.ui sound; 130 rows, 178 pills)
+  ok   ONE REGISTRY: every section, row and pill of the setup screen is the rail's  ({"sections":[],"rows":[],"pills":[]})
+  ok   every graphics option that does not reload is on the setup screen  (all)
+  ok   the options that reload the page are LEFT OUT of the setup screen (the rail keeps them)  (present none; missing from the rail none)
+  ok   the setup screen's sections: FLY route/start/engines/controls, VIEW, SKY & WORLD time/weather, GRAPHICS  ([{"k":"fly","secs":["route","drawn","start","engines","controls"]},{"k":"view","secs":["camera","instruments","map","trace","screen"]},{"k":"sky","secs":["night","weather"]},{"k":"graphics","secs":["graphics"]},{"k":"audio","secs":["sound"]}])
+  ok   a touch on the setup screen holds the auto-start  (before {"touched":false,"boot":"loading","fly":false,"pulse":false}, hold logged true)
+  ok   G1065 Fly pulses once the setup is touched (not before; still when the load is done and it waits)  (before {"touched":false,"boot":"loading","fly":false,"pulse":false}, after {"touched":true,"boot":"loading","fly":false,"pulse":true}, 60 frames on {"state":"waiting","fly":true,"pulse":true,"flyText":"Fly"})
+  ok   LIVE: a pick on the setup screen shows in the rail  ({"row":"anti-aliasing","picked":"off","was":"smooth","setupNow":"off","railNow":"off","gfx":"off"})
+  ok   LIVE: a switch flipped in the rail shows on the setup screen  ({"railNow":false,"setupBefore":true,"setupNow":false})
+  ok   touched: the load finishes and the screen WAITS, Fly lit (60 frames on)  ({"state":"waiting","fly":true,"pulse":true,"flyText":"Fly"})
+  ok   a graphics row picked while it waited is compiled BEFORE the lift  (shadows full -> off; the settle ran craft restore worldCompile frames shedCompile; links 146, gl.calls 118842, draws.total 7722, bytes.bufferData 2991444, bytes.bufferSubData 4788456, world.terrainH 2614, three.updateMatrixWorld 147024)
+  ok   after the lift, nothing links (30 frames)  (gl.calls 234518, draws.total 25356, bytes.bufferSubData 19200, world.terrainH 15, three.updateMatrixWorld 80718)
+  ok   the setup screen goes with the loading screen
+  ok   setup: no script, timer or frame of the page threw
+  wall 897.2 s
+GATE ROUNDTRIP: FAIL (6)
+(exit code 1)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -4172,6 +4322,7 @@ GRASSSIDES PASS    12.0 s
 GREENGRASS PASS    30.6 s
 LAWN      PASS    23.0 s
 FRAMECOST FAIL   325.0 s
-wall (the chunks' own, summed) 26228.2 s  (jobs 4)
+ROUNDTRIP FAIL   897.2 s
+wall (the chunks' own, summed) 27125.4 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 39 red (110 PASS, 39 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 40 red (110 PASS, 40 FAIL, 0 SKIP of 364)
