@@ -19,11 +19,13 @@ ap.add_argument('--views', default='door_out,door_left,door_right')
 ap.add_argument('--w', type=int, default=720)
 ap.add_argument('--note', default='')
 ap.add_argument('--today', default='')   # the folder of the 'garage today' pictures, when another run than --garage shot them
-ap.add_argument('--sheds', default='HOME:club:Club hangar')   # ref shed id : garage shell : title, comma separated
+ap.add_argument('--sheds', default='HOME:club:Club hangar')   # ref shed id : garage shell : title [: view+view+...], comma separated
+ap.add_argument('--title', default='Garage View Side by Side')
+ap.add_argument('--eyebrow', default='Wingsmith · Jolene AFB · the view out of the hangars')
 A = ap.parse_args()
 esc = html.escape
 TIMES, VIEWS = A.times.split(','), A.views.split(',')
-SHEDS = [tuple(x.split(':')) for x in A.sheds.split(',')]
+SHEDS = [tuple(x.split(':')) for x in A.sheds.split(',')]   # (a 4th field: this shed's own views, '+' between them)
 TNAME = {'now': '16:00 (the hour the game opens in)', 'noon': 'Noon', 'golden': 'Golden hour', 'night': 'Night'}
 VNAME = {'door_out': 'straight out of the door', 'door_left': '45 degrees left', 'door_right': '45 degrees right', 'door_high': 'from 4 m up', 'inside': 'from the back of the room',
          'back': 'the back wall and its high window, from the floor', 'back_high': 'level through the back window', 'apron_out': 'from the apron, 14 m out'}
@@ -57,10 +59,11 @@ def cell(cls, cap, src):
 
 
 rows, n = [], 0
-for sid, shell, sname in SHEDS:
+for SH in SHEDS:
+    sid, shell, sname = SH[0], SH[1], SH[2]; SV = SH[3].split('+') if len(SH) > 3 else VIEWS
     blk = []
     for t in TIMES:
-        for v in VIEWS:
+        for v in SV:
             asp = aspect_of(os.path.join(A.garage, 'today_%s_%s_%s.png' % (t, shell, v))) or aspect_of(os.path.join(A.garage, 'gview_%s_%s_%s.png' % (t, shell, v)))
             g = jpg(os.path.join(A.refs, 'ref_%s_%s_%s.png' % (t, sid, v)), asp)
             a = jpg(os.path.join(A.today or A.garage, 'today_%s_%s_%s.png' % (t, shell, v)))
@@ -83,7 +86,7 @@ if os.path.exists(cj):
             stats = '<p class="hint">The new scene as it ran here: %d meshes, %s triangles, %d pictures, stood in %s ms.</p>' % (s['meshes'], format(s['tris'], ',').replace(',', ' '), s['textures'], g.get('buildMs'))
             break
 
-PAGE = '''<title>Garage View Side by Side</title>
+PAGE = '''<title>__TITLE__</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -106,14 +109,14 @@ p { margin: 0 0 10px; max-width: 70ch; } .eyebrow { font-family: var(--mono); fo
 </style>
 <div class="wrap">
 <header>
-  <p class="eyebrow">Wingsmith · Jolene AFB · the view out of the hangars</p>
-  <h1>Garage View Side by Side</h1>
+  <p class="eyebrow">__EYEBROW__</p>
+  <h1>__TITLE__</h1>
   <p style="margin-top:10px">Each row is one eye and one hour: the game's world from the hangar's door, the garage as it is today, and the garage with the new measured scene. All three are real pictures from the game's own renderer.</p>
   __NOTE__ __STATS__
 </header>
 __ROWS__
 </div>
 '''
-PAGE = PAGE.replace('__NOTE__', ('<div class="note"><p>%s</p></div>' % esc(A.note)) if A.note else '').replace('__STATS__', stats).replace('__ROWS__', ''.join(rows) or '<p>No pictures found.</p>')
+PAGE = PAGE.replace('__TITLE__', esc(A.title)).replace('__EYEBROW__', esc(A.eyebrow)).replace('__NOTE__', ('<div class="note"><p>%s</p></div>' % esc(A.note)) if A.note else '').replace('__STATS__', stats).replace('__ROWS__', ''.join(rows) or '<p>No pictures found.</p>')
 open(A.out, 'w', encoding='utf-8', newline='\n').write(PAGE)
 print('compare: %d rows -> %s (%.0f kB)' % (n, A.out, os.path.getsize(A.out) / 1024))
