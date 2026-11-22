@@ -1380,6 +1380,7 @@ const WATER = (() => {
       MIR.rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: true, samples: smp,
         depthTexture: THREE.DepthTexture ? new THREE.DepthTexture(w, h, renderer.capabilities && renderer.capabilities.reversedDepthBuffer ? THREE.FloatType : THREE.UnsignedInt248Type) : null });   // float under the reversed buffer (app.js, PERF 2026-09-23)
       if (MIR.rt.depthTexture) { MIR.rt.depthTexture.format = THREE.DepthStencilFormat; MIR.rt.depthTexture.minFilter = MIR.rt.depthTexture.magFilter = THREE.NearestFilter; }
+      MIR.rt.texture.name = 'water mirror';   // PERF-TRACE: the target's name in the programs' table (metadata: a texture's name is in no program key)
       MIR.rt.resolveStencilBuffer = false;   // the capture's depth is read, its stencil never (aa_resolve.js: PERF 2026-09-23)
       MIR.rt.texture.wrapS = MIR.rt.texture.wrapT = THREE.ClampToEdgeWrapping;
     }
@@ -1600,7 +1601,7 @@ const WATER = (() => {
     if (!HULL.rt || HULL.rt.width < tw || HULL.rt.height < th || HULL.rt.width > 2 * tw + 64 || HULL.rt.height > 2 * th + 64) {
       if (HULL.rt) HULL.rt.dispose();
       HULL.rt = new THREE.WebGLRenderTarget(tw, th, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: true, stencilBuffer: false, samples: 0 });
-      HULL.rt.texture.wrapS = HULL.rt.texture.wrapT = THREE.ClampToEdgeWrapping;
+      HULL.rt.texture.wrapS = HULL.rt.texture.wrapT = THREE.ClampToEdgeWrapping; HULL.rt.texture.name = 'water hull reflection';
     }
     obliqueClip(THREE, mc, waterY, RZ);
     // the scene down to the aircraft and the lights (the sky dome rides the camera, a scene child: hidden with it)

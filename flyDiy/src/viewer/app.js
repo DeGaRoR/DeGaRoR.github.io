@@ -2471,7 +2471,7 @@
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
     const mesh = new THREE.Mesh(geo, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', {  // pre-ok: colorWrite false (the next line)
-      colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
+      colorWrite: false, depthWrite: false, side: THREE.DoubleSide }, 'aircraft / shadow proxy / planform'));
     mesh.castShadow = true; mesh.frustumCulled = false;
     craft.add(mesh);
     proxy = { ids, pos, attr: geo.attributes.position, mesh };
@@ -3896,7 +3896,7 @@
             picks.push({ obj: pg, key: mp[1] === 'throttle' ? 'thr' : mp[1] });
             if (mp[1] !== 'throttle') {
               const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
-                (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
+                (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false }, 'aircraft / cockpit / pick pad'));  // pre-ok: colorWrite false
               pad.userData.pickPad = 1;
               pad.visible = false;     // C4b (G875): the ray answers it unshown (cockpit.js padSwitches says why)
               if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
@@ -7978,7 +7978,7 @@
       const F = fx.F, n = F.panels.length;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 9), 3));
-      const m = new THREE.Mesh(g, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', { color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }));
+      const m = new THREE.Mesh(g, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', { color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }, 'aircraft / floats / hull panels'));
       m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
       m.userData.fx = fx;
       craft.add(m); floatMeshes.push(m);
@@ -9174,7 +9174,7 @@
     if (n === resHoverName) return;
     resHoverName = n;
     if (resBox) { if (resBox.parent) resBox.parent.remove(resBox); resBox.geometry.dispose(); resBox.material.dispose(); resBox = null; }
-    if (h && THREE.BoxHelper) { resBox = new THREE.BoxHelper(h.grp, 0xffc070); resBox.name = 'residentHover'; hangarScene.add(resBox); }
+    if (h && THREE.BoxHelper) { resBox = new THREE.BoxHelper(h.grp, 0xffc070); resBox.material.userData.progOwner = 'garage / residents / hover box'; resBox.name = 'residentHover'; hangarScene.add(resBox); }
     canvas.style.cursor = h ? 'pointer' : '';
     canvas.title = h ? 'Work on ' + h.name : '';
   }

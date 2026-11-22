@@ -206,6 +206,16 @@
     // events: [t, kind, ms, detail]; the rare path, so plain arrays (capped)
     const EV_CAP = opt.eventCap || 40000;
     let events = [], evDropped = 0, evSaved = 0;
+    const LAPS = new Float64Array(224); let lapK = 0;   // PERF-TRACE: the frame's laps (lapNote)
+    const LAPN = (() => { const m = /[?&]reclaps=(\d+)(?:&|$)/.exec(q), n = m ? +m[1] : 256; return n >= 1 && n <= 65536 ? n : 256; })();
+    const LAPW = 2 + 7 * 14, LAPCAP = LAPN < 256 ? 16384 : 2048, LAPR = new Float64Array(LAPCAP * LAPW); let lapRn = 0;   // the census' ring: [work, n, the laps' numbers]
+    const LAPLCAP = 2048, LAPL = new Float64Array(LAPLCAP * LAPW); let lapLn = 0;   // ... and the LONG frames' (work of 50 ms or more: the last 2 048 of them)
+    // the census as the log's table, oldest first: { every, frames, rows: [[work, slot, t, GPU ms, GPU calls, updated KB, draw calls, triangles, slot, ...]] }
+    function lapRows(A, cap, all) { const n = Math.min(all, cap), rows = [];
+      for (let j = all - n; j < all; j++) { const o = (j % cap) * LAPW, k = A[o + 1], a = new Array(k + 1); a[0] = Math.round(A[o] * 100) / 100;
+        for (let i = 0; i < k; i++) { const c = i % 7, v = A[o + 2 + i]; a[i + 1] = c === 1 || c === 2 ? Math.round(v * 100) / 100 : c === 4 ? Math.round(v / 1024) : v; } rows.push(a); }
+      return rows; }
+    function lapsTable() { return { every: LAPN, frames: lapRn, rows: lapRows(LAPR, LAPCAP, lapRn), longFrames: lapLn, long: lapRows(LAPL, LAPLCAP, lapLn) }; }
     // the page's hidden moments (a tab away), on this recorder's clock: a gap spanning one is not a frame, not a freeze
     if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) V[HIDDEN] = clock(); });
     const rec = {
@@ -243,10 +253,26 @@
       V[TOWN] += ms; V[TOWNN] += n;
       if (kb === kb) V[TOWNKB] = V[TOWNKB] === V[TOWNKB] ? V[TOWNKB] + kb : kb;
     }
+    // PERF-TRACE (PERF-LEAD, 22 Nov: "what happened INSIDE the mirror slot?"): WHEN EACH LAP ENDED. The row keeps a slot's
+    // total, not its place in the frame, so an event of a long frame (a program's first use, a link) could not be put in
+    // the mirror's pass or the main render's. Every lap now also stores seven numbers in a typed array kept for the frame
+    // (the slot, the time, the GPU-data counters so far - creation ms, creation calls, updated bytes - and the draw calls
+    // and triangles so far): nothing allocated. A frame's laps are a row, [its work, then slot, t, GPU ms, GPU calls,
+    // updated KB, draw calls, triangles for each lap] (the first lap with slot -1 = the frame's start).
+    // NO EVENT: two rings of typed numbers allocated once, written in place, read at the save as the log's `laps`
+    // table - `long`: every frame whose work reached 50 ms (LAPL: the last 2 048 of them, 1.6 MB); `rows`: one frame in 256
+    // WHATEVER ITS LENGTH, the steady census of what each pass draws - the mirror's capture against the main render (LAPR:
+    // 2 048 frames, 1.6 MB; ?reclaps=N keeps one frame in N, 1 = every frame, and under 256 that ring is 16 384 frames,
+    // 13 MB). (GATE FLIGHTREC, 22 Nov: handed on as an event, a long frame's laps were an array a frame - 8.9 bytes a
+    // frame in the gate's count against its 4, where every frame is long. A truthful red: the frame's path allocates
+    // nothing again, long frame or not.)
+    // tools/slot_frames.js reads it; a log without it is read by the slots' order, which is an estimate and says so.
+    function lapNote(s, t) { if (lapK <= LAPS.length - 7) { LAPS[lapK++] = s; LAPS[lapK++] = t; LAPS[lapK++] = UP.ms; LAPS[lapK++] = UP.texN + UP.bufN + UP.mipN; LAPS[lapK++] = UP.subB; LAPS[lapK++] = calls; LAPS[lapK++] = tris; } }
     function lap(s) {
       if (!open) return;
       const t = clock();
       acc[s] += (t - V[LAST]) - V[NESTED]; V[NESTED] = 0; V[LAST] = t;
+      lapNote(s, t);
       if (samp) V[SAMP] += clock() - t;
     }
     // a rendered frame starts: ts is rAF's timestamp (the PACE frame's), pc the PACE frame (steps owed)
@@ -259,6 +285,7 @@
       for (let i = 0; i < NS; i++) acc[i] = 0;
       owed = pc && typeof pc.steps === 'number' ? pc.steps : 0;
       if (UP.n !== 0) upFlush(t, 'out');             // (GPU data made between the frames: a timer's, a compile step's)
+      lapK = 0; lapNote(-1, t);
       const tsN = typeof ts === 'number' ? ts : t;
       const j = (fi & (N - 1)) * NC;
       ringT[fi & (N - 1)] = tsN;
@@ -284,6 +311,8 @@
       for (let i = 0; i < NS; i++) { ringF[j + C_SLOT0 + i] = acc[i]; sum += acc[i]; }
       const work = t - V[T0];
       ringF[j + C.work] = work;
+      if ((fi + 1) % LAPN === 0 && lapK > 7) { const o = (lapRn++ % LAPCAP) * LAPW, k = Math.min(lapK, LAPW - 2); LAPR[o] = work; LAPR[o + 1] = k; for (let i = 0; i < k; i++) LAPR[o + 2 + i] = LAPS[i]; }
+      if (work >= 50 && lapK > 7) { const o = (lapLn++ % LAPLCAP) * LAPW, k = Math.min(lapK, LAPW - 2); LAPL[o] = work; LAPL[o + 1] = k; for (let i = 0; i < k; i++) LAPL[o + 2 + i] = LAPS[i]; }
       ringF[j + C.other] += work - sum;              // rounding and anything between the laps: the split sums to the work
       ringF[j + C.owed] = owed; ringF[j + C.taken] = taken;
       ringF[j + C.gpu] = NaN;
@@ -520,18 +549,24 @@
       const dim = o => (o && o.width && o.height) ? o.width * o.height : 0, blen = o => (o && o.byteLength) || 0;
       const SIZE = { texImage2D: a => (a.length >= 9 ? a[3] * a[4] : dim(a[5])), texSubImage2D: a => (a.length >= 9 ? a[4] * a[5] : dim(a[6])), texImage3D: a => a[3] * a[4] * a[5],
         texSubImage3D: a => a[5] * a[6] * a[7], texStorage2D: a => a[3] * a[4], texStorage3D: a => a[3] * a[4] * a[5] };
-      const upTex = name => { const f = gl[name], sz = SIZE[name], cmp = /^compressed/.test(name); if (typeof f !== 'function') return;
-        gl[name] = function () { const t = clock(); try { return f.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.texN++; UP.texMs += d;
-          if (cmp) UP.cmpB += blen(arguments[arguments.length - 1]) || blen(arguments[arguments.length - 3]); else { const px = sz ? sz(arguments) : 0; if (px === px) UP.texPx += px; } } }; };
+      // (?recup=1: each upload is also handed to the registry's GL-level table with the object it was read FROM - the pixels'
+      //  array, the image - which is how an upload three does not manage, the skin's raw GL, gets a row. One null test a call otherwise.)
+      const SRCI = { texImage2D: a => (a.length >= 9 ? 8 : 5), texSubImage2D: a => (a.length >= 9 ? 8 : 6), texImage3D: () => 9, texSubImage3D: () => 10 };
+      const upTex = name => { const f = gl[name], sz = SIZE[name], si = SRCI[name], cmp = /^compressed/.test(name); if (typeof f !== 'function') return;
+        gl[name] = function () { const t = clock(); try { return f.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.texN++; UP.texMs += d; let by = 0;
+          if (cmp) { by = blen(arguments[arguments.length - 1]) || blen(arguments[arguments.length - 3]); UP.cmpB += by; } else { const px = sz ? sz(arguments) : 0; if (px === px) { UP.texPx += px; by = px * 4; } }
+          if (rec.traffic) rec.traffic.gl('tex', si ? arguments[si(arguments)] : null, by, name); } }; };
       try {
         for (const n of ['texImage2D', 'texSubImage2D', 'texImage3D', 'texSubImage3D', 'compressedTexImage2D', 'compressedTexSubImage2D', 'compressedTexImage3D', 'compressedTexSubImage3D', 'texStorage2D', 'texStorage3D']) upTex(n);
         const bd = gl.bufferData, gm = gl.generateMipmap, bs = gl.bufferSubData;
-        if (typeof bd === 'function') gl.bufferData = function (a, b) { const t = clock(); try { return bd.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.bufN++; UP.bufMs += d; UP.bufB += typeof b === 'number' ? b : blen(b); } };
+        if (typeof bd === 'function') gl.bufferData = function (a, b) { const t = clock(); try { return bd.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.bufN++; UP.bufMs += d; const by = typeof b === 'number' ? b : blen(b); UP.bufB += by; if (rec.traffic) rec.traffic.gl('buf', typeof b === 'number' ? null : b, by, 'bufferData'); } };
         if (typeof gm === 'function') gl.generateMipmap = function (a) { const t = clock(); try { return gm.call(gl, a); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.mipN++; UP.mipMs += d; } };
         if (typeof bs === 'function') gl.bufferSubData = function (a, b, c, d, e) {
           UP.subN++;
-          if (arguments.length > 3) { UP.subB += e ? e * ((c && c.BYTES_PER_ELEMENT) || 1) : blen(c); return bs.call(gl, a, b, c, d, e); }
-          UP.subB += blen(c); return bs.call(gl, a, b, c);
+          const by = arguments.length > 3 && e ? e * ((c && c.BYTES_PER_ELEMENT) || 1) : blen(c); UP.subB += by;
+          if (rec.traffic) rec.traffic.gl('buf', c, by, 'bufferSubData');
+          if (arguments.length > 3) return bs.call(gl, a, b, c, d, e);
+          return bs.call(gl, a, b, c);
         };
       } catch (e) {}
       // the GPU timer: ours, and a watch on everyone else's
@@ -597,6 +632,7 @@
         gpuData: { frames: UPT[0], texCalls: UPT[1], texMs: Math.round(UPT[2]), megapixels: Math.round(UPT[3]), compressedMB: Math.round(UPT[4] / 1048576), bufferCalls: UPT[5], bufferMs: Math.round(UPT[6]),
           bufferMB: Math.round(UPT[7] / 1048576), updateCalls: UPT[8], updateMB: Math.round(UPT[9] / 1048576) },
         seen: typeof VIS !== 'undefined' ? { start: VIS.start, now: seenNow(), hidden: VIS.hidden, blurs: VIS.blur } : null,   // PERF-TRACE: the page's visibility and focus
+        workers: typeof WK !== 'undefined' && WK.on ? wkRows(false) : null,   // PERF-TRACE: every Worker made, by name, with its traffic's totals (the buckets are the log's `workers`)
       };
       const R = rec.renderer;
       if (R && R.domElement) H.canvas = { w: R.domElement.width, h: R.domElement.height, cssW: R.domElement.clientWidth, cssH: R.domElement.clientHeight, pixelRatio: R.getPixelRatio ? R.getPixelRatio() : null };
@@ -646,7 +682,9 @@
       // timeline's lane (tools/load_timeline.js), on this log's own clock. Read here, at the save; nothing during the frames
       let resrc = null; try { resrc = perf.getEntriesByType ? perf.getEntriesByType('resource').map(r => [String(r.name).replace(/^https?:\/\/[^/]+\//, '').replace(/\?.*$/, '').slice(-90),
         Math.round(r.startTime), Math.round(r.responseEnd), Math.round((r.transferSize || r.encodedBodySize || 0) / 1024), r.initiatorType || '']) : null; } catch (e) {}
-      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + ',"uploads":' + JSON.stringify(upl) + '}');
+      let wks = null; try { wks = typeof WK !== 'undefined' && WK.on ? wkRows(true) : null; } catch (e) {}   // PERF-TRACE: the workers' traffic in 250 ms buckets
+      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + ',"uploads":' + JSON.stringify(upl) +
+        ',"workers":' + JSON.stringify(wks) + ',"laps":' + JSON.stringify(lapsTable()) + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)
@@ -710,6 +748,68 @@
   // it was hidden and lost the focus in between ('vis' and 'focus' events say when).
   const seenNow = () => { try { const d = W.document; return d ? { state: d.visibilityState || null, focus: typeof d.hasFocus === 'function' ? !!d.hasFocus() : null } : null; } catch (e) { return null; } };
   const VIS = { start: seenNow(), hidden: 0, blur: 0 };
+
+  // PERF-TRACE (22 Nov): THE WORKERS. A loading step that waits on a worker (the houses, the rocks, the flown ground's
+  // bake, the flight's physics) left nothing in the log, and the timeline read "not proven" for 20 s of a cold load.
+  // Every Worker the page makes is counted from here:
+  //   who      the standard `name` option of its constructor (new Worker(url, { name: 'town / houses / builder' }): it
+  //            is the worker's self.name and the thread's name in DevTools). A site without one reads UNNAMED, and GATE
+  //            PROGRAMS part 9 lists it.
+  //   when     made, ended (terminate()), first message sent, last reply
+  //   traffic  per 250 ms bucket: messages sent, replies received, the MAIN THREAD's ms inside the reply's handler,
+  //            the requests still out at the bucket's end (sent minus received, floored at 0: a worker that answers
+  //            twice, or never, makes this a hint and not a count)
+  //   'wkmsg'  an event for a reply whose handler held the main thread for 16 ms or more (the freeze ledger's cause)
+  // What the worker computed in between is NOT measured: its thread is not ours to read. A step that ends with a
+  // worker's reply "ended with <name>'s reply", and no more is claimed.
+  // THE COST: one clock read and a bucket update per message sent; two clock reads, a bucket update and one wrapper
+  // call per reply. No message is copied, read or delayed. ?recwk=0 leaves the page's Worker untouched (this
+  // instrument's own A/B), and so does ?rec=0.
+  const WKB = 250, WK_CAP = 16384 * 5, WK = { list: [], on: false };
+  const wkBump = (r, col, v, t) => {
+    const b = Math.floor(t / WKB), io = r.io; let i = io.length - 5;
+    if (i < 0 || io[i] !== b) { if (io.length >= WK_CAP) { r.cut = true; return; } io.push(b, 0, 0, 0, 0); i = io.length - 5; }
+    io[i + col] += v; io[i + 4] = r.open;
+  };
+  const wk1 = x => (x == null ? null : Math.round(x * 10) / 10);
+  const wkRows = full => WK.list.map(r => {
+    const o = { n: r.n, name: r.name, t: wk1(r.t), end: wk1(r.end), sent: r.out, received: r.in, handlerMs: wk1(r.hMs), handlerMaxMs: wk1(r.hMax), open: r.open, maxOpen: r.maxOpen,
+      firstSent: wk1(r.firstOut), lastReply: wk1(r.lastIn), cut: r.cut };
+    if (full) { o.bucketMs = WKB; o.io = r.io.map((v, i) => (i % 5 === 3 ? wk1(v) : v)); }   // [bucket, sent, received, handler ms, still out] x n
+    return o; });
+  try {
+    if (!OFF && typeof W.Worker === 'function' && !/[?&]recwk=0(?:&|$)/.test(q)) {
+      const Native = W.Worker, NP = Native.prototype;
+      const onD = (() => { try { for (let p = NP; p; p = Object.getPrototypeOf(p)) { const d = Object.getOwnPropertyDescriptor(p, 'onmessage'); if (d) return d.set && d.get ? d : null; } } catch (e) {} return null; })();
+      const Wrapped = function Worker(url, opts) {
+        const w = opts === undefined ? new Native(url) : new Native(url, opts);
+        try {
+          const r = { n: WK.list.length + 1, name: (opts && typeof opts === 'object' && opts.name) ? String(opts.name).slice(0, 80) : 'UNNAMED', t: now(), end: null,
+            out: 0, in: 0, hMs: 0, hMax: 0, open: 0, maxOpen: 0, firstOut: null, lastIn: null, cut: false, io: [] };
+          WK.list.push(r);
+          REC.event('wk', r.t, null, r.n + ' ' + r.name);
+          const post = w.postMessage, term = w.terminate;
+          if (typeof post === 'function') w.postMessage = function () {
+            const t = now(); r.out++; r.open++; if (r.open > r.maxOpen) r.maxOpen = r.open; if (r.firstOut === null) r.firstOut = t; wkBump(r, 1, 1, t);
+            return post.apply(w, arguments); };
+          if (typeof term === 'function') w.terminate = function () {
+            if (r.end === null) { r.end = now(); REC.event('wkend', r.end, null, r.n + ' ' + r.name); }
+            return term.apply(w, arguments); };
+          // the replies, counted by a listener of our own (the first one registered: it runs before the site's handler)
+          if (typeof w.addEventListener === 'function') w.addEventListener('message', () => { const t = now(); r.in++; if (r.open > 0) r.open--; r.lastIn = t; wkBump(r, 2, 1, t); });
+          // ... and the site's own handler, timed (every site sets .onmessage; a site that listens otherwise is counted, not timed)
+          if (onD) { let raw = null;
+            Object.defineProperty(w, 'onmessage', { configurable: true, enumerable: true, get: () => raw,
+              set: fn => { raw = fn; onD.set.call(w, typeof fn !== 'function' ? fn : function () {
+                const t0 = now();
+                try { return fn.apply(this, arguments); }
+                finally { const t1 = now(), ms = t1 - t0; r.hMs += ms; if (ms > r.hMax) r.hMax = ms; wkBump(r, 3, ms, t1); if (ms >= 16) REC.event('wkmsg', t0, ms, r.name); } }); } }); }
+        } catch (e) {}
+        return w;
+      };
+      Wrapped.prototype = NP; W.Worker = Wrapped; WK.on = true;
+    }
+  } catch (e) {}
   // =================================================================================================================
   // THE PAGE'S RECORDER: one, from this script on
   // =================================================================================================================

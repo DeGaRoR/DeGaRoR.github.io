@@ -318296,6 +318296,61 @@ gate threw before its verdict on perf-codex.)
 KNOWN, OLDER THAN THIS WORK: GATE FLIGHTREC fails 3 app.js source checks on claude/perf-codex itself (begin / end round the frame clock,
 holdRender to PACE.end, worldPrelinkGfx).
 
+PERF-TRACE 2-5 (22 Nov, after the first cold captures; the report: reports/PERF-TRACE-COLD-BOOT-2026-11-22.md)
+- THE VARIANT'S REAL AXES: the fragment prefix's #defines are not the whole variant. program_id.js bodyTags() reads, in idle time, what three
+  writes into the BODY: LIGHTS=dir.point.spot.hemi, SHADOWS=dir.point.spot, CLIP=n, TONE=, OUT=sRGB|linear, OPAQUE, DITHERING, a hook's own
+  switches (DMG_* / GD_* / BAND_*, FLOWN_FADE). A row's `body`, appended to its `defs`. tools/program_matrix.js prints a FAMILY (default
+  'aircraft / skin') on those axes - kind, side, near, hook, lights, output, target - with programs, KB, pending share and drawn per value and
+  per combination, and two loads side by side (`--against other.json`). The finish is a uniform: it multiplies nothing.
+- NEVER DRAWN, by target / step / owner (program_report.js): linked in this log and no gl.useProgram of it.
+- THE UPLOADS OF A STEADY FRAME BY OWNER: ?recup=1 (off by default) wraps three's three needsUpdate setters; the log's `uploads` names each
+  buffer / texture marked, its owner, frames, bytes and whether its content CHANGED (a sampled hash, 1 frame in 32). The header's `gpuData` is
+  the run's total (always on); the 'gpuup' event fires only on a frame that CREATES 1 ms or more of GPU data.
+- ?recring=131072 | 262144: a longer frame ring for one run (28 / 57 MB; the default 65 536 unchanged). The header's `seen` and the 'focus' /
+  'vis' events: was the page visible and focused (a hidden page's frames mean nothing).
+- tools/load_brief.js: ten lines a load (--steps a,b --miss S for a warm visit). tools/perf/log_capture.js: a cold load on page_rig.js, saved
+  as flightlog-<tag>.json + capture-<tag>.json (package temperature, hashed cache keys; --compare a b: do two loads key the same programs).
+- THE WORKERS (PERF-TRACE 5; flight_recorder.js THE WORKERS): every `new Worker(` of the game gives the standard `name` option
+  ('feature / system / what': the worker's self.name, the thread's name in DevTools); the recorder wraps window.Worker and keeps, per worker:
+  made / ended / first sent / last reply, and per 250 ms bucket [bucket, sent, received, the main thread's ms in the reply's handler, requests
+  still out]. Header `workers` (totals), log `workers` (buckets), events 'wk', 'wkend', 'wkmsg' ms name (a reply handler of 16 ms or more).
+  What a worker COMPUTES is not measured. load_timeline.js: a lane a worker, and a step is bound WORKER when it ends with the reply of a worker
+  that had a request out for more than half of it and is not in constant traffic (the sim host answers every frame: listed, never named).
+  freeze_ledger.js names 'worker reply handled: <name>' in a frame. COST: one clock read a message sent, two and a wrapper call a reply; no
+  message is copied or delayed. ?recwk=0 leaves the page's Worker untouched. GATE PROGRAMS part 9: every Worker site is named (a new one
+  without a name fails with its file and line), the wrapper on a fake page, the timeline's rule.
+- STILL OPEN: the census of the standard boots is NOT pinned (tools/perf/program_owners.json): the 22 Nov cold load had 61 unowned programs,
+  whose materials the next capture names (an unowned row now describes its material and the object wearing it). A session longer than the
+  ring is saved from the store WITHOUT the programs / workers / uploads tables (storedParts): capture with ?recring for a long run.
+
+PERF-TRACE 6 (22 Nov, after the 14:00 slot; the journey's log showed what the instruments missed)
+- THE UPLOADS' TABLE REPAIRED (?recup=1). The journey named 1.4 MB of 5 255: the list of drawn scenes kept the FIRST 64 ever rendered (the
+  boot's bakes) and never the world's - it is now the 64 drawn most RECENTLY; bytes were counted a mark, not a frame; an object gone by the
+  save had no trail - at its FIRST mark it now keeps who marked it (function@file:line, three's own frames skipped) and what it is.
+- THE GL'S OWN TABLE (`uploads.gl`): every bufferData / bufferSubData / texImage call, a row per ARRAY or IMAGE it read (calls, frames, bytes,
+  the caller, the owner where a drawn scene holds an attribute or texture with that very array). Raw GL uploads (skin_gpu.js) have rows too:
+  the needsUpdate marks were 122 KB a frame against 3.4 MB of bufferSubData at the GL. `bufferData` alone = made and never updated.
+- ?recup=2 = ?recup=1 + a naming walk of the four scenes drawn last every 256th frame: a buffer made new every frame is gone before the save,
+  the walk names one in 256 of them for good. The walk is a spike of the diagnostic's own, logged 'recupwalk' and named as such by the ledger:
+  =2 for a run that asks WHOSE, =1 for a run that also counts freezes.
+- 'laps' EVENT: when each lap of the loop ended, with the draw calls, triangles and GPU-data counters so far - for a frame whose work reached
+  50 ms and for one frame in 256 (?reclaps=N). tools/slot_frames.js: for the frames where ONE slot ran long, what the events say happened
+  inside it (first uses, links, held draws, deliveries, GPU data), the programs by the target they were keyed for (linked at the load / first
+  used in flight), a stretch of the flight against the rest (--from --to), the slot over time. Without laps the slot's window is an estimate.
+- tools/big_uploads.js: every frame with 30 ms+ of new GPU data: its shape, which slot ran long in that frame or the 3 before against that
+  slot's base rate, the eye's place, and the far terrain's unit test (are the bytes whole numbers of nodes?). ON THE JOURNEY: 35 of 37 are
+  whole nodes at patch 32 and `world` is long in the same frame for 39 of 51: render_world.js buildQuad re-sends a whole quadrant (12-44 MB)
+  when one node changes level. buildQuad now reports itself: 'deliver' { s: 'far terrain', n, was, kb }.
+- tools/program_diff.js A B: two loads - the steps, the source texts only one linked (by owner), the heavy programs' submit / ready in both,
+  the whole load by light signature. tools/program_matrix.js: a family on its real axes.
+- THREE'S HELPERS (GridHelper, BoxHelper, Box3Helper) make their material themselves: declared just after (helper.material.userData.progOwner),
+  and the scanner holds them to it. Render targets named for the programs' table: 'water mirror', 'water hull reflection' (33 others read
+  'rt WxH': name them as they come up - a texture's name is in no program key).
+- FOUND ON 22 Nov, NOT FIXED HERE (PERF-LEAD's): the pavement program (202 KB) is pending 52-66 s in every load and each load ends ~12 s after
+  it is ready; a warm visit re-links the 190 KB+ programs (the skin family) as if cold; every load links 86 programs for light signatures a
+  load plus a departure never draws (1.3.6.0: the hangar's second state; 2.0.0.1 / 2.8.0.1); lampsfixed=1 ADDS the night signature and still
+  links 75 of the day one.
+
 ## PERF-WORLDBUILD 1 - THE TWO EXACT PAVEMENT SHORT-CUTS ARE THE DEFAULT (22 Nov 2026, claude/ready/perf-worldbuild-1 off claude/perf-codex 4421e5416)
 PERF-LEAD's order (22 Nov): Codex's pavepolybound and pavereuse (20-21 Nov, opt-in) flipped to defaults, on their own ready. No visible change: the island is built byte for byte the same.
 - src/core/27_premises.js compose: boundedPolys is true unless ?pavepolybound=0 (or o.boundedPolys: false). dEdgeOf skips a paved polygon whose box lies beyond the caller's finite reach. In node and in a worker (no page query) it is on.

@@ -612,7 +612,7 @@ function drawBox() {
   if (!isFinite(b.min.x) || b.min.x > b.max.x) return;
   // AMBER, and not the build's own 0x5db3ff blue. Two boxes in one room is
   // exactly the situation where "which one is that" must never be a question.
-  boxHelper = new THREE.Box3Helper(b, 0xffb020);
+  boxHelper = new THREE.Box3Helper(b, 0xffb020); boxHelper.material.userData.progOwner = 'editor / reference plane / bounds box';
   boxHelper.material.transparent = true;
   boxHelper.material.opacity = 0.75;
   boxHelper.material.depthTest = false;

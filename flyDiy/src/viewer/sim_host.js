@@ -1102,7 +1102,7 @@ function simHostStart(onMessage, onError, opts) {
     const base = new URL('.', location.href).href;
     const W = typeof window !== 'undefined' ? window : {};
     const url = URL.createObjectURL(new Blob([simHostSource(base, W.FLYDIY_BUILD, W.FLYDIY_CORE_SHA, opts && opts.pre)], { type: 'text/javascript' }));
-    const w = new Worker(url);
+    const w = new Worker(url, { name: 'aircraft / flight physics / sim host' });
     const kill = () => { try { w.terminate(); } catch (e) {} try { URL.revokeObjectURL(url); } catch (e) {} };
     w.onmessage = e => { try { onMessage(e.data); } catch (err) { console.warn('sim worker message:', err); } };
     w.onerror = err => { kill(); if (onError) onError(err && err.message || 'worker failed'); };

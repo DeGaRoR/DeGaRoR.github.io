@@ -65,7 +65,7 @@ function rockBiasStart(world, BUD) {
       // (17 Nov: THE MAP CARRIES THE MACRO - v1's exposure field over the island, rock_ring_core bakeIsland, in the bias's byte)
       '  const out = (flow && a.TT && ROCK_RING_CORE.bakeIsland) ? ROCK_RING_CORE.bakeIsland({ H: a.H, N: a.N, hx0: a.hx0, hz0: a.hz0, hdx: a.hdx, flow, TT: a.TT, ND: a.ND, IGw: a.IGw, IGh: a.IGh, IGx0: a.IGx0, IGz0: a.IGz0, IGcell: a.IGcell, gx0: a.gx0, gz0: a.gz0, cs: a.cs, W2: a.W2, H2: a.H2 }) : new Uint8Array(a.W2 * a.H2);\n' +
       '  postMessage({ out, flow, ms: performance.now() - t }, [out.buffer].concat(flow ? [flow.buffer] : [])); };';
-    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url, { name: 'terrain / rock bias / island bake' });
     const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); if (job.onDone) job.onDone(); };
     w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.flow = e.data.flow ? { g: e.data.flow, N: g.N, x0: g.x0, z0: g.z0, dx: g.dx } : null; job.done = true; w.terminate(); URL.revokeObjectURL(url);
       if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] });
@@ -3221,6 +3221,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         FARLOD.slots.sentKB += NV * 32 / 1024; FARLOD.slots.writes++; };
       const buildQuadSlots = Q => {
         const nodes = Q.want || [], want = new Map(nodes.map(n => [n.fid, n])), old = Q.m.geometry;
+        const tq = performance.now(), was = Q.sig ? Q.sig.split(',').length : 0, kb0 = FARLOD.slots.sentKB;
         let S = Q.slots;
         const put = (slot, n) => { slotWrite(S, slot, patchOf(n)); S.fids[slot] = n.fid; S.at.set(n.fid, slot); };
         // (a re-sink dropped some patches: the same nodes, new heights - their slots are written again; all of them when it is not said which)
@@ -3249,10 +3250,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // nothing to GL, and the copy into the new row is already queued before either)
         if (prev) for (const b of [prev.pos, prev.nor, prev.uv, prev.idx]) FSLOT.deleteBuffer(b);
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
+        // (PERF-TRACE's 'deliver', as buildQuad says it below: the nodes before and after, the KB this re-cut SENT - its changed slots)
+        { const FRq = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+          if (FRq && FRq.event) FRq.event('deliver', performance.now() - tq, { s: 'far terrain', what: 'quadrant re-cut (slots)', n: nodes.length, was, kb: Math.round(FARLOD.slots.sentKB - kb0) }); }
       };
       const buildQuad = Q => {
         if (FSLOT) return buildQuadSlots(Q);
-        const nodes = Q.want || [], patches = [];
+        const nodes = Q.want || [], patches = [], tq = performance.now(), was = Q.sig ? Q.sig.split(',').length : 0;
         const pos = new Float32Array(nodes.length * NV * 3), uv = new Float32Array(nodes.length * NV * 2), nor = new Float32Array(nodes.length * NV * 3);
         const idx = new Uint32Array(nodes.length * TPL.length);
         nodes.forEach((n, i) => { const P = patchOf(n); patches.push(P); pos.set(P.pos, i * NV * 3); uv.set(P.uv, i * NV * 2); nor.set(P.nor, i * NV * 3);
@@ -3267,6 +3271,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
+        // PERF-TRACE (PERF-LEAD, 22 Nov: the journey's 12-44 MB uploads): the re-cut says what it made, by the streamers' contract
+        // ('deliver': the freeze ledger, tools/big_uploads.js) - the quadrant's nodes before and after, the bytes of its four new buffers
+        { const FRq = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+          if (FRq && FRq.event) FRq.event('deliver', performance.now() - tq, { s: 'far terrain', what: 'quadrant re-cut', n: nodes.length, was, kb: Math.round((pos.byteLength + nor.byteLength + uv.byteLength + idx.byteLength) / 1024) }); }
       };
       FARLOD.update = (force, nMax) => {   // nMax (G995): at most that many stale quadrants this call (the build's slices)
         const t0 = performance.now(), e = camera.position;

@@ -375,7 +375,7 @@ const HOUSE_WORKER = (() => {
       for (const [, f] of HW_FILES.concat(HW_LAZY)) urls[f] = urlOf(base, f, ver);
       const self = urlOf(base, 'src/viewer/house_worker.js', ver);
       const url = URL.createObjectURL(new Blob([houseWorkerSource(self)], { type: 'text/javascript' }));
-      const w = new Worker(url);
+      const w = new Worker(url, { name: 'town / houses / builder' });
       S.w = w; S.on = true; S.why = 'starting'; S.t0 = (W.performance || Date).now();
       w.onmessage = e => { try { msg(e.data); } catch (err) { console.warn('house worker message:', err); } };
       w.onerror = err => fail('the worker failed: ' + (err && err.message || err));

@@ -87,8 +87,8 @@
   function strapMats(T) {
     const M = W.MATLIB;
     if (!M || !M.shared) return null;
-    return { web: M.shared(T, 'std', { color: lin(T, 0xd9772b), roughness: 0.82, metalness: 0 }),
-             steel: M.shared(T, 'std', { color: lin(T, 0x9a9ea3), roughness: 0.38, metalness: 0.85 }) };
+    return { web: M.shared(T, 'std', { color: lin(T, 0xd9772b), roughness: 0.82, metalness: 0 }, undefined, 'freight / straps / webbing'),
+             steel: M.shared(T, 'std', { color: lin(T, 0x9a9ea3), roughness: 0.38, metalness: 0.85 }, undefined, 'freight / straps / steel') };
   }
 
   // an item's prop, fitted to its box (freight_load.js itemObject's fit, as one matrix): the prop's bounds centred

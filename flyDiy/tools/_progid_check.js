@@ -223,8 +223,17 @@ function run(ok) {
     // a mesh of its own whose positions change every frame, a table texture marked every frame with the SAME bytes, a normal marked once
     const g = new THREE.BoxGeometry(), wing = Wd.put('wing', Wd.M.hook), tab = new THREE.DataTexture(new Uint8Array(64 * 64 * 4), 64, 64);
     wing.geometry = g; Wd.M.roof.userData.table = tab; Wd.sc.updateMatrixWorld(true);
+    // (the journey of 22 Nov: the boot's bakes, each a scene of its own, filled the list of scenes before the world's was drawn)
+    const junk = []; for (let i = 0; i < 70; i++) { const s = new THREE.Scene(); junk.push(s); B.renderer.render(s, Wd.cam); }
+    const lateScene = new THREE.Scene(); B.renderer.render(lateScene, Wd.cam); B.renderer.render(Wd.sc, Wd.cam);
+    { const SC = B.PID.scenes();
+      ok(SC.length <= 64 && SC[0] === Wd.sc && SC.indexOf(lateScene) >= 0 && SC.indexOf(junk[0]) < 0, '6i the scenes kept for the naming are the 64 drawn most RECENTLY (70 bakes kept alive, then two more: the last drawn first, the oldest bake dropped)', SC.length + ' kept'); }
+    const thrice = new THREE.DataTexture(new Uint8Array(64 * 64 * 4), 64, 64); thrice.name = 'thrice';
+    const rawArr = new Float32Array(1000);
     const pos = g.attributes.position, v0 = pos.version, t0 = tab.version;
     for (let f = 0; f < 96; f++) { B.T.now += 16; B.REC.begin(B.T.now, null); pos.array[0] = f; pos.needsUpdate = true; tab.needsUpdate = true; if (f === 5) g.attributes.normal.needsUpdate = true;
+      thrice.needsUpdate = true; thrice.needsUpdate = true; thrice.needsUpdate = true;
+      B.gl.bufferSubData(34962, 0, rawArr);   // (a raw GL upload, as the skin's GPU deformation makes: no three object, no setter)
       B.renderer.render(Wd.sc, Wd.cam); B.REC.end(true, null); }
     ok(pos.version === v0 + 96 && tab.version === t0 + 96, '6i the wrapped setters still do three\'s own work (the versions move as before)', (pos.version - v0) + ' / ' + (tab.version - t0));
     const U = B.PROGRAMS.uploads(), rp = U && U.rows.find(r => r.what === 'position' && /wing$/.test(r.at)), rt = U && U.rows.find(r => r.kind === 'tex' && /table/.test(r.what)), rn = U && U.rows.find(r => r.what === 'normal' && /wing$/.test(r.at));
@@ -233,12 +242,61 @@ function run(ok) {
     ok(!!rt && rt.owner === 'town / houses / roofs' && rt.frames === 96 && rt.sampled >= 2 && rt.unchanged === rt.sampled && rt.KB === 16,
        '6i a table texture marked every frame with the same bytes: named by the material that holds it, and flagged UNCHANGED', rt ? JSON.stringify(rt) : 'no row');
     ok(!!rn && rn.frames === 1, '6i an attribute marked once is counted once', rn ? rn.frames : 'no row');
+    { const r3 = U && U.rows.find(r => r.name === 'thrice');
+      ok(!!r3 && r3.marks === 288 && r3.frames === 96 && r3.MB === 1.5, '6i an object marked three times a frame is three marks and ONE upload a frame (its bytes once)', r3 ? r3.marks + ' marks, ' + r3.frames + ' frames, ' + r3.MB + ' MB' : 'no row');
+      ok(!!r3 && r3.at === 'not in a drawn scene' && r3.dim === '64x64 data' && /_progid_check\.js:\d+/.test(r3.site || '') && !!rp && /^\d+ x 3 Float32$/.test(rp.dim || ''),
+         '6i an object no scene holds still says who marked it (the caller of the setter, at its first mark) and what it is', r3 ? r3.site + ' | ' + r3.dim + ' | ' + (rp && rp.dim) : 'no row'); }
+    { const GLT = U && U.gl, gp = GLT && GLT.rows.find(r => r.kind === 'buf' && r.owner === 'terrain / island ground / splat' && r.what === 'position'), gr = GLT && GLT.rows.find(r => r.dim === 'Float32Array 1000');
+      ok(!!gp && gp.call === 'bufferData+bufferSubData' && gp.calls === 97 && gp.frames === 96 && /_progid_check\.js:\d+/.test(gp.site || ''),
+         '6i the GL\'s own count: the attribute three re-uploads every frame has its row by its ARRAY - made once then updated in place, every frame, its owner, and the game\'s function that asked for the render', gp ? JSON.stringify(gp) : (GLT ? GLT.rows.length + ' gl rows, none of the wing' : 'no gl table'));
+      ok(!!gr && gr.calls === 96 && gr.frames === 96 && gr.MB === 0.4 && gr.owner === null && gr.at === 'not in a drawn scene' && /_progid_check\.js:\d+/.test(gr.site || ''),
+         '6i a raw GL upload (no three object, no setter) has its row too: its calls, its bytes, and who called', gr ? JSON.stringify(gr) : 'no row');
+      ok(!!GLT && GLT.MB > 0 && GLT.namedMB < GLT.MB && GLT.rows.filter(r => r.owner).length >= 3, '6i the GL table says how much of its bytes a drawn scene could name', GLT ? GLT.namedMB + ' of ' + GLT.MB + ' MB, ' + GLT.rows.filter(r => r.owner).length + ' rows named' : undefined); }
     ok(U.frames >= 96 && U.namedMB > 0 && U.namedMB <= U.MB, '6i the table says how many frames it covers and how much of the bytes it could name', U.frames + ' frames, ' + U.namedMB + ' of ' + U.MB + ' MB');
+    ok(!JSON.parse(B.REC.logParts().join('')).events.some(e => e[1] === 'recupwalk') && U.walks === 0, '6i ?recup=1 never walks a scene during the frames');
+    // ?recup=2: an object that leaves the scene before the table is asked keeps the owner the walk gave it
+    { const B2 = boot({ search: '?recup=2' }), W2 = world(B2, true), T3 = B2.THREE; warm(B2, W2);
+      const g2 = new T3.BoxGeometry(), m2 = W2.put('shortlived', W2.M.hook); m2.geometry = g2; W2.sc.updateMatrixWorld(true);
+      const p2 = g2.attributes.position, par = m2.parent;
+      for (let f = 0; f < 400; f++) { B2.T.now += 16; B2.REC.begin(B2.T.now, null); if (f < 300) p2.needsUpdate = true; if (f === 300 && par) par.remove(m2);
+        B2.renderer.render(W2.sc, W2.cam); B2.REC.end(true, null); }
+      const U2 = B2.PROGRAMS.uploads(), r2 = U2 && U2.rows.find(r => r.what === 'position' && /shortlived$/.test(r.at)), g2r = U2 && U2.gl.rows.find(r => r.what === 'position' && /shortlived$/.test(r.at));
+      const E2 = JSON.parse(B2.REC.logParts().join('')).events.filter(e => e[1] === 'recupwalk');
+      ok(!!r2 && r2.owner === 'terrain / island ground / splat' && r2.frames === 300 && !!g2r && g2r.owner === r2.owner,
+         '6i ?recup=2: an object gone from the scene before the table is asked keeps the owner a walk gave it, in both tables', r2 ? r2.owner + ' @' + r2.at : 'no row');
+      ok(E2.length >= 1 && U2.walks === E2.length && E2.every(e => typeof e[2] === 'number'), '6i ... and each walk is an event with its ms (the diagnostic\'s own spike, named as such by the ledger)', E2.length + ' walks'); }
     // the default: nothing wrapped, nothing kept
     const D = boot({}), d = Object.getOwnPropertyDescriptor(D.THREE.Texture.prototype, 'needsUpdate');
     ok(D.REC.rec.traffic == null && D.PROGRAMS.uploads() === null && !/mark\(/.test(String(d.set)), '6i without the switch the setters are three\'s own and no table exists');
     const L = JSON.parse(B.REC.logParts().join(''));
     ok(L.uploads && L.uploads.rows.length >= 3 && JSON.parse(D.REC.logParts().join('')).uploads === null, '6i the saved log carries the table (null without the switch)');
+  }
+  // ---- 6a (22 Nov): a shadow count is the DECLARATION's, not the largest index three's unrolled light loop writes --------
+  {
+    const B = boot({}), THREE = B.THREE, sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera();
+    const sun = new THREE.DirectionalLight(0xffffff, 1); sun.castShadow = true; sc.add(sun); sc.add(new THREE.PointLight()); sc.add(new THREE.PointLight()); sc.add(new THREE.PointLight());
+    const m = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ userData: { progOwner: 'props / test / lit' } })); m.receiveShadow = true; sc.add(m);
+    B.renderer.compile(sc, cam);
+    const r = B.PID.table(true).find(x => (x.own || []).indexOf('props / test / lit') >= 0);
+    ok(!!r && Array.isArray(r.body) && r.body.indexOf('LIGHTS=1.3.0.0') >= 0 && r.body.indexOf('SHADOWS=1.0.0') >= 0,
+       '6a three point lights that cast nothing read LIGHTS=1.3.0.0 / SHADOWS=1.0.0 (the text indexes pointLightShadows[ 2 ] in its unrolled loop: that is not a count)', r && r.body ? r.body.join(' ') : 'no row');
+  }
+  // ---- 6j: when each lap of a long frame ended (the 'laps' event: what happened INSIDE a slot) --------------------
+  {
+    const B = boot({}), R = B.REC, S = R.S;
+    const frame = (a, b) => { B.T.now += 5; R.begin(B.T.now, null); B.T.now += a; R.lap(S.mirror); B.T.now += b; R.lap(S.render); R.end(true, null); };
+    frame(4, 6); frame(30, 31); frame(3, 3);
+    const LJ = JSON.parse(R.logParts().join('')), E = (LJ.laps && LJ.laps.long) || [], a = E[0] && E[0].slice(1);   // (a row: [work, then the laps])
+    ok(E.length === 1 && E[0][0] === 61 && LJ.laps.longFrames === 1 && !LJ.events.some(e => e[1] === 'laps') && Array.isArray(a) && a.length === 28 && a[0] === -1 && a[7] === S.mirror && a[14] === S.render && a[21] === S.other,
+       '6j a frame whose work reached 50 ms logs its laps once (the frame\'s start, then each lap\'s slot in order); the shorter frames log none', E.length + ' events' + (a ? ', ' + a.length / 7 + ' laps' : ''));
+    ok(!!a && a[8] - a[1] === 30 && a[15] - a[8] === 31, '6j each lap carries the time it ended: the mirror\'s window is [start, +30], the render\'s the 31 ms after it', a ? (a[8] - a[1]) + ' / ' + (a[15] - a[8]) : undefined);
+    // the steady census: one frame in N whatever its length (?reclaps=4 here; 256 by default - none of the three frames above)
+    const B4 = boot({ search: '?reclaps=4' }), R4 = B4.REC;
+    for (let f = 0; f < 12; f++) { B4.T.now += 5; R4.begin(B4.T.now, null); B4.T.now += 2; R4.lap(R4.S.mirror); B4.renderer.render(new B4.THREE.Scene(), new B4.THREE.PerspectiveCamera()); B4.T.now += 3; R4.lap(R4.S.render); R4.end(true, null); }
+    const L4 = JSON.parse(R4.logParts().join('')), T4 = L4.laps;
+    ok(!!T4 && T4.every === 4 && T4.frames === 3 && T4.rows.length === 3 && T4.rows.every(a => a.length === 29 && a[0] === 5 && a[1] === -1 && a[8] === R4.S.mirror && a[9] - a[2] === 2) && T4.long.length === 0 && !L4.events.some(e => e[1] === 'laps'),
+       '6j ?reclaps=4: one short frame in four is kept for the steady census - the log\'s `laps` table, [work, then the laps] a row; no event, nothing allocated in the frame', T4 ? T4.rows.length + ' of 12 frames' : 'no table');
+    ok(LJ.laps.rows.length === 0 && LJ.laps.every === 256, '6j by default the census keeps one frame in 256 (none of three)');
   }
   // ---- 6g: the cost -----------------------------------------------------------------------------------------
   {
@@ -301,5 +359,96 @@ function runCensus(ok) {
     }
   }
 }
-module.exports = { run, runSites, runCensus, boot, world, warm };
-if (require.main === module) { let fails = 0; runSites((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); run((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); process.exit(fails ? 1 : 0); }
+// ---- 9: THE WORKERS SAY WHO THEY ARE, AND THE LOG KEEPS THEIR TRAFFIC (PERF-TRACE 5) ----------------------------------
+// A loading step that waits on a worker read "not proven": the recorder now counts every Worker the page makes
+// (flight_recorder.js: THE WORKERS). 9a: every `new Worker(` of the game's source gives it a name (the constructor's
+// standard `name` option), feature first. 9b: the wrapper on a fake page - the worker is the page's own object, its
+// messages pass untouched, the traffic lands in buckets, a slow reply handler is an event, and ?recwk=0 / ?rec=0 leave
+// the page's Worker alone. 9c: the timeline names a step that ends with a worker's reply, and never a worker in
+// constant traffic.
+function runWorkers(ok) {
+  const PS = require('./program_sites.js');
+  // 9a
+  const sites = [];
+  for (const p of PS.walk(PS.SRC, []).sort().concat(PS.shipped())) {
+    const raw = fs.readFileSync(p, 'utf8'), code = PS.codeOnly(raw), re = /\bnew\s+(?:[A-Za-z_$][\w$]*\.)?Worker\s*\(/g; let m;
+    while ((m = re.exec(code))) { const open = m.index + m[0].length - 1, close = PS.closeOf(raw, open), args = close > open ? raw.slice(open + 1, close) : '';
+      const nm = /,\s*\{\s*name:\s*'([^']+)'/.exec(args);
+      sites.push({ file: path.relative(ROOT, p).replace(/\\/g, '/'), line: raw.slice(0, m.index).split('\n').length, name: nm ? nm[1] : null }); }
+  }
+  const un = sites.filter(s => !s.name), badF = sites.filter(s => s.name && PS.FEATURES.indexOf(s.name.split(' / ')[0]) < 0);
+  ok(sites.length >= 10, '9a the scan finds the game\'s Worker sites (src/ and the shipped tools)', sites.length + ' sites in ' + new Set(sites.map(s => s.file)).size + ' files');
+  ok(un.length === 0, '9a every Worker is made with a name (new Worker(url, { name: \'feature / system / what\' }))', un.length ? 'UNNAMED: ' + un.map(s => s.file + ':' + s.line).join(', ') : sites.map(s => s.name).join(' | '));
+  ok(badF.length === 0, '9a every worker\'s name begins with one of the table\'s features', badF.map(s => s.file + ':' + s.line + ' "' + s.name + '"').join(', ') || undefined);
+
+  // 9b
+  const page = search => {
+    const T = { now: 1000 }, made = [];
+    class FakeWorker {
+      constructor(url, opts) { this.url = url; this.opts = opts; this.argc = arguments.length; this.L = []; this.on = null; this.posted = []; this.dead = 0; made.push(this); }
+      postMessage(m, tr) { this.posted.push([m, tr]); return 'posted'; }
+      terminate() { this.dead++; }
+      addEventListener(k, f) { if (k === 'message') this.L.push(f); }
+      get onmessage() { return this.on; } set onmessage(f) { this.on = f; }
+      reply(data) { const e = { data }; for (const f of this.L) f.call(this, e); if (this.on) return this.on.call(this, e); }
+    }
+    const ctx = { console, performance: { now: () => T.now, timeOrigin: 0 }, setTimeout, clearTimeout, requestAnimationFrame: () => 0, cancelAnimationFrame: () => {},
+      navigator: { userAgent: 'node' }, location: { search: search || '', pathname: '/gate' }, Worker: FakeWorker };
+    ctx.globalThis = ctx; ctx.window = ctx; ctx.self = ctx; vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flight_recorder.js'), 'utf8').replace(/^'use strict';/m, ''), ctx, { filename: 'flight_recorder.js' });
+    return { ctx, T, made, FakeWorker, FR: ctx.FLIGHT_REC };
+  };
+  {
+    const P = page(''), { ctx, T, FR } = P;
+    ok(ctx.Worker !== P.FakeWorker && ctx.Worker.prototype === P.FakeWorker.prototype, '9b the page\'s Worker is wrapped, on the same prototype');
+    const w = new ctx.Worker('blob:a', { name: 'town / houses / builder' }), bare = new ctx.Worker('blob:b');
+    ok(w instanceof P.FakeWorker && w === P.made[0] && w.opts.name === 'town / houses / builder' && bare.argc === 1,
+       '9b new Worker() gives the page\'s own worker object, made with the very arguments of the site (one argument stays one)');
+    const seen = []; const h = function (e) { seen.push([this === w, e.data]); if (e.data === 'slow') T.now += 20; return 'handled'; };
+    w.onmessage = h;
+    const msg = { job: 1 }, tr = [new ArrayBuffer(8)];
+    const r1 = w.postMessage(msg, tr); T.now = 1100; w.postMessage({ job: 2 });
+    ok(r1 === 'posted' && w.posted.length === 2 && w.posted[0][0] === msg && w.posted[0][1] === tr, '9b a message is passed on untouched: the same object, the same transfer list, the same return');
+    T.now = 1600; const back = w.reply('slow'); T.now = 5000; w.reply('quick'); T.now = 5100; w.terminate(); w.terminate();
+    ok(w.onmessage === h && back === 'handled' && seen.length === 2 && seen[0][0] && seen[0][1] === 'slow', '9b the site\'s handler is still its own: read back as set, called once a reply with the worker as this, its return kept');
+    ok(w.dead === 2, '9b terminate() reaches the worker each time it is called');
+    const H = FR.rec.header().workers, L = JSON.parse(FR.rec.logParts().join('')).workers, a = L && L[0], b = L && L[1];
+    ok(Array.isArray(H) && H.length === 2 && H[0].name === 'town / houses / builder' && H[1].name === 'UNNAMED' && H[0].io === undefined,
+       '9b the header lists the workers by name (a site without a name reads UNNAMED), without the buckets', H ? H.map(x => x.name).join(' | ') : 'none');
+    ok(!!a && a.sent === 2 && a.received === 2 && a.maxOpen === 2 && a.open === 0 && a.handlerMs === 20 && a.handlerMaxMs === 20 && a.t === 1000 && a.firstSent === 1000 && a.lastReply === 5000 && a.end === 5100,
+       '9b a worker\'s row: made, first sent, last reply, ended; sent, received, the most requests out, the main thread\'s ms in its handler', a ? JSON.stringify(Object.assign({}, a, { io: undefined })) : 'no row');
+    ok(!!a && a.bucketMs === 250 && JSON.stringify(a.io) === JSON.stringify([4, 2, 0, 0, 2, 6, 0, 1, 20, 1, 20, 0, 1, 0, 0]),
+       '9b its traffic in 250 ms buckets: [bucket, sent, received, handler ms, still out]', a ? JSON.stringify(a.io) : undefined);
+    ok(!!b && b.sent === 0 && b.io.length === 0 && b.end === null, '9b a worker that never spoke has an empty row');
+    const E = JSON.parse(FR.rec.logParts().join('')).events;
+    const k = n => E.filter(e => e[1] === n);
+    ok(k('wk').length === 2 && k('wk')[0][3] === '1 town / houses / builder' && k('wkend').length === 1 && k('wkend')[0][0] === 5100, '9b made and ended are events (ended once, however often terminate is called)');
+    ok(k('wkmsg').length === 1 && k('wkmsg')[0][0] === 1600 && k('wkmsg')[0][2] === 20 && k('wkmsg')[0][3] === 'town / houses / builder',
+       '9b a reply whose handler held the main thread 16 ms or more is an event, by the worker\'s name (the quick one is not)', JSON.stringify(k('wkmsg')));
+    w.onmessage = null; ok(w.onmessage === null && w.on === null, '9b a handler set to null is null on the worker');
+  }
+  for (const [q, what] of [['?recwk=0', '?recwk=0'], ['?rec=0', '?rec=0']]) {
+    const P = page(q), w = new P.ctx.Worker('blob:a', { name: 'x' });
+    ok(P.ctx.Worker === P.FakeWorker && !Object.prototype.hasOwnProperty.call(w, 'postMessage') && P.FR.rec.header().workers === null && JSON.parse(P.FR.rec.logParts().join('')).workers === null,
+       '9b ' + what + ' leaves the page\'s Worker untouched, and the log says null');
+  }
+
+  // 9c
+  {
+    const LT = require('./load_timeline.js');
+    const chat = []; for (let b = 36; b < 52; b++) chat.push(b, 1, 1, 0, 1);
+    const log = { header: { cols: [], slots: [], boot: { t0: 0, log: [{ k: 'show', set: 'garage' }, { k: 'step', id: 'settle', t: 1000, ms: 8000 }, { k: 'step', id: 'ring', t: 9000, ms: 4000 }, { k: 'step', id: 'upload', t: 13000, ms: 3000 }] } },
+      frames: { t: [] }, events: [[1500, 'wkmsg', 40, 'town / houses / builder']], programs: [], resources: [],
+      workers: [{ n: 1, name: 'town / houses / builder', t: 500, end: null, sent: 1, received: 1, handlerMs: 3, bucketMs: 250, io: [4, 1, 0, 0, 1, 35, 0, 1, 3, 0], cut: false },
+                { n: 2, name: 'aircraft / flight physics / sim host', t: 8000, end: null, sent: 16, received: 16, handlerMs: 0, bucketMs: 250, io: chat, cut: false }] };
+    const S = LT.timeline(log, {}).summary, st = id => S.steps.find(s => s.id === id);
+    ok(st('settle').bound === 'worker' && /town \/ houses \/ builder/.test(st('settle').why), '9c a step that ends with the reply of a worker it had a request out to: bound by that worker, by name', st('settle').why);
+    ok(st('ring').bound === 'not proven' && /constant traffic/.test(st('ring').why), '9c a worker in constant traffic is at every step\'s end: it is listed, never named as the bound', st('ring').why);
+    ok(st('upload').bound === 'not proven' && /no worker had a request out/.test(st('upload').why), '9c a step no worker was out for says so', st('upload').why);
+    ok(S.notRecorded.indexOf('workers') < 0 && S.workers.length === 2 && S.lanes.some(l => /^worker 01: town/.test(l)) && S.lanes.indexOf('main: named tasks') >= 0, '9c the timeline has a lane a worker and the slow reply handler among the named tasks', S.lanes.filter(l => /^worker/.test(l)).join(' | '));
+    const old = Object.assign({}, log); delete old.workers; const SO = LT.timeline(old, {}).summary;
+    ok(SO.notRecorded.indexOf('workers') >= 0 && SO.steps.find(s => s.id === 'settle').bound === 'not proven' && /workers not recorded/.test(SO.steps.find(s => s.id === 'settle').why), '9c a log without the table still says "workers not recorded", and proves nothing');
+  }
+}
+module.exports = { run, runSites, runCensus, runWorkers, boot, world, warm };
+if (require.main === module) { let fails = 0; runWorkers((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); runSites((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); run((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); process.exit(fails ? 1 : 0); }

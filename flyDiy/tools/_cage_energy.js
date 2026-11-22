@@ -3236,7 +3236,7 @@ function readoutWorker() {
       'self.onmessage = e => { const job = e.data; try { const r = job.kind === \'balance\' ? computeBal(job, CORE) : compute(job, CORE, BAL); r.seq = job.seq; postMessage(r); }' +
       ' catch (err) { postMessage({ kind: job.kind, seq: job.seq, error: String(err && err.stack || err) }); } };\n';
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
-    const w = new Worker(url);
+    const w = new Worker(url, { name: 'garage / readouts / energy and balance' });
     w.onmessage = e => {
       const r = e.data;
       if (r && r.kind === 'balance') {

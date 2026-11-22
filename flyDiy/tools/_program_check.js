@@ -276,6 +276,7 @@ function warmThenFrame(useOld) {
 // (tools/_progid_check.js: the recorder and src/viewer/program_id.js hooked as the page hooks them)
 require('./_progid_check.js').run(ok);
 require('./_progid_check.js').runSites(ok);   // 7: every material site in the game's source declares its owner
+require('./_progid_check.js').runWorkers(ok);   // 9: every Worker is named, the recorder keeps its traffic, the timeline names a step's worker
 require('./_progid_check.js').runCensus(ok);   // 8: the standard boots' census (tools/perf/program_owners.json): none unowned, a rise has its reason
 
 console.log('GATE PROGRAMS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
