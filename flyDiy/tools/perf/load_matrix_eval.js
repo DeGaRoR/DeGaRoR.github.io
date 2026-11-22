@@ -19,7 +19,8 @@
     slicesWorst: S && S.worst,
     settle: pick(W, ['why', 'rule', 'n']),
     stripw: pick(T, ['why', 'asked', 'used', 'inline', 'missed', 'waitMs', 'near', 'coarse', 'landed', 'lost', 'landMax', 'lastLandS']),
-    patchw: pick(g('FLYDIY_PATCHW'), ['why', 'asked', 'used', 'here', 'waitMs']),
+    patchw: pick(g('FLYDIY_PATCHW'), ['why', 'asked', 'used', 'here', 'waitMs', 'matmap', 'matMs']),
+    roadw: pick(g('FLYDIY_ROADW'), ['why', 'asked', 'used', 'here', 'missed', 'waitMs']),   // (22 Nov eve: PERF-WORLDBUILD's roads and aprons in the worker)
     lab: on(L),
     cubeSkipped: (L && L.cubeSkipped) || undefined,
     lamps,

@@ -1,3 +1,3 @@
-# SMOKE of the evening's lab build (not for numbers): ONE load with every new switch on, and a departure. If it does not
-# load, the window stops and the box is freed (LM_STOP_FIRST).
-SMOKE_NEW ; D:/Dev/perf-lab-built ; farslots=1&mirpace=1&mirlean=1&latelinks=bg ; new ; H5K ; --after 8 --rollout --init-file tools/perf/init_longtasks.js
+# SMOKE of the evening's lab build (not for numbers; run with LM_AFTER=8): ONE load with every new switch on, and a
+# departure. If it does not load, the window stops and the box is freed (LM_STOP_FIRST).
+SMOKE_NEW ; D:/Dev/perf-lab-built ; farslots=1&mirpace=1&mirlean=1&latelinks=bg&stripw=1&patchw=1&roadw=1 ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js
