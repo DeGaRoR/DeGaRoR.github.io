@@ -59,6 +59,24 @@ async function child(side, out) {
 (async () => {
   if (argv.includes('--child')) return child(argv[argv.indexOf('--child') + 1], argv[argv.indexOf('--child') + 2]);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'patchworker-')), R = {}, bad = [];
+  // ---- 0. THE WORKER'S QUEUE (fix A): units by what the page reads first. The worker's own body on a bare port, four asks
+  // of an epoch it does not hold posted in one turn (every unit answers 'stale' at once: the ORDER of the answers is the
+  // order the queue ran them). The unit already picked when the others arrive runs first; then the patch's batches, the
+  // map, the road, the strip, and the strip marked late last.
+  {
+    const { houseWorkerBody } = require('../src/viewer/house_worker.js');
+    const out = []; let h = null;
+    houseWorkerBody({}, { on: f => { h = f; }, post: m => { if (m && m.miss) out.push(m.cmd + (m.b0 !== undefined ? ':' + m.b0 : m.seq !== undefined ? ':' + m.seq : '')); } });
+    const all = [
+      h({ cmd: 'strips', epoch: 7, jobs: [{ seq: 1, id: 'a' }, { seq: 2, id: 'b', late: true }, { seq: 3, id: 'c' }] }),
+      h({ cmd: 'pave', epoch: 7, jobs: [{ seq: 4, kind: 'road', id: 'r' }] }),
+      h({ cmd: 'matmap', epoch: 7, seq: 5 }),
+      h({ cmd: 'patch', epoch: 7, seq: 6, n: 1, batch: 2, chunks: [[0, 0], [1, 0], [2, 0]] }) ];
+    await Promise.all(all);
+    const want = 'strip:1,patchf:0,patchf:2,matmapf:5,pavef:4,strip:3,strip:2';
+    console.log('0. the worker\'s queue, four asks posted at once: ' + out.join(', '));
+    if (out.join(',') !== want) bad.push('the worker\'s queue ran its units in another order than the page reads them (' + out.join(',') + ' for ' + want + ')');
+  }
   for (const side of ['inline', 'worker']) {
     const f = path.join(dir, side + '.json');
     const r = spawnSync(process.execPath, ['--max-old-space-size=6144', __filename, '--child', side, f], { stdio: ['ignore', 'inherit', 'pipe'], maxBuffer: 1 << 28 });

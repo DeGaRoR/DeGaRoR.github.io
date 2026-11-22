@@ -621,7 +621,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const seq = ++STRIPW.seq, d = STRIPW.at ? stripBoxDist(a, STRIPW.at[0], STRIPW.at[1]) : 0;   // (to the strip's box: a long strip passing the stand is near)
       STRIPW.jobs.set(a.id, { seq, key: stripKey(SP), r: null, done: false, miss: null, t0: performance.now(), ms: 0 });
       // (the recipe's fade and the refinement's reuse flag are the PAGE's: named, where the builder reads its own module's)
-      jobs.push({ seq, id: a.id, d, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) });
+      // (late: under near first the load waits for none of these - the worker's queue serves the houses before them, house_worker.js PRI)
+      jobs.push({ seq, id: a.id, d, late: !!STRIPW.near, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) });
     }
     if (!jobs.length) { STRIPW.why = 'no strip'; return; }
     jobs.sort((p, q) => p.d - q.d);
