@@ -1194,11 +1194,11 @@ function groundSinkWheel(S, N, b, D, A) {
   const G_ = GROUND_SINK;
   if (!(N > 0) || !S) { G_.z = 0; G_.p = 0; G_.F = 0; G_.cap = 0; return 0; }
   const n = S.n, k = S.k;
-  let z = Math.pow(3 * N / ((3 - n) * b * k * Math.sqrt(D)), 2 / (2 * n + 1));
-  if (A > 0) { const zt = Math.pow(N / (A * k), 1 / n); if (zt < z) z = zt; }
+  let z = CORE_MATH.pow(3 * N / ((3 - n) * b * k * Math.sqrt(D)), 2 / (2 * n + 1));
+  if (A > 0) { const zt = CORE_MATH.pow(N / (A * k), 1 / n); if (zt < z) z = zt; }
   G_.cap = 0; if (z > S.zMax) { z = S.zMax; G_.cap = 1; }
-  G_.z = z; G_.p = k * Math.pow(z, n);
-  return (G_.F = b * k * Math.pow(z, n + 1) / (n + 1));
+  G_.z = z; G_.p = k * CORE_MATH.pow(z, n);
+  return (G_.F = b * k * CORE_MATH.pow(z, n + 1) / (n + 1));
 }
 // SNOW-MUD FINISH: THE DRAWN SINK - the pose the eye sees on a soft layer. The physics contact stays at the hard ground
 // (the solver's sinkage is a drag and a readout, its named cut); the DRAWN aeroplane is lowered and tilted so its wheels
@@ -1233,7 +1233,7 @@ function groundSinkPose(pts, px, pz, out) {
 // drop of v[0]. v = [drop, ds/dx, ds/dz] (groundSinkPose's, eased). The viewer premultiplies the drawn aeroplane's matrix by it
 function groundSinkMatrix(v, px, py, pz, out) {
   out = out || new Array(16);
-  const b = v[1], c = v[2], cb = Math.cos(b), sb = Math.sin(b), cc = Math.cos(c), sc = Math.sin(c);
+  const b = v[1], c = v[2], cb = CORE_MATH.cos(b), sb = CORE_MATH.sin(b), cc = CORE_MATH.cos(c), sc = CORE_MATH.sin(c);
   // R = Rx(c) * Rz(-b)
   const r00 = cb, r01 = sb, r02 = 0;
   const r10 = -cc * sb, r11 = cc * cb, r12 = -sc;
@@ -1263,10 +1263,10 @@ function groundBullWheel(S, z, b, D, v) {
 function groundSinkPlate(S, N, A, w) {
   const G_ = GROUND_SINK;
   if (!(N > 0) || !(A > 0) || !S) { G_.z = 0; G_.p = 0; G_.F = 0; G_.cap = 0; return 0; }
-  let z = Math.pow(N / A / S.k, 1 / S.n);
+  let z = CORE_MATH.pow(N / A / S.k, 1 / S.n);
   G_.cap = 0; if (z > S.zMax) { z = S.zMax; G_.cap = 1; }
   G_.z = z; G_.p = N / A;
-  return (G_.F = w * S.k * Math.pow(z, S.n + 1) / (S.n + 1));
+  return (G_.F = w * S.k * CORE_MATH.pow(z, S.n + 1) / (S.n + 1));
 }
 // G1844 (DMG-TYRE): THE TYRE'S CORNERING STIFFNESS, per unit of its load (/rad): a rolling tyre's side force is
 // C_alpha * tan(slip angle), linear, until it reaches the surface's Coulomb limit mu * N (the lateral mu of the row

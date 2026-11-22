@@ -769,7 +769,7 @@ function genCoolingOne(S, o, k) {
     let Vin;
     if (ground) {
       const P = pr * kW * 1000;
-      const Ts = Math.pow(K.FM * P, 2 / 3) * Math.pow(2 * rho * Adisc, 1 / 3), vd = Math.sqrt(Ts / (2 * rho * Adisc));
+      const Ts = CORE_MATH.pow(K.FM * P, 2 / 3) * CORE_MATH.pow(2 * rho * Adisc, 1 / 3), vd = Math.sqrt(Ts / (2 * rho * Adisc));
       Vin = K.taxi.V + (op.pushes ? K.pushInflow : K.slip) * vd;
     } else {
       const V = Veas / Math.sqrt(sig), f = slip(pr * kW * 1000, V, rho);
@@ -873,7 +873,7 @@ function genCoolOilC(S, at) {
   if (C.kind === 'legacy' && !(C.radA > 0)) return null;
   const T = at.air.T(at.h || 0) - 273.15;
   const x = !C.at ? 0.5 : (C.at.pass > 0 ? Math.min(2, C.at.need / C.at.pass) : 2);
-  const oil = Math.max(T + 20, T + (K.oilRed - T) * Math.pow(x, 0.7));
+  const oil = Math.max(T + 20, T + (K.oilRed - T) * CORE_MATH.pow(x, 0.7));
   return { oilC: oil, margin: x > 0 ? 1 / x : Infinity };
 }
 

@@ -187,8 +187,8 @@ const BIOMES = (() => {
     B.edgeReachMax = () => { const K = B.knobs(); return K.edgeReach * (1 + K.edgeReachVar); };
     B.edgeBandAt = (d, x, z) => { if (!(d < 0)) return null; const K = B.knobs(), R = B.edgeReachAt(x, z), t = -d / Math.max(1, R); if (t >= 1) return null;
       const keep = smooth(K.edgeClump - 0.12, K.edgeClump + 0.12, vnoise(x, z, K.edgeClumpM, 37));
-      return { p: K.edgeTreeDens * Math.pow(1 - t, K.edgeFall) * keep, k: K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8), t, R }; };
-    B.edgeCanIn = (canopyAt, x, z) => { let m = 0; for (const L of [30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; m = Math.max(m, canopyAt(x + Math.cos(a) * L, z + Math.sin(a) * L)); } return m; };
+      return { p: K.edgeTreeDens * CORE_MATH.pow(1 - t, K.edgeFall) * keep, k: K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * CORE_MATH.pow(t, 0.8), t, R }; };
+    B.edgeCanIn = (canopyAt, x, z) => { let m = 0; for (const L of [30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; m = Math.max(m, canopyAt(x + CORE_MATH.cos(a) * L, z + CORE_MATH.sin(a) * L)); } return m; };
     B.shoreHere = (x, z) => { if (!B.shore || !B.mixAt(SHORE)) return false; if (B.over && B.over(x, z) !== undefined) return false; return !!B.shore(x, z); };
     B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
     B.mixOf = name => B.mixes[name] || null;

@@ -51,7 +51,7 @@ var SOIL_WET = (function () {
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const es = T => 0.6108 * Math.exp(17.27 * T / (T + 237.3));        // kPa, Tetens
-  const rainMm = r => 12 * Math.pow(clamp(r || 0, 0, 1), 1.5);        // 07d's law
+  const rainMm = r => 12 * CORE_MATH.pow(clamp(r || 0, 0, 1), 1.5);        // 07d's law
 
   // ---- one hour's weather off the plan, cached by the absolute hour ------------------------------------------------
   const HC = new Map(), HC_MAX = 400;
@@ -64,7 +64,7 @@ var SOIL_WET = (function () {
     const el = SOLAR.sun({ jdn: j, utc, lat: geo.lat, lon: geo.lon }).el;
     const T = +sp.oatC || 10, Td = Math.min(T, sp.dewC != null ? +sp.dewC : T - 4);
     const wMs = sp.wind && sp.wind.kts != null ? +sp.wind.kts * 0.514444 : 0;
-    const rad = Math.max(0, Math.sin(el * Math.PI / 180)) * (1 - 0.75 * clamp(+sp.cloudCover || 0, 0, 1));
+    const rad = Math.max(0, CORE_MATH.sin(el * Math.PI / 180)) * (1 - 0.75 * clamp(+sp.cloudCover || 0, 0, 1));
     const vpd = Math.max(0, es(T) - es(Td));
     const rain = clamp(P.meta.rain || 0, 0, 1);
     // the potential rate, mm/h: the sun's term (0.55 mm/h under a clear high sun) and the air's (VPD x the wind)

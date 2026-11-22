@@ -5029,7 +5029,7 @@ function makePilot(sim, def, world, opts) {
             // turn onto the leg swings ~800 m beside it (41-47 m/s, 0.45 bank): the leg's line read the low ground toward
             // HOME, the turn crossed the ridge, levelled at 268 m over 227 m rising and broke up on it
             const vh_ = Math.hypot(vcg[0], vcg[2]);
-            const offLeg = vh_ > 5 && (vcg[0] * g.ux + vcg[2] * g.uz) / vh_ < Math.cos(Math.PI / 6);
+            const offLeg = vh_ > 5 && (vcg[0] * g.ux + vcg[2] * g.uz) / vh_ < CORE_MATH.cos(Math.PI / 6);
             const react = Math.max(terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500),
                                    offLeg ? terrainAhead(cg[0], cg[2], vcg[0] / vh_, vcg[2] / vh_, 1500) : -1e9) + Math.max(2 * A.hSafe, 40);
             if (react > hP + 1) {
