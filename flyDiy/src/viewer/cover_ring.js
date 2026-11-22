@@ -444,13 +444,21 @@ var COVER_RING = (() => {
       if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
       // a shaped species' own cut (the user 15 Nov: "they would all need the alpha fairly low"): its tint's alpha; a flower keeps 0.5
       const cut = c && shapedOf(c) && c.tint && c.tint.alpha > 0 ? +c.tint.alpha : 0.5;
-      // envMapIntensity 0 (VEG-NIGHT, 22 Nov; GARAGE-VIEW's night captures: the yellow shrub cards and the fireweed GLOWED at night): the probe's
-      // IBL lit these thin cards far over what the hemisphere gives the ground beside them - with it off (the in-game A/B, page v20) they go
-      // as dark as everything else; the world's ambient is the hemisphere (as the ground's: render_world's IBL irradiance cut)
-      const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: cut, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0, envMapIntensity: 0 });
+      // NO IBL (VEG-NIGHT, 22 Nov; GARAGE-VIEW's night captures: the yellow shrub cards and the fireweed GLOWED at night): the probe's IBL lit
+      // these thin cards far over what the hemisphere gives the ground beside them - with it off (the in-game A/B, page v20) they go as dark as
+      // everything else. NOT by envMapIntensity: r186 overwrites it with scene.environmentIntensity for a material without its own envMap (tried
+      // 11:45, no change in game) - the lights chunk's two IBL lines are cut in the program, the ground's way (render_world: the hemisphere is
+      // the world's ambient). One program per flower material as before (the source changes, not the count)
+      const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: cut, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       // no normal override (the bench has none): upHook forced the object normal up on this
       // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
       LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m);   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
+      { const prev = m.onBeforeCompile, SC = THREE.ShaderChunk;
+        m.onBeforeCompile = sh => { if (prev) prev(sh);
+          if (SC && SC.lights_fragment_maps) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_maps>',
+            SC.lights_fragment_maps.replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/* VEG-NIGHT: no IBL irradiance on a flower card */')
+              .replace('vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness );', 'vec3 iblRadiance = vec3( 0.0 );')); };
+        const k0 = m.customProgramCacheKey ? m.customProgramCacheKey() : ''; m.customProgramCacheKey = () => k0 + '-noibl'; }
       if (c && shapedOf(c)) {   // the shaped cards' normals hold on both faces (see shapedCards): three's back-face flip undone, as a leaf's crown (trees.js uCrownN)
         const prev = m.onBeforeCompile;
         m.onBeforeCompile = sh => { if (prev) prev(sh);
