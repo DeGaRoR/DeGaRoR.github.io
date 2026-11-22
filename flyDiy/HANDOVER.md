@@ -318387,3 +318387,13 @@ PASS; REALBAND re-pinned (c172v2 empty 709 -> 717 kg: the full dashboard billed 
 deterministic, gone with the old band. The aerial's mast and the fin skin measure identical with either band in a plain build,
 so the cause is how CLIP builds one of them (the dorsal root following the deck line is the lead) - followed on user-fixes;
 nothing declared, no gate moved. Owner FLAGSHIP.
+
+## DASH-FIX-2 - L40J's identity re-pins on FLAGSHIP's cards (Sun 22 Nov 2026, late; claude/ready/dash-fix-2 on dash-fix)
+
+GATE FRAMES and GATE KNIFE re-pinned for the INTENDED card changes only (each gate's --record run, then the corpus kept as it was
+but for these entries - nothing added, nothing dropped): FRAMES file:builds/cessna172r_2026-11-08.json (the refitted 172's tail
+cap band, one-cessna-4) and file:builds/chinook_2026-09-21_corrected.json (the user's modified Chinook's pilPaxA band,
+chinook-user); KNIFE file:builds/cessna172r_2026-11-08.json (the refit's sheet with its whole-width dashboard, dash-fix).
+NAMED for L40J, ONE TAIL-MOVE ITEM for user-fixes / L40K (owner FLAGSHIP): GATE FIN (the refit's fin sheet folds over itself,
+5 faces), GATE GEOPARITY (the drawn fin / stab against the flown ones: fin chord -0.310, stab -0.198, worst dx +0.188) and
+GATE DMGSKIN / DMGGEAR (the fin's front-spar root members VF-S4TL/TR ~3 % under at the FAR 23.473 drop) - all the refit's tail.
