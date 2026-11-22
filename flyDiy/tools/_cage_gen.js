@@ -11644,6 +11644,96 @@ function cageGlazedM2(s, FS) {
   return a * FS * FS;
 }
 
+// THE BODY AS DRAWN, MEASURED FOR ITS DRAG (FUSELAGE-DRAG, 2026-11-22; reports/FUSELAGE-DRAG-STUDY-2026-11-22.md).
+// The physics knew a width and a height per station: a brick and a teardrop of the same box were the same body. This
+// reads the sheet the skin is drawn from (as cageGlazedM2 does), so every row that shapes it - the frames, the
+// roundness, the creases, the pod's pinch, the taper, the canopy - is in the answer and none is interpreted:
+//   sharp    the share of the outline's turning that sits in sharp corners, perimeter-weighted (a tube 0, a sharp box
+//            ~0.65): at each of 60 stations the outer outline by direction (72 rays from the section's own centre), the
+//            turning at each point beyond three times a circle's share
+//   stepM2   forward-facing area met ON THE BODY (not its own nose: weighted by the body already standing ahead) at
+//            more than 25 deg - the top line's rise x the width there, the sides' spread x the height, the bottom's
+//            drop x the width, each x (sin2 - sin2 25) / (1 - sin2 25): a wall square to the flow whole, a 45 deg
+//            screen 0.39, a 30 deg one 0.09
+//   baseM2   area closed behind the largest section faster than the flow follows (13 deg of the equivalent radius),
+//            x (sin - sin 13) / (1 - sin 13); and an end left open
+//   trip     how far along the body the first step stands (a share of its length): where a laminar layer ends
+// Metres after the scale (FS). null when the sheet cannot be cut into at least ten sections (an open frame).
+// One pure function, called by the UI's build and by the headless page chain (tools/_load_build.js) alike; the join
+// carries it to spec.bodyShape and 62_gen_aero genFusCdA reads it. tools/body_shape.js is the same measure, for study.
+function cageBodyShape(s, FS) {
+  if (!s || !s.F || !s.V || !(FS > 0)) return null;
+  const V = s.V, F = s.F, NB = 72, N = 60, deg = 180 / Math.PI;
+  let z0 = Infinity, z1 = -Infinity;
+  for (const v of V) { if (v[2] < z0) z0 = v[2]; if (v[2] > z1) z1 = v[2]; }
+  if (!(z1 - z0 > 1e-6)) return null;
+  const st = [];
+  for (let i = 0; i < N; i++) {
+    const z = z1 - (z1 - z0) * (i + 0.5) / N, segs = [];
+    for (const f of F) {
+      const q = f.v, n = q.length; let p = null, done = false;
+      for (let k = 0; k < n && !done; k++) {
+        const a = V[q[k]], b = V[q[(k + 1) % n]], da = a[2] - z, db = b[2] - z;
+        if ((da > 0) !== (db > 0)) { const t = da / (da - db), c = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+          if (p) { segs.push([p, c]); done = true; } else p = c; }
+      }
+    }
+    if (segs.length < 3) continue;
+    let yLo = Infinity, yHi = -Infinity, xHi = 0;
+    for (const g of segs) for (const p of g) { if (p[1] < yLo) yLo = p[1]; if (p[1] > yHi) yHi = p[1]; if (Math.abs(p[0]) > xHi) xHi = Math.abs(p[0]); }
+    const cy = 0.5 * (yLo + yHi), r = new Array(NB).fill(0);
+    for (let k = 0; k < NB; k++) {
+      const th = 2 * Math.PI * (k + 0.5) / NB, dx = Math.cos(th), dy = Math.sin(th);
+      for (const g of segs) {
+        const ax = g[0][0], ay = g[0][1] - cy, ex = g[1][0] - g[0][0], ey = g[1][1] - g[0][1], den = dx * ey - dy * ex;
+        if (Math.abs(den) < 1e-12) continue;
+        const t = (ax * ey - ay * ex) / den, u = (ax * dy - ay * dx) / den;
+        if (t > 0 && u >= -1e-9 && u <= 1 + 1e-9 && t > r[k]) r[k] = t;
+      }
+    }
+    if (r.some(v => !(v > 0))) continue;
+    const P = r.map((v, k) => { const th = 2 * Math.PI * (k + 0.5) / NB; return [v * Math.cos(th), cy + v * Math.sin(th)]; });
+    let A = 0, per = 0, sharp = 0; const base = 2 * Math.PI / NB;
+    for (let k = 0; k < NB; k++) {
+      const a = P[k], b = P[(k + 1) % NB], c = P[(k + 2) % NB];
+      A += a[0] * b[1] - b[0] * a[1]; per += Math.hypot(b[0] - a[0], b[1] - a[1]);
+      let dt = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0]);
+      while (dt > Math.PI) dt -= 2 * Math.PI; while (dt < -Math.PI) dt += 2 * Math.PI;
+      sharp += Math.max(0, Math.abs(dt) - 3 * base);
+    }
+    st.push({ x: z1 - z, A: 0.5 * Math.abs(A), per, w: 2 * xHi, h: yHi - yLo, yTop: yHi, yBot: yLo, sharp: sharp / (2 * Math.PI) });
+  }
+  const n = st.length;
+  if (n < 10) return null;
+  let iMax = 0; for (let i = 0; i < n; i++) if (st[i].A > st[iMax].A) iMax = i;
+  const Amax = st[iMax].A, len = z1 - z0, r = st.map(q => Math.sqrt(q.A / Math.PI));
+  let fs = 0, wS = 0, fw = 0, wF = 0;
+  for (const q of st) { fs += q.sharp * q.per; wS += q.per; if (q.A > 0.5 * Amax) { fw += q.A / (q.w * q.h) * q.per; wF += q.per; } }
+  const s25 = Math.pow(Math.sin(25 / deg), 2), s13 = Math.sin(13 / deg);
+  const g = th => Math.max(0, (Math.pow(Math.sin(Math.max(0, th) / deg), 2) - s25) / (1 - s25));
+  let stepA = 0, baseA = 0, xTrip = null, scr = 0, close = 0;
+  for (let i = 1; i < n; i++) {
+    const a = st[i - 1], c = st[i], dx = c.x - a.x;
+    if (i <= iMax) {
+      const tTop = Math.atan2(c.yTop - a.yTop, dx) * deg;
+      const gt = g(tTop), gs = g(Math.atan2(0.5 * (c.w - a.w), dx) * deg), gb = g(Math.atan2(a.yBot - c.yBot, dx) * deg);
+      stepA += (Math.max(0, c.yTop - a.yTop) * 0.5 * (a.w + c.w) * gt + Math.max(0, c.w - a.w) * 0.5 * (a.h + c.h) * gs +
+                Math.max(0, a.yBot - c.yBot) * 0.5 * (a.w + c.w) * gb) * Math.min(1, (a.A / Amax) / 0.5);
+      if (tTop > scr) scr = tTop;
+      if (xTrip == null && (gt > 0.15 || gs > 0.15 || gb > 0.15)) xTrip = a.x;
+    } else {
+      const th = Math.atan2(r[i - 1] - r[i], dx);
+      baseA += Math.max(0, a.A - c.A) * Math.max(0, (Math.sin(th) - s13) / (1 - s13));
+      if (th * deg > close) close = th * deg;
+    }
+  }
+  if (st[n - 1].A / Amax > 0.08) baseA += st[n - 1].A;
+  const r4 = v => +v.toFixed(4);
+  return { v: 1, sharp: r4(Math.min(1, fs / wS)), fullness: r4(wF > 0 ? fw / wF : 1), stepM2: r4(stepA * FS * FS), baseM2: r4(baseA * FS * FS),
+           trip: r4((xTrip == null ? st[iMax].x : xTrip) / len), aMaxM2: r4(Amax * FS * FS), lenM: r4(len * FS),
+           screenDeg: +scr.toFixed(1), closeDeg: +close.toFixed(1), noseA: r4(st[0].A / Amax), tailA: r4(st[n - 1].A / Amax) };
+}
+
 // G3050: THE STATIONS THE JOIN MEASURES FROM, in one home. A named ring's z
 // (its waist line, else its keel), metres; and the FIREWALL - the windscreen
 // base ring, the lattice's x datum (the cowl deck forward of it, the glass
@@ -11678,7 +11768,7 @@ if (typeof module !== 'undefined')
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageNoseDeck, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
-                     CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
+                     CAGE_GLASS_MATS, cageGlazedM2, cageBodyShape, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
@@ -11691,5 +11781,5 @@ if (typeof window !== 'undefined')
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageNoseDeck, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
-                   CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
+                   CAGE_GLASS_MATS, cageGlazedM2, cageBodyShape, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

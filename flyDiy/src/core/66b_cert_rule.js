@@ -42,7 +42,8 @@ const CERT_CONDITION = ['aging'];
 // MEASURED BLOCKS (ENGINE-COOLING, 12 Nov): a whole block the join measures off the drawing - the cowl's cooling openings
 // (spec.cooling, off the cowl rows the structure group already hashes). Dropped whole: a certificate signed before the
 // join measured them hashes the same (R3: a game update is not a change to the aeroplane)
-const CERT_MEASURED_BLOCKS = ['cooling'];
+// (FUSELAGE-DRAG 2026-11-22: `bodyShape` - the join's measurement of the drawn body's corners, steps and base)
+const CERT_MEASURED_BLOCKS = ['cooling', 'bodyShape'];
 // the cage's STATE and MINOR rows - views, the explode, who is aboard and whether the crew is shown, the lamps'
 // switches and dimmers, the lamps FITTED (li_*Fit: minor, a W&B update), the reflector glow, the fastener density
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).

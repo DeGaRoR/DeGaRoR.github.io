@@ -649,7 +649,7 @@ function benchFlightStep(phase) {
 // ---------------------------------------------------------------------------
 // ENGINE-COOLING (12 Nov): `cooling` is the join's MEASUREMENT of the cowl's openings (66b CERT_MEASURED_BLOCKS), never
 // the aeroplane: out of every hash here too, so an f2 stamped before the join measured it is still this body's
-const BENCH_COSMETIC = ['paint', 'finish', 'meta', 'cooling'];
+const BENCH_COSMETIC = ['paint', 'finish', 'meta', 'cooling', 'bodyShape'];   // (bodyShape: FUSELAGE-DRAG, a measurement as cooling is)
 const BENCH_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'],
                      systems: ['look'] };
 // G3449 (RUFUS-CERT, the user 22 Oct: "the cabin flood switched on at the story start; no change to Rufus's file"): a

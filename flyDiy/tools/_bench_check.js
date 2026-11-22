@@ -142,7 +142,12 @@ console.log('THE WORD');
   ok(BE.benchFingerprint(cg) !== f0, 'a cage row changes it');
   ok(/^[0-9a-f]{8}$/.test(f0) && BE.benchFingerprint(spec) === f0, 'the hash is eight hex digits and stable');
   ok(BE.benchHash('') === '811c9dc5' && BE.benchHash('a') === 'e40c292c', 'FNV-1a reference values');
-  ok(JSON.stringify(BE.BENCH_COSMETIC) === '["paint","finish","meta","cooling"]', 'the cosmetic set is paint, finish, meta (+ ENGINE-COOLING\'s measured cooling)');
+  // (re-stated 2026-11-22, FUSELAGE-DRAG: `bodyShape` joins `cooling` - both are the JOIN'S MEASUREMENTS of the drawn design
+  //  (the cowl's openings; the body's corners, steps and base), never rows the player sets, so a game update that starts
+  //  measuring one must not move a certificate. The set stays pinned, by name and in order.)
+  ok(JSON.stringify(BE.BENCH_COSMETIC) === '["paint","finish","meta","cooling","bodyShape"]', 'the cosmetic set is paint, finish, meta (+ the two measured blocks: ENGINE-COOLING\'s cooling, FUSELAGE-DRAG\'s bodyShape)');
+  { const bs = JSON.parse(JSON.stringify(spec)); bs.bodyShape = { v: 1, sharp: 0.6, stepM2: 0.2, baseM2: 0.1, trip: 0.05 };
+    ok(BE.benchFingerprint(bs) === f0, 'a measured bodyShape block does not change the fingerprint (it is read off rows that already do)'); }
   // THE SECOND SCHEME (A9): what weighs nothing and what a builder did not
   // move is not the aeroplane
   {

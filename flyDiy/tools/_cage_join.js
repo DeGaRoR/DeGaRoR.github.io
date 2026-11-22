@@ -739,6 +739,13 @@ function cageJoinSpec(P, M, T) {
     else if (hd && typeof hd === 'object' && (P.cowlOn != null && !+P.cowlOn))
       spec.cooling = Object.assign({ face: 0, scoop: 0, scoopAlt: 0, scoopRev: 0, nacInlet: 0, exit: 0, gills: 0, units: null }, heads);
   }
+  // FUSELAGE-DRAG (2026-11-22): THE BODY'S SHAPE as the editor measured it off its built sheet (CAGE_UI.bodyShape,
+  // CAGE2.cageBodyShape: sharp corners, steps, base) - a MEASUREMENT of the design like `cooling`, never the player's
+  // (66b CERT_MEASURED_BLOCKS); a headless join that measured no sheet writes none and the body keeps the old law
+  {
+    const UIb = typeof window !== 'undefined' ? window.CAGE_UI : null;
+    if (UIb && UIb.bodyShape && typeof UIb.bodyShape === 'object') spec.bodyShape = Object.assign({}, UIb.bodyShape);
+  }
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {
     spec.wings[0].xLE = M.wingXLE;

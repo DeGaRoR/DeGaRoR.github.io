@@ -247,7 +247,9 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
     // the editor's own measurement of its built sheet (_cage_ui.js build: CAGE2.cageGlazedM2, G1985)
     // (a tree without JOIN-PARITY's src - G2500, CESSNA-VREF on train 40: the same sum _cage_ui.js's build makes over its
     // GLASSM set, written here because that tree only measures it inside the editor's UI)
-    W.CAGE_UI = { P: r.P, glazedM2: W.CAGE2.cageGlazedM2 ? W.CAGE2.cageGlazedM2(r.built.mesh, r.FS) : glazedM2Of(r.built.mesh, r.FS) };
+    W.CAGE_UI = { P: r.P, glazedM2: W.CAGE2.cageGlazedM2 ? W.CAGE2.cageGlazedM2(r.built.mesh, r.FS) : glazedM2Of(r.built.mesh, r.FS),
+                  // (FUSELAGE-DRAG: the body's shape off the same sheet, as the page's build measures it)
+                  bodyShape: W.CAGE2.cageBodyShape ? W.CAGE2.cageBodyShape(r.built.mesh, r.FS) : null };
     if (MSON) W.CAGE_UI.MS = r.built.mesh;
     // 3. app.js BUILD_SYNC: the join's export, merged by GARAGE_SPEC.update
     W.CAGE_UI_LAZY = true;

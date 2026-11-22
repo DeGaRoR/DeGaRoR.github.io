@@ -2521,6 +2521,9 @@ function* buildSteps() {
   // in metres after the scale; the join carries it to spec.cabin.glazedM2
   // (G1985: CAGE2.cageGlazedM2, the pure function the headless page chain calls too)
   if (window.CAGE_UI) window.CAGE_UI.glazedM2 = G.cageGlazedM2(s, FS);
+  // FUSELAGE-DRAG (2026-11-22): THE BODY'S SHAPE, measured on the same sheet (sharp corners, steps, base: CAGE2.cageBodyShape);
+  // the join carries it to spec.bodyShape. Not while the parts stand apart (the exploded view is not the aeroplane).
+  if (window.CAGE_UI && G.cageBodyShape && !((P.explodeD || 0) > 0)) window.CAGE_UI.bodyShape = G.cageBodyShape(s, FS);
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
   eyeAfterBuild();                       // G3715: the interior view's (or a capture's) eye sheet over it
