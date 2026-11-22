@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 1b2d8ddd3231d904
+// body-sha256: b2f718644b8c429e
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37649,6 +37649,24 @@ const GEN_DRAG = {
   // "RAF wire" every wire-braced biplane from 1916 on flew, a Tiger Moth's and a Stearman's - is 0.3-0.4 on the same
   // thickness (Hoerner ch. 6, lenticular and faired wire sections at a fineness of 3-4): 0.35
   wire: { cdRound: 1.0, cdStream: 0.35 },
+  // THE ROWS THE DRAG STUDY SUPPORTS (PHYSICS-AUDIT step 5, 2026-11-22; reports/PHYSICS-AUDIT-2026-11-21.md; GATE DRAGROWS)
+  //   float     A FLOAT'S OWN DRAG. A floatplane paid for a phantom wheeled gear: genGearCdA billed two bare wheels and
+  //             two legs on gear.type 'floats' (the PA-18 on floats' gear row was the landplane Cub's, to the digit) and
+  //             its floats nothing. Now: each float `cd` on its frontal (beam x depth; Hoerner, Fluid-Dynamic Drag
+  //             ch. 13: seaplane floats with their step 0.2-0.25) and its struts and spreaders - the frame's own exposed
+  //             float members - a streamline section strutT thick at `strutCd`, the truss's own figure; no wheels, no
+  //             legs (an amphibian's wheels are the amph row's, as before)
+  //   hullK     A HULL IS NOT A FUSELAGE: the step, the chines and the spray rails cost a planing hull about half again
+  //             a streamlined body's drag (Hoerner ch. 13: flying-boat hulls 0.10-0.14 on their frontal where a
+  //             fuselage of the same fineness is 0.07-0.09). The body row x hullK when the fuselage is the boat
+  //   radialWake  A BARE RADIAL AHEAD OF THE BODY: the cooling row bills an uncowled or ring-cowled radial as a wall of
+  //             cylinders (kCool.radialBare / radialRing: the engine's own pressure drag), and the body row billed the
+  //             fuselage behind it its full form factor on top - the same pressure drag twice. The body's form share
+  //             (FF - 1) / FF is taken off in proportion to the body's frontal the engine's disc covers, and to how far
+  //             the cowl is from a NACA cowl (which is the body's own nose: nothing taken off)
+  float: { cd: 0.25, strutCd: 0.10 },
+  hullK: 1.5,
+  radialWake: 1,
 };
 // THE TAIL'S BRACE WIRES ARE THE TAILPLANE'S CONSTRUCTION'S (PHYSICS-AUDIT step 2, 2026-11-21; GATE WIRES). The frame
 // braces every conventional stab's tips to the fin post with four tension wires (61_gen_frame, G233: the lattice's own
@@ -39932,6 +39950,9 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //              carries a share of its disc as drag - nothing at full throttle or standing, a few per cent of the
 //              cruise throttle, a steeper glide and a shorter float with the throttle closed; the trim's cruise and
 //              approach throttles are solved on the same law
+//      step 5  (2026-11-22) the drag rows the study supports (GEN_DRAG.float / hullK / radialWake): a floatplane pays its floats and
+//              their struts where it paid a phantom wheeled gear, a hull half again a fuselage's body row, a bare
+//              radial's fuselage less the form drag the engine already pays - every float, hull and bare-radial build
 const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
@@ -50273,7 +50294,11 @@ function genFusCdA(S, fr, o) {
                        Math.min(1, (fu.crownSide == null ? 0.07 : fu.crownSide) / 0.6));
   const boxK = 1 + D.boxK * (1 - crown);
   const reK = genReK(wet.L, D.reynolds.lBody);
-  const body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK * reK;
+  // PHYSICS-AUDIT step 5 (2026-11-22; GEN_DRAG.hullK): a hull's step, chines and spray rails - the body row of a
+  // fuselage that is the boat (gear.hull's measured lines, a hull or an amphibian on it)
+  const hullK = D.hullK > 0 && S.gear && S.gear.hull && Array.isArray(S.gear.hull.sta) ? D.hullK : 1;
+  let body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK * reK;
+  if (hullK !== 1) body *= hullK;
   // the cooling, by the engine and its cowl
   const EN = (S.engines && S.engines[0]) || {};
   const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
@@ -50283,13 +50308,22 @@ function genFusCdA(S, fr, o) {
   const radial = eng.layout === 'radial';
   const cw = S.cowl || {}, covers = cw.covers || {};
   const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
-  let cool = 0, heads = 0;
+  let cool = 0, heads = 0, radialWake = 0, radialOpen = 0;
   const none = typeof genUnpowered === 'function' && genUnpowered(S);   // (ENGINELESS: no engine to cool, no stacks)
   if (!electric && !none) {
     const k = th.family === 'turbine' ? D.kCool.turbine
             : th.cooling === 'liquid' ? D.kCool.liquid
             : radial ? (cowlOn ? radialCowlK(D.kCool, S) : D.kCool.radialBare) : D.kCool.pressureCowl;
     cool = k * th.coolKW;
+    // PHYSICS-AUDIT step 5 (2026-11-22; GEN_DRAG.radialWake): a bare or ring-cowled radial on the NOSE is billed its
+    // own pressure drag just above; the fuselage behind its disc is in its wake, so the body's form share (FF - 1) / FF
+    // comes off in proportion to the frontal the disc covers and to the cowl's distance from a NACA cowl
+    // (applied below, once it is known that the per-kW figure stands: a MEASURED cowl pays the momentum of its air, not
+    //  a wall of cylinders, and its body keeps its form drag)
+    if (radial && D.radialWake > 0 && S.engBox && S.engBox.cylReach > 0 && !(S.engAt || []).some(e => e && e.mount && e.mount !== 'nose')) {
+      const K = D.kCool;
+      radialOpen = !cowlOn ? 1 : K.radialNaca != null && K.radialRing > K.radialNaca ? Math.max(0, Math.min(1, (k - K.radialNaca) / (K.radialRing - K.radialNaca))) : 0;
+    }
     // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal (genHeadsFrontal counts the
     // same reach as a bare inlet; the expression stays here as it was, bit for bit)
     const E = S.engBox;
@@ -50307,6 +50341,11 @@ function genFusCdA(S, fr, o) {
   if (o && o.Vs > 0) {
     coolSheet = genCooling(S, { VClimb: GEN_VRATIO.VClimb * o.Vs, VCruise: GEN_VRATIO.VCruise * o.Vs });
     if (coolSheet.kind === 'measured') cool = coolSheet.cdA;
+  }
+  if (radialOpen > 0 && !(coolSheet && coolSheet.kind === 'measured')) {
+    const cover = Math.min(1, Math.PI * S.engBox.cylReach * S.engBox.cylReach / Math.max(1e-6, wet.frontal));
+    radialWake = D.radialWake * radialOpen * cover * (FF - 1) / FF * body;
+    body -= radialWake;
   }
   // the windscreen
   const cb = S.cab || {}, cn = cb.canopy || {};
@@ -50329,6 +50368,7 @@ function genFusCdA(S, fr, o) {
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
             body, cool, heads, screen, junct, exh, ...(reK !== 1 ? { reK } : {}),
+            ...(hullK !== 1 ? { hullK } : {}), ...(radialWake > 0 ? { radialWake } : {}),
             coolBy: coolSheet && coolSheet.kind === 'measured' ? 'momentum' : 'perKW' },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
@@ -50383,8 +50423,10 @@ function genFusCdA(S, fr, o) {
 //   Skirt depth, rake and width stay geometry-only: clearance and attitude
 //   choices, priced no more than legDrop is (stance is not a drag knob).
 const genFairDroplet = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) - 1);
-function genGearCdA(S, semi) {
+// (PHYSICS-AUDIT step 5: `noWheels` - a floatplane's call: no wheels and no legs, the lift struts as ever)
+function genGearCdA(S, semi, noWheels) {
   const G = S.gear;
+  if (noWheels) return S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0;
   const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55)
             * (G.fairing && G.fairing !== 'none' ? genFairDroplet(G.fairTail) : 1);
   const R = G.wheelR || 0.20, Rt = G.twR || 0.10;
@@ -51256,7 +51298,16 @@ function genParams(S, fr, strips) {
   // HONEST's relative checks are written against (spats buy, tyres cost).
   // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
   const gearDCdA = genGearCdADelta(S, S.geom.semi);
-  let gearCdA = genGearCdA(S, S.geom.semi);
+  // PHYSICS-AUDIT step 5 (2026-11-22; 60_gen_spec GEN_DRAG.float): A FLOATPLANE PAYS ITS FLOATS, not a phantom wheeled
+  // gear - each float its `cd` on beam x depth, the frame's exposed float members (struts, spreaders) a streamline
+  // section at the truss's figure. The lift struts stay genGearCdA's; an amphibian's wheels the amph row's (below)
+  const FLT = S.gear.type === 'floats' && S.gear.floats && S.gear.floats.B > 0 && S.gear.floats.H > 0 && GEN_DRAG.float ? S.gear.floats : null;
+  let gearCdA = genGearCdA(S, S.geom.semi, !!FLT), floatCdA = null;
+  if (FLT) {
+    let Ls = 0; for (const b of fr.beams) if (b.cls === 'gear' && b.ext) Ls += b.L;
+    floatCdA = { floats: 2 * GEN_DRAG.float.cd * FLT.B * FLT.H, struts: GEN_DRAG.float.strutCd * Ls * GEN_RULES.strutT };
+    gearCdA += floatCdA.floats + floatCdA.struts;
+  }
   // SKIS (29c_ski.js): the skis' own drag (the frame's resolved record); a PLAIN ski replaces its wheel, so that wheel's
   // bare term comes off (a ski wears no spat: clampSpec). Absent: no term, the sum as it was
   if (fr.parts && fr.parts.ski) {
@@ -51267,6 +51318,7 @@ function genParams(S, fr, strips) {
   }
   cda.fusCdA[0] += gearCdA;
   cda.drag.gear = gearCdA;
+  if (floatCdA) { cda.drag.floats = floatCdA.floats; cda.drag.floatStruts = floatCdA.struts; }
   // AMPH-FLOATS (GEAR-LEVER): AN AMPHIBIAN'S FLOAT WHEELS IN THE STREAM - four tyres (the mains single or dual) at the
   // bare tyre's Cd on diameter x width, and four short legs; in the body row like every gear (the design numbers are
   // the gear-DOWN aeroplane's) and the retraction's own cdA (30_solver takes it off as the wheels come up). Only an
