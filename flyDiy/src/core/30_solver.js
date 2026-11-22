@@ -2581,10 +2581,25 @@ function makeSim(def, world) {
     const sh = (typeof GEN_SHAFT !== 'undefined') ? GEN_SHAFT : { staticK: 0.92, idleK: 0.28 };
     return Math.pow(sh.idleK / sh.staticK, 2);
   })();
+  // THE REDLINE (PHYSICS-AUDIT step 3, 2026-11-21; 60_gen_spec genPropFit, 00_registry genShaftRpm). A fitted fixed-
+  // pitch propeller (params.prop.V1) unloads with airspeed and the full-throttle rpm reaches the rated speed at its
+  // redline speed; past it the throttle is held to what keeps the shaft AT the rated speed - the shaft law solved for
+  // the torque: t = ((rpmK nR)^2 - (nR V / V1)^2) sigma / (powerK nS^2), less the idle's share. 1 below the redline
+  // speed, and on every def without V1 (a governed propeller, an old def): the thrust they always had, to the bit.
+  // `rpmK` a lower limit than the rated speed (a book's "at 2300 rpm" on a 2500 rpm motor: sim.thrustAt's fourth).
+  const PR_V1 = (PR && PR.V1 > 0 && !(EN && EN.cs)) ? PR.V1 : 0;
+  const SHAFT_K2 = (() => { const sh = (typeof GEN_SHAFT !== 'undefined') ? GEN_SHAFT : { staticK: 0.92 }; return sh.staticK * sh.staticK; })();
+  function thrLimit(V, sg, pk, rpmK) {
+    if (PR_V1 === 0) return 1;
+    const x = V / PR_V1, r = rpmK > 0 ? rpmK : 1;
+    const t = ((r * r - x * x) * sg / (Math.max(1e-6, pk) * SHAFT_K2) - IDLE_T) / (1 - IDLE_T);
+    return t >= 1 ? 1 : t > 0 ? t : 0;
+  }
+  let THR_LIM = 1;                                   // this frame's (the aero pass sets it; the burn reads it)
   function thrEffOf(i) {
     const e = eng[i]; if (!e || !e.running) return 0;
     const le = ctl.eng && ctl.eng[i];
-    const t = Math.max(0, Math.min(1, ctl.thr * (le ? (le.on ? +le.thr : 0) : 1)));
+    const t = Math.max(0, Math.min(THR_LIM, ctl.thr * (le ? (le.on ? +le.thr : 0) : 1)));
     return IDLE_T + (1 - IDLE_T) * t;
   }
   // the burn, once per substep: the sheet's rated figure times the mean
@@ -3348,6 +3363,7 @@ function makeSim(def, world) {
       // states it. The registry's Tstatic/kV2 are PER PROPELLER.
       const nE = def.params.nEngines || 1;
       const Tcap = Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
+      const TLIM = THR_LIM = PR_V1 > 0 ? thrLimit(Vfwd, sig, PS.power, 1) : 1;   // (PHYSICS-AUDIT step 3: the redline)
       // G194: PER ENGINE. Each engine's thrust is the pilot's throttle times
       // its own lever (ctl.eng, null = every lever full and on), and each
       // mount node takes its OWN engine's share (refs.engineOf) — so a cut
@@ -3362,11 +3378,11 @@ function makeSim(def, world) {
         // the panel arc: a stopped engine pulls nothing (every engine runs
         // unless the key or the tanks say otherwise — bit-identical before)
         const run = !eng[i] || eng[i].running;
-        Ti[i] = run ? ctl.thr * lev(i) * Tcap * DK[i] : 0; T += Ti[i];   // (DK: G1826's factor, 1 unless the drive is hurt)
+        Ti[i] = run ? (TLIM < 1 ? Math.min(TLIM, ctl.thr * lev(i)) : ctl.thr * lev(i)) * Tcap * DK[i] : 0; T += Ti[i];   // (DK: G1826's factor, 1 unless the drive is hurt)
         // and the shaft speed the tacho reads: prop rpm, then through the
         // reduction unit (00_registry.js genShaftRpm, the one law)
         if (typeof genShaftRpm === 'function') {
-          const thrE = run ? Math.max(0, Math.min(1, ctl.thr * lev(i))) : 0;
+          const thrE = run ? Math.max(0, Math.min(TLIM, ctl.thr * lev(i))) : 0;
           const rp = genShaftRpm(EN, PR, thrE, Vfwd, sig, PS.power, run);
           out.rpm[i] = rp; out.rpmEng[i] = genEngineRpm(EN, rp);
           // G2080: the shaft's torque (the law's own Qe) and speed, per engine
@@ -4803,9 +4819,12 @@ function makeSim(def, world) {
              aspiration: ASP };
   }
 
-  function thrustAt(V, floor = 0, hAlt) {
-    const A = airOf();
-    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP, FLAT, CRIT);
+  function thrustAt(V, floor = 0, hAlt, rpmK) {
+    const A = airOf(), sg = A.sigma(hAlt == null ? hProbe : hAlt);
+    const PS = atmosPropScale(sg, ASP, FLAT, CRIT);
+    // (step 3: at full throttle the redline holds the thrust past the propeller's redline speed; rpmK a lower limit)
+    if (PR_V1 > 0) return Math.max(floor, (PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V) * thrLimit(V, sg, PS.power, rpmK))
+                          * (def.params.nEngines || 1);
     return Math.max(floor, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V)
            * (def.params.nEngines || 1);
   }

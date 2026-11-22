@@ -983,6 +983,11 @@ const GATES = [
   // tailplane pays no brace wires (by its skin, or as the row tail.brace states), a biplane's flying wires are round
   // cable or streamline wire (bracing.wireSection); the structure the same either way, the rows absent at 0.
   { id: 'WIRES', file: '_wires_check.js', tier: 'core', wall: 3 },
+  // PROPFIT (PHYSICS-AUDIT step 3, 21 Nov): the fixed-pitch propeller cut for its aeroplane - the anchor's static thrust
+  // to the bit and its curve within 5 %, the design point on the actuator disc at the blade's efficiency, the blade's
+  // material, no propeller over its disc, the redline on the tachometer's own law, the pitch classes, a governed or
+  // absent propeller untouched, the built spec a fixed point.
+  { id: 'PROPFIT', file: '_propfit_check.js', tier: 'core', wall: 5 },
   // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
   // stand beside your build, held to their PUBLISHED span and length — every
   // measurement taken against a reference is worth exactly what that check is

@@ -906,7 +906,11 @@ function genShaftRpm(eng, pr, thr, V, sigma, powerK, running) {
   const nR = (e.rpm > 0 ? e.rpm : 2300) / gear;
   const D = p.D > 0 ? p.D : 1.8;
   if (e.cs) return running === false ? 0 : nR;
-  const V0 = (p.Tstatic > 0 && p.kV2 > 0) ? Math.sqrt(p.Tstatic / p.kV2) : 60;
+  // (PHYSICS-AUDIT step 3, 2026-11-21: a FITTED propeller's torque runs out at its own pitch speed, pr.V1 - the redline
+  //  speed over sqrt(1 - staticK^2), 60_gen_spec genPropFit - and a running engine is held at its rated speed (the
+  //  solver's thrLimit keeps the throttle there; a caller that passes more reads the redline). A record without V1 -
+  //  a registry row, an old def - keeps the law it had: the torque running out where the thrust does)
+  const V0 = p.V1 > 0 ? p.V1 : (p.Tstatic > 0 && p.kV2 > 0) ? Math.sqrt(p.Tstatic / p.kV2) : 60;
   const J1 = V0 / (nR * D);
   const wind = Math.max(0, V) / (D * J1);
   const nS = GEN_SHAFT.staticK * nR;
@@ -914,7 +918,8 @@ function genShaftRpm(eng, pr, thr, V, sigma, powerK, running) {
   const t = running === false ? 0
           : idle + (1 - idle) * Math.max(0, Math.min(1, thr || 0));
   const sig = sigma > 0 ? sigma : 1, pk = powerK >= 0 ? powerK : 1;
-  return Math.sqrt(t * (pk / sig) * nS * nS + wind * wind);
+  const n = Math.sqrt(t * (pk / sig) * nS * nS + wind * wind);
+  return p.V1 > 0 && running !== false && n > nR ? nR : n;
 }
 // the number on the tacho: engine speed, through the reduction unit
 function genEngineRpm(eng, propRpm) {

@@ -2886,6 +2886,100 @@ function genPropSynth(pr, pitchKey) {
   return pr;
 }
 
+// THE PROPELLER IS CUT FOR THE AEROPLANE (PHYSICS-AUDIT step 3, 2026-11-21; reports/PHYSICS-AUDIT-2026-11-21.md;
+// GATE PROPFIT). genPropSynth above gives every propeller the same curve: `Tstatic x V0 = propV0K x P`, so the peak is
+// 75 % for all of them, at V0 / sqrt(3) - and V0 is set by the disc loading alone (255-478 km/h on aeroplanes that top
+// out at 87-370). A wooden cruise propeller on a 140 km/h aeroplane really is where that puts it (the J-3: 0.73 at
+// its top speed, the rule's own anchor); a metal one is not (the 172R: 0.75 flown where its book needs 0.80), and a
+// slow aeroplane on a big disc flies far down the left of a curve cut for three times its speed (the Ruckus: 0.43 in
+// the climb). A real fixed-pitch propeller is cut for ITS aeroplane, and what it then makes is bounded by the air
+// through its disc. So, once the drag is known (64_gen_build, after the stall is measured):
+//   THE DESIGN TOP SPEED   Vtop: where nE discs' thrust meets the build-up's drag (the body row wheels up, the
+//                          surfaces' Cd0 x area, the struts; the induced term on the wing's own eAR) - a closed solve
+//                          on the build-up, no probe
+//   THE DESIGN POINT       the propeller is cut for Vd = design[class] x Vtop (a climb propeller for less, a cruise one
+//                          for more) and there it makes the ACTUATOR DISC's thrust at its blade efficiency:
+//                          T (V + w) = etaBlade P,  T = 2 rho A (V + w) w   (genPropDiscT). etaBlade is the blade's
+//                          own losses - profile drag, swirl, the tips - by its material: a thick wooden blade 0.79 (the
+//                          J-3's anchor above, reproduced), a thin metal or composite one 0.84 (the 172R's 0.80 at
+//                          123 kt; the 6 % PROP-CLASSES measured between wood and metal, here on the top end only)
+//   THE LAW IS UNCHANGED   T = Tstatic - kV2 V^2, through the static thrust of the pitch class (the fm column: validated
+//                          on the Cub's and the 172's rolls and climbs, kept) and the design point: kV2 = (Tstatic -
+//                          Td) / Vd^2. A slow aeroplane on a big disc would need MORE than its class's static thrust to
+//                          reach its design point (the disc's thrust barely falls from standing to 25 m/s): no
+//                          propeller pulls more than its disc allows, so kV2 is at least what keeps the law under the
+//                          disc's thrust past the design point, and the static thrust is what that gives when it is
+//                          more than the class's (the Ruckus: fm 0.48 -> ~0.6, a paramotor propeller's)
+//   THE REDLINE            a fixed pitch unloads as the aeroplane accelerates and the engine runs up to its rated speed:
+//                          past that the pilot comes off the power. The speed where the full-throttle rpm reaches the
+//                          redline is Vred = redline[class] x Vtop - a standard propeller is pitched to turn rated rpm
+//                          flat out in level flight (the J-3: 2300 at its 87 mph; the 172R: 2500), a climb propeller
+//                          gets there sooner and its top speed is rpm-limited, a cruise one never does. It rides the
+//                          shaft law the tachometer already reads (00_registry genShaftRpm: n^2 = t nS^2 + (nR V /
+//                          V1)^2, V1 = Vred / sqrt(1 - staticK^2)), so the needle and the thrust agree; the solver
+//                          holds the throttle to what keeps n at the redline (30_solver thrLimit)
+// A constant-speed propeller (the engine's `cs`) is not fitted here: it keeps genPropSynth's curve until its own law
+// (the audit's step 6). An unpowered build has no propeller.
+const GEN_PROP_FIT = {
+  etaBlade: { wood: 0.79, maple: 0.79, walnut: 0.79, alu: 0.84, carbon: 0.84 },
+  design:   { climb: 0.85, standard: 1.0, cruise: 1.10, seaplane: 0.75 },
+  redline:  { climb: 0.80, standard: 1.0, cruise: 1.15, seaplane: 0.70 },
+  // a biplane's span efficiency on its total area, for the design top speed's induced term (the audit's measured
+  // 1.06-1.13 on the three wire-braced recreations)
+  eBiplane: 1.1,
+  // how far the quadratic may stand over the disc's thrust between the design speed and 1.5 x it
+  over: 1.03,
+};
+// the actuator disc: the thrust a propeller of disc A absorbing P makes at V, at blade efficiency etaB (standing: the
+// momentum figure (2 rho A)^(1/3) (etaB P)^(2/3)). A fixed 12-pass relaxation: smooth in every argument
+function genPropDiscT(P, A, V, etaB, rho) {
+  if (!(V > 0.5)) return Math.cbrt(2 * rho * A) * CORE_MATH.pow(etaB * P, 2 / 3);
+  let T = etaB * P / V;
+  for (let i = 0; i < 12; i++) {
+    const q = 0.5 * rho * V * V;
+    T = 0.5 * T + 0.5 * etaB * (2 / (1 + Math.sqrt(1 + T / (q * A)))) * P / V;
+  }
+  return T;
+}
+// the design top speed (m/s): the highest V where nE discs meet f q + W^2 / (q S eAR); null when they never do
+function genPropVtop(o) {
+  const g = V => { const q = 0.5 * RHO * V * V; return o.nE * genPropDiscT(o.P, o.A, V, o.etaB, RHO) - (q * o.f + o.W * o.W / (q * o.S * o.eAR)); };
+  let hi = 400; if (!(g(hi) < 0)) return null;
+  let lo = hi; while (lo > 5 && !(g(lo) > 0)) lo *= 0.9;
+  if (!(lo > 5)) return null;
+  for (let i = 0; i < 40; i++) { const m = 0.5 * (lo + hi); if (g(m) > 0) lo = m; else hi = m; }
+  return 0.5 * (lo + hi);
+}
+// `pr` the propeller genPropSynth has just synthesised at its pitch class (D, area, material, powerW, Tstatic,
+// pitchUsed); `o` the aeroplane: { nE, f (m2, wheels up), W (N), S (m2), eAR }. Writes Tstatic, kV2, V0, VPeak and the
+// fit's own Vtop / Vd / etaD / V1 on `pr`; returns it, or null when there is nothing to fit (and `pr` is as it was).
+function genPropFit(pr, o) {
+  const F = GEN_PROP_FIT;
+  if (!pr || pr.none || !(pr.Tstatic > 0) || !(pr.powerW > 0) || !o || !(o.f > 0) || !(o.W > 0) || !(o.S > 0) || !(o.eAR > 0)) return null;
+  const A = pr.area > 0 ? pr.area : Math.PI * pr.D * pr.D / 4, etaB = F.etaBlade[pr.material] || F.etaBlade.wood;
+  const cls = F.design[pr.pitchUsed] ? pr.pitchUsed : 'standard';
+  const Vt = genPropVtop({ P: pr.powerW, nE: o.nE > 0 ? o.nE : 1, A, etaB, f: o.f, W: o.W, S: o.S, eAR: o.eAR });
+  if (!(Vt > 0)) return null;
+  const Vd = F.design[cls] * Vt;
+  const Td = genPropDiscT(pr.powerW, A, Vd, etaB, RHO);
+  // the least kV2 that keeps the law within `over` of the disc's thrust past the design point (read at 1.1 .. 1.5 Vd:
+  // a quadratic is not the disc's curve, and a propeller whose class already stands within 3 % of it keeps its class's
+  // static thrust - the Tiger Moth's, the Carbon Cub's)
+  let kNeed = 0;
+  for (let j = 1; j <= 5; j++) {
+    const V = Vd * (1 + 0.1 * j);
+    kNeed = Math.max(kNeed, (Td - F.over * genPropDiscT(pr.powerW, A, V, etaB, RHO)) / (V * V - Vd * Vd));
+  }
+  const T0 = Math.max(pr.Tstatic, Td + kNeed * Vd * Vd);
+  pr.Tstatic = T0;
+  pr.kV2 = (T0 - Td) / (Vd * Vd);
+  pr.V0 = Math.sqrt(T0 / pr.kV2);
+  pr.VPeak = pr.V0 / Math.sqrt(3);
+  pr.Vtop = Vt; pr.Vd = Vd; pr.etaD = Td * Vd / pr.powerW;
+  pr.V1 = F.redline[cls] * Vt / Math.sqrt(1 - GEN_SHAFT.staticK * GEN_SHAFT.staticK);
+  return pr;
+}
+
 // WHICH PITCH THIS AEROPLANE WANTS, given the stall speed its wing actually
 // measured.
 //
@@ -4250,6 +4344,10 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      step 2  the bracing wires' drag (GEN_DRAG.wire, genTailBraced): a stressed-skin tailplane no longer pays four
 //              brace wires (every alloy and composite build: 0.02-0.07 m2 off its body row), a biplane's flying wires
 //              may be streamline; a fabric-tailed monoplane is as it was to the bit
+//      step 3  the fixed-pitch propeller is cut for the aeroplane (genPropFit: its design speed, its blade's material,
+//              the actuator disc's thrust there) and held to its redline (30_solver thrLimit, on the tachometer's own
+//              law): every powered build's thrust curve moves - a wooden standard propeller's by a per cent or two, a
+//              metal or composite one's by ~6 % at the top end, a slow aeroplane's by a third in the climb
 const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May

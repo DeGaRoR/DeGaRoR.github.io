@@ -178,6 +178,8 @@ function apprTrim(sim, def, W, flap, Vs0) {
 //               same EAS, the thrust the core gives at that height (sim.thrustAt(TAS, floor, h)), read in TAS
 //   THE ROW'S POWER     a row flown at less than the rated power (row.power, a fraction: a climb at max continuous, a
 //               take-off at a de-rated setting) is read at that fraction of the full-throttle thrust
+//   THE ROW'S RPM       (step 3) a level-speed row flown at a lower rpm limit than the rated speed (row.rpm, a fraction:
+//               the Velis's VH "at 2300 rpm" on a 2500 rpm motor) is read on the thrust the redline leaves there
 // A row that carries either is read into `atRow[<row key>]`; verdicts() takes it in place of the case's own figure.
 function flightDef(spec, lc) {
   const def = loadedDef(spec, lc), RET = def.params.retract;
@@ -207,12 +209,14 @@ function airframe(spec, lc, R, P) {
   // the rows stated at an altitude or a power
   const atRow = {};
   for (const rk of Object.keys(R.rows || {})) {
-    const row = R.rows[rk], k = row.key || rk, kP = row.power > 0 ? row.power : 1, h = row.alt > 0 ? row.alt : 0;
-    if (kP === 1 && !h) continue;
+    const row = R.rows[rk], k = row.key || rk, kP = row.power > 0 ? row.power : 1, h = row.alt > 0 ? row.alt : 0, rK = row.rpm > 0 && row.rpm < 1 ? row.rpm : 0;
+    if (kP === 1 && !h && !rK) continue;
     if (k === 'Vmax' || k === 'V75') {
-      const sg = h ? C.ATMOS_ISA.sigma(h) : 1, rt = Math.sqrt(sg), fr = (k === 'V75' ? 0.75 : 1) * kP;
-      const rw = h ? rows.map(r => ({ V: r.V / rt, drag: r.drag, T1: simF.thrustAt(r.V / rt, 1, h) })) : rows;
-      const v = PP.levelSpeedAt(rw, fr); if (v) atRow[rk] = v * 3.6;
+      // (step 3: `rpm` - a row flown at a lower rpm limit than the rated speed: the thrust the redline leaves there)
+      const sg = h ? C.ATMOS_ISA.sigma(h) : 1, rt = Math.sqrt(sg);
+      const rw = rows.map(r => { const Vt = r.V / rt, Tf = kP * (h ? simF.thrustAt(Vt, 1, h) : r.T1);
+                                 return { V: Vt, drag: r.drag, T1: rK ? Math.min(Tf, simF.thrustAt(Vt, 1, h || undefined, rK)) : Tf }; });
+      const v = PP.levelSpeedAt(rw, k === 'V75' ? 0.75 : 1); if (v) atRow[rk] = v * 3.6;
     } else if (k === 'roc') {
       let best = 0; for (const r of rows) best = Math.max(best, (kP * r.T1 - r.drag) * r.V / W);
       atRow[rk] = best;

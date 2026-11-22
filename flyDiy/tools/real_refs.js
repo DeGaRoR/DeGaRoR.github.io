@@ -9,6 +9,7 @@
 //                                   pilot + half fuel; 'unknown' = anywhere from one light pilot with reserves to gross
 //                                   (the RANGE the user asked for: an unknown condition is a band, not a guess)
 //     flaps: 'up' | deg | 'unknown', surface: 'paved' | 'grass' | 'water' | 'unknown', alt: 0 (m), oat: 15 (C),
+//     rpm: 0.92,                    a level-speed row flown at a lower rpm limit: the fraction of the rated speed
 //     power: 0.85,                  the fraction of the RATED (take-off) power the figure was flown at, where the source
 //                                   states less than full power (a climb at max continuous, a de-rated take-off); absent = 1
 //     prop: 'idle' | 'none' | 'unknown',   a GLIDE row only: the propeller in the figure - 'idle' a flown handbook glide
@@ -199,7 +200,7 @@ const REFS = {
       empty: { v: 428, tol: 0.05, src: 'design empty 428 kg (POH 1-5)', from: 'poh' },
       Vs1:   { v: 51 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '51 KCAS power off, flaps 0, 600 kg (POH 5-8)', from: 'poh' },
       // (PHYSICS-AUDIT 21 Nov: the powers the POH states are read - the E-811's 57.6 kW is its take-off rating)
-      Vmax:  { v: 93 * KT, tol: 0.10, kg: 'gross', power: 49.2 / 57.6, src: 'VH 93 KCAS at 2300 rpm, max continuous 49.2 kW (POH 5-12) - rpm-limited, not the full-power level speed', from: 'poh' },
+      Vmax:  { v: 93 * KT, tol: 0.10, kg: 'gross', power: 49.2 / 57.6, rpm: 2300 / 2500, src: 'VH 93 KCAS at 2300 rpm, max continuous 49.2 kW (POH 5-12) - rpm-limited (read at 2300 of the motor\'s 2500 rpm), not the full-power level speed', from: 'poh' },
       roc:   { v: 3.29, tol: 0.08, kg: 'gross', power: 48 / 57.6, src: '647 fpm at VY 75 KIAS, 48 kW MCP, 600 kg (POH 5-11)', from: 'poh' },
       // (REAL-FIGURES, 18 Nov: the ground rolls and the glide - the take-off roll is the pilot-light physics evidence, the
       //  glide the drag sprint's; the figures as the proto row carried them off POH-128)

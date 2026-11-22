@@ -1115,6 +1115,25 @@ function buildGen(specIn) {
     S._auto['prop.pitch'] = true;
     params.prop = { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 };
   }
+  // THE PROPELLER IS CUT FOR THE AEROPLANE (PHYSICS-AUDIT step 3, 2026-11-21; 60_gen_spec genPropFit): here for the
+  // same reason the class is chosen here - the drag is known now (genParams' body row, the surfaces' polars, the
+  // struts' blobs) and the design weight is `gClean`'s. Wheels up on a retractable (the top speed is flown clean). A
+  // governed propeller (the engine's `cs`) keeps the synthesis's curve; an unpowered build has none.
+  if (S.prop && !S.prop.none && params.prop && !(params.engine && params.engine.cs)) {
+    let fSurf = 0;
+    for (const st of strips) {
+      const pol = st.kind === 'wing' ? ((params.polarWings && params.polarWings[st.plane | 0]) || params.polarWing)
+                : st.kind === 'fin' ? (params.polarFin || params.polarTail) : params.polarTail;
+      fSurf += (pol.Cd0 + (st.stol ? st.stol.cd || 0 : 0)) * st.area;
+    }
+    const RT = params.retract, nB = (def.refs.strutDrag || []).length, G_ = params.gen;
+    const f = params.fusCdA[0] + fSurf + (params.strutCdA ? params.strutCdA[0] * nB : 0)
+            - (RT && RT.cdA > 0 ? RT.cdA * (RT.frac > 0 && RT.frac < 1 ? RT.frac : 1) : 0);
+    const eAR = (S.wings || []).length > 1 ? Math.PI * GEN_PROP_FIT.eBiplane * G_.span * G_.span / G_.Sw : params.polarWing.eAR;
+    if (genPropFit(S.prop, { nE: params.nEngines || 1, f, W: gClean.W, S: gClean.Sw, eAR })) {
+      params.prop.Tstatic = S.prop.Tstatic; params.prop.kV2 = S.prop.kV2; params.prop.V1 = S.prop.V1;
+    }
+  }
   if (params.flaps) {
     const g = genClMax(def, params.flaps.ldg ?? 1);
     const VsFlap = Math.sqrt(2 * g.W / (RHO * g.Sw * Math.max(1e-6, g.CLmax)));
