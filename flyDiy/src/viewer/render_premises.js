@@ -1279,6 +1279,54 @@ function make(THREE, scene, world, rec0, opts) {
     // G981: nor over an apron - the taxiways' bands crossed the pad
     for (const pp of K.pp) { if (bbFar(pp.bb, L[0], L[1], 5)) continue; const d = PG.sdPoly(pp.poly, L[0], L[1]); if (d <= 0) return 0; k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4))); }
     return k; };
+  // PERF-WORLDBUILD (22 Nov 2026): THE ROADS' AND THE APRONS' GEOMETRY OFF THE MAIN THREAD (?roadw=1, opt-in: the default
+  // builds here). PAVEMENT.roadGeometry and polyGeometry were 5.8 s of the world step on the page's thread (node), the
+  // island road alone a 0.9 s task. Asked of the house worker in one message as the first rebuild starts (paveAsk: behind
+  // the patch's queries, before the strips - the page's own order of stages), each job the builder's options as resolved
+  // here (roadSpec / polySpec: numbers only); buildRoadsSteps and buildPolysSteps stand PAVEMENT.pavUnpack's arrays,
+  // sleeping on the worker through the host for one not in yet. The rails, the power lines, the marks, the materials and the
+  // merges stay here. A miss, a stale answer, the editor's rebuilds, a part build: built here, as before. GATE PATCHWORKER.
+  const ROADW = { on: typeof location !== 'undefined' && /[?&]roadw=1(?:&|$)/.test(location.search || ''), jobs: new Map(), seq: 0, epoch: -1, asked: 0, used: 0, here: 0, missed: 0, workerMs: 0, waitMs: 0, why: null };
+  if (typeof window !== 'undefined' && o.game) window.FLYDIY_ROADW = ROADW;
+  const roadSpec = (rd, RS) => ({ w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6),
+    sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road') : null,   // the patch is sunk under it (G660)
+    refine: nearRunway(rd.pts) });   // G2115: an aerodrome's taxiway or lane: its stations where the ground curves (pavement.js REFINE)
+  const polySpec = (pp, RS) => ({ cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw,
+    sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') : null,
+    refine: RS.cls !== 'grass' && nearRunway(pp.poly) });   // G2115: an aerodrome's apron or stand: its rows where the ground curves (pavement.js REFINE); not a grass one (translucent: the patch is seen through it - 41 k for nv_meadow)
+  const paveLift = () => !!(o.game && O.pavedAt && PAV.liftOver);
+  const paveKey = spec => JSON.stringify([spec, paveLift(), world.wearScales ? world.wearScales() : null, PAV.recipe ? PAV.recipe.fadeW : null]);
+  function paveAsk() {
+    if (ROADW.epoch === GEO.epoch) return;
+    ROADW.epoch = GEO.epoch; ROADW.jobs.clear();
+    if (!ROADW.on) { ROADW.why = 'off'; return; }
+    if (!(typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true)) { ROADW.why = 'no host to wait'; return; }
+    if (!PAV || !PAV.pavUnpack || !hwOn() || !world.wearScales || (o.editing && o.editing())) { ROADW.why = 'no worker'; return; }
+    const jobs = [], lift = paveLift(), add = (kind, id, spec, extra) => { const seq = ++ROADW.seq;
+      ROADW.jobs.set(kind + ':' + id, { seq, key: paveKey(spec), r: null, done: false, miss: null });
+      jobs.push({ seq, kind, id, lift, o: Object.assign({}, extra, spec) }); };
+    for (const rd of O.roads) { if (rd.ribbon === false || geoLater(rd)) continue; const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
+      const RS = PAV.resolve(rd, O.rec, L), spec = roadSpec(rd, RS);
+      // (the recipe's fade and the refinement's reuse flag are the PAGE's: named, where the builder reads its own module's)
+      add('road', rd.id, spec, { fadeW: Math.min(PAV.recipe.fadeW, spec.shoulderW * 0.6), reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }); }
+    for (const pp of O.pavePolys || []) { if (geoLater(pp)) continue; const L = PG.RUNWAY_LOOKS[pp.look]; if (!L || !L.cls) continue;
+      add('poly', pp.id, polySpec(pp, PAV.resolve(pp, O.rec, L)), {}); }
+    if (!jobs.length) { ROADW.why = 'nothing to ask'; return; }
+    HWK.onPave = m => { for (const [, J] of ROADW.jobs) if (J.seq === m.seq) { J.done = true; J.r = m.r || null; J.miss = m.miss || null; ROADW.workerMs += m.ms || 0; } };
+    const keepSrc = 'const KB = { O: null, bbO: null, rw: null, pp: null, bb: new WeakMap() };\nconst bbOf = ' + String(bbOf) + ';\nconst bbFar = ' + String(bbFar) + ';\nconst keepBoxes = ' + String(keepBoxes) + ';\nconst stripKeep = ' + String(stripKeep) + ';\nreturn stripKeep;';
+    if (!HWK.post({ cmd: 'pave', epoch: HWQ.epoch, wear: world.wearScales(), keepSrc, jobs })) { ROADW.jobs.clear(); ROADW.why = 'post failed'; return; }
+    ROADW.asked = jobs.length; ROADW.used = 0; ROADW.here = 0; ROADW.missed = 0; ROADW.why = 'asked';
+  }
+  // a job still in the worker (the caller's generator sleeps on it), and the geometry: the worker's when it is in and still
+  // the entry's (the same options, the same scales), else null - built here
+  const paveWaiting = k => { const J = ROADW.jobs.get(k); return !!(J && !J.done && hwOn()); };
+  function paveTake(k, spec) {
+    const J = ROADW.jobs.get(k); if (!J) return null;
+    ROADW.jobs.delete(k);
+    if (J.done && J.r && J.key === paveKey(spec)) { try { const g = PAV.pavUnpack(THREE, J.r); ROADW.used++; return g; } catch (e) { console.warn('house worker: ' + k + ' did not stand (' + (e && e.message) + ') - built here'); } }
+    else if (J.miss) console.warn('house worker: ' + k + ' (' + J.miss + ') - built here');
+    ROADW.missed++; return null;
+  }
   const disposePav = m => { if (m.material && m.material.userData && (m.material.userData.pav || m.material.userData.pavTable) && PAV) PAV.dispose(m.material, m.geometry); };   // G925: the table's row(s) given back
   // THE GUARDRAIL (2026-09-22): the W-beam module decides WHERE from the ground itself (the drop past
   // the shoulder, the bend's outside); this says where one may not stand - the user's "the large road
@@ -1459,10 +1507,12 @@ function make(THREE, scene, world, rec0, opts) {
         const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
         const RS = PAV.resolve(rd, O.rec, L);
         const pr = PG.polyRoad(rd.pts, rd.w);
-        const geo = PAV.roadGeometry(THREE, { road: pr, w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), shoulderK: stripKeep,
-          sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road') : null,   // the patch is sunk under it (G660)
-          liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, rd.id) : null,   // G2115: no lift over another pavement
-          refine: nearRunway(rd.pts) });   // G2115: an aerodrome's taxiway or lane: its stations where the ground curves (pavement.js REFINE)
+        // (PERF-WORLDBUILD ?roadw=1: the ribbon's geometry the house worker's when it was asked - roadSpec holds the options)
+        const RSP = roadSpec(rd, RS), jk = 'road:' + rd.id;
+        if (paveWaiting(jk)) { const tW = performance.now(); while (paveWaiting(jk)) { window.FLYDIY_WORLD_WAIT = HWK.next(); yield 'roads: its geometry'; } ROADW.waitMs += performance.now() - tW; }
+        let geo = part ? null : paveTake(jk, RSP);
+        if (!geo) { ROADW.here++; geo = PAV.roadGeometry(THREE, Object.assign({}, RSP, { road: pr, toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, shoulderK: stripKeep,
+          liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, rd.id) : null })); }   // G2115: no lift over another pavement
         const marks = RS.marks === 'none' ? { rects: [], segs: [], wid: rd.w } : PAV.roadMarks(pr.length, rd.w, RS.cls, RS.recipe);
         if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
         const rb = geo.boundingSphere, rKeep = rb ? stripBoxesNear(rb.center.x - rb.radius, rb.center.z - rb.radius, rb.center.x + rb.radius, rb.center.z + rb.radius, null) : [];
@@ -1540,10 +1590,12 @@ function make(THREE, scene, world, rec0, opts) {
       { const K = !part && PC.keep.get(pp.id); if (K && K.mesh) { if (!K.mesh.parent && !PC.keepMerged.has('pave')) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); } continue; } }
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
-      const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw,
-        sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') : null,
-        liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, pp.id) : null,   // G2115: no lift over another pavement
-        refine: RS.cls !== 'grass' && nearRunway(pp.poly) });   // G2115: an aerodrome's apron or stand: its rows where the ground curves (pavement.js REFINE); not a grass one (translucent: the patch is seen through it - 41 k for nv_meadow)
+      // (PERF-WORLDBUILD ?roadw=1: the house worker's geometry when it was asked - polySpec holds the options)
+      const PSP = polySpec(pp, RS), jk = 'poly:' + pp.id;
+      if (paveWaiting(jk)) { const tW = performance.now(); while (paveWaiting(jk)) { window.FLYDIY_WORLD_WAIT = HWK.next(); yield 'paved: its geometry'; } ROADW.waitMs += performance.now() - tW; }
+      let geo = part ? null : paveTake(jk, PSP);
+      if (!geo) { ROADW.here++; geo = PAV.polyGeometry(THREE, Object.assign({}, PSP, { poly, heightAt,
+        liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, pp.id) : null })); }   // G2115: no lift over another pavement
       // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
       const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
       // THE AREA'S MARKS (v1.36, G2912): parking bays, a dock's edge and bollards, hatching - in the pavement's own frame
@@ -5063,7 +5115,10 @@ function make(THREE, scene, world, rec0, opts) {
     if (o.game) {
       // (G2917) an editor's edit re-patches the BLOCKS its box touches (G2063's part build), not the whole patch: an
       // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
-      if (groundDirty) { const pb = patchPartFor(dirty); if (pb) yield* buildPatchSteps(pb); else yield* buildPatchSteps(); n = 1; }
+      // (PERF-WORLDBUILD ?roadw=1: the roads and the aprons asked of the house worker as the whole rebuild's patch starts -
+      //  behind the patch's own queries, before the strips: the page's order of stages)
+      if (groundDirty) { const pb = patchPartFor(dirty), gP = pb ? buildPatchSteps(pb) : buildPatchSteps(); for (;;) { const rP = gP.next(); if (rP.done) break; if (!dirty && !pb) paveAsk(); yield rP.value; } n = 1; }
+      if (!dirty) paveAsk();   // (no patch built: asked here)
       yield 'materials';
       yield* paintMaterialsSteps();   // (PERF-WORLDBUILD: the raster the house worker's under ?patchw=1)
       yield 'lots';
