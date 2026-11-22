@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+# user_log.py - A FLIGHT LOG READ AGAINST THE OBJECTIVES TABLE (PERF-LEAD, 22 Nov 2026)
+# For the log the user exports after a manual session (the menu's "Export my log" -> flydiy-flightlog-<id>.json in the
+# downloads), and for a rig's. One read, no GPU, no node:
+#   python tools/perf/user_log.py <flightlog.json> [--md out.md]
+# It prints, against flyDiy/PERF-OBJECTIVES.md:
+#   the session (build, screen, how long in the garage / in the world, the loading screens and their lengths)
+#   row 13  the frame rate: seconds with 29 frames or more, frames on time, in the garage and in the world
+#   rows 7 / 8  frames over 100 ms in the garage / in the world, each with its time, height and the three longest slots
+#   row 9   20-second blocks of the world with a frame over 35 ms (the profiler's orange bar) / over 100 ms (red)
+#   what the excess over 50 ms is made of, by slot; the water mirror's share of the time; the uploads of 30 ms+
+# Everything is the recorder's own columns and events (flight_recorder.js v2); PERF-TRACE's freeze_ledger.js and
+# big_uploads.js go deeper on the same file.
+import sys, json, io, bisect, collections
+
+def main():
+    if len(sys.argv) < 2: print(__doc__ or 'usage: user_log.py <flightlog.json> [--md out.md]'); return 2
+    path = sys.argv[1]; md = sys.argv[sys.argv.index('--md') + 1] if '--md' in sys.argv else None
+    d = json.load(io.open(path, encoding='utf-8'))
+    h, f, ev = d['header'], d['frames'], d.get('events', [])
+    n, FL, codes, slots = f['n'], h['flags'], h.get('codes', {}), h['slots']
+    t, dt, fl = f['t'], f['dt'], f['flags']
+    col = lambda k: f.get(k) or [None] * n
+    agl, ph, gpu, work, mir = col('agl'), col('phase'), col('gpu'), col('work'), col('mirror')
+    out = []
+    def P(s=''): out.append(s)
+    garage = [i for i in range(n) if (fl[i] & FL['garage']) and not (fl[i] & FL['boot'])]
+    world = [i for i in range(n) if not (fl[i] & FL['garage']) and not (fl[i] & FL['boot']) and (fl[i] & FL['running'])]
+    secs = lambda idx: sum(dt[i] for i in idx) / 1000.0
+    P('# The log against the objectives')
+    P('')
+    P('file: %s' % path)
+    P('build %s, screen %s, window %s, dpr %s; %d frames kept (ring %s), %d events%s' % (
+        h['build'].get('build') if isinstance(h.get('build'), dict) else h.get('build'), h.get('screen'), h.get('window'), h.get('dpr'), n, h.get('ring'), len(ev),
+        (', %d events DROPPED' % h['eventsDropped']) if h.get('eventsDropped') else ''))
+    if n and h.get('frames') and h['frames'] > n: P('NOTE: the session had %d frames and the ring kept the last %d: the start is not in this log (open the game with ?recring=131072 for a long session)' % (h['frames'], n))
+    P('in the garage %.0f s (%d frames), in the world %.0f s (%d frames)' % (secs(garage), len(garage), secs(world), len(world)))
+    # the loading screens: the boot events 'loading <set>' ... 'gone <set>'
+    P('')
+    P('## Loading screens (rows 2, 3, 4)')
+    up = None; rows = 0
+    for e in ev:
+        if e[1] != 'boot': continue
+        s = str(e[3]); st, _, st_set = s.partition(' ')
+        if st != 'gone' and up is None: up = (e[0], st_set)
+        elif st == 'gone' and up is not None:
+            P('- %-8s screen: %6.1f s (up at %.1f s of the page, gone at %.1f s)' % (st_set or up[1], (e[0] - up[0]) / 1000.0, up[0] / 1000.0, e[0] / 1000.0)); up = None; rows += 1
+    if not rows: P('- none in the kept part of the log')
+    P('  (the first one starts when the recorder starts, a few seconds after the click: add the scripts\' time for row 2)')
+
+    def fps(idx, label):
+        if not idx: P('- %s: no frames' % label); return
+        ds = sorted(dt[i] for i in idx); T = secs(idx)
+        per = collections.Counter(int(t[i] // 1000) for i in idx)
+        full = [v for k, v in per.items()]
+        P('- %s: %.1f fps mean, median frame %.1f ms; seconds with 29+ frames %.1f %%; frames on time (<= 34.5 ms) %.1f %%; frames over 50 ms %.2f %%' % (
+            label, len(idx) / T, ds[len(ds) // 2], 100.0 * sum(1 for v in full if v >= 29) / len(full), 100.0 * sum(1 for v in ds if v <= 34.5) / len(ds), 100.0 * sum(1 for v in ds if v > 50) / len(ds)))
+    P('')
+    P('## Row 13, the frame rate (target: 30 fps held)')
+    fps(garage, 'garage'); fps(world, 'world ')
+    g = sorted(gpu[i] for i in world if gpu[i]); w = sorted(work[i] for i in world if work[i] is not None)
+    if g and w: P('- world, where the time goes: GPU %.1f ms median, %.1f at the 90th percentile; the page\'s own work %.1f ms median, %.1f at the 90th (a frame has 33.3 ms)' % (g[len(g) // 2], g[int(len(g) * .9)], w[len(w) // 2], w[int(len(w) * .9)]))
+
+    def top3(i): return ', '.join('%s %.0f' % (s, v) for v, s in sorted(((f[s][i] or 0), s) for s in slots if s in f)[::-1][:3])
+    def freezes(idx, label, t0):
+        fr = [i for i in idx if dt[i] > 100]
+        P('- %s: %d frames over 100 ms%s' % (label, len(fr), (', the worst %.0f ms' % max(dt[i] for i in fr)) if fr else ''))
+        for i in fr[:40]:
+            P('    t+%7.1f s  %4.0f ms  %s%s  [%s]' % ((t[i] - t0) / 1000.0, dt[i], ('AGL %4.0f m ' % agl[i]) if agl[i] is not None and label.startswith('world') else '',
+                (codes.get('phase') or [''] * 99)[ph[i] or 0] if label.startswith('world') and ph[i] is not None else '', top3(i)))
+        if len(fr) > 40: P('    ... and %d more' % (len(fr) - 40))
+    P('')
+    P('## Rows 7 and 8, freezes (target: no frame over 100 ms)')
+    if garage: freezes(garage, 'garage', t[garage[0]])
+    if world: freezes(world, 'world ', t[world[0]])
+    P('  (a slot can be billed for a neighbour\'s work: the first pass to draw pays the uploads of the frame)')
+
+    if world:
+        t0 = t[world[0]]; blocks = collections.defaultdict(lambda: [0, 0, 0])
+        for i in world:
+            b = blocks[int((t[i] - t0) // 20000)]; b[0] += 1
+            if dt[i] > 35: b[1] += 1      # (the profiler's ORANGE bar and freeze_ledger.js's limit: a frame that missed its 30 fps tick)
+            if dt[i] > 100: b[2] += 1
+            if dt[i] > 50: b.append(1)
+        nb = len(blocks); orange = sum(1 for b in blocks.values() if b[1]); red = sum(1 for b in blocks.values() if b[2])
+        P('')
+        P('## Row 9, evenness (target: at most 5 % of 20-second blocks with a frame over 35 ms, none with a freeze)')
+        P('- %d of %d blocks have a frame over 35 ms (%.0f %%); %d have one over 50 ms; %d have a frame over 100 ms' % (orange, nb, 100.0 * orange / nb, sum(1 for b in blocks.values() if len(b) > 3), red))
+        line = ''.join('R' if blocks[k][2] else 'o' if blocks[k][1] else '.' for k in sorted(blocks))
+        P('- the flight, a character a block (. even, o a frame over 35 ms, R over 100 ms):');
+        for a in range(0, len(line), 60): P('    ' + line[a:a + 60])
+        # what the excess is made of
+        ex = collections.Counter(); tot = 0.0
+        for i in world:
+            if dt[i] <= 50: continue
+            over = dt[i] - 50; tot += over
+            parts = [(f[s][i] or 0, s) for s in slots if s in f]; sm = sum(v for v, s in parts) or 1.0
+            for v, s in parts: ex[s] += over * v / sm
+        P('')
+        P('## What the time over 50 ms is made of (world, %.1f s in all), by the frame\'s own slots' % (tot / 1000.0))
+        for s, v in ex.most_common(8): P('- %-7s %5.1f s  %4.1f %%' % (s, v / 1000.0, 100.0 * v / max(tot, 1e-9)))
+        on = [i for i in world if (mir[i] or 0) >= 1.0]
+        if on:
+            ms = sorted(mir[i] for i in on); hi = [i for i in on if (agl[i] or 0) >= 400]
+            P('')
+            P('## The water mirror')
+            P('- running %.1f %% of the world\'s time (%.0f s), %.0f %% of that above 400 m; its slot %.1f ms median, %.1f at the 90th percentile' % (
+                100.0 * secs(on) / secs(world), secs(on), 100.0 * secs(hi) / max(secs(on), 1e-9), ms[len(ms) // 2], ms[int(len(ms) * .9)]))
+        big = [e for e in ev if e[1] == 'gpuup' and isinstance(e[3], dict) and e[3].get('buf') and e[3]['buf'][1] >= 30 and t0 <= e[0] <= t[world[-1]]]
+        P('')
+        P('## Uploads of 30 ms or more to the graphics card (world)')
+        if big:
+            mb = sorted(e[3]['buf'][2] / 1024.0 for e in big)
+            P('- %d of them, %.1f s in all, median %.0f MB, the largest %.0f MB' % (len(big), sum(e[3]['buf'][1] for e in big) / 1000.0, mb[len(mb) // 2], mb[-1]))
+        else: P('- none')
+    text = '\n'.join(out)
+    print(text)
+    if md: io.open(md, 'w', encoding='utf-8', newline='\n').write(text + '\n')
+    return 0
+
+if __name__ == '__main__': sys.exit(main())

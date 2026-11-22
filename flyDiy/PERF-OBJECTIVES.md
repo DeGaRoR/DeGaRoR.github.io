@@ -16,6 +16,7 @@ Permanent. Every perf report, benchmark and ready is measured against this table
 | 10 | Responsive loading screens | the screen remains responsive during all loading screens | input/animation frame during loading, no long task blocking it |
 | 11 | Music and radio Jolene during loading screens | available (not working on 21 Nov) | audible, uninterrupted |
 | 12 | No "page unresponsive" prompt | the browser never prompts during a whole normal play sequence | full sequence run |
+| 13 | 30 frames a second (the user, 22 Nov 2026: "it was implicit") | 30 fps held, in the garage and in flight, at the user's screen (5120x1440) | flight log: seconds of the session with 29 frames or more (proposed bar: 95 %; 84 % in the world on 22 Nov), read by tools/perf/user_log.py; a 1024-wide run beside it tells the screen's share |
 
 The user also notes (21 Nov): the sound misbehaves during lags and freezes (huge saturation, slow-down and speed-up, pitch variation). The audio must be robust to main-thread stalls, isolated like the UI's responsiveness.
 
