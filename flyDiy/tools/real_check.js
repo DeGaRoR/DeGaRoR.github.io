@@ -208,6 +208,17 @@ function airframe(spec, lc, R, P) {
   const deAppr = apprTrim(sim, def, W, fL, Vs0), deApprClean = apprTrim(sim, def, W, 0, Vs);
   // the rows stated at an altitude or a power
   const atRow = {};
+  // (step 4) A FLOWN GLIDE ROW (row.prop 'idle': a handbook's engine-out glide) is read with the propeller in it - dead
+  // and windmilling, or a motor's off (60_gen_spec GEN_PROP_IDLE: a share of the disc as drag); a computed polar's or
+  // a glider's row ('none') and a brochure's ('unknown') stay the clean reading
+  if (R.rows && R.rows.LD && R.rows.LD.prop === 'idle' && typeof C.genPropIdleK === 'function') {
+    const pr = (defUp || def).params.prop, kw = C.genPropIdleK((defUp || def).params.engine, pr, 'dead');
+    if (kw > 0) {
+      const cdA = kw * Math.PI * pr.D * pr.D / 4 * ((defUp || def).params.nEngines || 1), rho = simF.probeAir().rho;
+      let best = 0; for (const r of rows) best = Math.max(best, W / (r.drag + 0.5 * rho * r.V * r.V * cdA));
+      atRow.LD = best;
+    }
+  }
   for (const rk of Object.keys(R.rows || {})) {
     const row = R.rows[rk], k = row.key || rk, kP = row.power > 0 ? row.power : 1, h = row.alt > 0 ? row.alt : 0, rK = row.rpm > 0 && row.rpm < 1 ? row.rpm : 0;
     if (kP === 1 && !h && !rK) continue;

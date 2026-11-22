@@ -119,7 +119,10 @@ function run() {
   // the key: off = no thrust, windmill
   sim.setEngine(0, { key: 'off' });
   sim.step(1 / 60);
-  check(sim.out.thrust === 0 && sim.eng[0].running === false, 'sim: key off stops the engine');
+  // (PHYSICS-AUDIT step 4, 2026-11-21: a stopped engine's propeller is a brake - its thrust is no longer exactly 0 but
+  //  minus its windmilling drag, k q A; against the brakes that is a creep's worth, under a newton. The check is the
+  //  same claim: no thrust from an engine that is off)
+  check(sim.out.thrust <= 0 && sim.out.thrust > -1 && sim.eng[0].running === false, 'sim: key off stops the engine (no thrust; ' + sim.out.thrust.toExponential(1) + ' N of windmilling drag against the brakes)');
   check(sim.fuel.burnKgH === 0, 'sim: a stopped engine burns nothing');
   sim.setEngine(0, { key: 'both' });
   check(sim.eng[0].running === false, 'sim: mags on does not start an engine by itself');
@@ -152,7 +155,7 @@ function run() {
     s3.reset(); s3.ctl.brake = 1; s3.ctl.thr = 1;
     let tDry = -1;
     for (let i = 0; i < 60 * 150 && tDry < 0; i++) { s3.step(1 / 60); if (!s3.eng[0].running) tDry = i / 60; }
-    check(tDry > 0 && s3.fuel.kg === 0 && s3.out.thrust === 0,
+    check(tDry > 0 && s3.fuel.kg === 0 && s3.out.thrust <= 0 && s3.out.thrust > -1,   // (step 4: no thrust - at most the stopped propeller's drag at a creep)
       'sim: a 0.4 L tank runs dry at full throttle and the engine stops',
       tDry > 0 ? tDry.toFixed(0) + ' s' : 'never');
     const expect = 0.4 * 0.72 / TH.burnKgH * 3600;

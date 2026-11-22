@@ -2596,6 +2596,19 @@ function makeSim(def, world) {
     return t >= 1 ? 1 : t > 0 ? t : 0;
   }
   let THR_LIM = 1;                                   // this frame's (the aero pass sets it; the burn reads it)
+  // THE PROPELLER AT IDLE (PHYSICS-AUDIT step 4, 2026-11-21; 60_gen_spec GEN_PROP_IDLE): each propeller's drag as a
+  // share of its disc - by its engine's state: turning (x what is left of the throttle), dead and windmilling, seized.
+  // Nothing at full throttle and nothing standing: the thrust those always had, to the bit. No propeller: nothing.
+  const KW_RUN = typeof genPropIdleK === 'function' ? genPropIdleK(EN, PR, 'run') : 0;
+  const KW_DEAD = typeof genPropIdleK === 'function' ? genPropIdleK(EN, PR, 'dead') : 0;
+  const KW_STOP = typeof genPropIdleK === 'function' ? genPropIdleK(EN, PR, 'stopped') : 0;
+  const KW_ON = KW_RUN > 0 || KW_DEAD > 0;
+  // the idling propellers' drag (N, every engine turning, throttles closed) at V in the probe's air: the trim's reading
+  function idleDragAt(V, hAlt) {
+    if (!KW_ON) return 0;
+    const A = airOf();
+    return (def.params.nEngines || 1) * KW_RUN * 0.5 * A.rho(hAlt == null ? hProbe : hAlt) * V * V * PROPA;
+  }
   function thrEffOf(i) {
     const e = eng[i]; if (!e || !e.running) return 0;
     const le = ctl.eng && ctl.eng[i];
@@ -3378,7 +3391,13 @@ function makeSim(def, world) {
         // the panel arc: a stopped engine pulls nothing (every engine runs
         // unless the key or the tanks say otherwise — bit-identical before)
         const run = !eng[i] || eng[i].running;
-        Ti[i] = run ? (TLIM < 1 ? Math.min(TLIM, ctl.thr * lev(i)) : ctl.thr * lev(i)) * Tcap * DK[i] : 0; T += Ti[i];   // (DK: G1826's factor, 1 unless the drive is hurt)
+        Ti[i] = run ? (TLIM < 1 ? Math.min(TLIM, ctl.thr * lev(i)) : ctl.thr * lev(i)) * Tcap * DK[i] : 0;
+        if (KW_ON) {                                 // (PHYSICS-AUDIT step 4: the propeller that is not driven is a brake)
+          const kw = run ? KW_RUN * (1 - Math.max(0, Math.min(TLIM, ctl.thr * lev(i))))
+                         : (eng[i] && eng[i].seized ? KW_STOP : KW_DEAD);
+          if (kw > 0) Ti[i] -= kw * 0.5 * rho * Vfwd * Vfwd * PROPA;
+        }
+        T += Ti[i];   // (DK: G1826's factor, 1 unless the drive is hurt)
         // and the shaft speed the tacho reads: prop rpm, then through the
         // reduction unit (00_registry.js genShaftRpm, the one law)
         if (typeof genShaftRpm === 'function') {
@@ -5059,7 +5078,7 @@ function makeSim(def, world) {
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
-           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, probeAir,
+           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, idleDragAt, probeAir,
            // RETRACT-1: the retractable gear - null on a fixed build. gear(): { pos 0 up..1 down, locked (down and
            // locked), up (stowed), moving -1/0/1, wow (a wheel on the ground: the squat switch), power, emerg, handle
            // (ctl.gear) }; gearPower(on) the page's bus; gearEmergency() the emergency extension (down, at its rate,

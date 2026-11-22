@@ -988,6 +988,10 @@ const GATES = [
   // material, no propeller over its disc, the redline on the tachometer's own law, the pitch classes, a governed or
   // absent propeller untouched, the built spec a fixed point.
   { id: 'PROPFIT', file: '_propfit_check.js', tier: 'core', wall: 5 },
+  // IDLEPROP (PHYSICS-AUDIT step 4, 21 Nov): the propeller that is not driven is a brake - nothing at full throttle or
+  // standing, a share of the disc as drag with the throttle closed (by the engine's state: turning, dead, seized,
+  // electric, governed), linear between; the trim's cruise and approach throttles on the same law; nothing diverges.
+  { id: 'IDLEPROP', file: '_idleprop_check.js', tier: 'core', wall: 10 },
   // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
   // stand beside your build, held to their PUBLISHED span and length — every
   // measurement taken against a reference is worth exactly what that check is

@@ -173,8 +173,10 @@ function genTrim(def) {
   // prop (a GARAGE build always has one) AND its engine count — the two things
   // this block used to re-derive, and the second of which it once got wrong
   // (it read the per-disc figure while the solver flew on twice it, G4.9).
-  const Tavail = sim.thrustAt(V, 1);
-  def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
+  // (PHYSICS-AUDIT step 4: the thrust runs from the idling propellers' drag to the law's thrust, T = thr Tav - (1 -
+  //  thr) Dw, so the throttle that balances a drag D is (D + Dw) / (Tav + Dw); Dw 0 on a build without a propeller)
+  const Tavail = sim.thrustAt(V, 1), DwC = sim.idleDragAt ? sim.idleDragAt(V) : 0;
+  def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, DwC > 0 ? (fin.r.drag + DwC) / (Tavail + DwC) : fin.r.drag / Tavail));
   def.params.gen.alphaCruise = fin.a;
   def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
   // G185: how the lift is shared between the planes at cruise (a monoplane's
@@ -330,8 +332,12 @@ function genTrim(def) {
       sim.ctl.flap = 0; g.alphaApprClean = genAlphaForLift(sim, g.VApprClean, W, aMax); sim.ctl.flap = ldg;
     } else { g.VApprClean = Va; g.alphaApprClean = aA; }
     g.LDappr = rA.Fy / Math.max(1e-6, rA.drag);
-    g.dragAppr = rA.drag;
-    g.TavailAppr = Tav(Va);
+    // (PHYSICS-AUDIT step 4: the approach's two numbers carry the idling propellers' drag Dw - the idle-equilibrium
+    //  slope genTuneAP compares the glideslope with is the aeroplane's WITH its propeller idling, and the throttle on
+    //  the slope is (D + Dw - W gs) / (Tav + Dw): the same lines, the same algebra. Dw 0 without a propeller)
+    const DwA = sim.idleDragAt ? sim.idleDragAt(Va) : 0;
+    g.dragAppr = DwA > 0 ? rA.drag + DwA : rA.drag;
+    g.TavailAppr = DwA > 0 ? Tav(Va) + DwA : Tav(Va);
     // arrival attitude, for the flare ceiling
     g.alphaTD = genAlphaForLift(sim, 1.10 * (g.VsFlapAP || g.VsFlap), W, aMax);
     sim.ctl.flap = 0;

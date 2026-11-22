@@ -2980,6 +2980,37 @@ function genPropFit(pr, o) {
   return pr;
 }
 
+// THE PROPELLER AT IDLE IS A BRAKE (PHYSICS-AUDIT step 4, 2026-11-21; reports/PHYSICS-AUDIT-2026-11-21.md; GATE
+// IDLEPROP). The thrust was `throttle x max(0, Tstatic - kV2 V^2)`: with the throttle closed the propeller was not
+// there, and the aeroplane glided on its clean polar - the 172 at 11.2:1 where its handbook, propeller windmilling,
+// gives 9.0 at 65 KIAS. A propeller that is not driven is driven BY the air: its disc takes momentum out of the stream.
+// As a drag area, a share `k` of the disc's own:  D = k x q x A  (per propeller), and the thrust runs linearly from
+// that drag with the throttle closed to the law's thrust with it open:
+//     T(thr) = thr x Tcap(V) - (1 - thr) x k q A
+//   dead      a fixed pitch WINDMILLING on a dead engine, 0.10: the 172R's polar (drag area 0.54 m2, e 0.70, measured
+//             and matched to its top speed) glides 9.2:1 at 128 km/h with 0.10 of its 2.85 m2 disc - the POH's 9.0 at
+//             120. Hoerner (Fluid-Dynamic Drag, ch. 13) puts a windmilling propeller at 0.1-0.2 of its disc
+//   run       the same propeller on an engine IDLING, 0.05: the idling engine carries half of what the air would have
+//             to (an idle-power glide is flatter than an engine-out one: every instructor's warning about practice
+//             forced landings)
+//   stopped   a seized engine's stopped blades, 0.04 (Raymer: 0.8 x the solidity x the disc, a two-blade's 0.05)
+//   electric  a motor's propeller, driven or not, 0.03: nothing to turn over but the rotor (the Velis's 15:1 is flown
+//             with the motor off)
+//   governedDead  a governed propeller on a dead engine goes coarse or feathers, 0.02
+// The throttle that gives no thrust at all is k q A / (Tcap + k q A): a few per cent on the approach. Read by the
+// solver (30_solver, each engine by its own state), by the trim (64_gen_build: the cruise and approach throttles are
+// solved on the same line) and by real_check's glide rows. No propeller (an unpowered build): nothing.
+const GEN_PROP_IDLE = { run: 0.05, dead: 0.10, stopped: 0.04, electric: 0.03, governedDead: 0.02 };
+// `state` 'run' (the engine turning, by its throttle) | 'dead' (windmilling) | 'stopped' (seized)
+function genPropIdleK(eng, pr, state) {
+  if (!pr || !(pr.D > 0) || !(pr.Tstatic > 0)) return 0;
+  const K = GEN_PROP_IDLE, e = eng || {};
+  if (e.aspiration === 'electric') return K.electric;
+  if (state === 'stopped') return K.stopped;
+  if (state === 'dead') return e.cs ? K.governedDead : K.dead;
+  return K.run;
+}
+
 // WHICH PITCH THIS AEROPLANE WANTS, given the stall speed its wing actually
 // measured.
 //
@@ -4348,6 +4379,10 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //              the actuator disc's thrust there) and held to its redline (30_solver thrLimit, on the tachometer's own
 //              law): every powered build's thrust curve moves - a wooden standard propeller's by a per cent or two, a
 //              metal or composite one's by ~6 % at the top end, a slow aeroplane's by a third in the climb
+//      step 4  the propeller at idle is a brake (GEN_PROP_IDLE, 30_solver): below full throttle every powered build
+//              carries a share of its disc as drag - nothing at full throttle or standing, a few per cent of the
+//              cruise throttle, a steeper glide and a shorter float with the throttle closed; the trim's cruise and
+//              approach throttles are solved on the same law
 const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
