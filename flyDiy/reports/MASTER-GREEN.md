@@ -22,6 +22,13 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
   - **DMGSKIN** (17:30 UTC): "nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key
     in the meta" - with nothing broken the host still sends a payload, bytes or a meta key (the row has no time budget).
     **Run alone on master L40h on this same box: GATE DMGSKIN: PASS** - so it is the candidate's, not the machine's.
+  - **DMGSETTLE** (18:25 UTC): "metal trunk-0: every detached piece's covering ON the ground, not over it (-40.3 cm;
+    within +2 / -25)". **Run alone on master L40h on this same box: GATE DMGSETTLE: PASS** - the candidate's. It is the
+    metal Cessna again (with TAKEOFF and ROUTE: three reds on that aeroplane).
+  - **DMGUPLOAD** (18:25 UTC; the page in node): on the metal Cessna and the Cub, "the flown bake was not the test's fake
+    (FB.last.hit null)", "no hybrid fold was made", "no drawn fold buffer checked", and the page logs "THREE.BufferGeometry
+    .computeBoundingBox(): GLBufferAttribute requires a manual bounding box". NOT yet run on master here (it needs ~6 GB:
+    after the battery); until then read it as candidate OR this box.
   - MONOWHEEL, red on L40h, PASSES on the candidate.
 - **Running here since 10:52 UTC** on origin/claude/train/L40J-candidate f80229d71: the 364 core gates / 387 jobs,
   `GATES_CORE=1`, `--no-build`, `--jobs=4`, `node --max-old-space-size=4096`. 4 CPUs / 15 GB, about 1.5x slower per core
