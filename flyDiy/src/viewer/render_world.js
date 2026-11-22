@@ -3949,16 +3949,27 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // against its own 3D tree at the hand-over (HANDOVER G2590); 1 where unmeasured. TREE_LOD.impLevel(key, k) moves it live
     // measured 2026-10-08 13:44-13:56 (gamer + potato x golden + noon, front-lit at the hand-over, after the trunk's own
     // tint; the geometric mean of the four runs' 1 / core, each clamped 0.7-1 - tools/perf/deadwood/match4.js, agg.js)
+    // CONIFER CAMPS (MOUNTAIN-VEG 22 Nov; the user: "our forest conifers, at least their impostors, started shifting in 2 camps; light ones and
+    // dark ones ... much less of a difference in the close up models"): the live sheets were measured in game at 11:52 (rig_lvl, page_rig: one
+    // species planted at a time, the wood edge at 100-200 m, every tree a model then every tree an impostor) - impostor / model foliage
+    // luminance realistic_fir 0.80, spruce 0.73, fir_georgeous 0.85, cedar 0.64, larch 0.87, pine_georgeous 0.61, pine_evolveduk 0.71: each
+    // sheet lost a DIFFERENT share, widening the models' own spread (x1.8) to x2.7 at the stand-in distance; and realistic_fir / fir_georgeous
+    // were never measured (1.0). Each conifer sheet is now set to the mean ratio (0.744) / its own: every impostor stands in the same relation
+    // to its model, the far forest's mean level kept (the 8 Oct values replaced; the snags' kept)
     const IMP_LEVEL = {
-      'cedar_tree.glb|Cedar_LOD0|rungs': 0.946,
+      'cedar_tree.glb|Cedar_LOD0|rungs': 1.16,
       'cedar_tree.glb|Cedar_LOD0|snag': 0.822,
       'dead_conifer|Coniferous Dead Tree 2_14|rungs': 0.897,
       'dead_conifer|Coniferous Dead Tree_13|rungs': 0.862,
-      'larch_tree.glb|Larch_LOD0|rungs': 0.925,
+      'fir_tree_georgeous.glb|Fir01_LOD0|rungs': 0.875,
+      'larch_tree.glb|Larch_LOD0|rungs': 0.855,
       'larch_tree.glb|Larch_LOD0|snag': 0.87,
-      'pine_georgeous.glb|Pine01_LOD0|rungs': 0.908,
+      'pine_evolveduk.glb|Tree_0|rungs': 1.05,
+      'pine_georgeous.glb|Pine01_LOD0|rungs': 1.22,
       'pine_georgeous.glb|Pine01_LOD0|snag': 0.915,
-      'spruce_tree.glb|Spruce_LOD0|rungs': 0.887,
+      'realistic_fir_trees_pack_lods_gameready.glb|Christmas tree|rungs': 0.93,
+      'realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2|rungs': 0.93,
+      'spruce_tree.glb|Spruce_LOD0|rungs': 1.02,
       'spruce_tree.glb|Spruce_LOD0|snag': 0.891 };
     IMPA.levelKey = []; IMPA.levelLive = {};
     const impLevelOf = key => (key && IMPA.levelLive[key] !== undefined) ? IMPA.levelLive[key] : (key && IMP_LEVEL[key] !== undefined ? IMP_LEVEL[key] : 1);
