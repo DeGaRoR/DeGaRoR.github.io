@@ -15,6 +15,8 @@
 //     any-order chapter or a step of one project; a whole career WALKED to its end - every mission done, every project
 //     done, no drawn job, one career for three seeds; every project step reached in its order; the story's end = the
 //     sandbox's final state on every track a project builds; every aerodrome used
+//   15 the start and the machinery: a career adopts the pack once (its hangars lose the kits the start names), the
+//     projects give them back, nothing is bought; a career begun on another pack keeps what the pack still holds
 //   8 pack.clients: a client the pack brings stands in the providers table while the pack is in use, and leaves with it
 //   node tools/_storypack_check.js   -> "GATE STORYPACK: PASS|FAIL"
 'use strict';
@@ -294,8 +296,8 @@ C.missionPackUse(mk({ jobs: 'none' }));
     ok(!rest.length, '12 ...and every other track too: at the story\'s end EVERY track stands at its max - the sandbox\'s world', rest.map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' ') || Object.keys(MAX).length + ' tracks');
     const unl = W1.events.filter(e => e.k === 'unlock' && e.project).map(e => e.unlock);
     ok(new Set(unl).size === unl.length && unl.length === N.projects.reduce((a, q) => a + q.steps.filter(st => st.track).length, 0), '12 every step with a world stage unlocked it exactly once', unl.length + ' unlocks');
-    ok(J(W1.d.career.abilities) === J(['kit:metal', 'tech:2', 'hangar:home', 'tech:3']) || W1.d.career.abilities.slice().sort().join() === 'hangar:home,kit:metal,tech:2,tech:3',
-       '12 what the story gives: the metal shop and segment 2 (the old hangar), segment 3 (the observatory), the home hangar', W1.d.career.abilities.join()); }
+    ok(W1.d.career.abilities.slice().sort().join() === 'hangar:home,kit:metal,kit:wood,tech:2,tech:3',
+       '12 what the story gives: the metal shop and segment 2 (the old hangar), the wood shop (the new cabin), segment 3 (the observatory), the home hangar', W1.d.career.abilities.join()); }
   // 13 THE ISLAND IS USED: every aerodrome is a place of some mission
   { const used = new Set();
     for (const id of ids) for (const u of C.contractSubsOf(C.contractAuthored()[id])) for (const k of ['from', 'to', 'at']) if (u[k]) used.add(u[k]);
@@ -309,6 +311,40 @@ C.missionPackUse(mk({ jobs: 'none' }));
     ok(ev.every(id => !C.contractRuntimeOk(AU2[id])) && ev.filter(id => AU2[id].timers || AU2[id].stol).every(id => C.contractCertNeed(AU2[id]) === 'comm'), '14 the runtime runs every one; a scored event needs the commercial certificate');
     const gh = ev.filter(id => JSON.stringify(AU2[id]).includes('"ghost"'));
     ok(gh.length === 3, '14 three carry a fixed ghost (the rival\'s result, the same for every player)', gh.join()); }
+  // 15 THE START AND THE MACHINERY: a career adopts the pack once - its hangars lose the kits the start names; the projects
+  // give them back; nothing is bought
+  { const use2 = C.missionPackUse(SP);
+    const aeros = [{ id: 'HOME', name: 'Jolene AFB 13/31', kind: 'strip' }, { id: 'w1', name: 'Cabin Strip', kind: 'strip' }, { id: 'w6', name: 'Old Community Runway', kind: 'strip' }, { id: 'SEA', name: 'Greywater Dock', kind: 'water' }];
+    let d = C.storySkip(C.careerNormalise(C.careerNew({ id: 'ad', seed: 'ad', name: 'ad' })), { aeros }).doc;
+    const kits = h => d.sheds[h].kits.join(), caps = h => [...C.hangarCaps(d.sheds[h])];
+    ok(/metal/.test(kits('HOME')) && /wood/.test(kits('w1')), '15 before the pack is adopted: the hangars as a career has them today (every kit)');
+    const a1 = C.careerPackAdopt(d, use2); d = a1.doc;
+    ok(a1.notes.length === 2 && !/metal|wood/.test(kits('HOME')) && !/metal|wood/.test(kits('w1')) && /bench/.test(kits('HOME')) && d.career.pack.id === 'story',
+       '15 adopted: both hangars start without the metal shop and the wood shop (the bench stays)', a1.notes.join(' | '));
+    ok(!caps('HOME').includes('metal') && !caps('HOME').includes('wood') && caps('HOME').includes('handwork'), '15 ...so the hangar earns neither verb yet', caps('HOME').join());
+    const a2 = C.careerPackAdopt(d, use2);
+    ok(a2.doc === d && !a2.notes.length, '15 adopting again changes nothing (the very same document)');
+    // the old hangar's last step, then the new cabin: the kits arrive
+    const stepDone = (q, k) => { d.career.projects = d.career.projects || {}; const Q = use2.projects.find(x => x.id === q); for (let i = 0; i <= k; i++) for (const m of Q.steps[i].missions) d.career.contracts.done.push({ id: m, at: 0, pay: 0 });
+      let t = 0, ev = []; for (let i = 0; i < 40; i++) { t += C.MISSION_DAY_S; const r = C.careerProjectsTick(d, use2.projects, t); d = r.doc; ev.push(...r.events); } return ev; };
+    let ev = stepDone('hangar', 2);
+    ok(/metal/.test(kits('HOME')) && /metal/.test(kits('w1')) && !/wood/.test(kits('HOME')) && ev.some(e => e.k === 'gives' && e.what === 'kit:metal') && caps('HOME').includes('metal') && C.careerTechSeg(d) === 2,
+       '15 the old hangar restored: the metal shop stands in both hangars, the verb earned, segment 2 open - given, not bought', kits('HOME'));
+    ok(kits('HOME') === C.HANGAR_KITS_DEFAULT.filter(k => k !== 'wood').join(), '15 ...in the kits\' own order');
+    const w0 = d.wallet; ev = stepDone('home', 1);
+    ok(/wood/.test(kits('HOME')) && /wood/.test(kits('w1')) && caps('w1').includes('wood'), '15 the new cabin built: the wood shop stands in both', kits('w1'));
+    ok(d.ledger.filter(l => l.k === 'works').length === 2 && !d.ledger.some(l => /kit/.test(l.k + ' ' + (l.ref || ''))), '15 the ledger: the home works paid, no kit bought');
+    // a career begun on another pack: an accepted mission no table knows is dropped at the adoption, said
+    C.missionPackUse(B);
+    let e = C.careerNormalise(C.careerNew({ id: 'old', seed: 'old', name: 'old' })); e = C.careerAccept(e, 'field.01').doc;
+    const j = C.careerOfferIds(e).find(id => /^job:/.test(id)); e = C.careerAccept(e, j).doc;
+    e.career.contracts.accepted.push('field.03'); e.career.contracts.live['field.03'] = { stage: 0, subs: [], picked: [], got: {} };
+    const use3 = C.missionPackUse(SP), a3 = C.careerPackAdopt(e, use3);
+    ok(a3.doc.career.contracts.accepted.join() === 'field.01,' + j && a3.notes.some(n => /no longer on any board: field\.03/.test(n)),
+       '15 a career begun on the built-in pack: the mission the story pack does not hold is dropped and said; the one it holds and an accepted drawn job (kept as offered) stay', a3.notes.join(' | '));
+    const bad = C.missionPackValidate(Object.assign({}, SP, { start: { sheds: { HOME: { without: ['park', 'laser'] } }, money: 5 } }));
+    ok(bad.some(w => /the bare shed stays/.test(w)) && bad.some(w => /no hangar kit laser/.test(w)) && bad.some(w => /start\.money is not known/.test(w)), '15 a start that takes the bare shed, names no kit or says something else: refused', bad.slice(0, 3).join('; '));
+  }
   C.missionPackUse(B);
 }
 

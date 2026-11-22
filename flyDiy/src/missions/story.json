@@ -4,6 +4,7 @@
   "id": "story",
   "title": "Wingsmith",
   "rules": {"jobs":"none","shady":false,"unflyable":"offer"},
+  "start": {"sheds":{"HOME":{"without":["metal","wood"]},"w1":{"without":["metal","wood"]}}},
   "clients": [
     {"id":"home","fields":["w1","cb_sea"],"track":"home","person":"sophie","colour":"#c9785a"},
     {"id":"community","fields":["w6","w7"],"track":"community","person":"james","colour":"#7d9a8c"},
@@ -177,7 +178,7 @@
     ]},
     {"id":"home","name":"Home improvement","client":"home", "steps": [
       {"id":"strip","missions":["home.01","home.02"],"works":{"cost":1500,"days":2},"site":{"id":"w1","state":"strip"},"track":"home:1"},
-      {"id":"cabin","missions":["home.03","home.04","home.05"],"works":{"cost":6000,"days":4},"site":{"id":"w1","state":"cabin"},"track":"home:2"},
+      {"id":"cabin","missions":["home.03","home.04","home.05"],"works":{"cost":6000,"days":4},"site":{"id":"w1","state":"cabin"},"track":"home:2","gives":["kit:wood"]},
       {"id":"road","missions":["home.06","home.07"],"works":{"cost":4000,"days":5},"site":{"id":"w1","state":"road"},"track":"home:3"},
       {"id":"dock","missions":["home.08","home.09"],"works":{"cost":3000,"days":3},"site":{"id":"cb_sea","state":"dock"},"track":"home:4"},
       {"id":"lakeside","missions":["home.10","home.11"],"works":{"cost":8000,"days":4},"site":{"id":"cb_sea","state":"lakeside"},"track":"home:5"},

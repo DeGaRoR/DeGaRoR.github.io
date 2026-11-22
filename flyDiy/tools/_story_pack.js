@@ -294,7 +294,7 @@ H('home.14', [leg(carry('w3', 'w1', 200, 0))], { rep: 0.5 },
 projects.push({ id: 'home', name: 'Home improvement', client: 'home',
   steps: [
     { id: 'strip', missions: ['home.01', 'home.02'], works: { cost: 1500, days: 2 }, site: { id: 'w1', state: 'strip' }, track: 'home:1' },
-    { id: 'cabin', missions: ['home.03', 'home.04', 'home.05'], works: { cost: 6000, days: 4 }, site: { id: 'w1', state: 'cabin' }, track: 'home:2' },
+    { id: 'cabin', missions: ['home.03', 'home.04', 'home.05'], works: { cost: 6000, days: 4 }, site: { id: 'w1', state: 'cabin' }, track: 'home:2', gives: ['kit:wood'] },
     { id: 'road', missions: ['home.06', 'home.07'], works: { cost: 4000, days: 5 }, site: { id: 'w1', state: 'road' }, track: 'home:3' },
     { id: 'dock', missions: ['home.08', 'home.09'], works: { cost: 3000, days: 3 }, site: { id: 'cb_sea', state: 'dock' }, track: 'home:4' },
     { id: 'lakeside', missions: ['home.10', 'home.11'], works: { cost: 8000, days: 4 }, site: { id: 'cb_sea', state: 'lakeside' }, track: 'home:5' },
@@ -402,13 +402,17 @@ const campaigns = [
 ];
 for (const m of BUILTIN.missions) if (m.tutorial) missions.push(clone(m));
 
-const pack = { what: 'flydiy-missions', v: 1, id: 'story', title: 'Wingsmith', rules: { jobs: 'none', shady: false, unflyable: 'offer' },
+// THE START (the user 13 Nov: "no buying machinery ... Start = tube and fabric (not woodworking) ... Old hangar -> metal
+// shop"): a career on this pack starts with no metal shop and no wood shop in either of its hangars; the old hangar's last
+// step gives the metal shop, the new cabin gives the wood shop (a PROPOSAL of this ladder: reports/STORY-REVAMP.md)
+const start = { sheds: { HOME: { without: ['metal', 'wood'] }, w1: { without: ['metal', 'wood'] } } };
+const pack = { what: 'flydiy-missions', v: 1, id: 'story', title: 'Wingsmith', rules: { jobs: 'none', shady: false, unflyable: 'offer' }, start,
   clients, campaigns, missions, projects, sites: [], text };
 
 // one mission, one project, one text key per line: the pack diffs by line
 function packText(p) {
   const J = o => JSON.stringify(o);
-  const L = ['{', '  "what": ' + J(p.what) + ',', '  "v": ' + J(p.v) + ',', '  "id": ' + J(p.id) + ',', '  "title": ' + J(p.title) + ',', '  "rules": ' + J(p.rules) + ','];
+  const L = ['{', '  "what": ' + J(p.what) + ',', '  "v": ' + J(p.v) + ',', '  "id": ' + J(p.id) + ',', '  "title": ' + J(p.title) + ',', '  "rules": ' + J(p.rules) + ',', '  "start": ' + J(p.start) + ','];
   const list = (k, rows, last) => { L.push('  ' + J(k) + ': ['); rows.forEach((r, i) => L.push('    ' + J(r) + (i < rows.length - 1 ? ',' : ''))); L.push('  ]' + (last ? '' : ',')); };
   list('clients', p.clients);
   L.push('  "campaigns": [');
