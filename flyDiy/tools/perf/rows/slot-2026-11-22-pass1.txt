@@ -44,3 +44,8 @@ BASED_1     ; D:/Dev/perf-lab-built ; based=1 ; new ; H5K ; -
 # MOUNTAIN-VEG's alpine rock scatter (default on in its ref; ?alprocks=0 = off). UNCOMMENT only if its ref is in the lab
 # build: the load must not move (nothing of it is built before the reveal); its frames need an alpine orbit, not a load.
 #ALPROCKS0_1 ; D:/Dev/perf-lab-built ; alprocks=0 ; new ; H5K ; -
+# A RETURNING PLAYER (the 06:00 result: worldCompile 36 -> 4 s on a second visit, but the garage's 'compile' step 2 -> 10-20 s
+# and the load only 114 -> 93-106 s). The same three loads on the lab build, whose flight log names what 'compile' waits for.
+WARM_1      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
+WARM_2      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
+WARM_3      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; --rollout

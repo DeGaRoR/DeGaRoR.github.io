@@ -24,3 +24,6 @@ LOGS0_2     ; D:/Dev/perf-lab-built ; shaderlogs=0 ; new ; H5K ; -
 PACE16_2    ; D:/Dev/perf-lab-built ; pace=16 ; new ; H5K ; -
 PACE0_2     ; D:/Dev/perf-lab-built ; pace=0 ; new ; H5K ; -
 BASE_6      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
+# the 1 GiB program cache made a second visit's 'frames' step 4 -> 30-35 s at 06:00: one pair with the log, to name it
+BIGCACHE_1  ; D:/Dev/perf-lab-built ; - ; big ; H5K ; --chrome --gpu-program-cache-size-kb=1048576 --chrome --gpu-disk-cache-size-kb=1048576
+BIGCACHE_2  ; D:/Dev/perf-lab-built ; - ; big ; H5K ; --chrome --gpu-program-cache-size-kb=1048576 --chrome --gpu-disk-cache-size-kb=1048576

@@ -28,7 +28,7 @@ fi
 say "slot start, $MIN min, lab $LAB ($(cat "$LAB/flyDiy/version.json" 2>/dev/null))"
 
 # 1. pass 1 (its own cap: what the journey, audio and a useful pass 2 leave it)
-P1=${SLOT_P1_MIN:-80}
+P1=${SLOT_P1_MIN:-88}
 say "part 1: pass 1, cap $P1 min"
 LM_HELD=1 LM_DRY=$SLOT_DRY bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass1.txt" "$OUT/pass1" $P1 2>&1 | tee -a "$LOG"
 
