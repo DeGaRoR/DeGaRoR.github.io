@@ -38,7 +38,7 @@ JOURNEY_MIN=${SLOT_JOURNEY_MIN:-42}
 if [ $(left) -ge $(( JOURNEY_MIN + 5 )) ]; then
   say "part 2: the journey, cap $JOURNEY_MIN min"
   if [ -z "$SLOT_DRY" ]; then
-    ( cd "$LAB/flyDiy" && timeout $(( JOURNEY_MIN * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/main_journey.json --runner page --headed --live --size 5120x1271 --out "$OUT/journey" --cap 2400 ) 2>&1 | tail -40 | tee -a "$LOG"
+    ( cd "$LAB/flyDiy" && timeout $(( JOURNEY_MIN * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/main_journey.json --runner page --headed --live --size 5120x1271 --q "recring=131072" --out "$OUT/journey" --cap 2400 ) 2>&1 | tail -40 | tee -a "$LOG"
     J=$(ls -t "$OUT"/journey/*.flightlog.json 2>/dev/null | head -1)
     [ -n "$J" ] && ( cd "$LAB/flyDiy" && nice -n 19 node tools/freeze_ledger.js "$J" --md "$OUT/journey/freezes.md" --show 60 ) 2>&1 | tail -20 | tee -a "$LOG"
   fi
