@@ -354,9 +354,10 @@ function houseWorkerBody(G, port) {
   const UQ = []; let uOrd = 0, pumping = false;
   const breath = (() => {   // a macrotask with no timer clamp: the port's pending messages are delivered before it
     if (typeof MessageChannel === 'undefined') return () => new Promise(r => setTimeout(r, 0));
-    const mc = new MessageChannel(), w = []; mc.port1.onmessage = () => { const r = w.shift(); if (r) r(); };
-    if (mc.port1.unref) mc.port1.unref();   // (node: the channel does not keep a finished thread alive)
-    return () => new Promise(r => { w.push(r); mc.port2.postMessage(0); });
+    // (node: the channel keeps its thread alive only while a unit waits on it - ref'd for the wait, unref'd when none is left)
+    const mc = new MessageChannel(), w = []; mc.port1.onmessage = () => { const r = w.shift(); if (!w.length && mc.port1.unref) mc.port1.unref(); if (r) r(); };
+    if (mc.port1.unref) mc.port1.unref();
+    return () => new Promise(r => { w.push(r); if (mc.port1.ref) mc.port1.ref(); mc.port2.postMessage(0); });
   })();
   function unit(pri, run) { return new Promise(res => { UQ.push({ pri: st.fifo && pri > 0 ? 1 : pri, ord: uOrd++, run, res }); pump(); }); }
   async function pump() {
