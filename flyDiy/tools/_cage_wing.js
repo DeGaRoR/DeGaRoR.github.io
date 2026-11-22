@@ -118,6 +118,7 @@ PAGE.defaults = Object.assign({
   // jury strut (0 none, 1 up to the wing's spar - the J-3 / PA-18's, 2 aft to the cabin - the Ruckus's). Both at 0
   // are absent from every key (GEN_CAGE_ROW_NEUTRAL) and from the spec (bracing.section / .jury, 60_gen_spec)
   wgStrutSec: 0, wgJury: 0,
+  wgFillet: 0,                     // FUSELAGE-DRAG build 10: the wing root's fillet (0 none = every build before, 1 filleted); absent at 0
   wgFlapType: Math.max(0, FLAP_KEYS.indexOf('none')),
   wgFlapSpan: 0.50, wgFlapChord: 0.20,
   // G185: ailerons are a switch per plane (a biplane's upper plane may carry
@@ -355,6 +356,10 @@ const WING_ITEMS = [
      { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
     ['wgJury', 'jury strut', 0, 2, 1, ['none', 'up to the wing', 'back to the cabin'],
      { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
+    // FUSELAGE-DRAG build 10 (2026-11-22, the user: "size the junction rows to the aeroplane"): the root's fillet. The
+    // junction's interference drag is the root's own (its chord and thickness, 62_gen_aero); a fillet leaves 0.3 of it
+    // (GEN_DRAG.junct.fillet). PHYSICS ONLY for now - the fillet is not drawn yet (a garage gap, flagged in the study)
+    ['wgFillet', 'root fillet', 0, 1, 1, ['none', 'filleted'], { when: P => +P.wingOn }],
   ], on],
   ['control surfaces', [
     ['wgFlapType', 'flaps',      0, FLAP_KEYS.length - 1, 1,
@@ -408,7 +413,7 @@ const WING_ITEMS = [
 // (biplane audit, 2026-09-21: wgDy dropped too — the second plane's
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
-const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil', 'wgStrutSec', 'wgJury',   // T2.3: the strut count is the fuselage fan's
+const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil', 'wgStrutSec', 'wgJury', 'wgFillet',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
                          'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',   // TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
                          // G2820: the STOL devices are the first plane's in the

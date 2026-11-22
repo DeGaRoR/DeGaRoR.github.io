@@ -1081,11 +1081,14 @@ function genFusCdA(S, fr, o) {
   // the junctions
   const strut = !!(S.bracing && S.bracing.type === 'strut');
   let junct = 0;
+  // (FUSELAGE-DRAG build 10: each junction by its own root - GEN_DRAG.junct's header)
+  const JN = D.junct, jRoot = (c, tc, flat) => c > 0 && tc > 0 ? Math.max(0, c * c * (JN.kT * tc * tc * tc - JN.k0)) : flat;
+  const filletK = S.cage && Math.round(+S.cage.wgFillet || 0) > 0 ? JN.fillet : 1;
   for (const w of (S.wings || [])) {
-    const k = w.position === 'low' && !strut ? D.junct.lowBare : strut ? D.junct.strutHigh : 1;
-    junct += 2 * D.junct.wing * k;
+    const k = w.position === 'low' && !strut ? JN.lowBare : strut ? JN.strutHigh : 1;
+    junct += 2 * jRoot(+w.chord, (((+w.naca || 0) | 0) % 100) / 100, JN.wing) * k * filletK;
   }
-  junct += 3 * D.junct.tail;
+  { const tl = S.tail || {}; junct += 2 * jRoot(+tl.hChord, JN.tailT, JN.tail) + jRoot(+tl.vChord, JN.tailT, JN.tail); }
   const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
   const exh = electric || none ? 0 : D.exhStack * (radial ? 4 : 2) * nEng;
   const stk = genSticksOutCdA(S), sticks = stk.sum;   // (FUSELAGE-DRAG build 9: what sticks out)
