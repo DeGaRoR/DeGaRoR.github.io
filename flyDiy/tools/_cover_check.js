@@ -536,5 +536,39 @@ function splitRings() {
     ok(A.size > 100 && S.size > 20 && G.size > 20 && !both && !lost && !extra && bigOk && smallOk && r.big.debris === 0 && r.small.debris > 0 && r.big.layer === 'rocks',
        '13 THE ROCKS’ OWN RING: it plants the rocks at least rockSplit m tall (no debris), the cover ring the smaller ones - together exactly the cover ring’s rocks alone',
        'alone ' + A.size + ' | small ' + S.size + ' + big ' + G.size + ', twice ' + both + ', lost ' + lost + ', extra ' + extra + ', debris ' + r.small.debris + ' / ' + r.big.debris); } }
+// 14 THE ALPINE ROCKS (MOUNTAIN-VEG, the user 22 Nov: "a lot more rocks in the alpine section ... rocks are a bit like trees" and "not to
+// land very easily on mountain tops"): a mix's forest.rockUp [h0, h1, k] multiplies its rocks above the band (and fades the exposed rule);
+// the rocks' own ring registers each landed cell's big rocks as ONE trunk-law hit set (world.treeHits) and drops it with the cell;
+// ?alprocks=0 = neither
+function alpRing(height, off) {
+  const B = boot(), { THREE, ctx } = B;
+  if (off) ctx.location = { search: '?alprocks=0' };
+  B.load(path.join('src', 'viewer', 'trees.js')); B.load(path.join('src', 'core', '29_obstacles.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  const cols = [{ name: 'rocks', kind: 'rock', place: {} }];
+  const built = new Map();
+  const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, 1.2, 0.5], h: 1.2 } }));
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 1.2, 1); g.translate(0, 0.6, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const mix = { species: { rocks: { proportion: 1, exposed: 0.85 } }, forest: { cover: 1, reach: 220, rocks: 20, rockUp: [700, 950, 1.5] } };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => ({}), edgeOn: false };
+  const TH = require('vm').runInContext('TREE_HITS.make()', ctx);   // (a top-level const: visible to the context's scripts, not as ctx's own property)
+  const world = { terrainH: () => height, waterH: () => -10, island: null, treeHits: TH };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, height + 3, 0); camera.lookAt(0, height, 40); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const R = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'rocks',
+    biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
+  R.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0, maxCells: 1e5, rockSplit: 0.1, reach: 120 }); for (let i = 0; i < 4; i++) R.update();
+  let n = 0; R.root.traverse(m => { if (m.isInstancedMesh && m.userData.coverKind === 'rock') n += m.userData.n === undefined ? m.count : m.userData.n; });
+  const sets = TH.keys().filter(k => /^alprocks:/.test(k)).length, cyl = TH.count, alp = R.alp;
+  R.replant(); const after = TH.keys().filter(k => /^alprocks:/.test(k)).length;
+  return { n, sets, cyl, after, alp };
+}
+{ let lo = null, hi = null, off = null;
+  try { lo = alpRing(0); hi = alpRing(1000); off = alpRing(1000, true); } catch (e) { ok(false, '14 the alpine rocks plant', (e && e.message || String(e)).slice(0, 200)); }
+  if (lo && hi && off) ok(hi.n > 2.5 * lo.n && off.n < 1.2 * lo.n && hi.sets > 0 && hi.cyl > hi.n * 0.5 && hi.after === 0 && off.sets === 0 && hi.alp === true && off.alp === false,
+    '14 THE ALPINE ROCKS: above the band the rocks multiply (and the flat keeps more), each landed cell’s big rocks are ONE hit set dropped with the cell; ?alprocks=0 neither',
+    'rocks low ' + lo.n + ' / high ' + hi.n + ' / high off ' + off.n + '; hit sets ' + hi.sets + ' (' + hi.cyl + ' cylinders), after replant ' + hi.after + ', off ' + off.sets); }
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

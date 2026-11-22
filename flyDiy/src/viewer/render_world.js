@@ -6298,6 +6298,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // (17 Nov 16:15, A0 for the L40f train: no frame time measured yet and ~2-4x the rocks drawn - the shipped dials lower than the
           // ring's own 380 m / 140 m / 0.45 m: gone at 300 m, full to 100 m, rocks 0.6 m and up; the F9 rail keeps every dial for the user)
           rockLayer.set({ reach: 300, near: 100, rockSplit: 0.6 });
+          // THE ALPINE ROCKS (MOUNTAIN-VEG 22 Nov, ?alprocks=0 = the line above alone): further and higher - the summit fields read from the air -
+          // and only the big ones cast (PERF-LEAD: small far rocks must not cast into the far map)
+          if (rockLayer.alp) rockLayer.set({ reach: 420, aglFull: 300, aglOff: 700, aglPre: 780, castMinH: 1.2 });
           rockSync();
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground

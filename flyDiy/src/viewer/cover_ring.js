@@ -187,6 +187,12 @@ var COVER_RING = (() => {
     colour: 1, match: 1, vary: 0.06, tier: 1, trunc: 1, minCut: 0.05, lawnWet: 0.3, tallCards: 0, green: 0, texGrass: 0, weeds: 0, root: 0 };   // lawnWet: a square's ground over the drawn water it needs (m)
   const LAWN_SPECIES = ['grass_plates'];
   const LAWN_BUF = { cap: 0, xs: [], col: [], rand: [] };   // buildLawn's scratch (emitField copies out of it)
+  // THE ALPINE ROCKS (MOUNTAIN-VEG 22 Nov; the user: "we need a lot more rocks in the alpine section ... in the mountain region where there
+  // are no trees anymore, then rocks are a bit like trees" and "not to land very easily on mountain tops"): ?alprocks=0 = as before. On:
+  // a mix's forest.rockUp [h0, h1, k] multiplies its rocks by 1 + k x smoothstep(h0, h1, the cell's ground) and fades the rows' exposed
+  // rule out over the same band (the flat summits keep their rocks); forest.alpRockK multiplies a mix's rocks (the scree); the rocks'
+  // own ring registers its big rocks as trunk-law hit sets (TREE_HITS.lying, world.treeHits: the solver meets them as it meets trees)
+  let ALP_ON = true; try { const m = /[?&]alprocks=([01])/.exec(location.search); if (m) ALP_ON = m[1] === '1'; } catch (e) {}
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
   // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
   const FIELD_TYPES = {
@@ -302,7 +308,7 @@ var COVER_RING = (() => {
     const FSET = (FIELD || ROCKS) && LEAF.fadeSet ? LEAF.fadeSet() : null;
     const S = ROCKS
       ? { on: true, cell: 32, reach: 380, near: 140, taper: 0.5, aglFull: 200, aglOff: 450, aglPre: 520, preBudgetMs: 1, density: 2, shrubs: 0, rocks: 1, rockSplit: 0.45,
-          rockSkin: 1, farBush: 0, budgetMs: 2, maxCells: 1000, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true, lead: 4, grow: 0.8, growNear: 140, trunc: 1 }
+          rockSkin: 1, hitMin: 0.5, farBush: 0, budgetMs: 2, maxCells: 1000, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true, lead: 4, grow: 0.8, growNear: 140, trunc: 1 }
       : FIELD
       ? { on: true, cell: 16, reach: 90, near: 15, taper: 1, aglFull: 27, aglOff: 90, density: 1, shrubs: 0, rocks: 0, budgetMs: 3, maxCells: 1400, blockBudget: 4, debrisKinds: 4, castMinH: 99, batch: false,
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
@@ -336,6 +342,7 @@ var COVER_RING = (() => {
     const cellKey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
     const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {}, scarSkip: 0, floorSkip: 0 };
+    const ALP = { cells: 0, worstMs: 0, sets: 0, ops: 0, hits: 0, logged: '', t: 0 };   // the alpine rocks' counter (PERF-LEAD's line)
     let flowerTex = new Map();
     const root = new THREE.Group(); root.name = LAWN ? 'coverRingLawn' : 'coverRing'; scene.add(root);   // (water.js skips /^coverRing/: both)
 
@@ -511,7 +518,8 @@ var COVER_RING = (() => {
                     .replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
               }
               LEAF.fadeHook(mat, ROCKS ? FSET : null); if (place.cut > 0) mat.customProgramCacheKey = () => 'fade-rockcut';   // (the rocks' ring: its own fade set)
-              if (c.kind === 'rock') rockSkin(mat);   // (17 Nov: the rock ring's boulder skin, when it runs - below)
+              if (c.kind === 'rock') rockSkin(mat);
+              if (ROCKS) mat.userData.progOwner = 'scenery / alpine rocks / scatter';   // (PERF-TRACE's program registry)   // (17 Nov: the rock ring's boulder skin, when it runs - below)
             } else {
               LEAF.fadeHook(mat, FIELD ? FSET : null);   // (the field's own fade set: its reach, its size fade)
               // NO NORMAL OVERRIDE ON A COVER - the bench has none (tools/_trees.html builds a
@@ -548,7 +556,7 @@ var COVER_RING = (() => {
             return { geo: q.geo, mat };
           });
           const h = (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)) * (place.size || 1);
-          P.push({ key: e.key, w: 1 / subs.length, kind: c.kind, h, h0: (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)), parts, size: place.size || 1,
+          P.push({ key: e.key, w: 1 / subs.length, kind: c.kind, h, h0: (e.sub.bb ? e.sub.bb[4] - e.sub.bb[1] : (e.sub.h || 1)), parts, size: place.size || 1, bb: e.sub.bb || null,
                    r0: e.sub.bb ? Math.max(e.sub.bb[3] - e.sub.bb[0], e.sub.bb[5] - e.sub.bb[2]) / 2 : 1 });   // half its footprint: a slab's tilt is read over its own extent
         }
         // THE FIELD'S TUFTS: the patches' cards in groups of S.cards, the three median ones the variants (tuftsOf above); one
@@ -697,11 +705,14 @@ var COVER_RING = (() => {
       const per = ((c.kind === 'debris' ? F.debris : F.rocks) || 0) / 1000 * S.rocks * (row.proportion === undefined ? 1 : row.proportion);
       if (per <= 0) return 0;
       const x0 = cx * C, z0 = cz * C, sSeed = hashStr(c.name);
+      // the alpine rocks (above): the cell's own ground on the mix's band; the rows' exposed rule fades out over it
+      const up = ALP_ON && F.rockUp ? smooth(F.rockUp[0], F.rockUp[1], world.terrainH(x0 + C / 2, z0 + C / 2)) : 0;
+      const perA = per * (ALP_ON ? (F.alpRockK || 1) * (1 + (F.rockUp ? F.rockUp[2] : 0) * up) : 1), exposedA = (row.exposed || 0) * (1 - 0.6 * up);
       const Rq = rng((((hsh(cx, cz) * 4294967295) >>> 0) ^ sSeed) >>> 0);
       const blotch = F.blotch || 0, blotchM = F.blotchM || 18;
       const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
       const vary = place.vary === undefined ? 0.05 : place.vary;
-      const n = Math.round(per * C * C); let made = 0;
+      const n = Math.round(perA * C * C); let made = 0;
       for (let i = 0; i < n; i++) {
         const x = x0 + Rq() * C, z = z0 + Rq() * C, r1 = Rq(), r2 = Rq(), r3 = Rq();
         // the bench's GF.blotch: keeps 1 - blotch .. 1 by area; a rock takes it only when its row says `cluster`
@@ -735,11 +746,11 @@ var COVER_RING = (() => {
         // THE EXPOSED GROUND (the user 16 Nov: the mountain tops are "patches of bushes, weeds, moss carpets, and a lot rocks ... identify
         // where it would be likely to have quite a few rocks dispersed"): `exposed` keeps a rock by how bare the soil likely is - a knob or
         // a ridge (the ground CONVEX over 8 m: the Laplacian under 0) or a slope (the gradient over 8 m) - 0 keeps all, 1 only there
-        if (row.exposed > 0 && !floats) {
+        if (exposedA > 0 && !floats) {
           const r8 = 8, y0 = world.terrainH(x, z), hx1 = world.terrainH(x + r8, z), hx0 = world.terrainH(x - r8, z), hz1 = world.terrainH(x, z + r8), hz0 = world.terrainH(x, z - r8);
           const lap = (hx1 + hx0 + hz1 + hz0) / 4 - y0, sl = Math.hypot(hx1 - hx0, hz1 - hz0) / (2 * r8);
           const L = Math.max(smooth(0.05, 0.6, -lap), smooth(0.25, 0.7, sl));
-          if (Rq() > (1 - row.exposed) + row.exposed * L) continue;
+          if (Rq() > (1 - exposedA) + exposedA * L) continue;
         }
         const gk = G.at(x, z);
         if (G.mix[gk] !== centreMix) continue;
@@ -1249,7 +1260,7 @@ var COVER_RING = (() => {
       const G = subGrid(x0, z0, C);
       const centreMix = G.mix[G.at(x0 + C / 2, z0 + C / 2)];
       // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
-      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G585)   // by: this cell's tally per species (STAT.by is the live sum)
+      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz, hits: [], hitKey: null };   // inst: [batch, id, ...] - the batched instances (G585)   // by: this cell's tally per species (STAT.by is the live sum)
       cells.set(cellKey(cx, cz), cell); markBlock(cx, cz);
       if (!centreMix && !G.lawn && !G.nShore) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
@@ -1299,7 +1310,9 @@ var COVER_RING = (() => {
             if (band) continue;   // (the lake shore's band: its tufts, flowers and bushes; the stones stay the centre's)
             // (the split with the rocks' own ring: that ring keeps the big rocks, this one the small - by the rock's height in metres)
             const split = c.kind === 'rock' && (ROCKS || S.rockSplit > 0) ? S.rockSplit : 0;
-            const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, !split ? push : (p, x, y, z, s, yaw, col, tx, tz) => { if (((p.h0 || 1) * s >= split) === ROCKS) push(p, x, y, z, s, yaw, col, tx, tz); });
+            const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, !split ? push : (p, x, y, z, s, yaw, col, tx, tz) => { if (((p.h0 || 1) * s >= split) === ROCKS) { push(p, x, y, z, s, yaw, col, tx, tz);
+              // the obstacle (the alpine rocks): a big rock of the rocks' own ring is a chain of low trunk-law cylinders, its drawn foot to its top
+              if (ROCKS && ALP_ON && p.bb && (p.h0 || 1) * s >= S.hitMin && typeof TREE_HITS !== 'undefined') { const L = TREE_HITS.lying(p.bb, s, false, x, z, y, yaw); if (L) for (const q of L) cell.hits.push(q[0], q[1], q[2], q[3], q[4]); } } });
             if (made) { STAT.by[c.name] = (STAT.by[c.name] || 0) + made; cell.by[c.name] = (cell.by[c.name] || 0) + made; }
             continue;
           }
@@ -1417,6 +1430,7 @@ var COVER_RING = (() => {
           }
         }
       }
+      if (cell.hits.length && world.treeHits) { cell.hitKey = 'alprocks:' + cellKey(cx, cz); world.treeHits.set(cell.hitKey, cell.hits); ALP.sets++; ALP.ops++; ALP.hits += cell.hits.length / 5; }   // (one op to the sim worker, sim_link)
       if (!ROCKS && ctx.edgeD && BIO.edgeOn) edgeBand(G, x0, z0, C, push, cell);   // FOREST-EDGE: the bushes and weeds on the open side of an edge
       if (!ROCKS && ctx.lakeSD && ctx.waterY && S.water !== false) waterBand(G, x0, z0, C, push, cell);   // THE WATER PLANTS: the lily pads on the shallow lake
       // the meshes: one InstancedMesh per prototype part
@@ -1455,6 +1469,7 @@ var COVER_RING = (() => {
         cell.n += n;
       }
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.building = null;
+      if (ROCKS && STAT.lastMs > ALP.worstMs) ALP.worstMs = STAT.lastMs;
       return cell;
     }
     function dropCell(key) {
@@ -1463,6 +1478,7 @@ var COVER_RING = (() => {
       for (let k = 0; k < cell.inst.length; k += 2) { batchVis(cell.inst[k], cell.inst[k + 1], false); cell.inst[k].deleteInstance(cell.inst[k + 1]); }   // the batched ones go now (past Rdrop: out of reach)
       cell.inst.length = 0;
       for (const k in cell.by) { STAT.by[k] -= cell.by[k]; if (STAT.by[k] <= 0) delete STAT.by[k]; }   // the tally is LIVE (it ran up for the page's life before L4)
+      if (cell.hitKey && world.treeHits) { world.treeHits.drop(cell.hitKey); ALP.sets--; ALP.ops++; ALP.hits -= cell.hits.length / 5; }
       cell.dead = true;   // (a grow in flight lets go of it)
       cells.delete(key);
     }
@@ -1657,7 +1673,13 @@ var COVER_RING = (() => {
     let queue = [];
     const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
     function update() {
-      { const live = skinRing(); if (live !== skinLive) { skinLive = live; for (const m of skinMats) m.needsUpdate = true; } }   // (the rock skin: on when the rock ring is)
+      { const live = skinRing(); if (live !== skinLive) { skinLive = live; for (const m of skinMats) m.needsUpdate = true; } }
+      // THE ALPINE ROCKS' LINE (PERF-LEAD, 22 Nov): every 15 s while it changes - the cells, the instances, the worst cell's main-thread ms,
+      // the hit sets live and the ops sent to the sim worker (one per set landed or dropped)
+      if (ROCKS && ALP_ON && typeof performance !== 'undefined') { const tn = performance.now(); if (tn - ALP.t > 15000) { ALP.t = tn;
+        let ni = 0; for (const c of cells.values()) ni += c.n;
+        const line = 'alprocks: cells ' + cells.size + ', instances ' + ni + ', worst cell ms ' + ALP.worstMs.toFixed(1) + ', obstacles ' + ALP.sets + ' sets / ' + Math.round(ALP.hits) + ' cylinders, worker ops ' + ALP.ops;
+        if (line !== ALP.logged) { ALP.logged = line; console.log(line); } } }   // (the rock skin: on when the rock ring is)
       if (!S.on || S.off || !pack || !BIO) { if (root.visible) root.visible = false; return; }   // (S.off: the GRAPHICS row's 'off' - the field's own `on` is the A/B)
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
       const agl = Math.max(0, camera.position.y - gy); STAT.agl = agl;
@@ -1791,7 +1813,7 @@ var COVER_RING = (() => {
       layer: ROCKS ? 'rocks' : LAWN ? 'lawn' : FIELD ? 'grass' : 'cover',
       fadeSet: () => FSET,   // the field's own fade uniforms (null: the shared set) - GATE COVER reads them
       lakeMargin: () => (FIELD ? Math.max(0, +S.lakeMargin || 0) : 0.3),   // G2572: render_world okAt reads it (both rings), no copy a call
-      field: FIELD, lawn: LAWN,
+      field: FIELD, lawn: LAWN, alp: ALP_ON, alpStat: () => Object.assign({ cells: cells.size }, ALP),
       fieldAt: LAWN ? lawnAt : fieldAt, fieldAtReset: () => FA.clear(),   // (16 Nov) the instrument: what the field plants at a point, and why
       replant: () => { FA.clear(); for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
       // WORLD-RAIL-VEG: a shaped species re-built (the world editor's alpine shrub rows moved its pack row's place - size, aspect,
