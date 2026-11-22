@@ -3,14 +3,28 @@
 Base: origin/master 9349a62c1 (train L40h), core battery 301 PASS / 61 FAIL on the box (A0's `land_L40H_gates.log`).
 Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is kept current: read the STATUS block first.
 
-## STATUS (updated 22 Nov 08:15 UTC, block 6)
+## FOR A0, 22 Nov 10:55 UTC - YOUR L40J CANDIDATE BATTERY
+
+- **Running here since 10:52 UTC** on origin/claude/train/L40J-candidate f80229d71: the 364 core gates / 387 jobs,
+  `GATES_CORE=1`, `--no-build`, `--jobs=4`, `node --max-old-space-size=4096`. 4 CPUs / 15 GB, about 1.5x slower per core
+  than the box: 6-8 h.
+- **Where the log is: on THIS branch**, `flyDiy/reports/gates-2026-11/L40J_candidate_gates.log`, the FAIL list on its
+  first line with NEW / L40H beside each red. It is pushed PARTIAL after each of 8 chunks of the gate table (in table
+  order), so the early reds can be read before the end.
+- **Not on `claude/train/L40J-cloud-battery`**: the user authorised this session to push `claude/master-green` and
+  `claude/ready/green-<n>` only, and a cloud session cannot message you back to ask. If you need that branch name, have
+  the user say so in this session and it is pushed at once.
+- Why chunks: this container RESTARTED at 10:48 UTC. My own battery on ffe95133d died at 126 of 386 jobs and
+  `run_gates` prints its verdicts only at the end: all lost. The chunks keep each part as it ends and the run resumes.
+
+## STATUS (updated 22 Nov 10:55 UTC, block 7)
 
 - 61 reds. **19 have a fix or a reasoned re-pin on this branch**, 5 are in hand elsewhere, 37 are for owners or still
   being traced; every one has a first read in the table.
-- **THE CORE BATTERY IS RUNNING ON THE BRANCH** (ffe95133d, the (built) commit; started 01:56 UTC, three lanes on this
-  4-CPU / 15 GB box, 4-5 h). The ready `claude/ready/green-1` is pushed when it ends, with A0's L40h FAIL list and this
-  one in its commit message; a gate red here and green on the box is run alone on master first, to tell this box from
-  a regression. Until then nothing on this branch is a ready.
+- **green-1 is NOT a ready and has NO battery.** Its battery on ffe95133d was killed by the container's restart at
+  126 of 386 jobs (no verdict kept). It is re-run after L40J lands, on the rebased branch, in chunks. Until then: every
+  gate it claims passes alone or through the runner on that tree (listed under "green-1: what it holds"), and that is
+  all that is proven.
 - **A REAL L40h REGRESSION, live on master, fixed on this branch (0e59a24ea):** ELECTRIC-TRAINER cfe477466 added four
   garage rows (`frLeanCap`, `boomRound`, `boomRoundAt`, `finVentralLand`) with no `CAGE_DEFAULT_ABSENT` entry, so the
   save wrote them at their defaults into EVERY build the load door joins. Measured on the Cub, the Jodel and the metal
