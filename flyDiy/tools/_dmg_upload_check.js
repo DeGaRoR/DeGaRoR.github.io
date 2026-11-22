@@ -103,9 +103,12 @@ async function child() {
   const R = { key, fault, damage: dmg, errors: [] };
   const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[key]), 'utf8') };
   const SG = shadowGL(), S = SG.S;
-  const fake = arg('fakebake', '1') !== '0';   // (G2350: --fakebake=0 the gate as D4b left it - no fold in the node page)
-  const P = await openPage({ quiet: true, storage, query: dmg ? 'simw=1&damage=1' : 'simw=1&damage=0',   /* (the OFF arm says so: the default is ON since 20 Oct) */ workers: /sim_host\.js/, glWrap: SG.wrapGL, fakeBake: fake });
-  R.fakeBake = fake;
+  // (L40J: the player's flown bake is OFF unless ?flownbake=1 since the user's cut of 21 Nov - the bake / fold rows fly with it
+  // on, as flown_bake.js says the node gates keep exercising it; --bake=0 flies the player's default path, no bake, no fold)
+  const bake = arg('bake', '1') !== '0';
+  const fake = bake && arg('fakebake', '1') !== '0';   // (G2350: --fakebake=0 the gate as D4b left it - no fold in the node page)
+  const P = await openPage({ quiet: true, storage, query: (dmg ? 'simw=1&damage=1' : 'simw=1&damage=0') + (bake ? '&flownbake=1' : ''),   /* (the OFF arm says so: the default is ON since 20 Oct) */ workers: /sim_host\.js/, glWrap: SG.wrapGL, fakeBake: fake });
+  R.fakeBake = fake; R.bake = bake;
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
   if (fault === 'nomark' || fault === 'aswas') W.FLYDIY_HEAL_NOMARK = true;   // (D4b's heal marking off)
@@ -213,6 +216,7 @@ function runChild(key, fault, secs, damage, stage) {
   const out = path.join(os.tmpdir(), 'dmgupload_' + process.pid + '_' + key + (fault ? '_' + fault : '') + (damage === false ? '_off' : '') + (stage ? '_' + stage.id : '') + '.json');
   const a = [__filename, '--child=1', '--out=' + out, '--build=' + key, '--secs=' + secs, '--fakebake=' + arg('fakebake', '1')]; if (fault) a.push('--fault=' + fault); if (damage === false) a.push('--damage=0');
   if (stage) for (const k of ['V', 'agl', 'tr', 'D', 'off', 'path']) if (stage[k] != null) a.push('--' + k + '=' + stage[k]);
+  if (stage && stage.bake === 0) a.push('--bake=0');
   const r = spawnSync(process.execPath, ['--max-old-space-size=6000'].concat(a), { stdio: ['ignore', 'inherit', 'inherit'], timeout: 2 * 3600 * 1000 });
   if (r.status !== 0 || !fs.existsSync(out)) return { key, failed: 'child exit ' + r.status + (r.signal ? ' ' + r.signal : '') };
   const R = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); return R;
@@ -290,7 +294,7 @@ function parent() {
     }
     console.log('GATE DMGUPLOAD-SELFTEST: ' + (all ? 'PASS' : 'FAIL')); process.exit(all ? 0 : 1);
   }
-  say('GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1: crash -> the shed -> roll-out)');
+  say('GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.html?simw=1&damage=1&flownbake=1, and the default path without the bake: crash -> the shed -> roll-out)');
   let fails = [];
   const pf = arg('fault', '');   // (G2350: --fault=nomark|noowe|aswas on the gate's own runs - a fix's A/B; the gate's verdict then reads it)
   if (pf) say('  (fault ' + pf + ')');
@@ -309,6 +313,15 @@ function parent() {
     const R = runStaged('cub', pf, secs, undefined, STAGES.hard), f = judge(R, say), br = R.crash ? R.crash.br : 0;
     if (!(br >= HARD_MIN)) f.push('cub (hard): the hard staging broke ' + br + ' members, not a break-up (' + HARD_MIN + '+): it tests the mild case again');
     fails = fails.concat(f);
+  }
+  // (L40J) THE DEFAULT PATH - the flown bake OFF, as the player flies since the user's cut of 21 Nov: every build (the Cub
+  // hard-staged), the same judge without the fold rows: no stale buffer, no page or worker error (the metal Cessna's crash ->
+  // the shed raised "GLBufferAttribute requires a manual bounding box" there - the shed's framing on skin_gpu.js's swapped
+  // geometries). A spec row for the accepted cut, not a looser bound: the bake-on rows above stand as they were
+  if (arg('bakeoff', '1') !== '0') for (const k of keys) {
+    const st = k === 'cub' && hardCub ? Object.assign({}, STAGES.hard, { id: 'hard_bakeoff', bake: 0 }) : { id: 'mild_bakeoff', bake: 0 };
+    say('  ' + k + ', THE DEFAULT PATH (the flown bake off, as the player flies since 21 Nov):');
+    fails = fails.concat(judge(runStaged(k, pf, secs, undefined, st), say).map(m => m + ' (bake off)'));
   }
   fails = fails.concat(judge(runChild(keys[0], '', secs, false), say));   // (damage OFF: one build)
   // (2026-10-08, the carried cowl - WALL's replay: a cowl knocked off, the card's Fly again, and the fresh aeroplane drew no
