@@ -80,9 +80,16 @@
     // stays on screen; the move then only unparks it
     let prep = null;
     const R = W.GARAGE_ROOMS && W.GARAGE_ROOMS.prepare ? Promise.resolve(W.GARAGE_ROOMS.prepare(id)).catch(() => null) : Promise.resolve(null);
-    return R.then(p => { prep = p; return W.FLYDIY_PLAYER.gotoGarage(id); }).then(r => frame().then(frame).then(() => {
+    // (PERF-LEAD's two numbers: the program count before the swap and after its frames - a difference is a re-key or the cube's
+    //  own links; the sliced env re-bake timed. The switch is done when the room's probe is re-shot: at most 30 frames)
+    const GR = W.GARAGE_ROOMS || {}, progs = () => (GR.programs ? GR.programs() : null);
+    let p0 = null, tSwap = 0, worstPre = 0;
+    const settle = (k) => frame().then(() => (k < 30 && GR.env && GR.env().busy) ? settle(k + 1) : k);
+    return R.then(p => { prep = p; p0 = progs(); worstPre = worst; worst = 0; tSwap = performance.now(); if (GR.envReset) GR.envReset(); return W.FLYDIY_PLAYER.gotoGarage(id); }).then(r => frame().then(frame).then(() => settle(0)).then(nf => {
       run = false; S.busy = false;
-      const rec = { id, ok: !!(r && r.ok), why: (r && r.why) || '', ms: Math.round(performance.now() - t0), worstFrameMs: Math.round(worst), at: Date.now(),
+      const rec = { id, ok: !!(r && r.ok), why: (r && r.why) || '', ms: Math.round(performance.now() - t0), worstFrameMs: Math.round(Math.max(worst, worstPre)), at: Date.now(),
+                    worstPrepFrameMs: Math.round(worstPre), worstSwapFrameMs: Math.round(worst), swapMs: Math.round(performance.now() - tSwap), settleFrames: nf,
+                    programs: { before: p0, after: progs() }, env: GR.env ? GR.env() : null,
                     prepare: prep, room: W.GARAGE_ROOMS && W.GARAGE_ROOMS.last ? W.GARAGE_ROOMS.last() : null };
       S.last = rec; S.hist.push(rec); if (S.hist.length > 20) S.hist.shift();
       sync();

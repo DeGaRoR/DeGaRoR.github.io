@@ -1077,7 +1077,7 @@
   const ENV_BAKES = { oneShot: 0, slices: 0, jobs: 0, requests: 0 };
   if (typeof window !== 'undefined') window.FLYDIY_ENV_BAKES = () => Object.assign({ running: envSlice ? envSlice.step : -1 }, ENV_BAKES);
   function ensureEnvRT() {
-    if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+    if (!envRT && THREE.WebGLCubeRenderTarget) { envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType }); if (envRT.texture) envRT.texture.name = 'hangar env cube'; }
     return envRT;
   }
   // The cube excludes the subjects (and their lights), while the visible garage
@@ -1370,9 +1370,14 @@
     if (envSlice) { if (envSlice.step > 0) envSlice.again = true; return; }   // nothing shot yet: this job already sees it
     envSlice = { step: 0, again: false };
   }
+  var ENV_T = { steps: 0, ms: 0, maxMs: 0, jobs: 0 };   // (HANGAR-SWITCH ROOMS 4: the sliced re-bake timed, GARAGE_ROOMS.env)
   function envSliceStep() {
     const J = envSlice;
     if (!J) return;
+    const tE = performance.now();
+    try { envSliceStep0(J); } finally { const dt = performance.now() - tE; ENV_T.steps++; ENV_T.ms = Math.round(ENV_T.ms + dt); ENV_T.maxMs = Math.max(ENV_T.maxMs, Math.round(dt)); if (!envSlice) ENV_T.jobs++; }
+  }
+  function envSliceStep0(J) {
     if (envDeferred || envAway || !hangar) { envSlice = null; envDirty = true; return; }
     if (J.step === 0 && hangar.renderSky) hangar.renderSky(renderer);
     bakeHangarEnv(J.step < 6 ? { part: 'face', face: J.step } : { part: J.step === 6 ? 'room' : 'outdoors' });
@@ -1582,6 +1587,25 @@
     });
     return { geoMB: +(geo / 1048576).toFixed(1), texMB: +(tex / 1048576).toFixed(1), envMB: rec.envPM ? 6 : 0 };
   }
+  // THE GARAGE FRAME'S PASSES, ONE LIST (HANGAR-SWITCH ROOMS 4b, PERF-LEAD 22 Nov: prepare's hand-written list was the short one
+  // - one target where the room is drawn into two - and the swap linked ~50 programs one by one in a 28 s frame). Every target
+  // the garage draws its scene into, with the dress each needs: the probe's cube (ensureEnvRT, as the cube draws it -
+  // probeCompileDress) and the frame's (aa.target(): the composer's, the canvas only without one), each with its depth variants.
+  // `dress` (f => f() run with the scene as it will be drawn: a new room, a light set) wraps every pass. The boot's compile step
+  // and shedPrelink walk the same two by hand (GATE-pinned text): a third target added to the garage goes HERE and there
+  function garageFramePasses(dress) {
+    const d = dress || (f => f()), out = [];
+    if (ensureEnvRT()) out.push({ name: 'cube', target: ensureEnvRT(), dress: f => d(() => probeCompileDress(f)), depth: true });
+    out.push({ name: 'frame', target: aa && aa.target ? aa.target() : null, dress: d, depth: true });
+    return out;
+  }
+  // the passes compiled in order, sliced (compileSliced), each one's depth variants after it; lap(name) after each part
+  function compileFramePasses(passes, lap) {
+    return passes.reduce((p, P) => p.then(() => compileSliced(hangarScene, P.target, null, false, P.dress))
+      .then(() => { if (lap) lap(P.name + 'Ms'); return P.depth && typeof compileDepthVariants === 'function' ? compileDepthVariants(hangarScene, true, P.dress) : null; })
+      .then(() => { if (lap) lap(P.name + 'DepthMs'); }), Promise.resolve());
+  }
+  if (typeof window !== 'undefined') window.GARAGE_FRAME_PASSES = { list: garageFramePasses, compile: compileFramePasses };
   window.GARAGE_ROOMS = {
     // a room built DETACHED and its programs warmed; the player stays where they are. -> Promise<{ room, cached, genMs, buildMs, compileMs }>
     prepare(id) {
@@ -1604,20 +1628,29 @@
       // holding the NEW room in place of the shown one (its lamps, so the keys are the ones the swap will draw; no frame is drawn
       // inside a slice, so nothing shows) - then every program's first use paid off the frame (firstUseSliced)
       const tc = performance.now(), G = rec.hangar.group;
-      const dress = fn => { const cur = hangar && hangar.group; if (cur) hangarScene.remove(cur); hangarScene.add(G);
-        try { return fn(); } finally { hangarScene.remove(G); if (cur) hangarScene.add(cur); } };
+      // (ROOMS 4b, PERF-LEAD: the room's OUTDOORS too - the meshes through the door and the view's group, shown as hviewAttach
+      //  shows them at the unpark - put in and taken off INSIDE each task, never across tasks: a frame between draws the old room)
+      const upFor = r => !!(hview && hview.ready && hviewFor === r);
+      const dress = fn => { const cur = hangar && hangar.group, upCur = upFor(hangarRoom), upNew = upFor(id); if (cur) hangarScene.remove(cur); hangarScene.add(G);
+        try { if (rec.hangar.outdoorsShow) rec.hangar.outdoorsShow(!upNew, upNew); if (hview && upNew !== upCur) hview.on(upNew); return fn(); }
+        finally { if (hview && upNew !== upCur) hview.on(upCur); hangarScene.remove(G); if (cur) hangarScene.add(cur); } };
       // (PERF-LEAD: the WHOLE garage scene under the new room's lights - the aircraft's skins, the editor's cage, the props: a new
       // light count keys every lit program again, and compileSliced only gathers what is in the scene it is given)
       const lap = k => { const n = performance.now(); built[k] = Math.round(n - lapT); lapT = n; }; let lapT = tc;
-      return Promise.resolve(compileSliced(hangarScene, null, hangarScene, false, dress))
-        .then(() => { lap('compileMs'); return typeof compileDepthVariants === 'function' ? compileDepthVariants(hangarScene, true, dress) : null; })
+      // ROOMS 4: EVERY TARGET THE ROOM IS DRAWN INTO (garageFramePasses: the probe's cube, the frame's), each with its depth
+      // variants, in the boot's order - one target (null) left the cube bake and the frame to link the room again (slot 3: 28 s)
+      return compileFramePasses(garageFramePasses(dress), lap)
+        .then(() => { built.compileMs = ['cubeMs', 'cubeDepthMs', 'frameMs', 'frameDepthMs'].reduce((t, k) => t + (built[k] || 0), 0); lapT = performance.now(); })
         .then(() => { lap('depthMs'); return typeof uploadSliced === 'function' ? uploadSliced(G, 'rooms', 'the room') : null; })
         .then(() => { lap('uploadMs'); return typeof firstUseSliced === 'function' ? firstUseSliced() : null; })
         .then(u => { lap('firstUseMs'); built.firstUse = u || null; built.prepMs = Math.round(performance.now() - t0); return built; },
               e => { console.warn('flyDiy: the room compile -', e && e.message); return built; })
-        .then(b => { Object.assign(ROOM_T, { room: id, how: 'prepared', genMs: b.genMs, buildMs: b.buildMs, compileMs: b.compileMs, depthMs: b.depthMs, uploadMs: b.uploadMs }); return b; });
+        .then(b => { Object.assign(ROOM_T, { room: id, how: 'prepared', genMs: b.genMs, buildMs: b.buildMs, cubeMs: b.cubeMs, cubeDepthMs: b.cubeDepthMs, frameMs: b.frameMs, frameDepthMs: b.frameDepthMs, compileMs: b.compileMs, depthMs: b.depthMs, uploadMs: b.uploadMs }); return b; });
     },
     cached: () => [...ROOMS.keys()],
+    programs: () => { try { return renderer.info.programs ? renderer.info.programs.length : null; } catch (e) { return null; } },   // (PERF-LEAD: before the swap and after its first frames)
+    env: () => Object.assign({ busy: !!envSlice }, ENV_T),   // the sliced env re-bake: steps, total and worst step (ms) since envReset
+    envReset: () => { ENV_T.steps = 0; ENV_T.ms = 0; ENV_T.maxMs = 0; ENV_T.jobs = 0; },
     memory: () => { const out = {}; for (const [k, r] of ROOMS) out[k] = roomBytes(r);
       try { if (performance.memory) out.heapMB = Math.round(performance.memory.usedJSHeapSize / 1048576); } catch (e) {}
       try { out.renderer = { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; } catch (e) {}
