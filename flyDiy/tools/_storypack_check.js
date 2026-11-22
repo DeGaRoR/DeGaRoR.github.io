@@ -184,7 +184,10 @@ C.missionPackUse(mk({ jobs: 'none' }));
   ok(!r.events.length && J(r.doc.career.abilities) === J(d.career.abilities), '6 a later tick gives nothing twice');
   const p = mk({ jobs: 'none' }); p.projects[0].steps[1].gives = ['tech:7', 'kit:nope', 'Not A Word'];
   const w = C.missionPackValidate(p);
-  ok(w.some(x => /no machine shop segment 7/.test(x)) && w.some(x => /no hangar kit nope/.test(x)) && w.some(x => /an ability is a word/.test(x)), '6 a segment, a kit or a word that does not exist: refused', w.slice(0, 3).join('; ')); }
+  ok(w.some(x => /no machine shop segment 7/.test(x)) && w.some(x => /no hangar kit nope/.test(x)) && w.some(x => /an ability is a word/.test(x)), '6 a segment, a kit or a word that does not exist: refused', w.slice(0, 3).join('; '));
+  const p2 = mk({ jobs: 'none' }); p2.missions.find(m => m.id === 'g.p3').onDone = { gives: ['kit:nope'] };
+  const w2 = C.missionPackValidate(p2);
+  ok(w2.some(x => /g\.p3: gives - no hangar kit nope/.test(x)), '6 ...the same for what a mission\'s done gives', w2.slice(0, 2).join('; ')); }
 
 // ---- 8 the pack's own clients -----------------------------------------------------------------------------------------------
 { const withClient = () => { const p = mk({ jobs: 'none' });
