@@ -3173,7 +3173,74 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         for (const P of parts) if (P !== first && upper(P) > r2) scan(P);
         geo.boundingBox = box; geo.boundingSphere = new THREE.Sphere(center, Math.sqrt(r2));
       };
+      // PERF-LEAD LAB (?farslots=1, OFF by default; 22 Nov): A RE-CUT SENDS ONLY THE NODES THAT CHANGED. buildQuad below makes a
+      // quadrant's whole geometry anew when ONE node of its cut changes level: position + normal + uv + index, 12-44 MB at once -
+      // the journey's log has 46 such uploads of 30-92 ms in 26 minutes of flight (16 of its 35 frames over 100 ms). Every patch
+      // has the same NV vertices and the same index template, so a quadrant is a row of fixed SLOTS in four buffers of its own
+      // (GLBufferAttribute: the buffers are ours, nothing is kept on the CPU - G1200's diet holds): a node leaving frees its slot,
+      // a node coming takes a free one or the row's end, a hole left over takes the last live node, and only those slots are
+      // written (bufferSubData from the patch cache, on COPY_WRITE_BUFFER: three's own bindings are not touched). The index is
+      // each slot's template + its base, written once a slot. A row that is full grows by half, its live part copied ON the GPU.
+      const FSLOT = (() => { if (typeof location === 'undefined' || !/[?&]farslots=1(?:&|$)/.test(location.search || '') || !THREE.GLBufferAttribute) return null;
+        const gl = renderer && renderer.getContext ? renderer.getContext() : null;
+        return gl && gl.copyBufferSubData && gl.COPY_WRITE_BUFFER ? gl : null; })();
+      FARLOD.slots = FSLOT ? { on: true, sentKB: 0, grows: 0, moved: 0, writes: 0 } : { on: false };
+      const slotAlloc = (cap, from) => {
+        const gl = FSLOT, T = gl.COPY_WRITE_BUFFER, R = gl.COPY_READ_BUFFER, live = from ? from.n : 0;
+        const mk = (per, old) => { const b = gl.createBuffer(); gl.bindBuffer(T, b); gl.bufferData(T, cap * per, gl.DYNAMIC_DRAW);
+          if (old && live) { gl.bindBuffer(R, old); gl.copyBufferSubData(R, T, 0, 0, live * per); gl.bindBuffer(R, null); }
+          return b; };
+        const S = { cap, n: live, fids: from ? from.fids.slice(0, live) : [], at: from ? new Map(from.at) : new Map(),
+                    pos: mk(NV * 12, from && from.pos), nor: mk(NV * 12, from && from.nor), uv: mk(NV * 8, from && from.uv), idx: mk(TPL.length * 4, from && from.idx) };
+        const c0 = from ? from.cap : 0, idx = new Uint32Array((cap - c0) * TPL.length);   // the new slots' indices (the old ones were copied)
+        for (let i = c0, o = 0; i < cap; i++) { const b = i * NV; for (let k = 0; k < TPL.length; k++) idx[o++] = TPL[k] + b; }
+        gl.bindBuffer(T, S.idx); gl.bufferSubData(T, c0 * TPL.length * 4, idx); gl.bindBuffer(T, null);
+        const geo = S.geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.GLBufferAttribute(S.pos, gl.FLOAT, 3, 4, cap * NV));
+        geo.setAttribute('normal', new THREE.GLBufferAttribute(S.nor, gl.FLOAT, 3, 4, cap * NV));
+        geo.setAttribute('uv', new THREE.GLBufferAttribute(S.uv, gl.FLOAT, 2, 4, cap * NV));
+        geo.setIndex(new THREE.GLBufferAttribute(S.idx, gl.UNSIGNED_INT, 1, 4, cap * TPL.length));
+        FARLOD.slots.sentKB += (cap - c0) * TPL.length * 4 / 1024;
+        return S;
+      };
+      const slotWrite = (S, slot, P) => { const gl = FSLOT, T = gl.COPY_WRITE_BUFFER;
+        gl.bindBuffer(T, S.pos); gl.bufferSubData(T, slot * NV * 12, P.pos);
+        gl.bindBuffer(T, S.nor); gl.bufferSubData(T, slot * NV * 12, P.nor);
+        gl.bindBuffer(T, S.uv); gl.bufferSubData(T, slot * NV * 8, P.uv);
+        FARLOD.slots.sentKB += NV * 32 / 1024; FARLOD.slots.writes++; };
+      const buildQuadSlots = Q => {
+        const nodes = Q.want || [], want = new Map(nodes.map(n => [n.fid, n])), old = Q.m.geometry;
+        let S = Q.slots;
+        const put = (slot, n) => { slotWrite(S, slot, patchOf(n)); S.fids[slot] = n.fid; S.at.set(n.fid, slot); };
+        // (a re-sink dropped some patches: the same nodes, new heights - their slots are written again; all of them when it is not said which)
+        if (S && Q.sig === '') for (const [fid, slot] of S.at) if (want.has(fid) && (!Q.dirty || Q.dirty.has(fid))) slotWrite(S, slot, patchOf(want.get(fid)));
+        Q.dirty = null;
+        const free = [];
+        if (S) for (let s = 0; s < S.n; s++) if (!want.has(S.fids[s])) { S.at.delete(S.fids[s]); S.fids[s] = -1; free.push(s); }
+        const add = nodes.filter(n => !S || !S.at.has(n.fid));
+        const need = (S ? S.n - free.length : 0) + add.length;
+        let prev = null;
+        if (!S || need > S.cap) { prev = S; S = Q.slots = slotAlloc(Math.max(8, Math.ceil(need * 1.5)), S); if (S.n) FARLOD.slots.grows++; }
+        for (const n of add) { if (free.length) put(free.pop(), n); else put(S.n++, n); }
+        // more nodes left than came: the row is closed from its end (a free last slot is dropped, a live one moves into a hole)
+        free.sort((a, b) => a - b);
+        while (free.length) { const last = S.n - 1;
+          if (S.fids[last] === -1) { free.splice(free.indexOf(last), 1); S.n--; continue; }
+          const hole = free.shift(), fid = S.fids[last]; put(hole, want.get(fid)); S.fids[last] = -1; S.n--; FARLOD.slots.moved++; }
+        FSLOT.bindBuffer(FSLOT.COPY_WRITE_BUFFER, null);
+        const geo = S.geo;
+        if (nodes.length) farBounds(geo, null, nodes.map(patchOf));
+        else if (old && old.boundingSphere) { geo.boundingSphere = old.boundingSphere; geo.boundingBox = old.boundingBox; }
+        else { geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1); geo.boundingBox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3()); }
+        geo.setDrawRange(0, S.n * TPL.length);
+        if (old !== geo) { Q.m.geometry = geo; if (old && old.dispose) old.dispose(); }
+        // (the old row's buffers: three deletes them with a geometry it has drawn; one it never drew is ours to delete - twice is
+        // nothing to GL, and the copy into the new row is already queued before either)
+        if (prev) for (const b of [prev.pos, prev.nor, prev.uv, prev.idx]) FSLOT.deleteBuffer(b);
+        Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
+      };
       const buildQuad = Q => {
+        if (FSLOT) return buildQuadSlots(Q);
         const nodes = Q.want || [], patches = [];
         const pos = new Float32Array(nodes.length * NV * 3), uv = new Float32Array(nodes.length * NV * 2), nor = new Float32Array(nodes.length * NV * 3);
         const idx = new Uint32Array(nodes.length * TPL.length);
@@ -3236,7 +3303,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         for (const nd of warm.values()) if (!FARLOD.cache.has(nd.fid)) { patchOf(nd); yield 'far terrain patch'; }
         // ...and only the quadrants that drew a dropped patch are stale - the others rebuild from the same cached patches,
         // the same mesh (a town's sink 9 km out re-cut every quadrant: 66 ms frames in flight)
-        for (const Q of FARLOD.quads.values()) if (Q.sig && Q.sig.split(',').some(f => f && gone.has(+f))) Q.sig = '';
+        for (const Q of FARLOD.quads.values()) if (Q.sig && Q.sig.split(',').some(f => f && gone.has(+f))) { Q.sig = ''; Q.dirty = new Set(gone); }   // (dirty: ?farslots=1 writes those nodes' slots only)
+          else if (!Q.sig && Q.dirty) for (const f of gone) Q.dirty.add(f);   // (a second re-sink before the quadrant was re-cut)
         FARLOD.update(true, 1);
         while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain sink'; FARLOD.update(false, 1); }
         return n;
