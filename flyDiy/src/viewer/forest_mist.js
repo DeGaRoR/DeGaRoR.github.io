@@ -303,7 +303,7 @@ var FMIST = (function () {
           gl_FragColor = vec4(uMist[1].rgb + uMist[12].rgb * (0.25 + uMist[11].y * (0.35 * pow(c, 6.0) + pow(c, 40.0))), a);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
-        }` });
+        }` }, 'sky / forest mist / cards');
     cardMesh = new THREE.InstancedMesh(geo, cardMat, n);
     cardMesh.frustumCulled = false; cardMesh.renderOrder = 3; cardMesh.count = 0;
     scene.add(cardMesh);

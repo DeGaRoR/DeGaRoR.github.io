@@ -43,7 +43,7 @@
   function studioEnvOf(T, R) {
     if (studioEnv) return studioEnv;
     const sc = new T.Scene(), made = [];
-    const add = (geo, c, side) => { const m = new T.MeshBasicMaterial({ color: new T.Color(c, c, c), side }); const o = new T.Mesh(geo, m); made.push(geo, m); sc.add(o); return o; };
+    const add = (geo, c, side) => { const m = new T.MeshBasicMaterial({ userData: { progOwner: 'garage / plane fiche / photo studio env panels' }, color: new T.Color(c, c, c), side }); const o = new T.Mesh(geo, m); made.push(geo, m); sc.add(o); return o; };
     add(new T.BoxGeometry(20, 12, 20), 0.30, T.BackSide);                                   // the walls, a mid grey
     add(new T.PlaneGeometry(20, 20), 0.05, T.DoubleSide).position.set(0, -5.9, 0);         // the floor, dark (a sheen, not a mirror)
     const panel = (w, h, c, x, y, z) => { const o = add(new T.PlaneGeometry(w, h), c, T.DoubleSide); o.position.set(x, y, z); o.lookAt(0, 0, 0); };

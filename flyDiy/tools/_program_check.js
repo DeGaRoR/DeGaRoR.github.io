@@ -275,6 +275,8 @@ function warmThenFrame(useOld) {
 // ---- 6. PROGRAM IDENTITY (PERF-TRACE, 22 Nov): every link tied to its three.js program and its declared owner ----
 // (tools/_progid_check.js: the recorder and src/viewer/program_id.js hooked as the page hooks them)
 require('./_progid_check.js').run(ok);
+require('./_progid_check.js').runSites(ok);   // 7: every material site in the game's source declares its owner
+require('./_progid_check.js').runCensus(ok);   // 8: the standard boots' census (tools/perf/program_owners.json): none unowned, a rise has its reason
 
 console.log('GATE PROGRAMS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

@@ -677,7 +677,8 @@
     const ud = m.userData; m.userData = {};
     let c;
     try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
-    c.userData = Object.assign({}, ud, block ? { aeroD: block } : {}, { parked: 1 });
+    c.userData = Object.assign({}, ud, block ? { aeroD: block } : {}, { parked: 1,
+      progOwner: [].concat(ud.progOwner || 'aircraft / skin / undeclared').map(o => 'fleet / parked aircraft / ' + String(o).replace(/^aircraft \/ /, '')) });   // PERF-TRACE: a parked copy is the fleet's (program_id.js)
     if (m.defines) c.defines = Object.assign({}, m.defines);
     for (const k of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity'])
       if (m[k] !== undefined && c[k] !== undefined) c[k] = m[k];
@@ -734,7 +735,7 @@
       }
       if (m.ves && W.CAGE_ENERGY && W.CAGE_ENERGY.material)
         return cache[ck] = W.CAGE_ENERGY.material({ set: m.ves, tint: m.color, hueRad: m.vesHue || 0, hueOn: !!m.vesHueOn });
-      const std = new THREE.MeshStandardMaterial({
+      const std = new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / parked aircraft / painted parts' },
         color: m.color !== undefined ? m.color : 0xaad4ea, side,
         transparent: op < 1, opacity: op, depthWrite: op >= 1,
         ...(m.alphaTest ? { alphaTest: m.alphaTest } : {}),
@@ -933,8 +934,8 @@ self.onmessage = function (e) {
       if (C) geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
       if (S) { geo.setAttribute('aStruct', new THREE.BufferAttribute(S, 4)); geo.setAttribute('uv', new THREE.BufferAttribute(U, 2)); }
       const mat = g.mat ? g.mat
-        : g.cls === 2 ? new THREE.MeshStandardMaterial({ color: 0x1a2430, roughness: 0.15, metalness: 0.0, side: THREE.DoubleSide })
-        : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: g.cls === 1 ? 0.35 : 0.6, metalness: g.cls === 1 ? 0.9 : 0.0, side: THREE.DoubleSide });
+        : g.cls === 2 ? new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / parked aircraft / glass (static)' }, color: 0x1a2430, roughness: 0.15, metalness: 0.0, side: THREE.DoubleSide })
+        : new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / parked aircraft / body (static)' }, vertexColors: true, roughness: g.cls === 1 ? 0.35 : 0.6, metalness: g.cls === 1 ? 0.9 : 0.0, side: THREE.DoubleSide });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.renderOrder = g.clear ? 10 : 0;
       mesh.castShadow = !g.clear; mesh.receiveShadow = true;
@@ -1215,7 +1216,7 @@ self.onmessage = function (e) {
       const key = ext.buckets[b].key, m = vis.mats[key] || {};
       let src = null;
       try { src = matFor(key); } catch (e) { src = null; }
-      if (!src || !src.isMeshStandardMaterial) src = new THREE.MeshStandardMaterial({ color: src && src.color ? src.color : (m.color != null ? m.color : 0x808080), roughness: 0.6 });
+      if (!src || !src.isMeshStandardMaterial) src = new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / parked aircraft / merged skin' }, color: src && src.color ? src.color : (m.color != null ? m.color : 0x808080), roughness: 0.6 });
       const n = ts.length * 3, p = new Float32Array(n * 3), q = new Float32Array(n * 3), u = new Float32Array(n * 2), s = new Float32Array(n * 4), a = new Float32Array(n * 2);
       for (let i = 0; i < ts.length; i++) for (let e = 0; e < 3; e++) {
         const c = ts[i] * 3 + e, v = ext.idx[c], o = i * 3 + e;
@@ -1351,10 +1352,12 @@ self.onmessage = function (e) {
     const map = tex(d.tex[0], true), nmap = tex(d.tex[1], false), orm = tex(d.tex[2], false);
     const o = { map, normalMap: nmap, normalMapType: THREE.ObjectSpaceNormalMap, roughnessMap: orm, metalnessMap: orm,
                 roughness: 1, metalness: 1, side: THREE.DoubleSide };
+    // progOwner: mat.userData.progOwner, three lines below (both branches)
     const mat = d.cc ? new THREE.MeshPhysicalMaterial(Object.assign(o, { clearcoat: 1, clearcoatMap: orm, clearcoatRoughness: d.ccR }))
-                     : new THREE.MeshStandardMaterial(o);
+                     : new THREE.MeshStandardMaterial(o);   // progOwner: mat.userData.progOwner, just below
     mat.name = 'parked:baked';
     mat.userData.parkedBaked = 1;
+    mat.userData.progOwner = 'fleet / parked aircraft / baked model';   // PERF-TRACE (program_id.js): whose programs these are
     const geos = d.L.map(L => {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(L.pos, 3));

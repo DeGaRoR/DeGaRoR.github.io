@@ -218,13 +218,58 @@ function text(R) {
     for (const m of R.multiName.slice(0, 40)) L.push('  #' + m.n + ' ' + m.kb + ' KB  source name "' + (m.name || '') + '"  held as: ' + m.names.map(x => '"' + x + '"').join(', ')); }
   return L.join('\n');
 }
-module.exports = { report, programs, steps, shares, flight, paceN, text };
+// ---- THE CENSUS OF A STANDARD BOOT, PINNED (GATE PROGRAMS part 8) -------------------------------------------------
+// tools/perf/program_owners.json keeps, per standard boot (garage-cold, world-noon, world-night), the programs by
+// FEATURE and by SYSTEM as the owners declare them, the unowned ones, and the build it was taken on. `--pin <boot>`
+// writes it from a log: a feature whose count ROSE since the pin before is refused unless `--reason "..."` says why
+// (the reason is kept in the file: this is the "written reason in the ready"). The gate reads the file in node.
+//   --until garage | reveal | <page seconds>   the boot's end (garage-cold: the garage screen gone; default: the log's end)
+const PIN_FILE = path.join(__dirname, 'perf', 'program_owners.json');
+function census(log, until) {
+  let rows = programs(log); const H = log.header || {}, B = H.boot || {}, T0 = +B.t0 || 0;
+  let tEnd = Infinity, how = 'the whole log';
+  if (until === 'garage') { let set = 'garage'; for (const e of (B.log || [])) { if (e.k === 'show') set = e.set || set; if (e.k === 'gone' && set === 'garage') { tEnd = T0 + e.t + 2000; how = 'to the garage screen gone + 2 s'; break; } } }
+  else if (until === 'reveal') { const r = (log.events || []).find(e => e[1] === 'reveal'); if (r) { tEnd = r[0] + 10000; how = 'to the reveal + 10 s'; } }
+  else if (until != null && isFinite(+until)) { tEnd = +until * 1000; how = 'to page second ' + until; }
+  rows = rows.filter(r => r.t <= tEnd && r.three);
+  const feat = {}, sys = {}, un = [];
+  for (const r of rows) {
+    if (!r.own || !r.own.length) { un.push({ n: r.n, type: r.type, name: r.name, mat: r.mat, obj: r.obj, ctx: r.ctx, step: r.step }); continue; }
+    for (const f of new Set(r.own.map(o => String(o).split(' / ')[0]))) feat[f] = (feat[f] || 0) + 1;
+    for (const s of new Set(r.own.map(o => String(o).split(' / ').slice(0, 2).join(' / ')))) sys[s] = (sys[s] || 0) + 1;
+  }
+  const sort = o => Object.fromEntries(Object.entries(o).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)));
+  return { build: H.build || null, gpu: (H.gpu || {}).unmaskedRenderer || null, taken: H.started || null, until: how, programs: rows.length, owned: rows.length - un.length, unowned: un.length,
+    sources: new Set(rows.filter(r => r.fp).map(r => r.fp)).size || null, byFeature: sort(feat), bySystem: sort(sys), unownedList: un.slice(0, 80) };
+}
+function pin(boot, C, reason, file) {
+  file = file || PIN_FILE;
+  let P = { kind: 'flydiy-program-owners', v: 1, boots: {}, reasons: [] };
+  try { P = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) {}
+  const was = P.boots[boot] || null, rose = [];
+  if (was) for (const f of Object.keys(C.byFeature)) if (C.byFeature[f] > (was.byFeature[f] || 0)) rose.push({ feature: f, from: was.byFeature[f] || 0, to: C.byFeature[f] });
+  if (rose.length && !reason) return { ok: false, rose, why: 'a feature\'s program count rose and no --reason was given' };
+  for (const r of rose) P.reasons.push({ boot, feature: r.feature, from: r.from, to: r.to, build: C.build, date: new Date().toISOString().slice(0, 10), why: reason });
+  if (was) C.previous = { build: was.build, programs: was.programs, byFeature: was.byFeature };
+  P.boots[boot] = C;
+  fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(P, null, 1) + '\n');
+  return { ok: true, rose, file };
+}
+module.exports = { report, programs, steps, shares, flight, paceN, text, census, pin, PIN_FILE };
 
 if (require.main === module) {
   const argv = process.argv.slice(2), opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
-  const file = argv.find((a, i) => !a.startsWith('--') && !(i > 0 && ['--out', '--md', '--top'].includes(argv[i - 1])));
-  if (!file) { console.error('usage: node tools/program_report.js <flightlog.json[.gz]> [--out report.json] [--md report.md] [--top 25]'); process.exit(2); }
+  const file = argv.find((a, i) => !a.startsWith('--') && !(i > 0 && ['--out', '--md', '--top', '--pin', '--until', '--reason', '--pinfile'].includes(argv[i - 1])));
+  if (!file) { console.error('usage: node tools/program_report.js <flightlog.json[.gz]> [--out report.json] [--md report.md] [--top 25]\n       ... --pin garage-cold|world-noon|world-night [--until garage|reveal|<s>] [--reason "why a count rose"]'); process.exit(2); }
   const AL = require(path.join(__dirname, 'analyze_log.js'));
+  if (opt('pin', null)) {
+    const C = census(AL.load(file), opt('until', null)), r = pin(opt('pin'), C, opt('reason', null), opt('pinfile', null));
+    console.log('census ' + opt('pin') + ' (' + C.until + '): ' + C.programs + ' programs, ' + C.owned + ' owned, ' + C.unowned + ' UNOWNED; by feature ' + JSON.stringify(C.byFeature));
+    for (const u of C.unownedList.slice(0, 30)) console.log('  UNOWNED #' + u.n + ' ' + u.type + ' ' + (u.mat || []).join(' | ') + ' @' + (u.obj || []).join(' | ') + '  [' + u.ctx + ' ' + u.step + ']');
+    if (!r.ok) { console.error('NOT PINNED: ' + r.why + ': ' + r.rose.map(x => x.feature + ' ' + x.from + ' -> ' + x.to).join(', ')); process.exit(1); }
+    console.log('pinned -> ' + r.file + (r.rose.length ? '  (rose, with the reason: ' + r.rose.map(x => x.feature + ' ' + x.from + ' -> ' + x.to).join(', ') + ')' : ''));
+    process.exit(0);
+  }
   const R = report(AL.load(file), { logFile: path.basename(file), top: +opt('top', 25) });
   const out = opt('out', file.replace(/\.json(\.gz)?$/i, '') + '.programs.json');
   fs.writeFileSync(out, JSON.stringify(R, null, 1));

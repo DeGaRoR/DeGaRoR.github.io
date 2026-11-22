@@ -172,6 +172,7 @@ function ledger(log, opt) {
       parts: parts.map(x => ({ what: x.what, ms: r1(x.ms), kind: x.kind, group: x.group || x.what })),
       loop: { work: r1(work), usual: r1(M.work || 0), slots }, outside: { ms: r1(outside), named: r1(namedMs), tasks: r1(taskOnly), display: r1(display), unattributed: r1(un) },
       shaderInLoop: (waitsIn.length || linksIn.length) ? { waits: linkNames(waitsIn), links: linkNames(linksIn) } : null,
+      premises: (() => { const P = EA.filter(e => e.kind === 'premslow' && e.d); return P.length ? { built: [].concat(...P.map(e => e.d.built || [])), worst: P[P.length - 1].d.worst || null } : null; })(),
       arrived: (uploads || uses.length || deliveries.length) ? { uploads, firstUse: uses.length ? uses : null, deliveries: deliveries.length ? deliveries : null } : null,
       programsMade: made.length ? made : null, shaderslow: slow.length ? slow : null, gc: gc.length ? gc : null,
       gpuMs: p.gpu === p.gpu ? r1(p.gpu) : null, draws: p.calls === p.calls ? p.calls : null,
@@ -243,7 +244,7 @@ function ledger(log, opt) {
   return { kind: 'flydiy-freeze-ledger', v: 1, log: o.logFile || null, build: H.build || null, gpu: (H.gpu || {}).unmaskedRenderer || null,
     limits: { orangeMs: ORANGE, longMs: LONG, freezeMs: FREEZE, hardMs: HARD, blockS: BLOCK / 1000, listedOverMs: MIN },
     gpuTimer: H.gpuTimer ? { coverage: H.gpuTimer.coverage, ok: H.gpuTimer.ok } : null, recorder: H.overhead || null,
-    objectives, contexts, actions: acts, entries };
+    objectives, contexts, actions: acts, premises: log.premises || null, entries };
 }
 
 function text(R, show) {
@@ -271,6 +272,7 @@ function text(R, show) {
   for (const e of E) {
     L.push('  ' + lp(e.s, 8) + ' s ' + lp(e.ms, 8) + ' ms  ' + pad(e.ctx, 8) + pad(e.class, 8) + pad(e.confidence, 10) + (e.seg ? '[' + e.seg + '] ' : '') + (e.where ? (e.where.phase || '') + ' agl ' + e.where.agl + ' m at ' + e.where.x + ',' + e.where.z + '  ' : '') + (e.gpuMs != null ? 'gpu ' + e.gpuMs + ' ms' : ''));
     L.push('  ' + ' '.repeat(24) + e.parts.slice(0, 4).map(p => r1(p.ms) + ' ' + p.what).join('; ') + (e.outside.display ? '; ' + e.outside.display + ' display wait' : ''));
+    if (e.premises) L.push('  ' + ' '.repeat(24) + 'premises built in it (over 60 ms each): ' + e.premises.built.map(b => b[0] + ' ' + b[1] + ' ms').join(', ') + (e.premises.worst ? '; the stream\'s dearest frame so far [ms, items, post-work ms, next m]: ' + JSON.stringify(e.premises.worst) : ''));
     if (e.arrived) { const A = e.arrived, bits = [];
       if (A.deliveries) bits.push('delivered: ' + A.deliveries.map(d => d.streamer + (d.n != null ? ' x' + d.n : '') + (d.ms ? ' ' + d.ms + ' ms' : '')).join(', '));
       if (A.uploads) bits.push('GPU data ' + A.uploads.ms + ' ms (' + A.uploads.textures + ' tex ' + A.uploads.megapixels + ' MP, ' + A.uploads.buffers + ' buf ' + A.uploads.bufferKB + ' KB, +' + A.uploads.newGeometries + ' geometries, +' + A.uploads.newTextures + ' textures)');

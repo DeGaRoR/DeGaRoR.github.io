@@ -571,7 +571,7 @@ else (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || []))
 // pitot. The glass centre takes the glazing treatment (translucent,
 // never occluding), riding the view panel's glass alpha.
 const D2 = THREE.DoubleSide;
-const mk = (c, met, rgh) => new THREE.MeshStandardMaterial({
+const mk = (c, met, rgh) => new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / part colour fallback' },
   color: c, metalness: met, roughness: rgh, side: D2 });
 const COLS = {
   // THE CHECK IS DONE (G62.3). G38 put the WAISTBAND'S OWN PINK (#cc12a8) on
@@ -603,7 +603,7 @@ const MAT = {
 const glassMat = () => {
   const a = (window.CAGE_VIEW && window.CAGE_VIEW.glassA != null)
     ? window.CAGE_VIEW.glassA : 0.35;
-  return new THREE.MeshStandardMaterial({
+  return new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / glass centre fallback' },
     color: COLS.glassC, metalness: 0.05, roughness: 0.15, side: D2,
     transparent: true, opacity: a, depthWrite: false });
 };
@@ -680,7 +680,7 @@ function wingMat(cl, plane) {
 
 const wireMats = {};
 const wireMat = nm => wireMats[nm] ||
-  (wireMats[nm] = new THREE.LineBasicMaterial({ color: COLS[nm] || 0x8b95a2 }));
+  (wireMats[nm] = new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / wing / part wireframe' }, color: COLS[nm] || 0x8b95a2 }));
 
 // ---- helpers --------------------------------------------------------------
 // invert the game's rest transform: sample it at basis points, solve the
@@ -1445,7 +1445,7 @@ const drawBooms = (scene, P, teAt, leAt) => {
           bm = window.CAGE_SECMAT('boomSkin',
                                   { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide });
       } catch (e) {}
-      if (!bm) bm = new THREE.MeshStandardMaterial({ color: rodB ? 0x9aa0a6 : 0xd9d4c6,
+      if (!bm) bm = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / twin booms / skin fallback' }, color: rodB ? 0x9aa0a6 : 0xd9d4c6,
                                                      metalness: rodB ? 0.6 : 0.1, roughness: 0.45 });
       for (const s of [1, -1]) {
         const g = new THREE.BufferGeometry();
@@ -1875,7 +1875,7 @@ const wingPost = ctx => {
   // bay reads as a big pale trough instead of the dark box it is — which is
   // exactly how it first came out.
   const bayMat = () => {
-    const m = new THREE.MeshStandardMaterial({
+    const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / landing light bay' },
       color: 0x15171b, roughness: 0.42, metalness: 0.10,
       side: THREE.DoubleSide });
     m.userData.aeroskin = 1;
@@ -2248,7 +2248,7 @@ const wingPost = ctx => {
     if (A && A.aeroGlass) return A.aeroGlass(THREE, {});
     // the standalone bench has no aeroskin layer; it gets a stand-in that at
     // least reads as glass rather than as pale covering
-    const m = new THREE.MeshStandardMaterial({
+    const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / landing light lens fallback' },
       color: 0xdfeaf2, roughness: 0.07, metalness: 0.0,
       transparent: true, opacity: 0.34, side: THREE.DoubleSide,
       depthWrite: false });
@@ -2363,7 +2363,7 @@ const wingPost = ctx => {
           // the windows' to the instance — the same finish, tint and dials
           const jm = (window.CAGE_MAT_OF && window.CAGE_MAT_OF('joint'))
             || (window.CAGE_SECMAT && window.CAGE_SECMAT('joint', { surf: 0, fieldM: 1 }))
-            || new THREE.MeshStandardMaterial({ color: 0x1a1b1e, roughness: 0.7 });
+            || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / landing light lens joint fallback' }, color: 0x1a1b1e, roughness: 0.7 });
           const jb = new THREE.Mesh(bead, jm);
           jb.name = 'edLensJoint_wing' + sd;
           group.add(jb);
@@ -2503,7 +2503,7 @@ const wingPost = ctx => {
     let wingRay = null;
     if (wingGeo && THREE.Raycaster) {
       const probe = new THREE.Group();
-      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      const pm = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / wing / skin ray probe' }, side: THREE.DoubleSide });
       for (const g of (skinProbe.length ? skinProbe : [wingGeo])) probe.add(new THREE.Mesh(g, pm));
       probe.updateMatrixWorld(true);
       const rc = new THREE.Raycaster();
@@ -2792,7 +2792,7 @@ const wingPost = ctx => {
     // upward ray meets the underside's faces from behind their winding —
     // measured, the main section answered null while the centre answered,
     // purely on which way each class's triangles happened to wind.
-    const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const pm = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / wing / skin ray probe' }, side: THREE.DoubleSide });
     for (const g of skinProbe) pg.add(new THREE.Mesh(g, pm));
     pg.updateMatrixWorld(true);
     const rc = new THREE.Raycaster();
@@ -2854,7 +2854,7 @@ const wingPost = ctx => {
     let uA = null, oA = null, lA = null, tA = null, bx = null;
     if (geos.length && THREE.Raycaster) {
       const pg = new THREE.Group();
-      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      const pm = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / wing / skin ray probe' }, side: THREE.DoubleSide });
       for (const g of geos) pg.add(new THREE.Mesh(g, pm));
       pg.updateMatrixWorld(true);
       const rc = new THREE.Raycaster();
@@ -2880,7 +2880,7 @@ const wingPost = ctx => {
     let ray = null;
     if (geos.length && THREE.Raycaster) {
       const pg = new THREE.Group();
-      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      const pm = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / wing / skin ray probe' }, side: THREE.DoubleSide });
       for (const g of geos) pg.add(new THREE.Mesh(g, pm));
       pg.updateMatrixWorld(true);
       const rc = new THREE.Raycaster();
@@ -3063,8 +3063,8 @@ const wingPost = ctx => {
     try {
       if (window.CAGE_SECMAT) rm = window.CAGE_SECMAT('radSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide });
     } catch (e) {}
-    if (!rm) rm = new THREE.MeshStandardMaterial({ color: 0x8a8f96, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide });
-    const coreM = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, metalness: 0.4, roughness: 0.8, side: THREE.DoubleSide });
+    if (!rm) rm = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing radiators / skin fallback' }, color: 0x8a8f96, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide });
+    const coreM = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing radiators / core' }, color: 0x1b1d1f, metalness: 0.4, roughness: 0.8, side: THREE.DoubleSide });
     // a rounded rectangle, top edge at yT, depth d, half-width hw, corner r; NP points, clockwise from top left
     const NP = 28;
     const ring = (xc, yT, d, hw, z) => {

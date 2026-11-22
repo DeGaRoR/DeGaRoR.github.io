@@ -160,7 +160,7 @@ const GUARDRAIL = (() => {
   let MAT = null;
   function material(THREE) {
     if (MAT) return MAT;
-    MAT = new THREE.MeshStandardMaterial({ color: 0xb6babd, vertexColors: true, metalness: 0.58, roughness: 0.48 });
+    MAT = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / guard rails / rail' }, color: 0xb6babd, vertexColors: true, metalness: 0.58, roughness: 0.48 });
     MAT.name = 'guardrail';
     return MAT;
   }

@@ -720,7 +720,7 @@ function frameOn(p, axis, aftIn, faceIn) {
 // what is STEEL is steel whatever colour the aeroplane is (a pinned finish,
 // walking tint only), and what is a FAIRING is painted with the part it lies
 // on (`wears: 'parent'`, G207 — the rule written for exactly this case).
-const lam = (c, o) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, o || {}));
+const lam = (c, o) => new THREE.MeshLambertMaterial(Object.assign({ userData: { progOwner: 'aircraft / hinges and fairings / plain fallback' }, color: c }, o || {}));
 let FALLBACK = null;
 const TINT = { metal: 0x9aa2ab, fair: 0xc8ccd2, door: 0xb9c2cc };
 const fallbackMats = () => (FALLBACK || (FALLBACK = {

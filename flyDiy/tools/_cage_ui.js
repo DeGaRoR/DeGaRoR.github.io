@@ -857,7 +857,7 @@ const matOf = (name, sd) => {
   const neutral = !$('color').checked;
   const key = (neutral ? 'n:' : 'c:') + name + ':' + a + (sd ? ':S' + sd : '');
   if (!matCache[key]) {
-    matCache[key] = new THREE.MeshLambertMaterial({
+    matCache[key] = new THREE.MeshLambertMaterial({ userData: { progOwner: 'editor / build mesh / section colour' },
       color: colOf(name),
       // glass is FRONT-SIDE only: with DoubleSide transparency the FAR
       // side of a curved pane rendered through the near one — its limb
@@ -1312,8 +1312,8 @@ function surfMesh(m, mode) {
   const mesh = meshFrom(m);
   // W0.5b: a raw ShaderMaterial diagnostic; the node renderer draws the
   // lattice as normals until it is ported
-  if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON) { mesh.material = new THREE.MeshNormalMaterial({ side: THREE.DoubleSide }); return mesh; }
-  const mat = new THREE.ShaderMaterial({
+  if (typeof window !== 'undefined' && window.FLYDIY_TSL_ON) { mesh.material = new THREE.MeshNormalMaterial({ userData: { progOwner: 'editor / surface field view / normals stand-in' }, side: THREE.DoubleSide }); return mesh; }
+  const mat = new THREE.ShaderMaterial({ userData: { progOwner: 'editor / surface field view / checker and lattice' },
     side: THREE.DoubleSide,
     uniforms: { uTile: { value: SURF_TILE }, uMode: { value: mode === 'grid' ? 1 : 0 } },
     vertexShader: `
@@ -1397,7 +1397,7 @@ function quadWire(m) {
     geo.setAttribute('position',
       new THREE.BufferAttribute(new Float32Array(pos), 3));
     const a = alphaOf(name);
-    g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+    g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / quad wireframe view / section lines' },
       color: colOf(name), transparent: a < 1, opacity: a })));
   }
   return g;
@@ -1443,7 +1443,7 @@ function curvatureMesh(m) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
   g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
-  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true }));
+  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / curvature view / heat colours' }, vertexColors: true }));
 }
 
 function edgeLines(m, color, opacity) {
@@ -1461,7 +1461,7 @@ function edgeLines(m, color, opacity) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
-  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+  return new THREE.LineSegments(g, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / wire overlays / cage and reference edges' },
     color, transparent: opacity < 1, opacity }));
 }
 
@@ -2550,7 +2550,7 @@ function* buildSteps() {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position',
         new THREE.BufferAttribute(new Float32Array(pos), 3));
-      const l = new THREE.Line(g, new THREE.LineBasicMaterial({
+      const l = new THREE.Line(g, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / canopy control loops / lines' },
         color: cols[i % cols.length], depthTest: false,
         transparent: true, opacity: 0.9 }));
       l.renderOrder = 5;
@@ -2744,7 +2744,7 @@ function quadHandles(sheet, spec, FS) {
     q.corners.forEach((c, k) => {
       const x = skinX(c[0], c[1]) + 0.012;
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.02 / FS, 12, 8),
-        new THREE.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.95 }));
+        new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / window quad handles / corner balls' }, color: col, depthTest: false, transparent: true, opacity: 0.95 }));
       m.position.set(x, c[1], c[0]); m.renderOrder = 7;
       m.userData = { quadPre: pre, quadC: k + 1, quadX: x };
       quadObj.add(m); pts.push(x, c[1], c[0]);
@@ -2752,7 +2752,7 @@ function quadHandles(sheet, spec, FS) {
     pts.push(pts[0], pts[1], pts[2]);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
-    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.7 }));
+    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / window quad handles / outline' }, color: col, depthTest: false, transparent: true, opacity: 0.7 }));
     l.renderOrder = 6; quadObj.add(l);
   }
   quadObj.scale.setScalar(FS);
@@ -3452,7 +3452,7 @@ fillPresetSel();
     const uniOf = m => {
       let u = uniFor.get(m);
       if (!u) {
-        u = new THREE.MeshStandardMaterial({
+        u = new THREE.MeshStandardMaterial({ userData: { progOwner: 'editor / build mesh / matte understudy' },
           roughness: 0.85, metalness: 0.0,
           vertexColors: m.vertexColors });
         u.userData.cageUni = 1;        // never understudy an understudy

@@ -252,7 +252,7 @@ function lensMat(key, level, colOver) {
   // 0x14161a, a black bead on the tip whatever the side - a nav lens is a
   // red or green dome you can tell apart from across the apron; the tint
   // is the lens colour darkened, the emissive term the lamp's as before
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / lights / lens' },
     color: new THREE.Color(col).multiplyScalar(0.32), emissive: new THREE.Color(col),
     emissiveIntensity: level * 2.4, roughness: 0.26, metalness: 0,  // pre-ok: a lens's drawn level; in flight CK.glow drives the clone x P
     side: THREE.DoubleSide });
@@ -295,7 +295,7 @@ function cupMat(level, colOver, on, key, k) {
   const id = lv.toFixed(2) + '|' + col + '|' + (key || '') + '|' + kk.toFixed(2);
   if (cupMats[id]) return cupMats[id];
   const row = MAT.lodge;
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / lights / reflector cup and socket' },
     color: row.col, roughness: row.rough, metalness: row.metal,
     emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55 * kk,  // pre-ok: a cup's drawn level; in flight CK.glow drives the clone x P
     side: THREE.DoubleSide });
@@ -312,7 +312,7 @@ function hwMat(kind) {
   let m = null;
   if (A && A.aeroHardMat)
     m = A.aeroHardMat(THREE, 'light', kind, row.col, { side: THREE.DoubleSide });
-  if (!m) m = new THREE.MeshStandardMaterial({
+  if (!m) m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / lights / housing hardware fallback' },
     color: row.col, roughness: row.rough, metalness: row.metal,
     side: THREE.DoubleSide });
   return (bodyMats[kind] = m);

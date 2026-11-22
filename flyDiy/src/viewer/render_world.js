@@ -271,7 +271,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   }
   function rwyFixtureMat() {
     return RWY.fixMat || (RWY.fixMat = MATLIB.make(THREE, 'std', { color: C(0xffffff), vertexColors: true,
-      roughness: 1, metalness: 1, roughnessMap: rwySurfTex(), metalnessMap: rwySurfTex() }));
+      roughness: 1, metalness: 1, roughnessMap: rwySurfTex(), metalnessMap: rwySurfTex() }, 'pavement / runway lights / fixtures'));
   }
   // THE GLOW: three's points program, its size and its shape taken over. The vertex colour is the light's (colour x
   // sqrt(cd) / 3); uRwyL the day's level, uRwyPx half the bound target's height in pixels; rwyAx the lobe's horizontal
@@ -313,7 +313,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (RWY.glow) return RWY.glow;
     const ap = !!(THREE.ShaderChunk && /atmoAP/.test(THREE.ShaderChunk.fog_pars_fragment || ''));   // the atmosphere's splice is in
     const m = MATLIB.make(THREE, 'points', { size: 1, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false,
-      fog: ap, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendEquation: THREE.AddEquation });
+      fog: ap, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendEquation: THREE.AddEquation }, 'pavement / runway lights / glow points');
     m.onBeforeCompile = sh => {
       sh.uniforms.uRwyL = RWY.U.lvl; sh.uniforms.uRwyPx = RWY.U.px; sh.uniforms.uRwyP = RWY.U.pre;
       sh.vertexShader = sh.vertexShader.replace('void main() {', 'uniform float uRwyL, uRwyPx;\nattribute vec3 rwyAx;\nvarying vec3 vRwy;\nvoid main() {')
@@ -551,7 +551,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // hemisphere and re-judging the world by eye (RENDERER-DECISION §4g).
   const LAMBERT_NO_ENV = new THREE.Texture();
   LAMBERT_NO_ENV.mapping = THREE.EquirectangularReflectionMapping;
-  const worldLambert = o => new THREE.MeshLambertMaterial(Object.assign({ envMap: LAMBERT_NO_ENV }, o));
+  const worldLambert = o => new THREE.MeshLambertMaterial(Object.assign({ userData: { progOwner: 'world / plain lambert / site props and markers' }, envMap: LAMBERT_NO_ENV }, o));   // (PERF-TRACE: the fallback owner; a caller's own userData.progOwner replaces it)
   // THE PAVEMENT (contract v1.16, 2026-09-22): every strip and every road is a PAVEMENT mesh when the
   // module is on the page - src/viewer/pavement.js's one material, the class from the look, the
   // recipe resolved with the premises' (PAVEMENT.resolve). The analytic world's strips take a look by
@@ -598,7 +598,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const geo = q.geo.clone(), P = geo.attributes.position, H = new Array(P.count), h0 = Math.max(1e-3, bb[4] - bb[1]);
         for (let i = 0; i < P.count; i++) H[i] = (P.getY(i) - bb[1]) / h0;
         geo.setAttribute('aRockH', new THREE.Float32BufferAttribute(H, 1));   // (three's own typed array: GATE MATLIB's realm)
-        return { geo, mat: footed(MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }, 'stripstone')) };
+        return { geo, mat: footed(MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }, 'stripstone', 'terrain / strip stones / stones')) };
       }) });
     }
     out.bury = bury; out.footed = footed;
@@ -614,7 +614,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
       const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat, THREE.UnsignedByteType); tex.needsUpdate = true;
       out.ring = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.5, depthWrite: false, // pre-ok: a black shade ring under the stones (alpha only), writes no light
-        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }, 'terrain / strip stones / shade ring');
       out.ring.name = 'rocks:ring';
     }
     return (rockParts = out);
@@ -794,7 +794,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const glow = T.pow(sd, 900.0).mul(3.0).add(T.pow(sd, 14.0).mul(0.42)).add(T.pow(sd, 3.0).mul(0.13));
       return T.colorSpaceToWorking(col.add(U.uSunCol.mul(glow)).mul(U.uDim), THREE.SRGBColorSpace);
     });
-    const m = new THREE.MeshBasicNodeMaterial();
+    const m = new THREE.MeshBasicNodeMaterial({ userData: { progOwner: 'sky / dome / sky (TSL)' } });
     m.colorNode = dome();
     m.side = THREE.BackSide; m.depthTest = false; m.depthWrite = false; m.fog = false;
     m.uniforms = U;
@@ -802,7 +802,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return m;
   };
   const skyMat = (encode, extra) => (TSL_ON ? skyMatTSL : skyMatGLSL)(encode, extra);
-  const skyMatGLSL = (encode, extra) => new THREE.ShaderMaterial(Object.assign({
+  const skyMatGLSL = (encode, extra) => new THREE.ShaderMaterial(Object.assign({ userData: { progOwner: 'sky / dome / sky (GLSL)' },
       uniforms: { uTop:{value:C(0x3f7fbe)}, uMid:{value:C(0x9dc4dd)},
                   uHaze:{value:C(HAZE)}, uSun:{value:SUN_SKY}, uSunCol:{value:C(SUNC)}, uDim:{value:1.0} },
       vertexShader: `varying vec3 vD;
@@ -1045,7 +1045,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const ref = Eg([0, Math.sin(33.4 * Math.PI / 180), Math.cos(33.4 * Math.PI / 180)]);
       return Math.min(1.5, Eg(s) / Math.max(1e-9, ref));
     })() : 1;
-    es.add(new THREE.Mesh(grndG, new THREE.MeshBasicMaterial({  // pre-ok: the ATMO-off cap (P = 1 there)
+    es.add(new THREE.Mesh(grndG, new THREE.MeshBasicMaterial({ userData: { progOwner: 'sky / dome / ground cap (atmosphere off)' },  // pre-ok: the ATMO-off cap (P = 1 there)
       color: C(0xffffff).setRGB(capOf()[0], capOf()[1], capOf()[2]).multiplyScalar(gb).multiplyScalar(capK), side: THREE.BackSide,   // the one-shot bake: the table's grass (the craft has not stood anywhere yet)
       toneMapped: false, fog: false })));
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -2559,8 +2559,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // Standard clone would ask 17 and fail to link, drawing nothing - G424) - innerPatchShared
     // hands it a Lambert TWIN under the same hook. The analytic world's ring is untouched.
     yield 'ground material';
-    const gMat = islandGroundHook ? new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }) : worldLambert({ map: tex });
-    const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
+    const gMat = islandGroundHook ? new THREE.MeshStandardMaterial({ userData: { progOwner: 'terrain / island ground / ring (coarse)' }, map: tex, roughness: 1, metalness: 0 }) : worldLambert({ userData: { progOwner: 'terrain / analytic ground / ring' }, map: tex });
+    const gMatTwin = islandGroundHook ? worldLambert({ userData: { progOwner: 'terrain / premises patch / ground (lambert twin of the ring)' }, map: tex }) : gMat;
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
     if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring'); rockGroundMat = gMat;
@@ -2723,7 +2723,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     yield 'fine ring';
     const FINE = { on: !!islandGroundHook, R: 700, band: 120, T: 160, step: 5, tiles: new Map(), mat: null, budget: 6, off: (typeof location !== 'undefined' && /[?&]fine=0/.test(location.search)) };   // ?fine=0: the ring alone (the A/B)
     if (FINE.on) {
-      FINE.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
+      FINE.mat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'terrain / island ground / fine ring' }, map: tex, roughness: 1, metalness: 0 });
       FINE.mat.onBeforeCompile = sh => { islandGroundHookFine(sh); sh.uniforms.uTier = TIER_U.fine; }; islandKeyed(FINE.mat, 'island-fine');   // (G2115: the tier's sink, its own)
       const SEG = 2 * INNER / 512, RP = geo.attributes.position, RN = geo.attributes.normal, RW = 513;
       // the ring's surface at (x, z): its own triangles (PlaneGeometry's a-b-d / b-c-d split, the
@@ -2874,7 +2874,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the eps-4 quadtree outside the inner ring, merged into meshes by
       // quadrant (frustum-culled as sixteen), wearing the ground material;
       // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
-      const oMat = worldLambert({ map: outerTex });
+      const oMat = worldLambert({ userData: { progOwner: 'terrain / island ground / outer ring' }, map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;
       if (islandGroundHook) islandKeyed(oMat, 'island-outer');
       outerMatShared = oMat;
@@ -3118,7 +3118,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       farLod = FARLOD;
       console.log('island far terrain: ' + FARLOD.quads.size + ' meshes, ' + FARLOD.stats.nodes + ' patches, ' + (FARLOD.stats.tris / 1e6).toFixed(2) + ' M tris at the first cut (the eye at ' + camera.position.toArray().map(v => v | 0).join(',') + ')');
     } else { // outer ring: four coarse strips sharing one full-domain texture
-      const oMat = worldLambert({ map: outerTex });
+      const oMat = worldLambert({ userData: { progOwner: 'terrain / island ground / outer ring' }, map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;   // the far tier lives mostly out here
       if (islandGroundHook) islandKeyed(oMat, 'island-outer');
       outerMatShared = oMat;
@@ -3153,7 +3153,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // ?water=0: the stock material, for an A/B (the perf rig's, the eye's)
     const WSH = (typeof WATER !== 'undefined' && THREE.MeshPhysicalMaterial && !(typeof location !== 'undefined' && /[?&]water=0/.test(location.search))) ? WATER : null;
     yield 'water';
-    const waterMat = WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({
+    const waterMat = WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({ userData: { progOwner: 'water / sea / plain surface (water shader off)' },
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
     const wtag = (g, body, wavy) => WSH ? WSH.tag(THREE, g, body, wavy) : g;
     // INFINITE WATER ON AN ISLAND (G402, the user): the plane ran to the domain's
@@ -3248,7 +3248,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const matOf = {};
       // BUOY-DESAT (the user 5 Nov: "too saturated for the scene. Desaturate them a bit"): half way to their own grey; the lamps' option keeps the full colour
       const buoyDull = c => { const g = 0.3 * c.r + 0.5 * c.g + 0.2 * c.b; c.r += (g - c.r) * 0.5; c.g += (g - c.g) * 0.5; c.b += (g - c.b) * 0.5; return c; };
-      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: buoyDull(C(hex)), map: buoyMap, emissive: C(hex), emissiveIntensity: 0, roughness: 0.78 }));  // pre-ok: 0 here; seaUpdate drives it x P
+      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ userData: { progOwner: 'water / buoys / body' }, color: buoyDull(C(hex)), map: buoyMap, emissive: C(hex), emissiveIntensity: 0, roughness: 0.78 }));  // pre-ok: 0 here; seaUpdate drives it x P
       const matP = hex => { const m = mat(hex); if (!buoyMats.includes(m)) buoyMats.push(m); return m; };
       const put = (x, z, hex, r) => { const m = new THREE.Mesh(geoB, matP(hex)); if (r) m.scale.setScalar(r); m.position.set(x, 0, z); m.castShadow = false; scene.add(m); buoys.push(m); };
       for (const a of (world.aerodromes || [])) {
@@ -3736,7 +3736,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     function normalMatTSL() {
       const T = THREE.TSL;
       const U = { map: { value: null }, uCut: T.uniform(0.5), uHasMap: T.uniform(0) };
-      const m = new THREE.MeshBasicNodeMaterial();
+      const m = new THREE.MeshBasicNodeMaterial({ userData: { progOwner: 'forest / impostor bake / normals (TSL)' } });
       const n = T.select(T.frontFacing, T.normalWorld, T.normalWorld.negate());
       m.colorNode = n.mul(0.5).add(0.5);   // data into a linear target: no colour-space step
       m.uniforms = U;
@@ -3746,7 +3746,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     function normalMatFor(src) {
       let m = NRM_CACHE.get(src);
       if (!m) {
-        m = TSL_ON ? normalMatTSL() : new THREE.ShaderMaterial({
+        m = TSL_ON ? normalMatTSL() : new THREE.ShaderMaterial({ userData: { progOwner: 'forest / impostor bake / normals' },
           uniforms: { map: { value: null }, uCut: { value: 0.5 }, uHasMap: { value: 0 }, uLeafF: { value: 1 } },
           vertexShader: [
             'varying vec3 vWN;', 'varying vec2 vUvN;',
@@ -3848,7 +3848,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           '  float uFlat = 1.0, uFlatMean = 0.0;',
           (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tintGlsl) ? TREE_LEAF.tintGlsl : '',
           '  gl_FragColor = vec4(diffuseColor.rgb, c.a);', '}'].join('\n'),
-        depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending }));
+        depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending }, 'forest / impostor bake / sheet statistics'));
       q.frustumCulled = false;
       const sc = new THREE.Scene(); sc.add(q);
       const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -3889,7 +3889,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     let BAKE_RED = null;
     const bakeReduce = () => { if (BAKE_RED) return BAKE_RED; const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), MATLIB.make(THREE, 'shader', { uniforms: { uSrc: { value: null } },
         vertexShader: 'varying vec2 vU; void main() { vU = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: 'uniform sampler2D uSrc; varying vec2 vU; void main() { gl_FragColor = texture2D(uSrc, vU); }',
-        depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending })); q.frustumCulled = false; const sc = new THREE.Scene(); sc.add(q);
+        depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending }, 'forest / impostor bake / reduce')); q.frustumCulled = false; const sc = new THREE.Scene(); sc.add(q);
       return (BAKE_RED = { q, sc, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) }); };
     // ---- THE SHEETS ARE LAYERS (PERF 2026-09-23) --------------------------------------------------
     // Every impostor sheet was a texture of its own and every (chunk, subject, series) an InstancedMesh
@@ -4063,7 +4063,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         }
       } else {
         // the cone: unlit white, tinted per instance at draw as before
-        meshes.push(new THREE.Mesh(srcGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })));  // pre-ok: the impostor albedo bake (offscreen, not light)
+        meshes.push(new THREE.Mesh(srcGeo, new THREE.MeshBasicMaterial({ userData: { progOwner: 'forest / impostor bake / albedo' }, color: 0xffffff, toneMapped: false })));  // pre-ok: the impostor albedo bake (offscreen, not light)
       }
       for (const mm of meshes) sc.add(mm);
       const cam = new THREE.OrthographicCamera(-M, M, M, -M, 0.1, bs.r * 8);
@@ -4174,7 +4174,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the sky and every tint. entries: [{ x, z, s, key }] (the block's trees, metres, scale, 'collection|subject');
     // null while a species' rungs sheet is not baked yet (the caller tries again)
     let CARD_MAT = null;
-    const cardMat = () => CARD_MAT || (CARD_MAT = new THREE.ShaderMaterial({
+    const cardMat = () => CARD_MAT || (CARD_MAT = new THREE.ShaderMaterial({ userData: { progOwner: 'forest / canopy cover / tree cards' },
       uniforms: { uCol: IMPA.U.col, uNrm: IMPA.U.nrm, uDir: { value: new THREE.Vector3(0, 1, 0) }, uG: { value: IMP_G }, uTile: { value: IMP_TILE }, uPass: { value: 0 } },
       vertexShader: [
         'attribute vec3 aPos;', 'attribute float aS, aL, aCy, aDiam, aLev;', 'uniform vec3 uDir;',
@@ -4341,7 +4341,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const U_FARR = { value: 1e7 };            // the far pass: no reach limit
     function impostorDepth(atlas, si, farPass, gain, inst) {   // inst: the merged chunk mesh's (IMP_INST: the layer per instance)
       if (TSL_ON) return null;   // W0.5b: MeshDepthMaterial is refused by the node renderer; its default depth casts until the port
-      const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
+      const d = new THREE.MeshDepthMaterial({ userData: { progOwner: 'forest / impostors / shadow depth' }, depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5, side: THREE.DoubleSide });
       if (inst ? !IMPA.col : !atlas.tex) return d;
       const cover = farPass === 'cover';
       // THREE VARIANTS, THREE PROGRAMS. r128 keys its program cache on
@@ -4419,7 +4419,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // (0,0,0), and every impostor drew black under a healthy atlas. The old
       // photograph impostor was a ShaderMaterial and never met this.
       // (no `map`: the sheet is a LAYER of IMPA's arrays, sampled below - PERF 2026-09-23)
-      const m = new THREE.MeshStandardMaterial({
+      const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'forest / impostors / cards' },
         alphaTest: 0.01, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       (m.userData = m.userData || {}).atlas = atlas;
       if (!inst && atlas && atlas.layer >= 0) IMPA.set(atlas.layer, atlas.cy, atlas.diam, gain || 6, IMP_CUT[si || 0], tintU, atlas.key ? atlas.key + '|' + atlas.series : null);   // the layer's own numbers, for the merged meshes
@@ -4990,7 +4990,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const bandDepth = (mat, r, n) => {
       if (TSL_ON) return null;   // W0.5b: same (the band collapse is not in the shadow yet under the flag)
       const E = bandEdges(r, n);
-      const d = new THREE.MeshDepthMaterial({
+      const d = new THREE.MeshDepthMaterial({ userData: { progOwner: 'forest / near trees / shadow depth (band)' },
         depthPacking: THREE.RGBADepthPacking,
         // the cutout, which the derived depth material never had
         map: mat.map || null, side: mat.side,
@@ -5342,7 +5342,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // above never reaches it — that is why the near forest was measured being
     // submitted twice. Same radius, measured from the CG because the sun's
     // shadow camera follows the aircraft rather than the eye.
-    const treeDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    const treeDepth = new THREE.MeshDepthMaterial({ userData: { progOwner: 'forest / near trees / shadow depth' }, depthPacking: THREE.RGBADepthPacking });
     treeDepth.onBeforeCompile = sh => {
       sh.uniforms.uNearB = uNear;
       sh.uniforms.uCam = uCam;
@@ -5360,8 +5360,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (!a) cells.set(k, a = { cx, cz, list: [] });
       a.list.push(T);
     }
-    const trunkMat = nearOnly(worldLambert({ color: C(0x584431) }));
-    const canopyMat = nearOnly(worldLambert({ vertexColors: true }));
+    const trunkMat = nearOnly(worldLambert({ userData: { progOwner: 'forest / near trees / trunks (analytic)' }, color: C(0x584431) }));
+    const canopyMat = nearOnly(worldLambert({ userData: { progOwner: 'forest / near trees / canopies (analytic)' }, vertexColors: true }));
     // Impostors carry NO trunk: 1.9 m tall and 0.4 m wide is a fifth of a pixel
     // at 450 m, which is the same argument that already switched trunks off at
     // 900 m — and a brown trunk cannot ride a per-species tint anyway.
@@ -5645,7 +5645,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // three CAN cull these after all (it never could while the matrices held
       // world coordinates against a 2 m shared sphere).
       [coneF, blobF].forEach(g => chunkBounds(g, CH));
-      const matF = nearOnly(worldLambert({ vertexColors: true }));
+      const matF = nearOnly(worldLambert({ userData: { progOwner: 'forest / near trees / canopies (analytic, far)' }, vertexColors: true }));
       // the fill shapes are shorter than the woodland ones (no trunk under
       // them), so they get their own atlases rather than borrowing — the
       // impostor's size and centre height come straight off the source
@@ -6837,7 +6837,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       };
       const gmaps = siteGroundMaps(THREE, 'grass004', 2, WANISO);
       const base = new THREE.Mesh(mkGeo(!!gmaps), gmaps
-        ? new THREE.MeshStandardMaterial(Object.assign({
+        ? new THREE.MeshStandardMaterial(Object.assign({ userData: { progOwner: 'terrain / home site / grass base' },
             roughness: 1, metalness: 0, depthWrite: false, transparent: true }, gmaps))
         : worldLambert({ color: C(0x6b7a36), depthWrite: false,
             transparent: true }));
@@ -6975,7 +6975,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
       const HW = P.HW, HD = P.HD, door = P.doorW > 0 ? P.doorW : Math.max(6, 2 * HW - 5), pier = HW - door / 2;
       if (pier < 2.3) return null;                                   // no wall beside the door to take it
-      const w = Math.min(2.1, pier - 0.3), h = w * 152 / 512, m = MATLIB.shared(THREE, 'std', { map: NAME_TEX, roughness: 0.6, metalness: 0.05 }, 'namebrd');
+      const w = Math.min(2.1, pier - 0.3), h = w * 152 / 512, m = MATLIB.shared(THREE, 'std', { map: NAME_TEX, roughness: 0.6, metalness: 0.05 }, 'namebrd', 'town / hangar shell / name board');
       const geo = new THREE.BoxGeometry(w, h, 0.03), mesh = new THREE.Mesh(geo, m);
       mesh.position.set(door / 2 + pier / 2, (P.floorY || 0) + 3.2, HD + 0.14); mesh.castShadow = false; mesh.receiveShadow = true; mesh.name = 'shed:nameboard';
       return mesh;
@@ -7040,7 +7040,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         }
         const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(P, 3)); fg.setAttribute('normal', new THREE.BufferAttribute(N, 3)); fg.setAttribute('color', new THREE.BufferAttribute(C, 3));
         fg.setIndex(new THREE.BufferAttribute(I, 1)); fg.computeBoundingSphere();
-        const fm = new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0, side: THREE.DoubleSide }));
+        const fm = new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / hangar shell / coarse openings' }, vertexColors: true, roughness: 0.3, metalness: 0, side: THREE.DoubleSide }));
         fm.castShadow = false; fm.receiveShadow = true; fm.name = 'shell:coarse:openings'; fm.userData.coarseFill = true; out.add(fm);
       }
       for (const [o, a] of ms) if (a >= share * tot) { const c = new THREE.Mesh(o.geometry, o.material); c.position.copy(o.position); c.quaternion.copy(o.quaternion); c.scale.copy(o.scale);
@@ -7193,7 +7193,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // (wallOutAlb repeats 4 x 1 per piece), so nothing else changes.
         const CC = shed.coarseCast || [];   // (DERELICT-HANGAR: the large hangar hands its cladding and its roof here, no mats)
         const skin = (MT.wallOut || MT.wall || CC[0]).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
-        if (skin.userData && skin.userData.houseShaded) { skin.onBeforeCompile = () => {}; skin.userData = {}; }   // (a box has no aHouseAO: plain)
+        if (skin.userData && skin.userData.houseShaded) { skin.onBeforeCompile = () => {}; skin.userData = { progOwner: 'town / hangar shell / coarse body (plain)' }; }   // (a box has no aHouseAO: plain)
         const body = new THREE.Mesh(
           new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), skin);
         body.position.y = D.EAVE / 2;
@@ -7228,7 +7228,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         rgeo.setAttribute('uv', new THREE.Float32BufferAttribute([
           0, 0, 6, 0, 0, 6, 6, 6, 0, 6, 6, 6], 2));
         rgeo.computeVertexNormals();
-        const plainOf = m => { if (!m || !(m.userData && m.userData.houseShaded)) return m; const q = m.clone(); q.onBeforeCompile = () => {}; q.userData = {}; return q; };   // G3532
+        const plainOf = m => { if (!m || !(m.userData && m.userData.houseShaded)) return m; const q = m.clone(); q.onBeforeCompile = () => {}; q.userData = { progOwner: 'town / hangar shell / coarse roof (plain)' }; return q; };   // G3532
         const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut || CC[1] || CC[0]));
         coarse.add(body, roof);
         coarse.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
@@ -7394,7 +7394,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // whatever its renderOrder. Opaque paving therefore disappeared under a
       // patch that is nominally beneath it. One sorted pass, ordered by
       // renderOrder, is the fix; these were already depthWrite:false decals.
-      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial(Object.assign({
+      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial(Object.assign({ userData: { progOwner: 'pavement / home site / paved decals' },
         roughness: 1, metalness: 0.02, depthWrite: false, transparent: true }, maps)));
       m.position.set((r.x0 + r.x1) / 2, y, (r.z0 + r.z1) / 2);
       m.renderOrder = Math.round(y * 100);
@@ -7471,7 +7471,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * PW, uv.getY(i) * PD);
         uv.needsUpdate = true; }
       pg.rotateX(-Math.PI / 2);
-      const pm = new THREE.MeshStandardMaterial(Object.assign({
+      const pm = new THREE.MeshStandardMaterial(Object.assign({ userData: { progOwner: 'pavement / home site / pad' },
         roughness: 1, metalness: 0, depthWrite: false }, gpad));
       siteEdgeFade(THREE, pm, 0.42, PW, PD);
       const patch = new THREE.Mesh(pg, pm);
@@ -7496,7 +7496,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           x0: SITE.apron.x0 - 60, x1: SITE.apron.x1 + 60,
           z0: R.cz + R.half, z1: box.z1 + 20,
         });
-        const tm2 = new THREE.MeshStandardMaterial({
+        const tm2 = new THREE.MeshStandardMaterial({ userData: { progOwner: 'terrain / home site / grass blades' },
           map: siteBladeTexture(THREE, rnd, WANISO),
           alphaTest: 0.42, side: THREE.FrontSide, roughness: 0.92, metalness: 0 });
         scene.add(siteTufts(THREE, rows, tm2, 0.0));
@@ -7633,7 +7633,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // extent, so a place 4.5 km out took the airfield's patch off the ring's material with it
   function patchGrounds() {
     const inner = innerPatchShared, h = inner ? inner.half - 60 : 0;
-    const outerMat = outerMatShared || (outerTexShared ? worldLambert({ map: outerTexShared }) : null);
+    const outerMat = outerMatShared || (outerTexShared ? worldLambert({ userData: { progOwner: 'terrain / island ground / outer ring' }, map: outerTexShared }) : null);
     const outerUV = outerUVShared || ((x, z) => [(x - world.bounds.x0) / (world.bounds.x1 - world.bounds.x0), 1 - (z - world.bounds.z0) / (world.bounds.x1 - world.bounds.x0)]);
     if (!inner) return { patchMat: outerMat, patchUV: outerUV };
     // past the ring the polygons' PBR sets are not drawn (patchInject2): the far material has no texture units
@@ -7752,7 +7752,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     const poleMat = worldLambert({ color: C(0xd8d2c4) });
     const sockMat = worldLambert({ color: C(0xe4622e), side: THREE.DoubleSide });
-    const patchMat = worldLambert({ map: outerTexShared });
+    const patchMat = worldLambert({ userData: { progOwner: 'terrain / island ground / outer ring patch' }, map: outerTexShared });
     // patch uvs span the full 24 km domain: 613 tiles ~= the inner ring's
     // on-ground grain density (230 tiles over 9 km)
     if (detailApply) detailApply(patchMat, 613);

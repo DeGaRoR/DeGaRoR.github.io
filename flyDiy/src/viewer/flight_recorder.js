@@ -163,6 +163,20 @@
         sub: [UP.subN, Math.round(UP.subB / 1024)], mip: [UP.mipN, r1e(UP.mipMs)], geo: dg, texNew: dx });
       UP.ms = 0; UP.n = 0; UP.texN = 0; UP.texMs = 0; UP.texPx = 0; UP.cmpB = 0; UP.bufN = 0; UP.bufMs = 0; UP.bufB = 0; UP.subN = 0; UP.subB = 0; UP.mipN = 0; UP.mipMs = 0;
     }
+    // PERF-TRACE (PERF-LEAD, 22 Nov): WHICH PREMISES A PREMISES FREEZE BUILT. render_premises keeps the builds over 60 ms
+    // (streamState.slow: [id, ms], the last 60) and its dearest frame (streamState.worst: [ms, items, post-work ms, next
+    // metres]). A frame whose premises slot took 60 ms or more copies the builds added since the last look into an event
+    // 'premslow'; the saved log carries both lists whole. Read, never written; nothing on a frame under 60 ms of premises.
+    let premTail = null;
+    function premSlow(t, ms, quiet) {
+      try {
+        const P = W.WORLD && W.WORLD.premises, ST = P && P.streamState, L = ST && ST.slow;
+        if (!L || !L.length) return;
+        let i = L.length - 1; while (i >= 0 && L[i] !== premTail) i--;
+        const add = L.slice(i + 1); premTail = L[L.length - 1];
+        if (!quiet && add.length) event('premslow', t, ms, { built: add.slice(-10), worst: ST.worst || null });
+      } catch (e) {}
+    }
     function newProgram(p) {
       const name = (p && p.name) || '', key = String((p && p.cacheKey) || ''), prev = NP.last.get(name);
       let why = 'first of its name';
@@ -277,6 +291,7 @@
       { const sh = Math.max(acc[S.shader], NP.waitMs);   // G1340: the watchdog
         if (sh > WATCH_MS) event('shaderslow', t, sh, NP.list.join(' | ') + (NP.more ? ' | +' + NP.more + ' more' : '') || '(no new program: waits on programs made earlier)');
         NP.list.length = 0; NP.more = 0; NP.waitMs = 0; }
+      if (acc[S.prem] >= 60) premSlow(t, acc[S.prem], false); else if ((fi & 63) === 16) premSlow(t, 0, true);   // (the tail kept in step, quietly)
       if (UP.n !== 0 || UP.subB >= 1048576 || (fi & 15) === 0) upFlush(t, 'loop');   // PERF-TRACE: the frame's GPU data (three's counts re-read every 16th frame)
       else { UP.subN = 0; UP.subB = 0; }
       if (!rendered) fl |= F.noRender;
@@ -614,11 +629,12 @@
       // PERF-TRACE: the programs' table (program_id.js: owner, fingerprint, sizes, #defines, the readiness bracket) - asked
       // FIRST: it closes the rows still waiting for their owner, which are events
       let progs = null; try { progs = rec.pid ? rec.pid.table(true) : null; } catch (e) {}
+      let prem = null; try { const ST = W.WORLD && W.WORLD.premises && W.WORLD.premises.streamState; if (ST) prem = { slow: ST.slow || null, worst: ST.worst || null }; } catch (e) {}
       // ... and THE NETWORK, as the browser timed it (resource timing: [name, start ms, end ms, KB, kind]) - the loading
       // timeline's lane (tools/load_timeline.js), on this log's own clock. Read here, at the save; nothing during the frames
       let resrc = null; try { resrc = perf.getEntriesByType ? perf.getEntriesByType('resource').map(r => [String(r.name).replace(/^https?:\/\/[^/]+\//, '').replace(/\?.*$/, '').slice(-90),
         Math.round(r.startTime), Math.round(r.responseEnd), Math.round((r.transferSize || r.encodedBodySize || 0) / 1024), r.initiatorType || '']) : null; } catch (e) {}
-      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + '}');
+      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)

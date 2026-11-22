@@ -2625,8 +2625,8 @@ function spareBuild(group, P, AF) {
   // the frame the fittings are drawn in: u outward from the wheel's centre, v up, w along the car
   const W = (u, v, w) => new THREE.Vector3(xc + sg * u, y + v, z + w);
   const chrome = GG.gearMat('chrome'), alloy = GG.gearMat('alloy'), steel = GG.gearMat('steel');
-  const leather = new THREE.MeshStandardMaterial({ color: 0x5a3822, roughness: 0.68, metalness: 0, side: THREE.DoubleSide });
-  const leatherEdge = new THREE.MeshStandardMaterial({ color: 0x3a2414, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
+  const leather = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / spare wheel / leather strap' }, color: 0x5a3822, roughness: 0.68, metalness: 0, side: THREE.DoubleSide });
+  const leatherEdge = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / spare wheel / strap holes and keeper' }, color: 0x3a2414, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
   const add = (geo, mat, pos, rot) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (rot) m.quaternion.copy(rot); root.add(m); return m; };
   const qTo = (x, yy, zz) => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(x, yy, zz).normalize());
   const alongU = qTo(sg, 0, 0), alongW = qTo(0, 0, 1);
@@ -3675,7 +3675,7 @@ PAGE.post = ctx => {
     // VIEW's 'control cage' rule), amber when the fold fits, red when it does not
     if (fit && fit.wells && fit.wells.length && THREE.LineSegments && THREE.EdgesGeometry) {
       const wg = new THREE.Group(); wg.name = 'edWellGhost';
-      const lm = new THREE.LineBasicMaterial({ color: fit.ok ? 0xe0a23a : 0xe04a33, transparent: true, opacity: 0.9, depthTest: false });
+      const lm = new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / gear wells / fold fit outline' }, color: fit.ok ? 0xe0a23a : 0xe04a33, transparent: true, opacity: 0.9, depthTest: false });
       for (const w of fit.wells) {
         const bx = new THREE.BoxGeometry(w.max[0] - w.min[0], w.max[1] - w.min[1], w.max[2] - w.min[2]);
         const ls = new THREE.LineSegments(new THREE.EdgesGeometry(bx), lm);

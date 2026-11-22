@@ -24,7 +24,8 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const SRC = path.join(__dirname, '..', 'src');
-const SITE = /\bnew\s+(?:THREE_?|TH|T)\.(\w*Material)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(/g;
+// (the third form: a class chosen in the call - `new (phys ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial)({` - AEROSKIN's own)
+const SITE = /\bnew\s+(?:THREE_?|TH|T)\.(\w*Material)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(|\bnew\s*\([^()]*\bTHREE\.\w*(Material)\s*\)\s*\(/g;
 
 function walk(dir, out) {
   for (const f of fs.readdirSync(dir)) { const p = path.join(dir, f), st = fs.statSync(p);
@@ -64,7 +65,7 @@ function scanFile(file) {
   while ((m = SITE.exec(code))) {
     const at = m.index, open = at + m[0].length - 1, close = closeOf(src, open), line = lineAt[at];
     const args = close > open ? src.slice(open + 1, close) : '';
-    const kind = m[1] ? m[1] : 'MATLIB.' + m[2];
+    const kind = m[1] ? m[1] : m[2] ? 'MATLIB.' + m[2] : '(class chosen in the call)';
     let how = null, owner = null;
     const own = /(?:progOwner|\bowner)\s*:\s*(['"`])((?:(?!\1).)*)\1/.exec(args) || /(?:progOwner|\bowner)\s*:\s*([^,}\n]+)/.exec(args);
     if (own) { how = 'inline'; owner = own[2] !== undefined ? own[2] : '(' + own[1].trim() + ')'; }
@@ -81,7 +82,8 @@ function scanFile(file) {
       const endLine = close > 0 ? lineAt[close] : line, next = lines.slice(endLine, endLine + 13).join('\n'), q = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const a = new RegExp('\\bown\\(\\s*' + q + '\\s*,\\s*([\'"`])((?:(?!\\1).)*)\\1').exec(next) || new RegExp('\\bown\\(\\s*' + q + '\\s*,\\s*([^)\\n]+)\\)').exec(next)
         || new RegExp(q + '\\.userData\\.progOwner\\s*=\\s*([\'"`])((?:(?!\\1).)*)\\1').exec(next) || new RegExp(q + '\\.userData\\.progOwner\\s*=\\s*([^;\\n]+)').exec(next);
-      if (a) { how = 'after'; owner = a[2] !== undefined ? a[2] : '(' + a[1].trim() + ')'; }
+      // (a string that goes on with `+ ...` is COMPUTED in the code - 'aircraft / skin / ' + finish: shown in brackets, judged by the census)
+      if (a) { how = 'after'; const more = a[2] !== undefined && /^\s*\+/.test(next.slice(a.index + a[0].length)); owner = a[2] !== undefined ? (more ? '(' + a[2] + '...)' : a[2]) : '(' + a[1].trim() + ')'; }
     }
     if (!how) { const tag = /\/\/\s*progOwner:\s*(.+)$/.exec(lines[line] || '') || /\/\/\s*progOwner:\s*(.+)$/.exec(lines[line - 1] || ''); if (tag) { how = 'tagged'; owner = tag[1].trim(); } }
     // the function it is made in (the nearest `function name(` / `name = (...) =>` / `name(...) {` above it)
@@ -90,12 +92,28 @@ function scanFile(file) {
   }
   return sites;
 }
+// the game's source is src/ AND the generators the build ships from tools/ (build.js names them: '_cage_wing.js', ...)
+function shipped() {
+  const out = []; let b = ''; try { b = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8'); } catch (e) {}
+  const re = /'(_[a-z0-9_]+\.js)'/g; let m; const seen = new Set();
+  while ((m = re.exec(b))) { const p = path.join(__dirname, m[1]); if (!seen.has(m[1]) && !/_check\.js$/.test(m[1]) && fs.existsSync(p)) { seen.add(m[1]); out.push(p); } }
+  return out.sort();
+}
+// the features an owner may begin with (its first segment): the decision table's rows
+const FEATURES = ['aircraft', 'fleet', 'garage', 'editor', 'ui', 'town', 'props', 'animals', 'vehicles', 'freight', 'missions', 'terrain', 'pavement', 'cover', 'forest', 'water', 'sky', 'fx', 'post',
+  'engine', 'assets', 'world', 'three', 'shadow pass'];
 function scan() {
-  const files = walk(SRC, []).sort(), sites = [];
-  for (const f of files) for (const s of scanFile(f)) sites.push(s);
+  const files = walk(SRC, []).sort().concat(shipped()), sites = [];
+  for (const f of files) for (const s of scanFile(f)) { if (/^\.\.\//.test(s.file)) s.file = s.file.replace(/^\.\.\//, ''); sites.push(s); }
   return { sites, files: files.length };
 }
-module.exports = { scan, scanFile, closeOf, codeOnly };
+// an owner as written: 2 or 3 segments 'feature / system / variant', the feature a known one ('(...)' = computed in the code: not judged here)
+function ownerOK(o) {
+  if (!o || /^\(/.test(o)) return true;
+  const p = String(o).split(' / ');
+  return p.length >= 2 && p.length <= 4 && p.every(x => x.trim().length > 0) && FEATURES.indexOf(p[0].replace(/^shadow pass$/, 'shadow pass')) >= 0;
+}
+module.exports = { scan, scanFile, closeOf, codeOnly, shipped, FEATURES, ownerOK };
 
 if (require.main === module) {
   const argv = process.argv.slice(2), R = scan(), S = R.sites;

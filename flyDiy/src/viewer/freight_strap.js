@@ -149,7 +149,7 @@
       const mats = strapMats(T);
       for (const kind of Object.keys(S.boxes)) {
         const col = (FREIGHT_LOOK.col[kind] != null) ? FREIGHT_LOOK.col[kind] : 0xb0a080;
-        const mat = W.MATLIB ? W.MATLIB.shared(T, 'std', { color: lin(T, col), roughness: 0.85, metalness: 0 }) : null;
+        const mat = W.MATLIB ? W.MATLIB.shared(T, 'std', { color: lin(T, col), roughness: 0.85, metalness: 0 }, null, 'freight / strapped load / plain box') : null;
         if (mat) add(arraysGeo(T, S.boxes[kind]), mat, 'frsBox');
       }
       info.boxes = S.count.boxes; info.stacks = S.count.stacks; info.straps = S.count.bands;

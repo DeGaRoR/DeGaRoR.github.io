@@ -315,7 +315,7 @@
     TW.line = makeTowLine(sim, car1, { L0: TW.L0, hook, groundAt: (x, z) => world_.terrainH(x, z) });
     if (!rig) { rig = buildRig(); } if (!rig.g.parent) scene_.add(rig.g);
     const T = THREE_, gm = new T.BufferGeometry(); gm.setAttribute('position', new T.BufferAttribute(new Float32Array(25 * 3), 3));
-    TW.rope = new T.Line(gm, new T.LineBasicMaterial({ color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
+    TW.rope = new T.Line(gm, new T.LineBasicMaterial({ userData: { progOwner: 'vehicles / tow car / rope line' }, color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
     // (15 Nov: the rope's end - the Tost ring pair in the CG release's jaw, the rope spliced to it: tow.js towRingRig; a page
     //  with an older tow.js draws the rope from the hook as before)
     if (typeof towRingRig === 'function') { TW.rings = towRingRig(T); scene_.add(TW.rings.group); }

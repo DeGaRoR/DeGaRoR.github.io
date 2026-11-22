@@ -90,6 +90,7 @@ var PROG_WARM = (() => {
     };
     const vsm = renderer.shadowMap && renderer.shadowMap.type === THREE.VSMShadowMap;
     const FLIP = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
+    // progOwner: templates only, never drawn - each stand-in's depth material is its casters' (ownDepth, above)
     const base = new THREE.MeshDepthMaterial(), baseDist = THREE.MeshDistanceMaterial ? new THREE.MeshDistanceMaterial() : null;
     // what the pass draws with, as a light kind asks: point lights draw distance, the rest depth
     let kinds = { depth: false, distance: false };

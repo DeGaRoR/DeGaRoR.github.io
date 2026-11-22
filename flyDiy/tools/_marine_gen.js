@@ -44,7 +44,7 @@ const { clamp, sub, add, mul, len, nrm, dot, crs, off, Bag, face, uvFrame, boxAB
 const BAGS = ['deck', 'pile', 'beam', 'steel', 'body', 'rock', 'net', 'buoy', 'glass'];
 const EXTRA = [];
 const T = (typeof THREE !== 'undefined') ? THREE : null;
-const std = (col, o) => T ? new T.MeshStandardMaterial(Object.assign({ color: col, roughness: 0.92, metalness: 0.0 }, o || {})) : { color: col };
+const std = (col, o) => T ? new T.MeshStandardMaterial(Object.assign({ userData: { progOwner: 'props / marine kit / piers floats and pens' }, color: col, roughness: 0.92, metalness: 0.0 }, o || {})) : { color: col };
 
 function makeMats() {
   const M = {

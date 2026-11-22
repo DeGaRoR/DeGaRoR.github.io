@@ -229,5 +229,45 @@ function run(ok) {
     ok(lite.B.PID.table().every(r => r.fp === null && r.defs === null && r.vs > 0), '6g ?progid=lite: no source hash, no defines; the sizes and the owners stay');
   }
 }
-module.exports = { run, boot, world, warm };
-if (require.main === module) { let fails = 0; run((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); process.exit(fails ? 1 : 0); }
+// ---- 7: EVERY MATERIAL MADE IN THE GAME'S SOURCE SAYS WHOSE IT IS (the retrofit, and the rule for every new one) ----
+// tools/program_sites.js reads src/ and the generators the build ships from tools/: a site with no declaration fails
+// here with its file and line. This is how a new shader program "identifies itself": its material cannot be made
+// without an owner. (The census of the standard boots - tools/perf/program_owners.json, GATE PROGRAMS 8 - is the other
+// half: a material made some other way, or whose userData is wiped, shows there as an unowned program.)
+function runSites(ok) {
+  const PS = require('./program_sites.js'), R = PS.scan(), S = R.sites;
+  const un = S.filter(s => !s.how), tagged = S.filter(s => s.how === 'tagged'), bad = S.filter(s => s.how && s.how !== 'tagged' && !PS.ownerOK(s.owner));
+  ok(S.length > 250, '7 the scan finds the game\'s material sites (src/ and the shipped generators)', S.length + ' sites in ' + new Set(S.map(s => s.file)).size + ' files');
+  ok(un.length === 0, '7 every material site declares its owner (userData.progOwner, MATLIB\'s owner argument, or a declaration just after)',
+     un.length ? un.length + ' UNDECLARED: ' + un.slice(0, 12).map(s => s.file + ':' + s.line).join(', ') + (un.length > 12 ? ' ...' : '') : S.length - tagged.length + ' declared, ' + tagged.length + ' tagged');
+  ok(bad.length === 0, '7 every owner reads feature / system / variant, its feature one of the table\'s (' + PS.FEATURES.length + ')',
+     bad.length ? bad.slice(0, 8).map(s => s.file + ':' + s.line + ' "' + s.owner + '"').join(', ') : undefined);
+  ok(tagged.length <= 12, '7 the sites declared by a tag (a comment: the owner is set where the scanner cannot follow) stay few, and are listed', tagged.map(s => s.file + ':' + s.line).join(', ') || 'none');
+  // the declaration never reaches a program: no source file writes an owner into a material's name, key or shader text
+  const fs2 = require('fs'), leaks = [];
+  for (const f of new Set(S.map(s => s.file))) { const src = fs2.readFileSync(path.join(ROOT, /^tools\//.test(f) ? f : path.join('src', f)), 'utf8');
+    if (/customProgramCacheKey[^\n]*progOwner|\.name\s*=[^\n;]*progOwner|SHADER_NAME[^\n]*progOwner/.test(src)) leaks.push(f); }
+  ok(leaks.length === 0, '7 no file puts progOwner into a cache key, a material name or a shader', leaks.join(', ') || undefined);
+}
+// ---- 8: THE CENSUS OF THE STANDARD BOOTS (tools/perf/program_owners.json; `program_report.js <log> --pin <boot>`) ----
+// The file is written from a real boot's flight log (A0's box). Here, in node: no boot may have an unowned program, and
+// a feature whose program count rose between two pins has its written reason in the file. A boot not pinned yet is
+// SAID (it cannot be judged), never passed in silence: the line lists which of the three standard boots are missing.
+function runCensus(ok) {
+  const PR = require('./program_report.js'), STD = ['garage-cold', 'world-noon', 'world-night'];
+  let P = null; try { P = JSON.parse(fs.readFileSync(PR.PIN_FILE, 'utf8')); } catch (e) {}
+  const have = P ? STD.filter(b => P.boots && P.boots[b]) : [];
+  ok(true, '8 the standard boots\' census: ' + (have.length ? have.map(b => b + ' ' + P.boots[b].programs + ' programs (' + P.boots[b].build + ')').join(', ') : 'none pinned') +
+     (have.length < STD.length ? ' - NOT PINNED YET: ' + STD.filter(b => have.indexOf(b) < 0).join(', ') + ' (a boot on the box, then program_report.js --pin)' : ''));
+  for (const b of have) {
+    const C = P.boots[b];
+    ok(C.unowned === 0, '8 ' + b + ': no program without an owner', C.unowned ? C.unowned + ' UNOWNED, e.g. ' + (C.unownedList || []).slice(0, 4).map(u => '#' + u.n + ' ' + u.type + ' ' + ((u.mat || [])[0] || '') + ' @' + ((u.obj || [])[0] || '')).join('; ') : C.programs + ' programs, ' + Object.keys(C.byFeature).length + ' features');
+    if (C.previous) {
+      const rose = Object.keys(C.byFeature).filter(f => C.byFeature[f] > (C.previous.byFeature[f] || 0));
+      const missing = rose.filter(f => !(P.reasons || []).some(r => r.boot === b && r.feature === f && r.to === C.byFeature[f] && r.why));
+      ok(missing.length === 0, '8 ' + b + ': every feature whose program count rose since the pin before has its written reason', missing.length ? missing.map(f => f + ' ' + (C.previous.byFeature[f] || 0) + ' -> ' + C.byFeature[f]).join(', ') : rose.length + ' rose, each with a reason');
+    }
+  }
+}
+module.exports = { run, runSites, runCensus, boot, world, warm };
+if (require.main === module) { let fails = 0; runSites((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); run((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); process.exit(fails ? 1 : 0); }

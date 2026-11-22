@@ -232,7 +232,7 @@ function make(THREE) {
       if (l.mesh.material && l.mesh.material.emissive && (l.key === 'flood' || l.key === 'pax' || l.key === 'land' || l.key === 'taxi')) l.mesh.material.emissive.setRGB(1, 0.68, 0.34);
       const G = l.kind === 'lens' && GLOW[l.key]; if (!G || !l.mesh.material || !l.mesh.material.emissive || (l.key === 'nav' && l.mesh.material.emissive.b > 0.5)) continue;
       for (const p of lensSites(l, model.grp)) {
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x000000, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false }));  // pre-ok: colour 0 here; CK.glow drives it x P
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ userData: { progOwner: 'aircraft / lamps / lens glow sprite' }, map: glowTex, color: 0x000000, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false }));  // pre-ok: colour 0 here; CK.glow drives it x P
         sp.position.copy(p); sp.scale.set(G.m, G.m, 1); sp.visible = false; sp.name = 'lensGlow:' + l.key; sp.raycast = () => {};
         model.grp.add(sp); model.glows.push({ sprite: sp, key: l.key, e: G.e, col: l.mesh.material.emissive.clone() });
       }

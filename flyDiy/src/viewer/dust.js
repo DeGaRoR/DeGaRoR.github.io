@@ -1118,7 +1118,7 @@
         uNoise: { value: tex }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) },
         uGndCol: { value: new THREE.Color(0.2, 0.18, 0.14) }, uOpacity: { value: 1 }, uG: { value: 0.6 }, uDens: { value: LOOK.dens }, uFwdMax: { value: LOOK.fwdMax },
         uSixA: { value: texA }, uSixB: { value: texB }, uV2: { value: LOOK.v2 && sixReady() ? 1 : 0 }, uLife: { value: sys.tier.life }, uTauRef: { value: SIX.tauRef }, uZoom: { value: SIX.zoom }, uGain: { value: SIX.gain.slice(0, 16).concat(Array(Math.max(0, 16 - SIX.gain.length)).fill(1)) },
-        uAtlas: { value: new THREE.Vector4(SIX.C, SIX.R, SIX.F, SIX.PX) } } });
+        uAtlas: { value: new THREE.Vector4(SIX.C, SIX.R, SIX.F, SIX.PX) } } }, 'fx / dust / six-way puffs');
     mat.toneMapped = true; mat.name = 'dust';
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 4; mesh.name = 'dust';
     const sunW = new THREE.Vector3();

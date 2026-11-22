@@ -102,7 +102,7 @@
       }
       return result;
     };
-    const create = (fragmentShader, U) => new THREE.RawShaderMaterial({
+    const create = (fragmentShader, U) => new THREE.RawShaderMaterial({ userData: { progOwner: 'terrain / ground cache / tile bake' },
       vertexShader: raw(S.vs), fragmentShader: raw(fragmentShader), glslVersion: THREE.GLSL3,
       uniforms: U, side: mesh.material.side, depthTest: true, depthWrite: true,
       // Frozen reference light uniforms: the comparison scene must not replace
@@ -175,7 +175,7 @@
     const eye = { value: new THREE.Vector3() }, size = { value: new THREE.Vector2(1, 1) };
     const stats = { packed, pairs: 0, sourceBuilds: 0, renders: 0, width: 1, height: 1, bytes: 16, failures: [], sources: [], slowDraws: [] };
     const originalCompile = renderer.compile, originalRender = renderer.render;
-    const invisible = new THREE.Material(); invisible.visible = false;
+    const invisible = new THREE.Material(); invisible.visible = false; invisible.userData.progOwner = 'terrain / ground cache / invisible placeholder (never drawn)';
     const builderLights = new THREE.Scene();
     builderLights.matrixWorldAutoUpdate = false;
     let inside = false;
