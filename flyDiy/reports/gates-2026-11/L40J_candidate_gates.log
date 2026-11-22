@@ -1,5 +1,5 @@
-FAIL (72 of 311 gates run; PARTIAL: 21 of 23 chunks, 53 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H], PARKED [NEW], OBSTACLE [L40H], HITBOX [NEW], SNOWMUDFX [NEW], ROUGHWHEEL [L40H], WATERDAMP [NEW], WINGSTRUCT [L40H], STORAGE [L40H], ACCEPT [L40H], POD [L40H]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME SCENERYED PARKED HITBOX SNOWMUDFX WATERDAMP
+FAIL (86 of 353 gates run; PARTIAL: 22 of 23 chunks, 11 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H], PARKED [NEW], OBSTACLE [L40H], HITBOX [NEW], SNOWMUDFX [NEW], ROUGHWHEEL [L40H], WATERDAMP [NEW], WINGSTRUCT [L40H], STORAGE [L40H], ACCEPT [L40H], POD [L40H], CONTRACTS [NEW], MISSIONS [NEW], STAGES [L40H], CANDIDATES [L40H], NAMES [L40H], FREIGHT [NEW], NODUMMY [L40H], ENERGYBASE [L40H], TANKMOUNT [L40H], ENGTORQUE [L40H], DASH [NEW], GPSFACE [NEW], BIOME [NEW], SETTLE [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME SCENERYED PARKED HITBOX SNOWMUDFX WATERDAMP CONTRACTS MISSIONS FREIGHT DASH GPSFACE BIOME SETTLE
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -6325,6 +6325,480 @@ GATE POD: FAIL
 cub:  belly pod fitted volume hold volume 120 L shape 0.61 nose fairing 22 % tail fairing 30 % position fore / aft auto 1.07 m door left side right side mounting bolted strapped dimensions length 2.00 m width 0.56 m depth 0.28 m what it does hold 120 L · floor 0.50 m² (73 kg rated) weight · price +9.9 kg empty · 2,901 cr cost take-off +5 m · climb −0.14 m/s · cruise −1.0 km/h drag 0.024 m² · cruise −1.0 km/h · range −3 km CG empty +27 mm (24.8 % MAC) CG full +167 mm with 73 kg · margin 0.06 level, tail up 0.46 m three-p
   39 checks, 0 failed (24 s)
 GATE PODEDITOR: PASS
+######## chunk 21 of 23 (42 gates) ########
+=== DMGPOD ===
+  the Jodel gear up, 1.5 m/s: torn off, freight lost - slid 20.0 m, worn 0.04 mm, members set 16 / broken 16 of 22, groups [pod:mount], peak loads 3.1 / 3.1 / 2.8 / 2.8 kN; structural: DAMAGED - belly pod torn off at its fittings - slid 20 m, worn 0.0 mm; its freight LOST with it
+  53 checks, 0 failed (67 s)
+GATE DMGPOD: PASS
+=== CONTRACTS ===
+DESIGNS x JOB CLASSES (jobs of the class each can physically do, of the sample):
+  cub   water 0 · short 1443 · altiport 1926 · group 0 · heavy 0 · bulk 0 · survey 693
+  jodel water 0 · short 292 · altiport 1374 · group 0 · heavy 0 · bulk 0 · survey 693
+  c172  water 0 · short 0 · altiport 490 · group 94 · heavy 94 · bulk 87 · survey 489
+  c172f water 663 · short 0 · altiport 0 · group 11 · heavy 11 · bulk 15 · survey 282
+  twinf water 282 · short 0 · altiport 0 · group 0 · heavy 0 · bulk 0 · survey 282
+THE ROUTES (G2430: jobs of the sample, the share with 2+ destinations, the share starting at Jolene AFB):
+  field     1008  2+ destinations  76 %   AFB-first  14 %
+  minedock  1008  2+ destinations  66 %   AFB-first   4 %
+  resort    1008  2+ destinations  65 %   AFB-first  16 %
+  survey    1008  2+ destinations  70 %   AFB-first  35 %
+  clients   1008  2+ destinations  73 %   AFB-first  24 %
+  ALL       5040  2+ destinations  70 %   AFB-first  19 %
+  - CONTRACT_FIELDS is Jolene's record (16 runways through contractFieldsOf)
+  - the 17 runways
+  - the gear rule is stripAllows: wheels at xw_rough
+  - the gear rule is stripAllows: amphibian at xw_rough
+  - minedock.02 stage 0 is flyable by a validated design
+  - minedock.03 stage 0 is flyable by a validated design
+  - resort.05 stage 0 is flyable by a validated design
+  - physical: the C172 takes two into the mine street
+2549 checks
+GATE CONTRACTS: FAIL (8 of 2549)
+(exit code 1)
+=== MISSIONS ===
+FAIL the bush run: loaded at HOME (20 kg, David and Jody)
+  FAIL the bush run refused: David still aboard ()
+  FAIL the bush run refused: an hour's flight on a 30 min limit ()
+  FAIL the bush run refused: left before 06:00 ()
+  FAIL at w3, David off: the leg done, Adam's line, +500, the mast building
+  FAIL the card says the line, the step's pay, the site (wallet 85 400)
+  FAIL markers: the choose:1 leg - both strips next
+  FAIL w6 (one of the two) completes the choose leg and the mission: the mast built, its construction stage revealed (survey:3)
+MISSIONS: 956 checks, 2 pack(s), 8 failed
+GATE MISSIONS: FAIL (8)
+(exit code 1)
+=== PERFBENCH ===
+  FAIL 6 cold AND warm: a second launch with the cache kept
+  selftest cold: red (ok)
+GATE PERFBENCH: PASS
+=== PROJECTS ===
+  ok   4 the install marks the steps' missions; careerNeedsOk reads them
+  ok   5 the page ticks the pack projects at a flight end (the career day), their lines on the arrival card
+GATE PROJECTS: PASS
+=== MISSIONPROPS ===
+MISSIONPROPS: 84 checks · air-race pylon 2028/406 · air-race pylon, hit 1656/360 · air-race pylon, blue 2028/406 · balloon column 2610/866 · balloon column, hit 2242/762 · ring 1464/384 · ring, tethered 1648/472 · ring, hit 1464/384 · marker flag 1894/610 · photo target 10/10 · tie-down spot 1178/386 · site, planned 138/90 · site, building 490/254 · weather station (built) 1320/582
+GATE MISSIONPROPS: PASS
+=== MISSIONLIVE ===
+49 checks, 0 failed
+GATE MISSIONLIVE: PASS
+=== STAGES ===
+GATE STAGES
+  FAIL 7 [every track at 0] the editor's save restores the whole record
+  FAIL 7 [field:0] the editor's save restores the whole record
+  FAIL 7 [field:1] the editor's save restores the whole record
+  FAIL 7 [field:2] the editor's save restores the whole record
+  FAIL 7 [minedock:0] the editor's save restores the whole record
+  FAIL 7 [minedock:1] the editor's save restores the whole record
+  FAIL 7 [minedock:2] the editor's save restores the whole record
+  FAIL 7 [minedock:3] the editor's save restores the whole record
+  FAIL 7 [resort:0] the editor's save restores the whole record
+  FAIL 7 [resort:1] the editor's save restores the whole record
+  FAIL 7 [resort:2] the editor's save restores the whole record
+  FAIL 7 [survey:0] the editor's save restores the whole record
+  FAIL 7 [survey:1] the editor's save restores the whole record
+  FAIL 7 [survey:2] the editor's save restores the whole record
+  FAIL 7 [clients:0] the editor's save restores the whole record
+  FAIL 7 [clients:1] the editor's save restores the whole record
+  FAIL 7 [observatory:0] the editor's save restores the whole record
+  FAIL 7 [observatory:1] the editor's save restores the whole record
+  FAIL 7 [observatory:2] the editor's save restores the whole record
+  19 stage values composed and censused (5301 rows) in 78 s
+GATE STAGES: FAIL (19)
+(exit code 1)
+=== STORY ===
+  ok   a landing whose story effects lift the hangar's lock (T1 done) opens the roll-in there: the go-to again after storyOnFlightEnd (B'1, the 26 Oct page run: The shed opened the cabin's garage)
+all story rows hold
+GATE STORY: PASS
+=== TUTORLOCK ===
+  ok   8 the page: a row step waits on the live plane, lights its part and row, and the machine shop takes the client's parts
+  selftest a wallet off by one: red (ok)
+GATE TUTORLOCK: PASS
+=== CANDIDATES ===
+GATE CANDIDATES - the pool: 23 planes offered, 23 read as builds; review/: 0 planes (not offered)
+  selftest a listed file missing: red (ok)
+  selftest an orphan file: red (ok)
+  selftest a plaque: red (ok)
+  selftest not a build: red (ok)
+  selftest a path in the index: red (ok)
+  selftest the candidate opened with its plaque: red (ok)
+  selftest a career's row keeps the note: red (ok)
+  selftest a tooltip reads the file: red (ok)
+  selftest a map row without its picture: red (ok)
+  selftest the Fleet pool group gone: red (ok)
+  selftest the core names the pool: red (ok)
+  selftest a review plane offered: red (ok)
+  selftest a review plane with no REVIEW.md row: red (ok)
+  selftest a pool tile without its picture: red (ok)
+  selftest no export all button: red (ok)
+  FAIL buggy_2026-11.json is in builds/candidates/ but not in index.json (the game cannot reach it)
+  FAIL jodel_geo.json is in builds/candidates/ but not in index.json (the game cannot reach it)
+  FAIL roadster_2026-11.json is in builds/candidates/ but not in index.json (the game cannot reach it)
+GATE CANDIDATES: FAIL
+(exit code 1)
+=== CERTGATES ===
+  ok   page: the flying plane is judged on the roll-out's fingerprint
+  ok   page: the fleet card draws the certificate line
+GATE CERTGATES: PASS
+=== NAMES ===
+GATE NAMES - 19 real names held out of 284 files (the source, the record, the built page), 11 text tables + the cards + the map, 17 fields read off an old save
+  HELD x2 "Tongass Marine Supply" (A0 / the user): a PAINTED sign (assets/billboards, the user's own picture; sign_tex.js is sign_prep.js's output): the board shows the words - repaint it (proposed: Harbour Marine Supply) and re-run tools/sign_prep.js
+  HELD x1 "After this rain, Tamgas Hill strip will be soft" (A0): a RECORDED voice line (wx.softStrip.1): the mp3 says the old name - re-voice it as "Ridgeback strip" (tools/audio/voice_render.py, local) or drop the line
+  FAIL src/viewer/aeroskin.js:3125: Alaska in "Alaska"
+  FAIL src/viewer/livery_marks.js:29: Alaska in "Alaska"
+  FAIL index.html script 112:5623: Alaska in "the twelve Alaska marks: one colour, cut from vinyl"
+  FAIL index.html script 180:3126: Alaska in "Alaska"
+SELFTEST (each break must go red; the kept case must stay green)
+  caught a brief names the real hill (src/core/72_contract_data.js:512: Tamgas in "Show us the old field still flies: over to Tamgas Hill and back.")
+  caught the table names the real town (src/core/01_names.js:30: Metlakatla in "Metlakatla")
+  caught the record's site back to a real organisation (src/viewer/aeroskin.js:3125: Alaska in "Alaska")
+  caught a card names the real island (src/viewer/aeroskin.js:3125: Alaska in "Alaska")
+  caught the built page carries a real name (src/viewer/aeroskin.js:3125: Alaska in "Alaska")
+  caught the map pack says the old dock (src/viewer/aeroskin.js:3125: Alaska in "Alaska")
+  caught the override undone (a saved record shows its old name) (src/viewer/aeroskin.js:3125: Alaska in "Alaska")
+  caught a stale hold (the sign fixed, the hold left) (src/viewer/aeroskin.js:3125: Alaska in "Alaska")
+  RED    a real name in a COMMENT (never shown) (src/viewer/aeroskin.js:3125: Alaska in "Alaska")
+  selftest: 8 of 9 as they must be
+(10.1 s)
+GATE NAMES: FAIL
+(exit code 1)
+=== ROUTES ===
+  ok   the arrival card carries the end's line (a well-deserved rest), no route  [The island is open: every contractor’s work is on the map. A well-deserved rest. The Cub went back to its owner’s family; new planes come from the market, or from your own bench.]
+all route rows hold
+GATE ROUTES: PASS
+=== TECH ===
+  ok   the same aeroplane without the occasion flag is not listed at segment 1
+all tech rows hold
+GATE TECH: PASS
+=== ECON ===
+150 checks
+GATE ECON: PASS
+=== PRICE ===
+  plans: jodel                             36716  real 25000-45000    x0.91  materials + engine + panel (ESTIMATE)
+  used market: 288 listings, mean condition 0.393
+GATE PRICE: PASS
+=== WEARTAB ===
+physics: 11 saved builds - def x1 at 0 / 0, write-then-clear byte for byte, an age withdraws nothing
+GATE WEARTAB: PASS
+=== WEARPRICE ===
+GATE WEARPRICE: PASS
+=== PROCURE ===
+3170 checks, 33 shakedowns (cached by content)
+GATE PROCURE: PASS
+=== SNAPSHOTS ===
+ok     the snapshots (CONTRACT_DESIGNS, FREIGHT_CARDS, PROCURE eff) are of the build files as they are: stamped c94df0ffe8e2b71b, the files c94df0ffe8e2b71b
+GATE SNAPSHOTS: PASS
+=== FREIGHT ===
+
+[stderr]
+/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_freight_check.js:453
+    const onDrum = M.freightLoadTarget(c172, over.st, 'box', { x: over.row.at.x0 + 0.2, z: (over.row.at.z0 + over.row.at.z1) / 2 });
+                                                                           ^
+
+TypeError: Cannot read properties of undefined (reading 'at')
+    at run (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_freight_check.js:453:76)
+    at Object.<anonymous> (/tmp/claude-0/-workspace-DeGaRoR-github-io/ce20ac4e-05f7-5a13-9d09-057eec63404a/scratchpad/base/flyDiy/tools/_freight_check.js:790:14)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.23.5
+(exit code 1)
+=== PILOTS ===
+  the sandbox: the career doors inert without ?career=1 (careerCrewProfile undefined; the row, the logbook, the flight's end, the crew body under CAREER_DEV); the persona select PILOT-PERSONA's own
+5471 checks
+GATE PILOTS: PASS
+=== NODUMMY ===
+ok   the scan read the code tree (1766 files)
+  ok   the one allowed block (cageFromSpec's migrations) was found
+  FAIL no reference to the retired figure outside the load migration  [tools/_cage_gen.js:1471 atD | tools/_cage_gen.js:1474 atD]
+  ok   the racer is ch20 (CAGE_CHAR.RACER)
+  ok   ch20 is a declared character (chars_table.py)
+  ok   CAGE_CHAR publishes RACER
+  ok   the pilot seat wears the racer (or the career's hired pilot), nothing else
+  ok   the crew reads no pilot pick and the old co-pilot pick
+  ok   the solver chain is the Mixamo joints by name (no translation table)
+  ok   no stand-in bone table and no stature scale in the crew layer
+  ok   no character, no body
+  ok   every character at its own height (scale 1)
+  ok   the eye point is read off the character's own head
+  ok   each dressed occupant gets its posed body
+  ok   _cage_page5.js: no stature, pilot-pick or eye-marker row
+  ok   _cage_parts.js: no stature, pilot-pick or eye-marker row
+  ok   the kept row pilOn is in the page and the parts table
+  ok   the kept row cabWho is in the page and the parts table
+  ok   the kept row pilElbows is in the page and the parts table
+  ok   the kept row pilKnees is in the page and the parts table
+  ok   the kept row pilRecline is in the page and the parts table
+  ok   the kept row pilHandGrip is in the page and the parts table
+  ok   the kept row pilFist is in the page and the parts table
+  ok   the kept row pilIdle is in the page and the parts table
+  ok   the kept row pilHandsApart is in the page and the parts table
+  ok   the kept row pilFistL is in the page and the parts table
+  ok   the kept row pilFistR is in the page and the parts table
+  ok   the kept row pilGripL is in the page and the parts table
+  ok   the kept row pilGripR is in the page and the parts table
+  ok   the Crew part claims no livery section
+  ok   the highlight draws a character as a skinned copy on its own skeleton
+  ok   the highlight never outlines the pick body
+  ok   the silhouette rim follows the skinned normal
+  ok   the tank's crew clearance skips the bind pose
+  ok   the renamed rows arrive with their saved values
+  ok   the co-pilot pick is renumbered (5 -> 4)
+  ok   the retired rows ride unread in fpLegacy
+  ok   no old key survives the round trip
+  ok   a re-saved file reloads the same (the alias does not apply twice)
+  ok   a new file carries no fpLegacy
+GATE NODUMMY: FAIL
+(exit code 1)
+=== HANGAR ===
+1476 checks
+GATE HANGAR: PASS
+=== DERELICT ===
+DERELICT: sheets 1068/1682 (bent 61, hung 10), panes 1527 (milky 159, shards 1010), weeds 411, puddles 392 m2, truss stamped on 4 frames
+DERELICT: 116/116 checks
+GATE DERELICT: PASS
+=== ENERGYBASE ===
+14 aeroplanes held against the baseline, 1334 nodes, 208 fittings
+  FAIL electric: cg0 moved — [0.905406,0.429519,0,383.045456] -> [0.840215,0.426513,0,410.447883]
+  FAIL electric: node masses moved
+  FAIL electric: node positions moved
+  FAIL electric: ledger moved
+  FAIL carbon: cg0 moved — [0.726578,0.446485,0,459.92187] -> [0.643775,0.426213,0,411.969701]
+  FAIL carbon: node masses moved
+  FAIL carbon: node positions moved
+  FAIL carbon: ledger moved
+GATE ENERGYBASE: FAIL
+(exit code 1)
+=== ENERGY ===
+4 bodies swept, 88 sections measured, 87777 litres of interior
+GATE ENERGY: PASS
+=== TANKMOUNT ===
+cub x1             vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  cub x0.66          vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  cub x0.45          vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  pietenpol x1       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  pietenpol x0.66    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  pietenpol x0.45    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  tigermoth x1       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  tigermoth x0.66    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  tigermoth x0.45    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  stearman x1        vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  stearman x0.66     vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  stearman x0.45     vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  camel x1           vessels 1  mount meshes 0  shell 185/396  hardware 324/1075 past a skin [straps 324/776 63.9mm]  omitted: filler,vent  fit NOT  flown ves 3  worst shell 141.4 mm through fuselage sheet
+  camel x0.66        vessels 1  mount meshes 0  shell 0/495  hardware 0/1075 past a skin  omitted: filler,vent  fit ok  flown ves 3
+  camel x0.45        vessels 1  mount meshes 0  shell 0/495  hardware 0/1075 past a skin  omitted: filler,vent  fit ok  flown ves 3
+  pittsAlike x1      vessels 1  mount meshes 0  shell 98/396  hardware 148/1075 past a skin [straps 148/776 22.2mm]  omitted: filler,vent  fit NOT  flown ves 3  worst shell 56.4 mm through fuselage sheet
+  pittsAlike x0.66   vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  pittsAlike x0.45   vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  sesqui x1          vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  sesqui x0.66       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  sesqui x0.45       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  jodel x1           vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  jodel x0.66        vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  jodel x0.45        vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  c172 x1            vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  c172 x0.66         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  c172 x0.45         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  chinook x1         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 2
+  chinook x0.66      vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 2
+  chinook x0.45      vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 2
+  caravan x1         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  caravan x0.66      vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  caravan x0.45      vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  rv x1              vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  rv x0.66           vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  rv x0.45           vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  spitfire x1        vessels 1  mount meshes 0  shell 70/396  hardware 34/1075 past a skin [straps 34/776 8.4mm]  omitted: filler,vent  fit NOT  flown ves 3  worst shell 25.5 mm through fuselage sheet
+  spitfire x0.66     vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  spitfire x0.45     vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  roadster x1        vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  roadster x0.66     vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  roadster x0.45     vessels 1  mount meshes 0  shell 0/396  hardware 0/1276 past a skin  fit ok  flown ves 4
+  savannah x1        vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  savannah x0.66     vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  savannah x0.45     vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  ul1 x1             vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  ul1 x0.66          vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  ul1 x0.45          vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  floatplane x1      vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  floatplane x0.66   vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  floatplane x0.45   vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  pusherPod x1       vessels 1  mount meshes 0  shell 0/396  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  pusherPod x0.66    vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  pusherPod x0.45    vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  motorglider x1     vessels 1  mount meshes 0  shell 295/396  hardware 729/926 past a skin [straps 579/776 230.7mm, sender 150/150 88.4mm]  omitted: filler,sump,outlet,vent  fit NOT  flown ves 3  worst shell 317.1 mm through 
+  motorglider x0.66  vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  motorglider x0.45  vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  radial x1          vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  radial x0.66       vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  radial x0.45       vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  etrainer x1        vessels 1  mount meshes 0  shell 289/396  hardware 683/926 past a skin [straps 533/776 181.9mm, sender 150/150 77mm]  omitted: filler,sump,outlet,vent  fit NOT  flown ves 3  worst shell 283.3 mm through 
+  etrainer x0.66     vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  etrainer x0.45     vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  ttail x1           vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  ttail x0.66        vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  ttail x0.45        vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  vtail x1           vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  vtail x0.66        vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  vtail x0.45        vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  mw5 x1             vessels 1  mount meshes 0  shell 203/396  hardware 538/1046 past a skin [straps 388/776 189.3mm, sender 150/150 64.9mm]  omitted: sump,outlet,vent  fit NOT  flown ves 4  worst shell 241.7 mm through 
+  mw5 x0.66          vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  mw5 x0.45          vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  archaeopteryx x1   vessels 1  mount meshes 0  shell 89/396  hardware 87/1568 past a skin [ribs 87/970 11mm]  omitted: terminals,feet  fit NOT  flown ves 3  worst shell 19.6 mm through fuselage sheet
+  archaeopteryx x0.66 vessels 1  mount meshes 0  shell 395/396  hardware 1871/1871 past a skin [seam 598/598 153.3mm, ribs 970/970 116.9mm, terminals 303/303 73.3mm]  omitted: feet  fit NOT  flown ves 4  worst seam 153.3 mm through edWheelR
+  archaeopteryx x0.45 vessels 1  mount meshes 0  shell 395/396  hardware 1979/1979 past a skin [seam 598/598 139.1mm, ribs 970/970 104.3mm, terminals 303/303 91.7mm, feet 108/108 113.3mm]  fit ok  flown ves 4  worst seam 139.1 mm through edWheelR
+  da62 x1            vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  da62 x0.66         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  da62 x0.45         vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  twinBush x1        vessels 1  mount meshes 0  shell 106/396  hardware 12/1195 past a skin [straps 12/776 42.1mm]  omitted: vent  fit NOT  flown ves 4  worst shell 116.3 mm through fuselage sheet
+  twinBush x0.66     vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  twinBush x0.45     vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  skymaster x1       vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  skymaster x0.66    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  skymaster x0.45    vessels 0  mount meshes 0  shell 0/0  hardware 0/0 past a skin  fit   flown ves 1
+  p38 x1             vessels 1  mount meshes 0  shell 187/396  hardware 324/1118 past a skin [straps 260/776 201.3mm, sump 64/72 130.1mm]  omitted: outlet,vent  fit NOT  flown ves 4  worst shell 292.1 mm through 
+  p38 x0.66          vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  p38 x0.45          vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  pushPull x1        vessels 1  mount meshes 0  shell 96/396  hardware 88/1075 past a skin [straps 88/776 21.3mm]  omitted: filler,vent  fit NOT  flown ves 3  worst shell 93.5 mm through fuselage sheet
+  pushPull x0.66     vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  pushPull x0.45     vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  trimotor x1        vessels 1  mount meshes 0  shell 97/396  hardware 67/1075 past a skin [straps 62/776 15.9mm, sump 5/72 3.4mm]  omitted: filler,vent  fit NOT  flown ves 3  worst shell 70.2 mm through fuselage sheet
+  trimotor x0.66     vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  trimotor x0.45     vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  fourEngine x1      vessels 1  mount meshes 0  shell 88/396  hardware 62/1195 past a skin [straps 62/776 17.7mm]  omitted: vent  fit NOT  flown ves 4  worst shell 92.4 mm through fuselage sheet
+  fourEngine x0.66   vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  fourEngine x0.45   vessels 1  mount meshes 0  shell 0/495  hardware 0/1195 past a skin  omitted: vent  fit ok  flown ves 4
+  beaver x1          vessels 1  mount meshes 0  shell 96/396  hardware 113/1075 past a skin [straps 88/776 21mm, sump 25/72 50.5mm]  omitted: filler,vent  fit NOT  flown ves 3  worst shell 92 mm through fuselage sheet
+  beaver x0.66       vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  beaver x0.45       vessels 1  mount meshes 0  shell 0/495  hardware 0/1276 past a skin  fit ok  flown ves 4
+  FAIL archaeopteryx: archaeopteryx x0.45: a tank that fits has nothing past a surface (shell, straps, the pieces that stayed) (2374 vertices)
+  FAIL archaeopteryx: archaeopteryx x0.45: nothing else stands inside a tank that fits (5 mm deep, by parity) (63 points)
+GATE TANKMOUNT: FAIL (2)
+(exit code 1)
+=== RPM ===
+GATE RPM: PASS
+=== ENGTORQUE ===
+PASS INERT: propFx off publishes nothing and the hands-off roll runs straight - published 0.000 swing -0.000 deg
+PASS SHAFT: the static rpm within 3 % of the J-3 tied down (2150) - 2116 rpm
+PASS SHAFT: the static torque is P/omega_rated at the prop shaft - 201.3 vs 201.3 N.m
+PASS SHAFT: H = I . Omega, I from the blades (0.2-2 kg.m2) - I 0.683 H 151.4 vs 151.4
+PASS SIGN torque: the Lycoming hand - (bank on the gear, + = right wing down) - -0.4390
+PASS SIGN torque: the other hand mirrors it (25 %) - 0.4390 vs 0.4390
+FAIL SIGN swirl: the Lycoming hand + (hands-off swing, + = left) - -40.2922
+FAIL SIGN swirl: the other hand mirrors it (25 %) - 40.2922 vs 40.2922
+PASS SIGN gyro: the Lycoming hand + (yaw after a nose-down pitch rate, + = left) - 0.0242
+PASS SIGN gyro: the other hand mirrors it (25 %) - -0.0242 vs -0.0242
+PASS SIGN pfactor: the Lycoming hand + (yaw at alpha 5.9 deg, + = left) - 0.0746
+PASS SIGN pfactor: the other hand mirrors it (25 %) - -0.0746 vs -0.0746
+PASS SIGN pfactor: flown at a positive angle of attack (> 3 deg) - 5.9
+PASS COUPLES: every pass, the forces on a node set sum to nothing and make exactly the moment (1e-9 per N.m) - net 8.67e-13 /m, miss 8.35e-16
+PASS TWIN: same-hand torques add (> 300 N.m), counter-rotating cancel (< 1 N.m) - 369.5 / 0.000 N.m
+PASS TWIN: same-hand leans left on the gear, counter-rotating under a fifth of it - -0.833 / -0.000 deg
+PASS TWIN: the counter-rotating swing under a fifth of the same-hand swing - same -23.18 counter -0.00 deg
+15/17 checks
+GATE ENGTORQUE: FAIL (2)
+(exit code 1)
+=== HEADING ===
+HEADING: 0 failure(s), 53 s
+GATE HEADING: PASS
+=== PANEL ===
+GATE PANEL: PASS
+=== DASH ===
+cub: plate bottom -0.127 m, feet -0.127 m, forward edge 2.298 m; skin: box 0 @ 0 mm, arch 0 @ 0 mm
+  jodel: plate bottom 0.009 m, feet 0.009 m, forward edge 2.607 m; skin: box 58 @ 25.7 mm, arch 0 @ 0 mm
+  cessna172r: plate bottom -0.015 m, feet -0.344 m, forward edge 2.840 m; skin: box 77 @ 21.1 mm, arch 15 @ 9.8 mm
+  chinook (birth): plate bottom -0.349 m, feet -0.393 m, forward edge 2.873 m; skin: box 78 @ 29.3 mm, arch 16 @ 6.3 mm
+  cub tanks: box nose 37 L 1 pts / arch nose 37 L 0 pts
+  jodel tanks: box nose 45 L 1 pts / arch nose 45 L 0 pts
+  FAIL load: cessna172r_2026-11-08.json (saved before the row) takes the arch, was the box (G3451) (1,0,1)
+  FAIL load: a file carrying the box (dashStyle 0, no dashV) takes the arch (G3451) (0,0)
+  FAIL load: a file carrying dashStyle 1 keeps the arch
+  FAIL load: a box picked after the switch (dashV 1) stands (0,0)
+  FAIL cessna172r: open under the plate - no dash between the legs (581 vertices)
+  FAIL cessna172r: nothing on the cheeks stands ahead of the forward edge (-339.9 mm)
+  FAIL cessna172r: the forward edge is one vertical line from the foot up (right) (none)
+70 checks
+GATE DASH: FAIL (7)
+(exit code 1)
+=== ELEC ===
+GATE ELEC: PASS
+=== GPSFACE ===
+E G2813 bytes a call: the PFD 1.45 (plain 1.45), a PFD key 0.50, a tap 0.54; G2815 the pair 1.13
+  E bytes a call: bus.step 0.12, bus.powered 0.08, GPS tick 0.08, GPS repaint 0.31 (track-up 0.31, nav 0.31), a key 0.08
+  F cub + glass: GPS plate at 0.002, 0.136 (pilot 0.000); 11 dials; 10 breakers in 1 row(s)
+  F cub + portable: GPS plate at -0.002, 0.160 (pilot 0.000); 11 dials; 10 breakers in 1 row(s)
+  F cessna + glass: GPS plate at 0.381, 0.192 (pilot 0.180); 2 dials, no room: asi alt tacho turn dg vsi gmeter oilP oilT volts clock hobbs com xpdr nav; 9 breakers in 2 row(s)
+  F metal + glass: GPS plate at 0.381, 0.192 (pilot 0.180); 2 dials, no room: asi alt tacho turn dg vsi gmeter oilP oilT volts clock hobbs com xpdr nav; 9 breakers in 2 row(s)
+  F metal + portable: GPS coaming at 0.180, 0.398 (pilot 0.180); 6 dials, no room: dg vsi gmeter oilP oilT volts clock hobbs com xpdr nav; 10 breakers in 4 row(s)
+  F jodel + portable: GPS plate at 0.214, 0.111 (pilot 0.215); 11 dials; 10 breakers in 1 row(s)
+  F jodel + glass: GPS plate at 0.108, 0.127 (pilot 0.215); 10 dials, no room: com; 9 breakers in 2 row(s)
+  F rufus + glass: GPS plate at 0.002, -0.044 (pilot 0.000); 6 dials; 7 breakers in 1 row(s)
+  F metal + flatPair: GPS none; 6 dials, no room: dg vsi gmeter oilP oilT volts clock hobbs com xpdr nav; 9 breakers in 3 row(s), no room: gps gps2
+  F cessna + flat: GPS none; 6 dials, no room: dg vsi gmeter oilP oilT volts clock hobbs com xpdr nav; 9 breakers in 3 row(s), no room: gps
+  F cessna + flat:copilot: GPS none; 6 dials, no room: dg vsi gmeter oilP oilT volts clock hobbs com xpdr nav; 9 breakers in 3 row(s), no room: gps
+  F cessna + flatPair: GPS none; 6 dials, no room: dg vsi gmeter oilP oilT volts clock hobbs com xpdr nav; 9 breakers in 3 row(s), no room: gps gps2
+  F cub + flat: GPS plate at 0.001, 0.079 (pilot 0.000); 11 dials; 10 breakers in 1 row(s)
+  FAIL   F cessna + glass: the screen in front of the pilot (on the pilot's line) - 0.381 / 0.180
+  FAIL   F cessna + glass: every dial on the dash beside the screen - asi,alt,tacho,turn,dg,vsi,gmeter,oilP,oilT,volts,clock,hobbs,com,xpdr,nav
+  FAIL   F metal + glass: the screen in front of the pilot (on the pilot's line) - 0.381 / 0.180
+  FAIL   F metal + glass: every dial on the dash beside the screen - asi,alt,tacho,turn,dg,vsi,gmeter,oilP,oilT,volts,clock,hobbs,com,xpdr,nav
+  FAIL   F metal + portable: the GPS stands on the plate - coaming
+  FAIL   F metal + portable: every dial on the dash beside the screen - dg,vsi,gmeter,oilP,oilT,volts,clock,hobbs,com,xpdr,nav
+  FAIL   F metal + flatPair: the GPS stands on the plate - none
+  FAIL   F metal + flatPair: one screen, on the GPS's own material (the join's `gps` bucket) - 0 null
+  FAIL   F metal + flatPair: ...and billed as the one display drawn
+  FAIL   F metal + flatPair: every dial on the dash beside the screen - dg,vsi,gmeter,oilP,oilT,volts,clock,hobbs,com,xpdr,nav
+  FAIL   F cessna + flat: the GPS stands on the plate - none
+  FAIL   F cessna + flat: one screen, on the GPS's own material (the join's `gps` bucket) - 0 null
+  FAIL   F cessna + flat: every dial on the dash beside the screen - dg,vsi,gmeter,oilP,oilT,volts,clock,hobbs,com,xpdr,nav
+  FAIL   F cessna + flat:copilot: the GPS stands on the plate - none
+  FAIL   F cessna + flat:copilot: one screen, on the GPS's own material (the join's `gps` bucket) - 0 null
+  FAIL   F cessna + flat:copilot: every dial on the dash beside the screen - dg,vsi,gmeter,oilP,oilT,volts,clock,hobbs,com,xpdr,nav
+  FAIL   F cessna + flatPair: the GPS stands on the plate - none
+  FAIL   F cessna + flatPair: one screen, on the GPS's own material (the join's `gps` bucket) - 0 null
+  FAIL   F cessna + flatPair: ...and billed as the one display drawn
+  FAIL   F cessna + flatPair: every dial on the dash beside the screen - dg,vsi,gmeter,oilP,oilT,volts,clock,hobbs,com,xpdr,nav
+  408 checks, 20 failed
+GATE GPSFACE: FAIL
+(exit code 1)
+=== WORLD ===
+perf: 1e6 terrainH calls in 1969 ms (1.97 us/call), checksum 30151143.638
+world: seed 0 | 24686 trees | 12 aerodromes | 42 checks, 0 failed
+GATE WORLD: PASS
+=== HYDRO ===
+A0 sweep riverCells: 4824 >= 2924 >= 1953
+hydro: 528 reaches | 175.8 km | 365 lakes (28168 cells) | bake 1096 ms | 14 checks, 0 failed
+GATE HYDRO: PASS
+=== BIOME ===
+surface %: GRASS=14.5 FF=20.2 WATER=53.7 ROCK=9.5 SCREE=0.9 SAND=1.1
+species mix: 2463,4718,8380,7359,1766 (10%,19%,34%,30%,7%)
+clustering: 4296 close pairs, 44% same-species
+riparian: 2602/1003 near vs 1054/2012 grass band — ratio 4.95
+surface perf: 7.4 us/call, checksum 295245
+biome: 24686 trees | 11 checks, 1 failed
+  FAIL: surface perf<5us
+GATE BIOME: FAIL
+(exit code 1)
+=== SETTLE ===
+bridges: 1
+max road cross-height @4m: 3.13 m
+settle: 9 settlements | 10 road pieces (47.7 km) | 132 buildings | bake 752 ms | 14 checks, 1 failed
+  FAIL: bake budget
+GATE SETTLE: FAIL
+(exit code 1)
+=== AERO ===
+aerodromes: 12 total | 4 town fields | 3 backcountry
+aero: 11 checks, 0 failed
+GATE AERO: PASS
+=== PAGERIG ===
+  ok   4j a frame never drawn: a MISS after 5 s, not a hang
+  (the page half runs by hand in a GPU slot: --gpu)
+GATE PAGERIG: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -6638,6 +7112,48 @@ STOREDRAW PASS     0.4 s
 ACCEPT    FAIL   893.8 s
 POD       FAIL   314.0 s
 PODEDITOR PASS    24.6 s
-wall (the chunks' own, summed) 33857.7 s  (jobs 4)
+DMGPOD    PASS    67.4 s
+CONTRACTS FAIL    38.5 s
+MISSIONS  FAIL     8.7 s
+PERFBENCH PASS     0.6 s
+PROJECTS  PASS     0.8 s
+MISSIONPROPS PASS     0.9 s
+MISSIONLIVE PASS     0.8 s
+STAGES    FAIL    78.3 s
+STORY     PASS     4.6 s
+TUTORLOCK PASS     0.8 s
+CANDIDATES FAIL     0.1 s
+CERTGATES PASS    23.0 s
+NAMES     FAIL    10.2 s
+ROUTES    PASS     0.8 s
+TECH      PASS     1.8 s
+ECON      PASS    31.0 s
+PRICE     PASS    30.7 s
+WEARTAB   PASS     4.5 s
+WEARPRICE PASS    48.3 s
+PROCURE   PASS   193.1 s
+SNAPSHOTS PASS     0.1 s
+FREIGHT   FAIL    91.4 s
+PILOTS    PASS     0.5 s
+NODUMMY   FAIL     0.7 s
+HANGAR    PASS     1.1 s
+DERELICT  PASS     6.2 s
+ENERGYBASE FAIL     0.4 s
+ENERGY    PASS    81.4 s
+TANKMOUNT FAIL   390.6 s
+RPM       PASS    25.9 s
+ENGTORQUE FAIL    71.2 s
+HEADING   PASS    53.8 s
+PANEL     PASS     2.1 s
+DASH      FAIL    85.3 s
+ELEC      PASS     4.5 s
+GPSFACE   FAIL   469.3 s
+WORLD     PASS    30.8 s
+HYDRO     PASS     9.0 s
+BIOME     FAIL    10.0 s
+SETTLE    FAIL     9.1 s
+AERO      PASS     7.9 s
+PAGERIG   PASS     5.1 s
+wall (the chunks' own, summed) 34482.8 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 72 red (239 PASS, 72 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 86 red (267 PASS, 86 FAIL, 0 SKIP of 364)
