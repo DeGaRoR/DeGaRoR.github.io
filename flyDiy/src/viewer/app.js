@@ -239,6 +239,7 @@
   // (?lampsfixed=1 is render_premises.js's: the lamp pool's count kept by day.)
   const LABQ = k => typeof location !== 'undefined' && new RegExp('[?&]' + k + '(&|$)').test(location.search || '');
   const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
+    paveFirst: LABQ('pavefirst=1'), pave: { handed: false, at: 0, readyAt: 0, sig: null, sigCompile: null, err: null },
     lateBg: LABQ('latelinks=bg'), bg: { armed: false, revealed: false, revealAt: 0, running: false, done: false, xrayRun: false, startedAt: 0, xrayMs: 0, ms: 0, xrayLinks: 0, scuffLinks: 0, twins: 0, noTwin: 0, err: null } };
   if (LAB.noLogs && renderer.debug) renderer.debug.checkShaderErrors = false;
   if (typeof window !== 'undefined') window.FLYDIY_LAB = LAB;
@@ -911,6 +912,31 @@
   // G1230 (MEM-BUDGET): UPLOAD AS YOU BUILD - the draw-only geometry a build slice made goes to the GPU as the slice ends
   // (its CPU copy freed there), not at first light: the far terrain's quads, the town's merges, the patch's LODs
   const geoFlush = () => { if (typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && typeof renderer.compileAsync === 'function') GPU_ONLY_GEO.flush(renderer); };
+  // ?pavefirst=1 (PERF-LEAD lab, 22 Nov; OFF by default): THE PAVEMENT PROGRAM HANDED TO THE COMPILER WHEN THE WORLD'S LIGHTS STAND.
+  // Every load of 22 Nov ends about 12 s after the pavement's program is ready, and that program waits 52-66 s in the driver
+  // (a 202 KB text; PERF-TRACE) from its hand-over at the town step, some 42 s in. Its key needs nothing of the strips
+  // (PERF-WORLDBUILD's reading: the fog, the environment and the lights of the scene, its own flags), so the world build
+  // yields 'pavement program' once those stand and this hands PAVEMENT.warmMesh - the table material on a one-triangle
+  // stand-in - to compileSliced against the world scene, wearing the craft's light stand-ins as the town's prelink does
+  // (craftLightsGuess), not awaited: worldCompile finds it linking. A night load's lamp pool is NOT worn (the pool does not
+  // exist yet): there the frame's key differs and this link is wasted - LAB.pave.sig / sigCompile say which it was.
+  function lightSig(sc) { let d = 0, p = 0, sp = 0, h = 0, ds = 0, ps = 0, ss = 0;
+    sc.traverseVisible(o => { if (!o.isLight) return; if (o.isDirectionalLight) { d++; if (o.castShadow) ds++; } else if (o.isPointLight) { p++; if (o.castShadow) ps++; }
+      else if (o.isSpotLight) { sp++; if (o.castShadow) ss++; } else if (o.isHemisphereLight) h++; });
+    return d + '.' + p + '.' + sp + '.' + h + ' / ' + ds + '.' + ps + '.' + ss + (sc.environment ? ' env' : ' no-env') + (sc.fog ? ' fog' : ' no-fog'); }
+  function paveFirstHand() {
+    const B = LAB.pave; if (B.handed || typeof PAVEMENT === 'undefined' || !PAVEMENT.warmMesh || typeof PROG_WARM === 'undefined' || typeof renderer.compileAsync !== 'function') return;
+    let m = null; try { m = PAVEMENT.warmMesh(THREE); } catch (e) { B.err = String(e && e.message); }
+    if (!m) return;
+    B.handed = true; B.at = Math.round(performance.now());
+    // (PERF-WORLDBUILD: the near shadow map's light is made visible and casting whatever the shadows dial says, and only the
+    // first world update turns it off - with the dial off this would key dir 2 for a frame that draws dir 1)
+    try { if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.apply) SHADOW_NEAR.apply(); } catch (e) {}
+    const g = new THREE.Group(); g.add(m);
+    const dress = fn => craftLightsGuess(() => { if (!B.sig) B.sig = lightSig(scene); return fn(); });
+    compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, dress)
+      .then(() => { B.readyAt = Math.round(performance.now()); }, e => { B.err = String(e && e.message); });
+  }
   function buildWorldSliced() {
     if (WF) return;
     if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
@@ -926,7 +952,7 @@
       const tick = () => {
         if (WF) { window.FLYDIY_WORLD_ASYNC = false; res(); return; }   // built meanwhile by a synchronous door (none today: the screen owns the first build)
         const t0 = performance.now(); let r = null, lab = '';
-        try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && !window.FLYDIY_WORLD_WAIT && performance.now() - t0 < 40); }
+        try { do { r = g.next(); n++; if (!r.done) { lab = r.value; if (lab === 'pavement program' && LAB.paveFirst) paveFirstHand(); } } while (!r.done && !window.FLYDIY_WORLD_WAIT && performance.now() - t0 < 40); }
         catch (e) { console.error('world build:', e); window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null; res(); return; }
         worst = Math.max(worst, performance.now() - t0);
         geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
@@ -16472,6 +16498,7 @@
       if (WF.lampsArm && WF.lampsWant) WF.lampsArm(WF.lampsWant());
       return craftInWorld(() => {
         worldSettle();   // (in the one loading: the lights as the stand will have them, before their programs are keyed)
+        if (LAB.paveFirst) LAB.pave.sigCompile = lightSig(scene);   // (?pavefirst=1: the light set this step keys with, against the early hand-over's)
         const tgt = aa && aa.target ? aa.target() : null, warn = e => console.warn('world compile:', e && e.message);
         return shaderProgress(LAB.wcSliced   // (?wcsliced=1: the dress in every task, as 'frames' - craftInWorld's own hold spans tasks)
           ? compileSliced(scene, tgt, null, false, craftInWorldNow).catch(warn).then(() => compileDepthVariants(scene, true, craftInWorldNow))

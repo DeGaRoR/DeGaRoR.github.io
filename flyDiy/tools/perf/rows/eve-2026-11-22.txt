@@ -8,4 +8,3 @@ BASE_E     ; D:/Dev/perf-lab-built ; -            ; new ; H5K ; --rollout --init
 LATEBG_45  ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js
 LATE1_E    ; D:/Dev/perf-lab-built ; latelinks=1  ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js
 LATEBG_45b ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js
-BASE_E2    ; D:/Dev/perf-lab-built ; -            ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js

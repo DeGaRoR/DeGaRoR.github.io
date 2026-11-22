@@ -30,6 +30,7 @@
     // many of 100 ms+, over how many seconds, and the first 30 s alone; the far terrain's slots; the mirror's captures / kept
     bg: L && L.lateBg ? pick(L.bg, ['revealed', 'running', 'done', 'xrayMs', 'ms', 'xrayLinks', 'scuffLinks', 'twins', 'noTwin', 'err']) : undefined,
     lateSkipped: (L && L.lateSkipped) || undefined,
+    pave: L && L.paveFirst ? pick(L.pave, ['handed', 'at', 'readyAt', 'sig', 'sigCompile', 'err']) : undefined,   // (?pavefirst=1: handed at / ready at (ms of the page), the light set at both keys)
     afterReveal: (() => { const T = g('__LT'); if (!T || !T.reveal) return undefined;
       const a = T.tasks.filter(t => t[0] >= T.reveal), a30 = a.filter(t => t[0] < T.reveal + 30000), sum = l => l.reduce((s, t) => s + t[1], 0), mx = l => l.reduce((m, t) => Math.max(m, t[1]), 0);
       return { secs: Math.round((performance.now() - T.reveal) / 1000), n: a.length, ms: sum(a), worst: mx(a), over100: a.filter(t => t[1] >= 100).length,

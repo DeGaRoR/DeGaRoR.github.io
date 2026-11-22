@@ -36,13 +36,15 @@ grep -q "^SMOKE_NEW \[" "$OUT/smoke/summary.txt" 2>/dev/null || { say "ABORT: no
 grep "^SMOKE_NEW" "$OUT/smoke/summary.txt" | grep -o '"farslots":{[^}]*}\|"bg":{[^}]*}\|"mirror":{[^}]*}\|"roadw":{[^}]*}\|rollout: [^|]*' | tee -a "$LOG"
 
 # 1. latelinks=bg (45 s in the garage, then Go), then the worst case (Go after 6 s)
-P1=${EVE_P1_MIN:-19}; [ $(left) -lt $(( P1 + 2 )) ] && P1=$(( $(left) - 2 ))
+P1=${EVE_P1_MIN:-15}; [ $(left) -lt $(( P1 + 2 )) ] && P1=$(( $(left) - 2 ))
 if [ $P1 -ge 4 ]; then say "part 1: the late links, cap $P1 min"
   LM_HELD=1 LM_AFTER=45 LM_EST=215 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=30 bash tools/perf/load_matrix.sh tools/perf/rows/eve-2026-11-22.txt "$OUT/loads" $P1 2>&1 | tee -a "$LOG"
 fi
-if [ $(left) -ge 34 ]; then say "part 1b: Go 6 s after the reveal"
-  LM_HELD=1 LM_AFTER=6 LM_EST=190 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=30 bash tools/perf/load_matrix.sh tools/perf/rows/eve-go6-2026-11-22.txt "$OUT/loads_go6" 4 2>&1 | tee -a "$LOG"
-else say "part 1b SKIPPED: $(left) min left"; fi
+
+# 1c. the pavement program first (?pavefirst=1), alone twice and with tonight's other load switches
+if [ $(left) -ge 33 ]; then say "part 1c: the pavement program first"
+  LM_HELD=1 LM_AFTER=12 LM_EST=150 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=30 bash tools/perf/load_matrix.sh tools/perf/rows/eve-pave-2026-11-22.txt "$OUT/pave" 8 2>&1 | tee -a "$LOG"
+else say "part 1c SKIPPED: $(left) min left"; fi
 
 # 2. the journey's first 8 minutes, the base then the three flight switches (run from the LAB build's own tools)
 JM=${EVE_JOURNEY_MIN:-12}
@@ -58,6 +60,11 @@ for v in base new; do
     else say "NO FLIGHT LOG for the $v journey"; fi
   else say "part 2 ($v) SKIPPED: $(left) min left"; fi
 done
+
+# 2b. ?latelinks=bg's worst case: Go 6 s after the reveal (the departure's screen waits for the links)
+if [ $(left) -ge 5 ]; then say "part 2b: Go 6 s after the reveal"
+  LM_HELD=1 LM_AFTER=6 LM_EST=190 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=30 bash tools/perf/load_matrix.sh tools/perf/rows/eve-go6-2026-11-22.txt "$OUT/loads_go6" 4 2>&1 | tee -a "$LOG"
+else say "part 2b SKIPPED: $(left) min left"; fi
 
 # 3. the world build's three workers, in what is left
 R=$(( $(left) - 1 ))
