@@ -35,7 +35,7 @@ async function child(side, out) {
           if (!r.done && r.value !== undefined) label = r.value; return r; },
         return(v) { return g.return ? g.return(v) : { done: true, value: v }; }, throw(e) { return g.throw(e); }, [Symbol.iterator]() { return this; } }; };
     wrapped.__px = true; W.buildWorldSceneSteps = wrapped; } };
-  const P = await openPage({ quiet: true, hooks, query: side === 'worker' ? 'patchw=1' : '', workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(os.tmpdir(), 'pw-idb-')), workerWaitMs: 900000 });
+  const P = await openPage({ quiet: true, hooks, query: side === 'worker' ? 'patchw=1&roadw=1' : '', workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(os.tmpdir(), 'pw-idb-')), workerWaitMs: 900000 });
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 3600000);
   const census = {}, seen = new Set();
@@ -50,7 +50,8 @@ async function child(side, out) {
   for (const k of Object.keys(census)) { const e = census[k]; e.digest = crypto.createHash('sha256').update(e.parts.sort().join(',')).digest('hex').slice(0, 16); delete e.parts; e.tris = Math.round(e.tris); }
   let stats = null; try { const w = W.FLIGHT_PROBE.world(), O = w.premises && w.premises.overlay; stats = O && O.pavePolyStats ? O.pavePolyStats() : null; } catch (e) { stats = null; }
   const MB = v => Math.round(v / 1048576);
-  fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, patchw: W.FLYDIY_PATCHW ? Object.assign({}, W.FLYDIY_PATCHW) : null, hw: W.HOUSE_WORKER && W.HOUSE_WORKER.stats ? W.HOUSE_WORKER.stats() : null, warns: (P.logs || []).filter(l => /house worker|patch/i.test(String(l)) && /^warn/.test(String(l))).slice(0, 6), reuse: !!(W.PAVEMENT && W.PAVEMENT.REFINE && W.PAVEMENT.REFINE.reuseHeight), poly: stats, census,
+  const MM = (() => { try { const m = W.WORLD.premises.materialMap(); return { sum: m.sum(), on: m.on, n: m.n, slots: m.slots, bounds: m.bounds }; } catch (e) { return { err: String(e && e.message) }; } })();
+  fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, matmap: MM, patchw: W.FLYDIY_PATCHW ? Object.assign({}, W.FLYDIY_PATCHW) : null, roadw: W.FLYDIY_ROADW ? Object.assign({}, W.FLYDIY_ROADW, { jobs: undefined }) : null, hw: W.HOUSE_WORKER && W.HOUSE_WORKER.stats ? W.HOUSE_WORKER.stats() : null, warns: (P.logs || []).filter(l => /house worker|patch/i.test(String(l)) && /^warn/.test(String(l))).slice(0, 6), reuse: !!(W.PAVEMENT && W.PAVEMENT.REFINE && W.PAVEMENT.REFINE.reuseHeight), poly: stats, census,
     ms: Object.fromEntries(Object.entries(T).map(([k, v]) => [k, Math.round(v)])), mem: { heapPeakMB: MB(MEM.heap), heapPeakStripsMB: MB(MEM.strips), buffersPeakMB: MB(MEM.buffers) } }));
   process.exit(0);
 }
@@ -71,6 +72,15 @@ async function child(side, out) {
   if (!(PWs.on === true && PWs.why === 'asked')) bad.push('the worker child did not ask the worker (' + PWs.why + ')');
   if (!(PWs.asked > 0 && PWs.used === PWs.asked && PWs.here === 0)) bad.push('not every chunk was read from the worker (' + PWs.used + ' of ' + PWs.asked + ', ' + PWs.here + ' sampled on the page)');
   if (!(B.hw && B.hw.kept === 0)) bad.push('the worker copied arrays instead of transferring them');
+  const RWs = B.roadw || {};
+  console.log('  the roads and the aprons (?roadw=1): ' + JSON.stringify(RWs) + ' | the worker ' + JSON.stringify({ paves: B.hw && B.hw.paves, paveMs: B.hw && B.hw.paveMs }));
+  if (!(RWs.on === true && RWs.why === 'asked' && RWs.asked > 0)) bad.push('the roads and the aprons were not asked of the worker (' + RWs.why + ')');
+  if (!(RWs.used === RWs.asked && RWs.here === 0 && RWs.missed === 0)) bad.push('not every road and apron stood from the worker (' + RWs.used + ' of ' + RWs.asked + ', ' + RWs.here + ' built on the page, ' + RWs.missed + ' missed)');
+  if (A.roadw && A.roadw.used) bad.push('the inline child stood roads from the worker');
+  console.log('  the material map (bytes hashed, slots, bounds): inline ' + JSON.stringify(A.matmap) + ' | worker ' + JSON.stringify(B.matmap) + ' (made ' + PWs.matmap + ', ' + PWs.matMs + ' ms in the worker)');
+  if (!(A.matmap && B.matmap && A.matmap.sum !== undefined && JSON.stringify(A.matmap) === JSON.stringify(B.matmap))) bad.push('the material map differs between the two builds');
+  if (PWs.matmap !== 'worker') bad.push('the material map was not rastered in the worker (' + PWs.matmap + ')');
+  if (A.patchw && A.patchw.matmap !== 'here') bad.push('the inline child did not raster its map on the page (' + (A.patchw && A.patchw.matmap) + ')');
   if (B.warns && B.warns.length) bad.push('the page warned: ' + B.warns.join(' | '));
   console.log('  family           meshes    vertices   triangles   digest inline      digest worker');
   for (const k of [...new Set([...Object.keys(A.census), ...Object.keys(B.census)])].sort()) {
