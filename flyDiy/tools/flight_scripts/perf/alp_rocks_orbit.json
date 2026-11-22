@@ -1,0 +1,59 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_alp_rocks_orbit",
+ "what": "ALP-ROCKS (MOUNTAIN-VEG, PERF-LEAD 22 Nov): the alpine rock scatter's price IN FLIGHT - the user's Cub off tw_ski (Skyline altiport, the subalpine and the summits round it), a low leg over the rocky ground then the same 250 m higher; run twice on one build: default, then ?alprocks=0",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "tw_ski",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "taxi + line-up (tw_ski)",
+   "do": "start",
+   "until": {
+    "phase": [
+     "ROLL",
+     "LIFTOFF",
+     "CLIMB"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "take-off (tw_ski)",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "ENROUTE",
+     "INBOUND"
+    ]
+   },
+   "capS": 200
+  },
+  {
+   "name": "low over the alpine rocks",
+   "do": "wait",
+   "until": {
+    "s": 60
+   },
+   "capS": 70
+  },
+  {
+   "name": "up 250 m",
+   "do": "lift",
+   "by": 250,
+   "until": {
+    "s": 2
+   },
+   "capS": 10
+  },
+  {
+   "name": "high over the alpine rocks",
+   "do": "wait",
+   "until": {
+    "s": 60
+   },
+   "capS": 70
+  }
+ ]
+}

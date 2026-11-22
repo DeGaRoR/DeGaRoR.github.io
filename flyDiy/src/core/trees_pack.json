@@ -11260,7 +11260,8 @@
      "ttype": 6,
      "coverSpread": 0.08,
      "rockMap": 1,
-     "debris": 8
+     "debris": 8,
+     "alpRockK": 6
     }
    },
    "shore": {
@@ -12388,6 +12389,11 @@
       600,
       760,
       0.8
+     ],
+     "rockUp": [
+      700,
+      950,
+      1.5
      ]
     }
    }
