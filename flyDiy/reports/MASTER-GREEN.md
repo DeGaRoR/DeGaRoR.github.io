@@ -3,7 +3,7 @@
 Base: origin/master 9349a62c1 (train L40h), core battery 301 PASS / 61 FAIL on the box (A0's `land_L40H_gates.log`).
 Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is kept current: read the STATUS block first.
 
-## STATUS (updated 22 Nov 02:20 UTC, block 4)
+## STATUS (updated 22 Nov 04:25 UTC, block 5)
 
 - 61 reds. **19 have a fix or a reasoned re-pin on this branch**, 5 are in hand elsewhere, 37 are for owners or still
   being traced; every one has a first read in the table.
@@ -106,9 +106,9 @@ owner named; **tracing** = this session is still on it.
 | WILGAGEAR | REAL (a garage bug) | tools/_cage_eng.js assigned `window.CAGE_PYLON` twice (WILGA-GEAR 6a6097c49 `{caster, hug, NS}`; the cabane pylon 1f0c59fa9 `{pylonCaster, ...}`): the second replaced the first and "leg fairing root: fitted to the body" threw `CP.caster is not a function` - no gear drawn at all | orphan | one object, both sets of names (59/59) | green-1 |
 | OBSTACLE | REAL | "against the wall under a third of throttle": 1.54 m/s into / off the wall. PASS on f3295a3b1, FAIL on ebdd22542 = train L40g's merge of **claude/ready/joint-tether** (both sides run here). The spitfire card's 4 s of flight (STOL 1) moved at the same merge | Deform (JOINT-TETHER) | - | owner |
 | ROUGHWHEEL | REAL | A: the 0.15 m wheel does not stop at the 15 cm stone; the wheels' ordering. First red dc742075c = train L40g's merge of **claude/ready/tow-launch-l40f-2** (bisected; fc25aee4e PASS). At that same merge the certificate's `taxiRough` case moved on the wheeled builds (the Cub: members +3..+17 %, Fc[105] 320 -> 374 N): the wheel's law over rough ground changed, though the branch says "no solver change" | TOW-LAUNCH (+ Deform for the certificate) | - | owner |
-| CONTACT | ? | Jolene strip gravel / grass: the drawn surface off terrainH (p5 -13.6 mm); 02/20's band over other pavement (25749 of 38764) | DIRT-STRIP | - | owner |
-| PREMRASTER | ? | the raster against the analytic ground: worst 140.6 mm (w6 grade); the LRU sweep | DIRT-STRIP | - | owner |
-| TERRAINMATCH | ? | HOME lane 2: worst 78.8 mm on a road (47 creased points); the pavement budget +2 % (the joined roads) | DIRT-STRIP + TOW-LAUNCH | - | owner |
+| CONTACT | REAL (scenery) | Jolene strip gravel / grass: the drawn surface off terrainH (p5 -13.6 mm); 02/20's band over other pavement (25749 of 38764). PASS on L40e and on cb43a3668; first red d43397f5e = train L40f's merge of **claude/ready/afb-0220-b3-2** (bisected with the gate) | DIRT-STRIP (AFB-0220) | - | owner |
+| PREMRASTER | REAL (scenery) | the raster against the analytic ground: worst 140.6 mm (w6 grade); the LRU sweep makes the stand's tile 4 times. The same first red as CONTACT: d43397f5e, train L40f's merge of **afb-0220-b3-2** (bisected with the gate) | DIRT-STRIP (AFB-0220) | - | owner |
+| TERRAINMATCH | REAL | HOME lane 2: worst 78.8 mm on a road (47 creased points); the pavement budget within 3 km +2 %. Both rows PASS on fc25aee4e and are red from dc742075c = train L40g's merge of **claude/ready/tow-launch-l40f-2** (bisected with the gate; the same merge as ROUGHWHEEL) | TOW-LAUNCH | - | owner |
 | FRAMECOST | ? | cub stand / taxi: triangles, shadow triangles, draws, texSubImage2D above the pinned budget (the L40f scenery, costs A0 named) | scenery + perf round | admit with ALLOW entries (reason + G-number), or cut | owner |
 | ROUNDTRIP | ? | roll-out 1 links a program; roll-out 2 uploads; the physics worker flew 4 flights with 1 inline | perf round / Game | - | owner |
 
