@@ -5184,8 +5184,12 @@ function make(THREE, scene, world, rec0, opts) {
     },
     pavedAt: (x, z, reach, skip) => (O.pavedAt ? O.pavedAt(x, z, reach, skip) : null),       // G660: the patch is sunk under a pavement's opaque interior by it (G2115: reach, skip passed on)
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
+    patchActive: () => !!patchAct,   // (PERF-WORLDBUILD: the patch's active set is known - patchCovers answers)
     patchDepth, ringSink, tuck: PATCH_TUCK,   // G752: metres inside the patch (0 outside); the rings' sink by it (0 at the border); the two laws' dials
     patchBounds: () => (patch ? extentWorld() : null),
+    // PERF-WORLDBUILD (22 Nov): what the premises still owe besides their queue - the far town's cells to merge, the obstacles
+    // waiting for their registration, the life's stand (the settle gate's ledger, render_world settleStat)
+    owed: () => ({ hlod: HLOD.todo ? HLOD.todo.length : 0, hit: PENDING_HIT.filter(q => q.grp.parent).length, life: LIFE && LIFE.owedN ? LIFE.owedN() : 0 }),
     geoPending: () => GEO.pending, geoDist, geoLaterSteps,   // G2063 (TOWN-GEO): the town's patch and roads, later (render_world drives them)
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
     drainNear, stream, prewarm, streamState: STREAM, cellLive, hwWait, hw: HWQ,   // G830: the house worker's pending answer (a promise, or null); its queue's state   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
