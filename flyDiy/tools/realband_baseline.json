@@ -102,6 +102,17 @@
    "moved": [
     "c172v2"
    ]
+  },
+  {
+   "date": "2026-11-22",
+   "reason": "LS4-ARCH-1: the LS4 release + the Archaeopteryx row on the L40J base",
+   "core": "b2c54b80f30e7cbb",
+   "moved": [
+    "ls4",
+    "archaeo",
+    "petrel42",
+    "c172v2"
+   ]
   }
  ],
  "planes": {
@@ -109,7 +120,7 @@
    "stamp": {
     "file": "builds/candidates/electric_trainer.json",
     "blob": "5ea85624e772fca53ea1902237d1f9d37cdd1931",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 419.626,
@@ -166,8 +177,8 @@
   "pc6": {
    "stamp": {
     "file": "builds/candidates/pc6_drafting_2026-11-11.json",
-    "blob": "7f6c942b33eb33621004689a71b7dccccbe19733",
-    "core": "c2d790d51e890c3b"
+    "blob": "c5557d3fd061e36cbeefb6bc86421f18ec7a71f1",
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 1178.39,
@@ -225,7 +236,7 @@
    "stamp": {
     "file": "builds/cub_2026-09-20_corrected.json",
     "blob": "fd15d050554aa5a5010789fdd503f5568b483664",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 354.899,
@@ -238,7 +249,7 @@
     "cRoot": 1.7,
     "cTip": 1.7,
     "hSpan": 2.83914,
-    "height": 2.08642,
+    "height": 2.0864,
     "length": 6.93,
     "span": 10.7,
     "track": 1.78
@@ -246,36 +257,36 @@
    "cases": {
     "min": {
      "mass": 432.999,
-     "Vs": 54.5915,
-     "V75": 127.628,
-     "Vmax": 144.693,
-     "roc": 3.60238,
-     "LD": 9.39115,
+     "Vs": 54.5906,
+     "V75": 127.636,
+     "Vmax": 144.702,
+     "roc": 3.60267,
+     "LD": 9.3917,
      "TOgrass": 87,
-     "cgMAC": 23.8954,
-     "sm": 16.1495
+     "cgMAC": 23.9075,
+     "sm": 16.1374
     },
     "typ": {
      "mass": 451.099,
-     "Vs": 55.7209,
-     "V75": 127.084,
-     "Vmax": 144.376,
-     "roc": 3.3838,
-     "LD": 9.39115,
+     "Vs": 55.7199,
+     "V75": 127.092,
+     "Vmax": 144.385,
+     "roc": 3.38406,
+     "LD": 9.3917,
      "TOgrass": 91,
-     "cgMAC": 22.8939,
-     "sm": 17.1782
+     "cgMAC": 22.9055,
+     "sm": 17.1666
     },
     "mtow": {
      "mass": 550,
-     "Vs": 61.5266,
-     "V75": 123.311,
-     "Vmax": 142.286,
-     "roc": 2.3927,
-     "LD": 9.39115,
+     "Vs": 61.5255,
+     "V75": 123.319,
+     "Vmax": 142.295,
+     "roc": 2.39293,
+     "LD": 9.3917,
      "TOgrass": 118,
-     "cgMAC": 35.0428,
-     "sm": 5.31556
+     "cgMAC": 35.3224,
+     "sm": 5.03248
     }
    }
   },
@@ -283,7 +294,7 @@
    "stamp": {
     "file": "builds/candidates/jodel_geo.json",
     "blob": "fc464e492dd7804073a5a0a66bb1ec6fd7d5becf",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 321.194,
@@ -337,11 +348,69 @@
     }
    }
   },
+  "pa18f": {
+   "stamp": {
+    "file": "builds/pa18_floats_2026-10-23.json",
+    "blob": "c11111188845b3d5c418b39a2a531229ec4fd182",
+    "core": "b2c54b80f30e7cbb"
+   },
+   "facts": {
+    "empty": 565.363,
+    "fuelKg": 97.92
+   },
+   "dims": {
+    "S": 17.5698,
+    "Sh": 2.47818,
+    "Sv": 1.05777,
+    "cRoot": 1.7,
+    "cTip": 1.7,
+    "hSpan": 2.83914,
+    "height": 3.44794,
+    "length": 7.72,
+    "span": 10.7,
+    "track": 1.78
+   },
+   "cases": {
+    "min": {
+     "mass": 659.843,
+     "Vs": 67.3977,
+     "V75": 164.67,
+     "Vmax": 186.36,
+     "roc": 5.55004,
+     "LD": 8.97748,
+     "TOgrass": 110,
+     "cgMAC": 19.3171,
+     "sm": 21.287
+    },
+    "typ": {
+     "mass": 694.323,
+     "Vs": 69.1362,
+     "V75": 163.993,
+     "Vmax": 185.965,
+     "roc": 5.16168,
+     "LD": 8.97748,
+     "TOgrass": 116,
+     "cgMAC": 19.8761,
+     "sm": 20.6465
+    },
+    "mtow": {
+     "mass": 806,
+     "Vs": 74.489,
+     "V75": 161.403,
+     "Vmax": 184.466,
+     "roc": 4.09826,
+     "LD": 8.97748,
+     "TOgrass": 140,
+     "cgMAC": 29.6426,
+     "sm": 10.9268
+    }
+   }
+  },
   "pc6f": {
    "stamp": {
     "file": "builds/candidates/pc6_floats_2026-11-13.json",
-    "blob": "c9ba712bb8705e0d754ce439166074e5cf879565",
-    "core": "c2d790d51e890c3b"
+    "blob": "8a3952d24f1ba9bf58f978a01c0b4f206af88534",
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 1587.37,
@@ -395,69 +464,11 @@
     }
    }
   },
-  "pa18f": {
-   "stamp": {
-    "file": "builds/pa18_floats_2026-10-23.json",
-    "blob": "c11111188845b3d5c418b39a2a531229ec4fd182",
-    "core": "c2d790d51e890c3b"
-   },
-   "facts": {
-    "empty": 565.363,
-    "fuelKg": 97.92
-   },
-   "dims": {
-    "S": 17.5698,
-    "Sh": 2.47818,
-    "Sv": 1.05777,
-    "cRoot": 1.7,
-    "cTip": 1.7,
-    "hSpan": 2.83914,
-    "height": 3.44801,
-    "length": 7.72,
-    "span": 10.7,
-    "track": 1.78
-   },
-   "cases": {
-    "min": {
-     "mass": 659.843,
-     "Vs": 67.3984,
-     "V75": 164.663,
-     "Vmax": 186.353,
-     "roc": 5.54982,
-     "LD": 8.9772,
-     "TOgrass": 110,
-     "cgMAC": 19.3092,
-     "sm": 21.2949
-    },
-    "typ": {
-     "mass": 694.323,
-     "Vs": 69.1369,
-     "V75": 163.987,
-     "Vmax": 185.958,
-     "roc": 5.16145,
-     "LD": 8.9772,
-     "TOgrass": 116,
-     "cgMAC": 19.8686,
-     "sm": 20.6541
-    },
-    "mtow": {
-     "mass": 806,
-     "Vs": 74.4898,
-     "V75": 161.397,
-     "Vmax": 184.459,
-     "roc": 4.09806,
-     "LD": 8.9772,
-     "TOgrass": 140,
-     "cgMAC": 29.4518,
-     "sm": 11.1193
-    }
-   }
-  },
   "ruckus": {
    "stamp": {
     "file": "builds/candidates/ruckus_std_2026-11-09.json",
     "blob": "65a794c87cee4beeb43fa424763fe4f02098c521",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 156.118,
@@ -515,7 +526,7 @@
    "stamp": {
     "file": "builds/candidates/ruckus_2026-11-09.json",
     "blob": "5626d2ca8db1b0f8d490d4d1f7ca7c8e328c8e29",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 201.862,
@@ -573,7 +584,7 @@
    "stamp": {
     "file": "builds/chinook_2026-09-21_corrected.json",
     "blob": "80bb261ad9d2b7105765e70744bb359eebf4fe02",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 196.462,
@@ -631,7 +642,7 @@
    "stamp": {
     "file": "builds/candidates/tigermoth_2026-10.json",
     "blob": "55001fe0bfb791a5708e1336c5b1fe2b2a24e169",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 519.94,
@@ -689,7 +700,7 @@
    "stamp": {
     "file": "builds/candidates/camel_2026-10.json",
     "blob": "8e8c09257063fb0191ac676e8e1f8c60a9a98957",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 551.821,
@@ -747,7 +758,7 @@
    "stamp": {
     "file": "builds/candidates/stearman_2026-10.json",
     "blob": "ab93a8c753122c6a55ce0370039b5848208e2c6d",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 881.988,
@@ -801,14 +812,72 @@
     }
    }
   },
+  "ls4": {
+   "stamp": {
+    "file": "builds/candidates/ls4_2026-11.json",
+    "blob": "2016bf8f68e7dc334eb436b26131d7f885508a54",
+    "core": "b2c54b80f30e7cbb"
+   },
+   "facts": {
+    "empty": 231.706,
+    "fuelKg": 0
+   },
+   "dims": {
+    "S": 10.6233,
+    "Sh": 0.886173,
+    "Sv": 0.924669,
+    "cRoot": 0.9,
+    "cTip": 0.36,
+    "hSpan": 2.49544,
+    "height": 1.21445,
+    "length": 6.79367,
+    "span": 15.06,
+    "track": null
+   },
+   "cases": {
+    "min": {
+     "mass": 471.706,
+     "Vs": 76.3546,
+     "V75": null,
+     "Vmax": null,
+     "roc": 0,
+     "LD": 19.5105,
+     "TOgrass": 2003,
+     "cgMAC": 26.611,
+     "sm": 35.2888
+    },
+    "typ": {
+     "mass": 481.706,
+     "Vs": 77.1597,
+     "V75": null,
+     "Vmax": null,
+     "roc": 0,
+     "LD": 19.5105,
+     "TOgrass": 2045,
+     "cgMAC": 24.7638,
+     "sm": 37.4884
+    },
+    "mtow": {
+     "mass": 525,
+     "Vs": 80.5525,
+     "V75": null,
+     "Vmax": null,
+     "roc": 0,
+     "LD": 19.5105,
+     "TOgrass": 2229,
+     "cgMAC": 20.7637,
+     "sm": 42.9762
+    }
+   }
+  },
   "archaeo": {
    "stamp": {
     "file": "builds/archaeopteryx_2026-11-10.json",
-    "blob": "3496828ffb69dd4334a0b12db32f7ff0dfbefc6e",
-    "core": "c2d790d51e890c3b"
+    "blob": "9ac8cc5554f7ba0a991ce7bdfa36c83c4c0d95bc",
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
-    "empty": 79.5743,
+    "empty": 81.1626,
     "fuelKg": 0
    },
    "dims": {
@@ -818,102 +887,44 @@
     "cRoot": 1.19,
     "cTip": 0.56,
     "hSpan": 2.65325,
-    "height": 3.69948,
+    "height": 3.70456,
     "length": 6.02,
     "span": 13.5,
     "track": null
    },
    "cases": {
     "min": {
-     "mass": 149.574,
-     "Vs": 38.4397,
-     "V75": 101.851,
-     "Vmax": 116.653,
-     "roc": 2.20701,
-     "LD": 14.776,
-     "TOgrass": 50,
-     "cgMAC": 69.8776,
-     "sm": 2.26517
+     "mass": 160.076,
+     "Vs": 39.8288,
+     "V75": 101.521,
+     "Vmax": 116.471,
+     "roc": 2.02377,
+     "LD": 14.9162,
+     "TOgrass": 59,
+     "cgMAC": 65.1824,
+     "sm": 7.1059
     },
     "typ": {
-     "mass": 159.574,
-     "Vs": 39.7039,
-     "V75": 101.317,
-     "Vmax": 116.315,
-     "roc": 2.02025,
-     "LD": 14.776,
-     "TOgrass": 58,
-     "cgMAC": 68.1017,
-     "sm": 4.40105
+     "mass": 166.163,
+     "Vs": 40.579,
+     "V75": 101.186,
+     "Vmax": 116.264,
+     "roc": 1.91965,
+     "LD": 14.9162,
+     "TOgrass": 64,
+     "cgMAC": 63.7711,
+     "sm": 8.70112
     },
     "mtow": {
      "mass": 191,
-     "Vs": 43.4379,
-     "V75": 99.3353,
-     "Vmax": 115.103,
-     "roc": 1.5454,
-     "LD": 14.776,
+     "Vs": 43.5062,
+     "V75": 99.6418,
+     "Vmax": 115.326,
+     "roc": 1.558,
+     "LD": 14.9162,
      "TOgrass": 91,
-     "cgMAC": 69.0298,
-     "sm": 4.32702
-    }
-   }
-  },
-  "petrel42": {
-   "stamp": {
-    "file": "builds/candidates/superpetrel_V4_2.json",
-    "blob": "4746836193e8371c5665d81cad239e800a90fcf8",
-    "core": "c2d790d51e890c3b"
-   },
-   "facts": {
-    "empty": 391.915,
-    "fuelKg": 68.4
-   },
-   "dims": {
-    "S": 14.5085,
-    "Sh": 1.74978,
-    "Sv": 1.17371,
-    "cRoot": 1,
-    "cTip": 1,
-    "hSpan": 2.70448,
-    "height": 3.09261,
-    "length": 5.92658,
-    "span": 8.86,
-    "track": 1.72
-   },
-   "cases": {
-    "min": {
-     "mass": 479.015,
-     "Vs": 65.4517,
-     "V75": 178.724,
-     "Vmax": 199.727,
-     "roc": 5.86931,
-     "LD": 10.3643,
-     "TOgrass": 98,
-     "cgMAC": 36.4768,
-     "sm": 1.80359
-    },
-    "typ": {
-     "mass": 506.115,
-     "Vs": 67.2777,
-     "V75": 177.98,
-     "Vmax": 199.242,
-     "roc": 5.44068,
-     "LD": 10.3643,
-     "TOgrass": 105,
-     "cgMAC": 35.4981,
-     "sm": 2.99237
-    },
-    "mtow": {
-     "mass": 649,
-     "Vs": 76.1849,
-     "V75": 172.964,
-     "Vmax": 196.162,
-     "roc": 3.69791,
-     "LD": 10.3643,
-     "TOgrass": 143,
-     "cgMAC": 25.483,
-     "sm": 14.3017
+     "cgMAC": 65.5202,
+     "sm": 7.6019
     }
    }
   },
@@ -921,7 +932,7 @@
    "stamp": {
     "file": "builds/candidates/dc3_2026-10.json",
     "blob": "c624a000bf5adabeaf917c712830ddbeb52d1cc2",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 7936.62,
@@ -934,7 +945,7 @@
     "cRoot": 4.63,
     "cTip": 1.4,
     "hSpan": 7.81496,
-    "height": 5.35655,
+    "height": 5.35648,
     "length": 19.6,
     "span": 29,
     "track": 5.64
@@ -949,7 +960,7 @@
      "LD": 12.9984,
      "TOgrass": 263,
      "cgMAC": 58.1763,
-     "sm": 7.44161
+     "sm": 7.44185
     },
     "typ": {
      "mass": 9136.22,
@@ -960,7 +971,7 @@
      "LD": 12.9984,
      "TOgrass": 285,
      "cgMAC": 57.1988,
-     "sm": 8.32837
+     "sm": 8.32857
     },
     "mtow": {
      "mass": 11431,
@@ -971,7 +982,65 @@
      "LD": 12.9984,
      "TOgrass": 426,
      "cgMAC": 66.2879,
-     "sm": 1.99331
+     "sm": 1.99356
+    }
+   }
+  },
+  "petrel42": {
+   "stamp": {
+    "file": "builds/candidates/superpetrel_V4_2.json",
+    "blob": "4746836193e8371c5665d81cad239e800a90fcf8",
+    "core": "b2c54b80f30e7cbb"
+   },
+   "facts": {
+    "empty": 395.549,
+    "fuelKg": 68.4
+   },
+   "dims": {
+    "S": 14.5085,
+    "Sh": 1.74978,
+    "Sv": 1.17371,
+    "cRoot": 1,
+    "cTip": 1,
+    "hSpan": 2.70448,
+    "height": 3.09178,
+    "length": 5.92797,
+    "span": 8.86,
+    "track": 1.72
+   },
+   "cases": {
+    "min": {
+     "mass": 482.649,
+     "Vs": 65.6409,
+     "V75": 178.723,
+     "Vmax": 199.772,
+     "roc": 5.8098,
+     "LD": 10.3587,
+     "TOgrass": 99,
+     "cgMAC": 37.7699,
+     "sm": 0.549701
+    },
+    "typ": {
+     "mass": 509.749,
+     "Vs": 67.4585,
+     "V75": 177.963,
+     "Vmax": 199.286,
+     "roc": 5.38587,
+     "LD": 10.3587,
+     "TOgrass": 106,
+     "cgMAC": 36.9299,
+     "sm": 1.59956
+    },
+    "mtow": {
+     "mass": 649,
+     "Vs": 76.1168,
+     "V75": 173.03,
+     "Vmax": 196.251,
+     "roc": 3.69676,
+     "LD": 10.3587,
+     "TOgrass": 143,
+     "cgMAC": 28.2148,
+     "sm": 11.5742
     }
    }
   },
@@ -979,7 +1048,7 @@
    "stamp": {
     "file": "builds/cessna172r_2026-11-08.json",
     "blob": "f8b42cc4f6f3315a6c071d3c51470a628c5db987",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 709.055,
@@ -992,44 +1061,44 @@
     "cRoot": 1.63,
     "cTip": 1.12,
     "hSpan": 3.38922,
-    "height": 2.96514,
+    "height": 2.9704,
     "length": 8.04,
     "span": 11.02,
     "track": 2.184
    },
    "cases": {
     "min": {
-     "mass": 817.215,
-     "Vs": 80.5689,
-     "V75": 204.788,
-     "Vmax": 228.413,
-     "roc": 5.56884,
-     "LD": 11.2117,
-     "TOgrass": 195,
-     "cgMAC": 29.5975,
-     "sm": 23.1006
+     "mass": 833.938,
+     "Vs": 81.3866,
+     "V75": 204.421,
+     "Vmax": 228.195,
+     "roc": 5.40805,
+     "LD": 11.2116,
+     "TOgrass": 200,
+     "cgMAC": 28.196,
+     "sm": 24.7805
     },
     "typ": {
-     "mass": 865.375,
-     "Vs": 82.909,
-     "V75": 203.696,
-     "Vmax": 227.741,
-     "roc": 5.11565,
-     "LD": 11.2117,
-     "TOgrass": 210,
-     "cgMAC": 30.0515,
-     "sm": 22.8093
+     "mass": 878.468,
+     "Vs": 83.5313,
+     "V75": 203.381,
+     "Vmax": 227.544,
+     "roc": 5.00019,
+     "LD": 11.2116,
+     "TOgrass": 214,
+     "cgMAC": 29.0031,
+     "sm": 24.1035
     },
     "mtow": {
      "mass": 1111,
-     "Vs": 93.9412,
-     "V75": 196.318,
-     "Vmax": 223.396,
-     "roc": 3.32843,
-     "LD": 11.2117,
+     "Vs": 93.9384,
+     "V75": 196.322,
+     "Vmax": 223.4,
+     "roc": 3.3284,
+     "LD": 11.2116,
      "TOgrass": 292,
      "cgMAC": 40.9552,
-     "sm": 14.6009
+     "sm": 14.7248
     }
    }
   },
@@ -1037,7 +1106,7 @@
    "stamp": {
     "file": "builds/candidates/carbon_cub_ss.json",
     "blob": "f442f51c6a5864d8e27edd13c7e675410f83d19b",
-    "core": "c2d790d51e890c3b"
+    "core": "b2c54b80f30e7cbb"
    },
    "facts": {
     "empty": 406.563,
@@ -1050,7 +1119,7 @@
     "cRoot": 1.6,
     "cTip": 1.6,
     "hSpan": 3.1866,
-    "height": 2.26724,
+    "height": 2.26723,
     "length": 7.05,
     "span": 10.44,
     "track": 1.78
@@ -1058,36 +1127,36 @@
    "cases": {
     "min": {
      "mass": 492.943,
-     "Vs": 57.1808,
-     "V75": 170.467,
-     "Vmax": 191.452,
-     "roc": 9.77587,
-     "LD": 8.1318,
+     "Vs": 57.1801,
+     "V75": 170.473,
+     "Vmax": 191.459,
+     "roc": 9.77617,
+     "LD": 8.13198,
      "TOgrass": 43,
-     "cgMAC": 16.488,
-     "sm": 28.2655
+     "cgMAC": 16.4993,
+     "sm": 28.2542
     },
     "typ": {
      "mass": 519.323,
-     "Vs": 58.6909,
-     "V75": 170.174,
-     "Vmax": 191.266,
-     "roc": 9.18628,
-     "LD": 8.1318,
+     "Vs": 58.6901,
+     "V75": 170.18,
+     "Vmax": 191.272,
+     "roc": 9.18656,
+     "LD": 8.13198,
      "TOgrass": 46,
-     "cgMAC": 17.1402,
-     "sm": 27.5775
+     "cgMAC": 17.1509,
+     "sm": 27.5669
     },
     "mtow": {
      "mass": 599,
-     "Vs": 63.0327,
-     "V75": 169.129,
-     "Vmax": 190.625,
-     "roc": 7.69736,
-     "LD": 8.1318,
+     "Vs": 63.0318,
+     "V75": 169.134,
+     "Vmax": 190.631,
+     "roc": 7.69761,
+     "LD": 8.13198,
      "TOgrass": 54,
-     "cgMAC": 30.4072,
-     "sm": 14.5986
+     "cgMAC": 30.6799,
+     "sm": 14.3234
     }
    }
   }
