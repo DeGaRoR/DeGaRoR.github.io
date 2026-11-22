@@ -6,7 +6,8 @@
   "rules": {"jobs":"none","shady":false,"unflyable":"offer"},
   "clients": [
     {"id":"home","fields":["w1","cb_sea"],"track":"home","person":"sophie","colour":"#c9785a"},
-    {"id":"community","fields":["w6","w7"],"track":"community","person":"james","colour":"#7d9a8c"}
+    {"id":"community","fields":["w6","w7"],"track":"community","person":"james","colour":"#7d9a8c"},
+    {"id":"aeroclub","fields":["HOME","w2","xw_rough","tw_ski"],"track":"clients","person":"stig","colour":"#d14b4b"}
   ],
   "campaigns": [
     {"id":"story.field","title":"prov.field.name","provider":"field","order":"any", "chapters": [
@@ -27,6 +28,9 @@
     {"id":"story.clients","title":"prov.clients.name","provider":"clients","order":"any", "chapters": [
       {"id":"clients.work","title":"ms.chapter.clients.work","order":"any","missions":["clients.01","clients.n1","clients.n2","clients.03","booze.01","booze.02"]},
       {"id":"clients.orders","title":"ms.chapter.clients.orders","order":"any","missions":["clients.02","clients.04","clients.b1"]}
+    ]},
+    {"id":"story.aeroclub","title":"prov.aeroclub.name","provider":"aeroclub","order":"any", "chapters": [
+      {"id":"aeroclub.events","title":"ms.chapter.aeroclub.events","order":"any","missions":["club.stol","club.spot","club.pylons","club.regular"]}
     ]},
     {"id":"tutorial","title":"ms.campaign.tutorial","tutorial":true,"readonly":true,"phase":0,"order":"seq", "chapters": [
       {"id":"tutorial.beats","title":"ms.chapter.tutorial","order":"seq","missions":["story.T0","story.T1","story.T2","story.T3","story.T4","story.T5","story.T6","story.T7"]}
@@ -118,6 +122,12 @@
     {"id":"community.09","provider":"community","kind":"contract","title":"ms.community.09.title","brief":"ms.community.09.brief","legs":[{"steps":[{"do":"carry","from":"HOME","place":"w7","load":{"kg":300,"pax":0}}]}],"pay":{"base":6500},"rep":{"provider":"community","gain":1},"goods":"goods.parts"},
     {"id":"community.10","provider":"community","kind":"contract","title":"ms.community.10.title","brief":"ms.community.10.brief","legs":[{"steps":[{"do":"carry","from":"HOME","place":"w7","load":{"kg":400,"pax":0}}]}],"pay":{"base":8000},"rep":{"provider":"community","gain":1},"goods":"goods.parts"},
     {"id":"community.11","provider":"community","kind":"contract","title":"ms.community.11.title","brief":"ms.community.11.brief","legs":[{"steps":[{"do":"carry","from":"w3","place":"w7","load":{"kg":350,"pax":0}}]}],"pay":{"base":7500},"rep":{"provider":"community","gain":1},"goods":"goods.parts","onDone":{"say":{"who":"james","text":"ms.community.11.done"}}},
+    {"id":"club.stol","provider":"aeroclub","kind":"challenge","title":"ms.club.stol.title","brief":"ms.club.stol.brief","pay":{"base":1500},"rep":{"provider":"aeroclub","gain":0.25},"repeat":{"every":1},"legs":[{"steps":[{"id":"l1","do":"land","place":"xw_rough"}]}],"stol":[{"id":"ld","kind":"landing","line":[[816.6,-546],[794.7,-555.7]],"dir":204,"stop":"l1","medals":[{"medal":"gold","le":80},{"medal":"silver","le":130},{"medal":"bronze","le":260}],"ghost":{"m":95,"who":"stig"}}]},
+    {"id":"club.spot","provider":"aeroclub","kind":"challenge","title":"ms.club.spot.title","brief":"ms.club.spot.brief","pay":{"base":1500},"rep":{"provider":"aeroclub","gain":0.25},"repeat":{"every":1},"legs":[{"steps":[{"id":"s1","do":"land","place":"w2"}]}],"stol":[{"id":"sp","kind":"spot","line":[[843,-654.6],[826.5,-662]],"dir":204,"stop":"s1","medals":[{"medal":"gold","le":5},{"medal":"silver","le":20},{"medal":"bronze","le":280}]}]},
+    {"id":"club.pylons","provider":"aeroclub","kind":"challenge","title":"ms.club.pylons.title","brief":"ms.club.pylons.brief","pay":{"base":1500},"rep":{"provider":"aeroclub","gain":0.25},"repeat":{"every":1},"legs":[{"order":"seq","steps":[{"id":"g1","do":"pass","place":{"gate":[[-1860,-150],[-1740,-150]],"dir":0,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"g2","do":"pass","place":{"gate":[[-300,-1560],[-300,-1440]],"dir":90,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"g3","do":"pass","place":{"gate":[[1260,-150],[1140,-150]],"dir":180,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"g4","do":"pass","place":{"gate":[[-300,1260],[-300,1140]],"dir":270,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"do":"land","place":"HOME"}]}],"timers":[{"id":"lap","start":"g1","stop":"g4","target":215,"splits":true,"medals":[{"medal":"gold","le":130},{"medal":"silver","le":165},{"medal":"bronze","le":215}],"ghost":{"s":150,"who":"stig"}}]},
+    {"id":"club.regular","provider":"aeroclub","kind":"challenge","title":"ms.club.regular.title","brief":"ms.club.regular.brief","pay":{"base":1500},"rep":{"provider":"aeroclub","gain":0.25},"repeat":{"every":1},"legs":[{"order":"seq","steps":[{"id":"r1","do":"pass","place":{"gate":[[-1560,1500],[-1440,1500]],"dir":0,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"r2","do":"pass","place":{"gate":[[-1560,-2500],[-1440,-2500]],"dir":0,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"do":"land","place":"HOME"}]}],"timers":[{"id":"run","start":"r1","stop":"r2","target":120,"regularity":true,"medals":[{"medal":"gold","le":2},{"medal":"silver","le":6},{"medal":"bronze","le":25}]}]},
+    {"id":"club.tour","provider":"aeroclub","kind":"challenge","title":"ms.club.tour.title","brief":"ms.club.tour.brief","pay":{"base":3000},"rep":{"provider":"aeroclub","gain":0.75},"legs":[{"order":"seq","steps":[{"id":"a1","do":"pass","place":{"gate":[[-659,-592],[-541,-608]],"dir":352,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"a2","do":"pass","place":{"gate":[[-809,-1692],[-691,-1708]],"dir":352,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"aw","do":"land","place":"w3"}]},{"order":"seq","steps":[{"id":"b1","do":"pass","place":{"gate":[[6,-2660],[-6,-2540]],"dir":96,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"b2","do":"pass","place":{"gate":[[1806,-2860],[1794,-2740]],"dir":96,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"bw","do":"land","place":"w5"}]},{"order":"seq","steps":[{"id":"c1","do":"pass","place":{"gate":[[2362,-1953],[2438,-2047]],"dir":309,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"c2","do":"pass","place":{"gate":[[862,-753],[938,-847]],"dir":309,"alt":{"max":150,"ref":"agl"},"prop":"pylons"}},{"id":"ch","do":"land","place":"HOME"}]}],"timers":[{"id":"L1","start":"a1","stop":"a2"},{"id":"L2","start":"b1","stop":"b2"},{"id":"L3","start":"c1","stop":"c2"}],"course":{"timers":["L1","L2","L3"],"medals":[{"medal":"gold","le":110},{"medal":"silver","le":140},{"medal":"bronze","le":200}],"ghost":{"s":130,"who":"stig","legs":[30,49,51]}},"onDone":{"say":{"who":"stig","text":"ms.club.tour.done"}}},
+    {"id":"club.breakfast","provider":"aeroclub","kind":"contract","title":"ms.club.breakfast.title","brief":"ms.club.breakfast.brief","pay":{"base":1800},"rep":{"provider":"aeroclub","gain":0.5},"legs":[{"steps":[{"do":"carry","from":"HOME","place":"tw_ski","load":{"kg":0,"pax":1},"require":{"maxMin":14}}]}],"onDone":{"say":{"who":"stig","text":"ms.club.breakfast.done"}}},
     {"id":"story.T0","tutorial":"T0"},
     {"id":"story.T1","tutorial":"T1"},
     {"id":"story.T2","tutorial":"T2"},
@@ -183,10 +193,17 @@
       {"id":"tower","missions":["community.09"],"works":{"cost":0,"days":4},"site":{"id":"w7","state":"tower"},"track":"community:5"},
       {"id":"hangar","missions":["community.10"],"works":{"cost":0,"days":4},"site":{"id":"w7","state":"hangar"},"track":"community:6"},
       {"id":"terminal","missions":["community.11"],"works":{"cost":0,"days":4},"site":{"id":"w7","state":"terminal"},"track":"community:7"}
+    ]},
+    {"id":"club","name":"The club house","client":"aeroclub", "steps": [
+      {"id":"house","missions":["club.breakfast"],"works":{"cost":0,"days":3},"site":{"id":"HOME","state":"clubhouse"},"track":"clients:1"},
+      {"id":"museum","missions":["club.tour"],"works":{"cost":0,"days":4},"site":{"id":"HOME","state":"museum"},"track":"clients:2"}
     ]}
   ],
   "sites": [],
   "text": {
+    "prov.aeroclub.name": {"t":"The Jolene Aero Club","draft":true},
+    "prov.aeroclub.short": {"t":"Aero Club","draft":true},
+    "prov.aeroclub.desc": {"t":"People who fly for no reason at all, and keep score.","draft":true},
     "prov.home.name": {"t":"Home","draft":true},
     "prov.home.short": {"t":"Home","draft":true},
     "prov.home.desc": {"t":"Your own strip in the middle of the island, and everything it could become.","draft":true},
@@ -316,6 +333,20 @@
     "ms.community.11.title": {"t":"The terminal","draft":true},
     "ms.community.11.brief": {"t":"Three hundred and fifty kilos from the Fishing Village: the smallest terminal on any map. It has a bench.","draft":true},
     "ms.community.11.done": {"t":"The committee has voted. You may land here whenever you bring something. That is the warmest thing we have ever said to anyone.","draft":true},
+    "ms.club.stol.title": {"t":"The short landing","draft":true},
+    "ms.club.stol.brief": {"t":"The rough strip beside runway 02/20, landing 204 degrees. Touch down past the line and stop. The metres from the line to where you stand are your score. Short of the line is a foul.","draft":true},
+    "ms.club.spot.title": {"t":"The spot landing","draft":true},
+    "ms.club.spot.brief": {"t":"Runway 02/20, landing 204 degrees: one painted line, three hundred metres in. Your first touch, measured from it. Before or after counts the same.","draft":true},
+    "ms.club.pylons.title": {"t":"Round the pylons","draft":true},
+    "ms.club.pylons.brief": {"t":"Four gates round the field, anticlockwise, under a hundred and fifty metres. The clock runs from the first to the last. Touch a pylon and it costs you three seconds.","draft":true},
+    "ms.club.regular.title": {"t":"Two minutes exactly","draft":true},
+    "ms.club.regular.brief": {"t":"Two gates, four kilometres apart. Cross the second one two minutes after the first: not sooner, not later. The fastest aeroplane wins nothing.","draft":true},
+    "ms.club.tour.title": {"t":"The island tour","draft":true},
+    "ms.club.tour.brief": {"t":"Three timed legs and three landings: the Fishing Village, the Cannery, home. The three times are added. The landings are not timed: take them as they come.","draft":true},
+    "ms.club.tour.done": {"t":"The club would like your aeroplane in a hangar with a rope in front of it. You may still fly it.","draft":true},
+    "ms.club.breakfast.title": {"t":"The flying breakfast","draft":true},
+    "ms.club.breakfast.brief": {"t":"One club member from the field to Skyline, wheels stopped within fourteen minutes of the brakes coming off. The pancakes are served at the top. They are served hot or not at all.","draft":true},
+    "ms.club.breakfast.done": {"t":"Everybody who flew in signed the wall. There is a wall now. There is a house round it.","draft":true},
     "ms.chapter.field.work": {"t":"Work","draft":true},
     "ms.chapter.minedock.work": {"t":"Work","draft":true},
     "ms.chapter.minedock.orders": {"t":"Aircraft orders","draft":true},
@@ -324,6 +355,7 @@
     "ms.chapter.survey.work": {"t":"Work","draft":true},
     "ms.chapter.survey.orders": {"t":"Aircraft orders","draft":true},
     "ms.chapter.clients.work": {"t":"Work","draft":true},
-    "ms.chapter.clients.orders": {"t":"Aircraft orders","draft":true}
+    "ms.chapter.clients.orders": {"t":"Aircraft orders","draft":true},
+    "ms.chapter.aeroclub.events": {"t":"Events","draft":true}
   }
 }

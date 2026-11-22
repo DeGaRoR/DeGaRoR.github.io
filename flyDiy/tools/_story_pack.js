@@ -55,13 +55,34 @@ function KEEP(id, chapter, change) {
   return id;
 }
 const CLIENT_OF = { field: 'leonard', minedock: 'pete', resort: 'martha', survey: 'kate', clients: 'adam', home: 'sophie', community: 'james', aeroclub: 'stig' };
+// ---- the island's runways (the record's: tools/fixtures/island_jolene.json), for the lines and gates of the competitions --
+const ISLAND = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
+const r0 = v => Math.round(v), compass = (dx, dz) => r0(((Math.atan2(dx, -dz) * 180 / Math.PI) + 360) % 360);
+// a runway's frame: d along its heading (the record's hdg), n across; P(a, c) = a metres in from the end the landing in
+// direction d crosses first, c metres across
+function runway(id) {
+  const R = ISLAND.layers.runways.find(x => x.id === id);
+  if (!R || !R.c) throw new Error('no runway ' + id + ' with a centre in the island record');
+  const d = [Math.cos(R.hdg), Math.sin(R.hdg)], n = [-d[1], d[0]], t0 = [R.c[0] - d[0] * R.len / 2, R.c[1] - d[1] * R.len / 2];
+  const P = (a, c) => [r0((t0[0] + d[0] * a + n[0] * (c || 0)) * 10) / 10, r0((t0[1] + d[1] * a + n[1] * (c || 0)) * 10) / 10];
+  return { len: R.len, wid: R.wid, dir: compass(d[0], d[1]), P, line: (a, half) => [P(a, -half), P(a, half)] };
+}
+// a gate across a course: centred on (x, z), flown in compass direction `dir`, `w` metres wide
+function gateAt(x, z, dir, w, more) {
+  const r = dir * Math.PI / 180, ux = Math.cos(r), uz = Math.sin(r), h = (w || 120) / 2;   // across the direction of flight (sin r, -cos r)
+  return Object.assign({ gate: [[r0(x - ux * h), r0(z - uz * h)], [r0(x + ux * h), r0(z + uz * h)]], dir, alt: { max: 150, ref: 'agl' }, prop: 'pylons' }, more || {});
+}
+const medals = (g, s, b) => [{ medal: 'gold', le: g }, { medal: 'silver', le: s }, { medal: 'bronze', le: b }];
 
 // ---- THE CLIENTS THE PACK BRINGS -------------------------------------------------------------------------------------
 // (their faces are STAND-INS from the existing portraits: reports/STORY-REVAMP.md, the gaps)
 const clients = [
   { id: 'home', fields: ['w1', 'cb_sea'], track: 'home', person: 'sophie', colour: '#c9785a' },
   { id: 'community', fields: ['w6', 'w7'], track: 'community', person: 'james', colour: '#7d9a8c' },
+  { id: 'aeroclub', fields: ['HOME', 'w2', 'xw_rough', 'tw_ski'], track: 'clients', person: 'stig', colour: '#d14b4b' },
 ];
+T('prov.aeroclub.name', 'The Jolene Aero Club'); T('prov.aeroclub.short', 'Aero Club');
+T('prov.aeroclub.desc', 'People who fly for no reason at all, and keep score.');
 T('prov.home.name', 'Home'); T('prov.home.short', 'Home');
 T('prov.home.desc', 'Your own strip in the middle of the island, and everything it could become.');
 T('prov.community.name', 'The Muskeg Community'); T('prov.community.short', 'Community');
@@ -320,6 +341,54 @@ projects.push({ id: 'community', name: 'The community\'s runway', client: 'commu
     { id: 'terminal', missions: ['community.11'], works: { cost: 0, days: 4 }, site: { id: 'w7', state: 'terminal' }, track: 'community:7' },
   ] });
 
+// ======================================================================================================================
+// THE JOLENE AERO CLUB (stand-in face: stig) - the competitions, on 73c's scoring (the user: "a priority from the start")
+// Every event REPEATS (repeat: { every: 1 }): fly one other contract and it is on the board again; the best of each is
+// read off the done list (74_ careerBest). A rival's result is a fixed ghost: the same for every player.
+// ======================================================================================================================
+const E = (id, o, title, brief, done) => { const step = o.step; delete o.step;                       // step: a mission of the club house project (once), not an event of the list
+  return M(id, 'aeroclub', step ? null : 'aeroclub.events', Object.assign({ kind: 'challenge', pay: 1500, rep: 0.25 }, step ? {} : { repeat: { every: 1 } }, o), title, brief, done); };
+{ // THE STOL LINE on the rough strip (Jolene 02R/20L, mud): land past the line, stop short
+  const RW = runway('xw_rough');
+  E('club.stol', { legs: [leg({ id: 'l1', do: 'land', place: 'xw_rough' })],
+      stol: [{ id: 'ld', kind: 'landing', line: RW.line(80, 12), dir: RW.dir, stop: 'l1', medals: medals(80, 130, 260), ghost: { m: 95, who: 'stig' } }] },
+    'The short landing', 'The rough strip beside runway 02/20, landing ' + RW.dir + ' degrees. Touch down past the line and stop. The metres from the line to where you stand are your score. Short of the line is a foul.');
+  // THE SPOT on the narrow concrete band of 02/20
+  const RB = runway('w2');
+  E('club.spot', { legs: [leg({ id: 's1', do: 'land', place: 'w2' })],
+      stol: [{ id: 'sp', kind: 'spot', line: RB.line(300, 9), dir: RB.dir, stop: 's1', medals: medals(5, 20, 280) }] },
+    'The spot landing', 'Runway 02/20, landing ' + RB.dir + ' degrees: one painted line, three hundred metres in. Your first touch, measured from it. Before or after counts the same.');
+}
+// THE PYLONS: four gates round the field, one lap, a rival's time
+E('club.pylons', { legs: [{ order: 'seq', steps: [
+      { id: 'g1', do: 'pass', place: gateAt(-1800, -150, 0) }, { id: 'g2', do: 'pass', place: gateAt(-300, -1500, 90) },
+      { id: 'g3', do: 'pass', place: gateAt(1200, -150, 180) }, { id: 'g4', do: 'pass', place: gateAt(-300, 1200, 270) },
+      land('HOME')] }],
+    timers: [{ id: 'lap', start: 'g1', stop: 'g4', target: 215, splits: true, medals: medals(130, 165, 215), ghost: { s: 150, who: 'stig' } }] },
+  'Round the pylons', 'Four gates round the field, anticlockwise, under a hundred and fifty metres. The clock runs from the first to the last. Touch a pylon and it costs you three seconds.');
+// THE REGULARITY RUN: two gates four kilometres apart, a time to MATCH
+E('club.regular', { legs: [{ order: 'seq', steps: [{ id: 'r1', do: 'pass', place: gateAt(-1500, 1500, 0) }, { id: 'r2', do: 'pass', place: gateAt(-1500, -2500, 0) }, land('HOME')] }],
+    timers: [{ id: 'run', start: 'r1', stop: 'r2', target: 120, regularity: true, medals: medals(2, 6, 25) }] },
+  'Two minutes exactly', 'Two gates, four kilometres apart. Cross the second one two minutes after the first: not sooner, not later. The fastest aeroplane wins nothing.');
+// THE TOUR: three timed legs, three landings, one sum (the multi-leg course)
+E('club.tour', { step: true, legs: [
+      { order: 'seq', steps: [{ id: 'a1', do: 'pass', place: gateAt(-600, -600, 352) }, { id: 'a2', do: 'pass', place: gateAt(-750, -1700, 352) }, { id: 'aw', do: 'land', place: 'w3' }] },
+      { order: 'seq', steps: [{ id: 'b1', do: 'pass', place: gateAt(0, -2600, 96) }, { id: 'b2', do: 'pass', place: gateAt(1800, -2800, 96) }, { id: 'bw', do: 'land', place: 'w5' }] },
+      { order: 'seq', steps: [{ id: 'c1', do: 'pass', place: gateAt(2400, -2000, 309) }, { id: 'c2', do: 'pass', place: gateAt(900, -800, 309) }, { id: 'ch', do: 'land', place: 'HOME' }] }],
+    timers: [{ id: 'L1', start: 'a1', stop: 'a2' }, { id: 'L2', start: 'b1', stop: 'b2' }, { id: 'L3', start: 'c1', stop: 'c2' }],
+    course: { timers: ['L1', 'L2', 'L3'], medals: medals(110, 140, 200), ghost: { s: 130, who: 'stig', legs: [30, 49, 51] } }, pay: 3000, rep: 0.75 },
+  'The island tour', 'Three timed legs and three landings: the Fishing Village, the Cannery, home. The three times are added. The landings are not timed: take them as they come.',
+  'The club would like your aeroplane in a hangar with a rope in front of it. You may still fly it.');
+// THE FLYING BREAKFAST: a guest, a mountain, pancakes that do not wait
+E('club.breakfast', { step: true, kind: 'contract', legs: [leg(carry('HOME', 'tw_ski', 0, 1, { require: { maxMin: 14 } }))], pay: 1800, rep: 0.5 },
+  'The flying breakfast', 'One club member from the field to Skyline, wheels stopped within fourteen minutes of the brakes coming off. The pancakes are served at the top. They are served hot or not at all.',
+  'Everybody who flew in signed the wall. There is a wall now. There is a house round it.');
+projects.push({ id: 'club', name: 'The club house', client: 'aeroclub',
+  steps: [
+    { id: 'house', missions: ['club.breakfast'], works: { cost: 0, days: 3 }, site: { id: 'HOME', state: 'clubhouse' }, track: 'clients:1' },
+    { id: 'museum', missions: ['club.tour'], works: { cost: 0, days: 4 }, site: { id: 'HOME', state: 'museum' }, track: 'clients:2' },
+  ] });
+
 // ---- THE TREE ----------------------------------------------------------------------------------------------------------
 const chap = (id, title) => ({ id, title: T('ms.chapter.' + id, title), order: 'any', missions: chapters[id] || [] });
 const campaigns = [
@@ -328,6 +397,7 @@ const campaigns = [
   { id: 'story.resort', title: 'prov.resort.name', provider: 'resort', order: 'any', chapters: [chap('resort.work', 'Work'), chap('resort.orders', 'Aircraft orders')] },
   { id: 'story.survey', title: 'prov.survey.name', provider: 'survey', order: 'any', chapters: [chap('survey.work', 'Work'), chap('survey.orders', 'Aircraft orders')] },
   { id: 'story.clients', title: 'prov.clients.name', provider: 'clients', order: 'any', chapters: [chap('clients.work', 'Work'), chap('clients.orders', 'Aircraft orders')] },
+  { id: 'story.aeroclub', title: 'prov.aeroclub.name', provider: 'aeroclub', order: 'any', chapters: [chap('aeroclub.events', 'Events')] },
   clone(BUILTIN.campaigns.find(c => c.tutorial)),
 ];
 for (const m of BUILTIN.missions) if (m.tutorial) missions.push(clone(m));

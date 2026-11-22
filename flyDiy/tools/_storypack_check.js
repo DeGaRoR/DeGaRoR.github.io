@@ -236,8 +236,8 @@ C.missionPackUse(mk({ jobs: 'none' }));
   const inChap = new Set([].concat(...N.campaigns.filter(c => !c.tutorial).map(c => [].concat(...c.chapters.map(h => h.missions)))));
   ok(ids.every(id => (inStep[id] ? 1 : 0) + (inChap.has(id) ? 1 : 0) === 1), '9 every mission is a contract of one chapter or a step of one project, never both, never neither',
      ids.filter(id => (inStep[id] ? 1 : 0) + (inChap.has(id) ? 1 : 0) !== 1).join(','));
-  ok(N.projects.length === 9 && N.projects.every(q => q.steps.length >= 2 && q.steps.every(st => st.missions.length >= 1 && st.site && st.site.id && C.CONTRACT_FIELDS[st.site.id])),
-     '9 nine projects; every step has a mission and a SITE that is an aerodrome of the island', N.projects.map(q => q.id + ':' + q.steps.length).join(' '));
+  ok(N.projects.length === 10 && N.projects.every(q => q.steps.length >= 2 && q.steps.every(st => st.missions.length >= 1 && st.site && st.site.id && C.CONTRACT_FIELDS[st.site.id])),
+     '9 ten projects; every step has a mission and a SITE that is an aerodrome of the island', N.projects.map(q => q.id + ':' + q.steps.length).join(' '));
   ok(typeof C.STORY_JOB === 'undefined' || ids.includes(C.STORY_JOB), '9 the tutorial\'s one job is a mission of the pack');
   ok(Object.keys(SP.text).every(k => SP.text[k].draft === true), '9 every word of the pack is marked a draft');
 
@@ -291,7 +291,7 @@ C.missionPackUse(mk({ jobs: 'none' }));
     const built = new Set([].concat(...N.projects.map(q => q.steps.filter(st => st.track).map(st => st.track.split(':')[0]))));
     ok([...built].every(t => tr[t] === MAX[t]), '12 every track a project builds ends at its max: the story\'s end = the sandbox\'s final state there', [...built].map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' '));
     const rest = Object.keys(MAX).filter(t => tr[t] !== MAX[t]);
-    ok(rest.join() === 'clients', '12 the tracks the story does not finish yet: clients (the Aero Club\'s, ready 4) - named, not hidden', rest.map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' '));
+    ok(!rest.length, '12 ...and every other track too: at the story\'s end EVERY track stands at its max - the sandbox\'s world', rest.map(t => t + ' ' + tr[t] + '/' + MAX[t]).join(' ') || Object.keys(MAX).length + ' tracks');
     const unl = W1.events.filter(e => e.k === 'unlock' && e.project).map(e => e.unlock);
     ok(new Set(unl).size === unl.length && unl.length === N.projects.reduce((a, q) => a + q.steps.filter(st => st.track).length, 0), '12 every step with a world stage unlocked it exactly once', unl.length + ' unlocks');
     ok(J(W1.d.career.abilities) === J(['kit:metal', 'tech:2', 'hangar:home', 'tech:3']) || W1.d.career.abilities.slice().sort().join() === 'hangar:home,kit:metal,tech:2,tech:3',
@@ -300,7 +300,15 @@ C.missionPackUse(mk({ jobs: 'none' }));
   { const used = new Set();
     for (const id of ids) for (const u of C.contractSubsOf(C.contractAuthored()[id])) for (const k of ['from', 'to', 'at']) if (u[k]) used.add(u[k]);
     const not = Object.keys(C.CONTRACT_FIELDS).filter(f => !used.has(f));
-    ok(not.join() === 'w2,xw_rough', '13 every aerodrome of the island is a place of some mission, but Jolene\'s two crosswind strips (the Aero Club\'s, ready 4)', not.join() || 'all'); }
+    ok(!not.length, '13 EVERY aerodrome of the island is a place of some mission', not.join() || Object.keys(C.CONTRACT_FIELDS).length + ' aerodromes'); }
+  // 14 THE AERO CLUB: its events are scored (a STOL line, a lap with medals, a regularity lap, a course) and REPEAT
+  { const AU2 = (C.missionPackUse(SP), C.contractAuthored()), ev = ids.filter(id => AU2[id].provider === 'aeroclub');
+    const kindOf = r => (r.stol ? 'stol:' + r.stol.map(x => x.kind).join('+') : r.course ? 'course' : (r.timers || []).some(t => t.regularity) ? 'regularity' : (r.timers || []).length ? 'lap' : 'flight');
+    ok(ev.length === 6 && ev.map(id => kindOf(AU2[id])).sort().join() === 'course,flight,lap,regularity,stol:landing,stol:spot', '14 the Aero Club: six events - a STOL landing, a spot landing, a timed lap, a regularity lap, a three-leg course, a timed gathering', ev.map(id => id + '=' + kindOf(AU2[id])).join(' '));
+    ok(ev.filter(id => AU2[id].repeat).length === 4 && ev.filter(id => AU2[id].repeat).every(id => AU2[id].repeat.every === 1), '14 four of them repeat (one other contract between two tries); the two of the club house project are flown once');
+    ok(ev.every(id => !C.contractRuntimeOk(AU2[id])) && ev.filter(id => AU2[id].timers || AU2[id].stol).every(id => C.contractCertNeed(AU2[id]) === 'comm'), '14 the runtime runs every one; a scored event needs the commercial certificate');
+    const gh = ev.filter(id => JSON.stringify(AU2[id]).includes('"ghost"'));
+    ok(gh.length === 3, '14 three carry a fixed ghost (the rival\'s result, the same for every player)', gh.join()); }
   C.missionPackUse(B);
 }
 
