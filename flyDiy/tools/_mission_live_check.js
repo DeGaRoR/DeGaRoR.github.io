@@ -221,6 +221,60 @@ function run(liveSrc) {
     ok(scene.children.length === before, 'end(): the scene as it was (props)');
   }
 
+  // ---- (STORY-REVAMP) THE COMPETITION'S SAMPLES: a STOL line is tracked and measured through the page's own call -------------
+  // The story pack's short landing (club.stol: the rough strip, a line 80 m in) flown as the page feeds it - due() then
+  // tick() with the wheels, the ground speed and the attitude: an approach, a touchdown 60 m past the line, a roll to a
+  // stop 150 m past it - then the career's stop: done, the metres kept, the medal, the done row, the best
+  {
+    const SP = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8'));
+    const u2 = N.missionPackUse(SP);
+    ok(u2.ok, 'the story pack is in use (' + (u2.why || '') + ')');
+    let d = fresh();
+    d = accept(d, 'club.stol');
+    if (ok(!!d, 'the short landing is accepted')) {
+      const rec = N.careerContract(d, 'club.stol'), S0 = rec.stol[0], L = S0.line, mx = (L[0][0] + L[1][0]) / 2, mz = (L[0][1] + L[1][1]) / 2;
+      const r = S0.dir * Math.PI / 180, dx = Math.sin(r), dz = -Math.cos(r);           // the landing direction (compass)
+      ok(ML.arm(d, Object.assign({}, OPTS, { from: 'HOME' })) === 1 && ML.rate() === ML.RATE_STOL && ML.RATE_STOL < ML.RATE / 4, 'a STOL line arms a tracker (no gate, no ring), sampled at the STOL rate');
+      // s(t): metres along the landing direction from the line; 30 m/s on the approach, touchdown at +60 m, 3 m/s2 to a stop
+      let t = 0, samples = 0, evs = [];
+      const feed = (s, y, gnd, v) => { t += 1 / 60; if (!ML.due(t)) return; samples++; const e = ML.tick(t, mx + dx * s, y, mz + dz * s, y - 28, { gnd, v, hdg: S0.dir, pitch: 3, roll: 0 }); if (e) evs.push(...e); };
+      for (let s = -400; s < 60; s += 30 / 60) feed(s, 28 + Math.max(0.5, (60 - s) * 0.05), false, 30);
+      let v = 30, s = 60;
+      while (v > 0) { feed(s, 28, true, v); s += v / 60; v = Math.max(0, v - 3 / 60); }
+      for (let k = 0; k < 120; k++) feed(s, 28, true, 0);
+      const E = ML.evidence(), st = E && E['club.stol'] && E['club.stol'].stol && E['club.stol'].stol.ld;
+      ok(evs.some(e => e.k === 'stol' && e.kind === 'landing') && st && Math.abs(st.m - s) < 2.5 && Math.abs(st.td - 60) < 2.5, 'the landing is measured: the touchdown 60 m past the line, the stop ' + Math.round(s) + ' m past it (' + J(st) + ')');
+      ok(samples > t * 20, 'at the STOL rate (' + samples + ' samples in ' + t.toFixed(0) + ' s)');
+      const x = N.careerOnStop(d, stopAt('xw_rough', { tracks: E, row: { from: 'HOME', to: 'xw_rough', t: 300 } }), hooks);
+      const dn = x.ok && x.events.find(e => e.k === 'done' && e.id === 'club.stol'), sc = x.ok && x.events.find(e => e.k === 'scores');
+      ok(!!dn && !!sc && sc.scores[0].id === 'ld' && Math.abs(sc.scores[0].m - s) < 2.5 && sc.scores[0].ghost && dn.medal === 'bronze' && dn.scores && dn.scores.length === 1,
+         'the career\'s stop: done, the metres on a scores event and on the done event, the ghost\'s gap, the medal (' + (x.ok ? J([dn && dn.medal, sc && sc.scores]) : x.why + ' ' + J(x.untouched || {})) + ')');
+      if (x.ok) {
+        const row = x.doc.career.contracts.done.find(q => q.id === 'club.stol'), best = N.careerBest(x.doc, 'club.stol');
+        ok(row && row.stol && Math.abs(row.stol.ld - s) < 2.5 && best && best.n === 1 && best.stol.ld === row.stol.ld && best.medal === 'bronze', 'the done row keeps the metres; careerBest reads them (' + J(best) + ')');
+        ok(!N.careerOfferIds(x.doc).includes('club.stol'), 'flown: off the board until another contract is done (it repeats)');
+        x.doc.career.contracts.done.push({ id: 'field.01', at: 0, pay: 0 });
+        ok(N.careerOfferIds(x.doc).includes('club.stol'), '...then on the board again');
+      }
+      // a touchdown SHORT of the line is a foul: not done, said
+      let d2 = accept(fresh(), 'club.stol');
+      ML.arm(d2, Object.assign({}, OPTS, { from: 'HOME' })); t = 0;
+      for (let q = -400; q < -10; q += 30 / 60) feed(q, 28 + Math.max(0.5, (-10 - q) * 0.05), false, 30);
+      v = 30; s = -10; while (v > 0) { feed(s, 28, true, v); s += v / 60; v = Math.max(0, v - 3 / 60); }
+      for (let k = 0; k < 120; k++) feed(s, 28, true, 0);
+      const x2 = N.careerOnStop(d2, stopAt('xw_rough', { tracks: ML.evidence(), row: { from: 'HOME', to: 'xw_rough', t: 300 } }), hooks);
+      ok(!x2.ok && /short/.test(J(x2.untouched || {}) + x2.why), 'a touchdown 10 m short of the line: a foul, the event not done (' + J(x2.untouched || x2.why).slice(0, 120) + ')');
+      // without the wheels' sample nothing is measured (the page before this wiring): not done, said
+      let d3 = accept(fresh(), 'club.stol');
+      ML.arm(d3, Object.assign({}, OPTS, { from: 'HOME' })); t = 0;
+      for (let q = -400; q < 200; q += 30 / 60) { t += 1 / 60; if (ML.due(t)) ML.tick(t, mx + dx * q, 28, mz + dz * q, 0); }
+      const x3 = N.careerOnStop(d3, stopAt('xw_rough', { tracks: ML.evidence(), row: { from: 'HOME', to: 'xw_rough', t: 300 } }), hooks);
+      ok(!x3.ok && /was not measured/.test(J(x3.untouched || {}) + x3.why), 'a flight sampled without the wheels: the line is not measured, the event not done');
+    }
+    ML.end();
+    N.missionPackUse(PACK);
+  }
+
   // ---- THE WIRING ----------------------------------------------------------------------------------------------------------------
   {
     const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), BLD = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
@@ -234,6 +288,9 @@ function run(liveSrc) {
     ok(/\['tools', '_mission_gen\.js'\], \['src\/viewer', 'mission_live\.js'\]\]/.test(BLD), 'build.js: mission_live.js and _mission_gen.js are lazy');
     ok(/markers: Array\.isArray\(c\.markers\)/.test(MAP) && /for \(const c of lit\) for \(const m of \(c\.markers \|\| \[\]\)\)/.test(MAP), 'map_menu.js keeps the markers and draws the lit contracts\'');
     ok(/if \(!due\(t\)\) return null;/.test(liveSrc), 'tick returns before any work between samples');
+    ok(/more = \{ gnd: sim\.wheelsOnGround\(\) > 0, v: Math\.hypot\(v\[0\], v\[2\]\), hdg: /.test(APP) && /ML\.tick\(t, cg\[0\], cg\[1\], cg\[2\], cg\[1\] - surfH\(cg\[0\], cg\[2\]\), more\)/.test(APP),
+       '(COMPETE) app.js hands the tick the wheels on the ground, the ground speed and the attitude');
+    ok(/typeof missionScored === 'function' && missionScored\(r\)/.test(APP), '(COMPETE) a scored event with no place of its own (a STOL line) still arms the tracker');
     ok(!/document|THREE/.test(liveSrc.slice(liveSrc.indexOf('// ---- THE TRACKER'), liveSrc.indexOf('// ---- THE DRAWING'))), 'the tracker half touches no DOM, no THREE');
   }
   return { fails, checks };
@@ -243,7 +300,7 @@ const J = o => JSON.stringify(o);
 if (SELF) {
   const sub = (a, b) => s => { if (!s.includes(a)) throw new Error('selftest: not found: ' + a); return s.replace(a, b); };
   const MUT = [
-    ['the rate limit dropped (a sample every frame)', sub('? S.tNext + RATE : t + RATE;', '? t : t;')],
+    ['the rate limit dropped (a sample every frame)', sub('? S.tNext + S.rate : t + S.rate;', '? t : t;')],
     ['the missed-gate report dropped', sub("(out = out || []).push({ k: 'missed', id: R.id, key: open[0].key, t });", '')],
     ['the markers never restated', sub("if (ev.some(e => e.k === 'hit' || e.k === 'photo')) restate(R);", '')],
     ['the evidence empty', sub('for (const R of S.runs) if (R.T) { out[R.id] = missionTrackEvidence(R.T); n++; }', '')],
@@ -251,7 +308,11 @@ if (SELF) {
     ['done markers stay drawn', sub("g.visible = m.state !== 'done';", 'g.visible = true;')],
     ['the beacon never moves', sub('D.beacon.position.set(n.x, y0, n.z);', '')],
     ['end() leaves the props in the scene', sub('if (D.scene) D.scene.remove(D.group);', '')],
-    ['armed with no objectives', sub('if (!O.objs.length && !markers.length) continue;', '')],
+    ['armed with no objectives', sub('if (!O.objs.length && !markers.length && !stol) continue;', '')],
+    // (STORY-REVAMP, COMPETE) the STOL line's samples
+    ['a STOL line is not tracked', sub('const T = O.objs.length || stol ? T0 : null;', 'const T = O.objs.length ? T0 : null;')],
+    ['the wheels, the speed and the attitude never reach the core', sub('for (const k of MORE) q[k] = more && more[k] != null ? more[k] : undefined;', '')],
+    ['a STOL line sampled at the gates\' rate', sub('? RATE_STOL : RATE;', '? RATE : RATE;')],
   ];
   let red = 0;
   for (const [name, f] of MUT) {

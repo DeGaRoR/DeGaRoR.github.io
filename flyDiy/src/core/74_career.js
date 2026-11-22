@@ -557,6 +557,9 @@ function contractOnStop(doc, contract, stop, hooks) {
       // (MISSIONS-P1/P2) the airframe a delivery handed over (the handover's), a lap timed, a line said
       if (st.subs[j].do === 'deliver' && stop.slot) live.slot = stop.slot;
       if (r.timer) { live.timers = Object.assign({}, live.timers || {}); live.timers[r.timer.id] = r.timer; events.push({ k: 'timer', id, timer: r.timer, medal: r.medal || null }); }
+      // (STORY-REVAMP: COMPETE's seam 1) the STOL metres and the course's sum, kept for the card and the done row
+      if (r.scores) { live.scores = (live.scores || []).filter(x => !r.scores.some(y => y.id === x.id)).concat(r.scores); events.push({ k: 'scores', id, scores: r.scores, medal: r.medal || null }); }
+      if (r.course) { live.course = r.course; events.push({ k: 'course', id, course: r.course, medal: r.medal || null }); }
       // (MISSIONS-P3) every step's line, and what its done does (onDone: say, pay, a site's state)
       const sy = st.subs[j].say || r.say;
       if (sy) events.push({ k: 'say', id, say: sy });
@@ -602,6 +605,11 @@ function careerComplete(d, rec, live, medal, events) {
   }
   const row = { id: rec.id, at: Math.round(d.clock || 0), pay };
   if (medal) row.medal = medal;
+  // (STORY-REVAMP) a competition's result on its done row: every lap's seconds, the course's sum, the STOL metres - the
+  // club's records are read off the done list (careerBest)
+  if (live.timers) { row.laps = {}; for (const k of Object.keys(live.timers)) if (typeof live.timers[k].s === 'number') row.laps[k] = live.timers[k].s; }
+  if (live.course && typeof live.course.s === 'number') row.course = live.course.s;
+  if (live.scores) { row.stol = {}; for (const x of live.scores) if (typeof x.m === 'number') row.stol[x.id] = x.m; }
   C.done.push(row);
   C.accepted = C.accepted.filter(x => x !== rec.id);
   delete C.live[rec.id];
@@ -618,7 +626,24 @@ function careerComplete(d, rec, live, medal, events) {
   if (handover) ev.handover = handover;
   if (live.assess) ev.assess = live.assess;
   if (live.timers) ev.timers = live.timers;
+  if (live.scores) ev.scores = live.scores;
+  if (live.course) ev.course = live.course;
   events.push(ev);
+}
+// (STORY-REVAMP) THE PLAYER'S BEST at a competition flown more than once: over its done rows, the least of each lap, of
+// the course's sum and of each STOL line's metres (a regularity lap's least deviation is its medal's business, not this)
+// -> { n, medal, laps: { id: s }, course: s | null, stol: { id: m } } | null
+function careerBest(doc, id) {
+  const rows = ((doc && doc.career && doc.career.contracts.done) || []).filter(r => r.id === id);
+  if (!rows.length) return null;
+  const rank = { gold: 3, silver: 2, bronze: 1 }, out = { n: rows.length, medal: null, laps: {}, course: null, stol: {} };
+  for (const r of rows) {
+    if (r.medal && (rank[r.medal] || 0) > (rank[out.medal] || 0)) out.medal = r.medal;
+    for (const k of Object.keys(r.laps || {})) if (out.laps[k] == null || r.laps[k] < out.laps[k]) out.laps[k] = r.laps[k];
+    for (const k of Object.keys(r.stol || {})) if (out.stol[k] == null || r.stol[k] < out.stol[k]) out.stol[k] = r.stol[k];
+    if (typeof r.course === 'number' && (out.course == null || r.course < out.course)) out.course = r.course;
+  }
+  return out;
 }
 // (MISSIONS-P3) WHAT A DONE DOES (a step's or the mission's onDone): its line (an event), its pay (a ledger line, the
 // contract's), a site's new state (career.sites; a site whose `track` is a world construction stage reveals it when

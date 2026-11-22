@@ -10453,7 +10453,8 @@
   function missionLiveWanted(d) {
     const C = d && d.career && d.career.contracts;
     if (!C || typeof careerContract !== 'function' || typeof contractSubsOf !== 'function') return false;
-    return (C.accepted || []).some(id => { const r = careerContract(d, id); return r && contractSubsOf(r).some(s => s && s.place && typeof s.place === 'object'); });
+    // (STORY-REVAMP, COMPETE) ...or a scored event (a STOL line, a course): a landing with a line has no place of its own
+    return (C.accepted || []).some(id => { const r = careerContract(d, id); return r && (contractSubsOf(r).some(s => s && s.place && typeof s.place === 'object') || (typeof missionScored === 'function' && missionScored(r))); });
   }
   function missionLiveArm() {
     const gen = ++MSL.gen;
@@ -10478,7 +10479,15 @@
   function missionLiveFrame(cg) {
     const ML = window.MISSION_LIVE, t = ap ? ap.t : 0;
     if (ML.due(t)) {
-      const ev = ML.tick(t, cg[0], cg[1], cg[2], cg[1] - surfH(cg[0], cg[2]));
+      // (STORY-REVAMP, COMPETE's seam 2) what a STOL line and a gate's attitude are judged on: the wheels on the ground,
+      // the ground speed, the heading / pitch / roll in 73c's convention (compass degrees; nose up +; right wing down +)
+      let more = null;
+      try {
+        const v = sim.cgVel(), [xA, yU] = sim.axes(), zLy = xA[2] * yU[0] - xA[0] * yU[2], R2D = 180 / Math.PI;   // (x aft, y up, z LEFT = x cross y)
+        more = { gnd: sim.wheelsOnGround() > 0, v: Math.hypot(v[0], v[2]), hdg: ((Math.atan2(-xA[0], xA[2]) * R2D) + 360) % 360,
+                 pitch: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * R2D, roll: Math.atan2(zLy, yU[1]) * R2D };
+      } catch (e) { more = null; }
+      const ev = ML.tick(t, cg[0], cg[1], cg[2], cg[1] - surfH(cg[0], cg[2]), more);
       if (ev) for (const e of ev) if (e.k === 'photo') try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now(), mission: e.id } })); } catch (x) {}
     }
     ML.frame(camera, performance.now());

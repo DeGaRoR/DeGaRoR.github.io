@@ -315,8 +315,14 @@ function flyOne(ctx, cur, to, o) {
         const d = Math.hypot(cg[0] - c[0], cg[2] - c[1]), N = (L.near = L.near || {});
         if (!N[ob.key] || d < N[ob.key].d) N[ob.key] = { d: r1(d), agl: r1(agl), msl: r1(cg[1]), t: r1(L.t) };
       }
-      const ev = C.missionTrackStep(T0, { t: sim.t != null ? sim.t : L.t, x: cg[0], z: cg[2], y: cg[1], agl });
+      // (STORY-REVAMP, COMPETE) the page's sample (app.js missionLiveFrame): + the wheels on the ground, the ground speed,
+      // the heading / pitch / roll - what a STOL line and a gate's attitude are judged on
+      const vv = sim.cgVel(), AX = sim.axes(), xA = AX[0], yU = AX[1], zLy = xA[2] * yU[0] - xA[0] * yU[2], R2D = 180 / Math.PI;
+      const ev = C.missionTrackStep(T0, { t: sim.t != null ? sim.t : L.t, x: cg[0], z: cg[2], y: cg[1], agl,
+        gnd: sim.wheelsOnGround() > 0, v: Math.hypot(vv[0], vv[2]), hdg: ((Math.atan2(-xA[0], xA[2]) * R2D) + 360) % 360,
+        pitch: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * R2D, roll: Math.atan2(zLy, yU[1]) * R2D });
       for (const e of ev) if (e.k === 'hit' || e.k === 'photo' || e.k === 'strike') (L.events = L.events || []).push({ k: e.k, key: e.key, t: r1(L.t) });
+        else if (e.k === 'stol') (L.events = L.events || []).push({ k: 'stol', key: e.id, kind: e.kind, m: e.m, foul: e.foul || null, t: r1(L.t) });
     }
     if (!airborne && cg[1] - W.terrainH(cg[0], cg[2]) > 15) airborne = true;
     const Dm = sim.damage ? sim.damage() : null;
@@ -422,7 +428,9 @@ function flyMission(env, rec, plane, opts) {
       load = L2;
     }
     // the mission's in-flight tracker (73c: the page makes one at departure for a contract with objectives)
-    const T0 = tgt.objs ? C.missionTrackNew(rec, doc.career.contracts.live[rec.id], { reach }) : null;
+    // (COMPETE) a leg with a STOL line open is tracked too, objectives or not (mission_live.js arm)
+    const TN = C.missionTrackNew(rec, doc.career.contracts.live[rec.id], { reach });
+    const T0 = tgt.objs || (TN.stol && TN.stol.length) ? TN : null;
     const route = (tgt.objs || tgt.survey) ? routeFor(W, tgt.objs || [], tgt.survey) : null;
     const L = flyOne(ctx, cur, tgt.to, { first, route, tracker: T0, tMax: o.tMax });
     first = false;
