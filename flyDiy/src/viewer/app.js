@@ -7079,9 +7079,15 @@
       craft.traverse(o => {
         if (!o.isMesh || !o.geometry || (o.userData && o.userData.cutTwin)) return;
         if (o.name === 'dmglook:pool') { for (const m of mats(o)) add(o, m); return; }                                  // 2
-        // (a cut twin is a PLAIN mesh on the host's material copy - brkCutBuild: new THREE.Mesh(g, brkCutMat(..)) - even on a skinned host)
-        for (const m of mats(o)) if (m.userData && m.userData.scuff && typeof brkCutMat === 'function') plain(o.geometry, brkCutMat(m), 'crashPrelink:cut');   // 1
         if (o.isSkinnedMesh) for (const m of mats(o)) plain(o.geometry, m, 'crashPrelink:wire');                         // 4
+      });
+      // 1 THE CUT TWINS: every material the model's meshes draw with (brkCutBuild's hosts are model.grp meshes whose geometry a
+      // record holds - the skin, the liner, the glass, the body groups: PERF-LEAD's registry, 23 Nov 00:10, 16 programs
+      // after the impact, nearly all '+ cutaway', made one by one over six seconds as the records came); a twin is a PLAIN
+      // mesh on the host's material copy (new THREE.Mesh(g, brkCutMat(..))) even on a skinned host
+      if (model.grp && typeof brkCutMat === 'function') model.grp.traverse(o => {
+        if (!o.isMesh || !o.geometry || (o.userData && o.userData.cutTwin) || o.name === 'dmglook:pool') return;
+        for (const m of mats(o)) plain(o.geometry, brkCutMat(m), 'crashPrelink:cut');
       });
       scene.traverse(o => {   // (the pools and the decals parked in the world, not under the craft)
         if (!o.isMesh || !o.geometry) return;
