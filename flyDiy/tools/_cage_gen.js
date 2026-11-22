@@ -9603,6 +9603,12 @@ const CAGE_DEFAULT_ABSENT = { rodOn: 1, spinOn: 1,   // (CAR-1: the rod's tube a
   canClear: 0, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
+  // (MASTER-GREEN 22 Nov: ELECTRIC-TRAINER cfe477466's four rows that had no entry here. Its message says "new rows, each
+  // absent at its default", but these four were WRITTEN at their defaults into every build the load door joined, and the
+  // certificate's fingerprint, the parked bake's, the certificate store's key and the procurement's all moved for every
+  // aeroplane at train L40h (GATE STOL: "keys MOVED" on all six validated builds; SKIS, the def). Absent again at these
+  // values; the Electric trainer's own card sets them and keeps them)
+  frLeanCap: 0, boomRound: 0, boomRoundAt: 0.5, finVentralLand: 0,
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
   s1Ul: 0,                           // (WEIGHT STUDY L6: no ultralight monowheel)
   towHook: 0,                        // (no tow hook)
