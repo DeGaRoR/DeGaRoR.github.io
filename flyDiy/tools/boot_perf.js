@@ -237,12 +237,9 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
     if (f) try { const v = await ev(fs.readFileSync(f, 'utf8')); evalOut = typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { evalOut = 'eval failed: ' + e.message; }
     const di = argv.indexOf('--dump-file');
     // (kept in the page and fetched 4 MB at a time: one CDP answer of a 15-30 MB flight log is slow or refused)
-    if (di >= 0 && argv[di + 2]) try { const ex = fs.readFileSync(argv[di + 1], 'utf8').replace(/^\s*\/\/[^
-]*
-/gm, '').replace(/[;\s]+$/, '');
-      const len = await ev('(window.__BPD = String((
-' + ex + '
-))).length'); let v = '';
+    if (di >= 0 && argv[di + 2]) try { const NL = String.fromCharCode(10);
+      const ex = fs.readFileSync(argv[di + 1], 'utf8').split(NL).filter(l => !/^\s*\/\//.test(l)).join(NL).replace(/[;\s]+$/, '');   // (its comment lines and a last ';' off: it is wrapped as ONE expression)
+      const len = await ev('(window.__BPD = String((' + NL + ex + NL + '))).length'); let v = '';
       for (let a = 0; a < len; a += 4000000) v += await ev('window.__BPD.slice(' + a + ', ' + (a + 4000000) + ')');
       await ev('(window.__BPD = null, 0)');
       fs.mkdirSync(path.dirname(path.resolve(argv[di + 2])), { recursive: true }); fs.writeFileSync(argv[di + 2], v);
