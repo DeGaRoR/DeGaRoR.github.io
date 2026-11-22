@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 865dec5c9b4bb26d
+// body-sha256: 10b78822cbb0cc21
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1196,11 +1196,11 @@ function groundSinkWheel(S, N, b, D, A) {
   const G_ = GROUND_SINK;
   if (!(N > 0) || !S) { G_.z = 0; G_.p = 0; G_.F = 0; G_.cap = 0; return 0; }
   const n = S.n, k = S.k;
-  let z = Math.pow(3 * N / ((3 - n) * b * k * Math.sqrt(D)), 2 / (2 * n + 1));
-  if (A > 0) { const zt = Math.pow(N / (A * k), 1 / n); if (zt < z) z = zt; }
+  let z = CORE_MATH.pow(3 * N / ((3 - n) * b * k * Math.sqrt(D)), 2 / (2 * n + 1));
+  if (A > 0) { const zt = CORE_MATH.pow(N / (A * k), 1 / n); if (zt < z) z = zt; }
   G_.cap = 0; if (z > S.zMax) { z = S.zMax; G_.cap = 1; }
-  G_.z = z; G_.p = k * Math.pow(z, n);
-  return (G_.F = b * k * Math.pow(z, n + 1) / (n + 1));
+  G_.z = z; G_.p = k * CORE_MATH.pow(z, n);
+  return (G_.F = b * k * CORE_MATH.pow(z, n + 1) / (n + 1));
 }
 // SNOW-MUD FINISH: THE DRAWN SINK - the pose the eye sees on a soft layer. The physics contact stays at the hard ground
 // (the solver's sinkage is a drag and a readout, its named cut); the DRAWN aeroplane is lowered and tilted so its wheels
@@ -1235,7 +1235,7 @@ function groundSinkPose(pts, px, pz, out) {
 // drop of v[0]. v = [drop, ds/dx, ds/dz] (groundSinkPose's, eased). The viewer premultiplies the drawn aeroplane's matrix by it
 function groundSinkMatrix(v, px, py, pz, out) {
   out = out || new Array(16);
-  const b = v[1], c = v[2], cb = Math.cos(b), sb = Math.sin(b), cc = Math.cos(c), sc = Math.sin(c);
+  const b = v[1], c = v[2], cb = CORE_MATH.cos(b), sb = CORE_MATH.sin(b), cc = CORE_MATH.cos(c), sc = CORE_MATH.sin(c);
   // R = Rx(c) * Rz(-b)
   const r00 = cb, r01 = sb, r02 = 0;
   const r10 = -cc * sb, r11 = cc * cb, r12 = -sc;
@@ -1265,10 +1265,10 @@ function groundBullWheel(S, z, b, D, v) {
 function groundSinkPlate(S, N, A, w) {
   const G_ = GROUND_SINK;
   if (!(N > 0) || !(A > 0) || !S) { G_.z = 0; G_.p = 0; G_.F = 0; G_.cap = 0; return 0; }
-  let z = Math.pow(N / A / S.k, 1 / S.n);
+  let z = CORE_MATH.pow(N / A / S.k, 1 / S.n);
   G_.cap = 0; if (z > S.zMax) { z = S.zMax; G_.cap = 1; }
   G_.z = z; G_.p = N / A;
-  return (G_.F = w * S.k * Math.pow(z, S.n + 1) / (S.n + 1));
+  return (G_.F = w * S.k * CORE_MATH.pow(z, S.n + 1) / (S.n + 1));
 }
 // G1844 (DMG-TYRE): THE TYRE'S CORNERING STIFFNESS, per unit of its load (/rad): a rolling tyre's side force is
 // C_alpha * tan(slip angle), linear, until it reaches the surface's Coulomb limit mu * N (the lateral mu of the row
@@ -2788,7 +2788,7 @@ var SOIL_WET = (function () {
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const es = T => 0.6108 * Math.exp(17.27 * T / (T + 237.3));        // kPa, Tetens
-  const rainMm = r => 12 * Math.pow(clamp(r || 0, 0, 1), 1.5);        // 07d's law
+  const rainMm = r => 12 * CORE_MATH.pow(clamp(r || 0, 0, 1), 1.5);        // 07d's law
 
   // ---- one hour's weather off the plan, cached by the absolute hour ------------------------------------------------
   const HC = new Map(), HC_MAX = 400;
@@ -2801,7 +2801,7 @@ var SOIL_WET = (function () {
     const el = SOLAR.sun({ jdn: j, utc, lat: geo.lat, lon: geo.lon }).el;
     const T = +sp.oatC || 10, Td = Math.min(T, sp.dewC != null ? +sp.dewC : T - 4);
     const wMs = sp.wind && sp.wind.kts != null ? +sp.wind.kts * 0.514444 : 0;
-    const rad = Math.max(0, Math.sin(el * Math.PI / 180)) * (1 - 0.75 * clamp(+sp.cloudCover || 0, 0, 1));
+    const rad = Math.max(0, CORE_MATH.sin(el * Math.PI / 180)) * (1 - 0.75 * clamp(+sp.cloudCover || 0, 0, 1));
     const vpd = Math.max(0, es(T) - es(Td));
     const rain = clamp(P.meta.rain || 0, 0, 1);
     // the potential rate, mm/h: the sun's term (0.55 mm/h under a clear high sun) and the air's (VPD x the wind)
@@ -9552,7 +9552,7 @@ const STRIP_MICRO = (() => {
     o.hazards = Math.round(pick('hazards', 0, 4)); o.hazardSize = pick('hazardSize', 0, 50); o.swell = pick('swell', 0, 60); o.lumps = pick('lumps', 0, 30);
     o.ruts = pick('ruts', 0, 25); o.cart = Math.round(pick('cart', -1, 1)); o.path = Math.round(pick('path', -1, 1)); o.rocks = pick('rocks', 0, 0.9);
     o.seed = m && isFinite(+m.seed) ? (+m.seed | 0) : 0;
-    o.gd = 16e-6 * Math.pow(4, 5 * c);   // Gd(n0), m^3
+    o.gd = 16e-6 * CORE_MATH.pow(4, 5 * c);   // Gd(n0), m^3
     return o;
   }
   // field(strip, micro, grade): strip = { c: [x, z], hdg, len, wid } in the frame the caller queries in (27_premises: the
@@ -9576,7 +9576,7 @@ const STRIP_MICRO = (() => {
       // THE SHAPE (the user, 9 Nov 17:15: "give variation to the round puddles. Stretch them in some directions, then mix them
       // with noise"): stretched 1-2.2 x along an axis within 30 deg of the strip's (the wheels draw them out), its outline
       // pushed inward by a noise (holeRho); eV / eU its reach across / along
-      const a = 1 + 1.2 * ih(i, m, seed + 18), th = (ih(i, m, seed + 19) - 0.5) * 1.05, cth = Math.cos(th), sth = Math.sin(th);
+      const a = 1 + 1.2 * ih(i, m, seed + 18), th = (ih(i, m, seed + 19) - 0.5) * 1.05, cth = CORE_MATH.cos(th), sth = CORE_MATH.sin(th);
       const eV = R * Math.sqrt(a * a * sth * sth + cth * cth), eU = R * Math.sqrt(a * a * cth * cth + sth * sth);
       const lim = halfW - EDGE_IN[1] - eV;
       if (lim <= 0 || u < END_IN + eU || u > len - END_IN - eU) return null;
@@ -9611,7 +9611,7 @@ const STRIP_MICRO = (() => {
         if (Math.abs(du) >= H[8] || Math.abs(dv) >= H[7]) continue;
         const rho = holeRho(du, dv, H, i, m);
         if (rho >= 1) continue;
-        const b = H[3] * 0.5 * (1 + Math.cos(Math.PI * rho));
+        const b = H[3] * 0.5 * (1 + CORE_MATH.cos(Math.PI * rho));
         if (b > d) d = b;
         if (fill > 0) w = Math.max(w, b - (1 - fill) * H[3]);
       }
@@ -9641,7 +9641,7 @@ const STRIP_MICRO = (() => {
         if (Math.abs(du) >= H[2] * H[4] || Math.abs(dv) >= H[2]) continue;
         const rho = Math.sqrt(du * du / (H[4] * H[4]) + dv * dv) / H[2] * (1 + 0.25 * (0.5 + 0.5 * vnoise(du / H[2] * 1.4 + j * 5.7, dv / H[2] * 1.4 + 11, seed + 38)));
         if (rho >= 1) continue;
-        const b = H[3] * 0.5 * (1 + Math.cos(Math.PI * rho));
+        const b = H[3] * 0.5 * (1 + CORE_MATH.cos(Math.PI * rho));
         h += b;
         if (fill > 0 && H[3] < 0) w = Math.max(w, -b - (1 - fill) * -H[3]);
       }
@@ -10874,7 +10874,7 @@ function stageRestore(edited, V) {
   if (!V || !V.staged || !V.whole) return edited;
   const W = V.whole, out = Object.assign({}, edited, { layers: Object.assign({}, edited.layers) });
   const kitOf = id => { const m = /^(.+):(\d+|frame|clear)$/.exec(String(id)); return m && V.kits[m[1]] ? m[1] : null; };
-  const back = (e, where) => {
+  const back = (e, where, was) => {
     const st = V.kept[where]; if (!st) return e;
     const c = Object.assign({}, e); delete c.stage; delete c.stageSown; c.stage = st;   // (the key last, as the author writes it)
     const vr = V.varied[where];
@@ -10882,7 +10882,14 @@ function stageRestore(edited, V) {
       if (key === 'P') { const P = Object.assign({}, c.P || {}); for (const pk of Object.keys(vr.now.P || {})) if (JSON.stringify(P[pk]) === JSON.stringify(vr.now.P[pk])) { if (vr.was.P && pk in vr.was.P) P[pk] = vr.was.P[pk]; else delete P[pk]; } c.P = P; continue; }
       if (JSON.stringify(c[key]) === JSON.stringify(vr.now[key])) { if (vr.was[key] === undefined) delete c[key]; else c[key] = vr.was[key]; }
     }
-    return c;
+    // MASTER-GREEN (22 Nov; GATE STAGES 7 red since L40f): the keys in the WHOLE entry's own order, then what the edit added.
+    // `stage` last is the staged editor's order, but an entry the sandbox editor (or a tool) wrote a key onto after its
+    // stage - MICRO's `micro` on nv_strip and tw_ski - came back with the two swapped: the same record, another file
+    if (!was) return c;
+    const o = {};
+    for (const key of Object.keys(was)) if (key in c) o[key] = c[key];
+    for (const key of Object.keys(c)) if (!(key in o)) o[key] = c[key];
+    return o;
   };
   // in the WHOLE record's order: a cut entry (or a kit) from the whole, an edited one from the edit (its stage back), one
   // the edit deleted gone; then whatever the edit added
@@ -10893,7 +10900,7 @@ function stageRestore(edited, V) {
     for (const e of whole || []) {
       if (!e || e.id === undefined) { res.push(e); continue; }
       if (cut.has(e.id) || (isKit && isKit(e))) { res.push(e); used.add(e.id); continue; }
-      if (byId.has(e.id)) { res.push(back(byId.get(e.id), whereOf(e))); used.add(e.id); }
+      if (byId.has(e.id)) { res.push(back(byId.get(e.id), whereOf(e), e)); used.add(e.id); }
     }
     for (const e of edit || []) if (e && (e.id === undefined || !kitOf(e.id)) && !used.has(e.id) && !(e.id !== undefined && cut.has(e.id))) res.push(e);
     return res;
@@ -15622,8 +15629,8 @@ const BIOMES = (() => {
     B.edgeReachMax = () => { const K = B.knobs(); return K.edgeReach * (1 + K.edgeReachVar); };
     B.edgeBandAt = (d, x, z) => { if (!(d < 0)) return null; const K = B.knobs(), R = B.edgeReachAt(x, z), t = -d / Math.max(1, R); if (t >= 1) return null;
       const keep = smooth(K.edgeClump - 0.12, K.edgeClump + 0.12, vnoise(x, z, K.edgeClumpM, 37));
-      return { p: K.edgeTreeDens * Math.pow(1 - t, K.edgeFall) * keep, k: K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8), t, R }; };
-    B.edgeCanIn = (canopyAt, x, z) => { let m = 0; for (const L of [30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; m = Math.max(m, canopyAt(x + Math.cos(a) * L, z + Math.sin(a) * L)); } return m; };
+      return { p: K.edgeTreeDens * CORE_MATH.pow(1 - t, K.edgeFall) * keep, k: K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * CORE_MATH.pow(t, 0.8), t, R }; };
+    B.edgeCanIn = (canopyAt, x, z) => { let m = 0; for (const L of [30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; m = Math.max(m, canopyAt(x + CORE_MATH.cos(a) * L, z + CORE_MATH.sin(a) * L)); } return m; };
     B.shoreHere = (x, z) => { if (!B.shore || !B.mixAt(SHORE)) return false; if (B.over && B.over(x, z) !== undefined) return false; return !!B.shore(x, z); };
     B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
     B.mixOf = name => B.mixes[name] || null;
@@ -16335,7 +16342,7 @@ const TREE_HITS = (() => {
     const ex = (bb[3] - bb[0]) * s, ez = (bb[5] - bb[2]) * s, hgt = (bb[4] - bb[1]) * s;
     const alongX = ex >= ez, L = alongX ? ex : ez, wMin = alongX ? ez : ex, k = sticks ? 0.45 : 0.9;
     const r = Math.max(0.2, Math.min(2.0, 0.5 * wMin * k)), top = Math.max(0.3, hgt * (sticks ? 0.6 : 0.9));
-    const c = Math.cos(yaw || 0), sn = Math.sin(yaw || 0), cx = (bb[0] + bb[3]) / 2 * s, cz = (bb[2] + bb[5]) / 2 * s;
+    const c = CORE_MATH.cos(yaw || 0), sn = CORE_MATH.sin(yaw || 0), cx = (bb[0] + bb[3]) / 2 * s, cz = (bb[2] + bb[5]) / 2 * s;
     const half = Math.max(0, L / 2 - r), n = Math.min(48, Math.max(1, Math.ceil(2 * half / r) + 1)), out = [];
     for (let i = 0; i < n; i++) {
       const q = n === 1 ? 0 : -half + 2 * half * i / (n - 1), lx = cx + (alongX ? q : 0), lz = cz + (alongX ? 0 : q);
@@ -16542,7 +16549,7 @@ const SKI_SOFT = {
     const S = SKI_SOFT.at(SO, X, vr), F = X && X.fresh;
     groundSinkPlate(S, N, A, w);
     if (F && N > 0 && A > 0) {
-      let zf = Math.pow(N / A / (F.k * S.f), 1 / F.n); if (zf > F.z) zf = F.z;
+      let zf = CORE_MATH.pow(N / A / (F.k * S.f), 1 / F.n); if (zf > F.z) zf = F.z;
       let z = zf + GROUND_SINK.z; if (z > SO.zMax) z = SO.zMax;
       GROUND_SINK.z = z;
     }
@@ -16553,9 +16560,9 @@ const SKI_SOFT = {
   resist(S, X, w, z, sole) {
     if (!(z > 0)) return 0;
     const pl = X ? X.plough : 0, F = sole && X && X.fresh;
-    if (!F) return w * S.k * Math.pow(z, S.n + 1) * (1 / (S.n + 1) + pl);
+    if (!F) return w * S.k * CORE_MATH.pow(z, S.n + 1) * (1 / (S.n + 1) + pl);
     const k0 = F.k * S.f, zf = z < F.z ? z : F.z, zs = z - zf;   // (the fresh k at the same speed as S's)
-    return w * (k0 * Math.pow(zf, F.n + 1) * (1 / (F.n + 1) + pl) + (zs > 0 ? S.k * Math.pow(zs, S.n + 1) * (1 / (S.n + 1) + pl) : 0));
+    return w * (k0 * CORE_MATH.pow(zf, F.n + 1) * (1 / (F.n + 1) + pl) + (zs > 0 ? S.k * CORE_MATH.pow(zs, S.n + 1) * (1 / (S.n + 1) + pl) : 0));
   },
 };
 
@@ -23783,7 +23790,7 @@ function hullTipFit(rec, grossKg, opt) {
     }
     if (V > 1e-6) {
       const KB = VB / V, BM = I / V, GM = KB + BM - o.cgY;
-      const need = (M * Math.max(0, -GM) * Math.sin(HEEL_DESIGN * D2R) + (o.torqueKgm || 0)) * RULE_K / o.arm;
+      const need = (M * Math.max(0, -GM) * CORE_MATH.sin(HEEL_DESIGN * D2R) + (o.torqueKgm || 0)) * RULE_K / o.arm;
       kg = Math.max(kg, need);
       stab = { KB: +KB.toFixed(3), BM: +BM.toFixed(3), GM: +GM.toFixed(3), need: +need.toFixed(1) };
     }
@@ -23803,7 +23810,7 @@ function hullRestTrim(rec, grossKg, cgX, cgY) {
   const M = Math.max(60, grossKg || 0), n = 120, dx = HP.L / n;
   const secs = []; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; secs.push(sectionOf(HP, x)); }
   const at = (th, w) => {
-    const c = Math.cos(th), sn = Math.sin(th);
+    const c = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
     let v = 0, mx = 0;
     for (const s of secs) {
       const hw = (w + s.x * sn) / c, a = secAreaTo(HP, s, hw) * dx;
@@ -23814,14 +23821,14 @@ function hullRestTrim(rec, grossKg, cgX, cgY) {
     return { m: v * HP.rho, X: v > 0 ? mx / v : 0 };
   };
   const draftAt = th => { let lo = -HP.L, hi = HP.L + HP.H; for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (at(th, m).m < M) lo = m; else hi = m; } return lo; };
-  const arm = th => { const w = draftAt(th), r = at(th, w); return { w, d: r.X - (cgX * Math.cos(th) + cgY * Math.sin(th)), full: r.m < 0.999 * M }; };
+  const arm = th => { const w = draftAt(th), r = at(th, w); return { w, d: r.X - (cgX * CORE_MATH.cos(th) + cgY * CORE_MATH.sin(th)), full: r.m < 0.999 * M }; };
   let lo = -25 * D2R, hi = 25 * D2R;
   if (arm(lo).d > 0) return { trim: -25, draft: arm(lo).w, arm: arm(lo).d, sunk: true };
   if (arm(hi).d < 0) return { trim: 25, draft: arm(hi).w, arm: arm(hi).d, sunk: true };
   for (let k = 0; k < 30; k++) { const m = 0.5 * (lo + hi); if (arm(m).d > 0) hi = m; else lo = m; }
   const th = 0.5 * (lo + hi), r = arm(th);
   // the bow's freeboard: the foremost station's deck over the water (the lowest the bow deck stands)
-  const s0 = sectionOf(HP, -HP.xs + 1e-6), bow = (-s0.x * Math.sin(th) + s0.yd * Math.cos(th)) - r.w;
+  const s0 = sectionOf(HP, -HP.xs + 1e-6), bow = (-s0.x * CORE_MATH.sin(th) + s0.yd * CORE_MATH.cos(th)) - r.w;
   return { trim: +(th / D2R).toFixed(2), draft: +r.w.toFixed(3), bowDeck: +bow.toFixed(3), sunk: r.full };
 }
 // HULL-B21: A SPONSON IS A STUB WING (the user: "they should link to the fuselage directly and they should really look
@@ -33125,7 +33132,7 @@ function makePilot(sim, def, world, opts) {
             // turn onto the leg swings ~800 m beside it (41-47 m/s, 0.45 bank): the leg's line read the low ground toward
             // HOME, the turn crossed the ridge, levelled at 268 m over 227 m rising and broke up on it
             const vh_ = Math.hypot(vcg[0], vcg[2]);
-            const offLeg = vh_ > 5 && (vcg[0] * g.ux + vcg[2] * g.uz) / vh_ < Math.cos(Math.PI / 6);
+            const offLeg = vh_ > 5 && (vcg[0] * g.ux + vcg[2] * g.uz) / vh_ < CORE_MATH.cos(Math.PI / 6);
             const react = Math.max(terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500),
                                    offLeg ? terrainAhead(cg[0], cg[2], vcg[0] / vh_, vcg[2] / vh_, 1500) : -1e9) + Math.max(2 * A.hSafe, 40);
             if (react > hP + 1) {
@@ -38697,7 +38704,7 @@ function genTipOf(w) {
 function genTipBend(L, D) {
   const N = 64, sm = t => t * t * (3 - 2 * t);
   const run = PHI => { const Z = [0], Y = [0];
-    for (let i = 0; i < N; i++) { const th = PHI * sm((i + 0.5) / N); Z.push(Z[i] + Math.cos(th) * L / N); Y.push(Y[i] - Math.sin(th) * L / N); }
+    for (let i = 0; i < N; i++) { const th = PHI * sm((i + 0.5) / N); Z.push(Z[i] + CORE_MATH.cos(th) * L / N); Y.push(Y[i] - CORE_MATH.sin(th) * L / N); }
     return { Z, Y }; };
   const pMax = GEN_TIP_SHAPE.phiMax * Math.PI / 180;
   let PHI = 0;
@@ -38749,7 +38756,7 @@ function genTipBuoyTable(cT, L, D, full, t, sparF) {
       if (!(c > 1e-3) || a < -sf * c || a > (1 - sf) * c) continue;
       const h = yt(Math.max(0, Math.min(1, a / c + sf))) * c * genTipFat(full, s, L), th = BD.th(s), Z = BD.Z(s), Y = BD.Y(s);
       for (let q = 0; q <= NV; q++) {
-        const v = -h + 2 * h * q / NV, o = Z + v * Math.sin(th), u = Y + v * Math.cos(th);
+        const v = -h + 2 * h * q / NV, o = Z + v * CORE_MATH.sin(th), u = Y + v * CORE_MATH.cos(th);
         const iu = Math.floor(u / e), io = Math.floor(o / e), row = occ.get(iu) || new Set();
         row.add(io); occ.set(iu, row);
       }
@@ -49909,7 +49916,7 @@ function genCoolingOne(S, o, k) {
     let Vin;
     if (ground) {
       const P = pr * kW * 1000;
-      const Ts = Math.pow(K.FM * P, 2 / 3) * Math.pow(2 * rho * Adisc, 1 / 3), vd = Math.sqrt(Ts / (2 * rho * Adisc));
+      const Ts = CORE_MATH.pow(K.FM * P, 2 / 3) * CORE_MATH.pow(2 * rho * Adisc, 1 / 3), vd = Math.sqrt(Ts / (2 * rho * Adisc));
       Vin = K.taxi.V + (op.pushes ? K.pushInflow : K.slip) * vd;
     } else {
       const V = Veas / Math.sqrt(sig), f = slip(pr * kW * 1000, V, rho);
@@ -50013,7 +50020,7 @@ function genCoolOilC(S, at) {
   if (C.kind === 'legacy' && !(C.radA > 0)) return null;
   const T = at.air.T(at.h || 0) - 273.15;
   const x = !C.at ? 0.5 : (C.at.pass > 0 ? Math.min(2, C.at.need / C.at.pass) : 2);
-  const oil = Math.max(T + 20, T + (K.oilRed - T) * Math.pow(x, 0.7));
+  const oil = Math.max(T + 20, T + (K.oilRed - T) * CORE_MATH.pow(x, 0.7));
   return { oilC: oil, margin: x > 0 ? 1 / x : Infinity };
 }
 
@@ -51348,7 +51355,7 @@ function genParams(S, fr, strips) {
 
 // the axis-angle rotation, 3 x 3 row-major
 function gearRot(k, a) {
-  const c = Math.cos(a), s = Math.sin(a), C = 1 - c, x = k[0], y = k[1], z = k[2];
+  const c = CORE_MATH.cos(a), s = CORE_MATH.sin(a), C = 1 - c, x = k[0], y = k[1], z = k[2];
   return [c + x * x * C, x * y * C - z * s, x * z * C + y * s, y * x * C + z * s, c + y * y * C, y * z * C - x * s,
           z * x * C - y * s, z * y * C + x * s, c + z * z * C];
 }
@@ -58535,8 +58542,9 @@ const PREM_STORE = {
   outsideMax: 6,
   // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table);
   // w4 strip 9 + w1 the Cabin Strip (G3097, SCENERY-ED-2's cook); mt_strip Ardent Altiport (OBSERVATORY-SITE: 0 - the flat top is the
-  // stand and the helipad, no tie-down row fits, as tw_ski)
-  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 3, cb_sea: 12, mt_strip: 0 },
+  // stand and the helipad, no tie-down row fits); MASTER-GREEN (22 Nov): the pack ahead of this table again since L40f - w4 12
+  // (AFB-0220-B2's cook), tw_ski 2 (SKYLINE-RESORT's parking area), xw_rough 0 (AFB-0220's 02R/20L, a lane: no row)
+  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 2, w5: 7, w6: 12, w7: 12, w8: 12, w4: 12, w1: 3, cb_sea: 12, mt_strip: 0, xw_rough: 0 },
   kinds: ['floor', 'inside', 'outside', 'long', 'away'],
 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
