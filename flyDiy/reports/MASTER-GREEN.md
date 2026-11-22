@@ -5,6 +5,8 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
 
 ## FOR A0, 22 Nov 10:55 UTC - YOUR L40J CANDIDATE BATTERY
 
+<!-- L40J-RESULT --> **PARTIAL CORE BATTERY on the L40J candidate: FAIL - 13 red (52 PASS, 13 FAIL, 0 SKIP of 364).** FAIL (13 of 65 gates run; PARTIAL: 2 of 8 chunks, 299 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H] | NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF | L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
+
 - **PARTIAL RESULT, 11:50 UTC, chunk 1 of 8 (the first 52 gates of the table, COVERIDLE .. TAXICLEAR): 44 PASS, 8 FAIL.**
   **NEW reds: FMIST, TAKEOFF.** L40h's own: GROUNDQUERY FLIGHTREC STOL GEN RADIALDIV TAXICLEAR. Neither new one is this
   box (no memory kill, both deterministic):

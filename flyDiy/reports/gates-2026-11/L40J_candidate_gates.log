@@ -1,6 +1,6 @@
-FAIL (8 of 52 gates run; PARTIAL: 1 of 8 chunks, 312 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H]
+FAIL (13 of 65 gates run; PARTIAL: 2 of 8 chunks, 299 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H]
 NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF
-L40h reds that PASS here: none  (of the gates run so far)
+L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. Eight chunks of the gate table, in table order, each kept as it ended (this container restarted once today and a single run loses every verdict). --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
 A red marked [L40H] is in land_L40H_gates.log's FAIL list (master 9349a62c1, 61 reds); it may still fail on another check: compare the block. SKIP: none.
@@ -701,6 +701,225 @@ SHARD 2/4: 2 of 10 heavy jobs
   11c the user's Cub   from Jumbo Mine's street 45 m from its south end: airborne at 56 s, the wing 2.83 m off (item mn_s_mine/clinic at (7255.7, -15352.9) in ROLL, t 37 s), 0 contacts | pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot
   11 the turn-around [shard 3/4] in 64 s
 GATE TAXICLEAR: PASS
+######## chunk 1 of 8 (13 gates) ########
+=== ALTIPORT ===
+--- shard 0/4 (375.7 s) ---
+the user's Cub: ok   HOME > tw_ski          615 s | dep: turned 132.3 deg, roll 108.9 m in, lift-off 114.2 m | final 1398.4 m / 728.5 m, clear 11.1 m (ground) | td sink -0.11 m/s, 12.8 m/s, run 50 m, off 0.7 m | fuel 26.9 L (375 s)
+  FAIL 2 the user's Cub HOME > tw_skib: the final begun at the field's circuit height (>= 950 m, over the strip's 709 m)  (FINAL at 828.7 m MSL, 1398.4 m out (119.9 m over the strip's highest ground; the circuit 305 m))
+  ([shard 0/4])
+GATE ALTIPORT: FAIL (1)
+[stderr]
+SHARD 0/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 1/4 (327.8 s) ---
+doctored: FAIL HOME > tw_ski          580 s | dep: turned 132.3 deg, roll 108.9 m in, lift-off 114.2 m | final 1397.5 m / 659.1 m, clear 9.9 m (ground) | td sink -0.01 m/s, 12.9 m/s, run 42 m, off 0.6 m | fuel 27 L | FAULTS off-strip (the landing roll left tw_ski's box) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT>STOPPED (327 s)
+  FAIL 3 the doctored arrival (tw_ski's record 250 m low, the go-arounds spent), the Cub: the arrival came in under the strip and the arming law was met there - the guard caught it (calibration)  (FINAL at 759.7 m MSL (the strip 690..709 m); no flare-guard said | committed-unstable: unstabilised (low 82 m on the slope) but committed - landing it)
+  ([shard 1/4])
+GATE ALTIPORT: FAIL (1)
+[stderr]
+SHARD 1/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 2/4 (392.2 s) ---
+the metal Cessna: FAIL HOME > tw_ski          423 s | dep: turned 129 deg, roll 109.6 m in, lift-off 187.9 m | final 1677.4 m / 825.3 m, clear 41.5 m (ground) | td - | fuel 21.2 L | FAULTS ground-loop (the nose 34.1 deg off the landing roll on tw_ski at 37.5 m/s); off-strip (the landing roll left tw_ski's box); crash (the damage ended the flight: broke up: the fuselage parted (TPB off the core)); yield (2297 member(s) yielded (first: {"beam":208,"cls":"wing","t":422.87875001798596})); break (15 member(s) broke); prop-strike (the propeller struck (ground, t 423.1)); dent (the airframe dented) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>FLARE>ROLLOUT (392 s)
+    verdicts rotate-pull: the nose will not come up at 27.9 m/s on the stop - full back stick | vx-climb: ground ahead above the aeroplane — climbing at Vx 30.8 m/s until clear | strip-short: 280 m of strip for a 249 m landing run — landing short-field, no margin | vref-raised: the elevator cannot hold 26.7 m/s at this power — flying the approach faster | slip: high on energy on the short final (+2.0 m at idle) — slipping it down | committed-unstable: unstabilised (sinking 5.1 m/s) but committed - landing it
+  FAIL 4 the metal Cessna HOME > tw_ski: undamaged - no yield, no break, no dent, no prop strike, no ground loop, no off-strip  ({"yields":2297,"breaks":15,"dented":true,"over":true}; ground-loop: the nose 34.1 deg off the landing roll on tw_ski at 37.5 m/s; off-strip: the landing roll left tw_ski's box; crash: the damage ended the flight: broke up: the fuselage parted (TPB off the core); yield: 2297 member(s) yielded (first: {"beam":208,"cls":"wing","t":422.87875001798596}); break: 15 member(s) broke; prop-strike: the propeller struck (ground, t 423.1); dent: the airframe dented)
+  KNOWN 4 the metal Cessna HOME > tw_ski: tried, landed committed - ground-loop: the nose 34.1 deg off the landing roll on tw_ski at 37.5 m/s; off-strip: the landing roll left tw_ski's box; crash: the damage ended the flight: broke up: the fuselage parted (TPB off the core); yield: 2297 member(s) yielded (first: {"beam":208,"cls":"wing","t":422.87875001798596}); break: 15 member(s) broke; prop-strike: the propeller struck (ground, t 423.1); dent: the airframe dented (td {}); the final begun at 855 m MSL - row 2's finding (the final begun low at tw_ski) - ROLL-OUT TRACKING + the vref-raised elevator, owed
+  ([shard 2/4])
+GATE ALTIPORT: FAIL (1)
+[stderr]
+SHARD 2/4: 1 of 4 heavy jobs
+(exit code 1)
+--- shard 3/4 (111.6 s) ---
+5 the Cub + 1 passenger (resort.01) (+80 kg flown, the law at +80): brake release 11 m below the top end, 2.5 m up after 133.3 m; the law 208 m (flat 245 m): measured ratio 0.544 vs altiK 0.85
+  5 the metal Cessna + 2 passengers + 40 kg (resort.05) (+184 kg flown, the law at +200): brake release 11 m below the top end, 2.5 m up after 290.1 m; the law 502 m (flat 590 m): measured ratio 0.492 vs altiK 0.85
+  FAIL 5 the metal Cessna + 2 passengers + 40 kg (resort.05) (+184 kg flown, the law at +200)b: the run fits the 280 m strip from its top end with 10 m to spare (the pilot lines up 11 m below the top: Pilot's)  (290.1 m)
+  ([shard 3/4])
+GATE ALTIPORT: FAIL (1)
+[stderr]
+SHARD 3/4: 1 of 4 heavy jobs
+(exit code 1)
+=== GLIDE ===
+--- shard 0/4 (196.0 s) ---
+ok   CIRCUIT  motorglider (motor off), 280 m over Jolene: left-hand at Jolene AFB 13/31, heading 131 deg, the glide flown 13.8: burn 236 m, downwind 181 m, base 108 m, final 80 m; landed on the runway 929 m in (415 past the aim), 0.9 m off the centreline, sink 0.46 m/s, 985 m left (completed)
+ok   FAIL300  the C172-alike 2.6 km out on its way to East Point Clearing (15.7 km), the engine stops at 300 m: the engine stopped at t=12 s, 327 m up — an emergency: gliding to Cannery Runway, 1401 m away - a glider's circuit, right-hand, landing heading 108 deg; right-hand at Cannery Runway, heading 108 deg, the glide flown 9.5: burn 279 m, downwind 271 m, base 147 m, final 113 m; landed on the runway 66 m in (47 past the aim), 9.3 m off the centreline, sink 2.70 m/s, 118 m left (forced-landing); 0 members broken
+GATE GLIDE: PASS
+--- shard 1/4 (252.3 s) ---
+FAIL CIRCUIT  archaeopteryx (motor off), 360 m over Jolene: left-hand at Jolene AFB 13/31, heading 131 deg, the glide flown 2.3: ; landed OFF it 1234 m in (720 past the aim), 75.4 m off the centreline, sink 17.49 m/s, 1092 m left (capsized)
+ok   FAIL1000 the C172-alike 2.6 km out on its way to East Point Clearing (15.7 km), the engine stops at 1000 m: the engine stopped at t=12 s, 945 m up — an emergency: gliding to Cannery Runway, 1393 m away - a glider's circuit, right-hand, landing heading 108 deg; right-hand at Cannery Runway, heading 108 deg, the glide flown 6.6: burn 899 m, downwind 280 m, base 171 m, final 128 m; landed on the runway 77 m in (58 past the aim), 6.8 m off the centreline, sink 1.45 m/s, 86 m left (forced-landing); 0 members broken
+GATE GLIDE: FAIL
+[stderr]
+SHARD 1/4: 2 of 7 heavy jobs
+(exit code 1)
+--- shard 2/4 (365.3 s) ---
+ok   TOFIRST  off Skyline Altiport (696 m), sent to Jolene 7.6 km away: left-hand at Jolene AFB 13/31, heading 131 deg, the glide flown 13.8: downwind 171 m, base 102 m, final 71 m; landed on the runway 941 m in (427 past the aim), 1.4 m off the centreline, sink 0.46 m/s, 973 m left (completed)
+ok   FUELDRY  the C172-alike 2.6 km out on its way to East Point Clearing (15.7 km), the tanks run dry at 600 m: out of fuel at t=10 s, 610 m up — an emergency: gliding to Cannery Runway, 1489 m away - a glider's circuit, right-hand, landing heading 108 deg; right-hand at Cannery Runway, heading 108 deg, the glide flown 6.8: burn 561 m, downwind 266 m, base 155 m, final 118 m; landed on the runway 49 m in (30 past the aim), 8.0 m off the centreline, sink 1.37 m/s, 149 m left (forced-landing); 0 members broken
+GATE GLIDE: PASS
+--- shard 3/4 (179.9 s) ---
+ok   NEAREST  sent to New Community Runway (24.2 km, out of reach) from 280 m over Jolene: left-hand at Jolene AFB 02/20, heading 204 deg, the glide flown 13.8: burn 204 m, downwind 175 m, base 104 m, final 71 m; landed on the runway 802 m in (430 past the aim), 0.7 m off the centreline, sink 0.40 m/s, 570 m left (completed)
+GATE GLIDE: PASS
+=== UNIFY ===
+--- shard 0/4 (895.5 s) ---
+ok   TABLE   Stig (expert): STOL yes, glider yes
+ok   TABLE   Megan (bush): STOL yes, glider yes
+ok   TABLE   Brian (club): STOL no, glider no
+ok   TABLE   Remy (student): STOL no, glider no
+ok   TABLE   Bryce (hamfist): STOL no, glider no
+FAIL STRIP   the user's Cub, the expert (Stig): HOME>tw_ski on tw_ski [short] FAULTS off-strip (asked: short, normal)
+FAIL TAIL    the Cessna 172 (list:50) HOME>tw_ski, the game day, the expert (asked: short+STOL, judged at the gate): HOME>tw_ski on tw_ski [short, STOL] FAULTS off-strip,ground-loop,crash,yield,break,prop-strike,dent ground-loop | judged {"Vtd":26.2,"tail":4.5,"need":254,"needShort":213,"room":178,"grade":0.068}
+FAIL EMERG   the Cessna 172 (list:50) 2.6 km out for East Point Clearing, the engine stops at 600 m, the student: Cannery Runway (right-hand); OFF it 14.0 m off, sink 1.26, forced-landing - "the engine stopped at t=12 s, 611 m up — an emergency: gliding to Cannery Runway, 1369 m away - a glider's circuit, right-hand, landing head"
+GATE UNIFY: FAIL
+[stderr]
+SHARD 0/4: 3 of 10 heavy jobs
+(exit code 1)
+--- shard 1/4 (842.2 s) ---
+ok   GLIDE   the motorglider, motor off 280 m over Jolene, sent to Jolene, the expert (rated): Jolene AFB 13/31 (right-hand); on the runway 0.0 m off, sink 0.38, completed - "gliding (no engine running) at t=0 s, 279 m up — gliding to Jolene AFB 13/31, 0 m away - a glider's circuit, right-hand, landing heading 311"
+ok   ARCH    the Archaeopteryx card, motor off 360 m over Jolene, the expert: Jolene AFB 13/31 (right-hand); on the runway 0.2 m off, sink 0.41, completed - "gliding (no engine running) at t=0 s, 359 m up — gliding to Jolene AFB 13/31, 0 m away - a glider's circuit, right-hand, landing heading 311"
+GATE UNIFY: PASS
+--- shard 2/4 (375.8 s) ---
+ok   TABLE   Stig (expert): STOL yes, glider yes
+ok   TABLE   Megan (bush): STOL yes, glider yes
+ok   TABLE   Brian (club): STOL no, glider no
+ok   TABLE   Remy (student): STOL no, glider no
+ok   TABLE   Bryce (hamfist): STOL no, glider no
+FAIL STRIP   the user's Cub, the bush pilot (Megan): HOME>tw_ski on tw_ski [short] FAULTS off-strip (asked: short)
+ok   GLIDE   the motorglider, motor off 280 m over Jolene, sent to Jolene, the club pilot (unrated): Jolene AFB 13/31 (right-hand); on the runway 0.7 m off, sink 0.43, forced-landing - "no power at t=2 s, 278 m up — an emergency: gliding to Jolene AFB 13/31, 53 m away - a glider's circuit, right-hand, landing heading 311 deg"
+GATE UNIFY: FAIL
+[stderr]
+SHARD 2/4: 2 of 10 heavy jobs
+(exit code 1)
+--- shard 3/4 (454.1 s) ---
+ok   TABLE   Stig (expert): STOL yes, glider yes
+ok   TABLE   Megan (bush): STOL yes, glider yes
+ok   TABLE   Brian (club): STOL no, glider no
+ok   TABLE   Remy (student): STOL no, glider no
+ok   TABLE   Bryce (hamfist): STOL no, glider no
+FAIL STRIP   the user's Cub, the club pilot (Brian): HOME>tw_ski on tw_ski [short] FAULTS off-strip (asked: short)
+FAIL EMERG   the Cessna 172 (list:50) 2.6 km out for East Point Clearing, the engine stops at 600 m, the expert: Cannery Runway (right-hand); OFF it 87.6 m off, sink 0.85, forced-landing - "the engine stopped at t=12 s, 611 m up — an emergency: gliding to Cannery Runway, 1367 m away - a glider's circuit, right-hand, landing head"
+GATE UNIFY: FAIL
+[stderr]
+SHARD 3/4: 2 of 10 heavy jobs
+(exit code 1)
+=== PLAN ===
+stock, HOME (analytic)       legs CROSSWIND 305 m / DOWNWIND 165 m / BASE 114 m / FINAL 0 m · downwind 1.7 m off the plan · terrain lift 140 m
+  Cessna 172 (F-HCSN), Jolene HOME legs CROSSWIND 337 m / DOWNWIND 238 m / BASE 134 m / FINAL 29 m · downwind 0.5 m off the plan · terrain lift 99 m
+GATE PLAN: PASS
+=== LINEUP ===
+GATE LINEUP: PASS
+=== SLOPE ===
+SLOPE: the motorglider (105 nodes) at tw_ski, grass Crr 0.05; steep station s -40 grade 9.49 %, mild station s 71 grade 3.04 %
+  ok   0 the stations: a steep one over Crr and a mild one under it - steep 9.49 %, mild 3.04 %
+  FAIL 1 the free roll on ~9 % grass: a = g (sin - Crr cos) - a 0.461 m/s2, the law 0.430 (7.3 %), 24.8 m in 10 s
+  ok   2 pushed uphill at 4.4 m/s it slows at g (sin + Crr cos) - a -1.481 m/s2, the law -1.436 (3.2 %)
+  ok   2 it stops and rolls back down - vAlong at 8 s -2.44 m/s
+  ok   3 parked on 3.0 % (under Crr), no brake: it stays - 1.80 cm in 2-10 s (0.33 cm in 6-10 s)
+  ok   4 parked on ~9 % with the brakes on: it holds - 0.24 cm in 2-10 s (0.07 cm in 6-10 s)
+  ok   5 parked across ~9 %, no brake: the side grip holds - 1.64 cm in 2-10 s (0.40 cm in 6-10 s)
+7 checks, 1 failed
+GATE SLOPE: FAIL (1)
+(exit code 1)
+=== TAILWHEEL ===
+A. THE STEERABLE WHEEL (law 1)
+  ok   A1 the Cub pivots 180 deg on the brake in 4.68 s, the CG within 0.19 spans (<= 2), broken out at 1.25 s
+  ok   A1 ...released, it re-locks (1.83 s) and rolls straight (1.06 deg < 10)
+  ok   A2 cub: a brake-free 180 deg on full rudder and power in 4.25 s (< 20), the circle 1.98 m
+  ok   A2 jodel: a brake-free 180 deg on full rudder and power in 4.05 s (< 20), the circle 1.8 m
+  ok   A2 rufus: a brake-free 180 deg on full rudder and power in 3.33 s (< 20), the circle 1.6 m
+  ok   A3 cub: HOME's circuit on the autopilot - no breakout on the runway (none), the roll 2.54 deg, the roll-out 10.57 deg, the touchdown 0.85 m/s
+  ok   A3 jodel: HOME's circuit on the autopilot - no breakout on the runway (none), the roll 1.66 deg, the roll-out 3.78 deg, the touchdown 1.25 m/s
+  ok   A3 rufus: HOME's circuit on the autopilot - no breakout on the runway (none), the roll 2.45 deg, the roll-out 4.66 deg, the touchdown 0.67 m/s
+B. THE LOCKABLE WHEEL (law 2, the DC-3)
+  ok   B locked: the DC-3's full-power roll holds 0.38 deg / 0.7 m (< 2, < 2), never castoring
+  ok   B unlocked: the brake pivot turns 180 deg in 12.43 s (< 40)
+C. FIXED AND THE SKID (laws 3, 4), the Tiger Moth-alike
+  ok   C the skid build stands on its shoe (law 4)
+  ok   C the skid stops it from 12 m/s on grass, no brake, in 62.74 m / 13.52 s (the wheel's 124.47 m / 21.32 s)
+  ok   C ...on pavement in 65.77 m (its wheel's 231.95 m: the mains roll further there, the shoe drags harder)
+  ok   C fixed: the take-off roll 7.23 deg (< 10)
+D. TWIN BOOMS, A TAILWHEEL A BOOM
+  ok   D it stands on both tail contacts (clear [0,0] m) and both mains, deck 4.58 deg
+  ok   D it rolls straight at full power (0.04 deg)
+  ok   D it turns 180 deg on the brake in 4.5 s within 0.23 spans
+  ok   D it flies HOME's circuit and lands (2.27 m/s), the roll-out 3.98 deg
+E. THE INVERTED V ON TWIN BOOMS, ON ITS TIP WHEELS
+  ok   E it stands on its two tip wheels (the V at 30 deg, clear [0,0] m), deck 1.29 deg tail-down
+  ok   E it turns 180 deg on the brake in 5.7 s within 0.23 spans
+  FAIL E it takes off, flies HOME's circuit and lands (- m/s), the roll-out 0 deg (< 20)
+F. THE INVERTED V'S CONTROLS AND VOLUMES
+  ok   F 25 deg: dYaw/dr 8191 (twin conv 5510), dPitch/de 16226 (11464), x-talk 1.0 %
+  ok   F 25 deg: S 5.99 m2, the design check's Vh 0.922 (pass) Vv 0.032 (pass) on its projections
+  ok   F 35 deg: dYaw/dr 10768 (twin conv 5510), dPitch/de 14097 (11464), x-talk 0.5 %
+  ok   F 35 deg: S 3.58 m2, the design check's Vh 0.45 (pass) Vv 0.035 (pass) on its projections
+  ok   F 45 deg: dYaw/dr 17156 (twin conv 5510), dPitch/de 15666 (11464), x-talk 0.3 %
+  ok   F 45 deg: S 4.81 m2, the design check's Vh 0.45 (pass) Vv 0.072 (pass) on its projections
+  ok   F 55 deg: dYaw/dr 27775 (twin conv 5510), dPitch/de 17655 (11464), x-talk 0.1 %
+  ok   F 55 deg: S 7.30 m2, the design check's Vh 0.45 (pass) Vv 0.147 (pass) on its projections
+G. OLD SAVES
+  ok   G a spec's twSwivel: true clamps to twMode 'lock' (lock)
+  ok   G no key: the steerable wheel (params.twMode absent = law 1)
+  ok   G the Cub saved with s2Steer 0 / 1 / 2 loads as steerable / steerable / lock
+I. THE V FROM THE BOOMS, THE OTHER THREE WAYS
+  ok   I down & out: stands on its two tip wheels (clear [0,0] m), deck 0.31 deg tail-down
+  ok   I down & out: turns 180 deg on the brake in 5.8 s within 0.23 spans
+  FAIL I down & out: takes off, flies HOME's circuit and lands (22.57 m/s), the roll-out 0 deg (< 20)
+  ok   I up & in: stands on its two boom tailwheels (clear [0,0] m), deck 4.58 deg tail-down
+  ok   I up & in: turns 180 deg on the brake in 7.02 s within 0.25 spans
+  ok   I up & in: takes off, flies HOME's circuit and lands (1.44 m/s), the roll-out 3.52 deg (< 20)
+  ok   I up & out: stands on its two boom tailwheels (clear [0,0] m), deck 4.58 deg tail-down
+  ok   I up & out: turns 180 deg on the brake in 6.48 s within 0.25 spans
+  ok   I up & out: takes off, flies HOME's circuit and lands (2.29 m/s), the roll-out 1.98 deg (< 20)
+  ok   I downOut 25 deg: dYaw/dr 8564, dPitch/de 16245 (the conventional's signs), x-talk 0.9 % (< 4)
+  ok   I downOut 40 deg: dYaw/dr 13993, dPitch/de 14921 (the conventional's signs), x-talk 0.4 % (< 4)
+  ok   I downOut 55 deg: dYaw/dr 28407, dPitch/de 17827 (the conventional's signs), x-talk 0.2 % (< 4)
+  ok   I upIn 25 deg: dYaw/dr 7941, dPitch/de 15726 (the conventional's signs), x-talk 1.9 % (< 4)
+  ok   I upIn 40 deg: dYaw/dr 13118, dPitch/de 14419 (the conventional's signs), x-talk 1.7 % (< 4)
+  ok   I upIn 55 deg: dYaw/dr 26706, dPitch/de 17343 (the conventional's signs), x-talk 3.0 % (< 4)
+  ok   I upOut 25 deg: dYaw/dr 7902, dPitch/de 15708 (the conventional's signs), x-talk 1.9 % (< 4)
+  ok   I upOut 40 deg: dYaw/dr 13123, dPitch/de 14533 (the conventional's signs), x-talk 1.7 % (< 4)
+  ok   I upOut 55 deg: dYaw/dr 26869, dPitch/de 17599 (the conventional's signs), x-talk 2.9 % (< 4)
+  ok   I the clamp: an unknown way drops (undefined), an inward V keeps no reach (undefined), an outward one's 5 m reads 2
+J. THE PUSHER WITH THE A (the chooser's path)
+  ok   J the A on the chooser's twin-boom pusher taildragger: the disc clears the tail by 3.34 m, Vv 0.031 Vh 0.489, the deck 6.35 deg (named, not counted: join: prop: through the wing (15 of 288 points) | stance: three-point deck 6.35 deg (7-17))
+  ok   J the inverted V on the chooser's twin-boom pusher taildragger: the disc clears the tail by 3.41 m, Vv 0.031 Vh 0.489, the deck 9.82 deg (named, not counted: join: prop: through the wing (15 of 288 points))
+H. THE INVERTED V'S HARDWARE
+  ok   H down & in build_v8_twin-boom_2026-09-11: the links 0.09 / 0.09 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 15 mm / 15 mm
+  ok   H down & in Twin_busher_floats_2: the links 0.10 / 0.10 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 33 mm / 33 mm
+  ok   H down & in build_v10_engcfg_pushpull_2026-10-22: the links 0.14 / 0.14 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 18 mm / 19 mm
+  ok   H down & out build_v8_twin-boom_2026-09-11: the links 0.09 / 0.09 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 15 mm / 15 mm
+  ok   H down & out Twin_busher_floats_2: the links 0.10 / 0.10 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 33 mm / 33 mm
+  ok   H down & out build_v10_engcfg_pushpull_2026-10-22: the links 0.14 / 0.14 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 19 mm / 18 mm
+  ok   H up & in build_v8_twin-boom_2026-09-11: the links 0.11 / 0.11 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 16 mm / 16 mm
+  ok   H up & in Twin_busher_floats_2: the links 0.12 / 0.12 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 33 mm / 34 mm
+  ok   H up & in build_v10_engcfg_pushpull_2026-10-22: the links 0.15 / 0.15 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 18 mm / 18 mm
+  ok   H up & out build_v8_twin-boom_2026-09-11: the links 0.11 / 0.11 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 16 mm / 16 mm
+  ok   H up & out Twin_busher_floats_2: the links 0.12 / 0.12 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 34 mm / 33 mm
+  ok   H up & out build_v10_engcfg_pushpull_2026-10-22: the links 0.15 / 0.15 m (< 0.3), the straps on their panels true / true, the hinge declared / declared, the TE to port on dr > 0 18 mm / 18 mm
+(531 s)
+GATE TAILWHEEL: FAIL (2)
+(exit code 1)
+=== MONOWHEEL ===
+  ok   F leaving the single wheel for a pair brings the pair's half track back (0 -> 0.86), a pair keeps its own
+(562 s)
+GATE MONOWHEEL: PASS
+=== HUB ===
+D. THE DRAWING
+  ok   D the rod carried through the wing (rodHubSocket) under its hump with the row, none without
+GATE HUB: PASS
+=== NACELLE ===
+  ok   D parasol: the mast drawn (-0.237 to 0.883 m), no cabane strut (null)
+  ok   D without the row: no mast, no cut, the parasol's cabane drawn (8 members)
+GATE NACELLE: PASS
+=== LIGHTWING ===
+F. THE EXPLOIT (negative control)
+  ok   F without its build weight the D-tube wing on the C172 (48.98 kg) holds 6.15 g unbroken, past the 3.8 g limit (it ended BROKE AT 6.16 g): the build weight is what shuts the exploit
+GATE LIGHTWING: PASS
+=== RODROW ===
+F. THE MINIMUM WALL
+  ok   F at the row's least (0.3 mm) the pusher pod breaks cleanly: fus/root-bend at 0.38 g, BROKE UP; the build's substeps 95 (1.2 mm: 83)
+GATE RODROW: PASS
+=== ULTRALIGHT ===
+  ok   G the kit billed ultralight: +0.64 kg on the gear's row (GEN_RULES.ulGear.retractKg 0.6)
+  ok   G it flies as a retract: params.retract with the tail wheel fixed (fixedTw true), the sim's gear present
+GATE ULTRALIGHT: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -755,6 +974,19 @@ TAKEOFF   FAIL   524.2 s
 RADIALDIV FAIL  1683.0 s
 PILOTACT  PASS   210.1 s
 TAXICLEAR FAIL  1680.4 s  [4 shards]
-wall (the chunks' own, summed) 3508.4 s  (jobs 4)
+ALTIPORT  FAIL   392.2 s  [4 shards]
+GLIDE     FAIL   365.3 s  [4 shards]
+UNIFY     FAIL   895.5 s  [4 shards]
+PLAN      PASS   501.1 s
+LINEUP    PASS   290.9 s
+SLOPE     FAIL    93.7 s
+TAILWHEEL FAIL   531.6 s
+MONOWHEEL PASS   563.2 s
+HUB       PASS    30.6 s
+NACELLE   PASS   114.3 s
+LIGHTWING PASS   262.3 s
+RODROW    PASS   464.9 s
+ULTRALIGHT PASS   760.8 s
+wall (the chunks' own, summed) 6191.8 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 8 red (44 PASS, 8 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 13 red (52 PASS, 13 FAIL, 0 SKIP of 364)
