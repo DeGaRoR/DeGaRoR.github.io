@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: ef89c4f5f47141c3
+// body-sha256: 5fb2e95cf95a2d5c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -37686,9 +37686,13 @@ const GEN_DRAG = {
   //     dCdA = c^2 (kT (t/c)^3 - k0)      c the root chord, t/c the section's thickness
   // a 1.2 m root 12 % thick 0.0014 m2, a 1.7 m one 0.0029, the DC-3's 4.6 m root 15 % thick 0.048 - where the flat
   // 0.006 gave a foot-launch glider and an airliner the same. A thin tail root (tailT) pays next to nothing. The
-  // position factors stay (lowBare, strutHigh). `fillet`: what a root fillet leaves of it (Hoerner: a fillet takes most
-  // of the interference away; the cage row wgFillet). `wing` / `tail`: the flat figures, for a spec with no root chord.
-  junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003, kT: 0.75, k0: 0.0003, tailT: 0.09, fillet: 0.3 },
+  // position factors stay (lowBare, strutHigh). `fillet`: what a FULL root fillet leaves of it (Hoerner: a fillet takes
+  // most of the interference away); the cage row wgFillet is the fillet's radius at the trailing edge in root chords -
+  // the same row the wing layer DRAWS it by (tools/_cage_wing.js wfDraw: a ball of that radius rolled along the root) -
+  // and `filletFull` the radius that earns it all (0.08 c: the DC-3's; Hoerner's optimum is 0.06-0.08), a smaller one
+  // in proportion; a parasol's plane meets no body and has none. `wing` / `tail`: the flat figures, for a spec with no
+  // root chord.
+  junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003, kT: 0.75, k0: 0.0003, tailT: 0.09, fillet: 0.3, filletFull: 0.08 },
   // an exhaust stack in the wind
   exhStack: 0.003,
   // WHAT STICKS OUT (FUSELAGE-DRAG build 9, 2026-11-22; the user: "itemize what sticks out"; 62_gen_aero genSticksOutCdA).
@@ -50597,10 +50601,13 @@ function genFusCdA(S, fr, o) {
   let junct = 0;
   // (FUSELAGE-DRAG build 10: each junction by its own root - GEN_DRAG.junct's header)
   const JN = D.junct, jRoot = (c, tc, flat) => c > 0 && tc > 0 ? Math.max(0, c * c * (JN.kT * tc * tc * tc - JN.k0)) : flat;
-  const filletK = S.cage && Math.round(+S.cage.wgFillet || 0) > 0 ? JN.fillet : 1;
+  // (the fillet's radius at the trailing edge, in root chords - the row the wing layer draws it by: a full fillet,
+  //  filletFull and more, leaves `fillet` of the junction's drag; a smaller one in proportion)
+  const filletR = S.cage ? Math.max(0, +S.cage.wgFillet || 0) : 0;
+  const filletOf = w => w.position === 'parasol' ? 1 : 1 - (1 - JN.fillet) * Math.min(1, filletR / JN.filletFull);
   for (const w of (S.wings || [])) {
     const k = w.position === 'low' && !strut ? JN.lowBare : strut ? JN.strutHigh : 1;
-    junct += 2 * jRoot(+w.chord, (((+w.naca || 0) | 0) % 100) / 100, JN.wing) * k * filletK;
+    junct += 2 * jRoot(+w.chord, (((+w.naca || 0) | 0) % 100) / 100, JN.wing) * k * filletOf(w);
   }
   { const tl = S.tail || {}; junct += 2 * jRoot(+tl.hChord, JN.tailT, JN.tail) + jRoot(+tl.vChord, JN.tailT, JN.tail); }
   const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
