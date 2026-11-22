@@ -1,0 +1,13 @@
+# THE EVENING WINDOW'S LOADS (PERF-LEAD, 22 Nov, 60 min after L40J's push): ?latelinks=bg against the base and against
+# the price tag (?latelinks=1), each with the long tasks of the seconds AFTER the reveal (init_longtasks.js) and a
+# departure. --after N: N seconds in the garage after the reveal, then Go.
+#   LATEBG_45: the background pass has its time (it starts 3 s after the reveal): its long tasks are the garage's price,
+#              and the departure must link nothing new (rollout: programs a -> a) and stay near the base's.
+#   LATEBG_6 : Go 6 s after the reveal, the pass barely begun: the departure's screen waits for the links (the worst case).
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+BASE_E     ; D:/Dev/perf-lab-built ; -            ; new ; H5K ; --after 45 --rollout --init-file tools/perf/init_longtasks.js
+LATEBG_45  ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --after 45 --rollout --init-file tools/perf/init_longtasks.js
+LATEBG_6   ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --after 6 --rollout --init-file tools/perf/init_longtasks.js
+LATE1_E    ; D:/Dev/perf-lab-built ; latelinks=1  ; new ; H5K ; --after 45 --rollout --init-file tools/perf/init_longtasks.js
+LATEBG_45b ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --after 45 --rollout --init-file tools/perf/init_longtasks.js
+BASE_E2    ; D:/Dev/perf-lab-built ; -            ; new ; H5K ; --after 45 --rollout --init-file tools/perf/init_longtasks.js

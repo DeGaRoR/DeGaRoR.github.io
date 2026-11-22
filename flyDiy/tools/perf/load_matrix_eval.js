@@ -25,6 +25,16 @@
     lamps,
     guard: G && pick(G.stats, ['held', 'compiles', 'ready', 'timedOut', 'firstUseMs']),
     alprocks: pick(g('FLYDIY_ALPROCKS'), ['cells', 'instances', 'worstMs', 'sets', 'cyl', 'ops']),
+    // (22 Nov eve) ?latelinks=bg's own counters; the long tasks AFTER the reveal (init_longtasks.js): n, their sum, the worst, how
+    // many of 100 ms+, over how many seconds, and the first 30 s alone; the far terrain's slots; the mirror's captures / kept
+    bg: L && L.lateBg ? pick(L.bg, ['revealed', 'running', 'done', 'xrayMs', 'ms', 'xrayLinks', 'scuffLinks', 'twins', 'noTwin', 'err']) : undefined,
+    lateSkipped: (L && L.lateSkipped) || undefined,
+    afterReveal: (() => { const T = g('__LT'); if (!T || !T.reveal) return undefined;
+      const a = T.tasks.filter(t => t[0] >= T.reveal), a30 = a.filter(t => t[0] < T.reveal + 30000), sum = l => l.reduce((s, t) => s + t[1], 0), mx = l => l.reduce((m, t) => Math.max(m, t[1]), 0);
+      return { secs: Math.round((performance.now() - T.reveal) / 1000), n: a.length, ms: sum(a), worst: mx(a), over100: a.filter(t => t[1] >= 100).length,
+               first30: { n: a30.length, ms: sum(a30), worst: mx(a30), over100: a30.filter(t => t[1] >= 100).length } }; })(),
+    farslots: (() => { const F = g('FLYDIY_FARSLOTS'); return F && F.on ? { sentKB: Math.round(F.sentKB), writes: F.writes, grows: F.grows, moved: F.moved } : undefined; })(),
+    mirror: (() => { try { const M = WATER.mirror; return M && (M.pace || M.lean) ? pick(M, ['mode', 'captures', 'kept', 'leaned', 'skipped']) : undefined; } catch (e) { return undefined; } })(),
     heapMB: (() => { try { return Math.round(performance.memory.usedJSHeapSize / 1048576); } catch (e) { return undefined; } })(),
   };
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];

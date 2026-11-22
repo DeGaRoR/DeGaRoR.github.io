@@ -15775,10 +15775,20 @@
   //      under the Go screen - so the wake at a crash finds everything resident, as today.
   // Go pressed before 1 has ended: the craft step waits for the links under its screen. The see-through view opened before
   // 1 has ended links its twins itself (as before G441). LAB.bg holds the times and counts for the rig.
+  // REVEALED, READ AT ONCE (a rig presses Go 0.2 s after the boot's screen is gone - the journey's log, 22 Nov - and the
+  // roll-out's own screen is up by the time the craft step's key is read): latched the moment the boot's screen is gone
+  // or another set's screen (the roll-out's) is seen
+  function lateBgRevealed() {
+    const B = LAB.bg; if (B.revealed) return true;
+    if (!B.armed || typeof BOOT === 'undefined') return false;
+    if (BOOT.state === 'gone' || (BOOT.set && BOOT.set !== 'garage')) { B.revealed = true; B.revealAt = performance.now(); }
+    return B.revealed;
+  }
   function lateBgArm() {
     const B = LAB.bg; if (B.armed) return; B.armed = true;
     const wait = () => {
       const up = typeof BOOT !== 'undefined' && ((BOOT.state && BOOT.state !== 'gone') || (typeof BOOT.busy === 'function' && BOOT.busy()));   // (a page without the screen: nothing to wait for)
+      lateBgRevealed();
       if (up) { setTimeout(wait, 500); return; }
       if (!B.revealed) { B.revealed = true; B.revealAt = performance.now(); }
       if (performance.now() - B.revealAt < 3000 || !inGarage) { setTimeout(wait, inGarage ? 500 : 2000); return; }
@@ -15828,7 +15838,7 @@
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
       .then(() => { if (LAB.lateLinks) { LAB.lateSkipped++; return null; }   // (?latelinks=1: see LAB)
-        if (LAB.lateBg && !LAB.bg.revealed) { LAB.lateSkipped++; lateBgArm(); return null; }   // (?latelinks=bg: not under the boot - lateBgArm)
+        if (LAB.lateBg && !lateBgRevealed()) { LAB.lateSkipped++; lateBgArm(); return null; }   // (?latelinks=bg: not under the boot - lateBgArm)
         return scuffPrelink(inW); })
       .then(() => compileCraftShed());
   }
@@ -16327,7 +16337,7 @@
         .catch(e => console.warn('flown bake:', e && e.message || e)) },
     { id: 'spec', part: 'craft', label: 'your aeroplane, built', w: 4, key: buildKey, deps: ['snapshot', 'bake'],
       fn: () => { syncApply(tripSync, true); } },
-    { id: 'craft', part: 'craft', label: "your aeroplane's shaders", w: 4, key: () => modelId() + '|' + (WF ? 'w' : '-') + '|' + gfxKey() + (LAB.lateBg ? (LAB.bg.revealed ? '|bg1' : '|bg0') : ''), deps: ['spec'],   // (?latelinks=bg: the first roll-out after the reveal runs it again - lateBgArm)
+    { id: 'craft', part: 'craft', label: "your aeroplane's shaders", w: 4, key: () => modelId() + '|' + (WF ? 'w' : '-') + '|' + gfxKey() + (LAB.lateBg ? (lateBgRevealed() ? '|bg1' : '|bg0') : ''), deps: ['spec'],   // (?latelinks=bg: the first roll-out after the reveal runs it again - lateBgArm)
       fn: () => compileCraft() },
     // W6 (GPS-STALL): the roll-out shot's shadow pass, its first draws and every program's first use under this screen
     // (shedShadowWarm), once per aeroplane and graphics; only where the shot plays. ?shadowwarm=0: off (the A/B)

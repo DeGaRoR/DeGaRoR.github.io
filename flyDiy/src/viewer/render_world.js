@@ -3185,6 +3185,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const gl = renderer && renderer.getContext ? renderer.getContext() : null;
         return gl && gl.copyBufferSubData && gl.COPY_WRITE_BUFFER ? gl : null; })();
       FARLOD.slots = FSLOT ? { on: true, sentKB: 0, grows: 0, moved: 0, writes: 0 } : { on: false };
+      if (typeof window !== 'undefined') window.FLYDIY_FARSLOTS = FARLOD.slots;   // (the rig's read: tools/perf/load_matrix_eval.js)
       const slotAlloc = (cap, from) => {
         const gl = FSLOT, T = gl.COPY_WRITE_BUFFER, R = gl.COPY_READ_BUFFER, live = from ? from.n : 0;
         const mk = (per, old) => { const b = gl.createBuffer(); gl.bindBuffer(T, b); gl.bufferData(T, cap * per, gl.DYNAMIC_DRAW);
