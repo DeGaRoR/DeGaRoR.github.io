@@ -6,5 +6,5 @@
 # TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
 BASE_E     ; D:/Dev/perf-lab-built ; -            ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js
 LATEBG_45  ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js
-LATE1_E    ; D:/Dev/perf-lab-built ; latelinks=1  ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js
+# (LATE1_E, the price tag again, left out for the 1024 flight: the afternoon has it, 102.7 s)
 LATEBG_45b ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js

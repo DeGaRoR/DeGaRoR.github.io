@@ -45,7 +45,7 @@ grep -q "^SMOKE_NEW \[" "$OUT/smoke/summary.txt" 2>/dev/null || { say "ABORT: no
 grep "^SMOKE_NEW" "$OUT/smoke/summary.txt" | grep -o '"farslots":{[^}]*}\|"bg":{[^}]*}\|"mirror":{[^}]*}\|"roadw":{[^}]*}\|"pave":{[^}]*}\|rollout: [^|]*' | tee -a "$LOG"
 
 # 1. latelinks=bg (45 s in the garage, then Go), then the worst case (Go after 6 s)
-P1=${EVE_P1_MIN:-15}; [ $(left) -lt $(( P1 + 2 )) ] && P1=$(( $(left) - 2 ))
+P1=${EVE_P1_MIN:-12}; [ $(left) -lt $(( P1 + 2 )) ] && P1=$(( $(left) - 2 ))
 if [ $P1 -ge 4 ]; then say "part 1: the late links, cap $P1 min"
   LM_HELD=1 LM_AFTER=45 LM_EST=215 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=30 bash tools/perf/load_matrix.sh tools/perf/rows/eve-2026-11-22.txt "$OUT/loads" $P1 2>&1 | tee -a "$LOG"
 fi
@@ -57,11 +57,15 @@ else say "part 1c SKIPPED: $(left) min left"; fi
 
 # 2. the journey's first 8 minutes, the base then the three flight switches (run from the LAB build's own tools)
 JM=${EVE_JOURNEY_MIN:-12}
-for v in base new; do
+# (the user, 22 Nov 18:40: "benchmark evenness on a 1024 resolution on top of mine, to rule out the large screen" - the base
+# again in a 1024x768 view: what is left of rows 8 and 9 there is the page's, not the 5K's fill. It runs SECOND, before the
+# switches' run, so a short window still has it.)
+for v in base base1024 new; do
   if [ $(left) -ge $(( JM + 1 )) ]; then
     Q="recring=131072&recup=1"; [ $v = new ] && Q="$Q&farslots=1&mirpace=1&mirlean=1"
-    say "part 2: the journey's first 8 minutes, $v ($Q), cap $JM min"
-    ( cd "$LAB/flyDiy" && timeout $(( JM * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/journey_first8.json --runner page --headed --live --size 5120x1271 --q "$Q" --out "$OUT/journey_$v" --cap $(( JM * 60 - 40 )) ) 2>&1 | tail -25 | tee -a "$LOG"
+    SZ=5120x1271; [ $v = base1024 ] && SZ=1024x768
+    say "part 2: the journey's first 8 minutes, $v ($Q) at $SZ, cap $JM min"
+    ( cd "$LAB/flyDiy" && timeout $(( JM * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/journey_first8.json --runner page --headed --live --size $SZ --q "$Q" --out "$OUT/journey_$v" --cap $(( JM * 60 - 40 )) ) 2>&1 | tail -25 | tee -a "$LOG"
     J=$(ls -t "$OUT"/journey_$v/*.flightlog.json 2>/dev/null | head -1)
     if [ -n "$J" ]; then
       ( cd "$LAB/flyDiy" && nice -n 19 node tools/freeze_ledger.js "$J" --md "$OUT/journey_$v/freezes.md" --show 30 ) 2>&1 | tail -14 | tee -a "$LOG"
