@@ -344,13 +344,28 @@ the real one reaches 0.40: its cylinder rows are the next thing to true.
 | 7 | the fiche's Drag page follows the new rows | - |
 | 8 | a fixed pitch can be cut for a stated speed | the propeller page's own design point (`cw_rpm` at `cw_tas`, carried to the rated speed); a card at the page's default states nothing. No new row (it was `cw_redKmh` for an evening) |
 | 9 | **what sticks out**: every fitting by its form and drawn size, the hinges, horns and pushrods by the kit's counts; the drawing decides which heads are in the wind (pods and cheeks cover them) | the core's own fittings table (`GEN_ACCESS`), the hinge kit, the fittings page's family switches |
-| 10 | **each junction by its own root**: `c² (0.75 (t/c)³ - 0.0003)` (Hoerner ch. 8); a root-fillet row (`wgFillet`, absent at 0, not drawn yet) | the wing's root chord and section |
+| 10 | **each junction by its own root**: `c² (0.75 (t/c)³ - 0.0003)` (Hoerner ch. 8) | the wing's root chord and section |
+| 11 | the propeller's cut and the cowl's cut-out moved onto existing rows (five new rows gone) | the propeller page's design point; the cheeks' form |
+| 12 | **the root fillet, drawn**: a ball rolled along the root, its radius the one new row (`wgFillet`) and the drag's | the body and the wing as drawn |
 
 **New rows: one.** The user, 22 Nov: "What are the new fuselage rows? Couldn't we get everything from existing?" The
 line had added six. Five are gone again (build 11): the propeller's cut is read off the propeller page's own design
 point (`cw_rpm` at `cw_tas`), and the cowl's cut-out is a third FORM of the existing cheeks (`cw_lobeStream`: round
 bump / streamlined / cut out - the cheeks' own rows place and size it). The one that stays is `wgFillet` (the wing
 root's fillet): the fin has a fillet row, the wing had none, and nothing is drawn that could be measured.
+
+**The fillet is drawn (build 12).** The user: "Better try and draw a fillet rather than removing the rows ... We need
+something WYSIWYG", and of the 9 Nov attempt (`claude/wing-fillet`): "I think the whole philosophy and anatomy was bad,
+but you tell me." It was: that attempt built a PART - a fairing sheet laid over the junction, feet sunk into the
+skins, returns, a beak ahead of the leading edge, a tongue aft and a seal bead along every edge; anything with its
+own outline reads as a lump. A fillet is the corner made round. Build 12 rolls a ball along the root: at each
+station, in the cross plane, a circle of the local radius pressed into the corner between the body as drawn (the
+sheet sliced there) and the wing as drawn (its own probes, smoothed along the chord so a flap's gap is not
+followed); the fillet is the arc between the two touch points, tangent to both, with no edge of its own. The radius
+grows from the leading edge to the row's value at the trailing edge (von Karman's law) and runs out behind it, the
+two edges closing to a point on the body. `wgFillet` is that radius in root chords: the picture and the drag read
+the same number. Checked headless (quickshot) on the DC-3, the Jodel, the 172 and the Velis; NOT yet looked at in
+the page, on a biplane's lower plane, or in a wreck.
 
 **Every scored row, inside / near / outside its band** (`real_check --quick`, 17 planes; evidence
 `evidence/FUSELAGE-DRAG-2026-11-22/build10/`):
@@ -391,7 +406,7 @@ root's fillet): the fin has a fillet row, the wing had none, and nothing is draw
 | Electric trainer | design point 120 km/h at 2300 rpm (a cut at 130); `accHandling 0` | its propeller is cut for the climb (POH-128: 90 KCAS on 35 kW, VH 93 KCAS: the propeller is past its limit at the top speed) - **identified against the handbook's rows, not a published pitch**; the parent has no steps or grab handles |
 | Archaeopteryx | `accHandling 0` | no steps or handles on the parent |
 | Jodel D.112 | `s1Fair 1`, `s1LegFair 1` | "a fixed, spatted undercarriage" (Wikipedia, Jodel D.11); **the leg fairing is read off photographs** |
-| DC-3 | `wgFillet 1` | its root fillets |
+| DC-3 | `wgFillet 0.08` (a fillet of 8 % of the root chord, drawn) | its root fillets |
 
 **Examined and not built:**
 
@@ -417,7 +432,7 @@ root's fillet): the fin has a fillet row, the wing had none, and nothing is draw
   skin, and the drawing is billed. The card wants a cowl fit.
 - **PA-18 on floats and the Carbon Cub**: the float Cub's drawing shows its heads through the cowl's front flank
   (0.026 m²): its cylinder-reach rows or its cowl.
-- **The root fillet is not drawn** (a row with physics and no picture: a garage gap).
+- **The root fillet** is drawn on the first plane only; a biplane's lower plane, the wreck's binding and the page's look are to do.
 - Before this is a ready: `PHYSICS_V` and its history line, a gate of its own (the laws' monotonic properties: a
   sharper corner costs more, a pod that closes gently costs less, a covered head costs nothing, a fillet helps, a
   family switched off is not paid; the core's fittings-family map against the fittings page's), REALBAND re-written,

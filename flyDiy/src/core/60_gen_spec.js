@@ -2125,9 +2125,13 @@ const GEN_DRAG = {
   //     dCdA = c^2 (kT (t/c)^3 - k0)      c the root chord, t/c the section's thickness
   // a 1.2 m root 12 % thick 0.0014 m2, a 1.7 m one 0.0029, the DC-3's 4.6 m root 15 % thick 0.048 - where the flat
   // 0.006 gave a foot-launch glider and an airliner the same. A thin tail root (tailT) pays next to nothing. The
-  // position factors stay (lowBare, strutHigh). `fillet`: what a root fillet leaves of it (Hoerner: a fillet takes most
-  // of the interference away; the cage row wgFillet). `wing` / `tail`: the flat figures, for a spec with no root chord.
-  junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003, kT: 0.75, k0: 0.0003, tailT: 0.09, fillet: 0.3 },
+  // position factors stay (lowBare, strutHigh). `fillet`: what a FULL root fillet leaves of it (Hoerner: a fillet takes
+  // most of the interference away); the cage row wgFillet is the fillet's radius at the trailing edge in root chords -
+  // the same row the wing layer DRAWS it by (tools/_cage_wing.js wfDraw: a ball of that radius rolled along the root) -
+  // and `filletFull` the radius that earns it all (0.08 c: the DC-3's; Hoerner's optimum is 0.06-0.08), a smaller one
+  // in proportion; a parasol's plane meets no body and has none. `wing` / `tail`: the flat figures, for a spec with no
+  // root chord.
+  junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003, kT: 0.75, k0: 0.0003, tailT: 0.09, fillet: 0.3, filletFull: 0.08 },
   // an exhaust stack in the wind
   exhStack: 0.003,
   // WHAT STICKS OUT (FUSELAGE-DRAG build 9, 2026-11-22; the user: "itemize what sticks out"; 62_gen_aero genSticksOutCdA).

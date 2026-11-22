@@ -98,12 +98,12 @@ const dragOf = (bs, ed) => mk(bs, ed).params.gen.drag;
   // (the tail's three junctions ride in the same row, by its own root chords: taken off to read the wing's)
   const W = (c, naca, ed) => { const d = mk({}, s => { s.wings[0].chord = c; s.wings[0].naca = naca; if (ed) ed(s); }), tl = d.spec.tail;
     const tail = 2 * jr(tl.hChord, J.tailT) + jr(tl.vChord, J.tailT); return { wing: d.params.gen.drag.junct - tail, tail, strut: d.spec.bracing.type === 'strut' }; };
-  const a = W(1.2, 2412), b = W(2.4, 2412), thin = W(1.2, 2409), fil = W(1.2, 2412, s => { s.cage = Object.assign({}, s.cage || {}, { wgFillet: 1 }); });
+  const a = W(1.2, 2412), b = W(2.4, 2412), thin = W(1.2, 2409), fil = W(1.2, 2412, s => { s.cage = Object.assign({}, s.cage || {}, { wgFillet: J.filletFull }); }), half = W(1.2, 2412, s => { s.cage = Object.assign({}, s.cage || {}, { wgFillet: J.filletFull / 2 }); });
   const k = a.strut ? J.strutHigh : 1;
   check(near(a.wing, 2 * jr(1.2, 0.12) * k, 1e-6), '8. a 1.2 m root 12 % thick: 2 x ' + f4(jr(1.2, 0.12)) + ' x ' + k + ' = ' + f4(a.wing) + ' m2 (the tail\'s three thin junctions: ' + f4(a.tail) + ')');
   check(near(b.wing, 4 * a.wing, 1e-6), '8. twice the chord, four times the drag (' + f4(a.wing) + ' -> ' + f4(b.wing) + ')');
   check(near(thin.wing, 2 * jr(1.2, 0.09) * k, 1e-6) && thin.wing < a.wing / 3 && jr(1.2, 0.06) === 0, '8. a thinner root pays far less (9 %: ' + f4(thin.wing) + '), a 6 % one nothing');
-  check(near(fil.wing, a.wing * J.fillet, 1e-6), '8. a root fillet leaves ' + J.fillet + ' of it (' + f4(fil.wing) + ')'); }
+  check(near(fil.wing, a.wing * J.fillet, 1e-6) && near(half.wing, a.wing * (1 + J.fillet) / 2, 1e-6), '8. a root fillet of ' + J.filletFull + ' chord (the row the wing layer draws it by) leaves ' + J.fillet + ' of it (' + f4(fil.wing) + '), half that radius half the gain (' + f4(half.wing) + ')'); }
 
 // ---- 9: a stated propeller cut ----------------------------------------------------------------------------------------
 { const base = () => ({ D: 1.8, area: Math.PI * 0.81, material: 'wood', powerW: 48e3, Tstatic: 1100, pitchUsed: 'standard', blades: 2 });

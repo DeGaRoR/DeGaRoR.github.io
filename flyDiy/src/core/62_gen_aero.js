@@ -1083,10 +1083,13 @@ function genFusCdA(S, fr, o) {
   let junct = 0;
   // (FUSELAGE-DRAG build 10: each junction by its own root - GEN_DRAG.junct's header)
   const JN = D.junct, jRoot = (c, tc, flat) => c > 0 && tc > 0 ? Math.max(0, c * c * (JN.kT * tc * tc * tc - JN.k0)) : flat;
-  const filletK = S.cage && Math.round(+S.cage.wgFillet || 0) > 0 ? JN.fillet : 1;
+  // (the fillet's radius at the trailing edge, in root chords - the row the wing layer draws it by: a full fillet,
+  //  filletFull and more, leaves `fillet` of the junction's drag; a smaller one in proportion)
+  const filletR = S.cage ? Math.max(0, +S.cage.wgFillet || 0) : 0;
+  const filletOf = w => w.position === 'parasol' ? 1 : 1 - (1 - JN.fillet) * Math.min(1, filletR / JN.filletFull);
   for (const w of (S.wings || [])) {
     const k = w.position === 'low' && !strut ? JN.lowBare : strut ? JN.strutHigh : 1;
-    junct += 2 * jRoot(+w.chord, (((+w.naca || 0) | 0) % 100) / 100, JN.wing) * k * filletK;
+    junct += 2 * jRoot(+w.chord, (((+w.naca || 0) | 0) % 100) / 100, JN.wing) * k * filletOf(w);
   }
   { const tl = S.tail || {}; junct += 2 * jRoot(+tl.hChord, JN.tailT, JN.tail) + jRoot(+tl.vChord, JN.tailT, JN.tail); }
   const nEng = Math.max(1, (S.engines && S.engines.length) || 1);

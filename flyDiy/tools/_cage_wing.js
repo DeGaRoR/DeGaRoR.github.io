@@ -356,10 +356,11 @@ const WING_ITEMS = [
      { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
     ['wgJury', 'jury strut', 0, 2, 1, ['none', 'up to the wing', 'back to the cabin'],
      { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
-    // FUSELAGE-DRAG build 10 (2026-11-22, the user: "size the junction rows to the aeroplane"): the root's fillet. The
-    // junction's interference drag is the root's own (its chord and thickness, 62_gen_aero); a fillet leaves 0.3 of it
-    // (GEN_DRAG.junct.fillet). PHYSICS ONLY for now - the fillet is not drawn yet (a garage gap, flagged in the study)
-    ['wgFillet', 'root fillet', 0, 1, 1, ['none', 'filleted'], { when: P => +P.wingOn }],
+    // FUSELAGE-DRAG builds 10 and 12 (2026-11-22, the user: "size the junction rows to the aeroplane"; "we need something
+    // WYSIWYG"): the root's fillet, DRAWN (wfDraw: a ball of this radius rolled along the root between the body and
+    // the wing as they stand) and billed by the same radius (62_gen_aero: the junction's interference drag is the
+    // root's own, a full fillet leaves GEN_DRAG.junct.fillet of it)
+    ['wgFillet', 'root fillet radius (root chords, at the trailing edge; 0 = none)', 0, 0.2, 0.005, { when: P => +P.wingOn }],
   ], on],
   ['control surfaces', [
     ['wgFlapType', 'flaps',      0, FLAP_KEYS.length - 1, 1,
@@ -1484,6 +1485,181 @@ const drawBooms = (scene, P, teAt, leAt) => {
   }
 };
 let STRUT_PIL = null;                 // PILLAR-ANCHORS P4: this build's picked strut pillar
+// ---- THE WING-ROOT FILLET, DRAWN (FUSELAGE-DRAG build 12, 2026-11-22) ----------------------------------------------------
+// The user: "Better try and draw a fillet rather than removing the rows ... We need something WYSIWYG" - and of the
+// earlier attempt (claude/wing-fillet, 9 Nov): "I think the whole philosophy and anatomy was bad". It was a PART: a
+// fairing sheet laid over the junction, its feet sunk into the skins, returns, a beak ahead of the leading edge, a
+// tongue aft and a seal bead along every edge. A fillet is not a part. It is THE CORNER MADE ROUND:
+//   A ROLLING BALL. At each station along the root chord, in the cross plane, a circle of the local radius is pressed
+//   into the corner between the body AS DRAWN (the cage sheet sliced at that station, read by rays) and the wing AS
+//   DRAWN (the layer's own probes: overAt / underAt). The fillet is the arc between the two points it touches:
+//   tangent to both skins, so its two edges have no step and need no bead - it has no outline of its own.
+//   THE RADIUS is von Karman's law (the DC-1's): next to nothing at the leading edge, growing to the row's value at
+//   the trailing edge. Behind the trailing edge the wing's surface is carried on as a plane and the radius runs out to
+//   nothing: the two edges close to a point on the body. The underside of that tail is closed flat.
+//   ONE ROW: wgFillet, the radius at the trailing edge in root chords (0 = none). The same number is what the drag
+//   reads (62_gen_aero: GEN_DRAG.junct). The corner that takes it is the one the body stands over: above a low wing,
+//   below a high one, both on a mid wing. Where the ball finds no corner (a parasol, a wing under the belly) nothing
+//   is drawn, station by station.
+const WF = { NS: 30, NA: 12, NJ: 10, NB: 160, kLE: 0.30, ramp: 0.12, ext: 4.0, sink: 0.0015 };
+// the body's section at station z (metres, cage frame): the drawn sheet cut by the plane, its outline read by rays from
+// the section's centre (the outermost hit an angle), the +x half from the keel (k 0) to the crown -> [[x, y], ...]
+function wfSection(mesh, FS, z) {
+  const V = mesh.V, F = mesh.F, zc = z / FS, segs = [];
+  for (const f of F) {
+    const q = f.v || f, n = q.length; let p0 = null, done = false;
+    for (let k = 0; k < n && !done; k++) {
+      const a = V[q[k]], b = V[q[(k + 1) % n]], da = a[2] - zc, db = b[2] - zc;
+      if ((da > 0) !== (db > 0)) { const u = da / (da - db), c = [(a[0] + (b[0] - a[0]) * u) * FS, (a[1] + (b[1] - a[1]) * u) * FS];
+        if (p0) { segs.push([p0, c]); done = true; } else p0 = c; }
+    }
+  }
+  if (segs.length < 3) return null;
+  let yLo = Infinity, yHi = -Infinity;
+  for (const g of segs) for (const q of g) { if (q[1] < yLo) yLo = q[1]; if (q[1] > yHi) yHi = q[1]; }
+  const cy = 0.5 * (yLo + yHi), out = [];
+  for (let k = 0; k <= WF.NB; k++) {
+    const th = -Math.PI / 2 + Math.PI * k / WF.NB, dx = Math.cos(th), dy = Math.sin(th); let r = 0;
+    for (const g of segs) {
+      const ax = g[0][0], ay = g[0][1] - cy, ex = g[1][0] - g[0][0], ey = g[1][1] - g[0][1], den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const u = (ax * ey - ay * ex) / den, w = (ax * dy - ay * dx) / den;
+      if (u > 0 && w >= -1e-9 && w <= 1 + 1e-9 && u > r) r = u;
+    }
+    if (!(r > 0)) return null;
+    out.push([r * dx, cy + r * dy]);
+  }
+  return out;
+}
+// the ball of radius r in the corner between the section B and the wing's surface y = surf(x), on the side `up` (+1:
+// the body rises over the wing's top; -1: it hangs under its bottom) -> { C, body, wing } (the centre and the two
+// touch points), or null where the ball finds no corner
+function wfBall(B, surf, r, up) {
+  const n = B.length, at = u => { const k = Math.max(0, Math.min(n - 2, Math.floor(u))), f = u - k; return [B[k][0] + (B[k + 1][0] - B[k][0]) * f, B[k][1] + (B[k + 1][1] - B[k][1]) * f]; };
+  const nrm = u => { const k = Math.max(1, Math.min(n - 2, Math.round(u))), a = B[k - 1], b = B[k + 1], tx = b[0] - a[0], ty = b[1] - a[1], L = Math.hypot(tx, ty) || 1; return [ty / L, -tx / L]; };
+  const f = u => { const b = at(u), m = nrm(u), cx = b[0] + r * m[0], cy = b[1] + r * m[1], s = surf(cx); return s == null ? null : up * (cy - s) - r; };
+  // the corner: where the outline crosses the wing's surface, walking the way `up` points
+  let u0 = null;
+  for (let i = 1; i < n - 1; i++) { const k = up > 0 ? i : n - 1 - i, s = surf(Math.max(0.02, B[k][0])); if (s == null) continue;
+    if (up * (B[k][1] - s) > 0 && B[k][0] > 0.03) { u0 = k; break; } }
+  if (u0 == null) { wfBall.why = 'no corner'; return null; }
+  let a = u0 - up, fa = f(a);
+  for (let i = 0; i < n; i++) {
+    const b = a + up * 0.5; if (b < 1 || b > n - 2) { wfBall.why = 'ran off the outline (u0 ' + u0 + ', fa ' + (fa == null ? null : fa.toFixed(3)) + ')'; return null; }
+    const fb = f(b); if (fb == null) { wfBall.why = 'no wing under the ball at u ' + b; return null; }
+    if (fa != null && fa <= 0 && fb > 0) {
+      let lo = a, hi = b; for (let j = 0; j < 24; j++) { const m = 0.5 * (lo + hi), fm = f(m); if (fm == null) return null; if (fm > 0) hi = m; else lo = m; }
+      const u = 0.5 * (lo + hi), body = at(u), m = nrm(u), C = [body[0] + r * m[0], body[1] + r * m[1]], s = surf(C[0]);
+      if (m[0] < 0.05 || s == null) { wfBall.why = 'inboard normal ' + m[0].toFixed(2); return null; }   // (the ball must stand outboard of the flank)
+      return { C, body, wing: [C[0], s] };
+    }
+    a = b; fa = fb;
+  }
+  return null;
+}
+function wfDraw(P, mesh, FS, W) {
+  const R0 = +P.wgFillet;
+  if (window.WF_DEBUG) console.log('WF in: R0 ' + R0 + ' mesh ' + (mesh && Object.keys(mesh).slice(0, 8).join(',')) + ' V ' + (mesh && mesh.V && mesh.V.length) + ' F ' + (mesh && mesh.F && mesh.F.length) + ' probes ' + [!!W.overAt, !!W.underAt, !!W.leAt, !!W.teAt, !!W.group].join(','));
+  if (!(R0 > 0) || !mesh || !mesh.V || !mesh.F || !W.overAt || !W.underAt || !W.leAt || !W.teAt || !W.group) return;
+  // the root: just outboard of the body at the wing's mid chord
+  const probe = W.leAt(0.02) || W.leAt(0.3); if (!probe) return;
+  let xr = 0.3;
+  { const te0 = W.teAt(0.02) || W.teAt(0.3); if (!te0) return;
+    const B = wfSection(mesh, FS, 0.5 * (probe.z + te0.z)), ym = 0.5 * (probe.yTop + probe.yBot);
+    if (B) { let best = null; for (const q of B) if (best == null || Math.abs(q[1] - ym) < Math.abs(best[1] - ym)) best = q; if (best) xr = Math.max(0.05, best[0]) + 0.04; } }
+  const le = W.leAt(xr), te = W.teAt(xr);
+  if (!le || !te) return;
+  const c = le.z - te.z; if (!(c > 0.2)) return;
+  const R = Math.min(0.35, R0) * c;
+  // the wing's two surfaces at a station; behind the trailing edge both are its last surface carried on as a plane
+  const te2 = W.teAt(xr + 0.4) || te, dih = ((te2.yTop + te2.yBot) - (te.yTop + te.yBot)) / 2 / 0.4;
+  // (the tail lies on the wing's CHORD line carried aft - its upper surface's own slope would dive under the belly)
+  const yTE = 0.5 * (te.yTop + te.yBot), slope = (0.5 * (le.yTop + le.yBot) - yTE) / c;
+  // (the root's surface at a station is a LINE across the span: read at the root and 0.4 m out, carried inboard under
+  //  the body and outboard alike - what the probes meet inside the body, a centre section's end or a flap's gap, is not
+  //  the wing's surface)
+  // ...and SMOOTH along the chord: the probes fall into a flap's gap and step onto the flap as it hangs; the fillet
+  // lies on the wing's own line, so each surface's heights are read at every station first, a lone outlier dropped
+  // (the median of five) and the run eased (three passes of a 1-2-1 mean)
+  const zs = []; for (let i = 0; i <= WF.NS; i++) zs.push(le.z - (0.015 + 0.965 * i / WF.NS) * c);
+  const smooth = probe => { const raw = zs.map(z => { const a = probe(xr, z) || probe(xr + 0.12, z), b = probe(xr + 0.4, z); return a ? [a.y, b ? (b.y - a.y) / 0.4 : dih] : null; });
+    const out = [0, 1].map(q => { let v = raw.map(r => r ? r[q] : null);
+      for (let i = 0; i < v.length; i++) if (v[i] == null) { let j = i; while (j < v.length && v[j] == null) j++; v[i] = j < v.length ? v[j] : (i ? v[i - 1] : 0); }
+      v = v.map((_, i) => { const w = []; for (let k = -2; k <= 2; k++) w.push(v[Math.max(0, Math.min(v.length - 1, i + k))]); w.sort((a, b) => a - b); return w[2]; });
+      for (let pass = 0; pass < 3; pass++) v = v.map((x, i) => (v[Math.max(0, i - 1)] + 2 * x + v[Math.min(v.length - 1, i + 1)]) / 4);
+      return v; });
+    return i => (x => out[0][i] + out[1][i] * (x - xr)); };
+  const topS = smooth(W.overAt), botS = smooth(W.underAt);
+  // behind the wing: its two surfaces as the last station on the chord read them (zA), carried aft along the chord
+  // line and closing on each other - no step where the wing ends
+  const zA = zs[WF.NS], hT = { y: topS(WF.NS)(xr) }, hB = { y: botS(WF.NS)(xr) };
+  const ext = WF.ext * R;
+  const virt = (z, y0) => { const u = Math.max(0, Math.min(1, (zA - z) / Math.max(1e-6, ext))), ym = 0.5 * (hT.y + hB.y);
+    return x => ym + (y0 - ym) * (1 - u) + dih * (x - xr) + slope * (z - zA); };
+  const top = (z, i) => i != null ? topS(i) : virt(z, hT.y);
+  const bot = (z, i) => i != null ? botS(i) : virt(z, hB.y);
+  const rows = { up: [], dn: [] };
+  const station = (z, r, aft, i) => {
+    const B = wfSection(mesh, FS, z);
+    for (const [key, sgn, surf] of [['up', 1, top(z, i)], ['dn', -1, bot(z, i)]]) {
+      let row = null;
+      const hit = B && r > 0.004 ? wfBall(B, surf, r, sgn) : null;
+      if (window.WF_DEBUG && key === 'up' && !hit) { const ym = surf(xr); let bx = null; if (B) for (const q of B) if (bx == null || Math.abs(q[1] - ym) < Math.abs(bx[1] - ym)) bx = q; console.log('WF miss ' + wfBall.why + ' z ' + z.toFixed(2) + ' r ' + r.toFixed(3) + ' aft ' + aft + ' B ' + (B ? B.length : 0) + ' surf(xr) ' + (ym == null ? null : ym.toFixed(2)) + ' body there ' + (bx ? bx[0].toFixed(2) + ',' + bx[1].toFixed(2) : null) + ' yLo ' + (B ? B[0][1].toFixed(2) : '') + ' yHi ' + (B ? B[B.length - 1][1].toFixed(2) : '')); }
+      if (hit) {
+        const C = hit.C, a0 = Math.atan2(hit.body[1] - C[1], hit.body[0] - C[0]), a1raw = Math.atan2(hit.wing[1] - C[1], hit.wing[0] - C[0]);
+        let da = a1raw - a0; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+        row = [];
+        for (let j = 0; j <= WF.NJ; j++) { const a = a0 + da * j / WF.NJ, rr = r + (j === 0 || j === WF.NJ ? WF.sink : 0);
+          row.push([C[0] + rr * Math.cos(a), C[1] + rr * Math.sin(a), z]); }
+        row.aft = aft;
+        if (aft) { const yv = hit.wing[1]; let xb = hit.body[0];          // the body at the edge's own height
+          for (let k = 0; k < B.length - 1; k++) if ((B[k][1] - yv) * (B[k + 1][1] - yv) <= 0 && B[k + 1][1] !== B[k][1]) { xb = B[k][0] + (B[k + 1][0] - B[k][0]) * (yv - B[k][1]) / (B[k + 1][1] - B[k][1]); break; }
+          row.under = [Math.min(xb, hit.wing[0]), yv, z]; }
+      }
+      rows[key].push(row);
+    }
+  };
+  const sm = u => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+  // (on the chord the radius grows from kLE x R and eases level into the trailing edge: one tangent with the tail's)
+  for (let i = 0; i <= WF.NS; i++) { const s = 0.015 + 0.965 * i / WF.NS; station(zs[i], R * (WF.kLE + (1 - WF.kLE) * Math.sin(0.5 * Math.PI * s)) * sm(s / WF.ramp), false, i); }
+  // (the tail's radius leaves the trailing edge level - no kink where the wing ends - and runs out to nothing)
+  for (let i = 1; i <= WF.NA; i++) { const u = i / (WF.NA + 0.35); station(zA - u * ext, R * Math.pow(Math.cos(0.5 * Math.PI * u), 1.5), true); }
+  // the strips -> triangles (the +x side, then its mirror wound back)
+  const pos = [], idx = [];
+  const put = row => { if (row.vAt == null) { row.vAt = pos.length / 3; for (const q of row) pos.push(q[0], q[1], q[2]); } return row.vAt; };   // (not `.at`: that is Array's own)
+  // (each row's vertices are written once and shared by the strips either side of it: the normals run smooth)
+  const strip = (ra, rb) => { const oa = put(ra), ob = put(rb), n = ra.length;
+    for (let j = 0; j < n - 1; j++) idx.push(oa + j, ob + j, oa + j + 1, oa + j + 1, ob + j, ob + j + 1); };
+  for (const key of ['up', 'dn']) { const L = rows[key];
+    for (let i = 0; i < L.length - 1; i++) {
+      const a = L[i], b = L[i + 1];
+      if (a && b) strip(a, b);
+      // a run ends in a point on the body, half a station on: its radius has all but run out there
+      else if (a && !b) strip(a, a.map(() => [a[0][0], a[0][1], a[0][2] - 0.5 * Math.abs((L[i - 1] || a)[0][2] - a[0][2] || 0.05)]));
+      else if (!a && b) strip(b.map(() => [b[0][0], b[0][1], b[0][2] + 0.5 * Math.abs((L[i + 2] || b)[0][2] - b[0][2] || 0.05)]), b);
+    }
+    const last = L[L.length - 1]; if (last) strip(last, last.map(() => [last[0][0], last[0][1], last[0][2] - 0.03]));
+  }
+  // behind the trailing edge: the tail's underside, closed flat from the upper sheet's outer edge to the body (and the
+  // lower sheet's, where there is one, to the same edge)
+  { const U = rows.up, D = rows.dn;
+    for (let i = 0; i < U.length - 1; i++) { const a = U[i], b = U[i + 1]; if (!a || !b || !b.aft) continue;
+      const da = D[i], db = D[i + 1];
+      if (!a.aft && !(da && db)) continue;
+      const ea = a[WF.NJ], eb = b[WF.NJ], fa = da ? da[WF.NJ] : (a.under || ea), fb = db ? db[WF.NJ] : (b.under || eb);
+      strip([ea, fa], [eb, fb]); } }
+  if (!idx.length) return;
+  const nV = pos.length / 3;
+  for (let i = 0; i < nV; i++) pos.push(-pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]);
+  const nI = idx.length; for (let i = 0; i < nI; i += 3) idx.push(nV + idx[i], nV + idx[i + 2], nV + idx[i + 1]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const mat = (window.CAGE_SECMAT && window.CAGE_SECMAT('wingSkin', { surf: 0, fieldM: 1, struct: 0, side: THREE.DoubleSide })) || wingMat('main');
+  const m = new THREE.Mesh(g, mat); m.name = 'edWingFillet';
+  if (window.WF_DEBUG) console.log('WF root x ' + xr.toFixed(2) + ' le z ' + le.z.toFixed(2) + ' te z ' + te.z.toFixed(2) + ' y ' + yTE.toFixed(2) + ' chord ' + c.toFixed(2) + ' R ' + R.toFixed(3) + ' rows up ' + rows.up.filter(Boolean).length + '/' + rows.up.length + ' dn ' + rows.dn.filter(Boolean).length + ' tris ' + idx.length / 3);
+  W.group.add(m);
+}
+
 const wingPost = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, spec, mesh, P, stat } = ctx;
@@ -3017,6 +3193,9 @@ const wingPost = ctx => {
                    return [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
                  })() : null });
   }
+  // THE ROOT FILLET (FUSELAGE-DRAG build 12): drawn off the body and the wing as they stand - wfDraw below
+  try { wfDraw(P, mesh, FS, { overAt, underAt, leAt, teAt, group }); }
+  catch (e) { if (stat) stat.textContent += '  ·  fillet: ' + e.message; if (window.WF_DEBUG) console.log('WF threw ' + e.stack); }
   window.CAGE_WING = { surfs,
                        struts: STRUTS_OUT,   // G477: the drawn lift struts, {pin, tip} in cage metres
                        strutPil: STRUT_PIL,  // PILLAR-ANCHORS P4: the picked pillar { key, zNode } (the join writes its station)
