@@ -365,14 +365,25 @@ function make(THREE, scene, world, rec0, opts) {
   // benches) it switches at once, as before.
   const LAMPS = { pool: [], pub: [], glass: new Map(), lens: new Set(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500,
     armed: false, prep: null, prepping: null, ready: null, prepTok: 0 };
+  // ?lampsfixed=1 (PERF-LEAD 22 Nov, OPT-IN, the default unchanged): THE POOL KEEPS ITS COUNT BY DAY TOO. Armed or not is
+  // today's only change in the world's light counts (8 + the aircraft's 2 point lights at night, 2 by day), and crossing
+  // the threshold re-keys every lit material: 164 programs made at noon after a night load (Codex's trace, 21 Nov). With
+  // the flag the 8 stay VISIBLE at every hour, at intensity 0 while the day does not ask for them: one count, one set of
+  // programs, nothing to link when the time of day changes. Its price is the test's question: 8 more point-light
+  // iterations a lit fragment by day, and day programs as heavy as the night's. fixedCount is the hook app.js already
+  // reads (lampsPrep has nothing to prepare; craftHullWarm warms the hull capture's own signature).
+  LAMPS.fixedCount = typeof location !== 'undefined' && /[?&]lampsfixed=1(&|$)/.test(location.search || '');
+  if (LAMPS.fixedCount) LAMPS.armed = true;
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
     for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = LAMPS.armed; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }  // pre-ok: intensity 0 here; LAMPS.update drives it x P
   };
   // arm(on): the pool's count, now (the host's compile dress and the roll-out's key call it; update() goes through prep)
-  LAMPS.arm = on => { lampPoolInit(); on = !!on; LAMPS.armed = on; for (const l of LAMPS.pool) { l.visible = on; if (!on) l.intensity = 0; } return on; };
+  LAMPS.arm = on => { lampPoolInit(); on = LAMPS.fixedCount || !!on; LAMPS.armed = on; for (const l of LAMPS.pool) { l.visible = on; if (!on) l.intensity = 0; } return on; };
   // want(on): the count the day asks for (the lamps' level `on` 0..1)
-  LAMPS.want = on => on > 0 && !LAMPS.muted;
+  LAMPS.want = on => LAMPS.fixedCount || (on > 0 && !LAMPS.muted);
+  // lit(on): the pool gives light (the same test as want, but for ?lampsfixed=1, where the count no longer says it)
+  LAMPS.lit = on => on > 0 && !LAMPS.muted;
   const _lp = new THREE.Vector3();
   // eye: a Vector3; on: the day's 0..1; ex: the live exposure base
   LAMPS.update = (eye, on, ex) => {
@@ -404,7 +415,7 @@ function make(THREE, scene, world, rec0, opts) {
           .then(() => { if (tok === LAMPS.prepTok) { LAMPS.ready = want; LAMPS.prepping = null; } });
       }
     }
-    if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; if (LAMPS.streaks && typeof WATER !== 'undefined' && WATER.lamps) { WATER.lamps(null); LAMPS.streaks = null; } return; }
+    if (!LAMPS.lit(on) || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; if (LAMPS.streaks && typeof WATER !== 'undefined' && WATER.lamps) { WATER.lamps(null); LAMPS.streaks = null; } return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
       const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent && (!e.chunk || e.grp.parent.parent));   // (G2955: a line's lamp chunk stays parented to its line - the line itself must still stand)
