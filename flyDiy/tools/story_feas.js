@@ -89,7 +89,7 @@ function slim(R) {
     stop: L.stop ? (L.stop.events || []).slice() : [], kg: L.load ? L.load.kg : 0, pax: L.load ? L.load.pax : 0,
     faults: (L.faults || []).map(f => f.k), events: (L.events || []).map(e => e.k + ':' + e.key + (e.m != null ? '=' + e.m : '')) })) : [];
   return { id: R.id, kind: R.kind || null, verdict: R.verdict, plane: R.plane || null, timeS: Math.round(R.timeS || 0), why: R.verdict === 'feasible' ? '' : String(R.why || '').slice(0, 600),
-    tried: (R.attempts || []).map(a => a.plane + ':' + a.verdict), legs, notes: (R.notes || []).slice(0, 4), untested: !!R.untested };
+    tried: (R.attempts || []).map(a => a.plane + ':' + a.verdict), legs, notes: [...new Set((R.notes || []).concat(...(R.attempts || []).map(x => x.notes || [])))].slice(0, 6), untested: !!R.untested };
 }
 
 // the classes a mission may be in without a feasible flight (named, counted, never hidden)

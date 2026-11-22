@@ -1,38 +1,32 @@
 {
  "id": "club.spot",
  "kind": "challenge",
- "verdict": "infeasible",
- "plane": "Jodel D112",
- "timeS": 1051,
- "why": "no progress: the sp spot was not measured",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 488,
+ "why": "",
  "tried": [
-  "Piper Cub:infeasible",
-  "Jodel D112:infeasible"
+  "Piper Cub:feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w2",
-   "t": 555,
+   "t": 488,
    "how": "stopped",
    "at": "w2",
-   "stop": [],
+   "stop": [
+    "sub:0@0",
+    "scores",
+    "stage@0",
+    "done"
+   ],
    "kg": 0,
    "pax": 0,
    "faults": [],
-   "events": []
-  },
-  {
-   "from": "w2",
-   "to": "w2",
-   "t": 495,
-   "how": "stopped",
-   "at": "w2",
-   "stop": [],
-   "kg": 0,
-   "pax": 0,
-   "faults": [],
-   "events": []
+   "events": [
+    "stol:sp=95.3"
+   ]
   }
  ],
  "notes": [],
@@ -40,5 +34,5 @@
  "key": "3b6fa1c5c97a",
  "where": "contract",
  "pool": "validated",
- "wallS": 2108
+ "wallS": 583
 }
