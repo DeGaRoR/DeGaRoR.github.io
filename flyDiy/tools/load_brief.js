@@ -8,6 +8,12 @@
 // Everything is tools/program_report.js's (the definitions are at the top of that file); this only picks and prints.
 //
 //   node tools/load_brief.js <flydiy-flightlog-*.json[.gz]> [--json] [--step worldCompile] [--label "pace=16"]
+//        [--steps compile,frames] [--miss 1]
+//   --steps a,b   A WARM ROW'S QUESTION (PERF-LEAD, 22 Nov): after the ten lines, three lines a named step (every screen's
+//                 step of that id): its seconds and kind; the programs it waited on whose link took over --miss seconds
+//                 from submit to seen ready (on a second visit a cache HIT is a few ms: a slow one is a MISS), by owner;
+//                 and the programs FIRST USED inside it with each first use's ms, by owner (a cached binary that is
+//                 "ready" at once and pays at its first draw shows here).
 // THE LOG OF A BOOT, from any rig: at the end, in the page,
 //   (window.__L = FLIGHT_REC.rec.logParts().join('')).length        then   window.__L.slice(a, a + 4000000)   in pieces
 // (one answer of tens of MB is slow over CDP; tools/perf/log_capture.js and flight_script.js --runner page do exactly this).
@@ -38,7 +44,28 @@ function brief(log, opt) {
     top: R.heavy.slice(0, 5).map(b => ({ n: b.n, who: b.who, shareS: b.shareS, pendingS: b.pendingS, crowd: b.crowd, kb: b.kb })),
     firstUse: { programs: fu.length, ms: Math.round(fu.reduce((a, r) => a + r.firstUseMs, 0)), duringLoadMs: Math.round(fuLoad.reduce((a, r) => a + r.firstUseMs, 0)), worst: fu.length ? fu.slice().sort((a, b) => b.firstUseMs - a.firstUseMs).slice(0, 1).map(r => ({ n: r.n, ms: r1(r.firstUseMs), who: (r.own && r.own.length ? r.own.join(' + ') : 'UNOWNED ' + (r.name || r.type)) }))[0] : null,
       heldMs: R.totals.linkWaitMs },
-    longTasks: { over50: lt.length, sumMs: Math.round(ltSum), worstMs: lt.length ? Math.round(Math.max(...lt.map(e => e[2]))) : 0, until: reveal != null ? 'the reveal' : lastGone != null ? 'the last loading screen gone' : 'the log\'s end' } };
+    longTasks: { over50: lt.length, sumMs: Math.round(ltSum), worstMs: lt.length ? Math.round(Math.max(...lt.map(e => e[2]))) : 0, until: reveal != null ? 'the reveal' : lastGone != null ? 'the last loading screen gone' : 'the log\'s end' },
+    steps: (o.steps || []).length ? stepDetail(log, rows, R, o.steps, o.miss == null ? 1 : o.miss, T0) : null };
+}
+// a named step, read for a warm visit: what it waited on that was slow to link, and what was first used inside it
+function stepDetail(log, rows, R, ids, missS, T0) {
+  const who = r => (r.own && r.own.length ? r.own.join(' + ') : 'UNOWNED ' + ((r.mat && r.mat[0]) || r.name || r.type || ''));
+  const ev = log.events || [], out = [];
+  for (const S of PR.steps(log)) {
+    if (ids.indexOf(S.id) < 0 || S.t1 == null) continue;
+    const g = R.gates.find(x => x.set === S.set && x.id === S.id && Math.abs(x.start - Math.round(S.bootT / 100) / 10) < 0.15) || {};
+    const awaited = rows.filter(r => r.t < S.t1 && (r.readyT == null ? r.pendT != null && r.pendT >= S.t0 : r.readyT > S.t0));
+    const slow = awaited.filter(r => r.readyT != null && r.readyT - r.t > missS * 1000).sort((a, b) => (b.readyT - b.t) - (a.readyT - a.t));
+    const made = rows.filter(r => r.t >= S.t0 && r.t < S.t1);
+    const used = rows.filter(r => r.useT != null && r.useT >= S.t0 && r.useT < S.t1), usedMs = used.reduce((a, r) => a + (r.firstUseMs || 0), 0);
+    const lt = ev.filter(e => e[1] === 'longtask' && e[2] > 50 && e[0] < S.t1 && e[0] + e[2] > S.t0);
+    out.push({ id: S.set + ':' + S.id, s: r1(S.ms / 1000), start: r1(S.bootT / 1000), kind: g.kind || g.verdict || null, submitted: made.length, awaited: awaited.length,
+      neverSeenReady: awaited.filter(r => r.readyT == null).length, missS, slow: slow.length, slowSumS: r1(slow.reduce((a, r) => a + (r.readyT - r.t), 0) / 1000),
+      slowTop: slow.slice(0, 6).map(r => ({ n: r.n, s: r1((r.readyT - r.t) / 1000), submittedIn: r.step, kb: r.vs != null ? Math.round((r.vs + r.fs) / 1024) : null, who: who(r) })),
+      firstUse: { programs: used.length, ms: Math.round(usedMs), top: used.filter(r => r.firstUseMs > 0).sort((a, b) => b.firstUseMs - a.firstUseMs).slice(0, 6).map(r => ({ n: r.n, ms: r1(r.firstUseMs), heldMs: r1(r.waitMs), who: who(r) })) },
+      longTasks: { over50: lt.length, sumMs: Math.round(lt.reduce((a, e) => a + e[2], 0)), worstMs: lt.length ? Math.round(Math.max(...lt.map(e => e[2]))) : 0 } });
+  }
+  return out;
 }
 function text(b) {
   const L = [], s = b.step, P = b.programs;
@@ -49,14 +76,19 @@ function text(b) {
   for (const t of b.top) L.push('  #' + String(t.n).padStart(4) + ' share ' + String(t.shareS).padStart(5) + ' s, pending ' + String(t.pendingS).padStart(5) + ' s, crowd ' + String(t.crowd).padStart(4) + ', ' + String(t.kb).padStart(4) + ' KB  ' + t.who);
   L.push('first uses: ' + b.firstUse.programs + ' programs, ' + b.firstUse.ms + ' ms (' + b.firstUse.duringLoadMs + ' during the load), draws held on a link ' + b.firstUse.heldMs + ' ms' + (b.firstUse.worst ? '; worst #' + b.firstUse.worst.n + ' ' + b.firstUse.worst.ms + ' ms ' + b.firstUse.worst.who : ''));
   L.push('long tasks over 50 ms until ' + b.longTasks.until + ': ' + b.longTasks.over50 + ', ' + b.longTasks.sumMs + ' ms in all, worst ' + b.longTasks.worstMs + ' ms');
+  for (const d of (b.steps || [])) {
+    L.push(d.id + ' at ' + d.start + ' s: ' + d.s + ' s, ' + d.submitted + ' submitted, ' + d.awaited + ' awaited (' + d.neverSeenReady + ' never seen ready); long tasks ' + d.longTasks.over50 + ', ' + d.longTasks.sumMs + ' ms, worst ' + d.longTasks.worstMs + (d.kind ? '; ' + d.kind : ''));
+    L.push('  links over ' + d.missS + ' s (submit to seen ready): ' + d.slow + ' of ' + d.awaited + ', ' + d.slowSumS + ' s in all' + (d.slowTop.length ? ': ' + d.slowTop.map(x => '#' + x.n + ' ' + x.s + ' s ' + x.who).join('; ') : ''));
+    L.push('  first used inside: ' + d.firstUse.programs + ' programs, ' + d.firstUse.ms + ' ms' + (d.firstUse.top.length ? ': ' + d.firstUse.top.map(x => '#' + x.n + ' ' + x.ms + ' ms' + (x.heldMs ? ' (held ' + x.heldMs + ')' : '') + ' ' + x.who).join('; ') : ''));
+  }
   return L.join('\n');
 }
 module.exports = { brief, text };
 
 if (require.main === module) {
   const argv = process.argv.slice(2), opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
-  const file = argv.find((a, i) => !a.startsWith('--') && !(i > 0 && ['--step', '--label'].includes(argv[i - 1])));
+  const file = argv.find((a, i) => !a.startsWith('--') && !(i > 0 && ['--step', '--label', '--steps', '--miss'].includes(argv[i - 1])));
   if (!file) { console.error('usage: node tools/load_brief.js <flightlog.json[.gz]> [--json] [--step worldCompile] [--label "pace=16"]'); process.exit(2); }
-  const b = brief(AL.load(file), { step: opt('step', null), label: opt('label', null) });
+  const b = brief(AL.load(file), { step: opt('step', null), label: opt('label', null), steps: opt('steps', null) ? opt('steps').split(',').map(x => x.trim()).filter(Boolean) : [], miss: opt('miss', null) == null ? null : +opt('miss') });
   console.log(argv.includes('--json') ? JSON.stringify(b) : text(b));
 }

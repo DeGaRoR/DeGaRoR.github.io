@@ -586,6 +586,7 @@
         gpuTimer: rec.gpu.ext ? { ok: rec.gpu.ok, disjoint: rec.gpu.bad, foreignFrames: rec.gpu.foreign,
           requested: rec.gpu.req, coverage: rec.gpu.req ? +(rec.gpu.ok / rec.gpu.req).toFixed(3) : null, subsystemFrames: rec.gpu.subF, rogue: rec.gpu.rogue, nested: rec.gpu.nest } : null,
         programs: rec.pid ? rec.pid.summary() : null,   // PERF-TRACE: the program registry's count (owned / unowned / seen ready / drawn) and its own cost
+        seen: typeof VIS !== 'undefined' ? { start: VIS.start, now: seenNow(), hidden: VIS.hidden, blurs: VIS.blur } : null,   // PERF-TRACE: the page's visibility and focus
       };
       const R = rec.renderer;
       if (R && R.domElement) H.canvas = { w: R.domElement.width, h: R.domElement.height, cssW: R.domElement.clientWidth, cssH: R.domElement.clientHeight, pixelRatio: R.getPixelRatio ? R.getPixelRatio() : null };
@@ -687,11 +688,17 @@
   if (W.document && W.document.addEventListener) {
     W.document.addEventListener('visibilitychange', () => {
       const h = !!W.document.hidden;
+      if (h) VIS.hidden++;
       REC.event('vis', null, null, h ? 'hidden' : 'visible');
       if (h && STORE) STORE.flush(true);
     });
   }
 
+  // PERF-TRACE (22 Nov; PERF-LEAD): WAS THE PAGE SEEN? A hidden or unfocused page is throttled by the browser and its
+  // frames mean nothing. The page's visibility and focus at this script, and now (the header's `seen`), with how often
+  // it was hidden and lost the focus in between ('vis' and 'focus' events say when).
+  const seenNow = () => { try { const d = W.document; return d ? { state: d.visibilityState || null, focus: typeof d.hasFocus === 'function' ? !!d.hasFocus() : null } : null; } catch (e) { return null; } };
+  const VIS = { start: seenNow(), hidden: 0, blur: 0 };
   // =================================================================================================================
   // THE PAGE'S RECORDER: one, from this script on
   // =================================================================================================================
@@ -757,6 +764,8 @@
       + (errs <= 3 && e && e.error && e.error.stack ? ' | ' + String(e.error.stack).split('\n').slice(1, 7).map(s => s.trim().replace(/https?:\/\/[^ )]*\//g, '')).join(' < ').slice(0, 600) : '')); });
     W.addEventListener('unhandledrejection', e => { if (++errs <= 200) ev('err', null, null, 'rejection: ' + String(e && e.reason && (e.reason.message || e.reason)).slice(0, 200)); });
     W.addEventListener('pagehide', () => { ev('pagehide', null, null, null); if (STORE) STORE.flush(true); });
+    W.addEventListener('blur', () => { VIS.blur++; ev('focus', null, null, 'blur'); });
+    W.addEventListener('focus', () => { ev('focus', null, null, 'focus'); });
   }
   // PERF-TRACE: the browser keeps 250 resource timings by default and a load fetches more: room for all of them (the log's `resources`)
   try { if (!OFF && perf.setResourceTimingBufferSize) perf.setResourceTimingBufferSize(4000); } catch (e) {}
