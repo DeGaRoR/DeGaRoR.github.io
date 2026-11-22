@@ -417,7 +417,7 @@ base (its reference block is REAL-FIGURES': best glide 40.5), so it is read with
 |---|---|---|---|
 | master (L40H) | 0.287 m² | 24.2 | 0.92 m/s |
 | the plan as built | 0.260 | 32.0 | 0.68 |
-| build 10 | 0.179 | 34.8 | - |
+| build 10 | 0.179 | about 35 (scaled from the drag areas, not run) | - |
 | **build 10, the card's steps and handles off** | 0.158 | **37.8** (book 40.5: -7 %) | 0.61 |
 
 Its body is 0.022 m² (half its skin laminar, soft corners, no steps), its wing's section 43 % under the turbulent
