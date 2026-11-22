@@ -1,5 +1,5 @@
-FAIL (28 of 122 gates run; PARTIAL: 10 of 23 chunks, 242 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE
+FAIL (32 of 129 gates run; PARTIAL: 11 of 23 chunks, 235 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK
 L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -2256,6 +2256,718 @@ metal Cessna:
 51 checks, 1 failed
 GATE DMGSETTLE: FAIL
 (exit code 1)
+######## chunk 10 of 23 (7 gates) ########
+=== DMGDRIVE ===
+1. THE BANDS AND THE TIERS (the laws, 33_drive.js)
+  ok    the engine 8.0 % over its maximum for 30 s reaches 'logged' (want 'logged'; dose 0.00) - SB 369: up to 10 % - no action, a logbook entry [as recalled - A0 to open]
+  ok    the engine 15.0 % over its maximum for 2 s reaches 'inspect' (want 'inspect'; dose 0.00) - SB 369: 10-20 % - the prop off, the flange's run-out, the valve train [as recalled - A0 to open]
+  ok    the engine 15.0 % over its maximum for 0.5 s reaches 'none' (want 'none'; dose 0.00) - the 1 s filter (a frame's tick is not an overspeed: nothing logged, the peak kept) [GAME - no source]
+  ok    the engine 25.0 % over its maximum for 1.5 s reaches 'overhaul' (want 'overhaul'; dose 0.00) - SB 369: past 20 % - the engine overhauled [as recalled - A0 to open]
+  ok    the engine 35.0 % over its maximum for 2 s reaches 'overhaul' (want 'overhaul'; dose 0.20) - the failure dose 0.20 < 0.25 [GAME - no source]
+  ok    the engine 35.0 % over its maximum for 3 s reaches 'failed' (want 'failed'; dose 0.30) - the failure dose 0.30 >= 0.25: a thrown rod / valve [GAME - no source]
+  ok    the engine 50.0 % over its maximum for 1.05 s reaches 'failed' (want 'failed'; dose 0.26) - 50 % over for 1 s [GAME - no source]
+  (Lycoming Service Bulletin No. 369 family (engine inspection after overspeed; current letter not recalled))
+  ok    23.361(c): 4 cylinders -> limit torque = mean x 2 [as recalled - A0 to open]
+  ok    23.361(c): 3 cylinders -> limit torque = mean x 3 [as recalled - A0 to open]
+  ok    23.361(c): 2 cylinders -> limit torque = mean x 4 [as recalled - A0 to open]
+  ok    23.361(c): 6 cylinders -> limit torque = mean x 1.33 [as recalled - A0 to open]
+  ok    23.361(c): 9 cylinders -> limit torque = mean x 1.33 [as recalled - A0 to open]
+  ok    23.361(c): a turboprop -> limit torque = mean x 1.25 [as recalled - A0 to open]
+  ok    a strike 2 % into the disc (soft, tip 200 m/s, the blade's 120): brush - tips dressed on the ground (no separation on a soft brush) [GAME - no source]
+  ok    a strike 10 % into the disc (soft, tip 80 m/s, the blade's 120): bent - a bite of 10 % into the ground at idle: bent [GAME - no source]
+  ok    a strike 30 % into the disc (soft, tip 80 m/s, the blade's 120): stoppage - 30 %: the prop stopped (SB 533's sudden stoppage) [GAME - no source]
+  ok    a strike 10 % into the disc (rigid, tip 80 m/s, the blade's 120): stoppage - a trunk 10 % into the disc stops it [GAME - no source]
+  ok    a strike 20 % into the disc (water, tip 80 m/s, the blade's 120): bent - the water gives: bent at 20 % [GAME - no source]
+  ok    a strike 3 % into the disc (rigid, tip 211 m/s, the blade's 120): separation - a wood tip grazing a trunk at full power breaks off [GAME - no source]
+  ok    a strike 3 % into the disc (rigid, tip 150 m/s, the blade's 200): brush - an alloy tip at 150 m/s only dents [GAME - no source]
+  ok    a strike 10 % into the disc (soft, tip 211 m/s, the blade's 120): separation - wood into the ground at full power: a blade breaks [GAME - no source]
+  ok    a strike 5 % into the disc (water, tip 150 m/s, the blade's 120): bent - carbon into the water at 150 m/s bends (the water gives: 1.6 x the tip speed) [GAME - no source]
+  ok    a strike 100 % into the disc (rigid, tip 65 m/s, the blade's 120, eR 24.7): separation - a wood prop at idle into a trunk: its blades break (the engine stops; the hub stays on its flange) [as recalled - A0 to open]
+  ok    a strike 100 % into the disc (rigid, tip 13 m/s, the blade's 120, eR 0.5): stoppage - a wood prop barely turning (eR 0.5) into a trunk stops whole [as recalled - A0 to open]
+  ok    a strike 3 % into the disc (rigid, tip 65 m/s, the blade's 120, eR 24.7): brush - a wood tip grazing a trunk at idle: a brush still (the energy grades past the brush only) [as recalled - A0 to open]
+  ok    a strike 6 % into the disc (hard, tip 80 m/s, the blade's 200): stoppage - an alloy prop 6 % into the paving at idle: stopped (soft ground: bent) [GAME - no source]
+  ok    a strike 3 % into the disc (hard, tip 236 m/s, the blade's 200): brush - a tip grazing the paving: a brush [GAME - no source]
+  ok    a strike 6 % into the disc (hard, tip 236 m/s, the blade's 200): separation - the 172 at full power 6 % into the runway: a blade lost - and it stops (the stop at 4 % on hard ground) [GAME - no source]
+(1227 s, 6 builds; damage on, on the certificate)
+Cub:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (52.17 m/s, throttle 1.00): 2581 rpm against 2300 (12.2 %), tip Mach 0.79 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (63.76 m/s, throttle 1.00): 2798 rpm against 2300 (21.7 %), tip Mach 0.86 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (52.17 m/s, throttle 0.65): 2299 rpm against 2300 (-0.1 %), tip Mach 0.71 -> 'none' - no exceedance
+  ok    VNE idle (52.17 m/s, throttle 0.00): 1654 rpm against 2300 (-28.1 %), tip Mach 0.52 -> 'none' - no exceedance
+  ok    VNE off (52.17 m/s, throttle 0.00): 1528 rpm against 2300 (-33.6 %), tip Mach 0.49 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.02 s in, the strike 0.08 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.18 R, tip 111 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.05 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.20 R, tip 111 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.20 R, tip 112 m/s), the engine stopped, a teardown owed
+  ok    a brush (2 cm of soil past the turf's 10 cm, the surface allowance): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s (0.75 m across the nose, clear of the spinner - G2035): 'separation' (tip 128 m/s: the blades broke off), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2116 rpm, tip 212 m/s): a blade breaks off and the prop turns on short of it - 30.73 kN of imbalance (m e w^2) - the mount holds, the engine shakes (ENGINE-LUMP) [GAME - no source]
+  ok      ... and the prop never turns on through the trunk: after the blade breaks (3.00 cm bite) the trunk reaching past it + 1 cm (deepest 2.29 cm, one frame of the shaking hub) stops it 1 frame(s) later (the next frame at the latest)
+  ok    the same graze at idle (644 rpm, tip 64 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 402.73 N m (mean 201.37 x 1 through the reduction x 2, 4 cylinders); the prop's I 1.14 kg m2 at 240.86 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.14 of its yield, MNTTR-S0TR) and lets go at 7.37 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.04 of its yield, MNTBL-S0BL) and lets go at 23.27 x it (MNTBL-S0BL: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.04 of its yield, MNTBR-S0BR) and lets go at 23.27 x it (MNTBR-S0BR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.08 of its yield, MNTTL-S0TL) and lets go at 11.83 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.08 of its yield, MNTTR-S0TR) and lets go at 11.83 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.13 of its yield, MNTTL-S0TL) and lets go at 7.98 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.13 of its yield, MNTTR-S0TR) and lets go at 7.98 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.38, pitch 2.10 rad/s (2.10 x 23.371's) - the mount at 0.14 of its certified yield (MNTTR-S0TR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2248 rpm, the disc's least clearance 0.24 m
+  ok    a 4.07 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance 0.24 m
+  ok    (and the classic: FULL brakes from 12 m/s stand the taildragger on its nose - 'stoppage' (bite 0.16 R), the engine stopped, a teardown owed)
+Jodel:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (60.85 m/s, throttle 1.00): 2594 rpm against 2300 (12.8 %), tip Mach 0.77 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (74.37 m/s, throttle 1.00): 2828 rpm against 2300 (22.9 %), tip Mach 0.85 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (60.85 m/s, throttle 0.65): 2314 rpm against 2300 (0.6 %), tip Mach 0.69 -> 'logged' (inside SB 369's no-action band: 7.77 s logged) - no exceedance
+  ok    VNE idle (60.85 m/s, throttle 0.00): 1674 rpm against 2300 (-27.2 %), tip Mach 0.52 -> 'none' - no exceedance
+  ok    VNE off (60.85 m/s, throttle 0.00): 1550 rpm against 2300 (-32.6 %), tip Mach 0.48 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.03 s in, the strike 0.10 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.16 R, tip 106 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.05 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.19 R, tip 106 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.21 R, tip 107 m/s), the engine stopped, a teardown owed
+  ok    a brush (2 cm of soil past the turf's 10 cm, the surface allowance): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s (0.75 m across the nose, clear of the spinner - G2035): 'separation' (tip 122 m/s: the blades broke off), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2116 rpm, tip 203 m/s): a blade breaks off and the prop turns on short of it - 26.46 kN of imbalance (m e w^2) - the mount holds, the engine shakes (ENGINE-LUMP) [GAME - no source]
+  ok      ... and the prop never turns on through the trunk: after the blade breaks (3.00 cm bite) the trunk reaching past it + 1 cm (deepest 3.72 cm, one frame of the shaking hub) stops it 1 frame(s) later (the next frame at the latest)
+  ok    the same graze at idle (644 rpm, tip 62 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 402.73 N m (mean 201.37 x 1 through the reduction x 2, 4 cylinders); the prop's I 0.94 kg m2 at 240.86 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.12 of its yield, MNTTR-S0TR) and lets go at 8.58 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.04 of its yield, MNTTL-S0TL) and lets go at 24.03 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.04 of its yield, MNTTR-S0TR) and lets go at 24.03 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.08 of its yield, MNTTL-S0TL) and lets go at 12.52 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.08 of its yield, MNTTR-S0TR) and lets go at 12.52 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.11 of its yield, MNTTL-S0TL) and lets go at 9.29 x it (MNTTL-S0TL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.11 of its yield, MNTTR-S0TR) and lets go at 9.29 x it (MNTTR-S0TR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.19, pitch 2.60 rad/s (2.60 x 23.371's) - the mount at 0.13 of its certified yield (MNTBL-S0BL; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2243 rpm, the disc's least clearance 0.19 m
+  ok    a 3.91 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance 0.19 m
+  ok    (and the classic: FULL brakes from 12 m/s stand the taildragger on its nose - 'stoppage' (bite 0.15 R), the engine stopped, a teardown owed)
+metal Cessna:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (84.02 m/s, throttle 1.00): 2972 rpm against 2450 (21.3 %), tip Mach 0.93 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  FAIL  1.1 VD full (102.69 m/s, throttle 1.00): 3262 rpm against 2450 (33.1 %), tip Mach 1.02 -> 'failed', rough (thrust x 0.00, the teardown owed) [as recalled - A0 to open]
+  FAIL  VNE cruise (84.02 m/s, throttle 0.65): 2698 rpm against 2450 (10.1 %), tip Mach 0.85 -> 'inspect' - no exceedance
+  ok    VNE idle (84.02 m/s, throttle 0.00): 2087 rpm against 2450 (-14.8 %), tip Mach 0.68 -> 'none' - no exceedance
+  ok    VNE off (84.02 m/s, throttle 0.00): 1974 rpm against 2450 (-19.4 %), tip Mach 0.64 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    a nose-over at 2 m/s: the disc meets the ground 0.02 s in, the strike 0.07 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.17 R, tip 118 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 4 m/s: the disc meets the ground 0.02 s in, the strike 0.05 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.21 R, tip 118 m/s), the engine stopped, a teardown owed
+  ok    a nose-over at 8 m/s: the disc meets the ground 0.02 s in, the strike 0.03 s (the base: only once the nose's nodes did; the window + the surface allowance, 10 cm dug at V) - 'stoppage' (bite 0.26 R, tip 118 m/s), the engine stopped, a teardown owed
+  ok    a brush (2 cm of soil past the turf's 10 cm, the surface allowance): 'brush', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)
+  ok    a trunk in the disc at 3 m/s (0.75 m across the nose, clear of the spinner - G2035): 'stoppage' (tip 136 m/s), the engine stopped (a sudden stoppage)
+  ok    a trunk grazing the tips (3 cm) at full power (2254 rpm, tip 225 m/s): a blade breaks off and the prop turns on short of it - 60.47 kN of imbalance (m e w^2) - the mount holds, the engine shakes (ENGINE-LUMP) [GAME - no source]
+  ok      ... and the prop never turns on through the trunk: after the blade breaks (3.00 cm bite) the trunk reaching past it + 1 cm (deepest 1.63 cm, one frame of the shaking hub) stops it 1 frame(s) later (the next frame at the latest)
+  ok    the same graze at idle (686 rpm, tip 68 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 922.71 N m (mean 461.35 x 1 through the reduction x 2, 4 cylinders); the prop's I 1.97 kg m2 at 256.56 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.17 of its yield, MNTTR-S0BR) and lets go at 5.78 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.04 of its yield, MNTTL-S0BL) and lets go at 22.69 x it (MNTTL-S0BL: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.04 of its yield, MNTTR-S0BR) and lets go at 22.69 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.16 of its yield, MNTTR-S0TL) and lets go at 6.28 x it (MNTTR-S0TL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.16 of its yield, MNTTL-S0TR) and lets go at 6.28 x it (MNTTL-S0TR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.12 of its yield, MNTTL-S0BL) and lets go at 8.23 x it (MNTTL-S0BL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.12 of its yield, MNTTR-S0BR) and lets go at 8.23 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.18, pitch 3.11 rad/s (3.11 x 23.371's) - the mount at 0.13 of its certified yield (MNTTL-S0TL; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2444 rpm, the disc's least clearance 0.22 m
+  FAIL  a 4.36 g pull at full power: no strike, no exceedance
+  ok    half brakes from 12 m/s (the nose dips): no strike - the disc's least clearance 0.22 m
+Cessna floats:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (79.55 m/s, throttle 1.00): 2947 rpm against 2575 (14.5 %), tip Mach 0.99 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (97.23 m/s, throttle 1.00): 3218 rpm against 2575 (25.0 %), tip Mach 1.08 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (79.55 m/s, throttle 0.58): 2575 rpm against 2575 (-0.0 %), tip Mach 0.87 -> 'none' - no exceedance
+  ok    VNE idle (79.55 m/s, throttle 0.00): 1947 rpm against 2575 (-24.4 %), tip Mach 0.68 -> 'none' - no exceedance
+  ok    VNE off (79.55 m/s, throttle 0.00): 1813 rpm against 2575 (-29.6 %), tip Mach 0.64 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    the bow digging in at 90 km/h, 5 m/s, 20 deg (the ordinary water case): the disc clears the water by 0.34 m - no strike, the engine running
+  ok    the bow digging in at 150 km/h, 10 m/s, 60 deg (TREECRASH's severe nose-in): the disc strikes the WATER - 'stoppage', the engine stopped
+  OPEN  the Cessna on floats, a trunk grazing the tips at full power (2369 rpm): a blade breaks off, 87.83 kN of imbalance, the mount holds; first to go: nothing [owner Deform G2398; opened 2026-10-25 by HYDRO-TRIM G3448]
+  ok    the same graze at idle (721 rpm, tip 78 m/s): 'brush', the engine runs, the mount holds
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 863.15 N m (mean 648.98 x 1 through the reduction x 1.33, 6 cylinders); the prop's I 2.80 kg m2 at 269.65 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.15 of its yield, MNTTR-S0BR) and lets go at 6.52 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.04 of its yield, MNTTL-S0BL) and lets go at 23.92 x it (MNTTL-S0BL: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.04 of its yield, MNTTR-S0BR) and lets go at 23.92 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.13 of its yield, MNTTL-S0BL) and lets go at 7.76 x it (MNTTL-S0BL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.13 of its yield, MNTTR-S0BR) and lets go at 7.76 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.11 of its yield, MNTTL-S0BL) and lets go at 9.10 x it (MNTTL-S0BL: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.11 of its yield, MNTTR-S0BR) and lets go at 9.10 x it (MNTTR-S0BR: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.46, pitch 1.57 rad/s (1.57 x 23.371's) - the mount at 0.11 of its certified yield (MNTTR-S0TR; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 2535 rpm, the disc's least clearance 0.50 m
+  ok    a 4.77 g pull at full power: no strike, no exceedance
+twin floatplane:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (52.24 m/s, throttle 1.00): 7324 rpm against 6800 (7.7 %), tip Mach 0.86 -> 'logged' [as recalled - A0 to open]
+  ok    1.1 VD full (63.85 m/s, throttle 1.00): 7963 rpm against 6800 (17.1 %), tip Mach 0.94 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    VNE cruise (52.24 m/s, throttle 0.48): 6119 rpm against 6800 (-10.0 %), tip Mach 0.72 -> 'none' - no exceedance
+  ok    VNE idle (52.24 m/s, throttle 0.00): 4724 rpm against 6800 (-30.5 %), tip Mach 0.57 -> 'none' - no exceedance
+  ok    VNE off (52.24 m/s, throttle 0.00): 4372 rpm against 6800 (-35.7 %), tip Mach 0.53 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    the bow digging in at 90 km/h, 5 m/s, 20 deg (the ordinary water case): the disc strikes the WATER (the base: no strike on water at all) - 'bent', the engine stopped
+  ok    the bow digging in at 150 km/h, 10 m/s, 60 deg (TREECRASH's severe nose-in): the disc strikes the WATER - 'stoppage', the engine stopped
+  OPEN  the twin on floats, a trunk grazing the tips at full power (2282 rpm): a blade breaks off, 23.84 kN of imbalance, the mount holds; first to go: nothing [owner Deform G2398, opened 2026-10-08]
+  ok    the same graze at idle (695 rpm, tip 69 m/s): 'brush', the engine runs, the mount holds
+  ok    4. the gearbox (Rotax 582 (B / C / E gearbox) and 912 Maintenance Manuals [as recalled - A0 to open]): a stoppage at full power shears the drive - the engine runs away unloaded (9860 rpm, 45.0 %) and throws a rod 1.27 s later [GAME - no source]
+  ok    4. a stoppage at idle: the engine stops ('separation'), the gearbox marked for its inspection (Rotax's manual after a strike) [as recalled - A0 to open]
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 739.03 N m (mean 70.52 x 2.62 through the reduction x 4, 2 cylinders); the prop's I 0.76 kg m2 at 259.80 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.25 of its yield, CGE-WF) and lets go at 3.93 x it (CGE-WF: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.06 of its yield, CGE-WF) and lets go at 17.82 x it (CGE-WF: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.06 of its yield, CGE-WF) and lets go at 17.82 x it (CGE-WF: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.22 of its yield, CGE-WF) and lets go at 4.49 x it (CGE-WF: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.22 of its yield, CGE-WF) and lets go at 4.49 x it (CGE-WF: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.20 of its yield, CGE-WF) and lets go at 4.90 x it (CGE-WF: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.20 of its yield, CGE-WF) and lets go at 4.90 x it (CGE-WF: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.88, pitch 3.09 rad/s (3.09 x 23.371's) - the mount at 0.40 of its certified yield (MNTR-WF; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 6422 rpm, the disc's least clearance 0.40 m
+  ok    a 5.07 g pull at full power: no strike, no exceedance
+Super Petrel:
+2. THE DIVES (Lycoming Service Bulletin No. 369 family)
+  ok    VNE full (64.92 m/s, throttle 1.00): 6560 rpm against 5800 (13.1 %), tip Mach 0.71 -> 'inspect' (SB 369: an inspection) [as recalled - A0 to open]
+  ok    1.1 VD full (79.35 m/s, throttle 1.00): 7122 rpm against 5800 (22.8 %), tip Mach 0.78 -> 'overhaul', rough (thrust x 0.85, the teardown owed) [as recalled - A0 to open]
+  ok    VNE cruise (64.92 m/s, throttle 0.65): 5855 rpm against 5800 (0.9 %), tip Mach 0.64 -> 'logged' (inside SB 369's no-action band: 8.83 s logged) - no exceedance
+  ok    VNE idle (64.92 m/s, throttle 0.00): 4250 rpm against 5800 (-26.7 %), tip Mach 0.48 -> 'none' - no exceedance
+  ok    VNE off (64.92 m/s, throttle 0.00): 3938 rpm against 5800 (-32.1 %), tip Mach 0.45 -> 'none' - no exceedance
+3. THE STRIKES (Lycoming Service Bulletin No. 533 family: any strike -> a teardown) [as recalled - A0 to open]
+  ok    the bow digging in at 90 km/h, 5 m/s, 20 deg (the ordinary water case): the disc strikes the WATER (the base: no strike on water at all) - 'stoppage', the engine stopped
+  ok    the bow digging in at 150 km/h, 10 m/s, 60 deg (TREECRASH's severe nose-in): the disc strikes the WATER - 'stoppage', the engine stopped
+  ok    a trunk grazing the tips (3 cm) at full power (2196 rpm, tip 184 m/s): a blade breaks off and the prop turns on short of it - 11.87 kN of imbalance (m e w^2) - the mount holds, the engine shakes (ENGINE-LUMP) [GAME - no source]
+  ok      ... and the prop never turns on through the trunk: after the blade breaks (3.00 cm bite) the trunk reaching past it + 1 cm (deepest 1.32 cm, one frame of the shaking hub) stops it 1 frame(s) later (the next frame at the latest)
+  ok    the same graze at idle (668 rpm, tip 56 m/s): 'brush', the engine runs, the mount holds
+  ok    4. the gearbox (Rotax 582 (B / C / E gearbox) and 912 Maintenance Manuals [as recalled - A0 to open]): a stoppage at full power shears the drive - the engine runs away unloaded (8410 rpm, 45.0 %) and throws a rod 1.27 s later [GAME - no source]
+  ok    4. a stoppage at idle: the engine stops ('separation'), the gearbox marked for its inspection (Rotax's manual after a strike) [as recalled - A0 to open]
+5. THE MOUNT (23.361 / .363 / .371 as certificate cases; the stamped members) [as recalled - A0 to open]
+  --    the limit torque 588.12 N m (mean 121.01 x 2.43 through the reduction x 2, 4 cylinders); the prop's I 0.51 kg m2 at 249.95 rad/s; the drive cases govern none of the mount members' limits
+  ok    torque361: the mount holds it with no set (worst 0.15 of its yield, ENGL-WF) and lets go at 6.53 x it (ENGL-WF: past the ultimate, 1.5)
+  ok    side363R: the mount holds it with no set (worst 0.03 of its yield, CGE-WR) and lets go at 30.70 x it (CGE-WR: past the ultimate, 1.5)
+  ok    side363L: the mount holds it with no set (worst 0.03 of its yield, CGE-WR) and lets go at 30.70 x it (CGE-WR: past the ultimate, 1.5)
+  ok    gyro371a: the mount holds it with no set (worst 0.07 of its yield, ENGL-S3TL) and lets go at 14.61 x it (ENGL-S3TL: past the ultimate, 1.5)
+  ok    gyro371b: the mount holds it with no set (worst 0.07 of its yield, ENGR-S3TR) and lets go at 14.61 x it (ENGR-S3TR: past the ultimate, 1.5)
+  ok    gyro371c: the mount holds it with no set (worst 0.16 of its yield, ENGL-WF) and lets go at 6.30 x it (ENGL-WF: past the ultimate, 1.5)
+  ok    gyro371d: the mount holds it with no set (worst 0.16 of its yield, ENGR-WF) and lets go at 6.30 x it (ENGR-WF: past the ultimate, 1.5)
+  ok    the snap-roll entry (the controls full at V_A): yaw 1.18, pitch 2.78 rad/s (2.78 x 23.371's) - the mount at 0.21 of its certified yield (ENGR-WF; no gyroscopic couple in the flown sim: the certificate carries it)
+6. NORMAL OPERATIONS NEVER TOUCH IT
+  ok    the circuit (null, 340 s; the take-off at full power): no strike, no exceedance - the engine's peak 5671 rpm, the disc's least clearance 0.17 m
+  ok    a 3.65 g pull at full power: no strike, no exceedance
+  --    the teardown's internal damage (seeded, 15 %): AOPA, 2007 (the DEFORM doc §10.2's line: only 10-20 % of the engines torn down after a strike show internal damage) 10-20 % - a ratio for the bill, never a gate
+  159/162 checks
+GATE DMGDRIVE: FAIL
+(exit code 1)
+=== DMGNOSEOVER ===
+  ok    metal home 12 m/s (the 172 on its nosewheel): no strike, no nose contact, not damaged
+  52/52 checks
+GATE DMGNOSEOVER: PASS
+=== DMGSKINGPU ===
+  ok    RIDE_VS carries the mirror's steps (the 8 slots on the dominant's hemisphere, the normalised turn, the offset turned, the drape, the frame, B^T n)
+  57/57 checks
+GATE DMGSKINGPU: PASS
+=== DMGPAGEW ===
+  the cut-through at the end: {"recs":55,"copies":10138,"clipped":9220,"meshes":57,"bad":0}
+  ok    the worker's breaks on the page, the skin break and the debris ran there
+GATE DMGPAGEW: PASS
+=== DMGWRECK ===
+(178 s, 5 builds; CRUSH 6 cm, E_BEND 40 kJ, E_BREAK 150 kJ, the eye clear 10 cm)
+Cub:
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 128 broken, 124 damage payloads
+    released: blade (strike, t 1.32 s), pane (crushed 11 cm, t 1.4 s), wheel (off, t 1.42 s), cowl (crushed 32 cm, t 1.47 s); 4 parts stay on
+    prop strike (engine 0, trunk, a wood prop, t 1.32 s): 1054 rpm, the hub at 4.84 m/s - E 17.2 kJ (spin 11.6, impact 5.6): EVERY BLADE SNAPS (at 100 % / 65 % of the radius; the stubs stay), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (f3311b9e)
+    body blade (strike): at rest after 2.84 s, 1.52 m from the wreck, its lowest corner -0.0 cm over the ground, the deepest corner -51.2 cm in cabin bay 5
+    body pane (crushed): at rest after 2.77 s, 8.26 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body wheel (off): at rest after 3.73 s, 22.92 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 3.75 s, 9.41 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: -0.0, 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -51.2 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 4 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "separation" (engine 0): curl 0.00 / 0.00, cut 1.00 / 0.65
+    DMG-DRIVE nose: crush 43.7 cm on trunk (core), strike separation
+  ok    a trunk at 30 m/s strikes the prop on the trunk, drawn
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-0)
+    the cockpit (eye in bay 1, 29 cm clear at rest): CRUSHED - the eye 2 cm from the crushed cabin's wall: the chase view
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 13 broken, 59 damage payloads
+    released: pane (crushed 7 cm, t 2.88 s); 6 parts stay on
+    prop strike (engine 0, ground, a wood prop, t 2.57 s): 1000 rpm, the hub at 26.25 m/s - E 174.9 kJ (spin 10.4, impact 164.4): the prop stops whole (a wooden one in the water, slow), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a wood prop, t 2.58 s): 1001 rpm, the hub at 26.25 m/s - E 174.9 kJ (spin 10.4, impact 164.5): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (7a263cb2)
+    body pane (crushed): at rest after 2.81 s, 0.79 m from the wreck, its lowest corner 0.0 cm over the ground, the deepest corner -0.0 cm in cabin bay 1
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -0.0 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.2 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "brush" (engine 0): curl 0.06 / 0.07, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 36.9 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-2.5)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 99 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 6 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (3c52252f)
+    DMG-DRIVE nose: crush 13.3 cm on trunk (spinner), strike none
+  ok    the 3 m/s taxi into a trunk crushes the nose / spinner on it (the DMG-DRIVE nose element)
+  ok    the taxi draws a strike only as DMG-DRIVE grades one (none graded: the prop drawn whole)
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (taxi)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 15 broken, 29 damage payloads
+    released: cowl (crushed 27 cm, t 0.13 s); 6 parts stay on
+    prop strike (engine 0, ground, a wood prop, t 0.02 s): 0 rpm, the hub at 50.06 m/s - E 598.0 kJ (spin 0.0, impact 598.0): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (cf13150a)
+    body cowl (crushed): at rest after 4.35 s, 5.74 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -249.4 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 43.7 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-ground)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 97 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+Jodel:
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 32 broken, 50 damage payloads
+    released: blade (strike, t 1.28 s), cowl (crushed 61 cm, t 1.32 s), pane (crushed 9 cm, t 1.35 s); 5 parts stay on
+    prop strike (engine 0, trunk, a wood prop, t 1.28 s): 991 rpm, the hub at 29.39 m/s - E 211.7 kJ (spin 8.4, impact 203.3): EVERY BLADE SNAPS (at 100 % / 65 % of the radius; the stubs stay), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (48e6344f)
+    body blade (strike): at rest after 4.08 s, 57.90 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 2.56 s, 33.39 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body pane (crushed): at rest after 2.66 s, 18.54 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1732.7 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 3 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "separation" (engine 0): curl 0.00 / 0.00, cut 1.00 / 0.65
+    DMG-DRIVE nose: crush 42.2 cm on trunk (core), strike separation
+  ok    a trunk at 30 m/s strikes the prop on the trunk, drawn
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-0)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a tail member broke), 17 broken, 22 damage payloads
+    released: nothing; 7 parts stay on
+    prop strike (engine 0, ground, a wood prop, t 1.53 s): 880 rpm, the hub at 23.85 m/s - E 140.5 kJ (spin 6.6, impact 133.8): the prop stops whole (a wooden one in the water, slow), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a wood prop, t 1.57 s): 854 rpm, the hub at 22.71 m/s - E 127.7 kJ (spin 6.3, impact 121.4): the prop stops whole (a wooden one in the water, slow), the spinner dented 0.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (2a88cb9e)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "brush" (engine 0): curl 0.06 / 0.07, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.32 / 0.39, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 0.0 cm on null, strike bent
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-2.5)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 6 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (77e9293b)
+    DMG-DRIVE nose: crush 12.6 cm on trunk (spinner), strike none
+  ok    the 3 m/s taxi into a trunk crushes the nose / spinner on it (the DMG-DRIVE nose element)
+  ok    the taxi draws a strike only as DMG-DRIVE grades one (none graded: the prop drawn whole)
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (taxi)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (an impact of 9 g), 30 broken, 60 damage payloads
+    released: cowl (crushed 28 cm, t 0.07 s); 6 parts stay on
+    prop strike (engine 0, ground, a wood prop, t 0.02 s): 0 rpm, the hub at 49.91 m/s - E 586.1 kJ (spin 0.0, impact 586.1): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (9a10c1e1)
+    body cowl (crushed): at rest after 4.47 s, 8.31 m from the wreck, its lowest corner -0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: -0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -406.4 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 42.2 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-ground)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+metal Cessna:
+  a trunk at 30 m/s, the centreline: CRASHED (broke up: the fuselage parted (TPB off the core)), 97 broken, 53 damage payloads
+    released: pane (crushed 9 cm, t 1.28 s), wheel (off, t 1.33 s), wheel (off, t 1.45 s); 4 parts stay on
+    prop strike (engine 0, ground, a alu prop, t 1.22 s): 985 rpm, the hub at 30.31 m/s - E 497.6 kJ (spin 10.0, impact 487.7): the blades bend aft and against the rotation (0.06 / 0.07 rad), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a alu prop, t 1.27 s): 975 rpm, the hub at 29.81 m/s - E 481.4 kJ (spin 9.8, impact 471.6): the blades bend aft and against the rotation (1.02 / 0.79 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (2255caea)
+    body pane (crushed): at rest after 3.77 s, 19.58 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body wheel (off): at rest after 6.27 s, 47.99 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+    body wheel (off): at rest after 3.72 s, 6.13 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: 0.0, 0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -479.5 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 3 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "brush" (engine 0): curl 0.06 / 0.07, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 1.02 / 0.79, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 43.6 cm on trunk (core), strike stoppage
+  FAIL  a trunk at 30 m/s strikes the prop on the trunk, drawn
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-0)
+    the cockpit (eye in bay 1, 31 cm clear at rest): CRUSHED - the cabin at 53 % of its volume: the chase view
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (broke up: the fuselage parted (TPB off the core)), 31 broken, 72 damage payloads
+    released: pane (crushed 26 cm, t 1.33 s); 6 parts stay on
+    prop strike (engine 0, ground, a alu prop, t 1.22 s): 985 rpm, the hub at 30.31 m/s - E 497.6 kJ (spin 10.0, impact 487.7): the blades bend aft and against the rotation (0.06 / 0.07 rad), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a alu prop, t 2.22 s): 747 rpm, the hub at 25.16 m/s - E 341.9 kJ (spin 5.7, impact 336.1): the blades bend aft and against the rotation (0.47 / 0.48 rad), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a alu prop, t 2.23 s): 750 rpm, the hub at 25.31 m/s - E 345.7 kJ (spin 5.8, impact 339.9): the blades bend aft and against the rotation (0.72 / 1.07 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (ffc6b0b8)
+    body pane (crushed): at rest after 3.13 s, 31.57 m from the wreck, its lowest corner -0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: -0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -2509.3 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "brush" (engine 0): curl 0.06 / 0.07, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.47 / 0.48, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.72 / 1.07, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 32.0 cm on ground (prop), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (trunk-2.5)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a taxi into a trunk at 3 m/s, the throttle shut: no crash, 0 broken, 10 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (22c72172)
+    DMG-DRIVE nose: crush 23.5 cm on trunk (spinner), strike none
+  ok    the 3 m/s taxi into a trunk crushes the nose / spinner on it (the DMG-DRIVE nose element)
+  ok    the taxi draws a strike only as DMG-DRIVE grades one (none graded: the prop drawn whole)
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (taxi)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 33 broken, 44 damage payloads
+    released: pane (crushed 9 cm, t 0.03 s), cowl (crushed 25 cm, t 0.15 s); 5 parts stay on
+    prop strike (engine 0, ground, a alu prop, t 0.03 s): 998 rpm, the hub at 50.35 m/s - E 1355.8 kJ (spin 10.2, impact 1345.5): the blades bend aft and against the rotation (0.85 / 0.80 rad), the spinner dented 0.0 cm
+    prop strike (engine 0, ground, a alu prop, t 0.05 s): 1002 rpm, the hub at 49.47 m/s - E 1309.5 kJ (spin 10.3, impact 1299.2): the blades bend aft and against the rotation (0.86 / 0.73 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (338ea7e0)
+    body pane (crushed): at rest after 3.73 s, 43.10 m from the wreck, its lowest corner -0.0 cm over the ground, no cabin bay near
+    body cowl (crushed): at rest after 4.35 s, 37.35 m from the wreck, its lowest corner 0.0 cm over the ground, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: -0.0, 0.0 cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -3290.7 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 2 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.85 / 0.80, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.86 / 0.73, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 43.6 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-ground)
+    the cockpit (eye in bay 1, 31 cm clear at rest): clear (31 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  FAIL  nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+Cessna floats:
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 89 broken, 28 damage payloads
+    released: cowl (off, t 0.18 s); 3 parts stay on
+    prop strike (engine 0, water, a alu prop, t 0.13 s): 1018 rpm, the hub at 41.54 m/s - E 836.0 kJ (spin 15.2, impact 820.9): the blades bend aft and against the rotation (0.55 / 0.44 rad), the spinner dented 0.0 cm
+    prop strike (engine 0, water, a alu prop, t 0.15 s): 1026 rpm, the hub at 42.18 m/s - E 861.5 kJ (spin 15.4, impact 846.1): the blades bend aft and against the rotation (0.96 / 0.75 rad), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (2b24321e)
+    body cowl (off): SUNK (out of sight) after 3.96 s, 23.85 m from the wreck, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: sunk cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -1643.5 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+    DMG-DRIVE graded the strike "bent" (engine 0): curl 0.55 / 0.44, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.96 / 0.75, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 43.0 cm on ground (bowl), strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-water)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  the float nose-in (90 km/h, 5 m/s, 20 deg): no crash, 0 broken, 0 damage payloads
+    released: nothing; 4 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (94a177e2)
+    DMG-DRIVE nose: crush 0.0 cm on null, strike none
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (float-nosein)
+    the cockpit (eye in bay 1, 45 cm clear at rest): clear (45 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+twin floatplane:
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 34 broken, 35 damage payloads
+    released: pane (crushed 15 cm, t 0.28 s); 6 parts stay on
+    prop strike (engine 0, water, a carbon prop, t 0.15 s): 1104 rpm, the hub at 32.11 m/s - E 257.2 kJ (spin 12.7, impact 244.6): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+    prop strike (engine 1, water, a carbon prop, t 0.15 s): 1104 rpm, the hub at 32.12 m/s - E 257.4 kJ (spin 12.7, impact 244.7): the prop stops whole (a wooden one in the water, slow), the spinner dented 6.0 cm
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (87e1e9dc)
+    body pane (crushed): SUNK (out of sight) after 0 s, 25.27 m from the wreck, no cabin bay near
+  ok    every body finite
+  ok    every body comes to rest (within 20 s)
+  ok    every body rests ON the surface (its lowest corner within 3 cm: sunk cm) or has sunk out of sight
+  ok    the clip: no body corner inside a live cabin bay deeper than 5 cm (worst -2267.9 cm)
+  ok    the frame rate does not move the debris: stepped at 12 frames a second, the same 1 releases at rest within 0.0 cm of the 60 fps rest
+  ok    the strike is seeded: the same strike, the same answer (engine 0)
+  ok    the strike is seeded: the same strike, the same answer (engine 1)
+    DMG-DRIVE graded the strike "stoppage" (engine 0): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE graded the strike "stoppage" (engine 1): curl 0.00 / 0.00, cut 1.00 / 1.00
+    DMG-DRIVE nose: crush 0.0 cm on null, strike stoppage
+    DMG-DRIVE nose: crush 0.0 cm on null, strike stoppage
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (nosein-water)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 96 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  the float nose-in (90 km/h, 5 m/s, 20 deg): no crash, 0 broken, 0 damage payloads
+    released: nothing; 7 parts stay on
+  ok    the crash flown finite with the wreck layer reading it
+  ok    the wreck layer only reads: the crash ends on the same bits with it and without it (7dcd84be)
+    DMG-DRIVE nose: crush 0.0 cm on null, strike none
+    DMG-DRIVE nose: crush 0.0 cm on null, strike none
+  ok    a cowl / spinner leaves only loose, off or torn past 25 cm (float-nosein)
+    the cockpit (eye in bay 1, 29 cm clear at rest): clear (29 cm, the bay at 100 % of its volume)
+  ok    damage OFF: no payload, nothing released, no body (0 strikes the solver itself does not make), the same bits as without the layer
+  ok    nothing broken (a FAR 23.473 drop, 0 yields): no payload, no release, no strike
+the drawn prop (synthetic, 2 blades of 0.95 m read off its vertices):
+  ok    the blade count read off the vertices: 2
+  ok    the curl keeps each blade's length (0.850 / 0.850 / 0.850 / 0.850 m)
+  ok    the tips curl aft (10.3 / 14.9 cm), the blades' inner 35 % untouched
+  ok    the spinner dented on the strike's side only (3.0 cm in; 0.00 cm behind)
+  ok    a wooden prop snaps on every blade at 25-45 % of its radius (44 / 32 %)
+  ok    an aluminium prop bends, none breaks (0.32 / 0.46 rad)
+  ok    in the water a slow wooden prop stops whole, an aluminium one bends less (0.14 / 0.17 rad)
+DMG-DRIVE's grade drawn (G1861.5):
+  ok    no strike graded: nothing drawn from DRIVE
+  ok    brush: the tips scuffed (0.06 / 0.06 rad), nothing lost, the spinner whole
+  ok    bent: curled back by the bite (biteR 0.06 -> k 0.18, 0.14 -> k 0.91)
+  ok    stoppage: a wooden prop stops whole below the separation tip speed, its tips splinter above it (91 / 89 %); an aluminium one fully curled; the spinner dented
+  ok    separation: ONE blade short by bladeLost (cut at 65 % of R), its piece a body
+  ok    seeded by the strike: the same grade at the same moment, the same picture
+  ok    under the physics worker the page's sim mirrors the breaks (dmgState) and DMG-DRIVE's grade (drv), saved and restored at detach; the prop reads the mirror first
+  ok    under the physics worker the wreck reads the worker's node velocities (vView) and engines (engView): released parts fly off, a seized prop stops
+  ok    app.js: the wreck path (debris, the strike's drawing, the cockpit rule) only through wreckFrame, returning at once unless the damage state holds damage or an engine has seized
+  161/163 checks
+GATE DMGWRECK: FAIL
+(exit code 1)
+=== DMGWALL ===
+cub
+  trunk-0 (an ensemble of 8, 8 with something broken): broken 104.5 [96.4-110.6], pieces 5 [5-6]; past 1 mm median 0.000 %, p90 0.001 %, worst 0.002 %; member 0: base 38.41 %, worst leak 0 m
+  ok    cub trunk-0: every member broke something (8/8)
+  ok    cub trunk-0: the wall out past 1 mm, the ensemble's median 0.000 % <= 2 % (p90 0.001 %)
+  ok    cub trunk-0: past 1 cm, the median 0.000 % <= 0.1 % (p90 0.000 %)
+  ok    cub trunk-0: past 5 cm, the median 0.000 % (p90 0.000 %)
+  ok    cub trunk-0: no compact part triangle past 1 % in any member
+  ok    cub trunk-0: every drawn position finite in every member
+  ok    cub trunk-0: no drawn tube triangle past 1.2 x its rest in any member (worst 1.200)
+  ok    cub trunk-0: places past 8 slots, the median 0.589 % <= 2 %
+  trunk-2.5 (an ensemble of 8, 8 with something broken): broken 36 [32.7-38.3], pieces 2 [2-3]; past 1 mm median 0.105 %, p90 0.194 %, worst 0.222 %; member 0: base 12.67 %, worst leak 0.0025 m
+  ok    cub trunk-2.5: every member broke something (8/8)
+  ok    cub trunk-2.5: the wall out past 1 mm, the ensemble's median 0.105 % <= 2 % (p90 0.194 %)
+  ok    cub trunk-2.5: past 1 cm, the median 0.000 % <= 0.1 % (p90 0.000 %)
+  ok    cub trunk-2.5: past 5 cm, the median 0.000 % (p90 0.000 %)
+  ok    cub trunk-2.5: no compact part triangle past 1 % in any member
+  ok    cub trunk-2.5: every drawn position finite in every member
+  ok    cub trunk-2.5: no drawn tube triangle past 1.2 x its rest in any member (worst 1.200)
+  ok    cub trunk-2.5: places past 8 slots, the median 0.589 % <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 24 broken, 4 pieces; leak base 0.04 % (worst 0.0042 m) -> 0.008 % (worst 0.0041 m, past 5 cm 0); rigid past 1 % base 386044 -> 0; torn w/o damage base 40 -> 27, w/o strain 344 -> 295; bind 251 ms, over 8 300/50905
+  ok    cub noseover: the wall out past 1 mm 0.008 % <= 2 % (the base 0.04 %)
+  ok    cub noseover: past 1 cm 0 of 1674998 (<= 0.1 %)
+  ok    cub noseover: past 5 cm 0 of 1674998
+  ok    cub noseover: no compact part triangle past 1 % (5266586 triangle-frames)
+  ok    cub noseover: every drawn position finite
+  ok    cub noseover: (reported - the sheet is held by GATE DMGPAGEW on the page's flow) the longest drawn live edge at rest over its rest, past 1.5 x: none (worst per class {"rigid":"1.377 (0.099 m / 0.072 m, group c9aa2ab, never torn)","fabric":"1.475 (0.023 m / 0.016 m, group c39c46a)","wall":"1.022 (0.014 m / 0.014 m, group scloth liner)","tube":"1.109 (0.723 m / 0.652 m, group stube struct, never torn)","keep":"1.026 (0.022 m / 0.022 m, group sdashFace panel)"})
+  ok    cub noseover: no weightless place (every kept weight 0: nothing to ride; 0 place-frames)
+  ok    cub noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.198, 2965353 triangle-frames)
+  ok    cub noseover: places past 8 slots 300 <= 2 %
+  nosein: 51 broken, 6 pieces; leak base 19.98 % (worst 17.6673 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 1432684 -> 0; torn w/o damage base 10 -> 20, w/o strain 4213 -> 1837; bind 335 ms, over 8 300/50905
+  ok    cub nosein: the wall out past 1 mm 0.000 % <= 2 % (the base 19.98 %)
+  ok    cub nosein: past 1 cm 0 of 6425 (<= 0.1 %)
+  ok    cub nosein: past 5 cm 0 of 6425
+  ok    cub nosein: no compact part triangle past 1 % (4209746 triangle-frames)
+  ok    cub nosein: every drawn position finite
+  NOTE  cub nosein: (reported - the sheet is held by GATE DMGPAGEW on the page's flow) the longest drawn live edge at rest over its rest, past 1.5 x: rigid (worst per class {"rigid":"4.596 (0.066 m / 0.014 m, group c9aa2ab, never torn)","held":"1.474 (0.05 m / 0.034 m, group sceilingLoop rail)","fabric":"1.886 (0.02 m / 0.011 m, group swaistband rail)","tube":"1.174 (0.071 m / 0.06 m, group stube struct, never torn)","wall":"1.011 (0.011 m / 0.011 m, group scloth liner)","keep":"1.654 (0.027 m / 0.016 m, group sdash pad)"})
+  ok    cub nosein: no weightless place (every kept weight 0: nothing to ride; 0 place-frames)
+  ok    cub nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.199, 2251516 triangle-frames)
+  ok    cub nosein: places past 8 slots 300 <= 2 %
+
+jodel
+  trunk-0 (an ensemble of 8, 8 with something broken): broken 142 [136.3-147], pieces 8 [7-9.3]; past 1 mm median 0.000 %, p90 0.000 %, worst 0.000 %; member 0: base 8.59 %, worst leak 0 m
+  ok    jodel trunk-0: every member broke something (8/8)
+  ok    jodel trunk-0: the wall out past 1 mm, the ensemble's median 0.000 % <= 2 % (p90 0.000 %)
+  ok    jodel trunk-0: past 1 cm, the median 0.000 % <= 0.1 % (p90 0.000 %)
+  ok    jodel trunk-0: past 5 cm, the median 0.000 % (p90 0.000 %)
+  ok    jodel trunk-0: no compact part triangle past 1 % in any member
+  ok    jodel trunk-0: every drawn position finite in every member
+  ok    jodel trunk-0: no drawn tube triangle past 1.2 x its rest in any member (worst 1.200)
+  ok    jodel trunk-0: places past 8 slots, the median 0.000 % <= 2 %
+  trunk-2.5 (an ensemble of 8, 8 with something broken): broken 81 [65.8-90.9], pieces 4.5 [4-5.6]; past 1 mm median 0.000 %, p90 0.000 %, worst 0.000 %; member 0: base 0.00 %, worst leak 0 m
+  ok    jodel trunk-2.5: every member broke something (8/8)
+  ok    jodel trunk-2.5: the wall out past 1 mm, the ensemble's median 0.000 % <= 2 % (p90 0.000 %)
+  ok    jodel trunk-2.5: past 1 cm, the median 0.000 % <= 0.1 % (p90 0.000 %)
+  ok    jodel trunk-2.5: past 5 cm, the median 0.000 % (p90 0.000 %)
+  ok    jodel trunk-2.5: no compact part triangle past 1 % in any member
+  ok    jodel trunk-2.5: every drawn position finite in every member
+  ok    jodel trunk-2.5: no drawn tube triangle past 1.2 x its rest in any member (worst 1.200)
+  ok    jodel trunk-2.5: places past 8 slots, the median 0.000 % <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 17 broken, 4 pieces; leak base 0.00 % (worst 0.0012 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 39209 -> 0; torn w/o damage base 0 -> 0, w/o strain 0 -> 0; bind 278 ms, over 8 0/47016
+  ok    jodel noseover: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    jodel noseover: past 1 cm 0 of 426216 (<= 0.1 %)
+  ok    jodel noseover: past 5 cm 0 of 426216
+  ok    jodel noseover: no compact part triangle past 1 % (5233186 triangle-frames)
+  ok    jodel noseover: every drawn position finite
+  ok    jodel noseover: (reported - the sheet is held by GATE DMGPAGEW on the page's flow) the longest drawn live edge at rest over its rest, past 1.5 x: none (worst per class {"rigid":"1.042 (0.017 m / 0.016 m, group cdfe3e7, never torn)","sheet":"1.019 (0.055 m / 0.054 m, group spillarPassenger pillar, never torn)","wall":"1.013 (0.085 m / 0.084 m, group sfireSeal bead)","tube":"1.073 (0.04 m / 0.037 m, group swoodFrame struct, never torn)","keep":"1.006 (0.02 m / 0.02 m, group sdashFace panel)"})
+  ok    jodel noseover: no weightless place (every kept weight 0: nothing to ride; 0 place-frames)
+  ok    jodel noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 1879672 triangle-frames)
+  ok    jodel noseover: places past 8 slots 0 <= 2 %
+  nosein: 145 broken, 7 pieces; leak base 0.45 % (worst 7.7267 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 836077 -> 0; torn w/o damage base 35 -> 34, w/o strain 2615 -> 544; bind 284 ms, over 8 0/47016
+  ok    jodel nosein: the wall out past 1 mm 0.000 % <= 2 % (the base 0.45 %)
+  ok    jodel nosein: past 1 cm 0 of 6413 (<= 0.1 %)
+  ok    jodel nosein: past 5 cm 0 of 6413
+  ok    jodel nosein: no compact part triangle past 1 % (4155254 triangle-frames)
+  ok    jodel nosein: every drawn position finite
+  NOTE  jodel nosein: (reported - the sheet is held by GATE DMGPAGEW on the page's flow) the longest drawn live edge at rest over its rest, past 1.5 x: sheet (worst per class {"rigid":"1.589 (0.019 m / 0.012 m, group c9aa2ab, never torn)","held":"1.139 (0.687 m / 0.604 m, group c8b95a2, never torn)","sheet":"2.121 (0.044 m / 0.021 m, group c8b95a2, never torn)","wall":"1.065 (0.012 m / 0.011 m, group splywood liner)","tube":"1.349 (0.016 m / 0.012 m, group swoodFrame struct, never torn)","keep":"1.114 (0.035 m / 0.031 m, group sdash pad)"})
+  ok    jodel nosein: no weightless place (every kept weight 0: nothing to ride; 0 place-frames)
+  ok    jodel nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.199, 1333498 triangle-frames)
+  ok    jodel nosein: places past 8 slots 0 <= 2 %
+
+metal
+  trunk-0 (an ensemble of 8, 8 with something broken): broken 88 [80.6-92.2], pieces 6 [4.7-6]; past 1 mm median 0.494 %, p90 0.983 %, worst 1.089 %; member 0: base 11.10 %, worst leak 0.0065 m
+  ok    metal trunk-0: every member broke something (8/8)
+  ok    metal trunk-0: the wall out past 1 mm, the ensemble's median 0.494 % <= 2 % (p90 0.983 %)
+  ok    metal trunk-0: past 1 cm, the median 0.000 % <= 0.1 % (p90 0.000 %)
+  ok    metal trunk-0: past 5 cm, the median 0.000 % (p90 0.000 %)
+  ok    metal trunk-0: no compact part triangle past 1 % in any member
+  ok    metal trunk-0: every drawn position finite in every member
+  ok    metal trunk-0: no drawn tube triangle past 1.2 x its rest in any member (worst 0.000)
+  FAIL  metal trunk-0: places past 8 slots, the median 2.352 % <= 2 %
+  trunk-2.5 (an ensemble of 8, 8 with something broken): broken 30 [28.7-47], pieces 3 [3-4]; past 1 mm median 0.018 %, p90 0.036 %, worst 0.038 %; member 0: base 0.60 %, worst leak 0.141 m
+  ok    metal trunk-2.5: every member broke something (8/8)
+  ok    metal trunk-2.5: the wall out past 1 mm, the ensemble's median 0.018 % <= 2 % (p90 0.036 %)
+  ok    metal trunk-2.5: past 1 cm, the median 0.009 % <= 0.1 % (p90 0.019 %)
+  ok    metal trunk-2.5: past 5 cm, the median 0.002 % (p90 0.008 %)
+  ok    metal trunk-2.5: no compact part triangle past 1 % in any member
+  ok    metal trunk-2.5: every drawn position finite in every member
+  ok    metal trunk-2.5: no drawn tube triangle past 1.2 x its rest in any member (worst 0.000)
+  FAIL  metal trunk-2.5: places past 8 slots, the median 2.352 % <= 2 %
+  taxi: nothing broke (0 broken) - nothing to draw
+  noseover: 11 broken, 3 pieces; leak base 0.33 % (worst 0.0324 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 111793 -> 0; torn w/o damage base 9 -> 0, w/o strain 363 -> 4; bind 562 ms, over 8 1545/65678
+  ok    metal noseover: the wall out past 1 mm 0.000 % <= 2 % (the base 0.33 %)
+  ok    metal noseover: past 1 cm 0 of 2093652 (<= 0.1 %)
+  ok    metal noseover: past 5 cm 0 of 2093652
+  ok    metal noseover: no compact part triangle past 1 % (5278500 triangle-frames)
+  ok    metal noseover: every drawn position finite
+  NOTE  metal noseover: (reported - the sheet is held by GATE DMGPAGEW on the page's flow) the longest drawn live edge at rest over its rest, past 1.5 x: sheet (worst per class {"rigid":"1.056 (0.024 m / 0.022 m, group c9aa2ab, never torn)","sheet":"1.624 (0.017 m / 0.01 m, group saluminium struct, never torn)","wall":"1.089 (0.02 m / 0.018 m, group stoele liner)","keep":"1.215 (0.026 m / 0.021 m, group sdash pad)"})
+  ok    metal noseover: no weightless place (every kept weight 0: nothing to ride; 0 place-frames)
+  ok    metal noseover: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  FAIL  metal noseover: places past 8 slots 1545 <= 2 %
+  nosein: 49 broken, 6 pieces; leak base 1.31 % (worst 0.1185 m) -> 0.038 % (worst 0.0044 m, past 5 cm 0); rigid past 1 % base 1599401 -> 0; torn w/o damage base 0 -> 0, w/o strain 3543 -> 739; bind 529 ms, over 8 1545/65678
+  ok    metal nosein: the wall out past 1 mm 0.038 % <= 2 % (the base 1.31 %)
+  ok    metal nosein: past 1 cm 0 of 326515 (<= 0.1 %)
+  ok    metal nosein: past 5 cm 0 of 326515
+  ok    metal nosein: no compact part triangle past 1 % (4088250 triangle-frames)
+  ok    metal nosein: every drawn position finite
+  NOTE  metal nosein: (reported - the sheet is held by GATE DMGPAGEW on the page's flow) the longest drawn live edge at rest over its rest, past 1.5 x: rigid (worst per class {"rigid":"2.136 (0.022 m / 0.01 m, group c9aa2ab, never torn)","held":"1.411 (0.028 m / 0.02 m, group staper skin, never torn)","sheet":"2.122 (0.035 m / 0.017 m, group spillarTail pillar, never torn)","wall":"1.017 (0.033 m / 0.033 m, group stoele liner)","keep":"1.54 (0.017 m / 0.011 m, group sdash pad)"})
+  ok    metal nosein: no weightless place (every kept weight 0: nothing to ride; 0 place-frames)
+  ok    metal nosein: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  FAIL  metal nosein: places past 8 slots 1545 <= 2 %
+
+floats
+  nosein-water: 63 broken, 4 pieces; leak base 4.69 % (worst 0.5903 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 657616 -> 0; torn w/o damage base 19 -> 0, w/o strain 4378 -> 1786; bind 704 ms, over 8 952/63854
+  ok    floats nosein-water: the wall out past 1 mm 0.000 % <= 2 % (the base 4.69 %)
+  ok    floats nosein-water: past 1 cm 0 of 934369 (<= 0.1 %)
+  ok    floats nosein-water: past 5 cm 0 of 934369
+  ok    floats nosein-water: no compact part triangle past 1 % (2562672 triangle-frames)
+  ok    floats nosein-water: every drawn position finite
+  NOTE  floats nosein-water: (reported - the sheet is held by GATE DMGPAGEW on the page's flow) the longest drawn live edge at rest over its rest, past 1.5 x: rigid (worst per class {"rigid":"7.326 (0.076 m / 0.01 m, group cb9c2cc, never torn)","sheet":"2.7 (0.028 m / 0.01 m, group saluminium struct, never torn)","held":"1.761 (0.018 m / 0.01 m, group saluminium struct, never torn)","wall":"1.241 (0.037 m / 0.03 m, group stoele liner)","keep":"1.357 (0.029 m / 0.021 m, group sdash pad)"})
+  ok    floats nosein-water: no weightless place (every kept weight 0: nothing to ride; 0 place-frames)
+  ok    floats nosein-water: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 0.000, 0 triangle-frames)
+  ok    floats nosein-water: places past 8 slots 952 <= 2 %
+
+twinFloats
+  nosein-water: 79 broken, 5 pieces; leak base 0.00 % (worst 0 m) -> 0.000 % (worst 0 m, past 5 cm 0); rigid past 1 % base 5817904 -> 0; torn w/o damage base 0 -> 0, w/o strain 1514 -> 985; bind 165 ms, over 8 0/38050
+  ok    twinFloats nosein-water: the wall out past 1 mm 0.000 % <= 2 % (the base 0.00 %)
+  ok    twinFloats nosein-water: past 1 cm 0 of 0 (<= 0.1 %)
+  ok    twinFloats nosein-water: past 5 cm 0 of 0
+  ok    twinFloats nosein-water: no compact part triangle past 1 % (7731360 triangle-frames)
+  ok    twinFloats nosein-water: every drawn position finite
+  NOTE  twinFloats nosein-water: (reported - the sheet is held by GATE DMGPAGEW on the page's flow) the longest drawn live edge at rest over its rest, past 1.5 x: rigid (worst per class {"rigid":"32.861 (0.355 m / 0.011 m, group cb9c2cc, never torn)","held":"1.497 (0.039 m / 0.026 m, group c8b95a2)","fabric":"1.512 (0.032 m / 0.021 m, group c8b95a2)","tube":"1.402 (0.014 m / 0.01 m, group stube struct, never torn)"})
+  ok    twinFloats nosein-water: no weightless place (every kept weight 0: nothing to ride; 0 place-frames)
+  ok    twinFloats nosein-water: no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst 1.200, 539551 triangle-frames)
+  ok    twinFloats nosein-water: places past 8 slots 0 <= 2 %
+
+112 checks, 4 failed, 536 s
+GATE DMGWALL: FAIL
+(exit code 1)
+=== DMGLOOK ===
+PASS cub trunk-0 (9 s, broken 115, 220 event frames, slots 14 max 14) a. off = master: 0 record-events differ
+PASS cub trunk-0 (9 s, broken 115, 220 event frames, slots 14 max 14) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+PASS cub trunk-0 (9 s, broken 115, 220 event frames, slots 14 max 14) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 0.76 ms over 39 events (measure 2.6 ms once); stations {"whole":18,"unparted":6,"station":91}
+PASS cub trunk-0 (9 s, broken 115, 220 event frames, slots 14 max 14) d. the pose: 1 slots @81, 14 slots @191, 14 slots @300 - modes {"0":5,"crack1":6,"stub3":2,"stub1":16}
+PASS cub trunk-2.5 (6 s, broken 10, 219 event frames, slots 0 max 0) a. off = master: 0 record-events differ
+PASS cub trunk-2.5 (6 s, broken 10, 219 event frames, slots 0 max 0) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+PASS cub trunk-2.5 (6 s, broken 10, 219 event frames, slots 0 max 0) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 0.13 ms over 7 events (measure 2.8 ms once); stations {"whole":2,"unparted":2,"station":6}
+PASS cub trunk-2.5 (6 s, broken 10, 219 event frames, slots 0 max 0) d. the pose:  - modes {}
+PASS cub noseover (7 s, broken 18, 299 event frames, slots 1 max 1) a. off = master: 0 record-events differ
+PASS cub noseover (7 s, broken 18, 299 event frames, slots 1 max 1) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+PASS cub noseover (7 s, broken 18, 299 event frames, slots 1 max 1) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 0.16 ms over 7 events (measure 5.2 ms once); stations {"whole":9,"unparted":0,"station":9}
+PASS cub noseover (7 s, broken 18, 299 event frames, slots 1 max 1) d. the pose: 1 slots @79, 1 slots @220, 1 slots @360 - modes {"stub1":2,"crack1":1}
+PASS cub taxi (4 s, broken 0, 0 event frames, slots 0 max 0) e. nothing broken: no plan
+PASS jodel trunk-0 (9 s, broken 24, 222 event frames, slots 1 max 1) a. off = master: 0 record-events differ
+PASS jodel trunk-0 (9 s, broken 24, 222 event frames, slots 1 max 1) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+PASS jodel trunk-0 (9 s, broken 24, 222 event frames, slots 1 max 1) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 0.73 ms over 3 events (measure 1.3 ms once); stations {"whole":16,"unparted":4,"station":4}
+PASS jodel trunk-0 (9 s, broken 24, 222 event frames, slots 1 max 1) d. the pose: 1 slots @80, 1 slots @190, 1 slots @300 - modes {"4":1,"stub3":2}
+PASS jodel trunk-2.5 (8 s, broken 17, 219 event frames, slots 0 max 0) a. off = master: 0 record-events differ
+PASS jodel trunk-2.5 (8 s, broken 17, 219 event frames, slots 0 max 0) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+PASS jodel trunk-2.5 (8 s, broken 17, 219 event frames, slots 0 max 0) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 0.13 ms over 2 events (measure 0.6 ms once); stations {"whole":16,"unparted":0,"station":1}
+PASS jodel trunk-2.5 (8 s, broken 17, 219 event frames, slots 0 max 0) d. the pose:  - modes {}
+PASS jodel noseover (10 s, broken 5, 301 event frames, slots 0 max 0) a. off = master: 0 record-events differ
+PASS jodel noseover (10 s, broken 5, 301 event frames, slots 0 max 0) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+PASS jodel noseover (10 s, broken 5, 301 event frames, slots 0 max 0) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 0.22 ms over 1 events (measure 0.6 ms once); stations {"whole":4,"unparted":0,"station":1}
+PASS jodel noseover (10 s, broken 5, 301 event frames, slots 0 max 0) d. the pose:  - modes {}
+PASS jodel taxi (7 s, broken 0, 0 event frames, slots 0 max 0) e. nothing broken: no plan
+PASS metal trunk-0 (11 s, broken 81, 223 event frames, slots 0 max 0) a. off = master: 0 record-events differ
+PASS metal trunk-0 (11 s, broken 81, 223 event frames, slots 0 max 0) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+FAIL metal trunk-0 (11 s, broken 81, 223 event frames, slots 0 max 0) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 2.00 ms over 19 events (measure 0.4 ms once); stations {"whole":19,"unparted":18,"station":44}
+PASS metal trunk-0 (11 s, broken 81, 223 event frames, slots 0 max 0) d. the pose:  - modes {}
+PASS metal trunk-2.5 (10 s, broken 28, 220 event frames, slots 0 max 0) a. off = master: 0 record-events differ
+PASS metal trunk-2.5 (10 s, broken 28, 220 event frames, slots 0 max 0) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+PASS metal trunk-2.5 (10 s, broken 28, 220 event frames, slots 0 max 0) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 0.13 ms over 8 events (measure 0.1 ms once); stations {"whole":10,"unparted":4,"station":14}
+PASS metal trunk-2.5 (10 s, broken 28, 220 event frames, slots 0 max 0) d. the pose:  - modes {}
+PASS metal noseover (11 s, broken 11, 305 event frames, slots 0 max 0) a. off = master: 0 record-events differ
+PASS metal noseover (11 s, broken 11, 305 event frames, slots 0 max 0) b. the parting rule: own triangles cut on released members 0 (today 0), on unparted kinks 0 (today 0)
+PASS metal noseover (11 s, broken 11, 305 event frames, slots 0 max 0) c. the plan: slots in bounds and drawn (bad 0), hide = slots (bad 0), worst plan 0.04 ms over 2 events (measure 0.3 ms once); stations {"whole":9,"unparted":0,"station":2}
+PASS metal noseover (11 s, broken 11, 305 event frames, slots 0 max 0) d. the pose:  - modes {}
+PASS metal taxi (7 s, broken 0, 0 event frames, slots 0 max 0) e. nothing broken: no plan
+(45 s)
+GATE DMGLOOK: FAIL
+(exit code 1)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -2380,6 +3092,13 @@ DMGSKIN   FAIL   110.2 s
 DMGUPLOAD FAIL  1401.7 s
 DMGCRASHUI PASS  1106.6 s
 DMGSETTLE FAIL    93.5 s
-wall (the chunks' own, summed) 19621.5 s  (jobs 4)
+DMGDRIVE  FAIL  1227.3 s
+DMGNOSEOVER PASS    83.9 s
+DMGSKINGPU PASS    89.4 s
+DMGPAGEW  PASS   215.2 s
+DMGWRECK  FAIL   177.9 s
+DMGWALL   FAIL   536.4 s
+DMGLOOK   FAIL    45.2 s
+wall (the chunks' own, summed) 21912.8 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 28 red (94 PASS, 28 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 32 red (97 PASS, 32 FAIL, 0 SKIP of 364)
