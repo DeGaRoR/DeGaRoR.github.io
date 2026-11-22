@@ -543,17 +543,30 @@ function buildPedals(g, A, P, sx) {
     return { objL: out[1], objR: out[-1], label: 'pedals' };
   }
   const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  // PEDALS IN A HULL (SEAPLANES 21 Nov, the user: "the pedals poke through the hull of the petrel whatever the
+  // settings"): the floor line (floorAt) is the keel's, flat across - in a V-bottomed hull the skin rises off the keel
+  // at 30 deg, so under a side-by-side pilot (the Super Petrel: 0.25 m off the centreline) the axle, the blocks, the
+  // horns and the cables stood 8-13 cm under the drawn skin, and no pedal row moved them (pedalH only lengthens the
+  // bars). The blocks, the horns and the cables rise out of the skin where the floor line is through it (liftOut).
+  // the ground a part stands on at x: the floor line, or 4 mm over the skin where the floor line is out through it
+  const groundAt = (x, z, hw) => liftOut(A, x, A.floorAt(z), z, hw);
   // ---- THE AXLE: a 22 mm torque tube 42 mm off the boards, on two cast
-  // pillow blocks bolted down, a pinch bolt through each cap
-  const yA = yF + 0.042, zA = zP, rA = 0.011;
+  // pillow blocks bolted down, a pinch bolt through each cap; in a hull each block stands on the skin at its own x
+  // (the two posts unequal on the V) and the axle rides over the higher, the horns 4 cm under it clear of the skin
+  const zA = zP, rA = 0.011;
   const x0 = sx - sp - 0.075, x1 = sx + sp + 0.075;
+  const xBlk = [x0 + 0.022, x1 - 0.022];
+  const yG = xBlk.map(xb => groundAt(xb, zA, 0.017));
+  const yA = Math.max(yF + 0.042, yG[0] + 0.042, yG[1] + 0.042,
+    ...[-1, 1].map(sd => liftOut(A, sx + sd * sp, yF + 0.001, zA + 0.02, 0.012) + 0.041));   // the horn's eye 3 cm under, its lug 7 mm round
   const steel0 = K.Bag(), cast0 = K.Bag(), pl0 = K.Bag();
   K.revolve(steel0, [x0, yA, zA], X, [[rA, 0], [rA, x1 - x0]], 24, true);
-  for (const xb of [x0 + 0.022, x1 - 0.022]) {
-    K.boxIn(cast0, [xb, yF + 0.006, zA], [0.017, 0.006, 0.027], X, Y, Z);                          // the foot
-    K.boxIn(cast0, [xb, (yF + 0.012 + yA) / 2, zA], [0.011, (yA - yF - 0.012) / 2 + 0.003, 0.013], X, Y, Z);   // the post
+  for (let b = 0; b < 2; b++) {
+    const xb = xBlk[b], yB = yG[b];
+    K.boxIn(cast0, [xb, yB + 0.006, zA], [0.017, 0.006, 0.027], X, Y, Z);                          // the foot
+    K.boxIn(cast0, [xb, (yB + 0.012 + yA) / 2, zA], [0.011, (yA - yB - 0.012) / 2 + 0.003, 0.013], X, Y, Z);   // the post
     K.revolve(cast0, [xb - 0.013, yA, zA], X, [[rA + 0.0055, 0], [rA + 0.0055, 0.026]], 20, true);   // the cap
-    for (const dz of [-0.018, 0.018]) K.bolt(pl0, [xb, yF + 0.012, zA + dz], [0, -1, 0], 0.0035, 0.010);   // hold-downs
+    for (const dz of [-0.018, 0.018]) K.bolt(pl0, [xb, yB + 0.012, zA + dz], [0, -1, 0], 0.0035, 0.010);   // hold-downs
     K.bolt(pl0, [xb, yA + rA + 0.0055, zA], [0, -1, 0], 0.003, 0.012);                                 // the pinch bolt
   }
   steel0.mesh(g, M.frame); cast0.mesh(g, M.cast);            // (the plated bag closes after the cables)
@@ -652,7 +665,10 @@ function buildPedals(g, A, P, sx) {
     const belly = A.bellyAt ? A.bellyAt(xp, zC) : null;
     // 15.5 mm over the belly: the block's own half-height (14 mm) and a hairline (LINER-BACK 9 Nov: the liner is the
     // skin's back face now - the 4 mm it used to add lifted the block off the floor of the nose)
-    const yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.0155 : -Infinity);
+    let yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.0155 : -Infinity);
+    // (21 Nov, PEDALS IN A HULL: and over the skin's top across its footprint where a V rises over that - the belly's
+    // lowest within 4 cm is the keel side of the block)
+    yC = liftOut(A, xp, yC, zC, 0.011);
     const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yC + 0.010, zC];
     // the cable follows the belly where the belly rises above its chord (a
     // convex-up run under the pedals to a fairlead at the nose): four legs,
@@ -663,6 +679,8 @@ function buildPedals(g, A, P, sx) {
       const q = [e0[0] + (e1[0] - e0[0]) * s, e0[1] + (e1[1] - e0[1]) * s, e0[2] + (e1[2] - e0[2]) * s];
       const bq = A.bellyAt ? A.bellyAt(q[0], q[2]) : null;
       if (bq != null && q[1] < bq + 0.012) q[1] = bq + 0.012;
+      const tq = liftOut(A, q[0], q[1] - 0.008, q[2], 0.002);     // (21 Nov: out through a V's side: 12 mm over it)
+      if (tq > q[1] - 0.008) q[1] = tq + 0.008;
       legs.push(q);
     }
     legs.push(e1);
@@ -1320,6 +1338,15 @@ function wallUnder(A, sd, y, z, dz, yb, yt) {
   }
   return isFinite(m) ? sd * (m - 0.003) : null;
 }
+// A FOOTPRINT OUT THROUGH THE SKIN (SEAPLANES 21 Nov, PEDALS IN A HULL): a part's underside at y, its footprint x +- hw at
+// station z - the height it must rise to (4 mm over the skin it came through, read at the footprint's edges and middle),
+// or y itself where the skin is under all three (A.skinOver: no lift for a part inside, however the skin is shaped)
+function liftOut(A, x, y, z, hw) {
+  if (!A.skinOver) return y;
+  let m = y;
+  for (const d of [-hw, 0, hw]) { const o = A.skinOver(x + d, y, z); if (o != null && o + 0.004 > m) m = o + 0.004; }
+  return m;
+}
 function buildFuelSelector(gRoot, A, P, sx, seat) {
   const K = window.GEAR_KIT;
   if (!K) return null;
@@ -1368,11 +1395,19 @@ function buildTrimWheel(gRoot, A, P, sx, seat) {
   const g0 = ctlShift(gRoot, P, 'trimX', 'trimY', 'trimZ');
   const sd = Math.sign(sx || 1), inb = -sd;
   let z = (seat ? seat.zBack : A.zBack) + 0.34;
-  const y = (seat ? seat.panY : A.floorAt(z) + 0.08) + 0.13;
+  let y = (seat ? seat.panY : A.floorAt(z) + 0.08) + 0.13;
   const R = 0.046;
   const wxAt = () => (A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90));
   let wx = wxAt();
   if (A.tubeDist) for (let i = 0; i < 4 && A.tubeDist([wx, y, z]) < R + 0.02; i++) { z -= 0.06; wx = wxAt(); }   // off the frame
+  // ON THE WALL, NOT THROUGH THE BOTTOM (SEAPLANES 21 Nov): by a hull's chine the wall at the hip's height is the V's
+  // own side, and the wheel (46 mm) and its plate (30 mm under the axle) hung 7-12 cm under the Super Petrel's bottom.
+  // Step it up the wall, 2 cm at a time, until the rim clears the skin's top under it by 5 mm.
+  for (let i = 0; i < 12; i++) {
+    const yb = y - R - 0.005;                                  // the rim's bottom, 5 mm to spare
+    if (liftOut(A, wx + inb * 0.024, yb, z, 0.006) <= yb) break;   // (the wheel's own plane, clear of the wall's edge)
+    y += 0.02; wx = wxAt();
+  }
   { const wu = wallUnder(A, sd, y, z, 0.040, -0.030, 0.060); if (wu != null) wx = wu; }
   const br = K.Bag();
   K.sweep(br, [[wx, y, z], [wx + inb * 0.006, y, z]],
@@ -2465,6 +2500,8 @@ function solveGripJob(occ, j, ctx) {
 // the measured sill height off the front-most door outline; fallback
 // floorboard allowance when no door is cut.
 const FLOOR_BOARDS = 0.035;              // fallback: boards over the belly, m
+// (SEAPLANES 21 Nov) the faces that are not the outer skin, for skinOver: linings, glass, the cabin's own fittings
+const SKIN_NOT = /liner|tube|cloth|dash|bulk|baggage|fire|shoulder|toele|plywood|floorBoard|seat|[Ww]in|glass|pane|reveal|composite|joint|seal/;
 function anchors(spec, P, mesh) {
   // THE UNIT: metres = cage x CAGE_UNIT x planeScale (see _cage_gen.js).
   // The crew is built in metres and never scales — it is the ruler.
@@ -2801,7 +2838,7 @@ function anchors(spec, P, mesh) {
   // pedals' cable fairlead placed on `floorAt` hung under the aeroplane. This
   // reads the displayed mesh: the lowest skin vertex within 5 cm of (x, z),
   // in metres; null where the mesh has no skin (a headless list).
-  const bellyPts = [];
+  const bellyPts = [], skinTris = [];
   if (mesh && mesh.F && mesh.V)
     for (const f of mesh.F) {
       if (!FLOOR_WALL.test(f.m || '') && !/^(plywood|cloth|aluminium|taper)/.test(f.m || '')) continue;
@@ -2809,6 +2846,14 @@ function anchors(spec, P, mesh) {
         const v = mesh.V[vi];
         if (v[1] * k < (spec.waistY || 0) * k) bellyPts.push([v[0] * k, v[1] * k, v[2] * k]);
       }
+    }
+  // (21 Nov, for skinOver - is a point through the skin: the WHOLE outer skin as triangles, every material but the
+  // cabin's own linings, glass and fittings; the belly's few materials alone missed a cowl's or a metal panel's bottom)
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (!f.v || f.v.length < 3 || SKIN_NOT.test(f.m || '')) continue;
+      for (let t = 1; t + 1 < f.v.length; t++)
+        skinTris.push([f.v[0], f.v[t], f.v[t + 1]].map(vi => [mesh.V[vi][0] * k, mesh.V[vi][1] * k, mesh.V[vi][2] * k]));
     }
   // (the belly rises toward the nose, so the lowest vertex in a window is
   // its aft edge: the skin is the lowest vertex per centimetre of station,
@@ -2830,6 +2875,28 @@ function anchors(spec, P, mesh) {
     if (a && c && c[0] > a[0]) return a[1] + (c[1] - a[1]) * (z - a[0]) / (c[0] - a[0]);
     return (a || c)[1];
   };
+  // A POINT THROUGH THE SKIN (SEAPLANES 21 Nov, PEDALS IN A HULL): skinOver(x, y, z), metres - null while the drawn skin
+  // has a face under the point (it is inside, whatever the shape: a V, a curved belly, a wall beside it, a nose over it),
+  // else the lowest face over it: the skin the point came out through. The outer skin's faces (SKIN_NOT), as triangles;
+  // null too off the skin's plan (no face either way: nothing to rest on), and null when the face over it is more than 20 cm
+  // up: that is a deck or a top over an open part of the sheet (the nose a cowl layer draws), not a skin it came through
+  // (a hull's V lifts a part 16 cm at most). (Reading "the skin under a point" as a height
+  // instead lifted the C172's pedal axle 19 mm that was clear, walked the DC-3's trim wheel up its wall, and stood the
+  // trainer's cable fairleads on its nose's top.)
+  const skinOver = (x, y, z) => {
+    let over = null;
+    for (const [a, b, c] of skinTris) {
+      const d = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+      if (Math.abs(d) < 1e-12) continue;
+      const l1 = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / d;
+      const l2 = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / d, l3 = 1 - l1 - l2;
+      if (l1 < -1e-9 || l2 < -1e-9 || l3 < -1e-9) continue;
+      const h = l1 * a[1] + l2 * b[1] + l3 * c[1];
+      if (h <= y) return null;
+      if (over == null || h < over) over = h;
+    }
+    return over != null && over - y <= 0.20 ? over : null;
+  };
   // G2792: THE FIREWALL'S STATION (the aft-most vertex of its faces, metres) -
   // the floor's run ends there and the pedal cables are anchored on it
   let zFire = -Infinity;
@@ -2839,7 +2906,7 @@ function anchors(spec, P, mesh) {
   // (G3515: the cockpit's dash shell is the FRONT seat's - a rear pilot's panel
   // stands on its own at the rear station, its height off the floor rule)
   if (rear) { dashLip = null; dashTop = null; dashAftZ = null; face = null; }
-  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch) && !rear, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch) && !rear, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, skinOver, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            zFire: isFinite(zFire) ? zFire : null,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,

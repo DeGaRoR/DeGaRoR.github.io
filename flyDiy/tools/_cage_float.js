@@ -849,33 +849,52 @@ function drawStrakes(scene, mesh, P) {
   const mat = (SM && SM('fuselage', { surf: 0, fieldM: 1 })) || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5 });
   if ('side' in mat) mat.side = THREE.DoubleSide;
   strakeGroup = new THREE.Group(); strakeGroup.name = 'cageLayer:float';
-  const NS = 40, sink = 0.003 / FS;
+  // STRAKE-SMOOTH (SEAPLANES 21 Nov, the user on the Super Petrel: 'the additional "ribs" on the hull need further
+  // subdivisions'): 40 stations made a strake of 2 cm facets, its run followed the chine's half-beam - straight between
+  // the hull lines' stations, a dog-leg at each - and its three-vertex wedge took ONE normal per corner, so the landing,
+  // the face and its edges shaded as one rounded blob. Now 120 stations, the run's plan eased over +-4 cm (three box
+  // passes; the heights are still the drawn skin's under it), and each of the wedge's faces its own vertices: smooth
+  // along the run, crisp across its edges.
+  const NS = 120, sink = 0.003 / FS;
   for (let i = 0; i < n; i++) {
     const q = (i + 1) / (n + 1);
     for (const sd of [-1, 1]) {
-      const pos = [], idx = [];
-      let ok = 0;
+      const zs = [], xs = [], ws = [];
       for (let j = 0; j <= NS; j++) {
         const u = j / NS, z = zA + (zF - zA) * u;
-        const tp = Math.min(1, u / 0.12, (1 - u) / 0.12), ww = w * Math.max(0.05, tp);
-        const x0 = q * bAt(z), x1 = x0 + ww;
-        let y0 = yAt(sd * x0, z), y1 = yAt(sd * x1, z);
-        if (!isFinite(y0) || !isFinite(y1)) { y0 = y1 = NaN; } else ok++;
+        zs.push(z); xs.push(q * bAt(z));
+        ws.push(w * Math.max(0.05, Math.min(1, u / 0.12, (1 - u) / 0.12)));
+      }
+      for (let pass = 0; pass < 3; pass++) {
+        const c = xs.slice();
+        for (let j = 1; j < NS; j++) { let t = 0, k = 0; for (let d = -5; d <= 5; d++) { const jj = j + d; if (jj >= 0 && jj <= NS) { t += c[jj]; k++; } } xs[j] = t / k; }
+      }
+      const sec = [];
+      let ok = 0;
+      for (let j = 0; j <= NS; j++) {
+        const z = zs[j], x0 = xs[j], x1 = x0 + ws[j];
+        const y0 = yAt(sd * x0, z), y1 = yAt(sd * x1, z);
+        if (!isFinite(y0) || !isFinite(y1)) { sec.push(null); continue; }
+        ok++;
         const yl = Math.min(y0, y1);
-        for (const [x, y] of [[x0, y0 + sink], [x1, y1 + sink], [x1, yl]]) pos.push(sd * x * FS, y * FS, z * FS);
+        sec.push([[x0, y0 + sink], [x1, y1 + sink], [x1, yl]]);
       }
       if (ok < NS * 0.6) continue;
-      // (a station that missed the skin takes its neighbour's section - the run stays one strip)
-      for (let j = 0; j <= NS; j++) if (!isFinite(pos[j * 9 + 1])) {
-        const k = j > 0 && isFinite(pos[(j - 1) * 9 + 1]) ? j - 1 : j + 1;
-        for (let m = 0; m < 9; m++) if (m % 3 !== 2) pos[j * 9 + m] = pos[k * 9 + m];
+      // (a station that missed the skin takes its nearest neighbour's section - the run stays one strip)
+      for (let j = 0; j <= NS; j++) if (!sec[j]) {
+        for (let d = 1; d <= NS; d++) { if (j - d >= 0 && sec[j - d]) { sec[j] = sec[j - d]; break; } if (j + d <= NS && sec[j + d]) { sec[j] = sec[j + d]; break; } }
       }
-      for (let j = 0; j < NS; j++) for (let e = 0; e < 3; e++) {
-        const a = j * 3 + e, b = j * 3 + (e + 1) % 3, c = a + 3, d = b + 3;
-        if (sd > 0) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+      const pos = [], idx = [], put = (p, z) => pos.push(sd * p[0] * FS, p[1] * FS, z * FS) / 3 - 1;
+      for (let e = 0; e < 3; e++) {
+        const base = pos.length / 3;
+        for (let j = 0; j <= NS; j++) { put(sec[j][e], zs[j]); put(sec[j][(e + 1) % 3], zs[j]); }
+        for (let j = 0; j < NS; j++) {
+          const a = base + j * 2, b = a + 1, c = a + 2, d = a + 3;
+          if (sd > 0) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+        }
       }
-      const e0 = NS * 3;
-      if (sd > 0) idx.push(0, 2, 1, e0, e0 + 1, e0 + 2); else idx.push(0, 1, 2, e0, e0 + 2, e0 + 1);
+      const c0 = [0, 1, 2].map(e => put(sec[0][e], zs[0])), c1 = [0, 1, 2].map(e => put(sec[NS][e], zs[NS]));
+      if (sd > 0) idx.push(c0[0], c0[2], c0[1], c1[0], c1[1], c1[2]); else idx.push(c0[0], c0[1], c0[2], c1[0], c1[2], c1[1]);
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       g.setIndex(idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, mat); m.name = 'edHullStrake' + (sd < 0 ? 'L' : 'R') + i; m.castShadow = true; m.receiveShadow = true;

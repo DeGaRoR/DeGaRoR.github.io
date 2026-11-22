@@ -1381,6 +1381,16 @@ function seatWicker(B, A, P, g, pre, sbs) {
 // A sailplane's seat is the cockpit: the moulded glass-fibre pan, white gelcoat, a thin seat cushion in it, and the pilot
 // lying back against a BACKREST - a padded board hinged at its foot, its angle set by two side struts onto notched
 // quadrants on the tub's rear wall, a headrest pad on its top. The tub is anchored by four small tubes. The recline row moves the board; the pan stays the hull's.
+// THE GROUND UNDER A FOOT (SEAPLANES 21 Nov): the floor line, or 4 mm over the drawn skin where the floor line is out
+// through it (a V-bottomed hull) - read at the footprint's edges and middle (A.skinOver, the crew layer's anchors: null
+// while the skin has a face under the point); a cabin with no skin read keeps the floor.
+function groundAt(A, x, z, hw) {
+  const fl = A.floorAt(z);
+  if (!A.skinOver) return fl;
+  let m = fl;
+  for (const d of [-hw, 0, hw]) { const o = A.skinOver(x + d, fl, z); if (o != null && o + 0.004 > m) m = o + 0.004; }
+  return m;
+}
 function seatGlider(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mGel = mat('gelcoat', 0xeeeee9, FRAME), mPad = mat('liner', 0x3b4a5c, TRIM), mBoard = mat('ply', 0xb89464),
@@ -1420,14 +1430,17 @@ function seatGlider(B, A, P, g, pre, sbs) {
     K.revolve(B.of(mCast), [S.sx + sd * S.hw * 0.5 - 0.03, h[0], h[1]], [1, 0, 0], [[0, 0], [0.011, 0], [0.011, 0.06], [0, 0.06]], 12, false);
   }
   // THE TUB'S ANCHORS (the user, 2 Nov: "just anchor the tub with 4 small tubes"): four short alloy tubes from its belly
-  // to tabs on the floor, a bolt through each foot
+  // to tabs on the floor, a bolt through each foot. IN A HULL (SEAPLANES 21 Nov, the Super Petrel: the floor line is the
+  // keel's, flat across, and a V-bottom's skin rises off it under a side-by-side seat) each tab stands on the skin where
+  // the skin is over the floor line, so no tube runs out through the bottom (a tub already on the skin takes none)
   for (const sd of [-1, 1]) for (const s2 of [0.10, sp.sOf(S.H) - 0.02]) {
     const p = tub.map(sd * S.hw * 0.45, s2 - L / 2, -tub.th);
-    const ft = [p[0], A.floorAt(p[2]) + 0.012, p[2]];
+    const yF = groundAt(A, p[0], p[2], 0.016);
+    const ft = [p[0], yF + 0.012, p[2]];
     if (p[1] - ft[1] < 0.01) continue;
     kitTube(B.of(mAlu), [p, ft], 0.008, 12);
     K.revolve(B.of(mCast), [p[0], p[1] - 0.004, p[2]], [0, 1, 0], [[0, 0], [0.014, 0], [0.014, 0.004], [0, 0.004]], 14, false);
-    K.boxIn(B.of(mCast), [ft[0], A.floorAt(ft[2]) + 0.002, ft[2]], [0.016, 0.002, 0.016], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    K.boxIn(B.of(mCast), [ft[0], yF + 0.002, ft[2]], [0.016, 0.002, 0.016], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
     K.lug(B.of(mCast), ft, [1, 0, 0], [0, 1, 0], 0.009, 0.006, 0.012);
     K.bolt(B.of(mBolt), [ft[0] + 0.007, ft[1], ft[2]], [1, 0, 0], 0.0035, 0.004);
   }
