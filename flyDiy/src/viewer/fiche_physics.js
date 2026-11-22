@@ -268,7 +268,10 @@
   // ===================================================================================================================
   // DRAG
   // ===================================================================================================================
-  const DRAGROW = { fuselage: ['Fuselage', 'structure'], cooling: ['Engine cooling & exhaust', 'engine'], screen: ['Windscreen', 'fittings'],
+  // (FUSELAGE-DRAG 2026-11-22: `corners` and `base` - what a measured body's sharp edges and its too-quick closure cost;
+  //  `screen` is then the windscreen and every other step the body puts in the flow)
+  const DRAGROW = { fuselage: ['Fuselage', 'structure'], corners: ['Sharp corners', 'structure'], base: ['Blunt closure', 'structure'],
+    cooling: ['Engine cooling & exhaust', 'engine'], screen: ['Windscreen', 'fittings'],
     junct: ['Wing & tail roots', 'structure'], mainGear: ['Main gear', 'gear'], third: ['Tail wheel', 'gear'], struts: ['Lift struts', 'structure'],
     wires: ['Bracing wires', 'structure'], nacelles: ['Engine nacelle', 'engine'], pod: ['Belly pod', 'fittings'], strutPods: ['Strut tanks', 'engine'] };
   function sideMap(pic, box) {
@@ -301,6 +304,9 @@
     const M = D.model, Dg = D.drag, at = {};
     { const fus = M.nodes.filter(n => /^S[2-4][TB]/.test(M.tags[n[4]])); at.fuselage = mean(fus);
       at.cooling = mean(byTag(M, 'CGE').concat(byTag(M, 'ENGL'))); at.screen = mean(byTag(M, 'S0TL').concat(byTag(M, 'S1TL')));
+      // (the corners along the belly's edge, the closure at the tail post)
+      { const bel = M.nodes.filter(n => /^S[2-4]B/.test(M.tags[n[4]])); if (bel.length) at.corners = mean(bel);
+        const tp = byTag(M, 'TPB').concat(byTag(M, 'TPT')); if (tp.length) at.base = mean(tp); }
       const wr = M.nodes.filter(n => M.tags[n[4]] === 'WF').sort((a, b) => Math.abs(a[2]) - Math.abs(b[2]))[0]; if (wr) at.junct = [wr[0] + 0.25, wr[1] - 0.05, 0];
       const ax = byTag(M, 'AXLEL'); at.mainGear = Dg.floats ? mean(byTag(M, 'FLK')) : ax.length ? mean(ax.concat(ax.map(p => [p[0], p[1] + 0.35, p[2]]))) : null;
       const tw = M.contacts.length > 2 ? P3(M, M.contacts[2]) : null; at.third = tw;

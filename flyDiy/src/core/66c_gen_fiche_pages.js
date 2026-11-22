@@ -137,7 +137,7 @@ function genFicheDestroy(def0, opts) {
 }
 
 // THE DRAG: the rows, the gear's terms, each one's km/h
-function genFicheGearTerms(S) {
+function genFicheGearTerms(S, D) {
   // genGearCdA's own terms, one by one (62_gen_aero.js); GATE PHYSPAGES checks the sum against genGearCdA
   const G = S.gear, semi = S.geom.semi;
   const fd = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) - 1);
@@ -149,12 +149,24 @@ function genFicheGearTerms(S) {
     const lv = G.lever, dx = lv && lv.horn && lv.top ? [0, 1, 2].map(k => lv.horn[k] - lv.top[k]) : null;
     lever = 2 * legCd * (dx ? Math.hypot(dx[0], dx[1], dx[2]) : 0.50) * 0.060;
   }
-  return { wheels: 2 * wCd * (2 * R * 0.76 * R), third: tCd * (2 * Rt * 0.76 * Rt), legs: 2 * legCd * (G.legDrop || 0.42) * 0.05, lever,
-           thirdLeg: (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0) * (G.twLeg || 0.20) * 0.05,
+  // (FUSELAGE-DRAG 2026-11-22: the legs the gear layer drew, member by member - 62_gen_aero genGearLegsCdA - where the
+  //  spec describes them; else the one tube, as genGearCdA has it)
+  // PHYSICS-AUDIT step 5 (2026-11-22): AN AEROPLANE ON FLOATS carries no wheels in the air - its gear row is its lift
+  // struts, its two floats as bodies and their struts (62_gen_aero genParams: params.gen.drag.floats / floatStruts)
+  if (D && D.floats > 0)
+    return { wheels: 0, third: 0, legs: 0, lever: 0, thirdLeg: 0,
+             struts: S.bracing && S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0,
+             floats: D.floats, floatStruts: D.floatStruts || 0 };
+  const drawn = typeof genGearLegsCdA === 'function' ? genGearLegsCdA(S) : null, drawn3 = typeof genGearLegsCdA === 'function' ? genGearLegsCdA(S, 'third') : null;
+  return { wheels: 2 * wCd * (2 * R * 0.76 * R), third: tCd * (2 * Rt * 0.76 * Rt), legs: 2 * (drawn != null ? drawn : legCd * (G.legDrop || 0.42) * 0.05), lever,
+           thirdLeg: drawn3 != null ? drawn3 : (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0) * (G.twLeg || 0.20) * 0.05,
            struts: S.bracing && S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0 };
 }
-const GEN_FICHE_DRAG_GROUPS = { fuselage: ['body'], cooling: ['cool', 'heads', 'exh'], screen: ['screen'], junct: ['junct'],
-  mainGear: ['g:wheels', 'g:legs', 'g:lever'], third: ['g:third', 'g:thirdLeg'], struts: ['g:struts'], wires: ['brace'],
+// (FUSELAGE-DRAG 2026-11-22: a MEASURED body - params.gen.drag.shape - shows what its shape costs: its friction and form
+//  under `fuselage`, its sharp corners, its steps with the windscreen (the fixed `screen` figure is 0 on such a body, an
+//  open cockpit keeps its own), the area it closes too fast)
+const GEN_FICHE_DRAG_GROUPS = { fuselage: ['body', 'bodyFric'], corners: ['corners'], cooling: ['cool', 'heads', 'exh'], screen: ['screen', 'steps'], base: ['base'], junct: ['junct'],
+  mainGear: ['g:wheels', 'g:legs', 'g:lever', 'g:floats', 'g:floatStruts'], third: ['g:third', 'g:thirdLeg'], struts: ['g:struts'], wires: ['brace'],
   nacelles: ['nacelles'], pod: ['pod'], strutPods: ['strutPods'] };
 function genFicheDrag(def) {
   const S = def.spec, g = def.params.gen || {}, D = g.drag || {};
@@ -169,7 +181,7 @@ function genFicheDrag(def) {
     return 0.5 * (lo + hi);
   };
   const v0 = cruise(0);
-  const terms = genFicheGearTerms(S);
+  const terms = genFicheGearTerms(S, D);
   const rows = {};
   let known = 0;
   for (const r of ['body', 'cool', 'heads', 'screen', 'junct', 'exh', 'gear', 'brace', 'pod', 'strutPods']) {
@@ -178,6 +190,13 @@ function genFicheDrag(def) {
   }
   // what the axial row carries with no row of its own: the off-nose nacelles (62_gen_aero's G179.5 block)
   if (D.axial - known > 1e-6) rows.nacelles = D.axial - known;
+  // a measured body: its row taken apart (the parts add to it: the friction share is what is left, an engine's wake off it)
+  const SHP = D.shape && D.body > 0 ? D.shape : null;
+  if (SHP) {
+    const part = { corners: Math.max(0, SHP.corners || 0), steps: Math.max(0, SHP.steps || 0), base: Math.max(0, SHP.base || 0) };
+    const fric = D.body - part.corners - part.steps - part.base;
+    if (fric > 0) { delete rows.body; rows.bodyFric = fric; for (const k in part) if (part[k] > 0) rows[k] = part[k]; }
+  }
   const groups = {};
   for (const k in GEN_FICHE_DRAG_GROUPS) {
     let c = 0;
@@ -188,7 +207,11 @@ function genFicheDrag(def) {
   return { Vc: genFicheR(v0, 3), axial: genFicheR(D.axial, 4), surf: genFicheR((pr.drag - q * D.axial) / q, 4),
            rows: Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, genFicheR(v, 4)])),
            gear: Object.fromEntries(Object.entries(terms).map(([k, v]) => [k, genFicheR(v, 5)])), groups,
-           floats: S.gear.type === 'floats', gearType: S.gear.type };
+           floats: S.gear.type === 'floats', gearType: S.gear.type,
+           // the laminar shares (GEN_DRAG.laminar, GEN_DRAG.body): of the wing's and the tail's chord, of the body's skin
+           lam: { wing: genFicheR((def.params.polarWing && def.params.polarWing.lamX) || 0, 3), tail: genFicheR((def.params.polarTail && def.params.polarTail.lamX) || 0, 3),
+                  body: genFicheR(SHP ? SHP.lam || 0 : 0, 3) },
+           sharp: SHP ? genFicheR(SHP.sharp, 3) : null };
 }
 
 // THE ELECTRICS: the record, the lamps fitted, the bus with the alternator off

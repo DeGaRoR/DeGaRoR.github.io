@@ -64,9 +64,15 @@ function child(k) {
     const g = def.params.gen.drag, Dg = D.drag;
     const sum = Object.values(Dg.rows).reduce((a, v) => a + v, 0);
     ok(near(sum, g.axial, 5e-4), 'DRAG rows add to ' + sum + ', the axial row is ' + g.axial);
-    const terms = C.genFicheGearTerms(S), ts = Object.values(terms).reduce((a, v) => a + v, 0);
+    // (PHYSICS-AUDIT step 5: the terms read the build's own float rows - genFicheGearTerms(S, drag))
+    const terms = C.genFicheGearTerms(S, g), ts = Object.values(terms).reduce((a, v) => a + v, 0);
     ok(near(ts, g.gear, 1e-9), 'DRAG gear terms add to ' + ts + ', genGearCdA ' + g.gear);
-    ok(near(Dg.groups.fuselage.cda, g.body, 1e-4), 'DRAG the fuselage group is not the body row');
+    // (re-stated 2026-11-22, FUSELAGE-DRAG: it read "the fuselage group is the body row". A body the editor MEASURED is
+    //  shown taken apart - its friction and form under `fuselage`, its sharp corners, its steps with the windscreen,
+    //  its too-quick closure - and the parts must still add to the body row and the screen's, to the same 1e-4.)
+    { const G4 = k => (Dg.groups[k] ? Dg.groups[k].cda : 0);
+      ok(near(G4('fuselage') + G4('corners') + G4('screen') + G4('base'), g.body + (g.screen || 0), 2e-4), 'DRAG the fuselage group and its shape parts are not the body and screen rows');
+      ok(!g.shape || near(G4('corners'), g.shape.corners, 1e-4), 'DRAG the corners group is not the shape\'s'); }
     ok(Object.values(Dg.groups).every(x => x.dV > 0), 'DRAG a part that costs nothing or gains');
     const Vs = def.params.gen.Vs; ok(Dg.Vc >= 1.05 * Vs - 1e-6 && Dg.Vc <= 4 * Vs, 'DRAG cruise outside its bracket');
     ok(Dg.floats === (S.gear.type === 'floats'), 'DRAG the floats flag');
