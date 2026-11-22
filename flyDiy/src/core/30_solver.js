@@ -1437,7 +1437,7 @@ function makeSim(def, world) {
     else if (b.tt === 1) { b.tt = 0; DMG.tether--; }
     // G4104: A CRACKED LAMINATE HOLDS BY ITS FIBRES - its own crack (in tension, or a bend's core / fold), not a joint letting
     // go, a part cut away or the gear: a tether from its length at the crack, walked by the floor pass (no floor: Lf 0)
-    if (TETH && !b.kink && !inGear && (!how || how === 'core' || how === 'fold') && tetherKind(b) === 3) {
+    if (TETH && !b.kink && !inGear && !b.seam && (!how || how === 'core' || how === 'fold') && tetherKind(b) === 3) {   // (not a joint: a bonded fitting that lets go is no laminate - nothing bridges it)
       const L = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
       b.Lt = L; b.Lb = L; b.Lf = 0; b.tt = 1; DMG.tether++; FLR[nFlr++] = bi; nPost = nFlr + nTieL;
     }
@@ -1537,7 +1537,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b)) { b.Lt = L; b.Lb = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b) && !(b.seam && tetherKind(b) === 3)) { b.Lt = L; b.Lb = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
