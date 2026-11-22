@@ -1430,9 +1430,12 @@
         catch (e) { console.error('studio: could not be built -', e && e.message); }
       return null;
     }
-    if (hangarTried && hangarRoom !== roomId()) { if (hangar) disposeHangar(); else hangarTried = false; }
+    if (hangarTried && hangarRoom !== roomId()) { if (hangar) { if (ROOM_CACHE_ON()) roomPark(); else disposeHangar(); } else hangarTried = false; }
     if (hangarTried) return hangar;
+    // HANGAR-SWITCH (the official table, row 5: "Change garage < 5 s, no UI freeze"): a room built before comes back as it was
+    if (ROOM_CACHE_ON() && ROOMS.has(roomId())) return roomUnpark(roomId());
     hangarTried = true;
+    const roomT0 = performance.now();
     if (typeof genHangarBuild !== 'function' ||
         !genHangarSupported(THREE)) return null;
     try {
@@ -1454,9 +1457,11 @@
         roomHome = A && A.kind !== 'water' && !A.water ? A : null;
         roomSite = ps.plot ? ps.site : undefined;
       }
+      const tGen = performance.now();
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome, aprons: hoAprons(),   // HANGAR-OUTDOORS: the world's aprons (the premises' paved surface polygons) for the room's wide apron
           kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
+      ROOM_T.genMs = Math.round(performance.now() - tGen);
       hangarScene.add(hangar.group);
       hviewAttach();   // G3630 (HANGAR-VIEW): the world's view out of the door, if one of this room stands
       hangarScene.background = hangar.background;
@@ -1525,8 +1530,86 @@
     }
     // G999: the editor rail's mood label reads the room's moods; it no longer builds the room to read them (below)
     if (hangar && typeof window.EDITOR_SYNC_NIGHT === 'function') try { window.EDITOR_SYNC_NIGHT(); } catch (e) {}
+    ROOM_T.buildMs = Math.round(performance.now() - roomT0); ROOM_T.room = hangarRoom; ROOM_T.how = 'built';
     return hangar;
   }
+  // ---- HANGAR-SWITCH: THE ROOMS KEPT (A0 22 Nov: "the per-room cache (no dispose) and the hidden first-visit build with
+  // compileAsync, then the swap"; the one "prepare hidden / swap" path the garage-first boot shares, agreed with PERF-LEAD).
+  // A room left is PARKED: its group out of the scene, everything it was dressed with kept (the env PMREM it lit itself with,
+  // the backdrop, the fog sentinel, its air) - never disposed; coming back UNPARKS it (attached, its dress restored, the mood
+  // set, the env re-baked SLICED over the next frames). A room changed (its dims, shell, kits: disposeHangar) is rebuilt as
+  // before. ?roomcache=0 = the old rebuild every time (the A/B). GARAGE_ROOMS.prepare(id) builds a room the player is NOT in,
+  // detached, and warms its programs with compileAsync against the garage scene (the lights match) - so the switch that
+  // follows only unparks. The build itself is still one task: ROOM_T says what it cost (genMs the generator, buildMs it all)
+  const ROOMS = new Map();          // roomId -> { hangar, env, envPM, background, fog, air, at }
+  const ROOM_T = {};                 // the last build / prepare / unpark: { room, how, genMs, buildMs, compileMs, unparkMs }
+  const ROOM_CACHE_ON = () => { try { return !/[?&]roomcache=0(?:&|$)/.test(location.search || ''); } catch (e) { return true; } };
+  function roomPark() {
+    if (!hangar) return;
+    hangarScene.remove(hangar.group);
+    ROOMS.set(hangarRoom, { hangar, env: hangarScene.environment, envPM, background: hangarScene.background, fog: hangarScene.fog,
+                            air: hangar.roomAir || null, at: Date.now() });
+    envPM = null;                    // (the parked room keeps its PMREM: the next bake must not dispose it)
+    hangar = null; hangarTried = false;
+  }
+  function roomUnpark(id) {
+    const t0 = performance.now(), r = ROOMS.get(id);
+    if (!r) return null;
+    ROOMS.delete(id);
+    hangar = r.hangar; hangarRoom = id; hangarTried = true;
+    hangarScene.add(hangar.group);
+    hviewAttach();
+    hangarScene.background = r.background; hangarScene.fog = r.fog;
+    if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = r.air;
+    if (r.envPM) { if (envPM && envPM !== r.envPM) envPM.dispose(); envPM = r.envPM; hangarScene.environment = r.env; }
+    try { hangar.setMood(hangarMood); } catch (e) {}
+    try { bakeHangarEnvSliced(); } catch (e) {}   // the mood may have moved while it was parked: re-baked over the next frames
+    if (hangar && typeof window.EDITOR_SYNC_NIGHT === 'function') try { window.EDITOR_SYNC_NIGHT(); } catch (e) {}
+    Object.assign(ROOM_T, { room: id, how: 'unparked', unparkMs: Math.round(performance.now() - t0) });
+    return hangar;
+  }
+  // the parked rooms' weight on the GPU (the geometry's buffers + the textures they hold, counted once), for the memory line
+  function roomBytes(rec) {
+    const seenG = new Set(), seenT = new Set(); let geo = 0, tex = 0;
+    const texOf = t => { if (!t || seenT.has(t) || !t.image) return; seenT.add(t); const im = Array.isArray(t.image) ? t.image[0] : t.image;
+      const w = (im && (im.width || im.videoWidth)) || 0, h = (im && (im.height || im.videoHeight)) || 0; tex += w * h * 4 * (t.generateMipmaps === false ? 1 : 1.33) * (Array.isArray(t.image) ? t.image.length : 1); };
+    rec.hangar.group.traverse(o => {
+      if (o.geometry && !seenG.has(o.geometry)) { seenG.add(o.geometry); for (const k in o.geometry.attributes) geo += o.geometry.attributes[k].array.byteLength; if (o.geometry.index) geo += o.geometry.index.array.byteLength; }
+      if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) texOf(m[k]);
+    });
+    return { geoMB: +(geo / 1048576).toFixed(1), texMB: +(tex / 1048576).toFixed(1), envMB: rec.envPM ? 6 : 0 };
+  }
+  window.GARAGE_ROOMS = {
+    // a room built DETACHED and its programs warmed; the player stays where they are. -> Promise<{ room, cached, genMs, buildMs, compileMs }>
+    prepare(id) {
+      const d = playerLoad();
+      if (!ROOM_CACHE_ON() || !d.sheds || !d.sheds[id] || !inGarage) return Promise.resolve({ room: id, cached: false, skipped: true });
+      if (ROOMS.has(id) || (hangar && hangarRoom === id)) return Promise.resolve({ room: id, cached: true });
+      const t0 = performance.now(), cur = hangar ? hangarRoom : null, here0 = d.here;
+      let rec = null;
+      try {
+        if (hangar) roomPark();
+        d.here = id;                                   // (the build reads the room's record; never saved like this)
+        getHangar();
+        if (hangar && hangarRoom === id) { roomPark(); rec = ROOMS.get(id); }
+      } catch (e) { console.warn('flyDiy: the room could not be prepared -', e && e.message); }
+      finally { d.here = here0; if (cur && ROOMS.has(cur)) roomUnpark(cur); }
+      const built = { room: id, cached: false, genMs: ROOM_T.genMs, buildMs: Math.round(performance.now() - t0) };
+      if (!rec || typeof renderer.compileAsync !== 'function') return Promise.resolve(built);
+      const tc = performance.now();
+      // the programs against the garage scene (its lights, its fog): the swap draws them warm
+      return renderer.compileAsync(rec.hangar.group, camera, hangarScene).then(() => Object.assign(built, { compileMs: Math.round(performance.now() - tc) }),
+        () => built).then(r => { Object.assign(ROOM_T, { room: id, how: 'prepared', compileMs: r.compileMs, buildMs: r.buildMs, genMs: r.genMs }); return r; });
+    },
+    cached: () => [...ROOMS.keys()],
+    memory: () => { const out = {}; for (const [k, r] of ROOMS) out[k] = roomBytes(r);
+      try { if (performance.memory) out.heapMB = Math.round(performance.memory.usedJSHeapSize / 1048576); } catch (e) {}
+      try { out.renderer = { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; } catch (e) {}
+      return out; },
+    drop(id) { const r = ROOMS.get(id); if (!r) return false; ROOMS.delete(id); const h0 = hangar, e0 = envPM; hangar = r.hangar; envPM = null;
+      try { disposeHangar(); } finally { hangar = h0; envPM = e0; hangarTried = !!h0; } if (r.envPM) r.envPM.dispose(); return true; },
+    last: () => Object.assign({}, ROOM_T),
+  };
 
   // ================= G3630 HANGAR-VIEW: THE WORLD'S OWN VIEW OUT OF THE DOOR (hangar_view.js) =================
   // The user, 25 Oct: "making sure the outside view in the hangar matches the scenery". The room's outdoors (its sky

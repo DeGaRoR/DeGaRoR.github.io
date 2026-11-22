@@ -76,9 +76,14 @@
     const tick = () => { const n = performance.now(); worst = Math.max(worst, n - prev); prev = n; if (run) requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
     const frame = () => new Promise(r => requestAnimationFrame(() => r()));
-    return Promise.resolve(W.FLYDIY_PLAYER.gotoGarage(id)).then(r => frame().then(frame).then(() => {
+    // THE ROOM FIRST (app.js GARAGE_ROOMS): a room not built yet is built detached and its programs warmed while this one
+    // stays on screen; the move then only unparks it
+    let prep = null;
+    const R = W.GARAGE_ROOMS && W.GARAGE_ROOMS.prepare ? Promise.resolve(W.GARAGE_ROOMS.prepare(id)).catch(() => null) : Promise.resolve(null);
+    return R.then(p => { prep = p; return W.FLYDIY_PLAYER.gotoGarage(id); }).then(r => frame().then(frame).then(() => {
       run = false; S.busy = false;
-      const rec = { id, ok: !!(r && r.ok), why: (r && r.why) || '', ms: Math.round(performance.now() - t0), worstFrameMs: Math.round(worst), at: Date.now() };
+      const rec = { id, ok: !!(r && r.ok), why: (r && r.why) || '', ms: Math.round(performance.now() - t0), worstFrameMs: Math.round(worst), at: Date.now(),
+                    prepare: prep, room: W.GARAGE_ROOMS && W.GARAGE_ROOMS.last ? W.GARAGE_ROOMS.last() : null };
       S.last = rec; S.hist.push(rec); if (S.hist.length > 20) S.hist.shift();
       sync();
       return rec;
