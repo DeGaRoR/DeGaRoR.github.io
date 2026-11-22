@@ -83,26 +83,45 @@ const FAR = FARG.length >= 6 ? { R: FARG[0].near, eye: FARG[0].eye } : null;
 // ================= THE GROUND =================================================================================================
 const GJ = GDIR && fs.existsSync(path.join(GDIR, 'ground.json')) ? JSON.parse(fs.readFileSync(path.join(GDIR, 'ground.json'), 'utf8')) : null;
 const mos = tag => GJ ? GJ.mosaics.find(m => m.tag === tag) : null;
-// THE FOREST'S FLOOR IS NOT A HOLE (the user, 22 Nov, on the large hangar's back window: "a gap in terrain ... we need to patch that hole"): under a
-// canopy the game darkens its ground to near black - with the trees hidden for the picture that black is what the tiles hold, and between
-// the cards, from a high window, it read as a pit. In the mid and wide pictures a texel darker than a floor in shade goes toward the land's
-// own mean colour x 0.6 (a shaded floor), and a texel no tile covered takes it whole (a steep site leaves some: 14 % at the Cabin Strip).
-const liftFloor = file => { const I = PNG.decode(fs.readFileSync(path.join(GDIR, file))), d = I.data, ch = I.ch, n = I.w * I.h, sum = [0, 0, 0]; let m = 0, lifted = 0;
+// THE GROUND PICTURES' OWN PASS (the user, 22 Nov, on the large hangar's back window: "a gap in terrain ... we need to patch that hole").
+// Three things a top-down picture of the game's ground gets wrong for an eye that stands on it:
+//   WATER   seen straight down the game's water is its deep colour, near black; from the shore it is the sky. A lake 160 m behind
+//           Jolene's hangars read as a pit. Where the MEASURED surface is water (measure.json terrain surf 4), the texel takes a
+//           water that throws the sky back (WATER_RGB: under the scene's own light it shows at about three quarters of the low sky).
+//   FLOOR   under a canopy the game darkens its ground to near black; with the trees hidden for the picture that black is what the
+//           tiles hold. A texel darker than a floor in shade goes toward the land's own mean colour x 0.6.
+//   BEYOND  what no tile covered (a steep site leaves some), and the land past the picture's frame out to the far band (FB: the
+//           wide picture is grown to the grid's whole frame), takes that floor colour, or the water's where the surface is water.
+const WATER = 4, WATER_RGB = [124, 156, 181];
+const surfAt = (x, z) => { for (const G of [M.terrain && M.terrain.near, M.terrain && M.terrain.mid]) { if (!G || !G.surf) continue;
+    const i = Math.round((x - G.x0) / G.step), j = Math.round((z - G.z0) / G.step); if (i >= 0 && j >= 0 && i < G.n && j < G.n) return G.surf[j * G.n + i]; } return 0; };
+// groundTex(key, F, FB): the mosaic of frame F rewritten over frame FB (FB = F: in place); returns the key
+const groundTex = (key, F, FB) => { const I = PNG.decode(fs.readFileSync(path.join(GDIR, F.file))), d = I.data, ch = I.ch, sum = [0, 0, 0]; let m = 0;
   const lum = o => 0.2126 * d[o] + 0.7152 * d[o + 1] + 0.0722 * d[o + 2];
-  for (let i = 0; i < n; i += 5) { const o = i * ch; if (lum(o) > 46 && (ch < 4 || d[o + 3] > 200)) { sum[0] += d[o]; sum[1] += d[o + 1]; sum[2] += d[o + 2]; m++; } }
-  if (!m) return null; const f = sum.map(v => v / m * 0.6);
-  for (let i = 0; i < n; i++) { const o = i * ch, a = ch < 4 ? 1 : d[o + 3] / 255, t = Math.max(1 - a, Math.max(0, Math.min(1, (36 - lum(o)) / 22)));
-    if (t > 0.004) { d[o] += (f[0] - d[o]) * t; d[o + 1] += (f[1] - d[o + 1]) * t; d[o + 2] += (f[2] - d[o + 2]) * t; if (ch === 4) d[o + 3] = 255; if (t > 0.5) lifted++; } }
-  return { png: PNG.encode(I.w, I.h, ch, d), lifted: +(lifted / n).toFixed(3), floor: f.map(v => Math.round(v)) }; };
-const copyTex = (key, file) => { const lf = /^ground_(mid|wide)$/.test(key) && !argv.includes('--nolift') ? liftFloor(file) : null;
-  if (lf) { fs.writeFileSync(path.join(OUT, file), lf.png); (SCENE.stats.floor = SCENE.stats.floor || {})[key] = { lifted: lf.lifted, floor: lf.floor }; } else fs.copyFileSync(path.join(GDIR, file), path.join(OUT, file));
-  SCENE.textures[key] = { file, srgb: true }; return key; };
+  for (let i = 0; i < I.w * I.h; i += 5) { const o = i * ch; if (lum(o) > 46 && (ch < 4 || d[o + 3] > 200)) { sum[0] += d[o]; sum[1] += d[o + 1]; sum[2] += d[o + 2]; m++; } }
+  const f = m ? sum.map(v => v / m * 0.6) : [60, 66, 44];
+  FB = FB || F; const ppm = I.w / F.U, W2 = Math.min(4096, Math.round(FB.U * ppm)), H2 = Math.min(4096, Math.round(FB.V * I.h / F.V)), out = new Uint8Array(W2 * H2 * 4);
+  // FB's origin in F's own coordinates (the two frames share their axes)
+  const ox = FB.o[0] - F.o[0], oz = FB.o[1] - F.o[1], uo = ox * F.eu[0] + oz * F.eu[1], vo = ox * F.ev[0] + oz * F.ev[1]; let nw = 0, nf = 0, nb = 0;
+  for (let y = 0; y < H2; y++) { const v = (y + 0.5) / H2 * FB.V;
+    for (let x = 0; x < W2; x++) { const u = (x + 0.5) / W2 * FB.U, wx = FB.o[0] + FB.eu[0] * u + FB.ev[0] * v, wz = FB.o[1] + FB.eu[1] * u + FB.ev[1] * v, q = (y * W2 + x) * 4;
+      let r, g, b;
+      if (surfAt(wx, wz) === WATER) { r = WATER_RGB[0]; g = WATER_RGB[1]; b = WATER_RGB[2]; nw++; }
+      else { const us = u + uo, vs = v + vo, sx = Math.floor(us / F.U * I.w), sy = Math.floor(vs / F.V * I.h);
+        if (us >= 0 && vs >= 0 && sx < I.w && sy < I.h) { const o = (sy * I.w + sx) * ch, a = ch < 4 ? 1 : d[o + 3] / 255, t = Math.max(1 - a, Math.max(0, Math.min(1, (36 - lum(o)) / 22)));
+          r = d[o] + (f[0] - d[o]) * t; g = d[o + 1] + (f[1] - d[o + 1]) * t; b = d[o + 2] + (f[2] - d[o + 2]) * t; if (t > 0.5) nf++; }
+        else { r = f[0]; g = f[1]; b = f[2]; nb++; } }
+      out[q] = r; out[q + 1] = g; out[q + 2] = b; out[q + 3] = 255; } }
+  fs.writeFileSync(path.join(OUT, F.file), PNG.encode(W2, H2, 4, out)); SCENE.textures[key] = { file: F.file, srgb: true };
+  (SCENE.stats.groundTex = SCENE.stats.groundTex || {})[key] = { size: [W2, H2], water: +(nw / (W2 * H2)).toFixed(3), floor: +(nf / (W2 * H2)).toFixed(3), beyond: +(nb / (W2 * H2)).toFixed(3), floorRGB: f.map(v => Math.round(v)) };
+  return key; };
+const copyTex = (key, file) => { fs.copyFileSync(path.join(GDIR, file), path.join(OUT, file)); SCENE.textures[key] = { file, srgb: true }; return key; };
 // the frames, the ones ground_merge.js draws its mosaics in (kept in step by ground.json when it is there)
 const MU = SITE.mid.u, MV = SITE.mid.v, MO = SITE.mid.out;
 const F_MID = mos('mid') || { o: [M.mid.x + d0[0] * (MO - MU / 2) - t0[0] * MV / 2, M.mid.z + d0[1] * (MO - MU / 2) - t0[1] * MV / 2], eu: d0, ev: t0, U: MU, V: MV };
 // the wide frame: 20 m cells whose lines fall on the mid picture's edges (670 m each side of it and 580 m behind, 1160 m ahead)
 const F_WIDE = mos('wide') || { o: [M.mid.x + d0[0] * (MO - MU / 2 - 180) - t0[0] * (MV / 2 + 680), M.mid.z + d0[1] * (MO - MU / 2 - 180) - t0[1] * (MV / 2 + 680)], eu: d0, ev: t0, U: MU + 180 + 1160, V: MV + 1360 };
-{ const A = grid(F_MID, Math.round(F_MID.U / 4), Math.round(F_MID.V / 4)); A.nrm = smoothN(A); mesh('ground:mid', 'ground', mos('mid') ? copyTex('ground_mid', mos('mid').file) : null, A, { order: 0 }); }
+{ const A = grid(F_MID, Math.round(F_MID.U / 4), Math.round(F_MID.V / 4)); A.nrm = smoothN(A); mesh('ground:mid', 'ground', mos('mid') ? groundTex('ground_mid', mos('mid')) : null, A, { order: 0 }); }
 for (const Sd of S) { const id = Sd.id.replace(/\W/g, '_'), F = mos('near_' + id); if (!F) continue; const rim = 3;
   const A = grid(F, Math.round(F.U / 2), Math.round(F.V / 2), { lift: 0.012, alpha: (u, v) => Math.max(0, Math.min(1, Math.min(u, v, F.U - u, F.V - v) / rim)) }); A.nrm = smoothN(A);
   mesh('ground:near:' + Sd.id, 'decal', copyTex('ground_near_' + id, F.file), A, { order: 1, shed: Sd.id }); }
@@ -112,9 +131,8 @@ for (const Sd of S) { const id = Sd.id.replace(/\W/g, '_'), F = mos('near_' + id
   const wxz = (u, v) => [F_WIDE.o[0] + F_WIDE.eu[0] * u + F_WIDE.ev[0] * v, F_WIDE.o[1] + F_WIDE.eu[1] * u + F_WIDE.ev[1] * v];
   // THE LAND GOES ALL THE WAY ROUND, out to the far band (the user, 22 Nov, on the large hangar's back window: "the actual terrain ends at a
   // few dozen / hundred metres ... we need to patch that hole"): the wide picture was shot ahead of the doors and reached 350 m behind
-  // them, the grid stopped with it. The grid now covers the far band's whole circle on the same 20 m lattice; past the picture's own
-  // frame the texture is MIRRORED (scene.json textures.ground_wide.mirror: the page sets the wrap) - the same land's look carried on
-  // over the real terrain's heights, where the trees stand on it. A capture with wide tiles behind the sheds would be the true ground.
+  // them, the grid stopped with it. The grid now covers the far band's whole circle on the same 20 m lattice, and the picture is grown to
+  // that frame (groundTex: past its own tiles the land's floor colour, the water's where the measured surface is water).
   let FB = F_WIDE, u0 = 0, v0 = 0;
   if (FAR) { const dx = FAR.eye[0] - F_WIDE.o[0], dz = FAR.eye[2] - F_WIDE.o[1], uc = dx * F_WIDE.eu[0] + dz * F_WIDE.eu[1], vc = dx * F_WIDE.ev[0] + dz * F_WIDE.ev[1], R = FAR.R + 3 * st;
     u0 = Math.min(0, Math.floor((uc - R) / st) * st); v0 = Math.min(0, Math.floor((vc - R) / st) * st);
@@ -122,10 +140,9 @@ for (const Sd of S) { const id = Sd.id.replace(/\W/g, '_'), F = mos('near_' + id
     FB = { o: [F_WIDE.o[0] + F_WIDE.eu[0] * u0 + F_WIDE.ev[0] * v0, F_WIDE.o[1] + F_WIDE.eu[1] * u0 + F_WIDE.ev[1] * v0], eu: F_WIDE.eu, ev: F_WIDE.ev, U: u1 - u0, V: v1 - v0 }; }
   const nuB = Math.round(FB.U / st), nvB = Math.round(FB.V / st), bxz = (u, v) => [FB.o[0] + FB.eu[0] * u + FB.ev[0] * v, FB.o[1] + FB.eu[1] * u + FB.ev[1] * v];
   const A = grid(FB, nuB, nvB, { skip: (u, v) => { const q = bxz(u, v); return inMid(q[0], q[1], st * 1.5) || (FAR && Math.hypot(q[0] - FAR.eye[0], q[1] - FAR.eye[2]) > FAR.R + 2.5 * st); }, drop: (u, v) => { const q = bxz(u, v); return inMid(q[0], q[1], 0.5) ? -0.35 : 0; },
-    uvOf: (u, v) => [(u + u0) / F_WIDE.U, 1 - (v + v0) / F_WIDE.V] });
-  A.nrm = smoothN(A); mesh('ground:wide', 'ground', mos('wide') ? copyTex('ground_wide', mos('wide').file) : null, A, { order: 0 });
-  if (SCENE.textures.ground_wide && (u0 < 0 || v0 < 0 || FB.U > F_WIDE.U || FB.V > F_WIDE.V)) SCENE.textures.ground_wide.mirror = true;
-  SCENE.stats.wide = { frame: [F_WIDE.U, F_WIDE.V], grid: [FB.U, FB.V], back: [-u0, -v0], mirrored: !!(SCENE.textures.ground_wide && SCENE.textures.ground_wide.mirror) }; }
+    uvOf: (u, v) => [u / FB.U, 1 - v / FB.V] });
+  A.nrm = smoothN(A); mesh('ground:wide', 'ground', mos('wide') ? groundTex('ground_wide', mos('wide'), FB) : null, A, { order: 0 });
+  SCENE.stats.wide = { frame: [F_WIDE.U, F_WIDE.V], grid: [FB.U, FB.V], back: [-u0, -v0] }; }
 if (!FAR) { // THE RING (only without a far band): from the wide picture's edge out to 32 km, the land's own heights (the skyline), coloured by what the land is
   const NA = 180, NR = 34, ROUT = 32000, cx = F_WIDE.o[0] + F_WIDE.eu[0] * F_WIDE.U / 2 + F_WIDE.ev[0] * F_WIDE.V / 2, cz = F_WIDE.o[1] + F_WIDE.eu[1] * F_WIDE.U / 2 + F_WIDE.ev[1] * F_WIDE.V / 2;
   const pos = [], col = [], idx = [], canopy = (x, z) => (W.island && W.island.canopyAt) ? W.island.canopyAt(x, z) : 0;

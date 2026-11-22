@@ -291,7 +291,11 @@ const PAGE = `(() => {
     }
 
     // ---- the card's place: on the apron, 60 m straight out of the club's door (past the near tiles; hidden in every other picture) --
-    const cardAt = (() => { const p = toWorld(S[0], -S[0].HD - 60, 0); return { x: p[0], z: p[1], y: floorY(S[0]) + 0.03, yaw: S[0].ry }; })();
+    // THE CARD LIES ON OPEN GROUND, AT THE GROUND'S OWN HEIGHT (the Cabin Strip, 22 Nov: 60 m out of the door at the shed's floor height was a
+    // forested slope - the card stood buried under a tree, every curve read off it was noise: a white strip, a blue cabin, blue summits).
+    // sites/<pack>.json card: { out } says how far out of the first door (default 60: an apron); over a grass strip it floats 0.6 m (the blades)
+    const cardAt = await (async () => { const out = (M.site && M.site.card && +M.site.card.out) || 60, p = toWorld(S[0], -S[0].HD - out, 0), gy = await JJ(`FLIGHT_PROBE.world().terrainH(${p[0]}, ${p[1]})`);
+      return { x: p[0], z: p[1], y: (Number.isFinite(gy) ? gy : floorY(S[0])) + ((M.site && M.site.ground && M.site.ground.cover) ? 0.6 : 0.03), yaw: S[0].ry }; })();
     const shootCard = async (tag, h) => {
       await JJ(`JSON.stringify(GV.card(${cardAt.x}, ${cardAt.y}, ${cardAt.z}, ${cardAt.yaw}, 4))`);
       await eyeAt(cardAt.x, cardAt.y + (h || 12), cardAt.z, yawOf(S[0].doorDir.x, S[0].doorDir.z), -1.5, 30);
@@ -415,7 +419,7 @@ const PAGE = `(() => {
           for (let k = 0; k < YAWS.length; k++) { await eyeAt(eye[0], eye[1], eye[2], YAWS[k], 0.02, k === 0 ? 24 : 8); await grab('slice_' + tag + '_' + String(r).padStart(2, '0') + '_' + k, { kind: 'slice', pass: tag, ring: r, near: RINGS[r], far: RINGS[r + 1], k, yaw: YAWS[k], eye }); n++; } } return n; };
       // the eye at the middle first: the cover ring plants round it
       await eyeAt(eye[0], eye[1], eye[2], YAW0, 0.02, 60); await rig.settleLoad(); await rig.frames(60);
-      await JJ('JSON.stringify(GV.hide(' + JSON.stringify(['^treeRungs', '^premises:houses$', '^shed:', '^shell:', '^parked', '^contact:', '^fleetStand']) + ', ' + JSON.stringify(['fill', 'ser']) + ', { noShadow: true }))'); await rig.frames(6);
+      await JJ('JSON.stringify(GV.hide(' + JSON.stringify(['^treeRungs', '^premises:houses$', '^shed:', '^shell:', '^parked', '^contact:', '^fleetStand', '^animal', '^premises:(animals|life)$', '^crowd', '^resident:'])   /* (nothing alive in the rings: an elk stood baked by the Cabin Strip's tower) */ + ', ' + JSON.stringify(['fill', 'ser']) + ', { noShadow: true }))'); await rig.frames(6);
       const hidA = await JJ('JSON.stringify(GV.hidden())'); await alive('slices hide A');
       const nA = await pass('all');
       await JJ('JSON.stringify(GV.hide(' + JSON.stringify(HIDE.ground) + ', ' + JSON.stringify(HIDE.groundUD) + ', { noShadow: true }))'); await rig.frames(6);
