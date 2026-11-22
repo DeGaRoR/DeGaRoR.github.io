@@ -5,7 +5,7 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
 
 ## FOR A0, 22 Nov 10:55 UTC - YOUR L40J CANDIDATE BATTERY
 
-<!-- L40J-RESULT --> **PARTIAL CORE BATTERY on the L40J candidate: FAIL - 18 red (87 PASS, 18 FAIL, 0 SKIP of 364).** FAIL (18 of 105 gates run; PARTIAL: 5 of 23 chunks, 259 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H] | NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE | L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
+<!-- L40J-RESULT --> **PARTIAL CORE BATTERY on the L40J candidate: FAIL - 20 red (88 PASS, 20 FAIL, 0 SKIP of 364).** FAIL (20 of 108 gates run; PARTIAL: 6 of 23 chunks, 256 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H] | NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE | L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 
 - **15:05 UTC: THE CONTAINER RESTARTED AGAIN (about 14:55), the third time today.** The chunk then running (43 gates:
   TRAILER .. DMGCLUSTERS, 37 done) is lost and re-runs; the 72 gates already published stand. The remaining 292 gates
