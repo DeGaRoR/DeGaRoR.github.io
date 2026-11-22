@@ -49,9 +49,9 @@
   {
    "name": "the nose down, into the ground",
    "do": "page",
-   "js": "(() => { const P = window.FLIGHT_PROBE; P.setManual(true, 'rig'); const I = P.input(); I.setAxis('pitch', -1); return 'manual ' + P.manual() + ', pitch axis ' + I.axis('pitch') + ', agl ' + (+P.agl()).toFixed(1); })()",
+   "js": "(() => { const P = window.FLIGHT_PROBE; P.setManual(true, 'rig'); const I = P.input(); if (window.__NOSE) clearInterval(window.__NOSE); let n = 0; window.__NOSE = setInterval(() => { try { I.setAxis('pitch', -1); if (++n > 1500 || P.over()) clearInterval(window.__NOSE); } catch (e) { clearInterval(window.__NOSE); } }, 16); I.setAxis('pitch', -1); return 'manual ' + P.manual() + ', the stick HELD forward (pitch axis ' + I.axis('pitch') + '), agl ' + (+P.agl()).toFixed(1); })()",
    "until": {
-    "s": 16
+    "s": 14
    },
    "capS": 40,
    "allow": [

@@ -212,7 +212,17 @@
   const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
     // G1997b (A0, the laptop's ?diag: the context said powerPreference 'default'): a game asks for the HIGH-PERFORMANCE GPU - on a
     // hybrid / laptop machine the fast GPU and its fast path; one GPU, nothing changes (the probes above and welcome.js ask the same)
-    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
+    // PERF-LEAD LAB (?keepframe=1, OFF by default; 23 Nov, ROW 15 "no blue screen, ever"): THE CANVAS KEEPS ITS LAST PICTURE.
+    // The draw guard holds a whole frame while a program links (aa.render returns 'held': nothing is resolved onto the
+    // canvas) on the word that "the page keeps showing the last whole frame". It does not: the screen's own recording of
+    // the Cub's crash (22-23 Nov) shows the PAGE - its pale blue background, the HUD on top - from the impact for 9 s
+    // while the cut copies' programs link, and the user has seen it for weeks ("a frame missing the 3d render. The UI
+    // keeps showing"). With preserveDrawingBuffer the browser keeps the canvas's last frame when a frame draws nothing
+    // on it: a held frame is then a FROZEN picture, as the guard's design meant. Its price (a copy of the canvas a frame
+    // in the browser, where it swapped) is what the A/B measures before any default moves.
+    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' },
+      (typeof location !== 'undefined' && /[?&]keepframe=1(&|$)/.test(location.search || '')) ? { preserveDrawingBuffer: true } : {},
+      RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   // THE PERF LAB'S SWITCHES (PERF-LEAD, 22 Nov 2026). Each is OPT-IN by the URL and changes nothing without it: one

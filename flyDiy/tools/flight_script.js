@@ -332,6 +332,21 @@ async function runPage(S, opt) {
   const R = { ok: false, steps: [], failed: null, t: 0, wall: 0, log: out };
   try {
     if(o.onReady)R.metadata=await o.onReady(rig);
+    // --screencast <dir> (23 Nov, ROW 15 - the user: "No blue screen, not in the garage, not in the world, not when crashing,
+    // ever"): WHAT THE SCREEN SHOWED, from the browser's compositor (Page.startScreencast: the canvas AND the page round it,
+    // which a read of the canvas after the game's render cannot see - a nine-pixel read found no flat frame in the run where
+    // the user had watched a blue one). Every compositor frame comes as a small JPEG; a flat picture is a tiny file. After
+    // the flight: frames whose size is under 0.45 of their neighbours' median are written out with the two frames either
+    // side, the sizes and the steps' marks go to screencast.json. NOT a timing run (the frames are encoded as they come).
+    let SC = null;
+    if (o.screencast) {
+      SC = { dir: o.screencast, frames: [], marks: [], t0: Date.now() }; fs.mkdirSync(SC.dir, { recursive: true });
+      rig.onEvent = m => { if (m.method !== 'Page.screencastFrame') return; const q = m.params;
+        rig.cmd('Page.screencastFrameAck', { sessionId: q.sessionId });
+        SC.frames.push({ t: Date.now() - SC.t0, n: q.data.length, data: q.data }); };
+      await rig.cmd('Page.startScreencast', { format: 'jpeg', quality: 60, maxWidth: 1280, maxHeight: 340, everyNthFrame: 1 });
+      say('  screencast on -> ' + SC.dir);
+    }
     J({ type: 'run', scenario: S.name, what: S.what || null, runner: 'page', plane: P.name, build: P.file, from: S.from, to: S.to || S.from,
         persona: S.persona || 'expert', seeded: 'flydiy.wip <- ' + P.file, gpu: rig.gpu, bootS: rig.bootS, sha: gitSha(), at: new Date().toISOString() });
     say('flight_script (page): ' + S.name + ' - ' + P.name + ' (seeded as the working build), ' + S.from + ' > ' + (S.to || S.from) + ' | gpu ' + rig.gpu + ', boot ' + rig.bootS + ' s | log ' + out);
@@ -376,6 +391,7 @@ async function runPage(S, opt) {
       await frames();   // (the step's frames start here)
       let t0 = s ? s.t : 0;
       await rig.ev(`(() => { try { window.FLIGHT_REC.mark(${JSON.stringify('seg:' + st.name)}); } catch (e) {} return 1; })()`);
+      if (SC) SC.marks.push({ t: Date.now() - SC.t0, step: st.name });
       if (st.do === 'start' && S.from !== 'HOME') {
         const goJs = '(() => { try { const G = window.FLYDIY_START; if (!G || !G.go) return "no start chooser"; G.go({ start: "field:' + S.from + '", to: ' + JSON.stringify(S.to && S.to !== S.from ? S.to : null) + ' }); return "ok"; } catch (e) { return String(e); } })()';
         say('  start from ' + S.from + ': ' + await rig.ev(goJs));
@@ -437,6 +453,24 @@ async function runPage(S, opt) {
       if (failed) { say('       WHY: ' + failed.why.what); for (const v of failed.why.said || []) say('       said ' + v); }
     }
     R.failed = failed; R.ok = !failed;
+    if (SC) {
+      try { await rig.cmd('Page.stopScreencast'); } catch (e) {}
+      rig.onEvent = null;
+      const F = SC.frames, med = l => { const v = l.slice().sort((x, y) => x - y); return v.length ? v[v.length >> 1] : 0; };
+      const flagged = [];
+      for (let i = 0; i < F.length; i++) { const a0 = Math.max(0, i - 30), nb = F.slice(a0, Math.min(F.length, i + 31)).map(f => f.n), m = med(nb);
+        F[i].med = m; if (m > 0 && F[i].n < 0.45 * m) flagged.push(i); }
+      const keep = new Set(); for (const i of flagged) for (let k = i - 2; k <= i + 2; k++) if (k >= 0 && k < F.length) keep.add(k);
+      // (and one frame a second, so the run can be looked at whatever the sizes say)
+      let lastS = -1; for (let i = 0; i < F.length; i++) { const sec = Math.floor(F[i].t / 1000); if (sec !== lastS) { lastS = sec; keep.add(i); } }
+      for (const i of keep) fs.writeFileSync(path.join(SC.dir, 'f' + String(F[i].t).padStart(7, '0') + (flagged.includes(i) ? '_FLAT' : '') + '.jpg'), Buffer.from(F[i].data, 'base64'));
+      const stepAt = t => { let n = ''; for (const k of SC.marks) if (k.t <= t) n = k.step; return n; };
+      const rep = { frames: F.length, seconds: F.length ? Math.round((F[F.length - 1].t - F[0].t) / 1000) : 0, medianBytes: med(F.map(f => f.n)), flagged: flagged.map(i => ({ t: F[i].t, bytes: F[i].n, neighbours: F[i].med, step: stepAt(F[i].t) })), marks: SC.marks,
+                    sizes: F.map(f => [f.t, f.n]) };
+      fs.writeFileSync(path.join(SC.dir, 'screencast.json'), JSON.stringify(rep));
+      say('  screencast: ' + F.length + ' frames in ' + rep.seconds + ' s, median ' + rep.medianBytes + ' bytes; FLAT frames (under 0.45 of their neighbours): ' + flagged.length + (flagged.length ? ' - ' + rep.flagged.slice(0, 12).map(x => x.t + ' ms in "' + x.step + '" (' + x.bytes + ' of ' + x.neighbours + ')').join('; ') : ''));
+      R.screencast = { frames: rep.frames, flagged: rep.flagged };
+    }
     if(o.afterFlight)R.afterFlight=await o.afterFlight(rig,R);
     // the flight recorder's log, pulled whole (PERF-TRACE-FORMAT section 3) and the report made from it
     try {
@@ -484,7 +518,7 @@ if (require.main === module) {
   if (runner === 'page') {   // (A GPU RUN NEEDS A0's SLOT: boxlock.sh take gpu first, RIG-PROCEDURE 1)
     // (PERF-TRACE 22 Nov: --headed --live --q --boot reach page_rig too - the user's rule: timing from a VISIBLE browser at the big screen's size)
     runPage(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), cap: +opt('cap', 900), size: opt('size', undefined), repo: opt('repo', undefined),
-      headed: argv.includes('--headed'), live: argv.includes('--live'), q: opt('q', undefined), boot: +opt('boot', 0) || undefined })
+      headed: argv.includes('--headed'), live: argv.includes('--live'), screencast: opt('screencast', undefined), q: opt('q', undefined), boot: +opt('boot', 0) || undefined })
       .then(R => process.exit(R.ok ? 0 : 1), e => { console.error('flight_script (page): ' + (e && e.message || e)); process.exit(2); });
   } else {
     const R = runNode(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), every: opt('every', undefined) });
