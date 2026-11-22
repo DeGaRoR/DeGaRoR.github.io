@@ -7,13 +7,15 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
 
 <!-- L40J-RESULT --> **PARTIAL CORE BATTERY on the L40J candidate: FAIL - 16 red (56 PASS, 16 FAIL, 0 SKIP of 364).** FAIL (16 of 72 gates run; PARTIAL: 3 of 8 chunks, 292 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H] | NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE | L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 
-- **PARTIAL RESULT, 11:50 UTC, chunk 1 of 8 (the first 52 gates of the table, COVERIDLE .. TAXICLEAR): 44 PASS, 8 FAIL.**
-  **NEW reds: FMIST, TAKEOFF.** L40h's own: GROUNDQUERY FLIGHTREC STOL GEN RADIALDIV TAXICLEAR. Neither new one is this
-  box (no memory kill, both deterministic):
-  - FMIST: three rows - "atmo.js: every pocket switch is a ternary whose off arm is what was there (5 sites)", "the
+- **THE NEW REDS SO FAR, read by check (14:40 UTC; none is this box: no memory kill, no timeout, all deterministic):**
+  - **TAKEOFF**: "technique c172: to 15 m 794 m in [0.6, 1.4] x 514 m (C172S POH)" - the C172's take-off to 15 m is
+    1.54 x the book's.
+  - **ROUTE** (shard 2, fly:metal only; the three personas pass): the metal Cessna cannot make the drawn profile - "WP1
+    climbs 2.5 m/s, plan limit +2.4", "WP1 at 175 m +-15 - +160.7 m", "reversals ... da 3.1 dr 20.3 /min" (limit 12).
+    TAKEOFF and ROUTE both say the candidate's Cessna climbs less than master's: look at the Cessna change in it first.
+  - **FMIST**: three rows - "atmo.js: every pocket switch is a ternary whose off arm is what was there (5 sites)", "the
     stored choice compiles the veil alone", "nothing stored, no flag: ON - the veil alone". Source rows on atmo.js.
-  - TAKEOFF: "technique c172: to 15 m 794 m in [0.6, 1.4] x 514 m (C172S POH)" - the C172's take-off to 15 m is 1.54 x
-    the book's.
+  - MONOWHEEL, red on L40h, PASSES on the candidate.
 - **Running here since 10:52 UTC** on origin/claude/train/L40J-candidate f80229d71: the 364 core gates / 387 jobs,
   `GATES_CORE=1`, `--no-build`, `--jobs=4`, `node --max-old-space-size=4096`. 4 CPUs / 15 GB, about 1.5x slower per core
   than the box: 6-8 h.
