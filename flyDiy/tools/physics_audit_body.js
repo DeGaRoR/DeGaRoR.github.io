@@ -28,6 +28,8 @@ const K = { lamCf: 0.85, corner: 0.6, kSkin: { glass: 1.08, carbon: 1.08, wood: 
 const cfT = Re => 0.455 / Math.pow(Math.log10(Re), 2.58);
 const KEYS = ['c172v2', 'cub', 'dc3r', 'jodelg', 'carboncubss', 'chinookm', 'pc6', 'etrainer', 'archaeo', 'petrel42', 'tigermothm', 'stearman', 'camelm', 'pa18f', 'ruckus'];
 let audit = null; try { const a = JSON.parse(fs.readFileSync(opt('audit', ''), 'utf8')); audit = Array.isArray(a) ? a : Object.values(a); } catch (e) {}
+const BS = require(path.join(T, 'body_shape.js'));
+const K2 = { corner: 0.9, step: 0.7, base: 0.18, lamCf: 0.85 };     // version 2 (the outline as drawn): see reports/FUSELAGE-DRAG-STUDY
 const rows = [];
 for (const key of KEYS) {
   const P = RC.PLANES[key]; if (!P) continue;
@@ -60,12 +62,32 @@ for (const key of KEYS) {
   // the cross-flow at the climb (6 deg of local incidence): not in the cruise figure
   const plan = d.L * wCab * 0.7, sin3 = Math.pow(Math.sin(6 * Math.PI / 180), 3);
   const cross = (K.crossRound + (K.crossSharp - K.crossRound) * (1 - round) * (1 - round)) * plan * sin3;
+  // VERSION 2: the same friction and form, the corners / the steps / the base from the body AS DRAWN (body_shape.js)
+  let v2 = null;
+  try {
+    const open = S.fuselage && S.fuselage.covering === 'open';
+    const h = BS.shape(BS.measure(spec.cage, 60)), sc = d.frontal / h.boxMax;         // m2 per cage unit squared
+    const lam2 = moulded && !nosProp && h.sharp < 0.25 ? Math.min(0.5, h.trip) : 0;
+    const f2 = d.swet * cfT(Re) * (1 - lam2 * K2.lamCf) * kSkin * d.FF * (d.hullK || 1);
+    const corner2 = open ? 0 : f2 * K2.corner * h.sharp;
+    const step2 = style === 'none' ? d.screen : K2.step * h.stepA * sc, base2 = K2.base * h.baseA * sc;
+    v2 = { h, lam2, f2, corner2, step2, base2, now: f2 + corner2 + step2 + base2 };
+  } catch (e) { v2 = null; }
   const today = d.body + d.screen, now = fric + sect + ws;
   const A = audit && audit.find(x => x.key === key);
   rows.push({ key, mat: S.material, swet: d.swet, front: d.frontal, f: d.f, rT, rB, tumble, round, lam, kSec, aWs, style,
-              today, fric, sect, ws, now, cross, CdS: A && A.CdS, S: A && A.S, AR: A && A.AR, e: A && A.e, LD: A && A.fig && A.fig.LD });
+              today, fric, sect, ws, now, cross, v2, CdS: A && A.CdS, S: A && A.S, AR: A && A.AR, e: A && A.e, LD: A && A.fig && A.fig.LD });
 }
 const f = (x, n = 3) => x == null || !isFinite(x) ? '-' : (+x).toFixed(n);
+if (process.argv.includes('--v2')) {
+  console.log('| plane | sharp corners | steps m² | base m² | laminar share | TODAY | friction x form | corners | steps | base | THE LAW v2 | Cd on frontal | change | whole aeroplane today → v2 | glide today → v2 |');
+  console.log('|' + '---|'.repeat(15));
+  for (const r of rows) { const v = r.v2; if (!v) { console.log('| ' + r.key + ' | not measured |'); continue; }
+    const dl = v.now - r.today, cds = r.CdS != null ? r.CdS + dl : null, ld = c => r.S && r.e && r.AR ? 0.5 * Math.sqrt(Math.PI * r.e * r.AR * r.S / c) : null;
+    console.log('| ' + [r.key, f(v.h.sharp, 2), f(v.step2 / K2.step, 2), f(v.base2 / K2.base, 2), f(v.lam2, 2), f(r.today), f(v.f2), f(v.corner2), f(v.step2), f(v.base2), '**' + f(v.now) + '**', f(v.now / r.front),
+      (dl >= 0 ? '+' : '') + f(dl), r.CdS != null ? f(r.CdS) + ' → ' + f(cds) : '-', r.CdS != null ? f(ld(r.CdS), 1) + ' → ' + f(ld(cds), 1) : '-'].join(' | ') + ' |'); }
+  process.exit(0);
+}
 console.log('| plane | skin | Swet | fineness | round top / bottom | shoulders | roundness | laminar share | body + screen TODAY | Cd on frontal | friction x form | corners | windscreen | THE LAW | Cd on frontal | change m² | whole aeroplane m² | glide today → law | (cross-flow at the climb) |');
 console.log('|' + '---|'.repeat(19));
 for (const r of rows) {
