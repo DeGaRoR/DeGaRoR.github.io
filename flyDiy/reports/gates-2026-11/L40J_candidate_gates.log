@@ -1,5 +1,5 @@
-FAIL (58 of 238 gates run; PARTIAL: 18 of 23 chunks, 126 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME
+FAIL (62 of 266 gates run; PARTIAL: 19 of 23 chunks, 98 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME SCENERYED
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -5799,6 +5799,142 @@ GATE SIMWORKER: PASS
   ok   the node page refuses an unasked Blob worker (the gates keep the old path)
 47/47 checks
 GATE SHEETWORKER: PASS
+######## chunk 18 of 23 (28 gates) ########
+=== POSEBACK ===
+  ok   the inline pair: drawn at 0.8, then asked 0.3 on the same pair -> 0.8 (held 1); a new pair at 0.3 -> 1.3
+  (89.8 s, 35 runs on 3 threads)
+GATE POSEBACK: PASS
+=== APHONEST ===
+  C map layer {"err":null,"ring":true,"cross":false,"line":true}
+  (221 s, 5895 MB)
+GATE APHONEST: PASS
+=== GEAR ===
+3 leg families, 18 declared bags, 35654 triangles measured
+  tundra 31": lugs 1.55 % R proud, 4064 tris (standard 4400, smooth tundra 2464)
+GATE GEAR: PASS
+=== RETRACT ===
+  ok   the skin over a cell (skinTopAt) is the section's own top line (400 angles: within 2 mm)  (480 cells, worst 0.68 mm)
+  ok   a well held under its wheel names how far (the gearWellCut row's note)  (well clamped: wheel 20 cm proud)
+GATE RETRACT: PASS
+=== HOUSE ===
+signs: 11 on posts, 152 stands / spots; the nearest s_club/clubhouse 19.1 m from HOME apron:46:195
+GATE HOUSE: PASS
+=== LODS ===
+    far town | HLOD.gain = 0.2
+    city pack | farGain = 0.2
+GATE LODS: PASS
+=== VILLAGE ===
+seed 61: 13 plots, 13 houses, 6 piers, 43 fence runs
+13237 checks
+GATE VILLAGE: PASS
+=== BAY ===
+  ok    wide bay, 4 cells: the reflector is inside the aerofoil (worst -7.6 mm, negative is clear)
+  ok    wide bay, 4 cells: and it stops short of the aft wall
+GATE BAY: PASS
+=== BEACON ===
+  ok    an observer directly above the beacon sees no sweep, only the dome
+  ok    rpm 0 holds the phase still (no flash)
+GATE BEACON: PASS
+=== PARTS ===
+9 assemblies, 51 parts, 1592 rows, 86 sections over 17 shapes
+  body by zone: tail 704, boom 520, pax 456, cabin 784, nose 544, aftCabin 32, aftDeck 24
+  joint by zone: pax 28593, cabin 54811, nose 5432, aftCabin 731, aftDeck 411
+  waistband by zone: tail 224, boom 112, pax 160, cabin 272, nose 136, taper 8, aftCabin 16, aftDeck 8
+  ceilingLoop by zone: tail 224, boom 112, pax 16, taper 8
+  floorLoop by zone: tail 240, boom 136, pax 160, cabin 272, nose 272, taper 8, aftCabin 16, aftDeck 8
+  FAIL rows the editor renders that no part claims (they would vanish from the part tree) — canClear cw_keelLevel cw_deckLevel cw_deckFall
+  FAIL selecting the root does not show every row the editor renders — 1588 vs 1592
+GATE PARTS: FAIL
+(exit code 1)
+=== SHOULDER ===
+PASS up 0.55, W 0.07 (flat flank) closed true  slot top  z 2.367..2.506
+PASS up 0.55, W 0.10 (flat flank) closed true  slot top  z 2.367..2.506
+GATE SHOULDER: PASS
+=== DESIGN ===
+RETRACT-LAB: node true, a page true, ?retract=lab true, dev true
+  59 rows, 277 options (0 declared with reasons), 33 archetypes (31 live)
+  FAIL archetype over.cage key exists nowhere — roadster.cw_partLevel
+GATE DESIGN: FAIL
+(exit code 1)
+=== NEWPLANE ===
+  ok     random 20779#4: composed and built (eab nose flat biplane tail, empty 518 kg)
+  64 ok, 0 failed, 45.6 s
+GATE NEWPLANE: PASS
+=== FLEET ===
+  selftest a confirm() back: red (ok)
+  selftest the old popup back: red (ok)
+GATE FLEET: PASS
+=== STARTCHOOSER ===
+  selftest a refusal closes the sheet: red (ok)
+  selftest the verb rolls out by itself: red (ok)
+GATE STARTCHOOSER: PASS
+=== VIEW ===
+
+13 controls neutralised, 7 exempt, over 18 the editor shows
+GATE VIEW: PASS
+=== STRUT ===
+24 seeds x 18 fitting rules · body 5.40 m with a chine
+GATE STRUT: PASS
+=== STRUTOPT ===
+  ok   genStolCageOff drops the strut rows at 0
+  ok   ...and keeps them when set
+GATE STRUTOPT: PASS
+=== REF ===
+  pa28: 42 groups, 81561 verts, 89152 tris · span 10.546 m · length 7.154 m · height 2.726 m (measured, not checked) · minY -1.3983
+  13 presets, 12 with geometry, 7 spec doors held shut
+GATE REF: PASS
+=== BLUEPRINT ===
+  library: chinook2s 5.33 m long · 11.36 m span · 6.9 deg · NOT FOR RELEASE
+  library: 1 entry marked release: false (chinook2s) - delete the row, its image and its CREDITS line before a release
+GATE BLUEPRINT: PASS
+=== SITE ===
+262 checks
+GATE SITE: PASS
+=== HONESTY ===
+GARAGE: the overflow bar counts only rows it would show (pools: materials, decals; retired: dims box)
+76 checks, 0 failed
+GATE HONESTY: PASS
+=== PREMISES ===
+     14e FLAGGED for the user (their rev 26, drawn on dry ground; kept as drawn): marine/net pens @69,-10640 | marine/wharf deck, small @-1452,-8371 | marine/seaplane float @2210,-17381
+  579 checks on 6 fixture(s), the flight world loaded
+GATE PREMISES: PASS
+=== PARKING ===
+  ok   6 else the first free cooked spot, the parking areas first (hdg = -ry)
+  ok   6 else the line-up; the page says which (FLYDIY_START_WHY)
+GATE PARKING: PASS
+=== SCENERYED ===
+9 two island roads (4779 + 4400 drawn points): compose 99 ms; 25000 cover / surface / tree samples 134 ms (the walk 10371 ms); the drag's edit 57 ms
+     10 placed past the composed extent (they stand on the world ground, as in the editor): objects:a5
+     10 the user scenery: load 100 ms, traffic changed 56 ms, a point dragged 45 ms (headless: the record and its composition)
+     12 the user's rev 23 (sha256 277abdfa66b254bd): r1 244 points + handles bit for bit through load, compose + road graph (1 span), save; town put back (62 streets, 145 junction ids): r1's ground over 1979 samples differs by 0 m from the town without junctions
+     14 PLACER-FAST: an object released 0.2 ms (editor) vs 33 ms (editor + the composition a rebuild runs); road keys 24 ms for 120 roads
+     15 the user's scenery_user_jolene_afb19.json shipped: 55 roads in the save; the removals the save makes and the user has not confirmed (kept): xw_rough, cb_sea, mt_strip, hy_s_upper, hy_s_bayside, hy_o_crane, hy_o_backhoe, qy_o_excavator, qy_o_loader, qy_o_skidsteer, qy_o_loader_rusty, qy_o_loader_wreck, cb_o_firepit, cb_o_tent_big, cb_o_tent_frame, cb_o_tent_hiking, cb_o_tent_small, xw_o_boneyard_jet, xw_o_boneyard_tyre1, xw_o_boneyard_tyre2, xw_o_boneyard_tyre3, xw_o_boneyard_drum1, xw_o_boneyard_drum2, xw_o_plough, xw_o_fuel_flatbed, xw_o_fuel_drum0, xw_o_fuel_drum1, xw_o_fuel_drum2, xw_o_fuel_drum3, xw_o_fuel_drum4, xw_o_fuel_drum5, xw_o_fuel_drum6, xw_o_fuel_bin, xw_o_fuel_pallets, xw_o_line_pole1, xw_o_line_pole3, xw_o_camp_trailer, xw_o_camp_car, xw_o_camp_fire, xw_t_blow1, xw_t_blow2, xw_t_blow3, xw_t_blow4, xw_t_blow5, xw_t_blow_stump1, xw_t_blow_stump2, xw_t_blow_stump3, xw_t_blow_stump4, xw_t_blow_snag1, xw_t_blow_snag2, xw_t_slide_rock1, xw_t_slide_rock2, xw_t_slide_rock3, xw_t_slide_rock4, xw_o_slide_loader, xw_t_pond_lodge, xw_t_pond_trunk, xw_t_pond_fallen, xw_t_pond_snag1, xw_t_pond_snag2, xw_t_pond_stump0, xw_t_pond_stump1, xw_t_pond_stump2, xw_t_pond_stump3, xw_t_pond_stump4, xw_o_junk_car, xw_o_junk_pallets, xw_o_junk_tyre1, xw_o_fence2, xw_o_fence3, xw_o_fence4, xw_o_fence6, xw_o_fence7, xw_o_fence8, xw_o_fence9, xw_o_fence10, xw_o_fence12, xw_o_fence13, xw_o_fence14, xw_o_fence15, xw_o_fence17, xw_o_fence18, xw_o_fence19, xw_t_pad0, xw_t_pad1, xw_t_pad2, xw_t_pad3, xw_t_pad4, xw_t_pad5, xw_t_pad6, xw_t_pad7, xw_t_pad8, xw_t_pad9, xw_t_verge0, xw_t_verge1, xw_t_verge2, xw_t_verge3, xw_t_verge4, xw_a_crumble0, xw_a_crumble1, xw_a_crumble2, xw_a_crumble3, xw_a_crumble4, xw_a_crumble5, xw_a_crumble6, xw_a_crumble7, xw_a_crumble8, xw_a_crumble9, xw_a_crumble10, xw_a_crumble11, xw_a_crumble12, xw_a_crumble13, xw_a_crumble14, xw_a_crumble15, xw_a_crumble16, xw_a_crumble17, xw_a_crumble18, xw_a_crumble19, xw_a_crumble20, xw_a_crumble21, xw_a_crumble22, xw_a_crumble23, xw_a_crumble24, xw_a_crumble25, xw_a_crumble26, xw_a_crumble27, xw_a_crumble28, xw_a_crumble29, xw_a_crumble30, xw_a_crumble31, xw_a_crumble32, xw_a_crumble33, xw_a_crumble34, xw_a_crumble35, xw_a_crumble36, xw_a_crumble37, xw_a_crumble38, xw_a_crumble39, xw_a_crumble40, xw_a_crumble41, xw_a_crumble42, xw_a_crumble43, xw_a_crumble44, xw_a_crumble45, xw_a_crumble46, xw_a_crumble47, xw_a_core0, xw_a_core1, xw_a_core2, xw_a_core3, xw_a_core4, xw_a_core5, xw_a_core6, xw_a_core7, xw_a_core8, xw_a_core9, xw_a_core10, xw_a_core11, xw_a_core12, xw_a_core13, xw_a_core14, xw_a_core15, xw_a_core16, xw_a_core17, xw_a_core18, xw_a_core19, xw_a_core20, xw_a_core21, xw_a_core22, xw_a_core23, xw_a_core24, xw_a_core25, xw_a_core26, xw_a_core27, xw_a_core28, xw_a_core29, xw_a_core30, xw_a_core31, xw_a_core32, xw_a_core33, xw_a_core34, xw_a_core35, xw_a_core36, xw_a_core37, xw_a_core38, xw_a_core39, xw_a_core40, xw_a_core41, xw_a_core42, xw_a_core43, xw_a_core44, xw_a_core45, xw_a_core46, xw_a_core47, xw_a_remnant0, xw_a_remnant1, xw_a_remnant2, xw_a_remnant3, xw_a_remnant4, xw_a_remnant5, xw_a_remnant6, xw_a_remnant7, xw_a_remnant8, xw_a_remnant9, xw_a_remnant10, xw_a_remnant11, xw_a_remnant12, xw_a_remnant13, xw_a_remnant14, xw_a_remnant15, xw_a_remnant16, xw_a_remnant17, xw_a_remnant18, xw_a_remnant19, xw_a_remnant20, xw_a_remnant21, xw_a_remnant22, xw_a_remnant23, xw_a_remnant24, xw_a_remnant25, xw_a_west_mud, xw_a_east_verge_n, xw_a_east_verge_s, xw_a_slab0, xw_a_slab1, xw_a_slab2, xw_a_slab3, xw_a_slab4, xw_a_slab5, xw_a_slab6, xw_a_slab7, xw_a_track0, xw_a_clearing0, xw_a_track1, xw_a_clearing1, xw_a_east_scrub, xw_a_east_wood, xw_a_west_scrub, xw_a_west_wood, w3_toppad, mn_y_garage, hy_t_works, mt_t_pad, mt_t_platform, mt_u_apron, mt_m_platform, mt_m_helipad, hy_s_upper_clear, hy_t_works_clear, hy_s_bayside_clear, cb_x_camp, mt_x_platform, tw_k_grove_e, tw_k_grove_w, tw_k_grove_nw, tw_k_grove_se, tw_k_grove_sw, tw_k_grove_le, tw_k_grove_lw, tw_k_rocks_e, tw_k_rocks_n, tw_k_rocks_s, tw_k_rocks_ne
+     16 the lone road's patch (the town off): 2402 -> 1505 chunks of 64 m (0.98 M fewer 2 m samples); 584 of 1133 segments lone
+     20 EDITOR-PERF on the user's rev 26: 12732 roadDist + 38196 roadDistNear queries and 6901 polygons exact; compose 237 ms, with the town 3251 ms; load 214, select 19, roadDrag 124, areaDrag 150, siteDrag 153, objectDrag 0, traffic 124, rotate 0, deleteUndo 0, undo 0, redo 0 ms (headless)
+     22 the zones' memo: 36 of 36 zones kept warm over 5 records, 4 edits identical (5.5 s)
+  ! 20b ...and with Metlakatla put back under 2500 ms (3251 ms, 444 plots; 3.95 s before G3081 on the flight world)
+GATE SCENERYED: FAIL (1)
+(exit code 1)
+=== PATCHFAR ===
+18 checks
+GATE PATCHFAR: PASS
+=== GROUNDBOX ===
+11 checks (a large box: 7128 moved, 7472 normals of 66049)
+GATE GROUNDBOX: PASS
+=== PREMRASTER ===
+PASS the raster is on when asked for (groundRaster)
+PASS and off by default (the analytic ground, the same bits)
+FAIL the raster against the analytic ground, 162141 points: p50 0.000 mm, p99 2.89 mm, p99.9 24.3 mm, worst 140.6 mm (grade w6:grade)
+PASS the stand's pad reads its level (30.600 m): 0.0e+0 m at 400 points round it
+  the raster: 12726 tiles baked (0.25 m 3413, 1 m 5068, 0.5 m 1192, 0.2222222222222222 m 2591, 0.8888888888888888 m 407, 0.4444444444444444 m 55), 60842 tiles the ground itself, 50.3 MB, 10944 evicted, 2.07 ms a tile
+PASS the ceiling bounds the raster's ground: 156 rectangles, 240196 points, 0 above it
+PASS a composition takes its own cap (rasterCap 2097152 B)
+PASS the 2 MB cache answers as the 48 MB one, bit for bit: 52008 reads, 0 differ (19310 evicted, 2.05 MB held)
+FAIL the cache is an LRU: the stand's tile, read between every two of a sweep's reads (5540 evictions), is made 4 time(s) - the sweep alone makes 5596 tiles, with the stand's reads 5600
+PASS the surface and exclude indexes answer as the scans on 1336025 points (0 surface, 0 exclude differ)
+  surfaceAt 157 -> 29 ms, excludeAt 337 -> 22 ms (90 k points, 4 m round the stand)
+GATE PREMRASTER: FAIL
+(exit code 1)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -6039,6 +6175,34 @@ AIDS      PASS    28.7 s
 COOL      PASS   109.4 s
 SIMWORKER PASS    97.8 s
 SHEETWORKER PASS    47.1 s
-wall (the chunks' own, summed) 30982.5 s  (jobs 4)
+POSEBACK  PASS    90.2 s
+APHONEST  PASS   221.1 s
+GEAR      PASS     0.8 s
+RETRACT   PASS  1167.8 s
+HOUSE     PASS    35.0 s
+LODS      PASS    44.9 s
+VILLAGE   PASS    93.0 s
+BAY       PASS     0.1 s
+BEACON    PASS     0.1 s
+PARTS     FAIL     6.8 s
+SHOULDER  PASS    10.4 s
+DESIGN    FAIL    17.8 s
+NEWPLANE  PASS    45.6 s
+FLEET     PASS     0.3 s
+STARTCHOOSER PASS     1.9 s
+VIEW      PASS     0.1 s
+STRUT     PASS     3.8 s
+STRUTOPT  PASS    10.0 s
+REF       PASS     0.8 s
+BLUEPRINT PASS     0.1 s
+SITE      PASS    10.4 s
+HONESTY   PASS    45.1 s
+PREMISES  PASS    75.6 s
+PARKING   PASS     6.2 s
+SCENERYED FAIL    52.2 s
+PATCHFAR  PASS     0.1 s
+GROUNDBOX PASS     0.4 s
+PREMRASTER FAIL   189.7 s
+wall (the chunks' own, summed) 32150.3 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 58 red (180 PASS, 58 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 62 red (204 PASS, 62 FAIL, 0 SKIP of 364)
