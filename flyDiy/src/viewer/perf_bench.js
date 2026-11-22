@@ -19,7 +19,7 @@
 //   window.FLYDIY_PERFBENCH = { open(), list() -> Promise<[{name, what}]>, run(name | null, o), last(), download(trace),
 //                               _stats(arr), _miss(until, state), _fault(state, step) }   (the pure parts: GATE PERFBENCH)
 // The summary (the 'bench' event's detail, and the card): { run: { scenario, plane, build, from, to, persona, at }, device,
-//   boot, garage: { sliders, menu }, steps: [ runPage's step line + frames ], crash, end }. Pilot's step kinds: skip, camera
+//   boot, garage: { sliders, menu, hangars }, steps: [ runPage's step line + frames ], crash, end }. Pilot's step kinds: skip, camera
 //   (orbit / pan360 sweep, chase / cockpit / free), weather, time, dest, shed, rollout, wait (until.s); minimap and load
 //   are said as skipped until the page has their API
 // ============================================================================================================================
@@ -234,7 +234,7 @@ var FLYDIY_PERFBENCH = (function () {
     tr.device = device();
     say('boot: the garage at ' + (tr.boot.garageMs / 1000).toFixed(1) + ' s' + (tr.boot.loading ? ', loading-screen frames max ' + tr.boot.loading.max + ' ms' : ''));
     await sleep(3000); takeFrames(); takeLong();
-    tr.garage = { sliders: await sliders(say), menu: await menuRows(say) };
+    tr.garage = { sliders: await sliders(say), menu: await menuRows(say), hangars: await hangarRows(say) };
     if (A.scenario && !garageOnly()) await flight(A.scenario, tr, say);
     else if (A.scenario) say('the phone profile boots the garage alone: no flight here (the garage steps are the phone\'s)');
     if (A.crash && !garageOnly() && W.FLIGHT_PROBE && FLIGHT_PROBE.sim && FLIGHT_PROBE.sim()) tr.crash = await crash(say);
@@ -294,6 +294,31 @@ var FLYDIY_PERFBENCH = (function () {
       try { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); } catch (e) {}
     }
     say('menu rows: ' + (R.length ? R.map(r => r.row + ' ' + r.firstFrameMs + '/' + r.max + ' ms').join(', ') : 'none'));
+    return R;
+  }
+  // HANGAR-SWITCH (the official performance table, row 5: "Change garage (teleport from one to the other) < 5 s, no UI freeze"):
+  // through every hangar the player holds and back to the first, by the top bar's own switch (hangar_switch.js go: the click to
+  // the new room drawn, the longest frame between), each with the recorder's frames of the 2 s after; ok = < 5 s and no frame
+  // over 100 ms. The first visit of a hangar and the return are both kept (a cold room and a warm one)
+  async function hangarRows(say) {
+    const H = W.HANGAR_SWITCH, P = W.FLYDIY_PLAYER, R = [];
+    if (!H || !H.go || !P || !P.garages) return R;
+    let G = [];
+    try { G = P.garages().filter(g => !g.locked); } catch (e) { G = []; }
+    const start = G.find(g => g.here);
+    if (!start || G.length < 2) { say('hangars: one hangar only - no switch to time'); return R; }
+    const order = G.filter(g => !g.here).map(g => g.id).concat([start.id]);
+    for (const id of order) {
+      await sleep(800); takeFrames(); takeLong();
+      seg('hangar:' + id);
+      const rec = await H.go(id);
+      await sleep(2000);
+      const fr = takeFrames(), lg = takeLong();
+      const worst = Math.max(rec ? rec.worstFrameMs : 0, fr ? fr.max : 0);
+      R.push({ hangar: id, ok: !!(rec && rec.ok) && rec.ms < 5000 && worst <= 100, ms: rec ? rec.ms : null, why: rec ? rec.why : 'no switch',
+               worstFrameMs: worst, over100: fr ? fr.over100 : null, long: lg.tasks.slice(0, 5) });
+    }
+    say('hangars: ' + R.map(r => r.hangar + ' ' + r.ms + ' ms / ' + r.worstFrameMs + ' ms' + (r.ok ? '' : ' (over)')).join(', '));
     return R;
   }
   async function flight(S, tr, say) {
