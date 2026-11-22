@@ -80,8 +80,12 @@ function planePool() {
 let WIDE = null;
 // `also` (the user 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK"):
 // plane-list numbers added to the pool whatever their list - the PC-6 stands on the wip list (57 on wheels, 58 on floats)
-function widePool(also) {
-  const alsoN = (also || []).map(Number).filter(n => n > 0), wk = alsoN.join();
+// `builds`: TEST BUILDS that stand on no list ("there would also be many ways to build a STOL Cessna, maybe you can even build
+// a quick one to clear these. The players will not be limited to existing planes, they will modify them, and that's the
+// point") - build files under the repo, [{ file, name }]; measured and flown as any other row, named as test builds
+function widePool(also, builds) {
+  const alsoN = (also || []).map(Number).filter(n => n > 0), tb = (builds || []).filter(b => b && b.file && fs.existsSync(path.join(ROOT, b.file)));
+  const wk = alsoN.join() + '|' + tb.map(b => b.file).join();
   if (WIDE && WIDE.key === wk) return WIDE.out;
   const base = planePool(), have = new Set(base.map(p => p.file)), out = base.slice();
   let FSITE = null; try { FSITE = require(path.join(T, '_freight_site.js')); } catch (e) { FSITE = null; }
@@ -104,7 +108,8 @@ function widePool(also) {
     return M;
   };
   const extra = planeList().filter(r => alsoN.includes(r.n) && r.file && !r.rides && fs.existsSync(path.join(ROOT, r.file)) && !OFFICIAL_LISTS.includes(r.list));
-  for (const r of officialRows().concat(extra)) {
+  const tests = tb.map((b, i) => ({ n: 900 + i, name: b.name || path.basename(b.file, '.json') + ' (test build)', file: b.file, list: 'test' }));
+  for (const r of officialRows().concat(extra, tests)) {
     if (have.has(r.file)) continue;
     have.add(r.file);
     try {
@@ -581,7 +586,7 @@ function judgeMission(env, packRow, m, opts) {
   R.static = S;
   if (S.broken.length) { R.verdict = 'broken'; R.why = S.broken.join('; '); return R; }
   const subs = C.contractSubsOf(rec);
-  const pool = o.official ? widePool(o.also) : planePool();
+  const pool = o.official ? widePool(o.also, o.builds) : planePool();
   R.pool = pool.map(p => p.design);
   // on offer at all? (the career's own offer list, with everything before it done) - an order is judged on it first; a
   // job after the game's capability rule (its reason - the load, the gear, the strip - is the more specific one)

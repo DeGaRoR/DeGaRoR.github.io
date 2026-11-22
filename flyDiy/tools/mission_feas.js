@@ -24,6 +24,8 @@ const has = k => argv.includes('--' + k);
 const ROOT = path.join(__dirname, '..');
 const OUT = path.resolve(ROOT, opt('out', 'reports/MISSION-FEASIBILITY'));
 const SHD = require('./_shard.js');
+// --builds=<file,...>: test builds that stand on no list (mission_feas_lib widePool), by their file under the repo
+const TEST_BUILDS = { 'tools/fixtures/storyfeas/cessna172_stol_kit.json': 'Cessna 172 with the STOL kit (test build)' };
 
 function rowsOf(F, packsDir) {
   const packs = F.readPacks(packsDir);
@@ -99,9 +101,9 @@ function main() {
     const env = Object.assign(F.makeEnv(), { spots });
     let R;
     if (has('static')) {
-      R = F.judgeMission(env, P, m, { tries: 0, staticOnly: true, fly: false, log: null, tmax: null, maxFlights: 0, dry: true, official: has('official'), also: opt('also', '').split(',').filter(Boolean) });
+      R = F.judgeMission(env, P, m, { tries: 0, staticOnly: true, fly: false, log: null, tmax: null, maxFlights: 0, dry: true, official: has('official'), also: opt('also', '').split(',').filter(Boolean), builds: opt('builds', '').split(',').filter(Boolean).map(f => ({ file: f, name: TEST_BUILDS[f] || null })) });
     } else {
-      R = F.judgeMission(env, P, m, { tries: +opt('tries', 2), tMax: +opt('tmax', 3600), official: has('official'), also: opt('also', '').split(',').filter(Boolean), log: quiet ? null : L => console.log('      ' + F.legLine(L)) });
+      R = F.judgeMission(env, P, m, { tries: +opt('tries', 2), tMax: +opt('tmax', 3600), official: has('official'), also: opt('also', '').split(',').filter(Boolean), builds: opt('builds', '').split(',').filter(Boolean).map(f => ({ file: f, name: TEST_BUILDS[f] || null })), log: quiet ? null : L => console.log('      ' + F.legLine(L)) });
     }
     R.wallS = Math.round((Date.now() - t1) / 1000);
     rows.push(R);

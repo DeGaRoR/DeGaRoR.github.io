@@ -20,6 +20,7 @@ const T = __dirname, ROOT = path.join(T, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const has = k => argv.includes('--' + k);
+const BUILDS = 'tools/fixtures/storyfeas/cessna172_stol_kit.json';   // the career's Cessna with the garage's STOL kit (a test build)
 const ALSO = '57,58';   // builds/lists/plane_lists.json: the PC-6 Turbo Porter, the PC-6 on Wiplines (the wip list)
 const ROWS = path.resolve(ROOT, opt('rows', 'reports/STORY-REVAMP/feasibility'));
 const PACK = path.join(ROOT, 'src', 'missions', 'story.json');
@@ -68,14 +69,14 @@ async function fly() {
     // (the user 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK ... the
     // players will not be limited to existing planes, they will modify them, and that's the point") EVERY mission is flown
     // with the wider pool: the career's designs first, then every official plane and the PC-6 (ALSO), the shortest take-off first
-    if (!m.order) args.push('--official', '--also=' + opt('also', ALSO));
+    if (!m.order) args.push('--official', '--also=' + opt('also', ALSO), '--builds=' + opt('builds', BUILDS));
     const ch = cp.spawn(process.execPath, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     let err = ''; ch.stderr.on('data', d => { err += d; }); ch.stdout.on('data', () => {});
     ch.on('close', code => {
       let R = null;
       try { R = JSON.parse(fs.readFileSync(path.join(out, 'reruns', 'rerun_' + m.id + '.json'), 'utf8')).rows.find(x => x.id === m.id); } catch (e) { R = null; }
       const row = R ? slim(R) : { id: m.id, verdict: 'broken', why: 'the rig ended with no row (exit ' + code + '): ' + err.slice(-300) };
-      Object.assign(row, { key: m.key, where: m.where, pool: m.order ? 'validated' : 'official+' + opt('also', ALSO), wallS: Math.round((Date.now() - t0) / 1000) });
+      Object.assign(row, { key: m.key, where: m.where, pool: m.order ? 'validated' : 'official+' + opt('also', ALSO) + '+test builds', wallS: Math.round((Date.now() - t0) / 1000) });
       fs.writeFileSync(rowFile(m.id), JSON.stringify(row, null, 1) + '\n');
       done++;
       console.log('  ' + String(done).padStart(3) + '/' + todo.length + ' ' + row.verdict.toUpperCase().padEnd(10) + ' ' + m.id.padEnd(15) + ' ' + (row.plane || '-').padEnd(24) + ' ' + String(row.timeS || 0).padStart(5) + ' s flown, ' + row.wallS + ' s wall' + (row.verdict === 'feasible' ? '' : '  ' + (row.why || '').slice(0, 160)));
