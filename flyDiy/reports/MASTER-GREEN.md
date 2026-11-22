@@ -19,6 +19,9 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
     TAKEOFF and ROUTE both say the candidate's Cessna climbs less than master's: look at the Cessna change in it first.
   - **FMIST**: three rows - "atmo.js: every pocket switch is a ternary whose off arm is what was there (5 sites)", "the
     stored choice compiles the veil alone", "nothing stored, no flag: ON - the veil alone". Source rows on atmo.js.
+  - **DMGSKIN** (17:30 UTC): "nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key
+    in the meta" - with nothing broken the host still sends a payload, bytes or a meta key (the row has no time budget).
+    **Run alone on master L40h on this same box: GATE DMGSKIN: PASS** - so it is the candidate's, not the machine's.
   - MONOWHEEL, red on L40h, PASSES on the candidate.
 - **Running here since 10:52 UTC** on origin/claude/train/L40J-candidate f80229d71: the 364 core gates / 387 jobs,
   `GATES_CORE=1`, `--no-build`, `--jobs=4`, `node --max-old-space-size=4096`. 4 CPUs / 15 GB, about 1.5x slower per core
