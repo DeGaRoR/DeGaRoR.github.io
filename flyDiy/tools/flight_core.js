@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7e4897bea4c9942b
+// body-sha256: 3610e02ed8cbca2d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -57879,7 +57879,8 @@ const CERT_CONDITION = ['aging'];
 // MEASURED BLOCKS (ENGINE-COOLING, 12 Nov): a whole block the join measures off the drawing - the cowl's cooling openings
 // (spec.cooling, off the cowl rows the structure group already hashes). Dropped whole: a certificate signed before the
 // join measured them hashes the same (R3: a game update is not a change to the aeroplane)
-const CERT_MEASURED_BLOCKS = ['cooling'];
+// (FUSELAGE-DRAG 2026-11-22: `bodyShape` - the join's measurement of the drawn body's corners, steps and base)
+const CERT_MEASURED_BLOCKS = ['cooling', 'bodyShape'];
 // the cage's STATE and MINOR rows - views, the explode, who is aboard and whether the crew is shown, the lamps'
 // switches and dimmers, the lamps FITTED (li_*Fit: minor, a W&B update), the reflector glow, the fastener density
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
@@ -66599,7 +66600,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 // ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
 // energy.vessels by the energy layer - measured on the page, G2280: the stock Cub's 45 came back 29 a frame after the
 // load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
-const PROCURE_READOUTS = ['fuel', 'cooling'];   // ENGINE-COOLING: the join's measurement of the cowl's openings (66b CERT_MEASURED_BLOCKS)
+const PROCURE_READOUTS = ['fuel', 'cooling', 'bodyShape'];   // ENGINE-COOLING: the join's measurement of the cowl's openings (66b CERT_MEASURED_BLOCKS)
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
 // G3852: whSlick (a tundra's lugs or smooth) is drawing only, as bench.js counts it
 const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|whSlick)$|^hgDr[A-Z]/;
