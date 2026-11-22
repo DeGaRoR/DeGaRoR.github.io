@@ -90,7 +90,10 @@ const P0 = over => Object.assign({}, BASE, { wingOn: 1, lightOn: 0 }, over);
 
 // ---- S9 -------------------------------------------------------------------
 const S9 = [
-  ['§9.1 tip 0.55 on a 2.10 root (flew 0.945)', { wgChord: 2.10, wgChordTip: 0.55 }, 'wgChordTip', 0.945, /^held at 0\.945 \(asked 0\.55\) — the tip is held to 0\.45–1 × the root chord/],
+  // (MASTER-GREEN 22 Nov: the tip's floor is 0.35 x the root since 80b1759a5, 13 Nov - "a sailplane's taper: the small wing
+  // envelope to 0.35" (the LS4's outer panel; GEN_WING_ENVELOPE.taper). §9.1's 0.55 on 2.10 is still held, now at 0.735
+  // (it flew 0.945 at the old 0.45); the two tip rows follow the envelope, the note's own figure included)
+  ['§9.1 tip 0.55 on a 2.10 root (flies 0.735)', { wgChord: 2.10, wgChordTip: 0.55 }, 'wgChordTip', 0.735, /^held at 0\.735 \(asked 0\.55\) — the tip is held to 0\.35–1 × the root chord/],
   ['the ceiling: tip 1.75 on a 1.70 root (the user\'s Cub)', { wgChord: 1.70, wgChordTip: 1.75 }, 'wgChordTip', 1.70, /^held at 1\.7 \(asked 1\.75\)/],
   ['§9.3 span 6.5 on a 2.10 chord (4 x chord)', { wgChord: 2.10, wgChordTip: 2.10, wgSpan: 6.5 }, 'wgSpan', 8.40, /^held at 8\.4 \(asked 6\.5\) — the span is held/],
   ['span 18 on a 0.80 chord (20 x chord)', { wgChord: 0.80, wgChordTip: 0.80, wgSpan: 18 }, 'wgSpan', 16.0, /^held at 16 \(asked 18\)/],
@@ -99,7 +102,7 @@ const S9 = [
   ['a crank at 10 % is no crank', { wgCrankAt: 0.10 }, 'wgCrankAt', 0, /^held at 0 \(asked 0\.1\) — a crank inboard/],
   ['a 0.10 m centre section flies 0.20', { wgCentreW: 0.10 }, 'wgCentreW', 0.20, /^held at 0\.2 \(asked 0\.1\)/],
   ['a 0.60 flap beside a 0.55 aileron', { wgFlapType: Math.max(1, JT.FLAP_KEYS.indexOf('plain')), wgAilOn: 1, wgAilSpan: 0.55, wgFlapSpan: 0.60 }, 'wgFlapSpan', 0.41, /^held at 0\.41 \(asked 0\.6\) — the flap ends/],
-  ['the second plane: tip 0.55 on a 2.10 root', { w2On: 1, wgPos: 0, w2Pos: 2, w2Chord: 2.10, w2ChordTip: 0.55 }, 'w2ChordTip', 0.945, /^held at 0\.945 \(asked 0\.55\) — the tip is held/],
+  ['the second plane: tip 0.55 on a 2.10 root', { w2On: 1, wgPos: 0, w2Pos: 2, w2Chord: 2.10, w2ChordTip: 0.55 }, 'w2ChordTip', 0.735, /^held at 0\.735 \(asked 0\.55\) — the tip is held to 0\.35–1 × the root chord/],
   // (NEW-SHAPES-1 gave the second plane its own floor, GEN_WING_ENVELOPE.second - 2 x its chord, not the first plane's
   // 4: 6.5 on a 2.10 chord flies now; below 2 x it is held, and a 9 m upper plane keeps the 0.45 x upper rule under it)
   ['the second plane: span 3.5 on a 2.10 chord', { w2On: 1, wgPos: 0, w2Pos: 2, w2Chord: 2.10, w2ChordTip: 2.10, w2Span: 3.5, wgSpan: 9.0 }, 'w2Span', 4.20, /^held at 4\.2 \(asked 3\.5\) — the span is held to 2–18 m and 2–20 ×/],
