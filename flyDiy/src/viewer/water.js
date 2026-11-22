@@ -1146,7 +1146,19 @@ const WATER = (() => {
     ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0,
+    // PERF-LEAD LAB (22 Nov, both OFF by default; the user: "look into an optimization method for that mirror ... one of the best
+    // features of the game"). The journey's log: the capture ran 19 % of a normal flight, 62 % of that above 400 m (lakes and bays
+    // keep it to 900 m), every frame, 8.8 ms of submission at the median and twice the frame's triangles.
+    //   pace (?mirpace=1, or ?mirpace=<K in % of the height>): a LIVE capture is KEPT while the eye has moved less than paceK of its
+    //     height over the water (0.5 %) and turned inside 0.8 of the guard band's margin, for paceMax frames at most (4). The water
+    //     reads a capture through the capture's own view-projection (uWMirrorVP), so a kept one stays in place; the ripples are the
+    //     water's shader's (perturb), at every frame. Low over the water one frame's move is over the limit: every frame, as today
+    //   lean (?mirlean=1): a lake's / a bay's capture above leanAgl m leaves the cover ring and the grass out, as the sea ring's does
+    pace: false, paceK: 0.005, paceMax: 4, paceN: 0, kept: 0, lean: false, leanAgl: 150, leaned: 0,
     starsK: 10, starPx: 0.75 };   // STAR-LOVE: the stars in the mirror's sky - x their level in the sky (10 x the dome's STAR_LVL 0.03 = 0.3 of the old field's light: the user's 'quite lower'), their discs' radius in capture pixels
+  if (typeof location !== 'undefined' && location.search) { const qp = /[?&]mirpace=([0-9.]+)(?:&|$)/.exec(location.search);
+    if (qp && +qp[1] > 0) { MIR.pace = true; if (+qp[1] !== 1) MIR.paceK = +qp[1] / 100; }
+    MIR.lean = /[?&]mirlean=1(?:&|$)/.test(location.search); }
   // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};
@@ -1331,6 +1343,11 @@ const WATER = (() => {
     if (live && MIR.last && !vis) { MIR.skipped++; return false; }
     const pos = camera.position, q = camera.quaternion;
     let due = live || !MIR.last;
+    // (PERF-LEAD LAB, ?mirpace) the live capture KEPT while the eye has barely moved for its height: the weight still follows every frame
+    if (live && MIR.pace && MIR.last && MIR.rt) {
+      const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
+      if (++MIR.paceN < MIR.paceMax && moved <= eyeAgl * MIR.paceK && turned <= 0.8 * (L.margin || 0) && Math.abs(waterY - L.wy) <= 0.05) { U.uWMirror4.value.x = MIR.w; MIR.kept++; return false; }
+    }
     if (!due && MIR.last) {
       const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
       const jump = moved > MIR.jumpM || turned > MIR.jumpDeg * Math.PI / 180 || Math.abs(waterY - L.wy) > 0.5;
@@ -1452,7 +1469,8 @@ const WATER = (() => {
     // MIR.skip: objects left out of the scene's draw only (the culls a census names; the sky pass above keeps the dome)
     const skipped = [];
     // (G2836 ring guard) the small things out of the capture: the cover ring (grass, tufts, rocks, debris), the route helpers
-    const skipList = RG && MIR.ringSkip ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : MIR.skip;
+    const lean = !RG && MIR.lean && eyeAgl > MIR.leanAgl; if (lean) MIR.leaned++;   // (PERF-LEAD LAB, ?mirlean: the lake's / the bay's capture, high up)
+    const skipList = (RG && MIR.ringSkip) || lean ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : MIR.skip;
     for (const o of skipList) if (o && o.visible) { o.visible = false; skipped.push(o); }
     // (G2836 ring guard) THE SCISSOR: a water pixel reads the capture at its own screen row (G460.11.4: projected uv = pixel uv on y),
     // so only the rows under the water's horizon (+ a margin for the slope's walk and the edge fade) are ever read - the rest is not
@@ -1468,7 +1486,7 @@ const WATER = (() => {
     }
     MIR.capturing = true;
     try { renderer.render(scene, mc); } finally { MIR.capturing = false; for (const o of skipped) o.visible = true; if (sc) { MIR.rt.scissorTest = false; MIR.rows = MIR.rows || 1; } }
-    MIR.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0; MIR.captures++;
+    MIR.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0; MIR.captures++; MIR.paceN = 0;
     scene.background = bg;
     renderer.setClearColor(cc, ca); renderer.setRenderTarget(prevT); renderer.autoClear = ac; renderer.shadowMap.autoUpdate = sm;
     for (const m of hidden) m.visible = true;
