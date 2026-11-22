@@ -99,7 +99,7 @@ owner named; **tracing** = this session is still on it.
 | DMGGEAR | ? | touchdown headroom rows on two builds; the float nose-in / dig-in | Deform | - | owner |
 | DMGCLUSTERS | ? | the FIN pulled sideways comes off by twist (8 Nov sweep: since a69f31fda, 13 Oct) | Deform | - | owner |
 | DMGINST | PIN? | the speed guard trips at frame 1, not 0 (8 Nov sweep: G2640; "stale pin, probable") | Deform | - | owner |
-| DMGINTEGRITY | ? | "the fuselage cut across behind ring 3 (10 members): no break-up". PASS on L35a 1bcd01d3e and on 5ca4ef820; first red 7d6ad8b11 = train L35c's merge of **claude/ready/seaplanes** (bisected first-parent; the same merge as HULL-B50's carbon recalibration, the commit inside it not yet isolated) | Deform | - | owner |
+| DMGINTEGRITY | REAL or the row's scope | 2 "the fuselage cut across behind ring 3 (10 members): no break-up" - on the SUPER PETREL only (its block: no nose engine, the interplane groups). Red since the Petrel joined the gate's builds: 063c67567 "PETREL-VALIDATED: the Super Petrel V4.1 joins the test reference set" (7 Nov; bisected inside claude/ready/seaplanes, on master with train L35c). The five older builds pass the row. Either the ten cut members do not part a pod-and-rod hull (the rod still carries the tail), or the break-up rule misses it | Deform + the hull's owner | - | owner |
 | DMGDAMP | ? | angular momentum drifts in the vacuum spin, 15 rows (8 Nov sweep: since a69f31fda) | Deform | - | owner |
 | DMGTYRE | ? | taxi turns tighter than the band; the Cub's crosswind roll-out 28.9 deg (8 Nov sweep: since a69f31fda) | Deform | - | owner |
 | DMGFABRIC | PIN? | "damage OFF - the base's bits" on the Cub and the metal Cessna (8 Nov sweep: stale pin, probable) | Deform | - | owner |
