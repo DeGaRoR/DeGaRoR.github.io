@@ -22436,7 +22436,13 @@
     ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity, firstUse: LAB.firstUse }) : null;
   // (the guard holds only behind the AA target: the scene pass draws there and a held frame is not resolved - aa.hold -
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
-  if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
+  { // PERF-LEAD LAB (?holdframe=ground | 0; OFF by default, 23 Nov, rows 14 and 15): which held draws may hold the WHOLE frame.
+    // Today any held draw does (the canvas then shows no frame: the screen's recording of the Cub's crash is 9 s of the
+    // page's blue while the cut copies link). ground: only the ground family's (a hole in the ground is the sky's colour);
+    // 0: none - the held object alone is missing until its program is ready.
+    const HQ = (typeof location !== 'undefined' && (/[?&]holdframe=(0|ground)(&|$)/.exec(location.search || '') || [])[1]) || null;
+    if (drawGuard && aa && aa.hold && HQ !== '0') aa.hold(() => (HQ === 'ground' ? drawGuard.heldGround : drawGuard.heldNow) > 0);
+    if (typeof window !== 'undefined') window.FLYDIY_HOLDFRAME = HQ || 'all'; }
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;

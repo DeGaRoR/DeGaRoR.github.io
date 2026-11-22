@@ -167,18 +167,18 @@ var PROG_WARM = (() => {
   function guard(THREE, renderer, opt) {
     const props = renderer.properties, orig = renderer.renderBufferDirect;
     const pend = new Map(), queue = [];
-    const G = { stats: { held: 0, compiles: 0, ready: 0, timedOut: 0, what: [] }, pend, heldNow: 0 };   // what: [object/material, frames held, ms] (the first 40)
+    const G = { stats: { held: 0, compiles: 0, ready: 0, timedOut: 0, what: [] }, pend, heldNow: 0, heldGround: 0 };   // what: [object/material, frames held, ms] (the first 40)
     if (!props || typeof orig !== 'function' || typeof renderer.compileAsync !== 'function') { G.flush = () => 0; return G; }
     renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
       if (scene && material && opt.on() && opt.scenes().indexOf(scene) >= 0) {
         const e = pend.get(material);
         if (e) {
-          if (!e.done) { G.stats.held++; G.heldNow++; if (e.w) e.w[1] = ++e.frames; return; }
+          if (!e.done) { G.stats.held++; G.heldNow++; if (material.groundFamily || material.heavyLink) G.heldGround++; if (e.w) e.w[1] = ++e.frames; return; }
           pend.delete(material);
         } else if (props.get(material).programs === undefined) {
           const n = { o: object, m: material, scene, rt: renderer.getRenderTarget(), done: false, t: 0, frames: 0, w: null };
           if (G.stats.what.length < 40) G.stats.what.push(n.w = [(object.name || object.type) + '/' + (material.name || material.type), 0, 0]);
-          pend.set(material, n); queue.push(n); G.stats.held++; G.heldNow++;
+          pend.set(material, n); queue.push(n); G.stats.held++; G.heldNow++; if (material.groundFamily || material.heavyLink) G.heldGround++;
           return;
         }
       }
@@ -195,7 +195,7 @@ var PROG_WARM = (() => {
     G.flush = camera => {
       const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       for (const e of pend.values()) if (!e.done && e.t && now - e.t > 20000) { e.done = true; G.stats.timedOut++; }   // a link that never reports: drawn (and waited for) rather than gone
-      G.heldNow = 0;
+      G.heldNow = 0; G.heldGround = 0;   // (heldGround: the ground family's held draws - ?holdframe=ground)
       if (!queue.length) return 0;
       const prev = renderer.getRenderTarget();
       let n = 0;
