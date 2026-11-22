@@ -81,7 +81,7 @@
   {
    "name": "the guard's count",
    "do": "page",
-   "js": "(() => { const G = window.FLYDIY_GUARD, A = window.FLYDIY_AA; return 'guard ' + (G ? JSON.stringify({ held: G.stats.held, compiles: G.stats.compiles, ready: G.stats.ready, timedOut: G.stats.timedOut, heldNow: G.heldNow, what: (G.stats.what || []).slice(0, 14) }) : 'absent') + ' | frames the AA stage held: ' + (A && A.held ? A.held() : 'n/a'); })()",
+   "js": "(() => { const G = window.FLYDIY_GUARD, A = window.FLYDIY_AA; return 'guard ' + (G ? JSON.stringify({ held: G.stats.held, compiles: G.stats.compiles, ready: G.stats.ready, timedOut: G.stats.timedOut, heldNow: G.heldNow, what: (G.stats.what || []).slice(0, 40) }) : 'absent') + ' | frames the AA stage held: ' + (A && A.held ? A.held() : 'n/a'); })()",
    "until": {
     "s": 1
    },
