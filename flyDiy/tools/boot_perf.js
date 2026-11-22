@@ -165,7 +165,12 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   // until SECS, and past that until the overlay has been gone 5.5 s (the
   // +5 s shot) - the sample that sees the drop can itself be held back by a
   // post-drop block; hard cap SECS + 30
-  const due = () => Date.now() - navT < SECS * 1000 || (bootGoneWall && Date.now() - bootGoneWall < 5500 && Date.now() - navT < (SECS + 30) * 1000);
+  // --after N (22 Nov, for a slot's worth of loads): stop N seconds after the overlay is GONE instead of watching the
+  // page to SECS whatever happened (a 110 s load under --secs 240 spends 130 s of box time on nothing); SECS is then
+  // only the cap for a load that never ends. N >= 6 keeps the +5 s shot.
+  const AFTER = Math.max(0, +opt('after', 0));
+  const due = AFTER ? () => (bootGoneWall ? Date.now() - bootGoneWall < Math.max(6, AFTER) * 1000 : Date.now() - navT < SECS * 1000)
+    : () => Date.now() - navT < SECS * 1000 || (bootGoneWall && Date.now() - bootGoneWall < 5500 && Date.now() - navT < (SECS + 30) * 1000);
   while (due()) {
     await sleep(250);
     let s = null; try { s = await ev(`(() => { const M = window.__M || {}; const st = (window.TREE_FILL && TREE_FILL.stat) ? TREE_FILL.stat() : null;
@@ -210,6 +215,16 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
       canvas: g.drawingBufferWidth + 'x' + g.drawingBufferHeight, view: innerWidth + 'x' + innerHeight, dpr: devicePixelRatio,
       vis: document.visibilityState, focus: document.hasFocus(),
       parallel: !!g.getExtension('KHR_parallel_shader_compile'), gl: d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER) }); })()`)); } catch (e) { gpu = String(e); }
+  // --eval-file <js file>: one expression read in the page at the end of the run, its (short) result printed as the
+  // run's `eval` line and kept in the JSON - a row's own numbers (a FLYDIY_* counter, the longest world slice).
+  // --dump-file <js file> <out file>: the same for a LARGE result (a saved flight log): written to the out file whole.
+  let evalOut = null;
+  { const f = opt('eval-file', null);
+    if (f) try { const v = await ev(fs.readFileSync(f, 'utf8')); evalOut = typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { evalOut = 'eval failed: ' + e.message; }
+    const di = argv.indexOf('--dump-file');
+    if (di >= 0 && argv[di + 2]) try { const v = await ev(fs.readFileSync(argv[di + 1], 'utf8'));
+      fs.mkdirSync(path.dirname(path.resolve(argv[di + 2])), { recursive: true }); fs.writeFileSync(argv[di + 2], typeof v === 'string' ? v : JSON.stringify(v));
+      console.log('  dump ' + argv[di + 2] + ' ' + fs.statSync(argv[di + 2]).size + ' bytes'); } catch (e) { console.log('  dump failed: ' + e.message); } }
   const prof = (await cmd('Profiler.stop')).result.profile;
   // --window a,b (ms of the page's clock, roughly): the self time by function inside it
   const WIN = opt('window', null);
@@ -250,7 +265,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   const byType = {}; for (const r of netRows) byType[r.type] = (byType[r.type] || 0) + r.kb;
   const longSum = M.longTasks.reduce((a, e) => a + e.d, 0);
   const longTop = M.longTasks.slice().sort((a, b) => b.d - a.d).slice(0, 8);
-  const out = { url: URL, tag: TAG, cold: flag('cold'), secs: SECS, date: new Date().toISOString().slice(0, 10), gpu, rollout,
+  const out = { url: URL, tag: TAG, evalOut, cold: flag('cold'), secs: SECS, date: new Date().toISOString().slice(0, 10), gpu, rollout,
     milestones: M.ev, bootGone: M.bootGone || null, bootLog, paints: M.paints, propsLanded: M.props.length, charsLanded: M.chars.length,
     fetches: M.fetches.length, longTaskTotalMs: longSum, longTasks: longTop, profileTotalMs: +(total / 1000).toFixed(0), stillness: still,
     byFile: top(byFile, 25), byFn: top(byFn, 40), inclusive: [...incl].sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +(v / 1000).toFixed(0)]),
@@ -263,6 +278,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   const pad = (s, n) => String(s).padEnd(n);
   console.log(`boot_perf ${TAG}  ${URL}\n  gpu ${gpu && gpu.gl}  programs ${gpu && gpu.programs}  parallel-compile ${gpu && gpu.parallel}`);
   console.log(`  ${HEADED ? 'HEADED' : 'headless'} window ${SW}x${SH}  view ${gpu && gpu.view}  canvas ${gpu && gpu.canvas}  dpr ${gpu && gpu.dpr}  page ${gpu && gpu.vis}${gpu && gpu.focus ? ', focused' : ', NOT focused'}`);
+  if (evalOut !== null) console.log('  eval ' + String(evalOut).replace(/\s+/g, ' ').slice(0, 600));
   console.log('  milestones: ' + M.ev.map(e => e.k + '@' + e.t).join('  '));
   if (bootLog) {
     // the steps with their ms, the marks, and the landings folded per key

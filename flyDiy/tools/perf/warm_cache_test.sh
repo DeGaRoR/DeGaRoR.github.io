@@ -58,11 +58,11 @@ mine() {    # a Chrome this script started and a timeout left behind: found by I
     echo "  leftover chrome $p: killed"; taskkill //PID $p //T //F > /dev/null 2>&1; done; }
 run() {     # series, n, profile, extra flags...
   local S=$1 N=$2 UDD=$3; shift 3
-  [ $(( $(date +%s) + 330 )) -le $END ] || { echo "$S$N: NOT RUN - it could not end inside the window" | tee -a "$OUT/summary.txt"; return 0; }
+  [ $(( $(date +%s) + 200 )) -le $END ] || { echo "$S$N: NOT RUN - it could not end inside the window" | tee -a "$OUT/summary.txt"; return 0; }
   local t; t=$(COOL) || { echo "$S$N: NOT RUN - the package stayed at 80 C or more for 15 min, or the sensor feed is gone" | tee -a "$OUT/summary.txt"; exit 4; }
   local L="$OUT/${S}${N}.log"
   HOLD
-  timeout 330 node "$T/boot_perf.js" --url http://localhost:$PORT/flyDiy/dev.html --udd "$UDD" --secs 240 --tag ${S}${N} --out "$OUT/${S}${N}.json" "$@" > "$L" 2>&1 || mine "$UDD"
+  timeout 390 node "$T/boot_perf.js" --url http://localhost:$PORT/flyDiy/dev.html --udd "$UDD" --secs 300 --after 20 --tag ${S}${N} --out "$OUT/${S}${N}.json" "$@" > "$L" 2>&1 || mine "$UDD"
   local g=$(grep -o 'overlay gone [0-9]*' "$L" | awk '{printf "%.1f", $3/1000}')
   echo "$S$N: load ${g:-FAILED} s | world $(st "$L" world) | settle $(st "$L" settle) | worldCompile $(st "$L" worldCompile) | compile $(st "$L" compile) | programs $(grep -o 'programs [0-9]*' "$L" | head -1 | cut -d' ' -f2) | $(grep -o 'network [0-9.]* MB' "$L" | head -1) | $(grep -o 'chrome .*' "$L" | tail -1) | $(grep -o '\(HEADED\|headless\) window.*' "$L" | head -1) | package ${t} C at the start, $(TEMP) C at the end | $(sizes "$UDD")" | tee -a "$OUT/summary.txt"
 }
