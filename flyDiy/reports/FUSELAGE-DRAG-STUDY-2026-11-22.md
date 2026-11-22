@@ -384,10 +384,11 @@ the real one reaches 0.40: its cylinder rows are the next thing to true.
   model bills the body at the free stream's. Prototyped on the 17 planes (scratch, nothing in the core). As a bare
   addition it takes 4-12 % off every nose-engined plane's thrust and 15-20 points off every climb: the blade
   efficiencies (0.79 wood, 0.84 metal) already carry an average installation loss. Re-normalised, no plane moves by
-  more than 2 % in speed. **But the roster now says the thrust is the next term:** power off, the planes read right
-  or low (Velis -4 %, 172 +1 %, Cub 0 %, Jodel -4 %); power on, most read a few per cent fast (Cub, PC-6, Tiger Moth,
-  Petrel, Velis climb). That wants its own study: the slipstream term with the blade efficiencies re-derived as
-  isolated-propeller figures.
+  more than 2 % in speed. **The roster points at the thrust as the next term to study, not more than that:** power
+  off, the planes with a glide row read right or low (Velis -4 %, 172 +1 %, Cub 0 %, Jodel -4 %); power on, five read
+  a few per cent fast (Cub, PC-6, Tiger Moth, Petrel, the Velis's climb) while the 172, the Jodel and the Stearman
+  read right or slow. A slipstream term would sort them the right way round (a big draggy body behind a small disc
+  loses most): it wants its own study, with the blade efficiencies re-derived as isolated-propeller figures.
 - **The exhaust by its own size.** By the rows (stacks, collector, expansion chamber, ejector stubs) the figure
   moves by ± 0.005 m² around today's 0.006-0.012: kept as it is.
 
