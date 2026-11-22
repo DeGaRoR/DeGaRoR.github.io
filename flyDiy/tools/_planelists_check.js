@@ -175,7 +175,7 @@ function pageRows(S) {
   // FLEET (13 Nov): the All planes tab of the full-screen Fleet; the chooser's old door forwards to it
   need('fleet', /data-tab="all">All planes</, "the Fleet's All planes tab");
   need('np', /if \(opts && opts\.all\) return !!\(window\.FLEET_SCREEN && window\.FLEET_SCREEN\.open\(\{ tab: 'all' \}\)\)/, 'the chooser\'s All planes door forwards to the Fleet');
-  need('garage', /for \(const k in p\.over \|\| \{\}\) g\.spec\[k\] = Object\.assign\(\{\}, g\.spec\[k\], p\.over\[k\]\); loadSpec\(g\.spec, ''\)/, 'a row opens unnamed, no plaque, its sections laid over');
+  need('garage', /for \(const k in p\.over \|\| \{\}\) g\.spec\[k\] = Object\.assign\(\{\}, g\.spec\[k\], p\.over\[k\]\); loadSpec\(g\.spec, '', null, null, null, lvOf\(g\)\)/, 'a row opens unnamed, no plaque, its sections laid over, with the file\'s own liveries (PC6-LIVERIES)');
   need('fleet', /g\.planeLists\(\)\.then\(l => \{ lists = l/, 'the Fleet reads the lists through the garage');
   need('fleet', /if \(t\.kind === 'list'\) \{ if \(t\.why\) return; return loadNow\(\(\) => g\.openListed\(t\.p\)\)/, 'a list tile opens through the garage (openListed), behind the spinner');
   need('fleet', /const CLASSES = \[\['reproduction', 'Reproductions'\], \['story', 'Story'\], \['original', 'Originals'\], \['wip', 'Work in progress'\],/, "the player's four classes first, in the list's order");
