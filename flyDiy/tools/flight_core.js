@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 4f67b4414694b53c
+// body-sha256: 6df32900159b84d2
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -50550,12 +50550,11 @@ const genFairDroplet = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) -
 // (PHYSICS-AUDIT step 5: `noWheels` - a floatplane's call: no wheels and no legs, the lift struts as ever)
 // ONE SIDE'S MAIN LEG AS DRAWN (spec.gearShape, the join's; GEN_DRAG.legSec): the sum of its members' length x
 // thickness x section coefficient, m2 - or null (no description, a trailing link: the tube law stands)
-function genGearLegsCdA(S) {
-  const h = S && S.gearShape, T = GEN_DRAG.legSec;
-  if (!T || !h || h.v !== 1 || !Array.isArray(h.legs) || !h.legs.length) return null;
-  if (S.gear && S.gear.suspension === 'lever') return null;
+function genGearLegsCdA(S, which) {
+  const h = S && S.gearShape, T = GEN_DRAG.legSec, list = h && (which === 'third' ? h.third : h.legs);
+  if (!T || !h || h.v !== 1 || !Array.isArray(list) || !list.length) return null;
   let a = 0;
-  for (const m of h.legs) {
+  for (const m of list) {
     if (!m || !(m.L > 0) || !(m.d > 0) || !(T[m.sec] > 0)) return null;
     a += Math.min(6, m.L) * Math.min(0.5, m.d) * T[m.sec];
   }
@@ -50590,7 +50589,9 @@ function genGearCdA(S, semi, noWheels) {
     cda += 2 * legCd * sL * 0.060;                 // the two struts
   }
   const twDrop = G.twLeg || 0.20;
-  cda += (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0)
+  const drawn3 = genGearLegsCdA(S, 'third');       // (FUSELAGE-DRAG: the third wheel's leg as drawn, else the tube)
+  cda += drawn3 != null ? drawn3
+       : (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0)
        * twDrop * 0.05;                           // the third leg
   if (S.bracing.type === 'strut')
     cda += 2 * 0.10 * (0.55 * semi * 1.12) * 0.06;  // two lift struts
