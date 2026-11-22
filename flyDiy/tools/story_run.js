@@ -30,7 +30,7 @@ function run(opt) {
   fs.mkdirSync(OUT, { recursive: true });
   const R = { what: 'flydiy-story-run', v: 1, dry: !!o.dry, ok: false, why: '', beats: [], flights: [], builds: [], end: null };
   const J = s => JSON.parse(JSON.stringify(s));
-  const fail = why => { R.ok = false; R.why = why; say('FAIL ' + why); return R; };
+  const fail = why => { R.ok = false; R.why = why; say('FAIL ' + why); try { C.missionPackUse(JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'builtin.json'), 'utf8'))); } catch (e) {} return R; };
   const rf = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); return j.spec || j; };
 
   // THE ISLAND'S AERODROMES (the flight runner's own world: Jolene as the tour builds it)
@@ -48,6 +48,12 @@ function run(opt) {
   const B3 = C.STORY_BUILDS.T3, B7 = C.STORY_BUILDS.T7;
   R.files = { starter, client: B3.start, upgraded: B3.target, floats: B7.target };
 
+  // THE PACK IN USE, AS ON THE PAGE SINCE THE SWITCH-OVER (app.js CAREER_PACK: a player's career reads the story pack from
+  // its first boot - the tutorial is played with it in use, the career adopts it at its birth)
+  const SP = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8')), BI = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'builtin.json'), 'utf8'));
+  const USE = C.missionPackUse(SP);
+  if (!USE.ok) return fail('the story pack is refused: ' + USE.why);
+  R.pack = { id: USE.id, n: USE.n, held: USE.held.length };
   // THE CAREER, BORN THE PAGE'S WAY
   let d = C.careerNormalise(C.careerNew({ id: 'storyrun', seed: 'storyrun', name: 'story run' }));
   const born = C.storyNewCareer(d, { aeros });
@@ -56,6 +62,7 @@ function run(opt) {
   // the page's lift at load (app.js playerLoad -> 71_ playerFleetReconcile): the starter's saved build is an airframe of the fleet
   const lift = x => C.playerFleetReconcile(x, [C.STORY_SLOTS.starter]).doc;
   d = lift(d);
+  { const a = C.careerPackAdopt(d, USE); d = a.doc; R.adopted = a.notes; }
   const beat = () => { const s = C.storyOf(d); return s.open ? 'open' : s.beat; };
   R.start = { beat: beat(), day: J(C.careerDay(d)), wallet: d.wallet, here: d.here, cabin: born.cabin };
   say('story run' + (o.dry ? ' (dry)' : '') + ': a new career at ' + places.cabin + ', day ' + R.start.day.date + ', beat ' + R.start.beat);
@@ -191,16 +198,16 @@ function run(opt) {
   if (end.day.date !== K.day.date || end.day.utc !== K.day.utc || end.wallet !== K.wallet || end.seed !== K.seed) return fail('the end is not the checkpoint: ' + JSON.stringify(end) + ' vs ' + JSON.stringify(K));
   // the same state as "New career, no tutorial" (storySkip): the one state every career starts from
   { const sk = C.storySkip(C.careerNormalise(C.careerNew({ id: 'storyrun', seed: 'storyrun', name: 'story run' })), { aeros });
-    if (sk && sk.ok) sk.doc = lift(sk.doc);
+    if (sk && sk.ok) sk.doc = C.careerPackAdopt(lift(sk.doc), USE).doc;
     const strip = x => { const y = J(x); delete y.clock; delete y.log; return JSON.stringify([y.wallet, y.career.day, y.career.seed, y.career.contracts.done.map(q => q.id), y.career.providers, y.career.tracks, Object.keys(y.fleet || {})]); };
     end.sameAsSkip = !!(sk && sk.ok) && strip(sk.doc) === strip(d);
     if (!end.sameAsSkip) return fail('the played end and the skipped start differ (the wallet, the day, the seed, the done list, the providers, the tracks or the fleet)'); }
   // THE HAND-OVER TO THE MISSION SYSTEM: the story pack in use, the open career's board
-  { const SP = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'story.json'), 'utf8')), BI = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'builtin.json'), 'utf8'));
-    const u = C.missionPackUse(SP), board = u.ok ? C.careerOfferIds(d) : [];
-    end.board = { n: board.length, drawn: board.filter(id => /^(job|shady):/.test(id)).length, projectsOpen: (u.projects || []).filter(q => !q.requires.projects.length).length };
+  { const board = C.careerOfferIds(d);
+    end.board = { n: board.length, drawn: board.filter(id => /^(job|shady):/.test(id)).length, projectsOpen: (USE.projects || []).filter(q => !q.requires.projects.length).length };
+    end.kits = d.sheds && d.sheds.HOME ? d.sheds.HOME.kits.slice() : null; end.pack = d.career.pack ? d.career.pack.id : null;
     C.missionPackUse(BI);
-    if (!u.ok || !board.length || end.board.drawn) return fail('after the tutorial, the story pack\'s board: ' + (u.why || JSON.stringify(end.board))); }
+    if (!board.length || end.board.drawn || end.pack !== 'story') return fail('after the tutorial, the story pack\'s board: ' + JSON.stringify(end.board) + ' pack ' + end.pack); }
   R.ok = true;
   R.totalFlownS = R.flights.reduce((a, x) => a + (x.t || 0), 0);
   say((R.ok ? 'PASS' : 'FAIL') + ' the tutorial ' + (o.dry ? 'walked (dry)' : 'played') + ': ' + R.beats.length + ' beats, ' + R.flights.length + ' flights' + (o.dry ? '' : ', ' + R.totalFlownS + ' s flown') +
