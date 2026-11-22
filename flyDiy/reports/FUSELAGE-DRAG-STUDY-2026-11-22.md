@@ -333,7 +333,7 @@ the real one reaches 0.40: its cylinder rows are the next thing to true.
 | 5 | cylinder heads that stand out of a cowl pay their drag; flank cut-outs in the cowl (7.1) | the join's measurement of the heads against the drawn cowl |
 | 6 | every gear leg billed as drawn: the third wheel's, a trailing link's | the gear rows |
 | 7 | the fiche's Drag page follows the new rows | - |
-| 8 | a fixed pitch can be cut for a stated speed (`cw_redKmh`, absent at 0) | one new cowl-page row |
+| 8 | a fixed pitch can be cut for a stated speed | the propeller page's own design point (`cw_rpm` at `cw_tas`, carried to the rated speed); a card at the page's default states nothing. No new row (it was `cw_redKmh` for an evening) |
 | 9 | **what sticks out**: every fitting by its form and drawn size, the hinges, horns and pushrods by the kit's counts; the drawing decides which heads are in the wind (pods and cheeks cover them) | the core's own fittings table (`GEN_ACCESS`), the hinge kit, the fittings page's family switches |
 | 10 | **each junction by its own root**: `c² (0.75 (t/c)³ - 0.0003)` (Hoerner ch. 8); a root-fillet row (`wgFillet`, absent at 0, not drawn yet) | the wing's root chord and section |
 
@@ -373,7 +373,7 @@ the real one reaches 0.40: its cylinder rows are the next thing to true.
 | the client Cub | cowl narrowed 0.395 → 0.30 and cut, cheeks off (7.1) | the user, 22 Nov |
 | Tiger Moth, Camel | `s1LegFair 1` | their parents' gear struts are streamline sections |
 | Super Petrel V4_2 | `wgCons`, `w2Cons` 0 → 5 (aluminium tube + fabric) | the card's wings were moulded carbon by default and took a laminar credit; the real wing is tube spars, foam ribs and fabric |
-| Electric trainer | `cw_redKmh 130`; `accHandling 0` | its propeller is cut for the climb (POH-128: 90 KCAS on 35 kW, VH 93 KCAS: the propeller is past its limit at the top speed) - **identified against the handbook's rows, not a published pitch**; the parent has no steps or grab handles |
+| Electric trainer | design point 120 km/h at 2300 rpm (a cut at 130); `accHandling 0` | its propeller is cut for the climb (POH-128: 90 KCAS on 35 kW, VH 93 KCAS: the propeller is past its limit at the top speed) - **identified against the handbook's rows, not a published pitch**; the parent has no steps or grab handles |
 | Archaeopteryx | `accHandling 0` | no steps or handles on the parent |
 | Jodel D.112 | `s1Fair 1`, `s1LegFair 1` | "a fixed, spatted undercarriage" (Wikipedia, Jodel D.11); **the leg fairing is read off photographs** |
 | DC-3 | `wgFillet 1` | its root fillets |

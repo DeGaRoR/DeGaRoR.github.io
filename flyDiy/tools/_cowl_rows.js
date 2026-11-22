@@ -345,8 +345,6 @@ const COWL_ROWS = [
     { k: 'rpm', label: 'Cruise RPM', lo: 600, hi: 3200, step: 10 },
     { k: 'tas', label: 'Cruise TAS', lo: 60, hi: 700, step: 5 },
     { k: 'power', label: 'Engine power', lo: 40, hi: 2000, step: 5 },
-    // FUSELAGE-DRAG (2026-11-22): a fixed pitch cut for a stated speed (0 = cut for its aeroplane, by the pitch class)
-    { k: 'redKmh', label: 'fixed pitch: meets its redline at (km/h, full throttle, level; 0 = by the pitch class)', lo: 0, hi: 700, step: 1 },
     // Advanced · Planform
     { k: 'rootChord', label: 'Root chord', lo: 0.05, hi: 0.4, step: 0.005 },
     { k: 'tipChord', label: 'Tip chord', lo: 0.03, hi: 0.3, step: 0.005 },

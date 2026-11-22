@@ -916,10 +916,9 @@
    "cw_bladeN": 3,
    "cw_propD": 1.62,
    "cw_material": 3,
-   "cw_rpm": 2400,
-   "cw_tas": 205,
-   "cw_redKmh": 130,
-   "cw_power": 160,
+   "cw_rpm": 2300,
+   "cw_tas": 120,
+   "cw_power": 77,
    "cw_rootChord": 0.1,
    "cw_tipChord": 0.05,
    "cw_chordBulge": 0.06,
@@ -3215,7 +3214,7 @@
     "date": "2026-11-22T18:55",
     "who": "session",
     "step": "fit",
-    "line": "FUSELAGE-DRAG: the propeller is cut for the climb - it meets its redline at 130 km/h at full throttle (the handbook's VY is 75 KIAS; POH-128: 90 KCAS on 35 kW and VH 93 KCAS, so the propeller absorbs well under its rated power at the top speed). With the body's real drag the pitch class alone left VH at 200 km/h; at 130 the card reads VH 184 (book 172), take-off roll 237 m (book 240). Identified against the handbook's rows, not a published pitch: for the user's review {\"cw_redKmh\":130}"
+    "line": "FUSELAGE-DRAG: the propeller is cut for the climb - its design point is 120 km/h at 2300 rpm (77 hp), so it meets the motor's 2500 rpm at 130 km/h at full throttle (the handbook's VY is 75 KIAS; POH-128: 90 KCAS on 35 kW and VH 93 KCAS, so the propeller absorbs well under its rated power at the top speed). With the body's real drag the pitch class alone left VH at 200 km/h; so cut, the card reads VH 184 (book 172), take-off roll 237 m (book 240). Identified against the handbook's rows, not a published pitch: for the user's review {\"cw_rpm\":2300,\"cw_tas\":120,\"cw_power\":77}"
    },
    {
     "date": "2026-11-22T19:50",

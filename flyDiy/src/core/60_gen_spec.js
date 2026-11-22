@@ -3021,6 +3021,8 @@ const GEN_PROP_FIT = {
   // Hartzell and MT statics on the O-360, Flight Resource's tests for STC SA02245CH: fm = FM^(2/3) 0.62-0.70), x the
   // blade-count factor genPropSynth uses
   fmGoverned: 0.65,
+  // the propeller page's default design point (tools/_cowl_gen.js P.rpm, P.tas): a card that never moved it states no cut
+  page: { rpm: 2400, tas: 205 },
 };
 // the actuator disc: the thrust a propeller of disc A absorbing P makes at V, at blade efficiency etaB (standing: the
 // momentum figure (2 rho A)^(1/3) (etaB P)^(2/3)). A fixed 12-pass relaxation: smooth in every argument
@@ -3052,10 +3054,13 @@ function genPropFit(pr, o) {
   const cls = F.design[pr.pitchUsed] ? pr.pitchUsed : 'standard';
   const Vt = genPropVtop({ P: pr.powerW, nE: o.nE > 0 ? o.nE : 1, A, etaB, f: o.f, W: o.W, S: o.S, eAR: o.eAR });
   if (!(Vt > 0)) return null;
-  // (FUSELAGE-DRAG, 2026-11-22: a card may STATE the speed its fixed pitch is cut for - the cage row cw_redKmh, `o.vRed`
-  //  m/s: full throttle, level, the propeller turning its rated speed on its rated power there. Then the design point and
-  //  the redline are that speed, not a share of the aeroplane's own top speed: a trainer's fine propeller on a slippery
-  //  airframe - the Velis's, which meets its motor's limit in the climb and tops out 15 % under what its drag allows)
+  // (FUSELAGE-DRAG, 2026-11-22: a card may STATE what its fixed pitch is cut for - `o.vRed`, m/s: full throttle, level,
+  //  the propeller turning its rated speed there. It is the propeller page's own DESIGN POINT (the rows the blades'
+  //  twist is drawn from, "Cruise RPM" at "Cruise TAS": cw_rpm, cw_tas), carried to the rated speed at the same advance
+  //  ratio - 64_gen_build genPropStatedCut. Then the design point and the redline are that speed, not a share of the
+  //  aeroplane's own top speed: a trainer's fine propeller on a slippery airframe - the Velis's, which meets its
+  //  motor's limit in the climb and tops out 15 % under what its drag allows. A card still at the page's own default
+  //  point (GEN_PROP_FIT.page: every card before this) states nothing, and its pitch class decides as ever.)
   const Vcut = o.vRed > 0 ? o.vRed : 0;
   const Vd = Vcut > 0 ? Vcut : F.design[cls] * Vt;
   const Td = genPropDiscT(pr.powerW, A, Vd, etaB, RHO);
@@ -3075,6 +3080,18 @@ function genPropFit(pr, o) {
   pr.Vtop = Vt; pr.Vd = Vd; pr.etaD = Td * Vd / pr.powerW;
   pr.V1 = (Vcut > 0 ? Vcut : F.redline[cls] * Vt) / Math.sqrt(1 - GEN_SHAFT.staticK * GEN_SHAFT.staticK);
   return pr;
+}
+
+// THE CARD'S STATED CUT (m/s; 0 = none): the propeller page's design point - the blades are drawn for cw_tas km/h at
+// cw_rpm - carried to the engine's rated propeller speed at the same advance ratio (V / n D constant: the speed scales
+// with the revs). Unstated while the two rows stand at the page's default (GEN_PROP_FIT.page)
+function genPropStatedCut(S, eng) {
+  const cg = S && S.cage, PG = GEN_PROP_FIT.page;
+  if (!cg) return 0;
+  const rpm = +cg.cw_rpm, tas = +cg.cw_tas;
+  if (!(rpm > 0) || !(tas > 0) || (Math.round(rpm) === PG.rpm && Math.round(tas) === PG.tas)) return 0;
+  const e = eng || {}, nR = (e.rpm > 0 ? e.rpm : 2300) / (e.gear > 0 ? e.gear : 1);
+  return Math.max(40, Math.min(700, tas * nR / rpm)) / 3.6;
 }
 
 // THE PROPELLER AT IDLE IS A BRAKE (PHYSICS-AUDIT step 4, 2026-11-21; reports/PHYSICS-AUDIT-2026-11-21.md; GATE
@@ -3711,7 +3728,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 // (PHYSICS-AUDIT step 2, 2026-11-21: the tailplane's bracing, stBrace 0 = by its skin, and the flying wires' section,
 //  bpWireSec 0 = round cable)
-const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, cw_headCut: 0, cw_redKmh: 0, wgFillet: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, cw_headCut: 0, wgFillet: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
                                brkHold: 0, wgStrutSec: 0, wgJury: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)

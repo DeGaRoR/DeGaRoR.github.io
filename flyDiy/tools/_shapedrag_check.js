@@ -113,5 +113,14 @@ const dragOf = (bs, ed) => mk(bs, ed).params.gen.drag;
   check(a && near(a.Vd, C.GEN_PROP_FIT.design.standard * a.Vtop) && near(a.V1 * kS, C.GEN_PROP_FIT.redline.standard * a.Vtop), '9. unstated: the design point and the redline are the pitch class\'s share of the aeroplane\'s top speed (' + (a.Vd * 3.6).toFixed(0) + ' km/h)');
   check(b && near(b.Vd, 25) && near(b.V1 * kS, 25) && b.Tstatic >= a.Tstatic && b.kV2 > a.kV2, '9. stated at 90 km/h: cut for that speed - more thrust standing (' + a.Tstatic.toFixed(0) + ' -> ' + b.Tstatic.toFixed(0) + ' N), less at speed'); }
 
+// (the cut is the propeller page's own design point - no row of its own: "Cruise RPM" at "Cruise TAS", carried to the
+//  rated speed; a card at the page's default point states nothing)
+{ const PG = C.GEN_PROP_FIT.page, src = fs.readFileSync(path.join(__dirname, '_cowl_gen.js'), 'utf8'), m = /\brpm:([\d.]+), tas:([\d.]+), power:/.exec(src);
+  check(m && +m[1] === PG.rpm && +m[2] === PG.tas, '9. the core knows the propeller page\'s default design point (' + PG.rpm + ' rpm, ' + PG.tas + ' km/h)');
+  const cut = (rpm, tas, eng) => C.genPropStatedCut({ cage: { cw_rpm: rpm, cw_tas: tas } }, eng) * 3.6;
+  check(cut(PG.rpm, PG.tas, { rpm: 2500 }) === 0 && C.genPropStatedCut({}, { rpm: 2500 }) === 0, '9. a card at the page\'s default point (or with no rows) states no cut');
+  check(near(cut(2300, 120, { rpm: 2500 }), 120 * 2500 / 2300) && near(cut(2300, 120, { rpm: 5000, gear: 2 }), 120 * 2500 / 2300),
+        '9. 120 km/h at 2300 rpm on a 2500 rpm propeller: cut for ' + cut(2300, 120, { rpm: 2500 }).toFixed(0) + ' km/h (the same advance ratio at the rated speed; a reduction gear counted)'); }
+
 console.log(bad.length ? 'GATE SHAPEDRAG: FAIL (' + bad.length + ')' : 'GATE SHAPEDRAG: PASS');
 process.exit(bad.length ? 1 : 0);

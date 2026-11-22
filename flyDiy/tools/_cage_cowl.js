@@ -76,7 +76,7 @@ for (const g of ROWS) {
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
 // FUSELAGE-DRAG (2026-11-22): the flank cut-outs' four rows too
-const ABSENT_AT = { redKmh: 0, headCut: 0, headCutZ0: 0.05, headCutZ1: 0.35, headCutSpan: 50, apLift: 0, wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
+const ABSENT_AT = { headCut: 0, headCutZ0: 0.05, headCutZ1: 0.35, headCutSpan: 50, apLift: 0, wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
   faceRing: 0, waistF: null,
   exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopHold: 0, scoopWFit: 0, scoopTaperH: 1, scoopTaperW: 1, scoopRev: 0, scoopTop: 0, scoopAft: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partArc: 0, podFit: 0, cylOn: 0, cylAz: 0, cylOff: 0.3, cylR: 0.12, cylZ0: 0.1, cylZ1: 0.4, cylNose: 0.1, cylTail: 0.15, cylRin: 0, cylOffIn: null, cylBlend: 0.025, cylOgive: 0, cylProfile: 0, cylFront: 0.7, cylInlet: 0, cylVert: 1, cylSq: 0.5, cylLipT: null, cylDuctLen: null, cylDuctEnd: null, cylDuctBack: null, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
   gillOn: 0, gillN: 6, gillZ: 0.35, gillY: 0.5, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004, tailHold: 0, inletBand: 0, gillUp: null,
