@@ -14,7 +14,7 @@
 // IndexedDB): then what the browser runs off the main thread is off it here too.
 //
 //   nice -n 19 node --max-old-space-size=6144 tools/perf/world_build_node.js --out <dir> [--query 'town=1'] [--workers]
-//                   [--no-prof] [--census] [--drain] [--units] [--wx] [--label before]
+//                   [--no-prof] [--census] [--drain] [--units] [--wx] [--mats] [--label before]
 // Writes <dir>/world_build_<label>.json (+ .cpuprofile) and prints the tables. One node process (+1 thread with --workers).
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -22,7 +22,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const has = k => argv.includes('--' + k);
 const OUT = path.resolve(opt('out', path.join(os.tmpdir(), 'world_build_node'))), LABEL = opt('label', 'run');
-const QUERY = opt('query', ''), WORKERS = has('workers'), PROF = !has('no-prof'), CENSUS = has('census'), DRAIN = has('drain'), UNITSON = has('units'), WXON = has('wx');
+const QUERY = opt('query', ''), WORKERS = has('workers'), PROF = !has('no-prof'), CENSUS = has('census'), DRAIN = has('drain'), UNITSON = has('units'), WXON = has('wx'), MATSON = has('mats');
 const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's clock
 
 (async () => {
@@ -104,6 +104,27 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   // the composed-terrain raster's own counters (27_premises grStats: tiles baked / decoded / evicted, the cache's bytes)
   const rasterStat = () => { try { const w = W.FLIGHT_PROBE.world(), O = w.premises && w.premises.overlay; return O && O.raster ? Object.assign({}, O.raster) : null; } catch (e) { return null; } };
   const rasterEnd = rasterStat();
+  // ---- --mats: THE PREMISES' MATERIAL OBJECTS (a house makes its finish anew: ~27 materials a placement). Under the
+  // premises' root: the material OBJECTS, the distinct PROGRAM shapes among them (type, hook text, cache key, defines, which
+  // maps, side, transparency, alphaTest, vertex colours - what three keys a program on) and the distinct LOOKS (the shape +
+  // the values: colours, roughness, metalness, opacity, the maps' identities, the userData uniforms). objects >> looks =
+  // materials that could be shared per finish (a first-draw saving at every streamed house)
+  const matsOf = () => { if (!(MATSON && W.WORLD && W.WORLD.scene)) return null; const crypto = require('crypto'); const seen = new Set(), shapes = new Map(), looks = new Map(), byOwner = {};
+    const MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'envMap', 'lightMap', 'bumpMap'];
+    const num = v => (typeof v === 'number' ? +v.toPrecision(7) : v && v.isColor ? v.getHexString() : v && v.isVector2 ? [v.x, v.y] : v && v.isVector3 ? [v.x, v.y, v.z] : v && v.isVector4 ? [v.x, v.y, v.z, v.w] : v && v.isTexture ? 'tex:' + v.uuid : typeof v === 'boolean' || typeof v === 'string' ? v : v == null ? null : '?');
+    const uni = m => { const o = {}; const walk = (pre, g, d) => { if (!g || typeof g !== 'object' || d > 2) return; for (const k of Object.keys(g).sort()) { const u = g[k]; if (u && typeof u === 'object' && 'value' in u) o[pre + k] = num(u.value); else if (u && typeof u === 'object' && !u.isTexture && !u.isObject3D && !u.isMaterial && !ArrayBuffer.isView(u)) walk(pre + k + '.', u, d + 1); } }; walk('', m.userData, 0); if (m.uniforms) walk('u.', m.uniforms, 1); return o; };
+    const root = (() => { let r = null; W.WORLD.scene.traverse(o => { if (!r && o.name === 'premises') r = o; }); return r; })();
+    (root || W.WORLD.scene).traverse(o => { if (!o.material) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (!m || seen.has(m)) continue; seen.add(m);
+      let ck = ''; try { ck = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : ''; } catch (e) { ck = 'throws'; }
+      const hook = m.onBeforeCompile ? crypto.createHash('sha1').update(String(m.onBeforeCompile)).digest('hex').slice(0, 8) : '';
+      const shape = JSON.stringify([m.type, ck, hook, m.defines || null, MAPS.map(k => (m[k] ? 1 : 0)).join(''), m.side, !!m.transparent, m.alphaTest || 0, !!m.vertexColors, !!m.flatShading, !!m.fog, !!o.isInstancedMesh, !!o.isSkinnedMesh, m.blending]);
+      const look = shape + JSON.stringify([num(m.color), num(m.emissive), m.roughness, m.metalness, m.opacity, m.emissiveIntensity, m.envMapIntensity, MAPS.map(k => (m[k] ? m[k].uuid : 0)), m.polygonOffset ? [m.polygonOffsetFactor, m.polygonOffsetUnits] : 0, m.depthWrite, uni(m)]);
+      shapes.set(shape, (shapes.get(shape) || 0) + 1); looks.set(look, (looks.get(look) || 0) + 1);
+      let own = o; while (own.parent && own.parent !== root && own.parent.parent) own = own.parent; const on = String(own.name || own.type).replace(/[0-9]+/g, '#').slice(0, 24); byOwner[on] = (byOwner[on] || 0) + 1; } });
+    const top = M => [...M.values()].sort((a, b) => b - a).slice(0, 8);
+    return { root: !!root, objects: seen.size, shapes: shapes.size, looks: looks.size, mostSharedLook: top(looks), mostSharedShape: top(shapes), byOwner: Object.fromEntries(Object.entries(byOwner).sort((a, b) => b[1] - a[1]).slice(0, 14)),
+      houses: (() => { try { const st = W.WORLD.premises.stats; return { houses: st.houses, objects: st.objects, queued: st.queued }; } catch (e) { return null; } })() }; };
+  let mats = MATSON ? { garage: matsOf(), drained: null } : null;
   // ---- --wx: A WEATHER CHANGE ON THE MAIN THREAD (render_world wxGroundFrame: a weather strip's row re-applied, a bumpy
   // one RE-DRAPED - y per vertex, then computeVertexNormals). The world's update at the stand timed twice as it is (the
   // floor), then once after each change of the ground's rung (world.setGround): the difference is the re-drape's
@@ -120,7 +141,8 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   if (DRAIN && W.WORLD && W.WORLD.premises && W.WORLD.premises.stream) {
     const R = W.WORLD.premises, S = R.streamState, HQ = R.hw, rows = [], world = W.FLIGHT_PROBE && W.FLIGHT_PROBE.world ? W.FLIGHT_PROBE.world() : null;
     const head = () => { const j = HQ && HQ.order.length ? HQ.jobs.get(HQ.order[0]) : null; return j ? { id: j.p.id, kind: j.kind || (j.p.isPark ? 'park' : j.p.isObject ? 'object' : '?'), here: !!j.here, remote: !!j.remote } : null; };
-    const tD = Date.now(); let calls = 0, idle = 0;
+    const tD = Date.now(), budget0 = S.budget; let calls = 0, idle = 0;
+    S.budget = 1e-9;   // one entry a call: the bank is spent by the first placement (the page's clock moves 10 us a read here)
     for (const a of (world && world.aerodromes) || []) {
       for (let guard = 0; guard < 40000 && Date.now() - tD < 900000; guard++) {
         S.bank = 0; const h = head(), q0 = R.stats.queued, t = now(); let n = 0;
@@ -132,9 +154,11 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
         if (q0 === 0 && !n) break;
       }
     }
+    S.budget = budget0;
     rows.sort((x, y) => (y.ms || 0) - (x.ms || 0));
     const byKind = {}; for (const r of rows) if (r.ms !== undefined) { const e = byKind[r.kind] || (byKind[r.kind] = { n: 0, ms: 0, max: 0, over50: 0, over100: 0 }); e.n++; e.ms += r.ms; e.max = Math.max(e.max, r.ms); if (r.ms > 50) e.over50++; if (r.ms > 100) e.over100++; }
     for (const k of Object.keys(byKind)) byKind[k].ms = Math.round(byKind[k].ms);
+    if (mats) mats.drained = matsOf();   // the whole stream placed: every entry of the default town
     drain = { calls, built: rows.filter(r => r.ms !== undefined).length, left: R.stats.queued, wallMs: Date.now() - tD, byKind, worst: rows.slice(0, 40), odd: rows.filter(r => r.err || r.stuck).slice(0, 10) };
   }
   let profile = null;
@@ -191,7 +215,7 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   const worldMs = Object.values(STEP).reduce((s, e) => s + e.ms, 0);
   const res = { label: LABEL, query: QUERY, workers: WORKERS, build: W.FLYDIY_BUILD || null, node: process.version, cpus: os.cpus()[0].model, wall,
     boot: round(boot), world: { ms: Math.round(worldMs), slices: W.__WORLD_SLICES || null, steps: round(STEP), long: LONG.sort((a, b) => b.ms - a.ms) },
-    settle: Object.assign(round({ x: SETTLE }).x, { over50: SETTLE.over50, over100: SETTLE.over100, state: W.FLYDIY_WORLD_SETTLE || null }), census, drain, units, compose: COMPOSE, raster: rasterEnd, wx, stripw: W.FLYDIY_STRIPW ? Object.assign({}, W.FLYDIY_STRIPW, { jobs: undefined }) : null, top,
+    settle: Object.assign(round({ x: SETTLE }).x, { over50: SETTLE.over50, over100: SETTLE.over100, state: W.FLYDIY_WORLD_SETTLE || null }), census, drain, units, compose: COMPOSE, raster: rasterEnd, mats, wx, stripw: W.FLYDIY_STRIPW ? Object.assign({}, W.FLYDIY_STRIPW, { jobs: undefined }) : null, top,
     errors: P.errors.slice(0, 10) };
   fs.writeFileSync(path.join(OUT, 'world_build_' + LABEL + '.json'), JSON.stringify(res, null, 1));
   // ---- the tables ---------------------------------------------------------------------------------------------
@@ -206,6 +230,7 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   console.log('COMPOSITIONS: ' + JSON.stringify(COMPOSE));
   console.log('RASTER (at the garage): ' + JSON.stringify(rasterEnd));
   if (res.stripw) console.log('STRIP WORKER: ' + JSON.stringify(res.stripw) + ' | house worker ' + JSON.stringify(W.HOUSE_WORKER && W.HOUSE_WORKER.stats ? W.HOUSE_WORKER.stats() : null));
+  if (mats) console.log('PREMISES MATERIALS: ' + JSON.stringify(mats));
   if (wx) console.log('WEATHER CHANGE (ms a world update): ' + JSON.stringify(wx));
   if (census) { console.log('\nGEOMETRY BY FAMILY (raw bytes of every attribute + index; the digest of all its meshes)');
     for (const [k, e] of Object.entries(census).sort((a, b) => b[1].bytes - a[1].bytes)) console.log('  ' + pad(k, 18) + num(e.meshes, 6) + ' meshes' + num(e.verts, 10) + ' v' + num(e.tris, 10) + ' t' + num(e.MB, 8) + ' MB  ' + e.digest); }
