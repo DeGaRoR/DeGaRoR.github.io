@@ -11,6 +11,17 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
   TRAILER .. DMGCLUSTERS, 37 done) is lost and re-runs; the 72 gates already published stand. The remaining 292 gates
   now run in 20 small chunks (at most ~20 min each) so a restart costs little. Expect the end towards 19:30-20:30 UTC
   if the box holds; the log below keeps growing chunk by chunk in the meantime.
+- **19:10 UTC - THE CESSNA REDS COME FROM `one-cessna-4`, PROVEN ON ONE OF THEM.** GATE TAKEOFF run alone here on both
+  sides of the candidate's merge f3fffc8c1 (train L40J: merge origin/claude/ready/one-cessna-4): **PASS on its first
+  parent 9eee1de09, FAIL on the merge**, with the candidate's own row and number ("technique c172: to 15 m 794 m in
+  [0.6, 1.4] x 514 m"). ROUTE (fly:metal), DMGSETTLE (metal trunk-0), DMGWALL (metal, four rows) and probably DMGDRIVE
+  (the propeller at VD: 3262 rpm against 2450, tip Mach 1.02) are on the same aeroplane and were not bisected: dropping
+  that one ref from the train should clear most of the NEW list.
+- More NEW reds since 18:25, all in the damage family (read from the log, not yet re-run on master here): **DMGDRIVE**
+  (three rows on the prop's rpm: VD full, VNE cruise, the 4.36 g pull), **DMGWRECK** ("a trunk at 30 m/s strikes the prop
+  on the trunk, drawn"; "nothing broken ...: no payload, no release, no strike"), **DMGWALL** (metal: "places past 8
+  slots" on four cases), **DMGLOOK** (metal trunk-0, "c. the plan ... worst plan 2.00 ms": a per-event time, which the
+  8 Nov cloud sweep already read as this box's speed - treat DMGLOOK as TIME, not as a red).
 - **THE NEW REDS SO FAR, read by check (14:40 UTC; none is this box: no memory kill, no timeout, all deterministic):**
   - **TAKEOFF**: "technique c172: to 15 m 794 m in [0.6, 1.4] x 514 m (C172S POH)" - the C172's take-off to 15 m is
     1.54 x the book's.
