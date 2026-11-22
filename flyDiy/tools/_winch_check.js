@@ -17,10 +17,13 @@
 //   PERF      the line's cost a frame
 //   MODULE    the page's half (winch_mode.js) run in node on a three scene: the winch drawn and weathered, a launch, the plate
 //   PAGE      the winch's wiring in the page (winch_mode.js, app.js, the start chooser), by its source
-//   PLACED    AFB-0220: Jolene's two PERMANENT winches in the record (xw_winch13 / xw_winch31, key 'gen:winch' -
-//             render_premises GEN_PROPS): off 13/31's paved edge, 1000 m of cable from each direction's start, facing it;
-//             winchStart picks the facing, nearest one from each end (none built); each collides (its own triangles, 0.5 m
-//             columns, OBSTACLES); every material PBR (MeshStandardMaterial) from MATLIB; the page's hooks by their source
+//   PLACED    THE USER'S PERMANENT WINCH (22 Nov: "the winch on 13/31 at the end ... not where we are taking off usually,
+//             of course, at the other end ... we can winch from there"): ONE editor object in the record (xw_winch, key
+//             'gen:winch' - render_premises GEN_PROPS) at 13/31's FAR end from the usual take-off (the game's own line-up:
+//             the pilot's lineupPose from HOME's stand), off the paved edge, facing the line-up; winchStart from that line-up
+//             takes it (none built, its whole cable), from the other end sets one up for the launch and takes it away again;
+//             it collides (its own triangles, 0.5 m columns, OBSTACLES); every material PBR (MeshStandardMaterial) from
+//             MATLIB; the page's hooks by their source. LONG: the launch on that whole cable from the usual line-up
 // node tools/_winch_check.js [--only=LAUNCH,...]
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -178,7 +181,7 @@ if (want('MODULE')) {
     placed().then(finish);
   })();
 } else setImmediate(() => placed().then(finish));
-// ---- PLACED (AFB-0220): the AFB's permanent winches, as the record and the game stand them ------------------------------
+// ---- PLACED (AFB-0220; the user's one far-end winch, 22 Nov): the AFB's permanent winch, as the record and the game stand it ------------------------------
 async function placed() {
   if (!want('PLACED')) return;
   const THREE = global.THREE = require(path.join(ROOT, 'vendor', 'three.min.js'));
@@ -197,38 +200,51 @@ async function placed() {
   const scene = new THREE.Scene(), stood = {};
   for (const o of obs) { const g = new THREE.Group(); g.position.set(o.x, W.terrainH(o.x, o.z), o.z); g.rotation.y = o.yaw; const m = WG.build({ wx: 1, cableLen: 0, chute: 0 }); g.add(m); scene.add(g); g.updateMatrixWorld(true);
     window.WINCH_WX.apply(m, { macro: window.WINCH_WX.PRESETS.club }); stood[o.id] = { o, g, m }; }
-  const P1 = { x: aH.x + ux * (aH.len / 2 - 60), z: aH.z + uz * (aH.len / 2 - 60) };   // runway 31's start, as P0 is 13's
-  // 1 the record
-  const w13 = stood.xw_winch13, w31 = stood.xw_winch31, lines = [];
-  let okRec = !!(w13 && w31);
-  for (const [w, S, dir] of [[w13, P0, 1], [w31, P1, -1]]) {
-    if (!w) continue;
-    const q = st(w.o.x, w.o.z), fw = WG.fairlead(w.m, 0), L = Math.hypot(fw.x - S.x, fw.z - S.z);
-    const e = w.m.matrixWorld.elements, face = (e[8] * ux + e[10] * uz) * dir;   // its +z away from the start (so its -z, the cable's side, toward it): 1
-    lines.push(w.o.id + ' at (' + f(w.o.x, 2) + ', ' + f(w.o.z, 2) + ') yaw ' + f(w.o.yaw, 4) + ': station ' + f(q[0], 0) + ' m of ' + aH.len + ', ' + f(Math.abs(q[1]), 1) + ' m off the centreline, the fairlead ' + f(L, 0) + ' m from ' + (dir > 0 ? '13' : '31') + '\'s start, facing it ' + f(face, 3));
-    okRec = okRec && Math.abs(q[1]) > 24 && Math.abs(q[1]) < 27 && L >= 900 && L <= 1010 && face > 0.99;
+  // THE USUAL TAKE-OFF: where the game lines a departure from HOME's stand up (app.js placeLinedUp: the pilot's lineupPose)
+  const UP = (() => { const site = C.siteOf('HOME'), sim = C.makeSim(DEF0, W); sim.reset(0); if (sim.stance) sim.stance();
+    if (site && site.stand) C.placeAtStand(sim, aH, site.stand); else C.placeAtAerodrome(sim, aH);
+    const ap = C.makePilot(sim, DEF0, W, {}); ap.setRoute(aH, aH); ap.departFrom(aH, aH, site); return ap.lineupPose(); })();
+  const dirUp = st(UP.x, UP.z)[0] > aH.len / 2 ? -1 : 1;   // the roll's direction along 13's u (-1: from the u end back)
+  const farEnd = dirUp < 0 ? 0 : aH.len;                     // the far end's station (0 = 13's threshold end)
+  const P1 = { x: aH.x - dirUp * ux * (aH.len / 2 - 60), z: aH.z - dirUp * uz * (aH.len / 2 - 60) };   // the other end's start (60 m in from the far end)
+  // 1 the record: ONE winch, at the far end, facing the usual line-up
+  const ids = Object.keys(stood), w = stood.xw_winch;
+  let okRec = ids.length === 1 && !!w, line1 = '';
+  if (w) {
+    const q = st(w.o.x, w.o.z), fw = WG.fairlead(w.m, 0), L = Math.hypot(fw.x - UP.x, fw.z - UP.z);
+    const e = w.m.matrixWorld.elements, face = (e[8] * ux + e[10] * uz) * dirUp;   // its +z along the roll (so its -z, the cable's side, toward the line-up): 1
+    line1 = w.o.id + ' at (' + f(w.o.x, 2) + ', ' + f(w.o.z, 2) + ') yaw ' + f(w.o.yaw, 4) + ': station ' + f(q[0], 0) + ' m of ' + aH.len + ' (' + f(Math.abs(q[0] - farEnd), 0) + ' m from the far end), ' + f(Math.abs(q[1]), 1) + ' m off the centreline, the fairlead ' + f(L, 0) + ' m from the usual line-up (station ' + f(st(UP.x, UP.z)[0], 0) + '), facing it ' + f(face, 3);
+    okRec = okRec && Math.abs(q[0] - farEnd) < 60 && Math.abs(q[1]) > 24 && Math.abs(q[1]) < 27 && L > 1500 && face > 0.99;
+    w.L = L;
   }
-  row('PLACED', okRec && obs.length === 2, 'the record\'s permanent winches (' + obs.length + '): ' + lines.join('; '));
-  // 2 the launch picks the facing, nearest one (none built), from each end
+  row('PLACED', okRec, 'the record\'s permanent winch (' + ids.length + ', the user\'s: one, at the far end from the usual take-off): ' + line1);
+  // 2 from the usual line-up the launch takes it (none built, its whole cable); from the other end one is set up and taken away
   const pick = async (S, hdg) => {
     const sim = C.makeSim(DEF0, W); sim.reset(0); C.placeAtLineup(sim, aH, { x: S.x, z: S.z, hdg }, W, DEF0.refs); for (let i = 0; i < 60; i++) sim.step(1 / 60);
     const xA = sim.axes()[0], fwd = [-xA[0], -xA[2]];
     sim.setEngine(0, { key: 'off' });
     const n0 = scene.children.length, to = await WMd.winchStart({ THREE, scene, world: W, sim, def: DEF0, hands: true });
     const r = { to, model: WMd.tow.model, own: WMd.tow.own, built: scene.children.length - n0 - 1, L: WMd.tow.L, fwd };
-    WMd.towStop(); return r;
+    WMd.towStop(); r.after = scene.children.length - n0; return r;
   };
   let pk = null;
+  const hUp = Math.atan2(dirUp * uz, dirUp * ux);
   try {
-    let a = await pick(P0, Math.atan2(uz, ux)); if (a.fwd[0] * ux + a.fwd[1] * uz < 0) a = await pick(P0, Math.atan2(uz, ux) + Math.PI);
-    let b = await pick(P1, Math.atan2(uz, ux) + Math.PI); if (b.fwd[0] * ux + b.fwd[1] * uz > 0) b = await pick(P1, Math.atan2(uz, ux));
+    let a = await pick(UP, hUp); if ((a.fwd[0] * ux + a.fwd[1] * uz) * dirUp < 0) a = await pick(UP, hUp + Math.PI);
+    let b = await pick(P1, hUp + Math.PI); if ((b.fwd[0] * ux + b.fwd[1] * uz) * dirUp > 0) b = await pick(P1, hUp);
     pk = { a, b };
   } catch (e) { pk = { err: e.message }; }
-  row('PLACED', !pk.err && pk.a.model === w13.m && !pk.a.own && pk.a.built === 0 && pk.b.model === w31.m && !pk.b.own && pk.b.built === 0 && Math.abs(pk.a.L - 1000) < 15 && Math.abs(pk.b.L - 1000) < 15 && w13.g.parent === scene && w31.g.parent === scene,
-    pk.err ? 'THREW: ' + pk.err : 'winchStart from 13\'s start takes xw_winch13 (' + f(pk.a.L, 0) + ' m of cable, ' + pk.a.built + ' built), from 31\'s xw_winch31 (' + f(pk.b.L, 0) + ' m, ' + pk.b.built + ' built) - the other, turned away down the same runway, is passed over; both stay');
+  row('PLACED', !pk.err && w && pk.a.model === w.m && !pk.a.own && pk.a.built === 0 && Math.abs(pk.a.L - w.L) < 15 && pk.b.own && pk.b.model !== w.m && pk.b.built === 1 && pk.b.after === 0 && pk.b.L <= 1000 && w.g.parent === scene,
+    pk.err ? 'THREW: ' + pk.err : 'winchStart from the usual line-up takes xw_winch (' + f(pk.a.L, 0) + ' m of cable, ' + pk.a.built + ' built); from the other end (the winch behind it) one is set up (' + f(pk.b.L, 0) + ' m, ' + pk.b.built + ' built) and towStop takes it away (' + pk.b.after + ' left); xw_winch stays');
+  // LONG: a launch on the permanent winch's whole cable (its length from the usual line-up; flown down 13/31 as LAUNCH flies it)
+  if (w) {
+    const R = launch({ L: w.L, T: 240, after: 15, pilot: true });
+    row('LONG', !R.bad && R.lift && R.rel && /top of the launch/.test(R.rel) && R.relH > 300 && R.line.Tmax < R.line.weak && R.vdMax <= 32 && R.handed,
+      'the permanent winch\'s whole cable (' + f(w.L, 0) + ' m, its length from the usual line-up): lift-off ' + (R.lift ? f(R.lift.t) + ' s' : 'NONE') + ', the climb at ' + span(R.vClimb) + ' m/s, ' + (R.rel ? R.rel + ' at ' + f(R.relH, 0) + ' m, ' + f(R.relT, 0) + ' s' : 'NEVER RELEASED') + '; the line ' + f(R.line.Tmax / 1000, 2) + ' kN at most (weak link ' + f(R.line.weak / 1000, 1) + '), the drum ' + f(R.vdMax) + ' m/s at most; the pilot ' + (R.phases || []).join(' -> '));
+  }
   // 3 it collides: its own triangles in 0.5 m columns (render_premises shapeOf), an OBSTACLES registry
   {
-    const g = w13.g, inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3(), pos = [], idx = [];
+    const g = w.g, inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3(), pos = [], idx = [];
     g.traverse(o => { if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || /^(hitbox:|smoke|aoskirt)/.test(o.name || '')) return;
       M.multiplyMatrices(inv, o.matrixWorld); const P = o.geometry.attributes.position, base = pos.length / 3;
       for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(M); pos.push(v.x, v.y, v.z); }
@@ -244,7 +260,7 @@ async function placed() {
     row('PLACED', !!inside && !outside && near > 22.5 + 0.5, 'it collides: ' + idx.length / 3 + ' triangles in ' + S.nx + ' x ' + S.nz + ' columns of 0.5 m; a point inside it pushed out ' + (inside ? 'yes' : 'NO') + ', 2 m clear of its side ' + (outside ? 'HIT' : 'clear') + '; its nearest column ' + f(near, 2) + ' m off the centreline (the paved edge 22.5)');
   }
   // 4 every material PBR, MATLIB's
-  { const mats = new Set(); w13.m.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) mats.add(m); });
+  { const mats = new Set(); w.m.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) mats.add(m); });
     const bad = [...mats].filter(m => !m.isMeshStandardMaterial || MAT.rowOf(m) < 0);
     const maps = [...mats].filter(m => m.map || m.normalMap || m.roughnessMap).length;
     row('PLACED', mats.size > 0 && !bad.length, mats.size + ' materials on a winch, every one a MeshStandardMaterial made by MATLIB (' + maps + ' with maps in node - the house library\'s scans are the page\'s Images, HOUSE_TEX_SETS)' + (bad.length ? '; NOT: ' + bad.map(m => m.type + ':' + m.name).join(', ') : '')); }

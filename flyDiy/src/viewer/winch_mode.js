@@ -44,10 +44,11 @@
     // (userData.winchProp) standing within 30 m of the centreline ahead, its fairlead 300 m or more away): the cable runs
     // to it and it stays when the launch ends. Else one is built for this launch at the end of up to 1000 m of cable (the
     // fairlead on the centreline, the drawbar away from the glider), weathered, and taken away by towStop
-    // AFB-0220 (the AFB's two permanent winches, one per direction, 25.5 m off 13/31's centreline - 3 m off the paved edge
-    // with the van's width): the search reaches 30 m off the centreline (was 25: the van stood on the pavement's edge),
-    // takes only a winch that FACES the glider (its -z toward it - the other direction's winch, further down the same
-    // runway, is turned away) and the NEAREST of those
+    // THE USER'S WINCH (22 Nov: "the winch on 13/31 at the end ... not where we are taking off usually, of course, at the
+    // other end ... we can winch from there"): ONE permanent winch, xw_winch, beside 13/31's far end from the usual line-up,
+    // 25.5 m off the centreline (off the paved edge with the van's width), facing it - ~2.17 km of cable. The search reaches
+    // 30 m off the centreline, takes only a winch that FACES the glider (its -z toward it) and the NEAREST of those; from the
+    // other end the permanent one stands behind the glider, so one is set up for that launch and taken away by towStop
     let model = null, own = false, fl = null, best = Infinity;
     scene_.traverse(o => {
       if (!o.userData || !o.userData.winchProp || !o.parent) return;

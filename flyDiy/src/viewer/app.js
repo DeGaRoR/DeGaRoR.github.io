@@ -22990,7 +22990,7 @@
       return [
         { id: 'cartow:HOME', mode: 'cartow', label: 'The car tow', sub: 'on a line behind the car down Jolene AFB 13/31, released at height', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
         { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
-        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'up to 1000 m of cable to the winch at the far end of Jolene AFB 13/31, released at the top', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
+        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'on the cable to the club winch at the far end of Jolene AFB 13/31, released at the top', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
       ];
     },
     async destinations(startId) {
