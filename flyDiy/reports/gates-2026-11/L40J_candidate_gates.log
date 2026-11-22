@@ -1,5 +1,5 @@
-FAIL (27 of 120 gates run; PARTIAL: 9 of 23 chunks, 244 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD
+FAIL (28 of 122 gates run; PARTIAL: 10 of 23 chunks, 242 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE
 L40h reds that PASS here: MONOWHEEL  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -2154,6 +2154,108 @@ GATE DMGUPLOAD - what the GPU holds after a wreck is what the CPU holds (dev.htm
   FAIL  cub: no drawn fold buffer checked (fresh 0, after 0)
 GATE DMGUPLOAD: FAIL
 (exit code 1)
+######## chunk 09 of 23 (2 gates) ########
+=== DMGCRASHUI ===
+  ok    worker (damage OFF): damage OFF: the crash reads { damaged: false }
+  ok    worker (damage OFF): damage OFF: the crew untouched
+GATE DMGCRASHUI: PASS
+=== DMGSETTLE ===
+(93 s; X 1 cm over / 6 under, Y 2 cm over / 25 under, debris 2 cm)
+Cub:
+  a trunk at 30 m/s, the centreline: 128 broken, 4 pieces at 15 s
+    piece CORE (82 nodes, 464.3 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -1.3 cm (S0TR) - covering -26.4 cm (firewall), anything drawn -68.7 cm (cdfe3e7:cowl), fastest node 0.081 m/s
+    piece #67 (1 nodes, 0.4 kg; HF): lowest node 0.0 cm (HF) - covering 0.2 cm (c8b95a2), anything drawn 0.2 cm (c8b95a2:stab), fastest node 0 m/s
+    piece #79 (13 nodes, 4.8 kg; FIN,VF,VR,VX): lowest node -0.1 cm (VX) - covering -4.4 cm (c8b95a2), anything drawn -4.7 cm (c9aa2ab:hinge), fastest node 0 m/s
+    piece #93 (1 nodes, 7.8 kg; AXLER): lowest node 0.0 cm (AXLER) - covering - cm (null), anything drawn - cm (null), fastest node 0 m/s
+  ok    cub trunk-0: the crash flown finite
+  ok    cub trunk-0: every detached piece still at 15 s (fastest 0.000 m/s)
+  ok    cub trunk-0: every detached piece's lowest node on the ground (-0.1 cm; within +1 / -6)
+  ok    cub trunk-0: every detached piece's covering ON the ground, not over it (-4.4 cm; within +2 / -25)
+  ok    cub trunk-0: no island rides a loose piece (0): each went as a body
+    scrap on HF (released at 1.82 s, 18 support points): at rest, held, its lowest drawn point -0.7 cm
+  ok    cub trunk-0: every scrap at rest, held, its drawing on the ground (-0.7 cm)
+  a trunk at 30 m/s, the wing 2.5 m out: 13 broken, 2 pieces at 15 s
+    piece CORE (93 nodes, 456.7 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -2.9 cm (WF) - covering -15.4 cm (c8b95a2), anything drawn -15.4 cm (c8b95a2:wing), fastest node 0.02 m/s
+    piece #48 (4 nodes, 20.6 kg; WF,WR): lowest node -0.1 cm (WF) - covering -14.3 cm (c8b95a2), anything drawn -14.3 cm (c8b95a2:wing), fastest node 0 m/s
+  ok    cub trunk-2.5: the crash flown finite
+  ok    cub trunk-2.5: every detached piece still at 15 s (fastest 0.000 m/s)
+  ok    cub trunk-2.5: every detached piece's lowest node on the ground (-0.1 cm; within +1 / -6)
+  ok    cub trunk-2.5: every detached piece's covering ON the ground, not over it (-14.3 cm; within +2 / -25)
+  ok    cub trunk-2.5: no island rides a loose piece (0): each went as a body
+  ok    cub trunk-2.5: every scrap at rest, held, its drawing on the ground ( cm)
+  stand-in wheel+leg (31 points): 20/20 at rest, 20 held, its lowest drawn point -1.0..0.0 cm, the last asleep at 4.73 s
+  ok    cub wheel+leg: every drop at rest, held, on the ground
+  stand-in eng+prop (12 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 4.44 s
+  ok    cub eng+prop: every drop at rest, held, on the ground
+  stand-in cowl (26 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.2 s
+  ok    cub cowl: every drop at rest, held, on the ground
+  stand-in spinner (25 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.99 s
+  ok    cub spinner: every drop at rest, held, on the ground
+  stand-in pane (18 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.6 s
+  ok    cub pane: every drop at rest, held, on the ground
+Jodel:
+  a trunk at 30 m/s, the centreline: 32 broken, 2 pieces at 15 s
+    piece CORE (102 nodes, 465.1 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -0.3 cm (TW) - covering 32.2 cm (body), anything drawn 30.8 cm (cb9c2cc:access), fastest node 0.406 m/s
+    piece #97 (13 nodes, 5.6 kg; FIN,VF,VR,VX): lowest node -0.0 cm (VX) - covering -3.7 cm (c9aa4b0), anything drawn -4.0 cm (c9aa2ab:hinge), fastest node 0 m/s
+  ok    jodel trunk-0: the crash flown finite
+  ok    jodel trunk-0: every detached piece still at 15 s (fastest 0.000 m/s)
+  ok    jodel trunk-0: every detached piece's lowest node on the ground (-0.0 cm; within +1 / -6)
+  ok    jodel trunk-0: every detached piece's covering ON the ground, not over it (-3.7 cm; within +2 / -25)
+  ok    jodel trunk-0: no island rides a loose piece (0): each went as a body
+  ok    jodel trunk-0: every scrap at rest, held, its drawing on the ground ( cm)
+  a trunk at 30 m/s, the wing 2.5 m out: 17 broken, 2 pieces at 15 s
+    piece CORE (102 nodes, 465.1 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -0.2 cm (TW) - covering 32.3 cm (body), anything drawn 30.9 cm (cb9c2cc:access), fastest node 0 m/s
+    piece #97 (13 nodes, 5.6 kg; FIN,VF,VR,VX): lowest node -0.0 cm (VX) - covering -3.7 cm (c9aa4b0), anything drawn -4.2 cm (c9aa2ab:hinge), fastest node 0 m/s
+  ok    jodel trunk-2.5: the crash flown finite
+  ok    jodel trunk-2.5: every detached piece still at 15 s (fastest 0.000 m/s)
+  ok    jodel trunk-2.5: every detached piece's lowest node on the ground (-0.0 cm; within +1 / -6)
+  ok    jodel trunk-2.5: every detached piece's covering ON the ground, not over it (-3.7 cm; within +2 / -25)
+  ok    jodel trunk-2.5: no island rides a loose piece (0): each went as a body
+  ok    jodel trunk-2.5: every scrap at rest, held, its drawing on the ground ( cm)
+  stand-in wheel+leg (29 points): 20/20 at rest, 20 held, its lowest drawn point -0.8..0.0 cm, the last asleep at 6.39 s
+  ok    jodel wheel+leg: every drop at rest, held, on the ground
+  stand-in eng+prop (12 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.94 s
+  ok    jodel eng+prop: every drop at rest, held, on the ground
+  stand-in cowl (26 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.2 s
+  ok    jodel cowl: every drop at rest, held, on the ground
+  stand-in spinner (25 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.99 s
+  ok    jodel spinner: every drop at rest, held, on the ground
+  stand-in pane (18 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.6 s
+  ok    jodel pane: every drop at rest, held, on the ground
+metal Cessna:
+  a trunk at 30 m/s, the centreline: 97 broken, 4 pieces at 15 s
+    piece CORE (54 nodes, 972.2 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -1.1 cm (MNTBL) - covering -37.0 cm (body), anything drawn -37.0 cm (body), fastest node 0.022 m/s
+    piece #12 (61 nodes, 65.4 kg; S3BL,S3BR,S3TL,S3TR,S4BL,S4BR): lowest node -0.3 cm (S6BL) - covering -40.3 cm (pillarPassenger), anything drawn -40.3 cm (pillarPassenger), fastest node 0.023 m/s
+    piece #114 (1 nodes, 13.6 kg; AXLEL): lowest node 0.0 cm (AXLEL) - covering - cm (null), anything drawn - cm (null), fastest node 0 m/s
+    piece #116 (1 nodes, 10.6 kg; TW): lowest node 0.0 cm (TW) - covering - cm (null), anything drawn - cm (null), fastest node 0 m/s
+  ok    metal trunk-0: the crash flown finite
+  ok    metal trunk-0: every detached piece still at 15 s (fastest 0.023 m/s)
+  ok    metal trunk-0: every detached piece's lowest node on the ground (-0.3 cm; within +1 / -6)
+  FAIL  metal trunk-0: every detached piece's covering ON the ground, not over it (-40.3 cm; within +2 / -25)
+  ok    metal trunk-0: no island rides a loose piece (0): each went as a body
+  ok    metal trunk-0: every scrap at rest, held, its drawing on the ground ( cm)
+  a trunk at 30 m/s, the wing 2.5 m out: 31 broken, 2 pieces at 15 s
+    piece CORE (56 nodes, 996.3 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -2.1 cm (S2TL) - covering -67.1 cm (c8b95a2), anything drawn -67.1 cm (c8b95a2:wing), fastest node 0.012 m/s
+    piece #12 (61 nodes, 65.4 kg; S3BL,S3BR,S3TL,S3TR,S4BL,S4BR): lowest node -0.3 cm (S5BL) - covering -9.3 cm (pillarPassenger), anything drawn -16.0 cm (cc8ccd2:access), fastest node 0.007 m/s
+  ok    metal trunk-2.5: the crash flown finite
+  ok    metal trunk-2.5: every detached piece still at 15 s (fastest 0.007 m/s)
+  ok    metal trunk-2.5: every detached piece's lowest node on the ground (-0.3 cm; within +1 / -6)
+  ok    metal trunk-2.5: every detached piece's covering ON the ground, not over it (-9.3 cm; within +2 / -25)
+  ok    metal trunk-2.5: no island rides a loose piece (0): each went as a body
+  ok    metal trunk-2.5: every scrap at rest, held, its drawing on the ground ( cm)
+  stand-in wheel+leg (29 points): 20/20 at rest, 20 held, its lowest drawn point -0.9..0.0 cm, the last asleep at 6.68 s
+  ok    metal wheel+leg: every drop at rest, held, on the ground
+  stand-in eng+prop (12 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.94 s
+  ok    metal eng+prop: every drop at rest, held, on the ground
+  stand-in cowl (26 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.2 s
+  ok    metal cowl: every drop at rest, held, on the ground
+  stand-in spinner (25 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.99 s
+  ok    metal spinner: every drop at rest, held, on the ground
+  stand-in pane (18 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.6 s
+  ok    metal pane: every drop at rest, held, on the ground
+51 checks, 1 failed
+GATE DMGSETTLE: FAIL
+(exit code 1)
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -2276,6 +2378,8 @@ DMGFPS    PASS   170.3 s
 DMGINTEGRITY FAIL   100.1 s
 DMGSKIN   FAIL   110.2 s
 DMGUPLOAD FAIL  1401.7 s
-wall (the chunks' own, summed) 18421.4 s  (jobs 4)
+DMGCRASHUI PASS  1106.6 s
+DMGSETTLE FAIL    93.5 s
+wall (the chunks' own, summed) 19621.5 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 27 red (93 PASS, 27 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 28 red (94 PASS, 28 FAIL, 0 SKIP of 364)
