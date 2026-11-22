@@ -59,13 +59,19 @@ else say "part 2b SKIPPED: $(left) min left"; fi
 # 2c. ROW 14 (the user, 22 Nov eve: "less than 250 ms freeze on crash, and no sky blue screen"): the Cub put into the
 #     ground from its climb, as the game is today and with ?latelinks=bg (the scuff's programs are what that switch moves).
 #     On the LAB build: the Deform Coordinator owns the crashes and has a later version - this is the lab's baseline only.
-for cq in base latebg; do
+#     23 Nov (rows 14 / 15 READ ON THE SCREEN; the user: "the draw guard code is rubbish, it does worse than just freezing a
+#     frame"): the screen is recorded on every crash row, and two rows fly the guard holding the WHOLE frame for the ground
+#     family only (?holdframe=ground), without and with the canvas keeping its last picture (?keepframe=1). The base row's
+#     'still' events are checked against its recording: that is the measure the table now uses.
+HOLD=""; grep -q "holdframe=(0|ground)" "$LAB/flyDiy/index.html" && grep -q "FLYDIY_STILL" "$LAB/flyDiy/index.html" && HOLD="hold holdkeep"
+[ -n "$HOLD" ] || say "part 2c: the lab build has no holdframe / still switch (not rebuilt since 22 Nov): the base and latebg rows only"
+for cq in base $HOLD latebg; do
   if [ $(left) -ge 9 ]; then
-    Q="recring=131072"; [ $cq = latebg ] && Q="$Q&latelinks=bg"
+    Q="recring=131072"; [ $cq = latebg ] && Q="$Q&latelinks=bg"; [ $cq = hold ] && Q="$Q&holdframe=ground"; [ $cq = holdkeep ] && Q="$Q&holdframe=ground&keepframe=1"
     say "part 2c: the crash, $cq ($Q), cap 9 min, crash_cub_nosedown (the nose put down from 50 m by the hand: the user, 22 Nov - the 45 m drop is not representative)"
-    ( timeout 520 nice -n 19 node tools/flight_script.js "$W/tools/flight_scripts/perf/crash_cub_nosedown.json" --runner page --headed --live --size 5120x1271 --repo "$LAB" --q "$Q" --out "$OUT/crash_$cq" --cap 480 ) 2>&1 | tail -12 | tee -a "$LOG"
+    ( timeout 520 nice -n 19 node tools/flight_script.js "$W/tools/flight_scripts/perf/crash_cub_nosedown.json" --runner page --headed --live --size 5120x1271 --repo "$LAB" --q "$Q" --screencast "$OUT/crash_$cq/screen" --out "$OUT/crash_$cq" --cap 480 ) 2>&1 | tail -12 | cut -c1-900 | tee -a "$LOG"
     J=$(ls -t "$OUT"/crash_$cq/*.flightlog.json 2>/dev/null | head -1)
-    if [ -n "$J" ]; then nice -n 19 python tools/perf/user_log.py "$J" --md "$OUT/crash_$cq/against-objectives.md" 2>&1 | sed -n '/^## Row 14/,/^## /p' | head -30 | tee -a "$LOG"
+    if [ -n "$J" ]; then nice -n 19 python tools/perf/user_log.py "$J" --md "$OUT/crash_$cq/against-objectives.md" 2>&1 | sed -n '/^## Row 14/,$p' | head -40 | tee -a "$LOG"
     else say "NO FLIGHT LOG for the $cq crash"; fi
   else say "part 2c ($cq) SKIPPED: $(left) min left"; fi
 done
