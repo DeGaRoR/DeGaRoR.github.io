@@ -246,13 +246,25 @@
     }
 
     // the scenes this renderer drew (weakly: a bake's scene is not kept alive), for the census
-    let lastScene = null;
-    const known = new WeakSet(), refs = [], WR = typeof WeakRef === 'function';
-    function note(scene) { lastScene = scene; if (WR && scene && typeof scene === 'object' && !known.has(scene)) { known.add(scene); if (refs.length < 64) refs.push(new WeakRef(scene)); } }
-    function alive() { const out = []; for (const r of refs) { const s = r.deref(); if (s) out.push(s); } return out; }
+    // (22 Nov, the 14:00 journey: the list was the FIRST 64 scenes ever drawn - the boot's bakes, each a scene of its own -
+    //  and the world's scene never entered it: the uploads' table named 1.4 MB of 5 255. It is now the 64 scenes drawn
+    //  most RECENTLY: a full list drops its dead ones, then the one drawn longest ago.)
+    let lastScene = null, sceneSeq = 0;
+    const known = new WeakMap(), refs = [], WR = typeof WeakRef === 'function';
+    function note(scene) {
+      lastScene = scene; if (!WR || !scene || typeof scene !== 'object') return;
+      let e = known.get(scene);
+      if (e === undefined) {
+        if (refs.length >= 64) { let k = 0; for (let i = 0; i < refs.length; i++) if (refs[i].ref.deref()) refs[k++] = refs[i]; refs.length = k;
+          if (refs.length >= 64) { let lo = 0; for (let i = 1; i < refs.length; i++) if (refs[i].seq < refs[lo].seq) lo = i; const o = refs[lo].ref.deref(); if (o) known.delete(o); refs.splice(lo, 1); } }
+        e = { ref: new WeakRef(scene), seq: 0 }; known.set(scene, e); refs.push(e);
+      }
+      e.seq = ++sceneSeq;
+    }
+    function alive() { const out = []; for (const e of refs.slice().sort((a, b) => b.seq - a.seq)) { const s = e.ref.deref(); if (s) out.push(s); } return out; }
 
     const P = H = {
-      renderer, mode: MODE, rows, self, inShadow: 0, inRender: 0,
+      renderer, mode: MODE, rows, self, inShadow: 0, inRender: 0, clock, event,
       // gl.linkProgram returned: link number n (the recorder's), at t, the call's own ms
       linked(p, n, t, ms) {
         const sh = PSH.get(p) || [], vs = sh[0] ? SH.get(sh[0]) : null, fs = sh[1] ? SH.get(sh[1]) : null;
@@ -351,7 +363,13 @@
   // index, morph and bone textures -> the mesh's path and its material's owner; a material's maps and uniforms -> the
   // texture. An object no scene holds any more keeps its own name, or is 'gone'. OFF by default: nothing is wrapped.
   // The counters restart at each reveal (the flight's own), so the table is the flight's, not the loading's.
-  const TRAFFIC_ON = /[?&]recup=1(?:&|$)/.test(q);
+  // ?recup=2 = ?recup=1 + THE NAMING WALK (PERF-LEAD, 22 Nov: "what are the 6 buffer creations a frame?"). A buffer made
+  // new every frame is gone a frame later, and the save's walk never meets it. With =2, every 256th frame's end walks the
+  // four scenes drawn last and gives every upload record still alive its owner THEN, for good: one in 256 of a per-frame
+  // creator's buffers is named, which is enough to say whose they are. THE COST IS A SPIKE OF ITS OWN (one scene walk,
+  // a few ms, every 256 frames), logged as a 'recupwalk' event so the freeze ledger names it as the diagnostic's and not
+  // the game's: use =2 for a run that asks WHOSE, =1 for a run that also counts freezes.
+  const TRAFFIC_ON = /[?&]recup=[12](?:&|$)/.test(q), TRAFFIC_WALK = /[?&]recup=2(?:&|$)/.test(q);
   let TR = null;
   function traffic(THREE, frameOf) {
     if (!TRAFFIC_ON || TR || !THREE) return TR;
@@ -362,11 +380,53 @@
       const a = o.array; if (!a) return 0; const ur = o.updateRanges;
       if (ur && ur.length) { let n = 0; for (let i = 0; i < ur.length; i++) n += ur[i].count; return n * a.BYTES_PER_ELEMENT; }
       return a.byteLength; } catch (e) { return 0; } };
+    // WHO MARKED IT, said at its FIRST mark (22 Nov, the journey: 4 092 of 5 255 MB were objects 'gone' by the save - a
+    // streamed tile's texture lives a minute, the table is asked after 27): the two nearest callers of the setter that
+    // are the game's (three's own minified frames skipped) as 'function@file:line', and what the object is (a texture's
+    // size and class, an attribute's count x itemSize and array). One stack an OBJECT, never a frame.
+    const siteOf = i0 => { try {
+      // (V8 keeps 10 frames by default and three's render is deeper than that: 48 for this one stack, then as it was)
+      const lim = Error.stackTraceLimit; let st; try { Error.stackTraceLimit = 48; st = new Error().stack; } finally { Error.stackTraceLimit = lim; }
+      const L = String(st || '').split('\n'), out = [];
+      for (let i = i0 || 4; i < L.length && out.length < 2; i++) {   // (4: past siteOf, mark and the setter; the GL rows pass 5)
+        const m = /^\s*at (?:(.+?) \()?(?:.*[\/\\])?([^\/\\()]+?):(\d+):(\d+)\)?\s*$/.exec(L[i]); if (!m) continue;
+        const fn = (m[1] || '').replace(/^(?:new |async )/, '').replace(/ \[as [^\]]+\]$/, ''), file = m[2].replace(/\?.*$/, ''), last = fn.split('.').pop();
+        // (three's own frames: its file, a mangled name, or - inlined in index.html, where it is one line of 700 KB - a column past 5 000;
+        //  the recorder's and the registry's wrappers are not the caller either)
+        if (/^three(\.min|\.module)?\.js$/.test(file) || (fn && last.length <= 2) || +m[4] > 5000 || /^(flight_recorder|program_id)\.js$/.test(file)) continue;
+        out.push((fn || '(anonymous)') + '@' + file + ':' + m[3]);
+      }
+      return out.join(' < ') || null; } catch (e) { return null; } };
+    const dimOf = (o, kind) => { try {
+      if (kind === 'tex') { const im = o.image || {}; return (im.width || '?') + 'x' + (im.height || '?') + (im.depth > 1 ? 'x' + im.depth : '') + ' ' + (o.isDataArrayTexture ? 'data array' : o.isData3DTexture ? 'data 3D' : o.isDataTexture ? 'data' : o.isCanvasTexture ? 'canvas' : o.isCompressedTexture ? 'compressed' : o.isVideoTexture ? 'video' : 'image'); }
+      const a = o.array; return (o.count != null ? o.count : '?') + ' x ' + (o.itemSize || o.stride || '?') + ' ' + (a && a.constructor ? a.constructor.name.replace(/Array$/, '') : ''); } catch (e) { return null; } };
     const mark = (o, kind) => {
       let r = recs.get(o);
-      if (r === undefined) { r = { kind, marks: 0, frames: 0, lastF: -1, bytes: 0, max: 0, hash: null, same: 0, diff: 0, ref: WR ? new WeakRef(o) : null, name: (o.name || '') }; recs.set(o, r); if (list.length < 20000) list.push(r); }
-      const f = frameOf(); r.marks++; const b = bytesOf(o, kind); r.bytes += b; if (b > r.max) r.max = b;
-      if (r.lastF !== f) { r.lastF = f; r.frames++; if (f !== lastF) { lastF = f; marked.length = 0; } marked.push(r); }
+      if (r === undefined) { r = { kind, marks: 0, frames: 0, lastF: -1, bytes: 0, fb: 0, max: 0, hash: null, same: 0, diff: 0, ref: WR ? new WeakRef(o) : null, name: (o.name || ''), site: siteOf(), dim: dimOf(o, kind) };
+        recs.set(o, r); if (list.length < 20000) list.push(r); }
+      // BYTES ONCE A FRAME: three uploads an object once a frame however often it was marked in it (the journey: one
+      // texture marked 19 times a frame counted 19 times). A later mark of the same frame adds only what it grew by
+      // (update ranges added since).
+      const f = frameOf(), b = bytesOf(o, kind); r.marks++; if (b > r.max) r.max = b;
+      if (r.lastF !== f) { r.lastF = f; r.frames++; r.fb = b; r.bytes += b; if (f !== lastF) { lastF = f; marked.length = 0; } marked.push(r); }
+      else if (b > r.fb) { r.bytes += b - r.fb; r.fb = b; }
+    };
+    // THE GL'S OWN COUNT, BY THE OBJECT UPLOADED (22 Nov, the journey: the marks above held 122 KB a frame, the GL's counters
+    // 3.4 MB of buffer updates a frame - the game also uploads with raw GL calls, the skin's GPU deformation, that never
+    // pass a three setter). The recorder's upload wrappers hand every call here with the object it read from: the typed
+    // array of a bufferData / bufferSubData, the pixels or the image of a texImage. A row an object: calls, frames, bytes;
+    // who called (the first time, as above) and - when the table is asked - whose it is, where a drawn scene still holds
+    // an attribute or a texture with that very array. `null` (an allocation by size, a compressed upload) is one row.
+    const glRecs = new WeakMap(), glList = [], glNone = { buf: null, tex: null };
+    let glSites = 0;
+    const glNew = (kind, src, call) => ({ kind, call, calls: 0, frames: 0, lastF: -1, bytes: 0, max: 0, ref: (src && WR) ? new WeakRef(src) : null,
+      site: glSites++ < 4000 ? siteOf(5) : null, dim: src ? ((src.constructor && src.constructor.name) || 'object') + (src.length != null ? ' ' + src.length : src.width ? ' ' + src.width + 'x' + src.height : '') : 'no source object' });
+    const glMark = (kind, src, bytes, call) => {
+      let r;
+      if (src !== null && typeof src === 'object') { r = glRecs.get(src); if (r === undefined) { r = glNew(kind, src, call); glRecs.set(src, r); if (glList.length < 20000) glList.push(r); } }
+      else { r = glNone[kind]; if (!r) { r = glNone[kind] = glNew(kind, null, call); glList.push(r); } }
+      const f = frameOf(); r.calls++; r.bytes += bytes; if (bytes > r.max) r.max = bytes; if (r.lastF !== f) { r.lastF = f; r.frames++; }
+      if (r.call !== call && r.call.indexOf(call) < 0) r.call += '+' + call;   // (bufferData alone = made and never updated; + bufferSubData = updated in place)
     };
     const wrap = (proto, kind) => { const d = proto && Object.getOwnPropertyDescriptor(proto, 'needsUpdate');
       if (!d || typeof d.set !== 'function') return false;
@@ -376,36 +436,55 @@
     const sample = o => { const a = o && (o.array || (o.image && o.image.data)); if (!a || !a.length) return null;
       const n = a.length, st = Math.max(1, Math.floor(n / 1024)); let h = 0x811c9dc5;
       for (let i = 0; i < n; i += st) { h ^= (a[i] * 4096) | 0; h = imul(h, 16777619); } return h >>> 0; };
-    TR = { on: true, wrapped,
+    // whose is what, from the scenes given: object (and its array / pixels / image) -> { owner, path, what }
+    const whoMap = roots => {
+      const who = new Map();
+      const put = (o, owner, path, what) => { if (o && !who.has(o)) { const w = { owner, path, what }; who.set(o, w);
+        const src = o.array || (o.image && (o.image.data || o.image)); if (src && typeof src === 'object' && !who.has(src)) who.set(src, w); } };   // (its array / pixels / image: the GL rows' key)
+      const pathOf = m => { let s = m.name || m.type, p = m.parent, k = 0; while (p && k++ < 5) { if (p.name) s = p.name + '/' + s; p = p.parent; } return s; };
+      const texOf = (m, owner, path) => { try { for (const k in m) { const v = m[k]; if (v && v.isTexture) put(v, owner, path, k); }
+        const U = m.uniforms; if (U) for (const k in U) { const v = U[k] && U[k].value; if (v && v.isTexture) put(v, owner, path, 'uniform ' + k); else if (Array.isArray(v)) for (const x of v) if (x && x.isTexture) put(x, owner, path, 'uniform ' + k); }
+        const ud = m.userData; if (ud) for (const k in ud) { const v = ud[k]; if (v && v.isTexture) put(v, owner, path, 'userData ' + k); else if (v && v.value && v.value.isTexture) put(v.value, owner, path, 'userData ' + k); } } catch (e) {} };
+      for (const sc of (roots || [])) if (sc && sc.traverse) sc.traverse(o => {
+        const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [], owner = (mats[0] && ownersOf(mats[0])[0]) || null, path = pathOf(o), g = o.geometry;
+        if (g) { const A = g.attributes || {}; for (const k in A) { const a = A[k]; put(a.isInterleavedBufferAttribute ? a.data : a, owner, path, k); } if (g.index) put(g.index, owner, path, 'index');
+          const MA = g.morphAttributes || {}; for (const k in MA) for (const a of MA[k]) put(a, owner, path, 'morph ' + k); }
+        if (o.instanceMatrix) put(o.instanceMatrix, owner, path, 'instanceMatrix'); if (o.instanceColor) put(o.instanceColor, owner, path, 'instanceColor');
+        if (o.morphTexture) put(o.morphTexture, owner, path, 'morphTexture'); if (o.skeleton && o.skeleton.boneTexture) put(o.skeleton.boneTexture, owner, path, 'boneTexture');
+        if (o._matricesTexture) put(o._matricesTexture, owner, path, 'batch matrices'); if (o._colorsTexture) put(o._colorsTexture, owner, path, 'batch colours');
+        for (const m of mats) if (m) texOf(m, ownersOf(m)[0] || null, path);
+      });
+      return who;
+    };
+    // a record still alive and held by one of those scenes takes its owner, for good (it may be gone by the save)
+    const nameAll = who => { let n = 0; for (const L of [list, glList]) for (const r of L) { if (r.own || !r.ref) continue; const o = r.ref.deref(); if (!o) continue; const w = who.get(o); if (w) { r.own = w; n++; } } return n; };
+    let walks = 0, walkMs = 0;
+    TR = { on: true, wrapped, gl: glMark, walk: TRAFFIC_WALK,
       // the frame is over: on one frame in 32, what was marked in it is sampled and compared with its last sample
-      frameEnd(f) { if ((f & 31) !== 0 || lastF !== f) return;
+      frameEnd(f) {
+        if (TRAFFIC_WALK && (f & 255) === 128 && H) { const t = H.clock(); let n = 0; try { n = nameAll(whoMap(H.scenes().slice(0, 4))); } catch (e) {}
+          const ms = H.clock() - t; walks++; walkMs += ms; H.event('recupwalk', t, ms, n); }
+        if ((f & 31) !== 0 || lastF !== f) return;
         for (let i = 0; i < marked.length; i++) { const r = marked[i], o = r.ref ? r.ref.deref() : null; if (!o) continue; const h = sample(o); if (h === null) continue;
           if (r.hash !== null) { if (r.hash === h) r.same++; else r.diff++; } r.hash = h; } },
-      reset() { frame0 = frameOf(); for (const r of list) { r.marks = 0; r.frames = 0; r.bytes = 0; r.max = 0; r.same = 0; r.diff = 0; r.hash = null; r.lastF = -1; } },
+      reset() { frame0 = frameOf(); for (const r of list) { r.marks = 0; r.frames = 0; r.bytes = 0; r.fb = 0; r.max = 0; r.same = 0; r.diff = 0; r.hash = null; r.lastF = -1; } for (const r of glList) { r.calls = 0; r.frames = 0; r.bytes = 0; r.max = 0; r.lastF = -1; } },
       // the table: whose each marked object is, from the scenes given
       table(roots) {
-        const who = new Map();   // object -> { owner, path, what }
-        const put = (o, owner, path, what) => { if (o && !who.has(o)) who.set(o, { owner, path, what }); };
-        const pathOf = m => { let s = m.name || m.type, p = m.parent, k = 0; while (p && k++ < 5) { if (p.name) s = p.name + '/' + s; p = p.parent; } return s; };
-        const texOf = (m, owner, path) => { try { for (const k in m) { const v = m[k]; if (v && v.isTexture) put(v, owner, path, k); }
-          const U = m.uniforms; if (U) for (const k in U) { const v = U[k] && U[k].value; if (v && v.isTexture) put(v, owner, path, 'uniform ' + k); else if (Array.isArray(v)) for (const x of v) if (x && x.isTexture) put(x, owner, path, 'uniform ' + k); }
-          const ud = m.userData; if (ud) for (const k in ud) { const v = ud[k]; if (v && v.isTexture) put(v, owner, path, 'userData ' + k); else if (v && v.value && v.value.isTexture) put(v.value, owner, path, 'userData ' + k); } } catch (e) {} };
-        for (const sc of (roots || [])) if (sc && sc.traverse) sc.traverse(o => {
-          const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [], owner = (mats[0] && ownersOf(mats[0])[0]) || null, path = pathOf(o), g = o.geometry;
-          if (g) { const A = g.attributes || {}; for (const k in A) { const a = A[k]; put(a.isInterleavedBufferAttribute ? a.data : a, owner, path, k); } if (g.index) put(g.index, owner, path, 'index');
-            const MA = g.morphAttributes || {}; for (const k in MA) for (const a of MA[k]) put(a, owner, path, 'morph ' + k); }
-          if (o.instanceMatrix) put(o.instanceMatrix, owner, path, 'instanceMatrix'); if (o.instanceColor) put(o.instanceColor, owner, path, 'instanceColor');
-          if (o.morphTexture) put(o.morphTexture, owner, path, 'morphTexture'); if (o.skeleton && o.skeleton.boneTexture) put(o.skeleton.boneTexture, owner, path, 'boneTexture');
-          if (o._matricesTexture) put(o._matricesTexture, owner, path, 'batch matrices'); if (o._colorsTexture) put(o._colorsTexture, owner, path, 'batch colours');
-          for (const m of mats) if (m) texOf(m, ownersOf(m)[0] || null, path);
-        });
+        nameAll(whoMap(roots));
         const frames = Math.max(1, frameOf() - frame0), rows = [];
         let tot = 0, named = 0;
-        for (const r of list) { if (!r.marks) continue; const o = r.ref ? r.ref.deref() : null, w = o ? who.get(o) : null; tot += r.bytes; if (w) named += r.bytes;
-          rows.push({ kind: r.kind, what: w ? w.what : (r.name || (o ? (o.isTexture ? 'texture' : 'attribute') : 'gone')), owner: w ? w.owner : null, at: w ? w.path : (o ? 'not in a drawn scene' : 'gone'), name: r.name || null,
+        for (const r of list) { if (!r.marks) continue; const o = r.ref ? r.ref.deref() : null, w = r.own || null; tot += r.bytes; if (w) named += r.bytes;
+          rows.push({ kind: r.kind, what: w ? w.what : (r.name || (o ? (o.isTexture ? 'texture' : 'attribute') : 'gone')), owner: w ? w.owner : null, at: w ? w.path : (o ? 'not in a drawn scene' : 'gone'), name: r.name || null, site: r.site || null, dim: r.dim || null,
             marks: r.marks, frames: r.frames, per100: Math.round(1000 * r.frames / frames) / 10, KB: Math.round(r.max / 1024), MB: Math.round(r.bytes / 104857.6) / 10, sampled: r.same + r.diff, unchanged: r.same }); }
         rows.sort((a, b) => b.MB - a.MB);
-        return { frames, objects: rows.length, MB: Math.round(tot / 104857.6) / 10, namedMB: Math.round(named / 104857.6) / 10, perFrameKB: Math.round(tot / 1024 / frames), wrapped, rows: rows.slice(0, 300) };
+        // the GL rows: the same naming, by the array / image the call read from
+        const grows = []; let gtot = 0, gnamed = 0;
+        for (const r of glList) { if (!r.calls) continue; const o = r.ref ? r.ref.deref() : null, w = r.own || null; gtot += r.bytes; if (w) gnamed += r.bytes;
+          grows.push({ kind: r.kind, call: r.call, what: w ? w.what : null, owner: w ? w.owner : null, at: w ? w.path : (r.ref ? (o ? 'not in a drawn scene' : 'gone') : 'no source object'), site: r.site || null, dim: r.dim,
+            calls: r.calls, frames: r.frames, per100: Math.round(1000 * r.frames / frames) / 10, KB: Math.round(r.max / 1024), MB: Math.round(r.bytes / 104857.6) / 10 }); }
+        grows.sort((a, b) => b.MB - a.MB);
+        return { frames, objects: rows.length, MB: Math.round(tot / 104857.6) / 10, namedMB: Math.round(named / 104857.6) / 10, perFrameKB: Math.round(tot / 1024 / frames), wrapped, walks, walkMs: Math.round(walkMs), rows: rows.slice(0, 300),
+          gl: { objects: grows.length, MB: Math.round(gtot / 104857.6) / 10, namedMB: Math.round(gnamed / 104857.6) / 10, perFrameKB: Math.round(gtot / 1024 / frames), rows: grows.slice(0, 300) } };
       },
     };
     return TR;

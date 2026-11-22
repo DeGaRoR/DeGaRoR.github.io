@@ -3047,7 +3047,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         geo.boundingBox = box; geo.boundingSphere = new THREE.Sphere(center, Math.sqrt(r2));
       };
       const buildQuad = Q => {
-        const nodes = Q.want || [], patches = [];
+        const nodes = Q.want || [], patches = [], tq = performance.now(), was = Q.sig ? Q.sig.split(',').length : 0;
         const pos = new Float32Array(nodes.length * NV * 3), uv = new Float32Array(nodes.length * NV * 2), nor = new Float32Array(nodes.length * NV * 3);
         const idx = new Uint32Array(nodes.length * TPL.length);
         nodes.forEach((n, i) => { const P = patchOf(n); patches.push(P); pos.set(P.pos, i * NV * 3); uv.set(P.uv, i * NV * 2); nor.set(P.nor, i * NV * 3);
@@ -3062,6 +3062,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
+        // PERF-TRACE (PERF-LEAD, 22 Nov: the journey's 12-44 MB uploads): the re-cut says what it made, by the streamers' contract
+        // ('deliver': the freeze ledger, tools/big_uploads.js) - the quadrant's nodes before and after, the bytes of its four new buffers
+        { const FRq = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+          if (FRq && FRq.event) FRq.event('deliver', performance.now() - tq, { s: 'far terrain', what: 'quadrant re-cut', n: nodes.length, was, kb: Math.round((pos.byteLength + nor.byteLength + uv.byteLength + idx.byteLength) / 1024) }); }
       };
       FARLOD.update = (force, nMax) => {   // nMax (G995): at most that many stale quadrants this call (the build's slices)
         const t0 = performance.now(), e = camera.position;

@@ -1501,7 +1501,7 @@ self.onmessage = function (e) {
     const COL = { fuselage: 0xffb040, wing: 0x40c0ff, tail: 0xb080ff, engine: 0xff5050, gear: 0x80ff80, floats: 0x40e0e0 };
     for (const b of hb) {
       const box = new THREE.Box3(new THREE.Vector3(...b.min), new THREE.Vector3(...b.max));
-      const h = new THREE.Box3Helper(box, COL[b.name.replace(/\d+$/, '')] || 0xffffff);
+      const h = new THREE.Box3Helper(box, COL[b.name.replace(/\d+$/, '')] || 0xffffff); h.material.userData.progOwner = 'fleet / parked aircraft / debug boxes';
       h.name = 'hitbox:' + b.name;
       grp.add(h);
     }

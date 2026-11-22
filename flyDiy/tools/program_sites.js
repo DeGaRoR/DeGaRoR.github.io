@@ -7,6 +7,7 @@
 //     new THREE.<X>Material( ... )      (and the aliases T. / TH. / THREE_.)
 //     MATLIB.make( ... ) / MATLIB.shared( ... ) / MATLIB.arr.material({ ..., owner: '...' })
 //     <any alias of MATLIB>.make(THREE, '<shape>', ...) / .shared(THREE, '<shape>', ...)
+//     new THREE.<X>Helper( ... )        (three makes its material itself: declared just after, helper.material.userData.progOwner = '...')
 // and holds each to ONE of the accepted declarations of its owner ('feature / system / variant'):
 //   inline    `progOwner` inside the call's own arguments:  new THREE.MeshBasicMaterial({ userData: { progOwner: '...' }, ... })
 //             or MATLIB.make / shared's owner argument (matlib.js writes userData.progOwner, outside the share signature)
@@ -30,7 +31,7 @@ const SRC = path.join(__dirname, '..', 'src');
 // (the fourth: MATLIB reached through an alias - `(typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', {`,
 //  `ML.make(`, `lib.shared(`, `M.shared(T, 'std', {` - 26 sites the first retrofit never saw: the houses' walls, the scars, the hangar's
 //  view. Told from another module's make() by its arguments: three first, then the shape as a string.)
-const SITE = /\bnew\s+[A-Za-z_$][\w$]*\.(\w*Material)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(|\bnew\s*\([^()]*\bTHREE\.\w*(Material)\s*\)\s*\(|(?<!\bMATLIB)\.(make|shared)\s*\((?=\s*[A-Za-z_$][\w$.]*\s*,\s*['\"`])/g;
+const SITE = /\bnew\s+[A-Za-z_$][\w$]*\.(\w*Material|\w+Helper)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(|\bnew\s*\([^()]*\bTHREE\.\w*(Material)\s*\)\s*\(|(?<!\bMATLIB)\.(make|shared)\s*\((?=\s*[A-Za-z_$][\w$.]*\s*,\s*['\"`])/g;
 
 function walk(dir, out) {
   for (const f of fs.readdirSync(dir)) { const p = path.join(dir, f), st = fs.statSync(p);
@@ -86,7 +87,7 @@ function scanFile(file) {
     if (!how && v) {
       const endLine = close > 0 ? lineAt[close] : line, next = lines.slice(endLine, endLine + 13).join('\n'), q = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const a = new RegExp('\\bown\\(\\s*' + q + '\\s*,\\s*([\'"`])((?:(?!\\1).)*)\\1').exec(next) || new RegExp('\\bown\\(\\s*' + q + '\\s*,\\s*([^)\\n]+)\\)').exec(next)
-        || new RegExp(q + '\\.userData\\.progOwner\\s*=\\s*([\'"`])((?:(?!\\1).)*)\\1').exec(next) || new RegExp(q + '\\.userData\\.progOwner\\s*=\\s*([^;\\n]+)').exec(next);
+        || new RegExp(q + '(?:\\.material)?\\.userData\\.progOwner\\s*=\\s*([\'"`])((?:(?!\\1).)*)\\1').exec(next) || new RegExp(q + '(?:\\.material)?\\.userData\\.progOwner\\s*=\\s*([^;\\n]+)').exec(next);
       // (a string that goes on with `+ ...` is COMPUTED in the code - 'aircraft / skin / ' + finish: shown in brackets, judged by the census)
       if (a) { how = 'after'; const more = a[2] !== undefined && /^\s*\+/.test(next.slice(a.index + a[0].length)); owner = a[2] !== undefined ? (more ? '(' + a[2] + '...)' : a[2]) : '(' + a[1].trim() + ')'; }
     }

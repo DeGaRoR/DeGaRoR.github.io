@@ -223,8 +223,17 @@ function run(ok) {
     // a mesh of its own whose positions change every frame, a table texture marked every frame with the SAME bytes, a normal marked once
     const g = new THREE.BoxGeometry(), wing = Wd.put('wing', Wd.M.hook), tab = new THREE.DataTexture(new Uint8Array(64 * 64 * 4), 64, 64);
     wing.geometry = g; Wd.M.roof.userData.table = tab; Wd.sc.updateMatrixWorld(true);
+    // (the journey of 22 Nov: the boot's bakes, each a scene of its own, filled the list of scenes before the world's was drawn)
+    const junk = []; for (let i = 0; i < 70; i++) { const s = new THREE.Scene(); junk.push(s); B.renderer.render(s, Wd.cam); }
+    const lateScene = new THREE.Scene(); B.renderer.render(lateScene, Wd.cam); B.renderer.render(Wd.sc, Wd.cam);
+    { const SC = B.PID.scenes();
+      ok(SC.length <= 64 && SC[0] === Wd.sc && SC.indexOf(lateScene) >= 0 && SC.indexOf(junk[0]) < 0, '6i the scenes kept for the naming are the 64 drawn most RECENTLY (70 bakes kept alive, then two more: the last drawn first, the oldest bake dropped)', SC.length + ' kept'); }
+    const thrice = new THREE.DataTexture(new Uint8Array(64 * 64 * 4), 64, 64); thrice.name = 'thrice';
+    const rawArr = new Float32Array(1000);
     const pos = g.attributes.position, v0 = pos.version, t0 = tab.version;
     for (let f = 0; f < 96; f++) { B.T.now += 16; B.REC.begin(B.T.now, null); pos.array[0] = f; pos.needsUpdate = true; tab.needsUpdate = true; if (f === 5) g.attributes.normal.needsUpdate = true;
+      thrice.needsUpdate = true; thrice.needsUpdate = true; thrice.needsUpdate = true;
+      B.gl.bufferSubData(34962, 0, rawArr);   // (a raw GL upload, as the skin's GPU deformation makes: no three object, no setter)
       B.renderer.render(Wd.sc, Wd.cam); B.REC.end(true, null); }
     ok(pos.version === v0 + 96 && tab.version === t0 + 96, '6i the wrapped setters still do three\'s own work (the versions move as before)', (pos.version - v0) + ' / ' + (tab.version - t0));
     const U = B.PROGRAMS.uploads(), rp = U && U.rows.find(r => r.what === 'position' && /wing$/.test(r.at)), rt = U && U.rows.find(r => r.kind === 'tex' && /table/.test(r.what)), rn = U && U.rows.find(r => r.what === 'normal' && /wing$/.test(r.at));
@@ -233,12 +242,49 @@ function run(ok) {
     ok(!!rt && rt.owner === 'town / houses / roofs' && rt.frames === 96 && rt.sampled >= 2 && rt.unchanged === rt.sampled && rt.KB === 16,
        '6i a table texture marked every frame with the same bytes: named by the material that holds it, and flagged UNCHANGED', rt ? JSON.stringify(rt) : 'no row');
     ok(!!rn && rn.frames === 1, '6i an attribute marked once is counted once', rn ? rn.frames : 'no row');
+    { const r3 = U && U.rows.find(r => r.name === 'thrice');
+      ok(!!r3 && r3.marks === 288 && r3.frames === 96 && r3.MB === 1.5, '6i an object marked three times a frame is three marks and ONE upload a frame (its bytes once)', r3 ? r3.marks + ' marks, ' + r3.frames + ' frames, ' + r3.MB + ' MB' : 'no row');
+      ok(!!r3 && r3.at === 'not in a drawn scene' && r3.dim === '64x64 data' && /_progid_check\.js:\d+/.test(r3.site || '') && !!rp && /^\d+ x 3 Float32$/.test(rp.dim || ''),
+         '6i an object no scene holds still says who marked it (the caller of the setter, at its first mark) and what it is', r3 ? r3.site + ' | ' + r3.dim + ' | ' + (rp && rp.dim) : 'no row'); }
+    { const GLT = U && U.gl, gp = GLT && GLT.rows.find(r => r.kind === 'buf' && r.owner === 'terrain / island ground / splat' && r.what === 'position'), gr = GLT && GLT.rows.find(r => r.dim === 'Float32Array 1000');
+      ok(!!gp && gp.call === 'bufferData+bufferSubData' && gp.calls === 97 && gp.frames === 96 && /_progid_check\.js:\d+/.test(gp.site || ''),
+         '6i the GL\'s own count: the attribute three re-uploads every frame has its row by its ARRAY - made once then updated in place, every frame, its owner, and the game\'s function that asked for the render', gp ? JSON.stringify(gp) : (GLT ? GLT.rows.length + ' gl rows, none of the wing' : 'no gl table'));
+      ok(!!gr && gr.calls === 96 && gr.frames === 96 && gr.MB === 0.4 && gr.owner === null && gr.at === 'not in a drawn scene' && /_progid_check\.js:\d+/.test(gr.site || ''),
+         '6i a raw GL upload (no three object, no setter) has its row too: its calls, its bytes, and who called', gr ? JSON.stringify(gr) : 'no row');
+      ok(!!GLT && GLT.MB > 0 && GLT.namedMB < GLT.MB && GLT.rows.filter(r => r.owner).length >= 3, '6i the GL table says how much of its bytes a drawn scene could name', GLT ? GLT.namedMB + ' of ' + GLT.MB + ' MB, ' + GLT.rows.filter(r => r.owner).length + ' rows named' : undefined); }
     ok(U.frames >= 96 && U.namedMB > 0 && U.namedMB <= U.MB, '6i the table says how many frames it covers and how much of the bytes it could name', U.frames + ' frames, ' + U.namedMB + ' of ' + U.MB + ' MB');
+    ok(!JSON.parse(B.REC.logParts().join('')).events.some(e => e[1] === 'recupwalk') && U.walks === 0, '6i ?recup=1 never walks a scene during the frames');
+    // ?recup=2: an object that leaves the scene before the table is asked keeps the owner the walk gave it
+    { const B2 = boot({ search: '?recup=2' }), W2 = world(B2, true), T3 = B2.THREE; warm(B2, W2);
+      const g2 = new T3.BoxGeometry(), m2 = W2.put('shortlived', W2.M.hook); m2.geometry = g2; W2.sc.updateMatrixWorld(true);
+      const p2 = g2.attributes.position, par = m2.parent;
+      for (let f = 0; f < 400; f++) { B2.T.now += 16; B2.REC.begin(B2.T.now, null); if (f < 300) p2.needsUpdate = true; if (f === 300 && par) par.remove(m2);
+        B2.renderer.render(W2.sc, W2.cam); B2.REC.end(true, null); }
+      const U2 = B2.PROGRAMS.uploads(), r2 = U2 && U2.rows.find(r => r.what === 'position' && /shortlived$/.test(r.at)), g2r = U2 && U2.gl.rows.find(r => r.what === 'position' && /shortlived$/.test(r.at));
+      const E2 = JSON.parse(B2.REC.logParts().join('')).events.filter(e => e[1] === 'recupwalk');
+      ok(!!r2 && r2.owner === 'terrain / island ground / splat' && r2.frames === 300 && !!g2r && g2r.owner === r2.owner,
+         '6i ?recup=2: an object gone from the scene before the table is asked keeps the owner a walk gave it, in both tables', r2 ? r2.owner + ' @' + r2.at : 'no row');
+      ok(E2.length >= 1 && U2.walks === E2.length && E2.every(e => typeof e[2] === 'number'), '6i ... and each walk is an event with its ms (the diagnostic\'s own spike, named as such by the ledger)', E2.length + ' walks'); }
     // the default: nothing wrapped, nothing kept
     const D = boot({}), d = Object.getOwnPropertyDescriptor(D.THREE.Texture.prototype, 'needsUpdate');
     ok(D.REC.rec.traffic == null && D.PROGRAMS.uploads() === null && !/mark\(/.test(String(d.set)), '6i without the switch the setters are three\'s own and no table exists');
     const L = JSON.parse(B.REC.logParts().join(''));
     ok(L.uploads && L.uploads.rows.length >= 3 && JSON.parse(D.REC.logParts().join('')).uploads === null, '6i the saved log carries the table (null without the switch)');
+  }
+  // ---- 6j: when each lap of a long frame ended (the 'laps' event: what happened INSIDE a slot) --------------------
+  {
+    const B = boot({}), R = B.REC, S = R.S;
+    const frame = (a, b) => { B.T.now += 5; R.begin(B.T.now, null); B.T.now += a; R.lap(S.mirror); B.T.now += b; R.lap(S.render); R.end(true, null); };
+    frame(4, 6); frame(30, 31); frame(3, 3);
+    const E = JSON.parse(R.logParts().join('')).events.filter(e => e[1] === 'laps'), a = E[0] && E[0][3];
+    ok(E.length === 1 && E[0][2] === 61 && Array.isArray(a) && a.length === 28 && a[0] === -1 && a[7] === S.mirror && a[14] === S.render && a[21] === S.other,
+       '6j a frame whose work reached 50 ms logs its laps once (the frame\'s start, then each lap\'s slot in order); the shorter frames log none', E.length + ' events' + (a ? ', ' + a.length / 7 + ' laps' : ''));
+    ok(!!a && a[8] - a[1] === 30 && a[15] - a[8] === 31 && E[0][0] === a[1], '6j each lap carries the time it ended: the mirror\'s window is [start, +30], the render\'s the 31 ms after it', a ? (a[8] - a[1]) + ' / ' + (a[15] - a[8]) : undefined);
+    // the steady census: one frame in N whatever its length (?reclaps=4 here; 256 by default - none of the three frames above)
+    const B4 = boot({ search: '?reclaps=4' }), R4 = B4.REC;
+    for (let f = 0; f < 12; f++) { B4.T.now += 5; R4.begin(B4.T.now, null); B4.T.now += 2; R4.lap(R4.S.mirror); B4.renderer.render(new B4.THREE.Scene(), new B4.THREE.PerspectiveCamera()); B4.T.now += 3; R4.lap(R4.S.render); R4.end(true, null); }
+    const E4 = JSON.parse(R4.logParts().join('')).events.filter(e => e[1] === 'laps');
+    ok(E4.length === 3 && E4.every(e => e[3].length === 28 && e[2] === 5), '6j ?reclaps=4: one short frame in four logs its laps too (the steady census of what each pass draws)', E4.length + ' of 12 frames');
   }
   // ---- 6g: the cost -----------------------------------------------------------------------------------------
   {

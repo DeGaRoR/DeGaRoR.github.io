@@ -9086,7 +9086,7 @@
     if (n === resHoverName) return;
     resHoverName = n;
     if (resBox) { if (resBox.parent) resBox.parent.remove(resBox); resBox.geometry.dispose(); resBox.material.dispose(); resBox = null; }
-    if (h && THREE.BoxHelper) { resBox = new THREE.BoxHelper(h.grp, 0xffc070); resBox.name = 'residentHover'; hangarScene.add(resBox); }
+    if (h && THREE.BoxHelper) { resBox = new THREE.BoxHelper(h.grp, 0xffc070); resBox.material.userData.progOwner = 'garage / residents / hover box'; resBox.name = 'residentHover'; hangarScene.add(resBox); }
     canvas.style.cursor = h ? 'pointer' : '';
     canvas.title = h ? 'Work on ' + h.name : '';
   }

@@ -1533,7 +1533,7 @@ function updateDims(box, FS) {
     '</div>';
   disposeObj(dimsBox); dimsBox = null;
   if ($('dimsBox') && $('dimsBox').checked) {
-    dimsBox = new THREE.Box3Helper(box.clone(), 0x5db3ff);
+    dimsBox = new THREE.Box3Helper(box.clone(), 0x5db3ff); dimsBox.material.userData.progOwner = 'editor / dimensions / bounds box';
     dimsBox.material.transparent = true;
     dimsBox.material.opacity = 0.55;
     scene.add(dimsBox);

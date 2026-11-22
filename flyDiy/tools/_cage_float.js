@@ -1343,7 +1343,7 @@ PAGE.post = ctx => {
     window.CAGE_GEAR.pitch = 0; window.CAGE_GEAR.gy = gLow;
     scene.traverse(o => { if (o.parent && o.parent.name === 'cageLayer:gear' && o.type === 'GridHelper') { o.rotation.x = 0; o.position.set(0, gLow, 0); } });
     if (+P.gearSit && !scene.children.some(o => o.name === 'cageLayer:gear' && o.children.some(c => c.type === 'GridHelper'))) {
-      const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33);
+      const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33); grid.material.userData.progOwner = 'editor / workbench / floor grid';
       grid.position.set(0, gLow, 0);
       group.add(grid);
     }

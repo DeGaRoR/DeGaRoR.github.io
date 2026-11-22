@@ -3524,7 +3524,7 @@ PAGE.post = ctx => {
 
   if (P.gearSit && contacts.length) {
     const n = [0, cs, -sn];
-    const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33);
+    const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33); grid.material.userData.progOwner = 'editor / workbench / floor grid';
     grid.rotation.x = -pitch;
     grid.position.set(n[0] * gy, n[1] * gy, n[2] * gy);
     group.add(grid);

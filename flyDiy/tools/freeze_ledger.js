@@ -79,7 +79,7 @@ function ledger(log, opt) {
   const med = {};
   for (const c of ['loading', 'garage', 'world', 'paused']) { const R = rows.filter(r => r.ctx === c && r.dt === r.dt && r.dt <= ORANGE); med[c] = {}; for (const k of SL) med[c][k] = median(R.map(r => r[k]).filter(x => x === x)); med[c].work = median(R.map(r => r.work).filter(x => x === x)); }
   // the events by start time, for the interval look-ups (two pointers would do; the logs are small)
-  const LONGEV = new Set(['longtask', 'loaf', 'link', 'linkwait', 'gtask', 'prem', 'edit', 'wkmsg']);
+  const LONGEV = new Set(['longtask', 'loaf', 'link', 'linkwait', 'gtask', 'prem', 'edit', 'wkmsg', 'recupwalk']);
   const evIn = (a, b) => events.filter(e => { const end = e.t + (e.ms && LONGEV.has(e.kind) ? e.ms : 0); return end > a && e.t < b; });
   const budgetOf = r => { const cap = r.cap > 0 ? r.cap : 60; return 1000 / cap; };
 
@@ -130,6 +130,7 @@ function ledger(log, opt) {
       if (e.kind === 'linkwait') add(e, 'draw/compile held on a link: ' + ((typeof e.d === 'number' && owner(e.d)) || 'a program the log does not name'), 'link');
       else if (e.kind === 'link') add(e, 'shader link call: ' + ((typeof e.d === 'number' && owner(e.d)) || 'a program the log does not name'), 'link');
       else if (e.kind === 'gtask') add(e, 'garage task: ' + e.d, 'script');
+      else if (e.kind === 'recupwalk') add(e, 'DIAGNOSTIC: the ?recup=2 naming walk (not the game)', 'script');
       else if (e.kind === 'wkmsg') add(e, 'worker reply handled: ' + (e.d || '?'), 'script');   // (the recorder's worker instrument: a reply's handler of 16 ms or more, by the worker's name)
       else if (e.kind === 'gpuup' && e.d && e.d.at === 'out') { const c = clip(e.t - (e.ms || 0), e.t, loopEnd, t1); if (c) named.push({ iv: c, what: 'GPU data made between frames (textures / buffers)', kind: 'script' }); }
       else if (e.kind === 'deliver' && e.ms) add(e, 'streamer delivered: ' + ((e.d && e.d.s) || '?'), 'script');
@@ -283,13 +284,20 @@ function text(R, show) {
     L.push('  ' + lp('ms', 8) + lp('frames', 7) + lp('>100', 6) + lp('worst', 8) + '  what');
     for (const g of C.causes.slice(0, 18)) L.push('  ' + lp(g.ms, 8) + lp(g.frames, 7) + lp(g.freezes, 6) + lp(g.worstMs, 8) + '  ' + g.what); }
   if (R.uploads && R.uploads.rows) { const U = R.uploads, by = new Map();
-    for (const r of U.rows) { const k = r.owner || ('(no owner) ' + r.at); let g = by.get(k); if (!g) by.set(k, g = { owner: k, MB: 0, objects: 0, everyFrame: 0, unchanged: 0, sampled: 0 }); g.MB += r.MB; g.objects++; if (r.per100 >= 90) g.everyFrame++; g.unchanged += r.unchanged; g.sampled += r.sampled; }
-    L.push(''); L.push('WHAT THE GAME MARKS FOR THE GPU SINCE THE REVEAL, BY OWNER (?recup=1: ' + U.frames + ' frames, ' + U.objects + ' objects, ' + U.MB + ' MB in all = ' + U.perFrameKB + ' KB a frame; ' + U.namedMB + ' MB named)');
+    for (const r of U.rows) { const k = r.owner || ('(no owner) ' + (r.site ? 'marked by ' + String(r.site).split(' < ')[0] : r.at)); let g = by.get(k); if (!g) by.set(k, g = { owner: k, MB: 0, objects: 0, everyFrame: 0, unchanged: 0, sampled: 0 }); g.MB += r.MB; g.objects++; if (r.per100 >= 90) g.everyFrame++; g.unchanged += r.unchanged; g.sampled += r.sampled; }
+    L.push(''); L.push('WHAT THE GAME MARKS FOR THE GPU SINCE THE REVEAL, BY OWNER (?recup=1: ' + U.frames + ' frames, ' + U.objects + ' objects, ' + U.MB + ' MB in all = ' + U.perFrameKB + ' KB a frame; ' + U.namedMB + ' MB named' + (U.walks ? '; ' + U.walks + ' naming walks, ' + U.walkMs + ' ms in all: ?recup=2' : '') + ')');
     L.push('  ' + lp('MB', 9) + lp('objects', 8) + lp('each frame', 11) + lp('unchanged', 12) + '  owner');
     for (const g of [...by.values()].sort((a, b) => b.MB - a.MB).slice(0, 25)) L.push('  ' + lp(r1(g.MB), 9) + lp(g.objects, 8) + lp(g.everyFrame, 11) + lp(g.sampled ? g.unchanged + ' of ' + g.sampled : '-', 12) + '  ' + g.owner);
     L.push('  THE LARGEST OBJECTS (frames in 100 it is marked; unchanged = sampled marks whose content sample was the same as the last one)');
     L.push('  ' + lp('MB', 9) + lp('KB each', 9) + lp('in 100', 8) + lp('unchanged', 12) + '  what');
-    for (const r of U.rows.slice(0, 30)) L.push('  ' + lp(r.MB, 9) + lp(r.KB, 9) + lp(r.per100, 8) + lp(r.sampled ? r.unchanged + ' of ' + r.sampled : '-', 12) + '  ' + r.kind + ' ' + r.what + (r.name ? ' "' + r.name + '"' : '') + '  ' + (r.owner || '(no owner)') + '  @' + r.at); }
+    for (const r of U.rows.slice(0, 30)) L.push('  ' + lp(r.MB, 9) + lp(r.KB, 9) + lp(r.per100, 8) + lp(r.sampled ? r.unchanged + ' of ' + r.sampled : '-', 12) + '  ' + r.kind + ' ' + r.what + (r.dim ? ' [' + r.dim + ']' : '') + (r.name ? ' "' + r.name + '"' : '') + (!r.owner && r.site ? '  <- ' + r.site : '') + '  ' + (r.owner || '(no owner)') + '  @' + r.at);
+    if (U.gl && U.gl.rows) { const G = U.gl, gby = new Map();
+      for (const r of G.rows) { const k = r.owner || ('(no owner) ' + (r.site ? 'called by ' + String(r.site).split(' < ')[0] : r.at)); let g = gby.get(k); if (!g) gby.set(k, g = { owner: k, MB: 0, objects: 0, calls: 0, everyFrame: 0 }); g.MB += r.MB; g.objects++; g.calls += r.calls; if (r.per100 >= 90) g.everyFrame++; }
+      L.push(''); L.push('WHAT THE GL WAS SENT SINCE THE REVEAL, BY OWNER (every bufferData / bufferSubData / texImage call, by the array or image it read: ' + G.objects + ' objects, ' + G.MB + ' MB in all = ' + G.perFrameKB + ' KB a frame; ' + G.namedMB + ' MB named by a drawn scene; a texture counts 4 bytes a pixel)');
+      L.push('  ' + lp('MB', 9) + lp('KB/frame', 10) + lp('objects', 8) + lp('calls', 9) + lp('each frame', 11) + '  owner');
+      for (const g of [...gby.values()].sort((a, b) => b.MB - a.MB).slice(0, 25)) L.push('  ' + lp(r1(g.MB), 9) + lp(Math.round(g.MB * 1024 / U.frames), 10) + lp(g.objects, 8) + lp(g.calls, 9) + lp(g.everyFrame, 11) + '  ' + g.owner);
+      L.push('  THE LARGEST (KB = its largest call)'); L.push('  ' + lp('MB', 9) + lp('KB', 7) + lp('calls', 9) + lp('in 100', 8) + '  what');
+      for (const r of G.rows.slice(0, 30)) L.push('  ' + lp(r.MB, 9) + lp(r.KB, 7) + lp(r.calls, 9) + lp(r.per100, 8) + '  ' + r.kind + ' ' + r.call + ' [' + r.dim + ']' + (r.what ? ' ' + r.what : '') + '  ' + (r.owner || '(no owner)') + '  @' + r.at + (r.site ? '  <- ' + r.site : '')); } }
   const E = R.entries.slice().sort((a, b) => b.ms - a.ms).slice(0, show || 40);
   L.push(''); L.push('THE FRAMES (the ' + E.length + ' longest of ' + R.entries.length + ' over ' + R.limits.listedOverMs + ' ms)');
   for (const e of E) {

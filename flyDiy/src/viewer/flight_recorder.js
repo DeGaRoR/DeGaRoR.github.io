@@ -206,6 +206,8 @@
     // events: [t, kind, ms, detail]; the rare path, so plain arrays (capped)
     const EV_CAP = opt.eventCap || 40000;
     let events = [], evDropped = 0, evSaved = 0;
+    const LAPS = new Float64Array(224); let lapK = 0;   // PERF-TRACE: the frame's laps (lapNote)
+    const LAPN = (() => { const m = /[?&]reclaps=(\d+)(?:&|$)/.exec(q), n = m ? +m[1] : 256; return n >= 1 && n <= 65536 ? n : 256; })();
     // the page's hidden moments (a tab away), on this recorder's clock: a gap spanning one is not a frame, not a freeze
     if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) V[HIDDEN] = clock(); });
     const rec = {
@@ -243,10 +245,22 @@
       V[TOWN] += ms; V[TOWNN] += n;
       if (kb === kb) V[TOWNKB] = V[TOWNKB] === V[TOWNKB] ? V[TOWNKB] + kb : kb;
     }
+    // PERF-TRACE (PERF-LEAD, 22 Nov: "what happened INSIDE the mirror slot?"): WHEN EACH LAP ENDED. The row keeps a slot's
+    // total, not its place in the frame, so an event of a long frame (a program's first use, a link) could not be put in
+    // the mirror's pass or the main render's. Every lap now also stores seven numbers in a typed array kept for the frame
+    // (the slot, the time, the GPU-data counters so far - creation ms, creation calls, updated bytes - and the draw calls
+    // and triangles so far): nothing allocated. They are handed on as ONE event, 'laps' at the frame's start, ms = its
+    // work, [slot, t, GPU ms, GPU calls, updated KB, draw calls, triangles] x n (the first with slot -1 = the frame's
+    // start), for a frame whose work reached 50 ms AND for one frame in 256 whatever its length (the steady census: what
+    // each pass draws - the mirror's capture against the main render; ?reclaps=N samples one frame in N, 1 = every frame,
+    // for a study run: an array of ~30 numbers a sampled frame, which is why the default is 256).
+    // tools/slot_frames.js reads it; a log without it is read by the slots' order, which is an estimate and says so.
+    function lapNote(s, t) { if (lapK <= LAPS.length - 7) { LAPS[lapK++] = s; LAPS[lapK++] = t; LAPS[lapK++] = UP.ms; LAPS[lapK++] = UP.texN + UP.bufN + UP.mipN; LAPS[lapK++] = UP.subB; LAPS[lapK++] = calls; LAPS[lapK++] = tris; } }
     function lap(s) {
       if (!open) return;
       const t = clock();
       acc[s] += (t - V[LAST]) - V[NESTED]; V[NESTED] = 0; V[LAST] = t;
+      lapNote(s, t);
       if (samp) V[SAMP] += clock() - t;
     }
     // a rendered frame starts: ts is rAF's timestamp (the PACE frame's), pc the PACE frame (steps owed)
@@ -259,6 +273,7 @@
       for (let i = 0; i < NS; i++) acc[i] = 0;
       owed = pc && typeof pc.steps === 'number' ? pc.steps : 0;
       if (UP.n !== 0) upFlush(t, 'out');             // (GPU data made between the frames: a timer's, a compile step's)
+      lapK = 0; lapNote(-1, t);
       const tsN = typeof ts === 'number' ? ts : t;
       const j = (fi & (N - 1)) * NC;
       ringT[fi & (N - 1)] = tsN;
@@ -284,6 +299,8 @@
       for (let i = 0; i < NS; i++) { ringF[j + C_SLOT0 + i] = acc[i]; sum += acc[i]; }
       const work = t - V[T0];
       ringF[j + C.work] = work;
+      if ((work >= 50 || (fi + 1) % LAPN === 0) && lapK > 7) { const a = new Array(lapK); for (let i = 0; i < lapK; i++) { const k = i % 7; a[i] = k === 1 || k === 2 ? Math.round(LAPS[i] * 100) / 100 : k === 4 ? Math.round(LAPS[i] / 1024) : LAPS[i]; }
+        event('laps', V[T0], work, a); }
       ringF[j + C.other] += work - sum;              // rounding and anything between the laps: the split sums to the work
       ringF[j + C.owed] = owed; ringF[j + C.taken] = taken;
       ringF[j + C.gpu] = NaN;
@@ -520,18 +537,24 @@
       const dim = o => (o && o.width && o.height) ? o.width * o.height : 0, blen = o => (o && o.byteLength) || 0;
       const SIZE = { texImage2D: a => (a.length >= 9 ? a[3] * a[4] : dim(a[5])), texSubImage2D: a => (a.length >= 9 ? a[4] * a[5] : dim(a[6])), texImage3D: a => a[3] * a[4] * a[5],
         texSubImage3D: a => a[5] * a[6] * a[7], texStorage2D: a => a[3] * a[4], texStorage3D: a => a[3] * a[4] * a[5] };
-      const upTex = name => { const f = gl[name], sz = SIZE[name], cmp = /^compressed/.test(name); if (typeof f !== 'function') return;
-        gl[name] = function () { const t = clock(); try { return f.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.texN++; UP.texMs += d;
-          if (cmp) UP.cmpB += blen(arguments[arguments.length - 1]) || blen(arguments[arguments.length - 3]); else { const px = sz ? sz(arguments) : 0; if (px === px) UP.texPx += px; } } }; };
+      // (?recup=1: each upload is also handed to the registry's GL-level table with the object it was read FROM - the pixels'
+      //  array, the image - which is how an upload three does not manage, the skin's raw GL, gets a row. One null test a call otherwise.)
+      const SRCI = { texImage2D: a => (a.length >= 9 ? 8 : 5), texSubImage2D: a => (a.length >= 9 ? 8 : 6), texImage3D: () => 9, texSubImage3D: () => 10 };
+      const upTex = name => { const f = gl[name], sz = SIZE[name], si = SRCI[name], cmp = /^compressed/.test(name); if (typeof f !== 'function') return;
+        gl[name] = function () { const t = clock(); try { return f.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.texN++; UP.texMs += d; let by = 0;
+          if (cmp) { by = blen(arguments[arguments.length - 1]) || blen(arguments[arguments.length - 3]); UP.cmpB += by; } else { const px = sz ? sz(arguments) : 0; if (px === px) { UP.texPx += px; by = px * 4; } }
+          if (rec.traffic) rec.traffic.gl('tex', si ? arguments[si(arguments)] : null, by, name); } }; };
       try {
         for (const n of ['texImage2D', 'texSubImage2D', 'texImage3D', 'texSubImage3D', 'compressedTexImage2D', 'compressedTexSubImage2D', 'compressedTexImage3D', 'compressedTexSubImage3D', 'texStorage2D', 'texStorage3D']) upTex(n);
         const bd = gl.bufferData, gm = gl.generateMipmap, bs = gl.bufferSubData;
-        if (typeof bd === 'function') gl.bufferData = function (a, b) { const t = clock(); try { return bd.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.bufN++; UP.bufMs += d; UP.bufB += typeof b === 'number' ? b : blen(b); } };
+        if (typeof bd === 'function') gl.bufferData = function (a, b) { const t = clock(); try { return bd.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.bufN++; UP.bufMs += d; const by = typeof b === 'number' ? b : blen(b); UP.bufB += by; if (rec.traffic) rec.traffic.gl('buf', typeof b === 'number' ? null : b, by, 'bufferData'); } };
         if (typeof gm === 'function') gl.generateMipmap = function (a) { const t = clock(); try { return gm.call(gl, a); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.mipN++; UP.mipMs += d; } };
         if (typeof bs === 'function') gl.bufferSubData = function (a, b, c, d, e) {
           UP.subN++;
-          if (arguments.length > 3) { UP.subB += e ? e * ((c && c.BYTES_PER_ELEMENT) || 1) : blen(c); return bs.call(gl, a, b, c, d, e); }
-          UP.subB += blen(c); return bs.call(gl, a, b, c);
+          const by = arguments.length > 3 && e ? e * ((c && c.BYTES_PER_ELEMENT) || 1) : blen(c); UP.subB += by;
+          if (rec.traffic) rec.traffic.gl('buf', c, by, 'bufferSubData');
+          if (arguments.length > 3) return bs.call(gl, a, b, c, d, e);
+          return bs.call(gl, a, b, c);
         };
       } catch (e) {}
       // the GPU timer: ours, and a watch on everyone else's
