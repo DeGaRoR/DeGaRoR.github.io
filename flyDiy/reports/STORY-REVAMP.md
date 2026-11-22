@@ -19,8 +19,8 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 | story-4 | THE SWITCH-OVER: a player's career reads the story pack with no flag (the career loader of both pages, app.js, the adoption at the load, the projects on the clock); the projects board's record; `mission_feas --official`; `tools/story_feas.js`; the HANDOVER entry | PUSHED `claude/ready/story-4` 7667a826b |
 | story-5 | THE MISSION EDITOR: a row on the start menu, a way back, "Try it in the game", and the story pack's own structure editable (rules, clients, starting kits, projects and steps) | PUSHED `claude/ready/story-5` a02d9d81c |
 | story-6 | story.json IS THE EDITOR'S: the file in the editor's save format, the generator deleted, GATE STORYPACK 9-13 as rules (never today's counts or names), a frozen copy of the pack for the mechanism rows | PUSHED `claude/ready/story-6` |
-| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`) | running in the background; 5 of 91 rows: 4 feasible, 1 infeasible as flown (home.08, the first flight ever to Cabin Lake: the floatplane broke up on the leg; re-flown with a trace, see the gaps) |
-| the tutorial flown | `node tools/story_run.js`: 8 beats, 4 flights + the job's 2, 3 753 s flown, PASS (on e5df77487); again at the tip with the story pack in use: running | flown once |
+| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`) | running in the background; 8 of 91 rows: 4 feasible, 4 infeasible as flown - read one by one in "The flights so far" below (2 causes are master's, 1 is a datum of the lake, 1 under diagnosis) |
+| the tutorial flown | `node tools/story_run.js`: 8 beats, 4 flights + the job's 2, 3 753 s flown. GATE TUTORFLY at 89d00aa76 with the story pack in use and adopted from the career's birth: PASS, 19 of 19 checks (49 min) | flown twice, the same times |
 
 ## The rules this work is held to
 
@@ -77,7 +77,7 @@ its max at the end (the sandbox's world), EVERY aerodrome of the island used, th
 one authoring error (two projects sharing a track out of order: fixed) and one mission that can never be offered (the
 6 g order: no aerobatic certificate; left out, listed below).
 
-## The ladder (a proposal: three lines of the generator)
+## The ladder (a proposal: three lines of the pack)
 
 | what | given by | when |
 |---|---|---|
@@ -132,6 +132,33 @@ What node does NOT run: the bench's structural tests (the page's); the design ch
 instead (neither target fails the airworthiness tier) and stand in for the bench's signature.
 The walk with the pack in use found a bug of the switch-over: the tutorial's one job sat second on a board whose
 contracts come in any order; it leads it again.
+
+## The flights so far (8 of 91)
+
+Every row is kept AS FLOWN (`reports/STORY-REVAMP/feasibility/<id>.json`); none is re-pinned or dropped. Four missions
+are feasible (hangar.01, home.01, club.stol in the Cub; community.01 in the Cessna 172). Four are not, read one by one
+with the harness's whole leg record (`phases`, the pilot's own verdicts, the landing):
+
+| mission | the flight | what the trace says | whose |
+|---|---|---|---|
+| mine.04 | HOME > mn_strip, 2 passengers, the Cessna 172: on its back in the flare at 780 s | the pilot says "250 m of strip for a 249 m landing run - no margin", raises its approach speed (the elevator on its stop), slips on the short final, the aileron goes to its stop against 15 deg of bank, capsized | MASTER'S: the built-in pack's `minedock.02` is the same flight and ends the same way, to the second, on a plain origin/master worktree (9349a62c) |
+| home.03 | w3 > w1 (the Cabin Strip, 383 m), 250 kg, the Cessna 172: broke up on the second leg | the same aeroplane, the same end of a landing | the same cause as above (not re-flown on master: no built-in mission lands the Cessna on w1) |
+| home.08 | SEA > cb_sea (Cabin Lake), 150 kg, the Cessna on floats: on its back on the final at 550 s | the lake (103 m) lies between ridges: 190 m over the water 750 m beyond its north-east end, 115 m at 1 km beyond the south-west end. The pilot picks the north-east final, is 99 to 223 m over the slope, slips, capsizes | A DATUM OF THE LAKE: with the landing direction forced the other way (the lane's `approach: 0`) the same flight LANDS - two go-arounds, 1 278 s, touched 844 m in, stopped with 98 m of lane left. With `approach: 1` it is the crash above, to the tenth of a second |
+| club.pylons | HOME > the four gates > HOME, the Cub then the Jodel: both land after 922 s with gate 1 not counted | under diagnosis (re-flown with each gate's closest pass recorded) | to be read |
+
+What follows from the three that are read:
+
+- THE CESSNA 172 OUT OF A SLIP. 43_pilot.js already carries WINGS-LEVEL (16 Nov: "the refit Cessna ... capsized in
+  tw_ski's flare"). The same end is flown here at three more places (mn_strip's flare, w1, Cabin Lake's final). It is
+  the pilot's and that airframe's, not a mission's: the pilot's owner has three deterministic cases
+  (`node tools/mission_feas.js --only=minedock.02` on master; `--only=mine.04` and `--only=home.03 --packs=src/missions`
+  here). Every mission whose load only the Cessna carries into a short strip will read infeasible until then: the table
+  says so row by row, it is not hidden.
+- CABIN LAKE IS A ONE-WAY LANE. Five missions land there (home.08 to home.12: the lake dock's two steps); no mission
+  flew there before (72_contract_data.js: "no job flies there yet"). The island's record for `cb_sea` names no
+  `approach`; `approach: 0` (landed towards the north-east, over the lower south-west ridge) makes it landable by the
+  test pilot. The way OUT is not flown yet (a `departure` over the south-west end is the open slope: 50 m over the
+  water 250 m out, against 190 m at 750 m the other way). The island is the user's document: listed, not edited here.
 
 ## The mission editor
 
@@ -219,6 +246,8 @@ tables.
 | a step that waits for a clear day (the observatory's first rounds): no rule reads the weather | mission rule | the backbone story |
 | no PC-6, no ski hauler, no 5-seater, no 450 kg hauler on the official plane list: 14 missions wait for a plane the player builds | planes | the capability table |
 | no glider, no aerobatic plane on the official list; the 6 g order is out of the pack | planes | plane_lists.json |
+| Cabin Lake (`cb_sea`) names no landing direction: the test pilot takes the closed end and capsizes; `approach: 0` on the lane lands it (flown). Its way out is not flown | the island's aerodrome record | the feasibility flight of home.08, three times |
+| the Cessna 172 capsizes out of its slip on a short final (mn_strip, w1; master's own `minedock.02` the same) | the pilot (43_pilot.js, WINGS-LEVEL's family) | the feasibility flights of mine.04 and home.03, and master's baseline |
 | the two clients the pack brings wear stand-in faces (home: sophie; community: james) | portraits | 72_people.js |
 | a project's works cost nothing but at home (0 everywhere else); home's missions pay nothing | economy pass (ready 5) | the pack |
 | the machinery pop-up animation and the reveal's panning shot | local GPU work | out of scope here |
