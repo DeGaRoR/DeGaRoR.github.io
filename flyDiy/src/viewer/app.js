@@ -5737,10 +5737,10 @@
   };
   // (train 41, A0: THE SHEET - a strip drawn metres across the runway at rest, on both paths: which record, which class)
   // G4102 (CUT-THROUGH): the cut copies on the page - records with copies, copies, their meshes, any corner not finite
-  window.FLYDIY_CUT_STATS = () => { let recs = 0, copies = 0, meshes = 0, bad = 0, clipped = 0;
-    for (const R of BRK.recs) { if (!R.cut2) continue; recs++; copies += R.cut2.nv / 3; for (let o = 0; o < R.cut2.nv; o++) if (R.cut2.s[o]) clipped++;
+  window.FLYDIY_CUT_STATS = () => { let recs = 0, copies = 0, meshes = 0, bad = 0, clipped = 0, built = 0, refills = 0;
+    for (const R of BRK.recs) { if (R.cutDraw) { built += R.cutDraw.built || 0; refills += R.cutDraw.refills || 0; } if (!R.cut2) continue; recs++; copies += R.cut2.nv / 3; for (let o = 0; o < R.cut2.nv; o++) if (R.cut2.s[o]) clipped++;
       const T = R.cutDraw; if (T && T.geo) { meshes += T.meshes.length; const a = T.geo.attributes.position.array; for (let i = 0; i < a.length; i++) if (!Number.isFinite(a[i])) { bad++; break; } } }
-    return { recs, copies, clipped: clipped / 3, meshes, bad }; };
+    return { recs, copies, clipped: clipped / 3, meshes, bad, built, refills }; };   // (built / refills: ROW 14's in-place cut geometry)
   window.FLYDIY_SKIN_LONGEST = () => {
     const K = model && model.brk; if (!K || !BRK.X || !K.NF || !sim) return null;
     const recs = [];
@@ -5942,34 +5942,57 @@
     const T = R.cutDraw; if (!T) return;
     for (const t of T.meshes) if (t.parent) t.parent.remove(t);
     if (T.geo) T.geo.dispose();
-    T.meshes = []; T.geo = null; T.v = -1;
+    T.meshes = []; T.geo = null; T.v = -1; T.cap = 0; T.src = null; T.nBa = null;
   }
+  // (ROW 14, 23 Nov - PERF-LEAD's log of the Cub's nose-down in the player's loop: from the impact on, 5-13 MB of NEW
+  // buffers in 50-375 buffers every frame, 'geo' +43 in one, and the scene slot 45-145 ms a frame for 3.5 s.) A record's cut
+  // copies were thrown away and built again whole at every one of its events - a new geometry, every attribute a new GL
+  // buffer, new twin meshes. Now the geometry is kept and REFILLED in place while it fits (a capacity half again the
+  // first count; the draw range says how much is drawn) and the twins are kept on it; only a record that outgrows it
+  // builds again. The uploads: the refilled part only (addUpdateRange)
   function brkCutBuild(R, T, C2) {
-    brkCutFree(R);
-    const src = R.geo, nv = C2.nv, g = new THREE.BufferGeometry(), ver = new Map();
-    for (const name in src.attributes) {
-      const a = src.attributes[name]; if (!a || a.isInterleavedBufferAttribute || !a.array) continue;
-      const it = a.itemSize, arr = name === 'position' ? new Float32Array(nv * it) : new a.array.constructor(nv * it);
+    const src = R.geo, nv = C2.nv, names = [];
+    for (const name in src.attributes) { const a = src.attributes[name]; if (a && !a.isInterleavedBufferAttribute && a.array) names.push(name); }
+    const groupsSrc = src.groups || [], multi = groupsSrc.length > 1;
+    let g = T.geo;
+    const fits = !!g && T.src === src && T.cap >= nv && !!g.index === multi && names.every(nm => g.attributes[nm] && g.attributes[nm].itemSize === src.attributes[nm].itemSize);
+    if (!fits) {
+      brkCutFree(R);
+      const cap = Math.ceil(nv * 1.5) + 48;
+      g = new THREE.BufferGeometry();
+      for (const name of names) { const a = src.attributes[name], it = a.itemSize;
+        g.setAttribute(name, new THREE.BufferAttribute(name === 'position' ? new Float32Array(cap * it) : new a.array.constructor(cap * it), it, a.normalized)); }
+      g.setAttribute('aCut', new THREE.BufferAttribute(new Float32Array(cap * 2), 2)); g.setAttribute('aCutP', new THREE.BufferAttribute(new Float32Array(cap * 3), 3));
+      if (multi) g.setIndex(new THREE.BufferAttribute(new Uint32Array(cap), 1));
+      for (const nm in g.attributes) g.attributes[nm].setUsage(THREE.DynamicDrawUsage);
+      T.geo = g; T.cap = cap; T.src = src; T.w = new Float64Array(cap * 3); T.nBa = null; T.built = (T.built || 0) + 1;
+    } else T.refills = (T.refills || 0) + 1;
+    const ver = new Map(), upd = (b, n) => { if (b.clearUpdateRanges) { b.clearUpdateRanges(); b.addUpdateRange(0, n); } b.needsUpdate = true; };
+    for (const name of names) {
+      const a = src.attributes[name], b = g.attributes[name], it = a.itemSize, arr = b.array;
       for (let o = 0; o < nv; o++) { const v = C2.src[o]; for (let k = 0; k < it; k++) arr[o * it + k] = a.array[v * it + k]; }
-      g.setAttribute(name, new THREE.BufferAttribute(arr, it, a.normalized)); ver.set(name, a.version);
+      upd(b, nv * it); ver.set(name, a.version);
     }
-    const cut = new Float32Array(nv * 2), cp = new Float32Array(nv * 3);
+    const cut = g.attributes.aCut.array, cp = g.attributes.aCutP.array;
     for (let o = 0; o < nv; o++) { cut[o * 2] = C2.d[o]; cut[o * 2 + 1] = C2.s[o]; cp[o * 3] = C2.base[o * 3]; cp[o * 3 + 1] = C2.base[o * 3 + 1]; cp[o * 3 + 2] = C2.base[o * 3 + 2]; }
-    g.setAttribute('aCut', new THREE.BufferAttribute(cut, 2)); g.setAttribute('aCutP', new THREE.BufferAttribute(cp, 3));
+    upd(g.attributes.aCut, nv * 2); upd(g.attributes.aCutP, nv * 3);
     // (a multi-material geometry: the copies ordered by their source triangle's group, one group each)
-    const groupsSrc = src.groups || [];
-    if (groupsSrc.length > 1) {
+    g.clearGroups();
+    if (multi) {
       const nT = nv / 3, gi = new Int32Array(nT);
       for (let j = 0; j < nT; j++) { const s3 = C2.tri[j] * 3; let q = 0; for (; q < groupsSrc.length; q++) if (s3 >= groupsSrc[q].start && s3 < groupsSrc[q].start + groupsSrc[q].count) break; gi[j] = q < groupsSrc.length ? groupsSrc[q].materialIndex : 0; }
-      const ord = Array.from({ length: nT }, (_, j) => j).sort((x, y) => gi[x] - gi[y]), idx = new Uint32Array(nv);
+      const ord = Array.from({ length: nT }, (_, j) => j).sort((x, y) => gi[x] - gi[y]), idx = g.index.array;
       ord.forEach((j, k) => { idx[k * 3] = j * 3; idx[k * 3 + 1] = j * 3 + 1; idx[k * 3 + 2] = j * 3 + 2; });
-      g.setIndex(new THREE.BufferAttribute(idx, 1));
+      upd(g.index, nv);
       for (let k = 0; k < nT;) { const mi = gi[ord[k]]; let e = k; while (e < nT && gi[ord[e]] === mi) e++; g.addGroup(k * 3, (e - k) * 3, mi); k = e; }
     }
-    T.geo = g; T.v = C2.v; T.ver = ver; T.w = new Float64Array(nv * 3);
+    g.setDrawRange(0, nv);
+    T.v = C2.v; T.ver = ver; T.nv = nv;
     T.n = g.attributes.normal ? g.attributes.normal.array : null; T.nB = null;
-    if (T.n && R.nB) { T.nB = new Float32Array(nv * 3); for (let o = 0; o < nv; o++) { const v = C2.src[o]; T.nB[o * 3] = R.nB[v * 3]; T.nB[o * 3 + 1] = R.nB[v * 3 + 1]; T.nB[o * 3 + 2] = R.nB[v * 3 + 2]; } }
+    if (T.n && R.nB) { if (!T.nBa) T.nBa = new Float32Array(T.cap * 3); T.nB = T.nBa;
+      for (let o = 0; o < nv; o++) { const v = C2.src[o]; T.nB[o * 3] = R.nB[v * 3]; T.nB[o * 3 + 1] = R.nB[v * 3 + 1]; T.nB[o * 3 + 2] = R.nB[v * 3 + 2]; } }
     if (!T.nB) T.n = null;
+    if (fits && T.meshes.length) return;   // (the twins already ride this geometry)
     const hosts = []; model.grp.traverse(m => { if (m.isMesh && !m.userData.cutTwin && R.geos && R.geos.indexOf(m.geometry) >= 0) hosts.push(m); });
     for (const m of hosts) { const t = new THREE.Mesh(g, brkCutMat(m.material)); t.userData.cutTwin = true; t.castShadow = false;
       t.receiveShadow = m.receiveShadow; t.frustumCulled = false; t.renderOrder = m.renderOrder; t.name = (m.name || '') + ':cut'; m.add(t); T.meshes.push(t); }
@@ -5980,11 +6003,12 @@
     if (T.v !== C2.v || !T.geo) brkCutBuild(R, T, C2);
     else for (const [name, v0] of T.ver) { const a = R.geo.attributes[name]; if (!a || a.version === v0 || name === 'position' || name === 'normal') continue;   // (the scuff's record moved: gathered again)
       const b = T.geo.attributes[name], it = a.itemSize; for (let o = 0; o < C2.nv; o++) { const v = C2.src[o]; for (let k = 0; k < it; k++) b.array[o * it + k] = a.array[v * it + k]; }
-      b.needsUpdate = true; T.ver.set(name, a.version); }
+      if (b.clearUpdateRanges) { b.clearUpdateRanges(); b.addUpdateRange(0, C2.nv * it); } b.needsUpdate = true; T.ver.set(name, a.version); }
     if (!T.meshes.length) return;
     const pa = T.geo.attributes.position;
     SKIN_BREAK.poseCage(C2, K.rest, sim.p, C2.base, pa.array, K.NF, K.down, off, { Mi: X.Mi, B: X.B, cg: X.cg, o: X.o, w: T.w, n: T.n, nB: T.nB });
-    pa.needsUpdate = true; if (T.n) T.geo.attributes.normal.needsUpdate = true;
+    if (pa.clearUpdateRanges) { pa.clearUpdateRanges(); pa.addUpdateRange(0, C2.nv * 3); } pa.needsUpdate = true;
+    if (T.n) { const na = T.geo.attributes.normal; if (na.clearUpdateRanges) { na.clearUpdateRanges(); na.addUpdateRange(0, C2.nv * 3); } na.needsUpdate = true; }
   }
   function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
