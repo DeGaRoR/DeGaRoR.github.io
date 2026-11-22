@@ -10,7 +10,8 @@
 #   3. AUDIO-ROBUST's recordings (a cold load from the menu click, the stall blocks in flight)
 #   4. PASS 2 of the load matrix: the questions again, the other order, in the time that is left
 # Usage (from flyDiy/, at 14:00, once A0 has dropped the lock):
-#   bash tools/perf/slot_2026-11-22.sh [out dir] [minutes, default 175]
+#   bash D:/Dev/flydiy-notes/cpu_token.sh run PERF-LEAD --gpu -- bash tools/perf/slot_2026-11-22.sh [out dir] [minutes, default 175]
+#   (A0's wrapper: it starts when PERF-LEAD is first in gpu_queue.txt and gives the run its token; the GPU lock is taken inside)
 #   SLOT_DRY=<a boot_perf log>: the matrix parts run dry, the journey and audio parts are only printed
 OUT=${1:-D:/Dev/flydiy-notes/evidence/perf-slot-2026-11-22}; MIN=${2:-175}
 LAB=${SLOT_LAB:-D:/Dev/perf-lab-built}

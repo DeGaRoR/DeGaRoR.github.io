@@ -31,6 +31,8 @@
 #   LM_HELD=1                 the caller already holds the GPU lock and the CPU tokens for a longer window (a slot
 #                             script running several parts): this run takes and frees neither, it only refreshes
 #                             the token files before each load
+#   LM_NOTOK=1                no token files are written (a SMOKE on a busy box, under the one token of the cpu_token
+#                             wrapper that started it); LM_COOL=92: the temperature a load may start under (80 for timing)
 #   LM_EST=170                the seconds one row is expected to take (the planning figure for the cap)
 # Takes the GPU lock and ALL the box's CPU tokens for its window (a TIMING run: nothing else may start beside it), frees
 # both on exit, kills only its own servers, never starts a row that could not end inside the cap. A MEASUREMENT, not a gate.
@@ -46,10 +48,10 @@ DUMPF=${LM_DUMP:-$T/perf/load_matrix_dump.js}; [ -f "$DUMPF" ] || DUMPF=
 trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"; printf '%s' "$s"; }
 TEMP() { curl -s -m 5 localhost:8085/data.json | grep -o '"Text":"CPU Package","Min":"[^"]*","Value":"[0-9]*' | tail -1 | grep -o '[0-9]*$'; }
 COOL() {    # a load starts under 80 C; no reading for 2 min, or 15 min too hot = stop, never run blind
-  local t n=0; while :; do t=$(TEMP); [ -n "$t" ] && [ "$t" -lt 80 ] && { echo $t; return 0; }
+  local t n=0; while :; do t=$(TEMP); [ -n "$t" ] && [ "$t" -lt ${LM_COOL:-80} ] && { echo $t; return 0; }
     n=$((n + 1)); [ -z "$t" ] && [ $n -ge 6 ] && return 1; [ $n -ge 45 ] && return 1; sleep 20; done; }
-HOLD() { for i in $(seq 1 $NTOK); do echo "$WHO $(date +%H:%M:%S) load_matrix (timing: all tokens)" > "$TK/${WHO}_$i.tok"; done; }
-OTHERS() { local n=0 f a pid; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */${WHO}_[0-9].tok) continue ;; esac
+HOLD() { [ -n "$LM_NOTOK" ] && return 0; for i in $(seq 1 $NTOK); do echo "$WHO $(date +%H:%M:%S) load_matrix (timing: all tokens)" > "$TK/${WHO}_$i.tok"; done; }
+OTHERS() { local n=0 f a pid; for f in "$TK"/*.tok; do [ -e "$f" ] || continue; case "$f" in */${WHO}_*.tok) continue ;; esac   # (mine: the hold files, and the cpu_token wrapper this run started under)
   pid=$(grep -o 'pid=[0-9]*' "$f" 2>/dev/null | head -1 | cut -d= -f2)
   if [ -n "$pid" ]; then [ -e "/proc/$pid" ] && n=$((n + 1)); continue; fi
   a=$(( ($(date +%s) - $(stat -c %Y "$f")) / 60 )); [ $a -le 45 ] && n=$((n + 1)); done; echo $n; }
@@ -101,7 +103,7 @@ for i in $(seq 0 $((N - 1))); do
   X=; [ "$EXTRA" = - ] || X=$EXTRA
   if [ -n "$LM_DRY" ]; then t=dry; cp "$LM_DRY" "$L"; mkdir -p "$UDD"
   else
-    t=$(COOL) || { echo "$TAG: NOT RUN - the package stayed at 80 C or more for 15 min, or the sensor feed is gone: STOP" | tee -a "$SUM"; exit 4; }
+    t=$(COOL) || { echo "$TAG: NOT RUN - the package stayed too hot (LM_COOL) for 15 min, or the sensor feed is gone: STOP" | tee -a "$SUM"; exit 4; }
     serve "$DIR"; HOLD
     timeout $(( SECS + 90 )) node "$T/boot_perf.js" --url "$URL" --udd "$UDD" --secs $SECS --after $AFTER --tag $TAG --out "$OUT/$TAG.json" ${EVALF:+--eval-file "$EVALF"} ${DUMPF:+--dump-file "$DUMPF" "$OUT/$TAG.flightlog.json"} $M $X > "$L" 2>&1 || mine "$UDD"
   fi
