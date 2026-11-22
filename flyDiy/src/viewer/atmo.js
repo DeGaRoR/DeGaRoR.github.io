@@ -285,6 +285,15 @@ var ATMO = (function () {
   // the terrain's share as app.js walked it this frame, un-eased (thirds: three rays), and when it last moved: the probe takes it
   // once it has held for PROBE_TER_MS (a crest crossing the disc is not three bakes), and fades on its own
   let terRaw = 0, terRawAt = 0; const PROBE_TER_MS = 600;
+  const MOON_PROBE = { k: 1, white: 0 }, _tmP = [0, 0, 0];
+  // the level at which the probe's moon disc carries exactly the key's moonlight: the key's illuminance (light_rig moonE: NIGHT.moon x the phase law)
+  // over the dome disc's own (a Lambert sphere of albedo 0.12: 0.08 r^2 at the full moon x its phase function)
+  function moonProbeOwn(day) {
+    if (!day || typeof LIGHT_RIG === 'undefined' || !LIGHT_RIG.moonE) return 1;
+    const k = clamp(day.moonPhase == null ? 1 : day.moonPhase, 0, 1), a = Math.acos(clamp(2 * k - 1, -1, 1));
+    const phi = (Math.sin(a) + (Math.PI - a) * Math.cos(a)) / Math.PI, Ed = 0.08 * P.moonRad * P.moonRad * phi;
+    return Ed > 0 ? Math.min(4, LIGHT_RIG.moonE(k) / Ed) : 1;
+  }
   const nowT = () => (typeof performance !== 'undefined') ? performance.now() : 0;
   // the sky's irradiance on an upward-facing surface (cosine-weighted, 8 azimuths x 4 elevations), E_sun = 1
   // (NIGHT-SUN: E, the light's illuminance - the sun's readers pass twilight(el); 1 when left out)
@@ -840,6 +849,7 @@ ${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-
     uniform vec4 uStarMag; uniform float uStarA; uniform float uStarPts, uSkyA; // STAR-SKY: uStarA the counts' slope N(>F) ~ F^-a (a < 1: the light in the few bright stars, the many faint ones under the eye's threshold); x the flux range Fmax/Fmin, y the disc's growth r ~ f^y, z the Milky Way's glow (1 = the field's mean radiance at the core), w its dust (0 = a smooth band)
     uniform vec2 uStarK;   // STAR-LOVE: x the star disc's radius in pixels' footprints (the mirror's pass sets its own), y its least radius, radians
     uniform float uGlare, uEyeY, uLutGain;                // the corona's strength (S7); the eye's height for the mist; the tables' gain (A6)
+    uniform vec4 uMoonP;  // NIGHT-SUN: the PROBE's moon - rgb the moonlight's own colour x its transmittance, a the share of it the disc takes (0: the disc's own colour; the screen's dome: 0)
     uniform vec4 uSeen;   // NIGHT-SUN (atmo.js THE LIGHT SEEN): x / y the sun's / the moon's disc seen (the screen: 1, the terrain is drawn over it; the probe: the eye's terrain share), z / w their coronas' (x the disc's share over the horizon)
     // THE VEIL (CLOUDS C4): cirrus / cirrostratus - a 2D noise sheet at uVeil.w metres, its coverage
     // uVeil.x (a threshold on the noise like the weather map's), drifted by uVeil.yz, optically thin:
@@ -903,7 +913,7 @@ ${STAR_FIELD_GLSL}
         vec3 n = normalize(o - uMoon * sqrt(1.0 - o2));       // the sphere's normal, facing the viewer
         float lit = max(0.0, dot(n, uSun));
         float edge = 1.0 - smoothstep(mr * 0.94, mr * 1.06, angm);
-        vec3 Tm = texture2D(uT2, tUV2(uR, uMoon.y)).rgb;
+        vec3 Tm = mix(texture2D(uT2, tUV2(uR, uMoon.y)).rgb, uMoonP.rgb, uMoonP.a);
         float above = raySphere2(uR, d.y, uAtm2.x) < 0.0 ? 1.0 : 0.0;
         // the disc's radiance = albedo/pi x (sun on the moon) - the sun's illuminance at the moon is 1: E_moon on us = albedo/pi x omega
         L += Tm * 0.12 / 3.14159265 * lit * edge * above * uSeen.y;
@@ -955,6 +965,7 @@ ${STAR_FIELD_GLSL}
     sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } }, starM: { value: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]) }, starMag: { value: { x: 1e5, y: 0.3, z: 8, w: 1 } }, starA: { value: 0.8 }, starPts: { value: 1 }, skyA: { value: 1 },
     glare: { value: 1 }, eyeY: { value: 0 },
     eSun: { value: 1 },                                                       // NIGHT-SUN: the sun's illuminance in the tables (twilight())
+    moonP: { value: new Float32Array([1, 1, 1, 0]) }, moonP0: { value: new Float32Array([1, 1, 1, 0]) },      // NIGHT-SUN: uMoonP, the probes' and the screen's (never mixed)
     seenEye: { value: new Float32Array([1, 1, 1, 1]) }, seenProbe: { value: new Float32Array([1, 1, 1, 1]) },   // NIGHT-SUN: uSeen, the screen's dome and the probes' (update())
     lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
@@ -1200,7 +1211,15 @@ ${STAR_FIELD_GLSL}
       const se = U.seenEye.value, sp = U.seenProbe.value;
       se[0] = 1; se[1] = 1; se[2] = SEEN.sun.hor; se[3] = SEEN.moon.hor;
       sp[0] = SEEN.sun.ter; sp[1] = SEEN.moon.ter; sp[2] = SEEN.sun.eye; sp[3] = SEEN.moon.eye;
+      // THE PROBE'S MOON (MOON_PROBE, a dial): k its disc's level in the probe (1 = the dome's own disc: an albedo 0.12 sphere, which is ~2x the
+      // moonlight the key carries at the full moon and ~5x at a gibbous one - the key takes NIGHT.moon and the phase law, the disc neither);
+      // white the share of the moonlight's own colour it takes (LOOK-1-MOON: the key is white at every height; the disc is the air's orange when low)
+      { const mk = MOON_PROBE.k === 'own' ? moonProbeOwn(day) : Math.max(0, +MOON_PROBE.k || 0), w = Math.max(0, Math.min(1, +MOON_PROBE.white || 0));
+        sp[1] *= mk; sp[3] *= mk;
+        const Tm = sunTransmittance(altKm, m[1], _tmP), mT = Math.max(Tm[0], Tm[1], Tm[2]), mp = U.moonP.value;
+        mp[0] = 0.80 * mT; mp[1] = 0.86 * mT; mp[2] = 1.0 * mT; mp[3] = w; }
       if (NIGHTSUN_OFF) {   // master to the bit: every disc whole, the coronas on their old ramp through the horizon
+        U.moonP.value[3] = 0;
         const sm = y => { const t = clamp((y + 0.05) / 0.07, 0, 1); return t * t * (3 - 2 * t); };
         se[2] = sp[2] = sm(s[1]); se[3] = sp[3] = sm(m[1]); sp[0] = sp[1] = 1;
       }
@@ -1311,7 +1330,7 @@ ${STAR_FIELD_GLSL}
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
                   uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uStarM: U.starM, uStarMag: U.starMag, uStarA: U.starA, uStarPts: U.starPts, uSkyA: U.skyA, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
-                  uGlare: U.glare, uEyeY: U.eyeY, uSeen: seen || U.seenEye, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
+                  uGlare: U.glare, uEyeY: U.eyeY, uSeen: seen || U.seenEye, uMoonP: seen ? U.moonP : U.moonP0, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
                   // F2: MIST_GLSL samples the mist's field from the atlas, so the dome - which carries
                   // that block verbatim - needs the sampler too (it is the same texture it helps fill)
                   uApAtlas: apUniforms.uApAtlas },
@@ -1464,7 +1483,7 @@ ${STAR_FIELD_GLSL}
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
     sunHidden: (h, raw) => { if (h != null) { apK_[1] = HALO_OFF ? 0 : Math.max(0, Math.min(1, +h) || 0); const r = HALO_OFF ? 0 : Math.max(0, Math.min(1, raw != null ? +raw || 0 : apK_[1])); if (r !== terRaw) { terRaw = r; terRawAt = nowT(); } } return apK_[1]; },   // LOOK-HALO (app.js, every frame); NIGHT-SUN: the KEY light's (the moon's at night)
-    twilight, discOver, TWILIGHT, seen: () => SEEN, NIGHTSUN_OFF,   // NIGHT-SUN: THE LIGHT SEEN
+    twilight, discOver, TWILIGHT, seen: () => SEEN, NIGHTSUN_OFF, MOON_PROBE, moonProbeOwn,   // NIGHT-SUN: THE LIGHT SEEN
     install, inject, setAP, apK, HAZE, hazeK, bakeField, blit, mistODcpu, seeT, seeRange,
     // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
