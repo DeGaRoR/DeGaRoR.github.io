@@ -44,7 +44,10 @@ console.log('GATE LAKEBED');
   if (hook) {
     const disc = (hook.match(/discard/g) || []).length;
     ok(!/lsd\s*>\s*[0-9.]+\)\s*discard/.test(hook) && !/gLake\([^)]*\)[^;]*discard/.test(hook), '1 no ground program discards for the lake field');
-    ok(disc === 2 && hook.includes("if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z) discard;") && hook.includes("if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;"),
+    // (MASTER-GREEN 22 Nov: ROCK-STUDY d98560831, train L40f - the user: "go for faithful V1 implementation" - narrowed the
+    // ring's discard to the plain ground, `&& vRM.w < 1.5`: the rock's relief wears the ground's material and is kept inside
+    // the disc. Still two discards, still the fine disc's two; the row reads the line as it is now)
+    ok(disc === 2 && hook.includes("if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard;") && hook.includes("if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;"),
       '1 the hook\'s only discards are the fine disc\'s (the near ring inside it, a fine tile outside it)', disc + ' discard(s)');
   }
   ok(!/OuterDry|outer-dry|\|dry/.test(RW), '1 the far terrain is one material (the lake-free twin and its quadrant split are gone)');

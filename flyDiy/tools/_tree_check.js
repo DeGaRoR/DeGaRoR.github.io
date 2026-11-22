@@ -231,10 +231,13 @@ function reach() {
     if (miss.length) fail.push('reach (' + nm + '): a reachable species is not reached: ' + miss.join(', '));
   }
   // the six the asset census found unplantable on the map's own biomes; the cut's expectation drops those its premises names
-  const six = ['ash', 'birch_autumn', 'grass_plates', 'grass_scan', 'maple', 'pine_lampi.glb'];
+  // (MASTER-GREEN 22 Nov: FIVE now. grass_plates left the list with GRASS-CARDS 3d66d2a4e, train L40f - the user, 16 Nov:
+  // "all mown grass needs to be addressed through grass cards": the lawn ring plants it and trees.js treeReachOf always
+  // names it beside grass_dry. The row still asks for EXACTLY the rest)
+  const six = ['ash', 'birch_autumn', 'grass_scan', 'maple', 'pine_lampi.glb'];
   const sixCut = six.filter(n => !(named.cut && named.cut.has(n)));
   const outCut = (out.cut || []).slice().sort();
-  if (JSON.stringify(outCut) !== JSON.stringify(sixCut)) fail.push('reach: with Metlakatla cut the unreached should be exactly ' + sixCut.join(', ') + ' (the census six less what the premises names: ' + (six.filter(n => !sixCut.includes(n)).join(', ') || 'none') + ') - got ' + outCut.join(', '));
+  if (JSON.stringify(outCut) !== JSON.stringify(sixCut)) fail.push('reach: with Metlakatla cut the unreached should be exactly ' + sixCut.join(', ') + ' (the census five less what the premises names: ' + (six.filter(n => !sixCut.includes(n)).join(', ') || 'none') + ') - got ' + outCut.join(', '));
   if (!out.town || out.town.includes('maple')) fail.push('reach: with the town on, `borders` (code 15) should reach maple');
   if (ctx.treeReachOf({ island: null }) !== null) fail.push('reach: the analytic world should answer null (the whole pack)');
   // the narrowing and the growth
