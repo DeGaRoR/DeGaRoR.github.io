@@ -1,4 +1,4 @@
-FAIL (48 of 196 gates run; PARTIAL: 16 of 23 chunks, 168 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW]
+FAIL (48 of 200 gates run; PARTIAL: 17 of 23 chunks, 164 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW]
 NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
@@ -5033,6 +5033,23 @@ GATE FITMANUAL: PASS
   instanced                  1283 hits
   3176 rays both ways, 3188 checks, 9 indexes, 2862 fast asks
 GATE RAYINDEX: PASS
+######## chunk 16 of 23 (4 gates) ########
+=== INSTANT ===
+  wall metal: 801 s (boot 250 s; slowest rows dashBack 26 s, wgSpan 25 s, dashDepth 25 s)
+  every drag ended on the plain build's aeroplane
+GATE INSTANT: PASS
+=== SHEDSHADOW ===
+  PASS 9 the eye on a pane: the full transmission pass  [why "eye in a pane's box: Mesh"]
+  PASS 8 retro's shed frame: the cache draws under 40 % of the full pass  [833 vs 4161 draws (20 %)]
+GATE SHEDSHADOW: PASS
+=== ROOMMERGE ===
+  PASS 5 the exterior build carries no room merge (render_world merges it its own way)
+  PASS 5 opts.merge false: the room built unmerged  [null]
+GATE ROOMMERGE: PASS
+=== HANGARVIEW ===
+  PASS 4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)
+  PASS 4b no control byte in the room's sources, and ?roompolish=0 / ?roomdirt=0 are word boundaries (HANGAR-BS: a backspace byte never matched)
+GATE HANGARVIEW: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -5231,6 +5248,10 @@ HANDLE    PASS   134.9 s
 PILLAR    PASS   167.6 s
 FITMANUAL PASS    12.8 s
 RAYINDEX  PASS     1.0 s
-wall (the chunks' own, summed) 28917.9 s  (jobs 4)
+INSTANT   PASS  1256.7 s
+SHEDSHADOW PASS   230.6 s
+ROOMMERGE PASS   241.8 s
+HANGARVIEW PASS     0.1 s
+wall (the chunks' own, summed) 30174.8 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 48 red (148 PASS, 48 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 48 red (152 PASS, 48 FAIL, 0 SKIP of 364)
