@@ -5,6 +5,17 @@
 //   node tools/_skis_check.js            -> "GATE SKIS: PASS|FAIL"   (core: sections 1-9)
 //   node tools/_skis_check.js --fly      -> "GATE SKISFLY: PASS|FAIL" (full: the two validation planes' circuits)
 //   node tools/_skis_check.js --bless    write tools/fixtures/skis/base.json from THIS tree (run it in a base worktree)
+//   RE-BLESSED 22 Nov (MASTER-GREEN, on L40h + the four ELECTRIC-TRAINER rows absent again): of the seven witnesses' 21
+//   digests, SIX moved, each for a change the user asked for; the sheet and the 300 flown steps of the Cub, the Jodel, the
+//   metal Cessna, the float Cessna, the twin on floats and the Petrel are the 15 Nov base's to the bit.
+//     the Cub's def     COLOUR-RESTORE 62085a33f (14 tints in the file, the user 15 Nov "Yes, files only"), REG-PLACE
+//                       164eb1665 (regH / regL / regC, the user 17 Nov), and two numbers of the joined tank's profile
+//                       (0.691, 0.685 -> 0.681, 0.663) since train L40e's merge of carbon-cub-cowl 25b893a1f (bisected:
+//                       PROPER-COWLS, "Cub nose longerons inside the skin")
+//     the Jodel's def   COLOUR-RESTORE (19 tints), nothing else
+//     the Petrel's def  COLOUR-RESTORE (2 tints), nothing else
+//     the Carbon Cub    def, sheet and steps: its card (CARBON-CUB-LIVERY, PROPER-COWLS' official version, the aft window)
+//   Measured by diffing each witness's def at L40d 6ccacc63c against this tree, key by key.
 //
 //  1 ABSENT IS AS TODAY: seven builds without skis (the validated six and the Carbon Cub) build the def, the shakedown
 //    sheet and 300 flown steps of the core before the skis, to the bit (tools/_skis_bytes.js, a process a build;

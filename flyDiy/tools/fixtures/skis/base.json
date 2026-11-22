@@ -4,14 +4,14 @@
  "base": "6a8d705c",
  "builds": {
   "builds/cub_2026-09-20_corrected.json": {
-   "def": "b4e1cd06bbbb",
+   "def": "e532b9eb400d",
    "sh": "0bb2d356194d",
    "sim": "ad8f08d2a7c6",
    "nodes": 97,
    "ski": false
   },
   "builds/jodel_2026-09-20_corrected.json": {
-   "def": "c14c1a3de222",
+   "def": "18048389e32f",
    "sh": "0c86bafeadd5",
    "sim": "b8f978a94328",
    "nodes": 115,
@@ -39,16 +39,16 @@
    "ski": false
   },
   "builds/candidates/superpetrel_V4_1.json": {
-   "def": "3bd0d3827b05",
+   "def": "ca6fd33b2252",
    "sh": "2ce04a6e2562",
    "sim": "72e1a8ea9db0",
    "nodes": 184,
    "ski": false
   },
   "builds/candidates/carbon_cub_ss.json": {
-   "def": "6bdb9564bf26",
-   "sh": "7a234296cec4",
-   "sim": "c3927c0d945e",
+   "def": "824eacdc8c20",
+   "sh": "97d6f9a9d9e5",
+   "sim": "82c2c9dfab57",
    "nodes": 95,
    "ski": false
   }
