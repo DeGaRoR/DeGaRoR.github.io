@@ -1374,8 +1374,8 @@
   function envSliceStep() {
     const J = envSlice;
     if (!J) return;
-    const tE = performance.now();
-    try { envSliceStep0(J); } finally { const dt = performance.now() - tE; ENV_T.steps++; ENV_T.ms = Math.round(ENV_T.ms + dt); ENV_T.maxMs = Math.max(ENV_T.maxMs, Math.round(dt)); if (!envSlice) ENV_T.jobs++; }
+    const tE = performance.now(), st = J.step;
+    try { envSliceStep0(J); } finally { const dt = performance.now() - tE; ENV_T.steps++; (ENV_T.byStep = ENV_T.byStep || []).push([st < 6 ? 'face' + st : st === 6 ? 'room' : 'outdoors', Math.round(dt)]); if (ENV_T.byStep.length > 24) ENV_T.byStep.shift(); ENV_T.ms = Math.round(ENV_T.ms + dt); ENV_T.maxMs = Math.max(ENV_T.maxMs, Math.round(dt)); if (!envSlice) ENV_T.jobs++; }
   }
   function envSliceStep0(J) {
     if (envDeferred || envAway || !hangar) { envSlice = null; envDirty = true; return; }
@@ -1556,7 +1556,9 @@
     if (!hangar) return;
     hangarScene.remove(hangar.group);
     ROOMS.set(hangarRoom, { hangar, env: hangarScene.environment, envPM, background: hangarScene.background, fog: hangarScene.fog,
-                            air: hangar.roomAir || null, at: Date.now() });
+                            air: hangar.roomAir || null, at: Date.now(),
+                            // (ROOMS 5: its bake whole - none pending, none half-shot - and the mood it was shot under; a return re-uses it)
+                            envWhole: !!envPM && !envDirty && !envSlice, envMood: hangarMood });
     envPM = null;                    // (the parked room keeps its PMREM: the next bake must not dispose it)
     hangar = null; hangarTried = false;
   }
@@ -1571,7 +1573,12 @@
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = r.air;
     if (r.envPM) { if (envPM && envPM !== r.envPM) envPM.dispose(); envPM = r.envPM; hangarScene.environment = r.env; }
     try { hangar.setMood(hangarMood); } catch (e) {}
-    try { bakeHangarEnvSliced(); } catch (e) {}   // the mood may have moved while it was parked: re-baked over the next frames
+    // (ROOMS 5, PERF-LEAD: the room's own bake re-used when it is whole and the mood has not moved while it was parked - the
+    //  sun's move is the clock's to ask for (shedDayTick: this room's applyDay compares with ITS last bake); else re-baked
+    //  over the next frames)
+    const keep = !!(r.envPM && r.envWhole && r.envMood === hangarMood);
+    ROOM_T.envKept = keep;
+    if (!keep) try { bakeHangarEnvSliced(); } catch (e) {}
     if (hangar && typeof window.EDITOR_SYNC_NIGHT === 'function') try { window.EDITOR_SYNC_NIGHT(); } catch (e) {}
     Object.assign(ROOM_T, { room: id, how: 'unparked', unparkMs: Math.round(performance.now() - t0) });
     return hangar;
@@ -1650,7 +1657,7 @@
     cached: () => [...ROOMS.keys()],
     programs: () => { try { return renderer.info.programs ? renderer.info.programs.length : null; } catch (e) { return null; } },   // (PERF-LEAD: before the swap and after its first frames)
     env: () => Object.assign({ busy: !!envSlice }, ENV_T),   // the sliced env re-bake: steps, total and worst step (ms) since envReset
-    envReset: () => { ENV_T.steps = 0; ENV_T.ms = 0; ENV_T.maxMs = 0; ENV_T.jobs = 0; },
+    envReset: () => { ENV_T.steps = 0; ENV_T.ms = 0; ENV_T.maxMs = 0; ENV_T.jobs = 0; ENV_T.byStep = []; },
     memory: () => { const out = {}; for (const [k, r] of ROOMS) out[k] = roomBytes(r);
       try { if (performance.memory) out.heapMB = Math.round(performance.memory.usedJSHeapSize / 1048576); } catch (e) {}
       try { out.renderer = { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; } catch (e) {}
