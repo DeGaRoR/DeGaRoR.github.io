@@ -7051,6 +7051,53 @@
     } catch (e) { job = Promise.reject(e); }
     return shaderProgress(job.then(done, e => { done(); console.warn('scuff prelink:', e && e.message); }), 'world', 60000);
   }
+  // ROW 14 (the user, 22 Nov: "less than 250 ms freeze on crash, and no sky blue screen"; "a crash could cause up to 10
+  // seconds of full freeze"): THE CRASH'S OWN PROGRAMS, linked and first drawn HERE under the screen, right after the
+  // scuff's (scuffPrelink) - a skin-family program waits 1-2 s in the driver at its first link, cold (PERF-TRACE, 22 Nov).
+  // With the scuff block AWAKE while they compile, as scuffPrelink's: their keys follow the awake source.
+  //   1 the cut copies (G4102 brkCutMat: a twin per wrapped skin material, its key the source's + '|cut4102', made at a
+  //     record's first cut event - one link per distinct skin material in the impact's first frames)
+  //   2 the member pools (dmg_members.js 'dmglook:pool': parked hidden and compiled with the world, but their key is
+  //     'dmglook:2:' + the SOURCE's - the awake one only from the first damage on)
+  //   3 SKIN_GPU's riding program (raw GL, linked on the driver's threads; started here, not at the first break)
+  //   4 the wreck's wires (wreckWires: a gear leg's material on a PLAIN mesh - a skinned leg's non-skinned variant)
+  //   5 the ground scar's decals (ground_scar.js 'scar:decal' / 'scar:live': parked with the world; again here, known keys link nothing)
+  // Each by stand-in (PROG_WARM.standIn: the object by prototype, never shown for a call) or a plain mesh made for it,
+  // compiled as scuffPrelink's (compileSliced: the craft dressed in the world, its lights key them) and first-drawn
+  // (warmDrawSliced). FLYDIY_CRASH_PRELINK = false: off (the A/B).
+  function crashPrelink(inW) {
+    if (window.FLYDIY_CRASH_PRELINK === false || !model || model.gen || !craft || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
+    try { if (window.SKIN_GPU && window.FLYDIY_SKINGPU !== false && renderer) SKIN_GPU.prepare(renderer); } catch (e) {}   // 3
+    const at = model.scuff, W = at && at.W, S = typeof SKIN_SCUFF !== 'undefined' ? SKIN_SCUFF : null;
+    const tgt = aa && aa.target ? aa.target() : null, CG = new THREE.Group(), only = [], seen = new Set();
+    const add = (o, m) => { if (!m) return; const k = o.uuid + '|' + m.uuid; if (seen.has(k)) return; seen.add(k); const s = PROG_WARM.standIn(o, m); CG.add(s); only.push(s); };
+    const plain = (g, m, nm) => { if (!m || !g) return; const k = 'P|' + g.uuid + '|' + m.uuid; if (seen.has(k)) return; seen.add(k);
+      const p = new THREE.Mesh(g, m); p.name = nm; p.frustumCulled = false; CG.add(p); only.push(p); };
+    const mats = o => (Array.isArray(o.material) ? o.material : [o.material]).filter(Boolean);
+    if (W && S) { W.pre++; S.wakeSet(W); }
+    try {
+      craft.traverse(o => {
+        if (!o.isMesh || !o.geometry || (o.userData && o.userData.cutTwin)) return;
+        if (o.name === 'dmglook:pool') { for (const m of mats(o)) add(o, m); return; }                                  // 2
+        // (a cut twin is a PLAIN mesh on the host's material copy - brkCutBuild: new THREE.Mesh(g, brkCutMat(..)) - even on a skinned host)
+        for (const m of mats(o)) if (m.userData && m.userData.scuff && typeof brkCutMat === 'function') plain(o.geometry, brkCutMat(m), 'crashPrelink:cut');   // 1
+        if (o.isSkinnedMesh) for (const m of mats(o)) plain(o.geometry, m, 'crashPrelink:wire');                         // 4
+      });
+      scene.traverse(o => {   // (the pools and the decals parked in the world, not under the craft)
+        if (!o.isMesh || !o.geometry) return;
+        if (o.name === 'dmglook:pool' || o.name === 'scar:decal' || o.name === 'scar:live') for (const m of mats(o)) add(o, m);                       // 2, 5
+      });
+    } catch (e) { console.warn('crash prelink (gather):', e && e.message); }
+    const done = () => { if (W && S) { W.pre--; S.wakeSet(W); } };
+    if (!CG.children.length) { done(); return null; }
+    let job;
+    try {
+      job = compileSliced(CG, tgt, scene, false, inW)
+        .then(() => warmDrawSliced(scene, tgt, null, only, inW));
+    } catch (e) { job = Promise.reject(e); }
+    model.crashPre = { n: CG.children.length };
+    return shaderProgress(job.then(done, e => { done(); console.warn('crash prelink:', e && e.message); }), 'world', 60000);
+  }
   // THE RECORDS: the break path's own (brkCageRec - the same record a break would make, off the break list until one
   // comes), only for groups something draws with a pair; ms: the time they may take (Infinity: all of them). The pose
   // offset they are made with is the model's own constant (poseModel's oB: model.off + model.oRest), not a frame's
@@ -15721,6 +15768,7 @@
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
       .then(() => scuffPrelink(inW))
+      .then(() => crashPrelink(inW))   // ROW 14: the crash's own programs, after the scuff's (their keys follow its awake source)
       .then(() => compileCraftShed());
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the

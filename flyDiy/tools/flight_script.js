@@ -23,6 +23,10 @@
 //           lift         { "by": m } the aeroplane raised (or lowered) in place, its speeds kept - the pilot finds itself that
 //                        much higher where it was (DESCENT, 15 Nov: "high on final"; the in-game twin is the player handing
 //                        the autopilot back high). Read the step after it, not this one
+//           page         { "js": "<an expression>" } evaluated on the page (the page runner; the node runner skips it, as the
+//                        other page steps) - a rig's set-up the game has no button for: ROW 14's crash scripts put a trunk
+//                        in the aeroplane's path (world.treeHits, forwarded to the worker as the game's own trunks). Its
+//                        answer is said in the log. DEFORM, 22 Nov
 //           (absent)     nothing new: the step watches the flight go on
 //   until   (all must hold, read every step; a step with no until passes at once)
 //           phase        a phase or a list of phases (43's: TAXI, HOLD, LINEUP, ROLL, LIFTOFF, CLIMB, ENROUTE, DOWNWIND,
@@ -69,8 +73,8 @@ function loadScenario(arg) {
   S.file = f;
   return S;
 }
-const DO = new Set(['board', 'start', 'leg', 'lift', 'skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout', 'wait']);
-const PAGE_ONLY = new Set(['skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout']);   // (PERF-TRACE-FORMAT.md: the node runner says it skips them)
+const DO = new Set(['board', 'start', 'leg', 'lift', 'skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout', 'wait', 'page']);
+const PAGE_ONLY = new Set(['skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout', 'page']);   // (PERF-TRACE-FORMAT.md: the node runner says it skips them)
 const UNTIL = new Set(['phase', 'agl', 'engine', 'stoppedAt', 'declined', 's']);
 const ALLOW = new Set(['yield', 'prop-strike', 'dent', 'declined', 'crash']);   // ('crash': the benchmark's CRASHES - the crash is the segment)
 function checkScenario(S) {
@@ -85,6 +89,7 @@ function checkScenario(S) {
     if (st.do && !DO.has(st.do)) bad.push(tag + ': do "' + st.do + '" unknown');
     if (st.do === 'leg' && !st.to) bad.push(tag + ': a leg needs its to');
     if (st.do === 'lift' && !(typeof st.by === 'number' && isFinite(st.by))) bad.push(tag + ': a lift needs its by (metres)');
+    if (st.do === 'page' && !(typeof st.js === 'string' && st.js.trim())) bad.push(tag + ': a page step needs its js (an expression)');
     for (const k of Object.keys(st.until || {})) if (!UNTIL.has(k)) bad.push(tag + ': until.' + k + ' unknown');
     for (const a of st.allow || []) if (!ALLOW.has(a)) bad.push(tag + ': allow "' + a + '" unknown');
     if (st.until && !(st.capS > 0)) bad.push(tag + ': a step that waits needs its capS');
@@ -389,6 +394,7 @@ async function runPage(S, opt) {
       else if (st.do === 'leg') { const r = await setSel('selDest', st.to); const ok = await rig.ev('window.FLIGHT_PROBE.nextLeg()'); say('  leg to ' + st.to + ': ' + r + (ok ? '' : ' (no Fly on)'));
         s = await rig.J(ST); t0 = s ? s.t : 0; }   // (a leg is a new pilot: its clock restarts at 0, the step's with it)
       else if (st.do === 'lift') await rig.ev(`window.FLIGHT_PROBE.place({ by: [0, ${+st.by}, 0] })`);
+      else if (st.do === 'page') { let r; try { r = await rig.ev(st.js); } catch (e) { r = 'threw: ' + (e && e.message); } say('  page: ' + (typeof r === 'string' ? r : JSON.stringify(r))); }
       else if (st.do === 'board') { if (!s) failed = { step: si, name: st.name, why: { what: 'not ready to board: no sim / pilot on the page' } }; }
       if(o.refreshState)s=await rig.J(ST);   // opt-in ending snapshots; keep an in-progress comparison's protocol fixed
       const U = st.until || null, al = new Set(st.allow || []), cap = st.capS || 0;
