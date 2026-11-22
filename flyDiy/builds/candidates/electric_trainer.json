@@ -918,6 +918,7 @@
    "cw_material": 3,
    "cw_rpm": 2400,
    "cw_tas": 205,
+   "cw_redKmh": 130,
    "cw_power": 160,
    "cw_rootChord": 0.1,
    "cw_tipChord": 0.05,
@@ -3209,6 +3210,12 @@
     "who": "session",
     "step": "fit",
     "line": "PHYSICS-AUDIT (user 21 Nov: the propeller imposes the limit rpm): a climb-pitch propeller - POH-128, the fixed propeller meets its 2300 rpm limit at 93 KCAS at maximum continuous power, below the speed its power would give {\"prop.pitch\":\"climb\"}"
+   },
+   {
+    "date": "2026-11-22T18:55",
+    "who": "session",
+    "step": "fit",
+    "line": "FUSELAGE-DRAG: the propeller is cut for the climb - it meets its redline at 130 km/h at full throttle (the handbook's VY is 75 KIAS; POH-128: 90 KCAS on 35 kW and VH 93 KCAS, so the propeller absorbs well under its rated power at the top speed). With the body's real drag the pitch class alone left VH at 200 km/h; at 130 the card reads VH 184 (book 172), take-off roll 237 m (book 240). Identified against the handbook's rows, not a published pitch: for the user's review {\"cw_redKmh\":130}"
    }
   ]
  }

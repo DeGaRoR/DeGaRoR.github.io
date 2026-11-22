@@ -1136,7 +1136,8 @@ function buildGen(specIn) {
     const f = params.fusCdA[0] + fSurf + (params.strutCdA ? params.strutCdA[0] * nB : 0)
             - (RT && RT.cdA > 0 ? RT.cdA * (RT.frac > 0 && RT.frac < 1 ? RT.frac : 1) : 0);
     const eAR = (S.wings || []).length > 1 ? Math.PI * GEN_PROP_FIT.eBiplane * G_.span * G_.span / G_.Sw : params.polarWing.eAR;
-    const AP = { nE: params.nEngines || 1, f, W: gClean.W, S: gClean.Sw, eAR };
+    const AP = { nE: params.nEngines || 1, f, W: gClean.W, S: gClean.Sw, eAR,
+                 vRed: S.cage && +S.cage.cw_redKmh > 0 ? Math.max(40, Math.min(700, +S.cage.cw_redKmh)) / 3.6 : 0 };   // (the card's stated cut, 60_gen_spec genPropFit)
     if (params.engine && params.engine.cs) {
       // (step 6: a governed propeller flies the disc - params.prop.cs is the solver's law, the quadratic an estimate)
       if (genPropGovern(S.prop, AP)) { params.prop.Tstatic = S.prop.Tstatic; params.prop.kV2 = S.prop.kV2; params.prop.cs = S.prop.cs; }

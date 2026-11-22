@@ -79,7 +79,10 @@ const JOD = card('builds/jodel_2026-09-20_corrected.json');
 const TM = card('builds/candidates/tigermoth_2026-10.json');
 const PET = card('builds/candidates/superpetrel_V4_1.json');
 const RUF = card('builds/rufus_2026-10-18_certified.json');
-for (const [n, X, lo, hi] of [['list:1 Cub', CUB, 1.5, 3], ['list:50 V2-172', C172, 1.5, 3], ['list:2 Jodel', JOD, 1.5, 3.2]]) {
+// (FUSELAGE-DRAG, the user 22 Nov: "I'm OK with using the client Cub for opening the cowl and exposing cylinder heads" - the
+//  J-3's cowl is narrowed and cut, its cylinders stand in the wind and add their own cooling: 2.1 x cowled -> 3.1 x, the
+//  band's top 3 -> 3.4 for this card alone; no cowl at all reads 4.5 x)
+for (const [n, X, lo, hi] of [['list:1 Cub', CUB, 1.5, 3.4], ['list:50 V2-172', C172, 1.5, 3], ['list:2 Jodel', JOD, 1.5, 3.2]]) {
   const K = coolOf(X.def), row = rowOf(X.def, 'cool.climb');
   ok(K.kind === 'measured' && K.hot.margin >= lo && K.hot.margin <= hi && row && row.level === 'pass',
      n + ': ' + r2(K.hot.margin) + ' x the air at 38 C (band ' + lo + '-' + hi + '), in ' + r3(K.inA) + ' m2 (needs ' + r3(K.hot.inNeed) + ', ' + r3(K.hot.inPass) + ' to the pass line), the row ' + (row && row.level));
@@ -113,7 +116,10 @@ console.log('THE HEADS (measured against the drawn cowl; a bare engine\'s figure
   const CC = card('tools/fixtures/cool_heads_out_cub.json'), Kc = coolOf(CC.def), rc = rowOf(CC.def, 'cool.climb');
   ok(CC.spec.cooling.headsOut > 0.03 && Math.abs(Kc.bareA - CC.spec.cooling.headsOut) < 1e-9 && rc && rc.level === 'pass',
      'the old Client Cub (fixture cool_heads_out_cub): its heads poke through the drawn skin (' + r3(CC.spec.cooling.headsOut) + ' m2), counted, the row passes (' + (rc && rc.value) + ')');
-  ok(CUB.spec.cooling.headsOut === 0 && CUB.spec.cooling.headsAll > 0.1, 'list:1 Cub: its cowl covers its heads (0 of ' + r3(CUB.spec.cooling.headsAll) + ' m2 out)');
+  // (FUSELAGE-DRAG, the user 22 Nov: the validated Cub's cowl is the J-3's now - narrowed and cut, the cylinders standing
+  //  through its flank cut-outs; was: its cowl covers its heads, 0 of 0.157 m2 out)
+  ok(CUB.spec.cooling.headsOut > 0.03 && CUB.spec.cooling.headsOut < CUB.spec.cooling.headsAll && CUB.spec.cooling.headsAll > 0.1,
+     'list:1 Cub: its cylinders stand out through its cowl\'s cut-outs (' + r3(CUB.spec.cooling.headsOut) + ' of ' + r3(CUB.spec.cooling.headsAll) + ' m2 out)');
   const R = C.genCoolRows(RUF.def), Kr = coolOf(RUF.def);
   ok(R.length === 1 && Kr.kind === 'bare' && R[0].value > 1.5 && R[0].level === 'pass',
      'list:7 Rufus (no cowl): its own figure, ' + R[0].value + ' x on ' + r3(Kr.bareA) + ' m2 of cylinders in the wind');
@@ -166,7 +172,10 @@ console.log('DRAG (the momentum figure)');
 {
   for (const [n, X] of [['Cub', CUB], ['V2-172', C172], ['Jodel', JOD]]) {
     const g = X.def.params.gen.drag, eng = X.def.params.engine, kW = C.GEN_DRAG.kCool.pressureCowl * C.genEngineThermo(eng).coolKW;
-    ok(g.coolBy === 'momentum' && Math.abs(g.cool - kW) < 0.006, n + ': ' + r3(g.cool) + ' m2 by momentum against ' + r3(kW) + ' per kW');
+    // (FUSELAGE-DRAG 22 Nov: the Cub's cylinders stand in the wind and cool it - the hot climb needs no flow through the
+    //  cowl, so no internal flow is billed; the heads' own row carries their drag)
+    if (n === 'Cub') ok(g.coolBy === 'momentum' && g.cool < kW + 0.006 && g.heads > 0.02, n + ': ' + r3(g.cool) + ' m2 by momentum (its heads in the wind cool it: ' + r3(g.heads) + ' m2 on their own row) against ' + r3(kW) + ' per kW');
+    else ok(g.coolBy === 'momentum' && Math.abs(g.cool - kW) < 0.006, n + ': ' + r3(g.cool) + ' m2 by momentum against ' + r3(kW) + ' per kW');
   }
   const BU = card('builds/candidates/Twin_busher_floats_4b.json', j => { Object.assign(j.spec.cage, BU_OLD); return j; });
   const K = coolOf(BU.def);
@@ -277,7 +286,9 @@ console.log('THE NEEDLE (the oil temperature now, display only)');
   const ISA = C.ATMOS_ISA, HOT = C.makeAtmos({ dISA: 23 });
   const cub = C.genCoolOilC(CUB.def.spec, { air: ISA, h: 300, pFrac: 0.75, Veas: CUB.def.params.ap.VCruise });
   const cubHot = C.genCoolOilC(CUB.def.spec, { air: HOT, h: 0, pFrac: 1, Veas: CUB.def.params.ap.VClimb });
-  ok(cub && cub.oilC > 55 && cub.oilC < 100 && cubHot.oilC > cub.oilC && cubHot.oilC < C.GEN_COOL.oilRed,
+  // (FUSELAGE-DRAG 22 Nov: with its cylinders in the wind the Cub runs its oil cooler - 43 C in an ISA cruise, was 55;
+  //  the floor 55 -> 40 for this card: a J-3 is known for cool oil, and the hot-day climb is still the test)
+  ok(cub && cub.oilC > 40 && cub.oilC < 100 && cubHot.oilC > cub.oilC && cubHot.oilC < C.GEN_COOL.oilRed,
      'list:1 Cub: cruise ' + Math.round(cub.oilC) + ' C, a 38 C climb ' + Math.round(cubHot.oilC) + ' C, under the red line ' + C.GEN_COOL.oilRed);
   const BU = card('builds/candidates/Twin_busher_floats_4b.json', j => { Object.assign(j.spec.cage, BU_OLD); return j; });
   const bu = C.genCoolOilC(BU.def.spec, { air: HOT, h: 0, pFrac: 1, Veas: BU.def.params.ap.VClimb });

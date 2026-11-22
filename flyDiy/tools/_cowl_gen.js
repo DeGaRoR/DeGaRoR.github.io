@@ -72,6 +72,7 @@ const P={
   /* THE FLANK CUT-OUTS (FUSELAGE-DRAG 2026-11-22, the user: "you will need to cut properly into the cowl for them to
      stick out"): an opening a side, where a flat engine's cylinders stand through a narrow cowl (the J-3's) */
   headCut:0, headCutZ0:0.05, headCutZ1:0.35, headCutSpan:50,
+  redKmh:0,   // (FUSELAGE-DRAG: the speed a fixed pitch meets its redline at, 0 = by the pitch class; read by the physics alone)
   // PROPER-COWLS (2026-11-08): the cooling air's and the exhaust's way out at the bottom of the aft edge (the user:
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
