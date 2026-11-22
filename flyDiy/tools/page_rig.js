@@ -210,8 +210,11 @@ async function start(o) {
     await cmd('Page.addScriptToEvaluateOnNewDocument', { source: wipeScript(o.seed) });
     if (o.init) { await cmd('Page.addScriptToEvaluateOnNewDocument', { source: String(o.init) }); log('INIT script before the load: ' + String(o.init).slice(0, 120)); }
     if (o.seed) log('SEEDED localStorage before the load: ' + Object.keys(o.seed).join(', ') + ' (a failure must be retried without the seed)');
-    await cmd('Emulation.setDeviceMetricsOverride', { width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false });
-    const url = 'http://localhost:' + sport + '/flyDiy/' + (o.page || 'index.html') + (o.q ? '?' + o.q : '');
+    await cmd('Emulation.setDeviceMetricsOverride', Object.assign({ width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false }, o.metrics || {}));
+    // (PERF-SLIDERS 23 Nov) o.metrics: the device metrics over the default (a phone: { width, height, deviceScaleFactor, mobile: true });
+    // o.touch: touch emulation, before the load - the phone profile's page as phone_edit.js gives it
+    if (o.touch) await cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    const url ='http://localhost:' + sport + '/flyDiy/' + (o.page || 'index.html') + (o.q ? '?' + o.q : '');
     log('load ' + url); rig.url = url;
     const navigationStarted = Date.now();
     await cmd('Page.navigate', { url });
