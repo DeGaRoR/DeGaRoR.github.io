@@ -371,8 +371,8 @@ C.missionPackUse(mk({ jobs: 'none' }));
     const dflt = (/const CAREER_PACK_DEFAULT = '([\w.-]+)';/.exec(BLD) || [])[1];
     ok(dflt === 'story' && fs.existsSync(path.join(ROOT, 'src', 'missions', dflt + '.json')), '17 build.js names the pack a player\'s career reads, and the file is there', dflt);
     // the career loader of the BUILT page, run as written: which pack it names and fetches, per way in
-    const a = IDX.indexOf('window.FLYDIY_CAREER_WANT = function'), s0 = IDX.lastIndexOf('(function () {', a), s1 = IDX.indexOf('})();', a) + 5;
-    const loader = IDX.slice(s0, s1);
+    const a = IDX.indexOf('window.FLYDIY_CAREER_WANT = function'), s0 = IDX.lastIndexOf('<script>', a) + 8, s1 = IDX.indexOf('</script>', a);
+    const loader = IDX.slice(s0, s1);                            // the loader's whole script block, as the page runs it
     const way = async (search, mode) => {
       const fetched = [], win = { FLYDIY_MODE: mode || undefined, FLYDIY_BOOT: Promise.resolve(true) };
       const ctx = vm.createContext({ window: win, location: { search }, navigator: {}, console: { warn() {}, info() {} }, Promise, JSON,
@@ -388,6 +388,14 @@ C.missionPackUse(mk({ jobs: 'none' }));
       ok(W.dev.id === null && !W.dev.fetched && W.dev.core && W.devMode.id === null && W.map.id === null && !W.map.fetched, '17 the dev career (?career=1) and the map page: no pack - the gates\' fixtures keep the built-in tables', J([W.dev, W.devMode, W.map]));
       ok(W.sandbox.id === undefined && !W.sandbox.core && !W.sandbox.fetched, '17 the sandbox: nothing asked for at all', J(W.sandbox));
       ok(W.flag.id === 'demo_p1' && W.flag.fetched === 'src/missions/demo_p1.json' && W.draft.id === 'draft' && !W.draft.fetched, '17 ?pack=<id> still wins (and ?pack=draft fetches nothing: the editor\'s draft)', J([W.flag, W.draft]));
+      // dev.html (no career loader: the modules by their own tags) names and fetches the pack under the very same rule
+      { const DEV = fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8'), i0 = DEV.indexOf('window.FLYDIY_PACK_ID = pk || null;'), b0 = DEV.lastIndexOf('<script>', i0), b1 = DEV.indexOf('</script>', i0);
+        const dway = async (search, mode) => { const fetched = [], win = { FLYDIY_MODE: mode || undefined, FLYDIY_BOOT: Promise.resolve('renderer') };
+          vm.runInContext(DEV.slice(b0 + 8, b1), vm.createContext({ window: win, location: { search }, navigator: {}, console, Promise, JSON, fetch: u => { fetched.push(u); return Promise.resolve({ ok: true, text: () => Promise.resolve('{}') }); } }));
+          const boot = await win.FLYDIY_BOOT; return { id: win.FLYDIY_PACK_ID, fetched: fetched.join(), boot }; };
+        const D1 = i0 > 0 ? await dway('', 'career') : {}, D2 = i0 > 0 ? await dway('?career=1', undefined) : {}, D3 = i0 > 0 ? await dway('', undefined) : {};
+        ok(D1.id === 'story' && D1.fetched === 'src/missions/story.json' && D1.boot === 'renderer' && D2.id === null && !D2.fetched && D3.id === undefined && !D3.fetched,
+           '17 dev.html: the same rule (a player\'s career the story pack, the dev career none, the sandbox nothing), the boot\'s own value kept', J([D1, D2, D3])); }
       ok(/if \(!id && !CAREER_DEVFLAG\) try \{ id = window\.FLYDIY_PACK_ID \|\| null; \}/.test(APP), '17 app.js takes the loader\'s pack only outside the dev career');
       ok(/window\.localStorage\.setItem\('flydiy\.pack\.' \+ id, txt\); else txt = window\.localStorage\.getItem\('flydiy\.pack\.' \+ id\)/.test(APP), '17 ...keeps its text for a start with no network, and reads it back then');
       ok(/if \(CAREER_DEV && STORY_PAGE && CAREER_PACK && CAREER_PACK\.ok && typeof careerPackAdopt === 'function'\) try \{\s+const a = careerPackAdopt\(player, CAREER_PACK\);/.test(APP), '17 the career adopts its pack at the load (a player\'s career only)');
