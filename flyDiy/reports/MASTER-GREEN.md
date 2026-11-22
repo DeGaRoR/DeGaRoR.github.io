@@ -3,22 +3,22 @@
 Base: origin/master 9349a62c1 (train L40h), core battery 301 PASS / 61 FAIL on the box (A0's `land_L40H_gates.log`).
 Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is kept current: read the STATUS block first.
 
-## STATUS (updated 22 Nov, block 2)
+## STATUS (updated 22 Nov 02:00 UTC, block 3)
 
-- 61 reds. **17 have a fix or a reasoned re-pin on this branch** (green-1, below). 5 are in hand elsewhere. 39 are for
-  owners or still being traced; every one has a first read in the table.
-- **A REAL L40h REGRESSION, live on master (read this one first):** ELECTRIC-TRAINER cfe477466 added four garage rows
-  (`frLeanCap`, `boomRound`, `boomRoundAt`, `finVentralLand`) without a `CAGE_DEFAULT_ABSENT` entry, so the save writes
-  them at their defaults into EVERY joined build. Every validated build's bench / parked / certificate-store /
-  procurement key moved at L40h (GATE STOL: "keys MOVED" on all six builds at L40h, on the Cub alone at L40f / L40g).
-  Proven here: with the four declared absent the Cub's joined def is L40f's again but for REG-PLACE's three decal
-  numbers. The fix is one line; it is NOT in green-1 (it moves every fingerprint back, so the cooked packs must be
-  checked with it): it is green-2, next.
-- **green-1 is NOT pushed as a ready yet.** Each of its 17 gates passes when run alone here, except ACCEPT (a 300 s
-  gate, not re-run yet). The battery on the branch has not been run: the cloud baseline of master's 61 reds is
-  still running (this 4-CPU box runs the gates 2-3x slower than A0's). Then the whole core battery runs ON THE BRANCH,
-  once; its FAIL list is compared with A0's L40h list, and any gate red here and green there is run alone on master to
-  tell this box from a regression. The ready is pushed after that, with both lists in its commit message.
+- 61 reds. **19 have a fix or a reasoned re-pin on this branch**, 5 are in hand elsewhere, 37 are for owners or still
+  being traced; every one has a first read in the table.
+- **THE CORE BATTERY IS RUNNING ON THE BRANCH** (ffe95133d, the (built) commit; started 01:56 UTC, three lanes on this
+  4-CPU / 15 GB box, 4-5 h). The ready `claude/ready/green-1` is pushed when it ends, with A0's L40h FAIL list and this
+  one in its commit message; a gate red here and green on the box is run alone on master first, to tell this box from
+  a regression. Until then nothing on this branch is a ready.
+- **A REAL L40h REGRESSION, live on master, fixed on this branch (0e59a24ea):** ELECTRIC-TRAINER cfe477466 added four
+  garage rows (`frLeanCap`, `boomRound`, `boomRoundAt`, `finVentralLand`) with no `CAGE_DEFAULT_ABSENT` entry, so the
+  save wrote them at their defaults into EVERY build the load door joins. Measured on the Cub, the Jodel and the metal
+  Cessna: the certificate's fingerprint, the parked bake's, the certificate store's key and the procurement's ALL
+  moved (a player's certified aeroplane no longer matches its certificate since L40h). With the four entries the keys
+  are L40g's again; PARKED BENCH PROCURE CERTGATES SNAPSHOTS FLEET FREIGHT CONTRACTS STORY pass on it through the runner.
+- **A second real one, for its owner (not fixed here):** node's load door and the game's page do not build the same
+  Jodel (JOINPARITY 1: a 51 L tank against 50 L). It is not a stale capture: the page was re-captured here.
 - Nothing here weakens a gate. Every re-pin names the change that moved the pin and is its own commit.
 
 ### What A0 can relay now
@@ -74,17 +74,17 @@ owner named; **tracing** = this session is still on it.
 | NAMES | REAL | LIVERY-5 fb442d878: a mark named "Alaska" (aeroskin.js:3125, livery_marks.js:29) and the hint "the twelve Alaska marks" (_cage_ui.js:5622) are shown | AIRCRAFT-LOOKS | a fictional shown name (the id may stay) | owner |
 | CANDIDATES | REAL (data) | four files in builds/candidates/ with no index row: jodel_geo, superpetrel_V4_1 (since REAL-CANON 2f90acd8c, 12 Nov), buggy, roadster (TOW-LAUNCH) | FLAGSHIP + TOW-LAUNCH | a row with `hide` each, or review/ (GATE SKIS flies superpetrel_V4_1 from that path) | owner |
 | RWYLIGHTS | REAL (scenery) | tw_ski (280 x 6) keeps 17 of 24: the dirt footpath `tw_p_launch` along the edge (6 left out, 2 flush) and the pad `tw_m_launch` (1); in with AFB-0220-B3's merge of skyline-resort-2 c5f99c8b3 | SKYLINE-RESORT | move the path off the light line, or declare 17 as w4 / w5 are declared | owner |
-| JOINPARITY | PIN + REAL | (1) Jodel node 470.666 vs page 469.732 kg: the page capture (15 Nov 04:43) is older than REAL-CANON's landing (L40d merge f1cb81f9e, 19:01; the harness +0.93 kg). (2) six tools read a validated build raw: large_hangar_shot, large_hangar_store_shot, _muddeposit_check, _qscut_check, _tutorlock_check, _unify_check | (1) orphan (2) HOME-DERELICT, GROUND-FX, QUICKSHOT, Game, Pilot | (1) re-capture the Jodel (running here, headless Chromium) (2) through tools/_load_build.js, or declared at its door | (1) tracing (2) owner |
-| DMGDETERMINISM | REAL | the census: 44 `sin / cos / pow` sites in src/core on the builtin, not CORE_MATH (00_registry groundSink*, 07e_soil_wet, 26b_strip_micro, 28c_biomes, 29_obstacles, 29c_ski, 32_hydro, 43_pilot gTerr, 60_gen_spec, 62_gen_aero, 62c gear) | Deform + each site's author | CORE_MATH at each site (bits may move: needs the battery) | owner |
+| JOINPARITY | REAL (both rows) | (1) **node is not the page for the Jodel, and it is not a stale capture**: re-captured here on the branch (headless Chromium, 781 s; reports/evidence/MASTER-GREEN/join_parity_jodel_page_2026-11-22.json) the page still builds 469.732 kg, node's load door 470.666. Page -> node: `fuel.litres` 50 -> 51, the vessel's capacity 50 -> 51, its W 0.825 -> 0.826, H 0.269 -> 0.272, six profile numbers +1..3 mm, and `tail.stabH` differs in its last digit. The tank fit lands on the other side of a litre in node; node moved inside REAL-CANON (L40d merge f1cb81f9e: 469.173 -> 470.666). (2) six tools read a validated build raw: large_hangar_shot, large_hangar_store_shot, _muddeposit_check, _qscut_check, _tutorlock_check, _unify_check | (1) FLAGSHIP (the tank fit) + JOIN-PARITY's owner (2) HOME-DERELICT, GROUND-FX, QUICKSHOT, Game, Pilot | (1) why the fit differs by millimetres between the two engines (the last-digit `stabH` says their maths differ: see DMGDETERMINISM) (2) through tools/_load_build.js, or declared at its door | owner |
+| DMGDETERMINISM | REAL | the census: 44 `sin / cos / pow` sites in src/core on the builtin, not CORE_MATH (00_registry groundSink*, 07e_soil_wet, 26b_strip_micro, 28c_biomes, 29_obstacles, 29c_ski, 32_hydro, 43_pilot gTerr, 60_gen_spec, 62_gen_aero, 62c_gear_mech), in with the trains since L40a | Deform (done here: the gate's own remedy) | `node tools/_core_math_sites.js --apply`: 578 on CORE_MATH, 0 stray. Node's bits cannot move: CORE_MATH = the builtins on 2 000 000 seeded arguments each in this node | green-1 (the 734 s gate itself runs in the battery) |
 | DESIGNCHECK | REAL (a side effect of a wanted change) | "200 N sideways at the post": 4.20 mm against the drawn carbon shell's 1.77 mm (2.37x; the band is 2x). HULL-B50 4ab3c819d (carbon k x0.55): its parent reads 2.83 mm (1.60x), the commit 4.20 - bisected; on master since L35c's merge of seaplanes 7d6ad8b11 | FLAGSHIP | the shell cluster carries the boom's stiffness, or its owner re-argues the band; not widened here | owner |
 | FLEX | REAL | (1) the WEIGHT STUDY's `softShell` material in the matrix: "softShell cantilever" doubling 1.21x, folds 39 %, never reached cruise. (2) "tail arm: the tube factor is live" (since L31b gear-falls, 8 Nov sweep) | FLAGSHIP | (1) a soft shell is not a cantilever: the garage's rule or the matrix (2) owner | owner |
 | LOAD | REAL | the same row: "GEN softShell cantilever" does not survive the ultimate load | FLAGSHIP | as FLEX (1) | owner |
 | TANKMOUNT | ? | archaeopteryx x0.45: a tank that fits has vertices past a surface (2374) and 63 points inside it | FLAGSHIP | - | owner |
 | ENGTORQUE | ? | "SIGN swirl": both hands swing the same way. 8 Nov sweep: L31c, TAILWHEELS 3cfc6d101 (the new tail contact dominates the swing) | Pilot / FLAGSHIP | - | owner |
 | ENGCONFIG | ? (PIN likely) | 1 IDENTITY: every build's two digests differ from the pinned master's (last re-pinned 12 Nov, ENGINE-COOLING 3; the physics canon and L40a's brakes / engine lump came after) | FLAGSHIP | to trace by train, then re-pin naming each change | tracing |
-| STOL | REAL + PIN | (1) three cards differ from master 9f77ac48f's bits: spitfire (fly, since L40g), motorglider and etrainer (def, fly, draw, L40h: the E811 change). (2) the six validated builds' joined spec differs and their keys MOVED: **the four leaked ELECTRIC-TRAINER rows** (L40h, real); under it L40e's colours and tank profile and L40g's REG-PLACE decals (wanted) | FLAGSHIP (the leak) | green-2: the four rows absent at default, then the baseline re-captured with each remaining move named | tracing |
-| SKIS | REAL + PIN | 1 "absent is as today": six builds' def digest moved while their sheet and 300 flown steps are the base's to the bit (the base: L40d). The Cub's def diff, measured: L40e's tints + two tank-profile numbers, L40g's three REG-PLACE decal numbers, L40h's four leaked rows. carbon_cub_ss moved in all three (CARBON-CUB-FINAL, wanted) | FLAGSHIP (the leak) | green-2, as STOL | tracing |
-| POD | ? (PIN likely) | "pod off, the whole def is the base's bytes": moved on all six, and the certificate / 300 steps. PASS on L38c2 4d7b99acf (its 12 Nov re-pin); the trains since are being run one by one | Game | to trace by train, then re-pin naming each change | tracing |
+| STOL | REAL + PIN | (2) the six validated builds against master 9f77ac48f's spec and keys. REAL: the four leaked rows - fixed here, and metal / floats / twin-floats pass again. What is left is wanted: the Cub, the Jodel and the Rufus FILES were repainted (COLOUR-RESTORE; REG-PLACE on the Cub; the Rufus re-stamped by CANON-REDS 67c5372ee), and the Cub's keys moved at L40e (PROPER-COWLS' tank profile, as SKIS). (1) three cards differ from the pinned bits: motorglider and etrainer (def, fly, draw - L40h, the E811 change, wanted), spitfire (fly, since L40g: NOT yet named) | Pilot (the gate), the train (the capture) | `node tools/_stol_samebits.js --root=<the landed master> --capture` once the spitfire's move is named: the gate asks for it after every merge that moves the physics | tracing (the spitfire) |
+| SKIS | REAL + PIN | 1 "absent is as today" against the 15 Nov base (L40d). REAL: the four leaked rows (metal, floats, twin: the base's bits again once fixed). PIN, each def diffed key by key: the Cub - COLOUR-RESTORE 62085a33f (14 tints), REG-PLACE 164eb1665 (3 decal numbers), two numbers of the joined tank profile since L40e's merge of carbon-cub-cowl 25b893a1f (bisected; PROPER-COWLS); the Jodel 19 tints; the Petrel 2 tints; the Carbon Cub SS its card. The sheet and the 300 flown steps of the six others are the base's to the bit | orphan | the leak fixed, then `--bless`: exactly 6 of 21 digests changed, the list in the gate's header | green-1 |
+| POD | PIN + ? | A "pod off = the base's bytes" (the 12 Nov re-pin), by train, all six builds alike: **L40a** def + sheet (the merge of physics-pages-cooling ca0c54e46 - bisected: ENGINE-COOLING's fields; certificate and flown steps unchanged); **L40d** def, sheet, certificate, flown steps (REAL-CANON, the physics canon); **L40e** the repainted files' def, and THE CERTIFICATE OF EVERY BUILD with no def change (the twin on floats: def ca3d55e7 both sides, cert b8b01d63 -> 176bb484); **L40g** the certificate again on the four WHEELED builds only (the floats' unchanged) | Game (the pin), Deform (the two certificate moves: which change of L40e and of L40g moved a certificate's numbers without the def?) | re-pin when the two certificate moves are named | owner |
 | GEN | ? | "cruise is quiet in wind": bank p2p 11.6 deg | Pilot | - | owner |
 | RADIALDIV | ? | mosquito, mosquito_1: not airborne inside 300 s (new); cub hands off 20 s, the heading moved -176 deg (8 Nov sweep: first red a0aeeeee9, G2080 ENGINE-TORQUE, 12 Oct) | Pilot | - | owner |
 | TAXICLEAR | REAL (data) + ? | (1) `GP_PARKED_FOOT.archaeopteryx` is [5.5, 0.6, 5.5] (25_airfield.js:659) and the card builds a 6.50 m half-span; (11c) the C172 off the altiport: the too-short take-off is not rejected | FLAGSHIP (1), Pilot (11c) | (1) the row to the card's span | owner |
@@ -114,19 +114,25 @@ owner named; **tracing** = this session is still on it.
 
 ## green-1: what it holds
 
-Eight commits on `claude/master-green`, in this order; the re-pins are their own commits.
+`claude/master-green` up to ffe95133d, in this order; every re-pin is its own commit.
 
-1. Three stale source pins: GROUNDQUERY, ACCEPT, WINGSTRUCT (gate files only).
-2. ENERGYBASE re-blessed (carbon, electric).
-3. Six source fixes: NODUMMY, SAVE, DESIGN, STORAGE, STAGES, ASSETS' materials
+1. e87a9505c - three stale source pins: GROUNDQUERY, ACCEPT, WINGSTRUCT (gate files only).
+2. 7e123c94e - ENERGYBASE re-blessed (carbon, electric).
+3. 6119e7cf1 - six source fixes: NODUMMY, SAVE, DESIGN, STORAGE, STAGES, ASSETS' materials
    (tools/_cage_gen.js, _cowl_gen.js, _cage_design.js, src/core/71_player_bases.js, 27_premises.js).
-4. Media hygiene: MEDIA, ASSETS' duplicates.
-5. ENGINE re-pinned (ENGINE-DIALS A).
-6. TREES, SHADOWSKY, LAKEBED re-pinned.
-7. WINGROWS re-pinned.
-8. WILGAGEAR: `CAGE_PYLON` one object (tools/_cage_eng.js).
+4. fa8e6d81e - media hygiene: MEDIA, ASSETS' duplicates.
+5. d2d34d059 - ENGINE re-pinned (ENGINE-DIALS A).
+6. 99c6a8a45 - TREES, SHADOWSKY, LAKEBED re-pinned.
+7. f54913289 - WINGROWS re-pinned.
+8. 857009b7b - WILGAGEAR: `CAGE_PYLON` one object (tools/_cage_eng.js).
+9. 0e59a24ea - the four ELECTRIC-TRAINER rows absent at their defaults (tools/_cage_gen.js).
+10. 1c110cd6a - the core's 44 stray sin / cos / pow sites on CORE_MATH (11 files of src/core).
+11. 07e3a96db - SKIS' witnesses re-blessed.
+12. ffe95133d - (built).
 
-Still owed before the ready: the (built) commit, the gates that read the changed files, the battery, the two lists.
+Run alone here on that tree, PASS: GROUNDQUERY WINGSTRUCT NODUMMY MEDIA SAVE ENERGYBASE ENGINE TREES SHADOWSKY LAKEBED
+WINGROWS SKIS; through the runner, PASS: ACCEPT WILGAGEAR STAGES STORAGE DESIGN ASSETS (and the 20 fingerprint / pack
+gates named in STATUS). DMGDETERMINISM's census reads 0 stray; the gate runs in the battery.
 
 ## How the reds were read
 
