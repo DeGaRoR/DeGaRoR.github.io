@@ -112,7 +112,47 @@ one PHYSICS_V bump, with the Cub as the gate: 0.82-0.85 m², 140 km/h. The PC-6 
 -33 %; a blown canopy instead of a wrap-round screen -0.03 m²; a moulded pod with the engine behind it a further -25 %.
 Today each of those is worth nothing.
 
-## 5. Limits
+## 5. The slider review (the user, 22 Nov: "have a review of the existing sliders ... parameters that would allow you for a better estimation that we wouldn't have thought of")
+
+All 1,579 editor rows were listed with their groups, labels and choices (the panel loaded in node, as GATE PARTS does)
+and their values read on eight cards. What follows is every row that could feed a drag term. **"Read today" is whether
+the physics reads it for drag.**
+
+| drag term | rows the cards already carry | read today | what it would give |
+|---|---|---|---|
+| **The section's corners** | `topRound`, `botRound` (0-1); **the crease rows `crSill`, `crKeel`, `crCeil` (0-3: soft to sharp)**; the top's two angles `topAngCeil`, `topAngRoof`; `noseKeelSq` | no | The user's distinction exactly: a square with soft corners (creases 0) against a square with sharp ones (creases 3). The Velis has creases 0 / 0 / 0 on a low roundness; the PC-6 a keel crease of 3; the Archaeopteryx 3 / 3 / 3 |
+| **The section along the body** | seven frames (nose, windscreen, door post, cabin, passenger, boom, tail), each with top / waist / bottom heights, three half-widths and three fore-aft offsets: 60 rows | only a width and a height per station | The true area and perimeter along the body: the wetted area, the fineness, **every step between two frames, and the closure angle**. "Lack of discontinuity" is measurable |
+| **The pod and its pinch** | `boomMidOn` (pod ring), `boomMidPinch`, `boomMidPinchW`, `boomRound`, `boomRoundAt`, `boomSquare`, `boomStyle` (lofted skin, rod), `boomNoseK` and `boomTailK` (cone to ogive), `boomNoseCap` / `boomTailCap` (point, flat, round), `boomCollar` | no | The teardrop: a pod that pinches smoothly into a boom (the Velis: pod ring on, pinch 0.38, round boom) against a body cut off at a bulkhead with a tube stuck in it. A flat cap is a base |
+| **The tail's closure** | `taperOn`, `taperLen`, `tailDrawn`, `aeroAftOn`, `aeroAftLen`, `aeroAftTip` (dome to teardrop), `aeroAftShape` (cone, blade, flat, fin), `aeroAftEdge` (the base's edge), `tailLen` | no | Whether the body closes to a point, to a blade, or ends flat, and how fast |
+| **The nose** | `noseFinish` (firewall, aerodynamic), `aeroNose` (windscreen fold, full rings), `aeroLen`, `aeroTipW`, `aeroTipH`, `aeroRound`, `noseDome` (cone to dome), `noseTip`, `crNoseCap` (tip sharpness), `noseDroop` | no | Cowl against aero nose: a firewall-and-cowl front, or a faired front with no engine face |
+| **The cowl's face** | `cowlOn`; inlets `cw_apMode` with their sizes; `cw_lipMode` (plain cut, rolled lip); the chin scoop (on, size, rake, mouth); side gills; `cw_aftMode` (blend into the fuselage, nacelle tail cone); the spinner (`cw_spinR`, `cw_spinLen`, `cw_spinRound`) | the inlets and outlets, for the cooling flow only | A spinner that fills the cowl's face fairs the nose; a scoop and gills are bodies standing in the stream; a cut lip against a rolled one |
+| **The canopy** | `canopy` (closed, convertible, open, **bubble**), `bubble` (glass ceiling), `bubH`, `bubAt`, `bubW`, the canopy loops; **`wsRun` and `wsTopOff` (the drawn rake)**, `wsBaseBow`, `wsCeilBow` (its curvature), the shoulder rows; `rimW`, `rimRise` (how proud the frame stands), `winDepth` (window recess) | only "bubble or not", and a cowl-deck height | The screen's true frontal step, its rake and its curvature; whether the glass is the body's own contour (no step at all) |
+| **An open cockpit** | `cpOpen`, `openCut`, `openFore`, `openAft`, `openRim` (coaming), `openScreen`, `openScreenH`, `openScreenRake` | a fixed figure per seat | The hole's own size, with or without a screen ahead of it |
+| **Skin and finish** | `intCons` (composite, steel tube, plywood, aluminium, aluminium tube, glassfibre, soft shell); **`wgCons` per wing** (carbon, fabric on wood, aluminium, glassfibre, fabric on aluminium spar, D-tube ...); `memFast`, `memDia`, **`memRise` (how far the screw heads stand)**; `accDetail` (fastener density); `rimRivet`; the cowl's camlocs and its panel joint (`cw_seamType`: groove, or a step standing proud) | the material, as one coefficient | Skin split from shape. Flush against proud fasteners is already a slider |
+| **Where laminar flow ends** | everything above, and: a propeller on the nose or not (the engine's mount), the first panel joint or step, the wing's construction, the hinge line | no | A light laminar model needs only a transition point per body and per surface: the first of a propeller's wash, a step, a joint, or the section's own limit |
+| **The wing section** | `wgThick`, `wgCamber`, `wgCons`, `wgTip` (nine tips), `wgCentre`; flaps `wgFlapType` (plain, **slotted**, Fowler, split, STOL), `wgFlapSpan`, `wgDroop`; `wgSlat`; `stThick`, `finThick` and their **trailing-edge thickness** | thickness, camber, material, tip, the slat | A slotted flap's open slot, a blunt trailing edge, the construction's limit on laminar flow |
+| **What sticks out of the wing and tail** | **`hgFamily` (as built, strap, piano, bracket), `hgCount`, `hgSize`, `hgFair` (hinge fairings), `hgHorn`, `hgHornLen`, `hgLink` (pushrods and cables outside)** | no | External hinge brackets and horns, counted and sized as drawn: the PC-6's question, as rows that exist |
+| **The undercarriage** | the leg `s1Leg` (beam, link, oleo, tailwheel, trailing link); a beam's blade width and thickness; `s1_linkVee`, `s1_linkX` (crossed struts), `s1_linkAxle` (cross axle), `s1_linkAxleX` (cross wires); the shock (`s1_shockKind`: coil, bungee, rubber, oleo; `s1_oleoDia`, `s1_oleoBrace`); `s1Fair` (none, spat, trousers), `s1LegFair`; the tyre (`whProfile`: tundra, slim, bicycle; `whWide`); the brake; `gearDoors` (open well, one, two), `gearLegDoor`; skis | the wheel's radius, the fairing, the leg's drop as one 50 mm tube, a trailing link's strut | Today a spring-steel blade (the 172), a bungee truss of six tubes and an axle (the Cub) and a long-stroke oleo tripod (the PC-6) are all "one 50 mm cylinder as long as the leg's drop". The drawn members can be billed one by one |
+| **The exhaust** | `eng_exStyle` (off, stacks, collector, expansion, ejector stubs on the side), `eng_exDrop` (how far the stacks hang), `eng_exPair`, `eng_exOut`, the outlet's position | a fixed 0.003 m² a stack, two or four an engine | The stubs by their own number, length and direction |
+| **The engine in the wind** | the cylinder rows and `cowlOn` with its covers | only when the cowl's sides are off | The J-3's cylinders standing out of its cowl (its `heads` row is 0 today) |
+| **Fittings** | `accAerials`, `accHandling` (steps and handles), `accInstr` (the pitot), `accBeacon`, `accFluids`; landing and taxi lamps with `li_podLen`, `li_podGirth`; `towHook`; `wgTipSkid`; the floats' spreader bars, cross wires and ladder | no | Small, but they are a clean aeroplane's whole excrescence bill, and each is a switch |
+
+### What the review changes in the plan
+
+1. **Corner sharpness is its own input, apart from roundness.** The crease rows say how sharp each longeron's edge is.
+   The law's corner term becomes `(1 - roundness) x sharpness`, so a soft-cornered square costs little and a
+   sharp-edged one costs the full figure.
+2. **The body is read from its frames, not from two roundness numbers.** The area and perimeter curve along the body
+   gives the fineness, the steps and the closure in one pass; the pod's pinch, the tail's cap and the nose's kind are
+   then read where they act. This is what makes the Velis a teardrop and the PC-6 a box with a step at its screen.
+3. **The canopy is read as drawn**: its kind, its rake (`wsRun`), its curvature and its frame's proudness. A bubble that
+   continues the body's line bills no step.
+4. **Two "what sticks out" families already exist as rows**: the control hinges and horns, and the undercarriage's
+   members. They can be billed from the drawing with no new slider. The exhaust and the fittings likewise.
+5. **Nothing new has to be asked of the player** for any of the five models. Every input is a row that is already
+   drawn; today the drag reads about a dozen of them.
+
+## 6. Limits
 
 - The constants are handbook orders of magnitude from memory (Hoerner's fuselage and windscreen chapters, the usual
   form-factor fits); none was re-read this session. Only the windscreen's figure was fitted, on the 172.
