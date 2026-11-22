@@ -28,7 +28,7 @@ for (const key of Object.keys(J.textures)) {
   // RGBA, padded, the rows bottom first
   for (let y = 0; y < H; y++) { const sy = Math.min(I.h - 1, H - 1 - y); for (let x = 0; x < W; x++) { const sx = Math.min(I.w - 1, x), s = (sy * I.w + sx) * I.ch, d = (y * W + x) * 4;
       if (I.ch >= 3) { px[d] = I.data[s]; px[d + 1] = I.data[s + 1]; px[d + 2] = I.data[s + 2]; px[d + 3] = I.ch === 4 ? I.data[s + 3] : 255; } else { px[d] = px[d + 1] = px[d + 2] = I.data[s]; px[d + 3] = 255; } } }
-  const nrm = key === 'trees_nrm', role = nrm ? 'ktx2-normal' : 'ktx2-color', o = nrm ? {} : (key.startsWith('ground_near') ? { codec: 'uastc' } : {});
+  const nrm = key === 'trees_nrm', role = nrm ? 'ktx2-normal' : 'ktx2-color', o = nrm ? {} : (key.startsWith('ground_near') || key === 'far' ? { codec: 'uastc' } : {})   /* (far: the skyline's cut - ETC1S blocks its alpha in 4 x 4 stairs) */;
   if (nrm) for (let i = 3; i < px.length; i += 4) px[i] = 255;
   const bytes = K.encodeRGBA(px, W, H, role, o), out = path.basename(T.file, path.extname(T.file)) + '.ktx2';
   fs.writeFileSync(path.join(DIR, out), bytes); T.ktx2 = out; T.ktx2Size = [W, H];

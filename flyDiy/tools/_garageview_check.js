@@ -69,7 +69,9 @@ for (const P of PK.packs) {
 // 5 the page's seams
 { const src = f => fs.readFileSync(path.join(ROOT, f), 'utf8'), build = src('tools/build.js'), han = src('src/viewer/hangar.js'), gv = src('src/viewer/garage_view.js'), app = src('src/viewer/app.js');
   ok(/'hangar_view\.js',[^\n]*\n\s*'garage_view\.js'/.test(build), '5a the build manifest carries garage_view.js after hangar_view.js');
-  ok(/gviewFrom: pack =>/.test(han) && /GARAGE_VIEW\.build\(THREE, pack, \{ shed: SHED_W/.test(han), '5b the room stands a scene by its shed\'s place in the world (gviewFrom, SHED_W)');
+  // (re-pinned 22 Nov WITH ITS REASON: gviewFrom gained `hold` - the scene is built held down while its programs link off the frame, PERF-LEAD's ask;
+  //  the rule held here is unchanged: the room stands a scene by its shed's place in the world)
+  ok(/gviewFrom: \(pack, hold\) =>/.test(han) && /GARAGE_VIEW\.build\(THREE, pack, \{ shed: SHED_W/.test(han), '5b the room stands a scene by its shed\'s place in the world (gviewFrom, SHED_W)');
   ok(/o\.visible = !viewOut && \(!GVIEW \|\| o === GVIEW\.group \|\| o === GVIEW\.shadow\)/.test(han) && /ROOM_PAD\.visible = !viewOut && !GVIEW/.test(han), '5c the hand-drawn outdoors stay down while a scene stands (outdoorsShow)');
   ok(/group\.rotation\.y = -sh\.ry/.test(gv) && !/siteToLocal/.test(gv), '5d the scene is placed by the shed\'s TRUE yaw (no siteToLocal quarter turn)');
   // (re-pinned 22 Nov WITH ITS REASON: GATE ASSETS AS4a wants every material made in matlib.js, so the unlit material is MATLIB's 'basic' shape -
@@ -88,6 +90,8 @@ for (const P of PK.packs) {
       '5j the clouds through the door are the game\'s own pass, from the room\'s eye stood in the world (the world\'s branch of the hook unchanged)');
     ok(/if \(hangar\.gviewBake\) hangar\.gviewBake\(true\);/.test(app) && /if \(hangar\.gviewBake\) hangar\.gviewBake\(false\);/.test(app) && /GV_COMP\.userData\.sharedGeo = true/.test(han),
       '5k the room\'s probe is shot at the room\'s level and the frame\'s draw puts the day back; the game\'s composite material is never disposed with a room'); }
+  ok(/GARAGE_VIEW\.prelink = \(\) =>/.test(app) && /H\.gviewFrom\(pack, true\)/.test(app) && /compileSliced\(B\.group, aa && aa\.target \? aa\.target\(\) : null, hangarScene\)/.test(app) && /H\.gviewShow\(\); GARAGE_VIEW\.ready = true;/.test(app),
+    '5l the programs of a scene link OFF the frame (built held down, compileSliced, then shown), behind one entry point (GARAGE_VIEW.prelink, GARAGE_VIEW.ready)');
   ok(/gviewTick\(\)/.test(app) && /GARAGE_VIEW\.find\(window\.FLYDIY_WORLD, roomBase\(\), roomId\(\)\)/.test(app), '5f app.js asks for the room\'s scene by its world, field and shed, behind the room (gviewTick, GARAGE_VIEW.find)');
 }
 console.log(fails ? 'GATE GARAGEVIEW: FAIL (' + fails + ')' : 'GATE GARAGEVIEW: PASS');

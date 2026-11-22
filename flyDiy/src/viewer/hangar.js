@@ -210,6 +210,7 @@ let POLISH_OUT = null;    // G3534b: its pieces outside the walls, drawn only wh
 let HO_TREES = null;     // HANGAR-OUTDOORS: the tree cards' places (the outdoors plant them; treesFrom stands the cards)
 let SHED_W = null;       // GARAGE-VIEW: the room's shed in the world ({ x, y, z, ry }: the site's hangar) - the cooked scene stands by it
 let GV_LAST = null;     // GARAGE-VIEW: the last day applyDay took ([day, light]): a scene that lands takes it at once
+let GV_PEND = null;      // GARAGE-VIEW: a scene built and held down while its programs link off the frame (gviewFrom(pack, true) -> gviewShow)
 let GVIEW = null;        // GARAGE-VIEW: the cooked world out of the door (garage_view.js), once it has landed (gviewFrom)
 let ROOM_PAD = null;      // HANGAR-VIEW C: the plot's ground pad (under room:polish) - outdoors, so the world's view stands in for it
 
@@ -4098,7 +4099,7 @@ function gvCloudCam(cam) {
   if (!GV_COMP) {
     // the composite: the game's own quad material on a quad of the room's (sharedGeo: disposeHangar leaves the game's material alone)
     GV_COMP = new THREE.Mesh(cm.geometry, cm.material); GV_COMP.frustumCulled = false; GV_COMP.renderOrder = 1e6; GV_COMP.name = 'cloudComposite:room'; GV_COMP.visible = false;
-    GV_COMP.userData.sharedGeo = true; GV_COMP.userData.outdoor = true;
+    GV_COMP.userData.sharedGeo = true; GV_COMP.userData.outdoor = true; GV_COMP.userData.progOwner = 'garage / door view / clouds';
     // ONE draw a frame: any other eye on the room (the probe's faces, a capture) sees the room's own cloud sphere
     GV_COMP.onAfterRender = () => { GV_COMP.visible = false; if (cloudMesh && typeof CLOUDS !== 'undefined') cloudMesh.visible = !!CLOUDS.active; };
     G.add(GV_COMP); GV_CAM = new THREE.PerspectiveCamera(); GV_CAM.matrixAutoUpdate = false; GV_M = new THREE.Matrix4(); GV_MI = new THREE.Matrix4();
@@ -4115,6 +4116,16 @@ function gvCloudDone() {
   const cm = typeof CLOUDS !== 'undefined' && CLOUDS.compositeMesh ? CLOUDS.compositeMesh() : null; if (!GV_COMP || !cm) return false;
   GV_COMP.visible = !!cm.visible; if (GV_COMP.visible && cloudMesh) cloudMesh.visible = false;
   return GV_COMP.visible;
+}
+// the held scene stands: the room's hand-drawn outdoors go down, the scene takes the room's last day at once
+function gvShow() {
+  const B = GV_PEND; if (!B) return GVIEW; GV_PEND = null;
+  for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = false;
+  if (ROOM_PAD) ROOM_PAD.visible = false;
+  B.group.userData.outdoor = true; B.group.visible = !viewOut; GVIEW = B;
+  if (GV_LAST && B.update) B.update(GV_LAST[0], GV_LAST[1]);
+  if (B.shadow) { B.shadow.userData.outdoor = true; B.shadow.visible = !viewOut; }
+  return B;
 }
 function applyDay(day, renderer) {
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.setPre) LIGHT_RIG.setPre(1);   // G2620: the shed has no pre-exposure (its lamps cap the exposure); the world sets its own on the way out
@@ -4790,16 +4801,16 @@ return {
   gviewBake: on => gvBake(on), gviewCloudCam: cam => gvCloudCam(cam), gviewCloudDone: () => gvCloudDone(),
   gviewState: () => ({ ex: GV_EX, bake: GV_BAKE, comp: GV_COMP ? GV_COMP.visible : null, light: GVIEW && GVIEW.light ? GVIEW.light() : null, world: GV_LAST && GV_LAST[1] ? GV_LAST[1].world : null, exRoom: GV_LAST && GV_LAST[1] ? GV_LAST[1].exRoom : null,
     cloudMs: typeof CLOUDS !== 'undefined' && CLOUDS.stats ? CLOUDS.stats.ms : null }),
-  gviewFrom: pack => {
-    if (GVIEW || !pack || !SHED_W || typeof GARAGE_VIEW === 'undefined') return null;
+  gviewFrom: (pack, hold) => {
+    if (GVIEW || GV_PEND || !pack || !SHED_W || typeof GARAGE_VIEW === 'undefined') return null;
     const B = GARAGE_VIEW.build(THREE, pack, { shed: SHED_W, outdoor: outdoor, dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE }, door: { w: DOOR_W, h: DOOR_H, z: DOOR_Z } });
-    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = false;
-    if (ROOM_PAD) ROOM_PAD.visible = false;
-    B.group.visible = !viewOut; G.add(B.group); GVIEW = B;
-    if (GV_LAST && B.update) B.update(GV_LAST[0], GV_LAST[1]);
-    if (B.shadow) { B.shadow.visible = !viewOut; G.add(B.shadow); }   // the shed's shadow on the apron (the room's frame)
-    return B;
+    // (built DOWN: not yet an 'outdoor' of the room - outdoorsShow would stand it up - until gvShow; hold = the caller links its programs first)
+    B.group.visible = false; B.group.userData.outdoor = false; G.add(B.group);
+    if (B.shadow) { B.shadow.visible = false; B.shadow.userData.outdoor = false; G.add(B.shadow); }   // the shed's shadow on the apron (the room's frame)
+    GV_PEND = B;
+    return hold ? B : gvShow();
   },
+  gviewShow: () => gvShow(),
   outdoorsShow: (on, keepSky) => {
     viewOut = on === false; skyLive = viewOut && !!keepSky;
     for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut && (!GVIEW || o === GVIEW.group || o === GVIEW.shadow);   // (GARAGE-VIEW: the cooked scene alone while it stands)

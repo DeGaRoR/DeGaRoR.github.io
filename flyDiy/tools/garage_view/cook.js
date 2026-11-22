@@ -111,11 +111,18 @@ const groundTex = (key, F, FB) => { const I = PNG.decode(fs.readFileSync(path.jo
         if (us >= 0 && vs >= 0 && sx < I.w && sy < I.h) { const o = (sy * I.w + sx) * ch, a = ch < 4 ? 1 : d[o + 3] / 255, t = Math.max(1 - a, Math.max(0, Math.min(1, (36 - lum(o)) / 22)));
           r = d[o] + (f[0] - d[o]) * t; g = d[o + 1] + (f[1] - d[o + 1]) * t; b = d[o + 2] + (f[2] - d[o + 2]) * t; if (t > 0.5) nf++; }
         else { r = f[0]; g = f[1]; b = f[2]; nb++; } }
+      if (GGAIN && surfAt(wx, wz) !== WATER) { const q = gainPx(r, g, b); r = q[0]; g = q[1]; b = q[2]; }
       out[q] = r; out[q + 1] = g; out[q + 2] = b; out[q + 3] = 255; } }
   fs.writeFileSync(path.join(OUT, F.file), PNG.encode(W2, H2, 4, out)); SCENE.textures[key] = { file: F.file, srgb: true };
   (SCENE.stats.groundTex = SCENE.stats.groundTex || {})[key] = { size: [W2, H2], water: +(nw / (W2 * H2)).toFixed(3), floor: +(nf / (W2 * H2)).toFixed(3), beyond: +(nb / (W2 * H2)).toFixed(3), floorRGB: f.map(v => Math.round(v)) };
   return key; };
-const copyTex = (key, file) => { fs.copyFileSync(path.join(GDIR, file), path.join(OUT, file)); SCENE.textures[key] = { file, srgb: true }; return key; };
+// A LAWN SHOT FROM STRAIGHT ABOVE IS DARKER THAN THE SAME LAWN SEEN ALONG THE GROUND (the blades' own shade, the soil between them; measured at the
+// Cabin Strip, 22 Nov: half the game's from the door). sites/<pack>.json ground.gain [r, g, b] (linear) lifts the ground pictures of such a site.
+const GGAIN = (SITE.ground && Array.isArray(SITE.ground.gain)) ? SITE.ground.gain : null;
+const gainPx = (r, g, b) => GGAIN ? [l2s(s2l(r) * GGAIN[0]), l2s(s2l(g) * GGAIN[1]), l2s(s2l(b) * GGAIN[2])] : [r, g, b];
+const copyTex = (key, file) => { if (GGAIN) { const I = PNG.decode(fs.readFileSync(path.join(GDIR, file))), d = I.data; for (let i = 0; i < I.w * I.h; i++) { const o = i * I.ch, q = gainPx(d[o], d[o + 1], d[o + 2]); d[o] = q[0]; d[o + 1] = q[1]; d[o + 2] = q[2]; }
+    fs.writeFileSync(path.join(OUT, file), PNG.encode(I.w, I.h, I.ch, d)); } else fs.copyFileSync(path.join(GDIR, file), path.join(OUT, file));
+  SCENE.textures[key] = { file, srgb: true }; return key; };
 // the frames, the ones ground_merge.js draws its mosaics in (kept in step by ground.json when it is there)
 const MU = SITE.mid.u, MV = SITE.mid.v, MO = SITE.mid.out;
 const F_MID = mos('mid') || { o: [M.mid.x + d0[0] * (MO - MU / 2) - t0[0] * MV / 2, M.mid.z + d0[1] * (MO - MU / 2) - t0[1] * MV / 2], eu: d0, ev: t0, U: MU, V: MV };
@@ -159,6 +166,27 @@ if (!FAR) { // THE RING (only without a far band): from the wide picture's edge 
   A.nrm = smoothN(A); let ny = 0; for (let i = 1; i < A.nrm.length; i += 3) ny += A.nrm[i]; if (ny < 0) { for (let t = 0; t < A.idx.length; t += 3) { const q = A.idx[t + 1]; A.idx[t + 1] = A.idx[t + 2]; A.idx[t + 2] = q; } A.nrm = smoothN(A); }
   mesh('ground:ring', 'ring', null, A, { order: 0, rout: ROUT }); }
 
+// A CUT-OUT'S EDGE (the user, 22 Nov, on the skyline: "a very jagged line at the end with little black pixels ... typical transparency border
+// management"). A texel on the silhouette is a mix of the thing and of the black the picture was cleared to: kept as it is, it draws a dark,
+// broken rim. cleanEdge(buf, W, H, wrapX): the two texels inside the cut take the colour of the picture FURTHER in (never the mixed one), the
+// five outside take it too (what the filter and the mips reach past the cut is the thing's own colour, not black), and the alpha across the
+// cut is the 3 x 3 share of solid texels - a slope for alpha-to-coverage to resolve, not a stair.
+const cleanEdge = (buf, W, H, wrapX) => { const N = W * H, solid = new Uint8Array(N), dIn = new Uint8Array(N), dOut = new Uint8Array(N), BIG = 9;
+  for (let i = 0; i < N; i++) solid[i] = buf[i * 4 + 3] >= 128 ? 1 : 0;
+  const X = x => wrapX ? (x + W) % W : x, at = (x, y) => (x < 0 || x >= W) && !wrapX ? -1 : (y < 0 || y >= H ? -1 : y * W + X(x));
+  // chamfer distances (city block, capped): dIn = how deep inside, dOut = how far outside
+  for (let i = 0; i < N; i++) { dIn[i] = solid[i] ? BIG : 0; dOut[i] = solid[i] ? 0 : BIG; }
+  const relax = (D, y, x, dy, dx) => { const q = at(x + dx, y + dy), o = y * W + x; if (q >= 0 && D[q] + 1 < D[o]) D[o] = D[q] + 1; };
+  for (let pass = 0; pass < 2; pass++) { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { relax(dIn, y, x, -1, 0); relax(dIn, y, x, 0, -1); relax(dOut, y, x, -1, 0); relax(dOut, y, x, 0, -1); }
+    for (let y = H - 1; y >= 0; y--) for (let x = W - 1; x >= 0; x--) { relax(dIn, y, x, 1, 0); relax(dIn, y, x, 0, 1); relax(dOut, y, x, 1, 0); relax(dOut, y, x, 0, 1); } }
+  const src = Uint8Array.from(buf); let fixed = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const o = y * W + x, edgeIn = solid[o] && dIn[o] <= 2, near = !solid[o] && dOut[o] <= 5; if (!edgeIn && !near) continue;
+    let r = 0, g = 0, b = 0, w = 0; const R = edgeIn ? 4 : 7;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const q = at(x + dx, y + dy); if (q < 0 || !solid[q] || dIn[q] < 3) continue; const k = 1 / (1 + dx * dx + dy * dy); r += src[q * 4] * k; g += src[q * 4 + 1] * k; b += src[q * 4 + 2] * k; w += k; }
+    if (w > 0) { buf[o * 4] = r / w; buf[o * 4 + 1] = g / w; buf[o * 4 + 2] = b / w; fixed++; } }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const o = y * W + x; if (dIn[o] > 1 && dOut[o] > 1) { buf[o * 4 + 3] = solid[o] ? 255 : 0; continue; }
+    let c = 0, m = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const q = at(x + dx, y + dy); if (q < 0) continue; c += solid[q]; m++; } buf[o * 4 + 3] = Math.round(255 * c / m); }
+  return +(fixed / N).toFixed(4); };
 // ================= THE FAR BAND: the pictures into one strip, the strip onto a wall at the near plane's distance ==================
 if (FAR) {
   const camF = g => { const m = g.cam.mw, pj = g.cam.pj, w = g.info.w, h = g.info.h; return { w, h, I: PNG.decode(fs.readFileSync(path.join(CAP, g.name + '.png'))),
@@ -184,8 +212,7 @@ if (FAR) {
         ws += wt; }
       if (!ws || a <= 0) continue; const o = (j * PW + i) * 4, al = a / ws; r /= a; g /= a; b /= a;
       out[o] = lut ? lut[0][Math.round(r)] : r; out[o + 1] = lut ? lut[1][Math.round(g)] : g; out[o + 2] = lut ? lut[2][Math.round(b)] : b; out[o + 3] = Math.round(al * 255); if (al > 0.5) covered++; } }
-  // the colour bled one texel past the cut (no dark rim at the skyline)
-  { const src = Uint8Array.from(out); for (let j = 1; j < PH - 1; j++) for (let i = 0; i < PW; i++) { const o = (j * PW + i) * 4; if (src[o + 3] > 0) continue; for (const q of [o + PW * 4, o - PW * 4, ((j * PW + (i + 1) % PW)) * 4, ((j * PW + (i + PW - 1) % PW)) * 4]) if (src[q + 3] > 0) { out[o] = src[q]; out[o + 1] = src[q + 1]; out[o + 2] = src[q + 2]; break; } } }
+  const farEdge = cleanEdge(out, PW, PH, true);   // (the skyline's cut: see cleanEdge)
   // THE BAND IN ROWS (GATE ASSETS: no picture over 4096 px; many GPUs stop there): the circle cut in equal arcs laid one under the other,
   // a 4-texel gutter between them (each arc's own edge rows repeated: no bleed from its neighbour under the mips)
   const FROWS = Math.max(1, Math.ceil(PW / 4096)), TW = Math.floor(PW / FROWS), GUT = FROWS > 1 ? 4 : 0, TH = FROWS * PH + (FROWS - 1) * GUT, ftex = new Uint8Array(TW * TH * 4);
@@ -198,7 +225,7 @@ if (FAR) {
     for (let a = 0; a <= NR; a++) { const th = (r + a / NR) / FROWS * 2 * Math.PI, sx = Math.sin(th), sz = -Math.cos(th); for (const [tv, v] of [[T0, vBot], [T1, vTop]]) { const pp = L(FAR.eye[0] + sx * FAR.R, FAR.eye[1] + tv * FAR.R, FAR.eye[2] + sz * FAR.R); pos.push(pp[0], pp[1], pp[2]); uv.push(e + a / NR * (1 - 2 * e), v); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
     for (let a = 0; a < NR; a++) { const i0 = b0 + a * 2; idx.push(i0, i0 + 1, i0 + 2, i0 + 2, i0 + 1, i0 + 3); } }
   mesh('far', 'far', 'far', { pos: new Float32Array(pos), nrm: new Float32Array(nrm), uv: new Float32Array(uv), idx: new Uint32Array(idx) }, { alphaTest: 0.5, doubleSide: true, R: FAR.R });
-  SCENE.stats.far = { strip: [PW, PH], sheet: [TW, TH], rows: FROWS, covered: +(covered / (PW * PH)).toFixed(3), shots: FARG.length, R: FAR.R, card: !!lut };
+  SCENE.stats.far = { strip: [PW, PH], sheet: [TW, TH], rows: FROWS, edge: farEdge, covered: +(covered / (PW * PH)).toFixed(3), shots: FARG.length, R: FAR.R, card: !!lut };
 }
 
 // ================= THE LOW LAYERS: rings of distance, each a strip on its wall ===================================================
@@ -228,7 +255,7 @@ if (LCAP && fs.existsSync(path.join(LCAP, 'capture.json'))) {
     const gndOf = (th, Rm) => (Hh(eye[0] + Math.sin(th) * Rm, eye[2] - Math.cos(th) * Rm) - eye[1]) / Rm;
     let PH = 0; for (const r of rings) { const g = SL.find(q => q.ring === r), T0 = -1.0 / g.near, T1 = 10 / g.near, h = Math.max(8, Math.ceil(ppr * (T1 - T0))), Rm = Math.sqrt(g.near * g.far), gnd = new Float32Array(PW);
       for (let i = 0; i < PW; i++) gnd[i] = gndOf(A0 + (i + 0.5) / PW * (A1 - A0), Rm);
-      rows.push({ r, near: g.near, far: g.far, Rm, T0, T1, y0: PH, h, gnd }); PH += h + 2; }
+      rows.push({ r, near: g.near, far: g.far, Rm, T0, T1, y0: PH, h, gnd }); PH += h + 16; }   // (16 texels between two rings' rows: under the mips a row's edge took its neighbour's - thin dark dashes across the trees, 22 Nov)
     const sheet = new Uint8Array(PW * PH * 4), a3 = [0, 0, 0], b3 = [0, 0, 0]; let solid = 0;
     for (const R of rows) { const pairs = []; for (const ga of SL.filter(g => g.ring === R.r && g.pass === 'all')) { const gb = SL.find(g => g.ring === R.r && g.pass === 'ground' && g.k === ga.k); if (gb) pairs.push({ a: camS(ga), b: camS(gb) }); }
       for (let j = 0; j < R.h; j++) { const tj = R.T1 - (j + 0.5) / R.h * (R.T1 - R.T0);
@@ -238,11 +265,12 @@ if (LCAP && fs.existsSync(path.join(LCAP, 'capture.json'))) {
             r += a3[0] * wt; g += a3[1] * wt; b += a3[2] * wt; al += a * wt; ws += wt; }
           if (!ws) continue; const o = ((R.y0 + j) * PW + i) * 4; r /= ws; g /= ws; b /= ws; al /= ws;
           sheet[o] = lut ? lut[0][Math.round(r)] : r; sheet[o + 1] = lut ? lut[1][Math.round(g)] : g; sheet[o + 2] = lut ? lut[2][Math.round(b)] : b; sheet[o + 3] = Math.round(al * 255); if (al > 0.5) solid++; } } }
+    cleanEdge(sheet, PW, PH, false);   // (the cut-outs' edges: no dark rim round a shrub)
     fs.writeFileSync(path.join(OUT, 'layers.png'), PNG.encode(PW, PH, 4, sheet)); SCENE.textures.layers = { file: 'layers.png', srgb: true };
     // the walls: the far rings first (the near ones draw over them: alpha tested, depth written)
     const NA = 144, pos = [], uv = [], nrm = [], idx = [];   // (144 columns: the wall bends with the ground, 1.4 degrees a column)
     for (const R of rows.slice().reverse()) { const b0 = pos.length / 3;
-      for (let a = 0; a <= NA; a++) { const th = A0 + a / NA * (A1 - A0), sx = Math.sin(th), sz = -Math.cos(th), ga = R.gnd[Math.min(PW - 1, Math.round(a / NA * (PW - 1)))]; for (const [tv, row] of [[R.T0, R.y0 + R.h], [R.T1, R.y0]]) { const pp = L(eye[0] + sx * R.Rm, eye[1] + (ga + tv) * R.Rm, eye[2] + sz * R.Rm); pos.push(pp[0], pp[1], pp[2]); uv.push(a / NA, 1 - row / PH); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
+      for (let a = 0; a <= NA; a++) { const th = A0 + a / NA * (A1 - A0), sx = Math.sin(th), sz = -Math.cos(th), ga = R.gnd[Math.min(PW - 1, Math.round(a / NA * (PW - 1)))]; for (const [tv, row] of [[R.T0, R.y0 + R.h - 0.75], [R.T1, R.y0 + 0.75]]) { const pp = L(eye[0] + sx * R.Rm, eye[1] + (ga + tv) * R.Rm, eye[2] + sz * R.Rm); pos.push(pp[0], pp[1], pp[2]); uv.push(a / NA, 1 - row / PH); nrm.push(-sx * 0.3, 0.95, -sz * 0.3); } }
       for (let a = 0; a < NA; a++) { const i0 = b0 + a * 2; idx.push(i0, i0 + 1, i0 + 2, i0 + 2, i0 + 1, i0 + 3); } }
     mesh('layers', 'far', 'layers', { pos: new Float32Array(pos), nrm: new Float32Array(nrm), uv: new Float32Array(uv), idx: new Uint32Array(idx) }, { alphaTest: 0.5, doubleSide: true });
     SCENE.stats.layers = { rings: rows.map(R => [R.near, R.far]), sheet: [PW, PH], solid: +(solid / (PW * PH)).toFixed(3), arcDeg: +((A1 - A0) * 180 / Math.PI).toFixed(0), card: !!lut };

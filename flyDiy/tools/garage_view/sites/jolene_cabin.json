@@ -11,7 +11,7 @@
   "near": { "out": 46, "in": 6, "side": 10 },
   "far": { "low": -9, "top": 36, "w": 6144 },
   "card": { "out": 18 },
-  "ground": { "cover": true },
+  "ground": { "cover": true, "gain": [1.5, 1.5, 1.6] },
   "slices": { "rings": [22, 30, 40, 52, 66, 84, 106, 134, 170, 220, 300, 700], "fov": 60 },
   "times": ["now", "noon", "golden", "night"]
 }

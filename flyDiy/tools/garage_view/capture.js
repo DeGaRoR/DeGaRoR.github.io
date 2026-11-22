@@ -165,7 +165,7 @@ const PAGE = `(() => {
   const t0 = Date.now(), log = (...a) => console.log('[gv ' + ((Date.now() - t0) / 1000).toFixed(0).padStart(4) + ' s]', ...a);
   const META = { what: 'GARAGE-VIEW capture', made: new Date().toISOString(), do: DO, times: TIMES, hide: HIDE, steps: {}, grabs: [] };
   const save = () => fs.writeFileSync(path.join(OUT, 'capture.json'), JSON.stringify(META));
-  const rig = await RIG.start({ cap: CAP, size: '1600x900', q: opt('q', ''), page: opt('page', 'index.html'), name: 'garage-view' });
+  const rig = await RIG.start({ cap: CAP, size: opt('size', '1600x900'), q: opt('q', 'gview=0'), page: opt('page', 'index.html'), name: 'garage-view' });
   let rc = 0;
   // a page call's value as JSON (a call that already returns JSON text is taken as it is); ms: its own time limit
   const JJ = async (expr, ms) => { const t = await rig.ev('Promise.resolve(' + expr + ').then(v => typeof v === "string" ? v : JSON.stringify(v === undefined ? null : v))', ms); return t == null ? null : JSON.parse(t); };
@@ -178,6 +178,17 @@ const PAGE = `(() => {
     ' o.le = E ? { on: E.on, sunI: E.sunI, hemiI: E.hemiI, ex: E.ex, tEx: E.tEx } : null; o.rig = window.WORLD_RIG && WORLD_RIG.worldAlbedo ? (w => ({ hemiI: w.hemiI, gnd: w.gnd }))(WORLD_RIG.worldAlbedo()) : null;' +
     ' o.day = { sunEl: d.sunEl, utc: d.utc, moonPhase: d.moonPhase, moonEl: d.moon ? Math.asin(d.moon[1]) * 57.2958 : null, cloudCover: d.cloudCover };' +
     ' o.nightEye = L && L.nightU ? Array.from(L.nightU.uNightEye.value.toArray ? L.nightU.uNightEye.value.toArray() : L.nightU.uNightEye.value) : null; } catch (e) { o.err = e.message; } return JSON.stringify(o); })()';
+  // WHAT THE DOOR VIEW COSTS (the user, 22 Nov: "did you do also the performance check? do we pay heavily for that or not?") - --perf: in each
+  // room, at the first hour, 300 frames from the door's eye: the frame's interval (what the player feels: 16.7 ms is the screen's own 60 a second),
+  // the CPU time of the frame's draw (the submit, the clouds' march in it), its draw calls and triangles, the programs alive, the clouds' own pass.
+  // Read A/B in ONE boot: tag 'today' (the room's own outdoors) against 'gview' (the scene + the game's cloud pass) against a variant with cloudPass 0.
+  const PERF_JS = '(async () => { const A = window.FLYDIY_AA, R = window.FLYDIY_RENDERER, r0 = A.render, cpu = [], calls = [], tris = [], dt = []; const auto = R.info.autoReset; R.info.autoReset = false;' +
+    ' A.render = function () { R.info.reset(); const t = performance.now(), o = r0.apply(this, arguments); cpu.push(performance.now() - t); calls.push(R.info.render.calls); tris.push(R.info.render.triangles); return o; };' +
+    ' await new Promise(res => { let last = performance.now(), k = 0; const f = () => { const now = performance.now(); dt.push(now - last); last = now; if (++k < 300) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });' +
+    ' A.render = r0; R.info.autoReset = auto; const st = a => { a = a.slice().sort((x, y) => x - y); return a.length ? { med: +a[a.length >> 1].toFixed(2), p95: +a[Math.floor(a.length * 0.95)].toFixed(2), max: +a[a.length - 1].toFixed(2) } : null; };' +
+    ' const C = window.CLOUDS && CLOUDS.stats ? CLOUDS.stats : null, g = window.FLYDIY_GVIEW;' +
+    ' return JSON.stringify({ frame: st(dt), drawCpu: st(cpu), calls: st(calls), tris: st(tris), draws: cpu.length, programs: R.info.programs ? R.info.programs.length : null, geometries: R.info.memory.geometries, textures: R.info.memory.textures,' +
+    ' cloud: C ? { ms: +(+C.ms).toFixed(2), gpuMs: +(+C.gpuMs || 0).toFixed(2) } : null, scene: g ? { buildMs: g.buildMs, loadMs: g.loadMs } : null, canvas: [R.domElement.width, R.domElement.height] }); })()';
   try {
     META.gpu = rig.gpu; save();
     // ---- TODAY'S GARAGE, from the same eyes (the page boots in the shed) ---------------------------------------------------
@@ -205,7 +216,7 @@ const PAGE = `(() => {
           return JSON.stringify({ ok: true, here: P.doc().here, shell: P.doc().sheds[id].shell, base: sh.base, set }); } catch (e) { return JSON.stringify({ ok: false, why: e.message }); } })()`, 160000);
       const ROOMS = opt('rooms') ? opt('rooms').split(',') : null;   // (--rooms HOME: only these sheds' rooms)
       for (const TAG of TAGS) for (const Rm of S) { const shell = Rm.shell || 'club'; if (ROOMS && !ROOMS.includes(Rm.id)) continue;
-        if (TAG === 'gview') await rig.ev('window.FLYDIY_GVIEW_ON = true');
+        await rig.ev('window.FLYDIY_GVIEW_ON = ' + (TAG === 'gview' ? 'true' : 'false'));
         { const r = await roomAt(Rm.id, shell); log('garage: room ' + Rm.id + ' (' + shell + ') -> ' + JSON.stringify(r)); await rig.frames(60); await rig.settleLoad(); await rig.frames(120);
           if (!r || !r.ok) { META.steps['garage_' + TAG + '_' + shell] = { err: 'room ' + Rm.id + ': ' + (r && r.why) }; save(); continue; } }
         const I = await info(); log('garage ' + shell + ': ' + JSON.stringify(I)); if (!I || I.err) { META.steps['garage_' + TAG + '_' + shell] = I; continue; }
@@ -233,6 +244,8 @@ const PAGE = `(() => {
             await rig.ev('FLYDIY_ROOM_EYE(' + JSON.stringify([lx, ey, lz]) + ', ' + JSON.stringify(t) + ')'); await rig.frames(16);
             await gshot(VT + '_' + tm + '_' + shell + '_' + vn, { kind: 'garage', tag: VT, time: tm, shell, view: vn, eyeRoom: [lx, ey, lz], az: az === null ? +(a * 180 / Math.PI).toFixed(1) : az });
           }
+          if (argv.includes('--perf') && tm === TIMES[0]) { await rig.ev('FLYDIY_ROOM_EYE(' + JSON.stringify([-HD - 0.3, 1.7, 0]) + ', ' + JSON.stringify([-HD - 50, 0.7, 0]) + ')'); await rig.frames(60);
+            const pf = await JJ(PERF_JS, 60000); (META.steps.perf = META.steps.perf || {})[VT + '_' + shell + '_' + tm] = pf; save(); log('PERF ' + VT + ' ' + shell + ' ' + tm + ': ' + JSON.stringify(pf)); }
           }
           if (TAG === 'gview' && VARS.length > 1) { await rig.ev('Object.assign(GARAGE_VIEW.S, ' + JSON.stringify(S0G) + ')'); await rig.frames(30); }
         }

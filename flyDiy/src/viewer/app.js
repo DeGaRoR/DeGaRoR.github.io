@@ -1536,9 +1536,14 @@
   // GARAGE-VIEW (22 Nov): the cooked world out of the club hangar's and the large hangar's door (garage_view.js). OPT-IN while
   // the look is being judged (?gview=1; the user's rule: a look lands whole): the pack is fetched behind the room, the scene
   // stood when it lands (hangar.gviewFrom), the outdoors' materials taken into the sky's probe by one more bake
-  const gviewOn = () => { try { return !!window.FLYDIY_GVIEW_ON || /[?&]gview=1\b/.test(location.search || ''); } catch (e) { return false; } };   // (FLYDIY_GVIEW_ON: a rig's switch, the before and the after in one boot)
+  // ON wherever a room has a cooked scene (the user, 22 Nov, on the side by sides: "you may commit and push for inclusion"); ?gview=0 keeps the
+  // room's own hand-drawn outdoors. FLYDIY_GVIEW_ON: a rig's switch over both (true / false: the before and the after in one boot)
+  const gviewOn = () => { try { const w = window.FLYDIY_GVIEW_ON; return w === true || (w !== false && !/[?&]gview=0\b/.test(location.search || '')); } catch (e) { return false; } };
   const gviewPacks = new Map();   // a pack's base -> its load (one fetch a scene, shared by the rooms it serves)
-  let gviewFor = null;
+  let gviewFor = null, gviewJob = null;
+  // GARAGE_VIEW.prelink() -> the room's scene job (found, fetched, built held down, its programs linked by compileSliced, shown), GARAGE_VIEW.ready: for the
+  // boot's list (PERF-LEAD, 22 Nov: "not on the path of the first view ... through compileSliced ... one entry point I can call")
+  if (typeof GARAGE_VIEW !== 'undefined') { GARAGE_VIEW.ready = false; GARAGE_VIEW.prelink = () => { gviewTick(); return gviewJob || Promise.resolve(null); }; }
   // the clouds through the door by the game's own pass (aa's pre hook, the room's draws): the probe's level is put back first
   function gviewCloudPre(r, cam, rt, drawnScene) {
     if (!hangar || !hangar.gviewCloudCam || typeof CLOUDS === 'undefined') return;
@@ -1552,13 +1557,17 @@
   }
   function gviewTick() {
     if (!gviewOn() || !hangar || !hangar.gviewFrom || gviewFor === hangar || typeof GARAGE_VIEW === 'undefined') return;
-    gviewFor = hangar; const H = hangar;
-    GARAGE_VIEW.find(window.FLYDIY_WORLD, roomBase(), roomId()).then(row => { if (!row || hangar !== H) return null;
+    gviewFor = hangar; const H = hangar, tFind = performance.now(); GARAGE_VIEW.ready = false;
+    gviewJob = GARAGE_VIEW.find(window.FLYDIY_WORLD, roomBase(), roomId()).then(row => { if (!row || hangar !== H) return null;
       if (!gviewPacks.has(row.base)) gviewPacks.set(row.base, GARAGE_VIEW.load(((typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '') + row.base, THREE));
       return gviewPacks.get(row.base); })
-    .then(pack => { if (!pack || hangar !== H) return; const t0 = performance.now(), B = H.gviewFrom(pack);
-      if (B) window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(performance.now() - t0).toFixed(1), scene: B }; })   // (the scene carries its own light: no probe to bake)
-      .catch(e => { console.warn('flyDiy: the garage view -', e && e.message); });
+    // THE SCENE'S PROGRAMS LINK OFF THE FRAME: built held down, compileSliced (paced slices) over its group, then shown - never a link in the frame that shows it
+    .then(pack => { if (!pack || hangar !== H) return null; const t0 = performance.now(), B = H.gviewFrom(pack, true); if (!B) return null; const tB = performance.now();
+      return Promise.resolve(typeof compileSliced === 'function' ? compileSliced(B.group, aa && aa.target ? aa.target() : null, hangarScene) : null).catch(() => {})
+        .then(() => { if (hangar !== H) return null; H.gviewShow(); GARAGE_VIEW.ready = true;
+          // (loadMs: asked -> fetched, decoded, uploaded, 0 for a room whose scene was already loaded; linkMs: the programs, off the frame)
+          window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(tB - t0).toFixed(1), linkMs: +(performance.now() - tB).toFixed(0), loadMs: +(t0 - tFind).toFixed(0), scene: B }; return B; }); })
+      .catch(e => { console.warn('flyDiy: the garage view -', e && e.message); return null; });
   }
   let hoTry = 0;
   function hoTreesTick() {

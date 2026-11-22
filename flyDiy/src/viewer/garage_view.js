@@ -38,7 +38,10 @@ var GARAGE_VIEW = (() => {
     hemiUnder: 0.0,     // a gain of its own under a cloud, over the game's law (clouds.js hemiUnder, taken in update), 0 until judged
     gnd: [0.10, 0.11, 0.07],   // the land's mean albedo (linear): what the ground throws back up under a card or an eave (sky_light groundHalf)
     haze: 1.6,          // the haze's colour: the sky's mean radiance x this (the horizon is brighter than the mean)
-    hazeK: 5.5e-5,      // its density (1 / m): the far ridges fade into the sky as the game's aerial perspective fades them
+    env: 0.7,           // the sky's light by the world's environment map, over its hemisphere light (measured 22 Nov against the game's shots: the apron
+                        // 18 % short in blue, 4 % in red by day - what a second, sky-coloured ambient of 0.7 x the hemisphere's gives). BY DAY ONLY: it
+                        // fades with the sun (whole from 14 deg up, none under -2: at golden hour 0.45 measured best, at night it doubled the ground)
+    hazeK: 1.3e-4,      // its density (1 / m): the far ridges fade into the sky as the game's aerial perspective fades them
     unit: Math.PI,      // THE WORLD'S UNIT (render_world LIGHT_UNIT): the scene is lit as the world lights its ground. At the room's own unit (1) the
                         // shade fell into the tone curve's toe (22 Nov: the apron black under a cloud, where the game shows it blue-grey)
     cloudFar: 0.6,      // far from the shed the sun is the SKY's mean (1 - this x the cover), not the one cloud over the door: the game's cloud shadow is a patch
@@ -51,7 +54,7 @@ var GARAGE_VIEW = (() => {
                         // programs the flight draws with; 0 = the room's own cloud sphere (one march a pixel, no history: grainy)
     lamps: 2.5,         // the room's lamps on what stands outside the door (the light that spills out at night): a gain on their own candela
     treeCut: 0.40, treeAlpha: 6, treeSoft: 4,   // the cards' coverage by the game's own curve (render_world impostorMat: (a - cut) x gain + 0.5, softer far)
-    treeGain: 1.45,      // the cards' gain: the game lights a leaf by its environment too (measured 22 Nov at noon: the cards a third of the game's against the sky)
+    treeGain: 1.65,      // the cards' gain: the game lights a leaf by its environment too (measured 22 Nov at noon: the cards a third of the game's against the sky)
     shadow: 0.92,       // the shed's own shadow on the apron: this much of the SUN's share of the light goes (the sky's stays)
   };
   const NL = String.fromCharCode(10);
@@ -174,7 +177,7 @@ var GARAGE_VIEW = (() => {
       else if (M.kind === 'far') { mat = std({ map, alphaTest: M.alphaTest || 0.5, side: THREE.DoubleSide }); mat.alphaToCoverage = true; }   // the far band: the game's own pixels past 700 m, lit as ground is
       else mat = std(map ? { map } : { color: new THREE.Color(0.12, 0.13, 0.11) });
       const m = new THREE.Mesh(g, mat); m.name = 'gview:' + M.name; m.castShadow = false; m.receiveShadow = false; m.renderOrder = M.kind === 'decal' ? 3 : (M.order || 0);
-      m.matrixAutoUpdate = false; m.userData.gview = M.kind; group.add(m); tris += M.tris;
+      m.matrixAutoUpdate = false; m.userData.gview = M.kind; m.userData.progOwner = 'garage / door view / scene'; group.add(m); tris += M.tris;
     }
     // THE SHED'S OWN SHADOW ON THE APRON (the game's door view shows it; the room's key light only shadows the shed's box): the
     // shed's block (its eave box and its ridge) thrown along the light onto the apron - one dark fan, in the ROOM's frame, moved
@@ -222,7 +225,8 @@ var GARAGE_VIEW = (() => {
         // half, the world's exposure). A Lambert surface's share of a light is its intensity over pi.
         const W = L.world || null;
         if (W && W.sunC && W.hemiC) {
-          const a = W.sunI / PI, h = W.hemiI / PI, cH = L.isMoon ? 1 : cT, cF = L.isMoon ? 1 : Math.max(cH, 1 - S.cloudFar * Math.max(0, Math.min(1, +day.cloudCover || 0)));
+          const elS = Math.asin(Math.max(-1, Math.min(1, day.sun[1]))) * 180 / PI, eT = Math.max(0, Math.min(1, (elS + 2) / 16)), envK = L.isMoon ? 0 : S.env * eT * eT * (3 - 2 * eT);
+          const a = W.sunI / PI, h = W.hemiI / PI * (1 + envK), cH = L.isMoon ? 1 : cT, cF = L.isMoon ? 1 : Math.max(cH, 1 - S.cloudFar * Math.max(0, Math.min(1, +day.cloudCover || 0)));
           U.cloud.value.set(cH, cF, S.cloudR[0], S.cloudR[1]);
           U.sun.value.set(W.sunC[0] * a, W.sunC[1] * a, W.sunC[2] * a); U.sky.value.set(W.hemiC[0] * h, W.hemiC[1] * h, W.hemiC[2] * h); U.gnd.value.set(W.gndC[0] * h, W.gndC[1] * h, W.gndC[2] * h);
           const kw = (W.scale || 0) / PI * S.haze; U.haze.value.set(E[0] * kw, E[1] * kw, E[2] * kw, S.hazeK);
