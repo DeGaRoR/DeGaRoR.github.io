@@ -589,6 +589,10 @@ const GATES = [
   // PERF-WORLDBUILD (22 Nov 2026): the premises' patch sampled from the house worker's answers (?patchw=1) is the page's own,
   // byte for byte, every chunk read from the worker; the other families untouched. Two page processes one after the other
   { id: 'PATCHWORKER', file: '_patchworker_check.js', tier: 'core', wall: 300 },
+  // GATE COMPSTEPS (PERF-WORLDBUILD, 22 Nov): the premises composed in steps (?compsteps=1) are the premises composed in one
+  // task - the overlay's records, the world's aerodromes and every family built from them, byte for byte; the standing
+  // premises in force until the swap. Two page processes in node, ~4 min.
+  { id: 'COMPSTEPS', file: '_compsteps_check.js', tier: 'core', wall: 300 },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s

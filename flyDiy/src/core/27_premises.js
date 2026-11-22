@@ -2853,7 +2853,14 @@ function areaLabel(a) {
 // ---------------------------------------------------------------------------
 // compose — the overlay a world composes at its terrainH seam
 // ---------------------------------------------------------------------------
-function compose(rec0, world, opts) {
+// PERF-WORLDBUILD (22 Nov 2026): THE COMPOSITION IN STEPS. The game's second composition (the renderer's, with the
+// stations' builder and the tree pool) was ONE task of 2.6-2.9 s on the page's thread, the longest of the load. Its body
+// is a generator now: composeSteps yields a label where a stage or a zone ends (the stages' own boundaries, each site,
+// each zone's sowing, each forest zone) and RETURNS the overlay; nothing is shared with the caller before that return.
+// compose() drains it in one go: the same statements in the same order, the same overlay. A host that can spread the
+// work (20_world premises.setSteps, the world build under ?compsteps=1) runs it a slice at a time.
+function compose(rec0, world, opts) { const g = composeSteps(rec0, world, opts); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+function* composeSteps(rec0, world, opts) {
   const o = opts || {};
   const boundedRoads = o.boundedRoads !== false;
   // PERF-WORLDBUILD (22 Nov 2026): THE POLYGON BOUND IS THE DEFAULT. Codex's exact short-cut of 20 Nov (dEdgeOf: a paved polygon
@@ -2891,6 +2898,7 @@ function compose(rec0, world, opts) {
     typeof r.rail === 'string' && r.rail ? { rail: r.rail } : {}, typeof r.poles === 'string' && r.poles ? { poles: r.poles } : {},
     (+r.polesSide === 1 || +r.polesSide === -1) ? { polesSide: +r.polesSide } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
   const nAuth = mods.length;
+  yield 'premises: the runways';
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
   // a DERIVED tree exclude 30 m round the box, and the aerodrome record
@@ -2960,6 +2968,7 @@ function compose(rec0, world, opts) {
   }
   // (DIRT-STRIP) the micro strips published for STRIP_MICRO.at / puddleAt in the WORLD frame (the island's: nothing when none)
   if (typeof STRIP_MICRO !== 'undefined') STRIP_MICRO.publish(rec.id || 'premises', microStrips.map(q => ({ id: q.id, f: q.f, toLocal: (x, z) => F.toLocal(x, z) })));
+  yield 'premises: the roads';
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
   const JH = new Map();   // (G2950) a junction's height: the first road graded through it sets it
@@ -3063,6 +3072,7 @@ function compose(rec0, world, opts) {
     // (TOWN-ROAD-SIDES: roadGradeW - a traded street flat under all it draws, its grade's outer edge where it was)
     if (M) mods.push(M);
   }
+  yield 'premises: the shelves';
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
   const catS = o.catalogue || collect(o.globals || (typeof window !== 'undefined' ? window : {}));
   const T1s = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
@@ -3564,6 +3574,7 @@ function compose(rec0, world, opts) {
   const gsAddTo = (M, b, e) => { for (let i = Math.floor(b.x0 / GS_C), i1 = Math.floor(b.x1 / GS_C); i <= i1; i++) for (let j = Math.floor(b.z0 / GS_C), j1 = Math.floor(b.z1 / GS_C); j <= j1; j++) { const k = gsKey(i, j); let l = M.get(k); if (!l) M.set(k, l = []); l.push(e); } };
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
+  yield 'premises: the overlay';
   const O = {
     n: mods.length, nAuthored: nAuth, rec, stage: SV.staged ? { n: SV.n, tracks: SV.tracks } : null, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
     // G1385: the cover polygons' vegetation - vegAt(x, z) -> undefined (no polygon here) | null (none) | a mix name;
@@ -4265,6 +4276,7 @@ function compose(rec0, world, opts) {
     return best;
   }
 
+  yield 'premises: the placement';
   // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots
   // reject against the earlier ones; forest zones plant after every plot is known
   if (!o.noPlace) {
@@ -4320,6 +4332,7 @@ function compose(rec0, world, opts) {
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
     for (const st of rec.layers.sites) {
+      yield 'premises: a site';
       const S = placeSite(st, cat, ctx);
       for (const it of S.items) {
         O.records.items.push(it);
@@ -4330,7 +4343,9 @@ function compose(rec0, world, opts) {
       for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: st.id }); }   // (LOT-CLEAR: the woods too)
       for (const i of S.issues) O.records.issues.push(i);
     }
+    yield 'premises: the links';
     O.records.links = solveLinks(rec, O.records.items, 'placed');
+    yield 'premises: the built links';
     // phase B: the links that need the BUILT stations - only when the caller hands a builder (the
     // renderer does; the gate does under its stub); tramLine builds the pair itself, three passes
     const linksB = solveLinks(rec, O.records.items, 'built', { globals: o.globals || (typeof window !== 'undefined' ? window : {}), build: o.build || null, T: O.localH });
@@ -4338,6 +4353,7 @@ function compose(rec0, world, opts) {
     for (const L of O.records.links) for (const i of L.issues || []) O.records.issues.push(i);
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
+      yield 'premises: plots';
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
         { let n = 0; const zc = Object.assign({}, ctx, { waterY: zoneWaterY(z) });
           for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; if (plotCarOff(z, p.id)) p.noCar = true; O.records.plots.push(p); n++; }
@@ -4353,6 +4369,7 @@ function compose(rec0, world, opts) {
     // the slots' places); its lawn is a DERIVED flatten at the plan's level, cut here and joined to
     // the index, the park re-stood on the cut ground; the entry's fill names what stands in its
     // slots - each an item in placeSite's shape (so the renderer builds it like a site's)
+    yield 'premises: the parks';
     O.records.parks = [];
     {
       const globals = o.globals || (typeof window !== 'undefined' ? window : {});
@@ -4424,12 +4441,14 @@ function compose(rec0, world, opts) {
     // the tree pool, from a caller that hands the list or the function that makes it
     // (the renderer passes `o.pool()`, some callers pass `pool: () => []`); planForest
     // only ever indexed it and never noticed, the garden pass filters it and did
+    yield 'premises: the wood';
     const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes.concat(excl.filter(e => e.roadClear).map(e => e.poly)), plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
-      { const zc = Object.assign({}, tctx, { waterY: zoneWaterY(z) });
+      { yield 'premises: a wood'; const zc = Object.assign({}, tctx, { waterY: zoneWaterY(z) });
         for (const t of zoneMemoRun(ZM, 'forest', z.id, () => zmKey(z, zc, roadObjs, zc), () => planForest(z, zc))) O.records.trees.push(t); }
     O.zoneMemo = ZM ? { gen: ZM.gen, hits: ZM.hits, misses: ZM.misses } : null;   // (G2960)
+    yield 'premises: the records';
     // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
     // trees, I want to use the normal tree system, and just paint those zones ... never
     // any tree as fixture without its lod system, we take the normal ones, maybe alter
@@ -4832,7 +4851,7 @@ const API = { SURFACE_WX_NAMES, surfaceName, PREMISES_V, LAYERS, STAND_PAD, stan
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
-  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, composeSteps, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself

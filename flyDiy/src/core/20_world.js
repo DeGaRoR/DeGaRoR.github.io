@@ -500,12 +500,15 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     if (typeof window !== 'undefined' && window.FLYDIY_GROUND_RASTER !== undefined) return !!window.FLYDIY_GROUND_RASTER;
     return typeof process !== 'undefined' && !!process.env && process.env.FLYDIY_GROUND_RASTER === '1';
   }
-  function setPremises(rec0, extra) {
+  // (PERF-WORLDBUILD, 22 Nov: setPremises in three pieces - the standing premises dropped, the composition's arguments, the
+  //  new overlay taken - so that its stepped form below runs the SAME statements round a composition spread over slices)
+  function premisesDrop() {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
     aeroTreeBox = null;   // G1091: the aerodromes change with the premises
     if (typeof terrainClear === 'function') terrainClear();   // the ground moved (G407: the height memo)
-    if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
+  }
+  function premisesArgs(rec0, extra) {
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
@@ -516,7 +519,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     // composition's is read off the cook, the rest bake lazily as before. OFF BY DEFAULT: it moves flight
     // numbers (the ground within 0.04 mm of the lattice, the lattice within G614's tolerance of the analytic)
     const rasterOn = !!(opts && opts.groundRaster) || groundRasterFlag();
-    PM = PREMISES_GEN.compose(rec, baseWorld, Object.assign({ catalogue: cat, globals, raster: rasterOn }, opts && opts.rwyTrees ? { rwyTrees: opts.rwyTrees } : {}, extra || {}));   // the renderer hands its builder (the cable's phase B) and the tree pool
+    return { rec, o: Object.assign({ catalogue: cat, globals, raster: rasterOn }, opts && opts.rwyTrees ? { rwyTrees: opts.rwyTrees } : {}, extra || {}) };   // the renderer hands its builder (the cable's phase B) and the tree pool
+  }
+  function premisesTake(rec) {
     if (PM.rasterLoad && ISL && ISL.premCook && ISL.premCook.raster && PM.raster.on) PM.rasterCooked = PM.rasterLoad(ISL.premCook.raster);
     // (v1.33, G2300 STAGES: a record carrying stages is composed AS IT STANDS - the sandbox's view unless the caller
     // names the career's tracks - and that view is the record the renderer and the house worker read)
@@ -533,6 +538,26 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     if (ISL && PM.aerodromes.some(a => a.id === 'HOME')) { const i = aerodromes.findIndex(a => a.id === 'HOME' && !a.premises); if (i >= 0) aerodromes.splice(i, 1); }
     PM.aerodromes.forEach((a, i) => { aerodromes.push(a); if (typeof AIRFIELD_SITES !== 'undefined') { const st = PM.runways[i] && PM.runways[i].site; if (st) AIRFIELD_SITES[a.id] = st; else delete AIRFIELD_SITES[a.id]; } });
     return PM;
+  }
+  function setPremises(rec0, extra) {
+    premisesDrop();
+    if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
+    const a = premisesArgs(rec0, extra);
+    PM = PREMISES_GEN.compose(a.rec, baseWorld, a.o);
+    return premisesTake(a.rec);
+  }
+  // THE STEPPED FORM (PERF-WORLDBUILD, 22 Nov; the world build under ?compsteps=1): the new overlay is composed FIRST, a
+  // step a call (PREMISES_GEN.composeSteps: it reads the base world, the record and the caller's builder and pool - nothing
+  // of the premises that stand), and the STANDING premises stay in force meanwhile: a reader between two steps (a frame,
+  // the settle) sees a whole world, the one before. Then the swap, in one step: the drop and the take, as setPremises.
+  // The generator returns what setPremises returns.
+  function* setPremisesSteps(rec0, extra) {
+    if (!rec0 || typeof PREMISES_GEN === 'undefined' || !PREMISES_GEN.composeSteps) return setPremises(rec0, extra);
+    const a = premisesArgs(rec0, extra);
+    const PMn = yield* PREMISES_GEN.composeSteps(a.rec, baseWorld, a.o);
+    yield 'premises: the swap';
+    premisesDrop(); PM = PMn;
+    return premisesTake(a.rec);
   }
   if (opts && opts.premises) setPremises(opts.premises);
 
@@ -1408,7 +1433,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     climate,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live
     // (terrainH and the surface read PM at call time; the trees were placed once, at the make)
-    premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, base: baseWorld },
+    premises: { get overlay() { return PM; }, get rec() { return PMrec; }, set: setPremises, setSteps: setPremisesSteps, base: baseWorld },
     // THE COVER'S QUERY (contract v1.17, 2026-09-22): what the cover ring may plant at a world point -
     // null (the biome's own) or { kill, boost, kind, cls, grass }: the premises' answer where it has
     // one (its strips, roads, aprons, plots - 27_premises.js coverAt), else the analytic world's

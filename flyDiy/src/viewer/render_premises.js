@@ -109,25 +109,41 @@ function PREM_MATERIAL_RASTER(O, D, N, mb, MW, MH, slots) {
   }
   return any;
 }
+// the stations' builder for the cable solver: the generator's build, no finish (only the hooks are read)
+// G1400 (EDITOR-LAG): MEMOISED by the generator and its parameters - the cable's solver builds each station three
+// times a composition (its line angle converging) and reads only the hooks, and every edit's compose ran those six
+// house builds again on the same parameters (1.1 s of a taxi point's commit, headless). A build is a pure function
+// of (gen, P); the solver reads it and never writes it. Bounded: a long session's edits do not grow it
+// (PERF-WORLDBUILD, 22 Nov: the memo is the MODULE's now, not a renderer's - composeSteps below composes before a renderer
+//  exists and make() takes its overlay: the same builds, built once)
+const BUILT = new Map();
+const buildFor = r => {
+  const GEN = window[r.gen]; if (!GEN) return null;
+  const k = r.gen + '|' + JSON.stringify(r.P);
+  let b = BUILT.get(k);
+  if (b === undefined) { b = GEN.build(r.P, 0); if (BUILT.size >= 48) BUILT.clear(); BUILT.set(k, b); }
+  return b;
+};
+// PERF-WORLDBUILD (22 Nov 2026): THE GAME'S COMPOSITION IN STEPS (the world build under ?compsteps=1). make() composed
+// the record in its first lines: one task of 2.6-2.9 s, the load's longest. composeSteps(world, rec0, pool) is that same
+// composition - the record normalised as make does, the same builder, the pool taken as make takes it - through
+// world.premises.setSteps (20_world.js: a step a call, the standing premises in force until the swap); it RETURNS
+// { rec, O, pool }, which the host hands to make as opts.precomposed: make composes nothing then and wears exactly this
+// record and overlay. null where the world has no stepped setter: make composes as before.
+function* composeSteps(world, rec0, pool) {
+  if (!(world && world.premises && world.premises.setSteps && PG.composeSteps)) return null;
+  const rec = PG.normalise(rec0 || PG.DEF()), list = pool();
+  const O = (yield* world.premises.setSteps(rec, { build: buildFor, pool: list })) || PG.compose(rec, world.premises.base, { pool: pool(), globals: window, build: buildFor });
+  return { rec, O, pool: list };
+}
 function make(THREE, scene, world, rec0, opts) {
   const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null, game: false, editing: () => true, patchMat: null, patchUV: null }, opts || {});
-  let rec = PG.normalise(rec0 || PG.DEF());
-  // the stations' builder for the cable solver: the generator's build, no finish (only the hooks are read)
-  // G1400 (EDITOR-LAG): MEMOISED by the generator and its parameters - the cable's solver builds each station three
-  // times a composition (its line angle converging) and reads only the hooks, and every edit's compose ran those six
-  // house builds again on the same parameters (1.1 s of a taxi point's commit, headless). A build is a pure function
-  // of (gen, P); the solver reads it and never writes it. Bounded: a long session's edits do not grow it
-  const BUILT = new Map();
-  const buildFor = r => {
-    const GEN = window[r.gen]; if (!GEN) return null;
-    const k = r.gen + '|' + JSON.stringify(r.P);
-    let b = BUILT.get(k);
-    if (b === undefined) { b = GEN.build(r.P, 0); if (BUILT.size >= 48) BUILT.clear(); BUILT.set(k, b); }
-    return b;
-  };
+  let PRE = o.precomposed && o.precomposed.O && o.game && world.premises ? o.precomposed : null;   // (PERF-WORLDBUILD ?compsteps=1: composed in steps before this call - composeSteps above)
+  let rec = PRE ? PRE.rec : PG.normalise(rec0 || PG.DEF());
   // (G830: the tree pool the game's recompose took is kept - the house worker recomposes with the same, hwCompose)
   let composedPool = null;
   const composeNow = () => {
+    if (PRE) { const p = PRE; PRE = null; composedPool = p.pool; return p.O; }   // (once: the make's own; every later composition as before)
     if (o.game && world.premises) { composedPool = o.pool(); return world.premises.set(rec, { build: buildFor, pool: composedPool }) || PG.compose(rec, world.premises.base, { pool: o.pool(), globals: window, build: buildFor }); }
     composedPool = null;
     return PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
@@ -5360,7 +5376,7 @@ function make(THREE, scene, world, rec0, opts) {
   return R;
 }
 
-const API = { make, CHUNK, LAYER_COL, ZONE_COL };
+const API = { make, composeSteps, CHUNK, LAYER_COL, ZONE_COL };
 if (typeof window !== 'undefined') window.RENDER_PREMISES = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();
