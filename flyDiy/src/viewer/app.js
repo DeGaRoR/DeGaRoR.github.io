@@ -225,9 +225,14 @@
   //                  under the loading screen: the user's row 10, "the screen remains responsive").
   //   ?firstuse=1    first use paid OUTSIDE the frame where the game already waits for the links: after the lamp
   //                  pool's background compile (dusk, dawn) and for a material the draw guard held in flight.
+  //   ?cubelean=1    the hangar's reflection cube is shot WITHOUT the aeroplane and the editor's cage (bakeHangarEnv hides
+  //                  them, G62.3: "the aeroplane was in its own reflection probe"), yet every compile for that target
+  //                  keyed their materials too: 22 skin programs of ~206 KB linked for the cube, 2 ever drawn
+  //                  (PERF-TRACE, 22 Nov). With the flag a compile for the cube leaves the probe's hidden subjects out
+  //                  (not while the "craft in probe" light test is on, which draws them there).
   // (?lampsfixed=1 is render_premises.js's: the lamp pool's count kept by day.)
   const LABQ = k => typeof location !== 'undefined' && new RegExp('[?&]' + k + '(&|$)').test(location.search || '');
-  const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1') };
+  const LAB = { noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0 };
   if (LAB.noLogs && renderer.debug) renderer.debug.checkShaderErrors = false;
   if (typeof window !== 'undefined') window.FLYDIY_LAB = LAB;
   const groundCache = typeof GROUND_MATERIAL_CACHE !== 'undefined' && typeof location !== 'undefined' && /[?&]groundcache=[12](&|$)/.test(location.search || '')
@@ -1098,7 +1103,7 @@
   const ENV_BAKES = { oneShot: 0, slices: 0, jobs: 0, requests: 0 };
   if (typeof window !== 'undefined') window.FLYDIY_ENV_BAKES = () => Object.assign({ running: envSlice ? envSlice.step : -1 }, ENV_BAKES);
   function ensureEnvRT() {
-    if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+    if (!envRT && THREE.WebGLCubeRenderTarget) { envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType }); envRT.texture.name = 'hangar env cube'; }   // (the name: PERF-TRACE's program report reads the target by it; it reaches no shader and no key)
     return envRT;
   }
   // The cube excludes the subjects (and their lights), while the visible garage
@@ -22276,7 +22281,7 @@
   // BasicDepthPacking material, in the lit scene's light state, the caster's map / alphaTest / side copied on);
   // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
   // PROGRAMS holds it to the real shadow pass) and the helper is compiled with the world scene as its lit scene.
-  const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
+  const PLAIN_RT = () => { if (!PLAIN_RT.rt) { PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4); PLAIN_RT.rt.texture.name = 'depth warm-up'; } return PLAIN_RT.rt; };
   // G680: `sc` - the shed too (its boot's compile warmed the room for its two targets, not its shadow pass nor the
   // passes outside the scene: the garage's first frame linked them, 1.8 s cold); the far cascade is the world's alone
   // G991: `sliced` - the settings screen's: every pass through compileSliced (a task at a time). A shadows change re-keys
@@ -22449,8 +22454,12 @@
     if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
       return D(() => fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit));
     const reps = [], seen = new Set(), mats = new Set();
+    // (?cubelean=1: what the reflection cube never shows is not compiled for it - the probe's hidden subjects, whole)
+    let lean = null;
+    if (LAB.cubeLean && envRT && target === envRT && !craftInProbe) { lean = new Set(); for (const r of [craft, edSit, refSit, bpSit]) if (r && r.traverse) r.traverse(x => lean.add(x)); }
     D(() => sc.traverse(o => {
       if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.material) return;
+      if (lean && lean.has(o)) { LAB.cubeSkipped++; return; }
       const g = o.geometry;
       const gk = g && g.attributes ? Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.morphTargetsRelative ? 'r' : '') : '';
       const ok = (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '')

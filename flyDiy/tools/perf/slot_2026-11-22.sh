@@ -6,6 +6,7 @@
 # must not be lost if the window runs short:
 #   1. PASS 1 of the load matrix: every question once                       (tools/perf/rows/slot-2026-11-22-pass1.txt)
 #   2. THE JOURNEY with the registry on, then its freeze ledger             (PERF-TRACE: objectives 8 and 9)
+#   2b. the alpine rock scatter's orbit, on then off                        (MOUNTAIN-VEG)
 #   3. AUDIO-ROBUST's recordings (a cold load from the menu click, the stall blocks in flight)
 #   4. PASS 2 of the load matrix: the questions again, the other order, in the time that is left
 # Usage (from flyDiy/, at 14:00, once A0 has dropped the lock):
@@ -28,7 +29,7 @@ fi
 say "slot start, $MIN min, lab $LAB ($(cat "$LAB/flyDiy/version.json" 2>/dev/null))"
 
 # 1. pass 1 (its own cap: what the journey, audio and a useful pass 2 leave it)
-P1=${SLOT_P1_MIN:-88}
+P1=${SLOT_P1_MIN:-95}
 say "part 1: pass 1, cap $P1 min"
 LM_HELD=1 LM_DRY=$SLOT_DRY LM_BRIEF_ARGS="${LM_BRIEF_ARGS:---steps compile,frames,worldCompile --miss 1}" LM_BRIEF_LINES=${LM_BRIEF_LINES:-40} bash "$T/perf/load_matrix.sh" "$T/perf/rows/slot-2026-11-22-pass1.txt" "$OUT/pass1" $P1 2>&1 | tee -a "$LOG"
 
@@ -43,6 +44,21 @@ if [ $(left) -ge $(( JOURNEY_MIN + 5 )) ]; then
     [ -n "$J" ] && ( cd "$LAB/flyDiy" && nice -n 19 node tools/freeze_ledger.js "$J" --md "$OUT/journey/freezes.md" --show 60 ) 2>&1 | tail -20 | tee -a "$LOG"
   fi
 else say "part 2 SKIPPED: $(left) min left"; fi
+
+# 2b. MOUNTAIN-VEG's alpine rock scatter IN FLIGHT: the same two-minute orbit off the altiport, the scatter on (the
+#     build's default) then off (?alprocks=0). A load at the stand never goes above the tree line; this does.
+ORBIT_MIN=${SLOT_ORBIT_MIN:-7}
+for oq in on off; do
+  if [ $(left) -ge $(( ORBIT_MIN + 5 )) ]; then
+    say "part 2b: the alpine orbit, rocks $oq, cap $ORBIT_MIN min"
+    if [ -z "$SLOT_DRY" ]; then
+      OQ=; [ $oq = off ] && OQ="alprocks=0"
+      ( cd "$LAB/flyDiy" && timeout $(( ORBIT_MIN * 60 )) nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/alp_rocks_orbit.json --runner page --headed --live --size 5120x1271 ${OQ:+--q "$OQ"} --out "$OUT/orbit_rocks_$oq" --cap $(( ORBIT_MIN * 60 - 30 )) ) 2>&1 | tail -15 | tee -a "$LOG"
+      J=$(ls -t "$OUT"/orbit_rocks_$oq/*.flightlog.json 2>/dev/null | head -1)
+      [ -n "$J" ] && ( cd "$LAB/flyDiy" && nice -n 19 node tools/freeze_ledger.js "$J" --md "$OUT/orbit_rocks_$oq/freezes.md" --show 20 ) 2>&1 | tail -12 | tee -a "$LOG"
+    fi
+  else say "part 2b ($oq) SKIPPED: $(left) min left"; fi
+done
 
 # 3. AUDIO-ROBUST's recordings: its exact command goes in SLOT_AUDIO_CMD (run from the lab build's flyDiy/)
 AUDIO_MIN=${SLOT_AUDIO_MIN:-15}

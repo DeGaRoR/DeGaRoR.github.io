@@ -2,8 +2,8 @@
 # TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
 
 # ---- first: everything that helped in pass 1, together (EDIT THIS QUERY from pass 1's summary, during the journey) ----
-ALL_1       ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&pace=16 ; new ; H5K ; --rollout
-ALL_2       ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&pace=16 ; new ; H5K ; --rollout
+ALL_1       ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&pace=16 ; new ; H5K ; --rollout
+ALL_2       ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&pace=16 ; new ; H5K ; --rollout
 BASE_7      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
 
 # ---- pass 2: the same questions, the other order ----------------------------------------------------------------
@@ -11,7 +11,7 @@ BASE_4      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
 N2NOONFIX_2 ; D:/Dev/perf-lab-built ; day=night&lampsfixed=1 ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
 N2NOON_2    ; D:/Dev/perf-lab-built ; day=night ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
 DAYFIX_2    ; D:/Dev/perf-lab-built ; lampsfixed=1 ; new ; H5K ; --rollout
-WORLDALL_2  ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout
+WORLDALL_2  ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout
 SETTLE_2    ; D:/Dev/perf-lab-built ; settle=near ; new ; H5K ; -
 NEARFIRST_2 ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; -
 STRIPW_2    ; D:/Dev/perf-lab-built ; stripw=1 ; new ; H5K ; -
@@ -29,3 +29,6 @@ BIGCACHE_1  ; D:/Dev/perf-lab-built ; - ; big ; H5K ; --chrome --gpu-program-cac
 BIGCACHE_2  ; D:/Dev/perf-lab-built ; - ; big ; H5K ; --chrome --gpu-program-cache-size-kb=1048576 --chrome --gpu-disk-cache-size-kb=1048576
 PROGID0_2   ; D:/Dev/perf-lab-built ; progid=0 ; new ; H5K ; -
 REC0_1      ; D:/Dev/perf-lab-built ; rec=0 ; new ; H5K ; -
+CUBELEAN_2  ; D:/Dev/perf-lab-built ; cubelean=1 ; new ; H5K ; -
+WORKERS_2   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1 ; new ; H5K ; -
+ALPROCKS0_2 ; D:/Dev/perf-lab-built ; alprocks=0 ; new ; H5K ; -

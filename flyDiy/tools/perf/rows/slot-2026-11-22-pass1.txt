@@ -28,7 +28,7 @@ NEARFIRST_1 ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; --rollo
 # (on the box the worker may finish before the strips' stage: nothing is then held coarse. This row FORCES the landing path.)
 NEARHOLD_1  ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; --rollout --init-file tools/perf/init_striphold.js
 SETTLE_1    ; D:/Dev/perf-lab-built ; settle=near ; new ; H5K ; --rollout
-WORLDALL_1  ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout
+WORLDALL_1  ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout
 BASE_3      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
 # night, and the departure after the clock is set to noon in the garage (the 164-program burst), lamp pool as today / fixed
 NIGHT_1     ; D:/Dev/perf-lab-built ; day=night ; new ; H5K ; --rollout
@@ -43,9 +43,9 @@ GARAGE_2    ; D:/Dev/perf-lab-built ; profile=phone&gfx=gamer ; new ; H5K ; -
 HEADLESS_1  ; D:/Dev/perf-lab-built ; - ; new ; HL ; -
 # Game's perf-simplify (9b4130e40, L40K): the based planes + storage put back (the default holds them: the user's call)
 BASED_1     ; D:/Dev/perf-lab-built ; based=1 ; new ; H5K ; -
-# MOUNTAIN-VEG's alpine rock scatter (default on in its ref; ?alprocks=0 = off). UNCOMMENT only if its ref is in the lab
-# build: the load must not move (nothing of it is built before the reveal); its frames need an alpine orbit, not a load.
-#ALPROCKS0_1 ; D:/Dev/perf-lab-built ; alprocks=0 ; new ; H5K ; -
+# MOUNTAIN-VEG's alpine rock scatter (default on in its ref; ?alprocks=0 = off). Its ref IS in the lab build (8e6f87dae), so BASE
+# carries the scatter: the load must not move (nothing of it is built before the reveal); its frames need an alpine orbit, not a load.
+ALPROCKS0_1 ; D:/Dev/perf-lab-built ; alprocks=0 ; new ; H5K ; -
 # A RETURNING PLAYER (the 06:00 result: worldCompile 36 -> 4 s on a second visit, but the garage's 'compile' step 2 -> 10-20 s
 # and the load only 114 -> 93-106 s). The same three loads on the lab build, whose flight log names what 'compile' waits for.
 WARM_1      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
@@ -54,3 +54,8 @@ WARM_3      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; --rollout
 # WHAT THE RECORDING ITSELF COSTS (A0's captures, 07:00: garage 138 s with PERF-TRACE's registry on, 132 s with ?progid=0,
 # single runs): the registry off, against BASE. Every other row carries it, so an A/B on this build stays fair either way.
 PROGID0_1   ; D:/Dev/perf-lab-built ; progid=0 ; new ; H5K ; -
+# both workers (PERF-WORLDBUILD: the strips AND the premises patch's sampling asked of the house worker; node: 39 -> 21.8 s
+# of main thread). Read FLYDIY_PATCHW.waitMs and FLYDIY_STRIPW.waitMs first: the seconds the page slept on the worker.
+WORKERS_1   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1 ; new ; H5K ; -
+# the reflection cube's compile without what the cube never shows (22 skin programs keyed for it, 2 ever drawn)
+CUBELEAN_1  ; D:/Dev/perf-lab-built ; cubelean=1 ; new ; H5K ; -
