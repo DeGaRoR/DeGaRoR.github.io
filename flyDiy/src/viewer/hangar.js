@@ -2049,8 +2049,9 @@ if (!EXT) {
         const tm = new THREE.Mesh(tg, tyre); tm.name = 'room:tyres'; tm.receiveShadow = true; tm.renderOrder = 3; put(tm);
       }
       // the wooded hill: a polar grid over the hemicircle out of the door, the field's grass a shade darker
-      M.hill = gmat('grass005', 2, grassAlb, { roughness: 0.97, color: 0x7d8b6e });
-      macroise(M.hill, 70, 0.5);
+      // (GARAGE-FIXES 21 Nov: the user's picture showed the hill as a flat bright green - a forest floor's darker, broken tone)
+      M.hill = gmat('grass005', 2, grassAlb, { roughness: 0.98, color: 0x5c6a4c });
+      macroise(M.hill, 45, 0.62);
       const HR = 32, HA = 66, hp = [], hu = [], hi = [];
       for (let j = 0; j <= HR; j++) for (let i = 0; i <= HA; i++) {
         const r = HILL.r0 - 6 + (HILL.r1 - HILL.r0 + 6) * j / HR, a = -HILL.a + 2 * HILL.a * i / HA;
@@ -2071,12 +2072,13 @@ if (!EXT) {
       T.list.push({ x, z, y, s: sc, k: Math.floor(hr() * 97), yaw: Math.atan2(-x, -z) });
     };
     if (HOK === 'shed') {
-      for (let r = HILL.r0 + 6; r <= HILL.r1 - 12; r += 9) {
+      // (GARAGE-FIXES, the user 21 Nov: "they need to be further away": from 95 m - the door at 11 m, so ~84 m out of it - was 66 m)
+      for (let r = HILL.r0 + 35; r <= HILL.r1 - 10; r += 10) {
         const n = Math.ceil(2 * HILL.a * r / 6.5);
         for (let i = 0; i < n; i++) {
           const a = -HILL.a + 0.15 + (2 * HILL.a - 0.3) * (i + hr() * 0.8) / n, rr2 = r + (hr() - 0.5) * 5;
           const h = hillH(rr2, a); if (h <= 0.5 && rr2 > HILL.r0 + 10) continue;
-          plant(-rr2 * Math.cos(a), rr2 * Math.sin(a), Y_FIELD + h - 0.3, 0.85 + hr() * 0.5);
+          plant(-rr2 * Math.cos(a), rr2 * Math.sin(a), Y_FIELD + h - 0.3, 0.8 + hr() * 0.65);
         }
       }
     } else {
@@ -2556,6 +2558,9 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     const faceDown = EXT ? s < 0 : s > 0;
     const p = faceDown ? quad(a, b, c, d, PM) : quad(b, a, d, c, PM);
     p.castShadow = false;
+    // GARAGE-FIXES (the user 21 Nov: "doing something strange with the clouds too"): the room's panes draw AFTER the sky (0) and
+    // the room's cloud layer (1) - two transparent sheets sorted by their centres, the cloud dome's at the room's, painted over them
+    if (!EXT) p.renderOrder = 2;
     put(p);
     // THE KERB: a flat band inside the opening's edge, all four sides. Drawn as
     // quads in the slope's own plane rather than as boxes, because a box on a
@@ -4040,6 +4045,12 @@ function setLights(pick) {
 const SHED_FRAME_YAW = -Math.PI / 2;
 const LAMP_EX_CAP = 1.4;
 let skyPhys = false, skyBakedSun = null, cloudMesh = null;
+// GARAGE-FIXES (the user 21 Nov, the club at night: "severe shading issues with the ceiling windows ... they sort of light up in
+// the dark"): THE PANES' GLOW IS THE DAY'S LIGHT through a milky sheet. The mood row's `panel` kept 0.40 at night (0.43 at dusk)
+// and the sheet's own milky-yellow map glowed at it under the night's exposure; it is scaled now by the sun's height (none
+// under -6 deg, civil dusk; full from 6 deg) and a little by the cloud cover's transmittance, a 2 % floor (the night sky's own)
+let panelK = 1;
+const panelOfDay = (el, cloudT) => { if (!Number.isFinite(el)) return 1; const t = Math.max(0, Math.min(1, (el + 6) / 12)); return Math.max(0.02, t * t * (3 - 2 * t) * (0.55 + 0.45 * (Number.isFinite(cloudT) ? cloudT : 1))); };
 // HANGAR-VIEW C (the 8 Nov redesign): THE ROOM'S SKY IS THE WORLD'S AT THE HANGAR. The frame was one fixed quarter turn for every
 // room (SHED_FRAME_YAW) and the clouds were marched from the world's origin, so the sun and the clouds through the door lined up
 // with no real shed. app.js hands the room's node here (setSkyFrame): its yaw turns the dome, the cloud layer, the key and the
@@ -4080,6 +4091,8 @@ function applyDay(day, renderer) {
   // with 70 cd lamps is lit by its lamps, which were judged at the rows' exposure (~1.0); the cap
   // is that, half a stop over, so a golden hour still opens and the dusk and night hold the lamps' level
   const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, keyGain: cloudT, altM: 0, exposureCap: LAMP_EX_CAP });
+  panelK = panelOfDay(day.sunEl, cloudT);
+  if (MOODS[Math.max(0, moodI)] && !muted.panels) M.skyPanel.emissiveIntensity = MOODS[Math.max(0, moodI)].panel * panelK;
   // aim the key from the shed's frame, the frustum floor kept (see aimKey)
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
   dayDirShed[0] = s[0]; dayDirShed[1] = s[1]; dayDirShed[2] = s[2];
@@ -4156,7 +4169,7 @@ const setMood = i => {
   for (const [mat, e0] of ENV0) mat.envMapIntensity = e0 * (m.env / 0.55);
   BG.setHex(m.bg); FOG.color.setHex(m.bg);
   M.daylight.color.setHex(m.card);
-  M.skyPanel.emissiveIntensity = m.panel;
+  M.skyPanel.emissiveIntensity = m.panel * panelK;   // (the day's light: applyDay's panelK)
   // the registered emitters. The shop lamps' own shades follow the power knob,
   // because a shade that stays white-hot while its lamp is turned down is the
   // same lie the bulb used to tell.
@@ -4690,6 +4703,12 @@ return {
       const L = byK[k]; if (!L.length || !(sp.diam > 0)) return;
       const geo = new THREE.PlaneGeometry(sp.diam, sp.diam); geo.translate(0, sp.cy, 0);
       const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, sp.u0 + uv.getX(i) * (sp.u1 - sp.u0));
+      // GARAGE-FIXES (the user 21 Nov: "the trees all show their roots"): the sheet's level view shows each tree's root flare at its
+      // ground line - the card's foot is CUT 4 % of its height above that line (its bottom vertices raised, their v with them) and
+      // the card set down by the cut, so the trunk goes into the ground and no root is drawn
+      { const cut = 0.04 * sp.diam, bot = sp.cy - sp.diam / 2, ps = geo.attributes.position;
+        for (let i = 0; i < ps.count; i++) if (ps.getY(i) < sp.cy && bot < cut) { ps.setY(i, cut); uv.setY(i, (cut - bot) / sp.diam); }
+        geo.translate(0, -cut, 0); ps.needsUpdate = true; uv.needsUpdate = true; }
       const nr = geo.attributes.normal; for (let i = 0; i < nr.count; i++) nr.setXYZ(i, 0, 0.72, 0.69);
       const im = new THREE.InstancedMesh(geo, mat, L.length); im.name = 'room:trees:' + (sp.key || k);
       L.forEach((t, i) => { e.set(0, t.yaw, 0); q.setFromEuler(e); p.set(t.x, t.y, t.z); sc.setScalar(t.s); M4.compose(p, q, sc); im.setMatrixAt(i, M4); });
