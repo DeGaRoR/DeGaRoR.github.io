@@ -243,6 +243,39 @@ function houseWorkerBody(G, port) {
     port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
       mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0, strips: st.strips || 0, stripMs: Math.round(st.stripMs || 0) } });
   }
+  // PERF-WORLDBUILD (22 Nov): THE PATCH'S QUERIES (render_premises.js patchFieldsAsk). For every 2 m vertex of the chunks
+  // named (m.chunks: [ci, cj] of m.PCH metres, (m.n + 1)^2 vertices each, row by row as the page samples them): g - the
+  // ground's build read (world.terrainHBuild), q1 - O.pavedAt(x, z, m.sideR1), q2 - O.pavedAt(x, z) when the page sinks
+  // the patch under its pavements (m.sink). Answered m.batch chunks at a time: g dense (Float64), q1 / q2 SPARSE (the
+  // vertex's offset in the batch + the answer's six fields). The page applies its own laws to them; nothing is decided here.
+  function patch(m) {
+    const W = st.world, per = (m.n + 1) * (m.n + 1);
+    for (let b0 = 0; b0 < m.chunks.length; b0 += m.batch) {
+      if (m.epoch !== st.epoch || !st.O) { port.post({ cmd: 'patchf', epoch: m.epoch, seq: m.seq, b0, miss: 'stale' }); continue; }
+      const t0 = now(), O = st.O, cs = m.chunks.slice(b0, b0 + m.batch), g = new Float64Array(cs.length * per);
+      const mk = () => ({ idx: [], d: [], dPre: [], halfW: [], cls: [], kind: [], id: [] });
+      const put = (Q, k, a) => { Q.idx.push(k); Q.d.push(a.d); Q.dPre.push(a.dPre); Q.halfW.push(a.halfW); Q.cls.push(a.cls); Q.kind.push(a.kind); Q.id.push(a.id); };
+      const pack = Q => ({ idx: Uint32Array.from(Q.idx), d: Float64Array.from(Q.d), dPre: Float64Array.from(Q.dPre), halfW: Float64Array.from(Q.halfW), cls: Q.cls, kind: Q.kind, id: Q.id });
+      const q1 = mk(), q2 = m.sink ? mk() : null;
+      try {
+        if (m.wear && !W.setWearScales) throw new Error('no wear hook');
+        if (W.setWearScales) W.setWearScales(m.wear || null);
+        for (let c = 0; c < cs.length; c++) { const cx0 = cs[c][0] * m.PCH, cz0 = cs[c][1] * m.PCH;
+          for (let j = 0; j <= m.n; j++) for (let i = 0; i <= m.n; i++) {
+            const k = c * per + j * (m.n + 1) + i, x = cx0 + i * m.RES, z = cz0 + j * m.RES;
+            g[k] = W.terrainHBuild ? W.terrainHBuild(x, z) : W.terrainH(x, z);
+            const a = O.pavedAt ? O.pavedAt(x, z, m.sideR1) : null; if (a) put(q1, k, a);
+            if (q2) { const b = O.pavedAt(x, z); if (b) put(q2, k, b); }
+          } }
+        const P1 = pack(q1), P2 = q2 ? pack(q2) : null, tr = [g.buffer, P1.idx.buffer, P1.d.buffer, P1.dPre.buffer, P1.halfW.buffer].concat(P2 ? [P2.idx.buffer, P2.d.buffer, P2.dPre.buffer, P2.halfW.buffer] : []);
+        const ms = now() - t0; st.patchMs = (st.patchMs || 0) + ms; st.patchChunks = (st.patchChunks || 0) + cs.length; st.bytes += sizeOf(tr);
+        send({ cmd: 'patchf', epoch: m.epoch, seq: m.seq, b0, n: cs.length, g, q1: P1, q2: P2, ms }, tr);
+      } catch (e) { port.post({ cmd: 'patchf', epoch: m.epoch, seq: m.seq, b0, miss: 'error: ' + (e && e.message) }); }
+      finally { if (W.setWearScales) W.setWearScales(null); }
+    }
+    port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
+      mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0, strips: st.strips || 0, stripMs: Math.round(st.stripMs || 0), patchChunks: st.patchChunks || 0, patchMs: Math.round(st.patchMs || 0) } });
+  }
   // every array a packed result holds (the page takes them: nothing is copied back)
   function transfers(r) {
     const tr = [], seen = new Set();
@@ -254,7 +287,7 @@ function houseWorkerBody(G, port) {
   // returned promise is the harness's (tools/_page_node.js acks a message when it settles), a browser ignores it
   let chain = Promise.resolve();
   port.on(m => {
-    chain = chain.then(() => (m.cmd === 'init' ? init(m) : m.cmd === 'compose' ? compose(m) : m.cmd === 'jobs' ? jobs(m) : m.cmd === 'strips' ? strips(m) : null))
+    chain = chain.then(() => (m.cmd === 'init' ? init(m) : m.cmd === 'compose' ? compose(m) : m.cmd === 'jobs' ? jobs(m) : m.cmd === 'strips' ? strips(m) : m.cmd === 'patch' ? patch(m) : null))
       .catch(e => { st.err = String(e && e.message || e); port.post({ cmd: 'fail', why: st.err, stack: String(e && e.stack || '') }); });
     return chain;
   });
@@ -269,7 +302,7 @@ function houseWorkerSource(url) {
 // ---- THE PAGE'S SIDE ---------------------------------------------------------------------------------------------------
 const HOUSE_WORKER = (() => {
   const S = { on: false, why: 'not started', w: null, ready: false, failed: false, epoch: 0, composed: -1, stats: {}, got: 0, bytes: 0, initMs: 0, composeMs: 0, t0: 0 };
-  let onResult = null, onFail = null, onStrip = null, waiters = [];
+  let onResult = null, onFail = null, onStrip = null, onPatch = null, waiters = [];
   const W = typeof window !== 'undefined' ? window : {};
   const wake = () => { const w = waiters; waiters = []; for (const f of w) f(); };
   function off(why) { S.on = false; S.why = why; return null; }
@@ -322,6 +355,7 @@ const HOUSE_WORKER = (() => {
     else if (m.cmd === 'fail') { fail('the worker: ' + m.why); return; }
     else if (m.cmd === 'result') { S.got++; if (onResult) onResult(m); }
     else if (m.cmd === 'strip') { if (onStrip) onStrip(m); }   // (PERF-WORLDBUILD: a strip's geometry, render_world's)
+    else if (m.cmd === 'patchf') { if (onPatch) onPatch(m); }   // (...the patch's queries, render_premises')
     wake();
   }
   // the renderer's side: its composition (a new epoch), its batches of work, its results
@@ -335,7 +369,7 @@ const HOUSE_WORKER = (() => {
   const api = {
     start, compose, post,
     ok: () => S.on && !S.failed,
-    set onResult(f) { onResult = f; }, set onFail(f) { onFail = f; }, set onStrip(f) { onStrip = f; },
+    set onResult(f) { onResult = f; }, set onFail(f) { onFail = f; }, set onStrip(f) { onStrip = f; }, set onPatch(f) { onPatch = f; },
     // a promise that settles on the worker's next message (the town step waits on it instead of spinning)
     next: () => new Promise(res => { if (!S.on) res(); else waiters.push(res); }),
     stats: () => Object.assign({ on: S.on, why: S.why, ready: S.ready, failed: S.failed, results: S.got, initMs: Math.round(S.initMs), composeMs: Math.round(S.composeMs) }, S.stats),

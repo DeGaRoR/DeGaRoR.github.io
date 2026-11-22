@@ -586,6 +586,9 @@ const GATES = [
   // And NEAR FIRST (?nearfirst=1): the held strips stand coarse at the load, land one a task, each byte-equal to the inline
   // build, the end state one refined mesh a strip, unmerged. Two page processes one after the other
   { id: 'STRIPWORKER', file: '_stripworker_check.js', tier: 'core', wall: 480 },
+  // PERF-WORLDBUILD (22 Nov 2026): the premises' patch sampled from the house worker's answers (?patchw=1) is the page's own,
+  // byte for byte, every chunk read from the worker; the other families untouched. Two page processes one after the other
+  { id: 'PATCHWORKER', file: '_patchworker_check.js', tier: 'core', wall: 300 },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s

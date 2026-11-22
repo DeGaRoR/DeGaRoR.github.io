@@ -574,7 +574,8 @@ function make(THREE, scene, world, rec0, opts) {
   // the rails, the life, the cars) reads the cooked raster where its cell is cooked and the analytic composer elsewhere,
   // never a lazy bake: with the town on, these readers baked ~11 000 tiles over Metlakatla at every boot
   // (functions, not consts: heightAt is hoisted and the life's host can read it before this line runs)
-  function groundB(x, z) { return world.terrainHBuild ? world.terrainHBuild(x, z) : world.terrainH(x, z); }
+  function groundB(x, z) { if (PATCHF) return PATCHF.g;   // (PERF-WORLDBUILD ?patchw=1: the patch vertex being sampled - its build read came from the house worker)
+    return world.terrainHBuild ? world.terrainHBuild(x, z) : world.terrainH(x, z); }
   const waterB = world.waterHBuild || world.waterH;
   function heightAt(x, z) { return o.game ? groundB(x, z) : O.terrainH(x, z, world.terrainH(x, z)); }
   function buildChunk(i, j) {
@@ -731,12 +732,17 @@ function make(THREE, scene, world, rec0, opts) {
   // Everywhere else - the grass between and beside the pavements, a stand on grass - the patch IS the ground the eye
   // sees under a tyre, and it is drawn at terrainH. 0..drop, per point.
   const PATCH_LOT_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park'];
+  // PERF-WORLDBUILD (22 Nov 2026): THE PATCH'S QUERIES FROM THE HOUSE WORKER (?patchw=1, patchFieldsAsk below). While the
+  // patch's sampler is on a vertex whose answers the worker sent, PATCHF holds them: g - the build read of the ground there
+  // (world.terrainHBuild), q1 - O.pavedAt(x, z, PATCH_TUCK.sideR1), q2 - O.pavedAt(x, z). The laws below and in
+  // buildPatchSteps read them where they asked the core themselves; null (always, without the flag): they ask, as before.
+  let PATCHF = null;
   let lotZones = null;
   const lotChunks = new Map();
   function patchDrop(x, z) {
     const P = PATCH_TUCK;
     let k = 0;
-    const q = O.pavedAt ? O.pavedAt(x, z, P.sideR1) : null;
+    const q = PATCHF ? PATCHF.q1 : (O.pavedAt ? O.pavedAt(x, z, P.sideR1) : null);
     // (G2115: not under a grass road - PAVEMENT.translucent: its own tl margin, sinkAt's, is the gap; the 2 cm on top made it 9)
     if (q && !(typeof PAVEMENT !== 'undefined' && PAVEMENT.translucent && PAVEMENT.translucent(q.cls, q.kind))) { const d = q.dPre !== undefined ? q.dPre : q.d; if (d >= -P.sideR0) return P.drop; const t = (d + P.sideR1) / (P.sideR1 - P.sideR0); k = t * t * (3 - 2 * t); }
     if (!lotZones) {
@@ -814,6 +820,50 @@ function make(THREE, scene, world, rec0, opts) {
   // G680: the patch in slices (a chunk batch of the ground sampling, a block of the LODs, a yield each) - the
   // roll-out's world step drives it through rebuildSteps; an edit's rebuild runs it to the end at once
   function buildPatch() { const g = buildPatchSteps(); while (!g.next().done); }
+  // PERF-WORLDBUILD (22 Nov 2026): THE PATCH'S QUERIES OFF THE MAIN THREAD (?patchw=1, opt-in: the default samples here).
+  // The patch's 2 m sampling was 6.2 s of the world step on the page's thread (node), and half of it and more is three
+  // questions asked of the CORE at every one of its 3.1 M vertices: the ground's build read and the pavement at the point,
+  // twice (with the side's reach for the 2 cm drop, without for the sink). The house worker holds the page's composed world
+  // bit for bit, so the whole list of chunks is asked of it at the build's start (one message behind its composition) and it
+  // answers a batch of chunks at a time: the heights dense (Float64), the two pavement answers sparse (most vertices are on
+  // no pavement). The sampler below reads them through PATCHF and applies the SAME laws, here: every vertex is the float it
+  // was. A batch not in yet is waited for through the host's sleep (app.js FLYDIY_WORLD_WAIT); a miss, a stale answer (the
+  // soil's scales moved), the worker gone: the rest of the list is sampled here. A part build (an edit, the town later), a
+  // build no host sleeps for and a page without the worker sample here, as before. GATE PATCHWORKER: the patch byte for byte.
+  const PATCHW = { on: typeof location !== 'undefined' && /[?&]patchw=1(?:&|$)/.test(location.search || ''), seq: 0, asked: 0, used: 0, here: 0, batches: 0, workerMs: 0, waitMs: 0, why: null };
+  if (typeof window !== 'undefined' && o.game) window.FLYDIY_PATCHW = PATCHW;
+  function patchFieldsAsk(list, RES, n, sink) {
+    if (!PATCHW.on) { PATCHW.why = 'off'; return null; }
+    if (!(typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true)) { PATCHW.why = 'no host to wait'; return null; }
+    if (!hwOn() || !world.wearScales || !list.length) { PATCHW.why = 'no worker'; return null; }
+    const seq = ++PATCHW.seq, per = (n + 1) * (n + 1), BATCH = 32, got = new Map(), wearKey = JSON.stringify(world.wearScales());
+    let dead = false, cur = null;
+    HWK.onPatch = m => { if (m.seq === seq) { got.set(m.b0, m); PATCHW.batches++; PATCHW.workerMs += m.ms || 0; } };
+    if (!HWK.post({ cmd: 'patch', epoch: HWQ.epoch, seq, RES, n, PCH, batch: BATCH, sideR1: PATCH_TUCK.sideR1, sink: !!sink, wear: world.wearScales(), chunks: list.map(k => k.split(',').map(Number)) })) { PATCHW.why = 'post failed'; return null; }
+    PATCHW.asked = list.length; PATCHW.used = 0; PATCHW.here = 0; PATCHW.why = 'asked';
+    // a sparse answer -> the vertex's slot (-1: no pavement there) and one object a hit, shaped as O.pavedAt's
+    const open = Q => { const slot = new Int32Array(cur.n * per).fill(-1), obj = [];
+      if (Q) for (let t = 0; t < Q.idx.length; t++) { slot[Q.idx[t]] = t; obj.push({ d: Q.d[t], cls: Q.cls[t], halfW: Q.halfW[t], kind: Q.kind[t], id: Q.id[t], dPre: Q.dPre[t] }); }
+      return { slot, obj }; };
+    const H = { g: 0, q1: null, q2: null };   // (one holder, re-filled a vertex: 3 M objects would be the collector's)
+    return {
+      // chunk c's reader: set(k) fills the holder for its vertex k (j * (n + 1) + i); null - not in yet, or never
+      take(c) {
+        if (dead) return null;
+        const b0 = c - (c % BATCH);
+        if (!cur || cur.b0 !== b0) {
+          const m = got.get(b0); if (!m) return null;
+          got.delete(b0);
+          if (m.miss || !m.g || JSON.stringify(world.wearScales()) !== wearKey) { dead = true; PATCHW.why = m.miss ? 'miss: ' + m.miss : 'stale'; return null; }
+          cur = { b0, n: m.n, g: m.g }; cur.a = open(m.q1); cur.b = open(m.q2);
+        }
+        const base = (c - b0) * per, C = cur;
+        return { set(k) { const v = base + k, s1 = C.a.slot[v], s2 = C.b.slot[v]; H.g = C.g[v]; H.q1 = s1 < 0 ? null : C.a.obj[s1]; H.q2 = s2 < 0 ? null : C.b.obj[s2]; return H; } };
+      },
+      alive: () => !dead && hwOn(),
+      wait: () => HWK.next(),
+    };
+  }
   // part (G2063, TOWN-GEO): { A, blocks } - the blocks named made again on the active set A (the town's chunks joining the
   // patch, geoLaterSteps), each in place of the one standing; without, the whole patch (the town's left out while GEO.split)
   // the part build for an edit's box (premises frame): the active chunks now, the blocks whose chunks touch the box - and
@@ -890,17 +940,23 @@ function make(THREE, scene, world, rec0, opts) {
     const PAVs = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
     const pavR = PAVs && O.pavedAt ? PAVs.resolve(null, O.rec, null).recipe : null;
     let sinkQ = null;   // (G2115: the pavement sinkOf read last - the near level's sink reads it again)
-    const sinkOf = pavR ? (x, z) => { const q = sinkQ = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre, PAVs.translucent && PAVs.translucent(q.cls, q.kind) ? PAVs.SINK.tl : 0) : 0; } : null;   // (G2115: a grass road's margin)
+    const sinkOf = pavR ? (x, z) => { const q = sinkQ = PATCHF ? PATCHF.q2 : O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre, PAVs.translucent && PAVs.translucent(q.cls, q.kind) ? PAVs.SINK.tl : 0) : 0; } : null;   // (G2115: a grass road's margin)
     const sink0Of = q => sinkNear(q, pavR);   // G2115: the near level's (sinkNear, above)
     let sunk = 0;
     // G1528 (POTATO-DEEP): each sunk vertex's own drop, kept for the deeper sink a coarse patch needs (below, the blocks)
     const SK = sinkOf && PL.tolPx > 1 ? new Float32Array(list.length * per) : null;
     let Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, Y1 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
+    // (PERF-WORLDBUILD ?patchw=1) the core's answers for the whole list asked of the house worker; a chunk's are read below
+    const PWF = part ? null : patchFieldsAsk(list, RES, n, !!sinkOf);
     for (let c = 0; c < list.length; c++) {
       const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
       const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
-      for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+      let FW = null;
+      if (PWF) { const tW = performance.now(); while (!(FW = PWF.take(c)) && PWF.alive()) { window.FLYDIY_WORLD_WAIT = PWF.wait(); yield 'patch ground: its fields'; } PATCHW.waitMs += performance.now() - tW;
+        if (FW) PATCHW.used++; else PATCHW.here++; }
+      try { for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
         const v = c * per + j * (n + 1) + i, x = cx0 + i * RES, z = cz0 + j * RES;
+        if (FW) PATCHF = FW.set(j * (n + 1) + i);
         // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge (patchDepth, G752)
         const r = Math.min(1, patchDepth(x, z) / PATCH_TUCK.tuckW);
         // AT the ground (G1541), 2 cm under it only where a lot can be (patchDrop; G434.2 had the whole patch 2 cm under:
@@ -909,8 +965,9 @@ function make(THREE, scene, world, rec0, opts) {
         Y0[v] = groundB(x, z) - patchDrop(x, z) * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);   // (G1406: the build read)
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; if (SK) SK[v] = sk; }
         if (Y1 !== Y) Y1[v] = Y0[v] - sink0Of(sinkQ);   // G2115: the near level's
+        PATCHF = null;
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
-      }
+      } } finally { PATCHF = null; }
       if (part || (c & 7) === 7) yield 'patch ground';   // (G2063: a chunk a slice in flight)
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
