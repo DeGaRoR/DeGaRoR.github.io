@@ -18708,6 +18708,9 @@
     if (on) { try { flyOpenSet(null); } catch (e) {} }
     if (typeof placeIndicators === 'function') placeIndicators();
     if (photoHook) try { photoHook(on); } catch (e) { console.warn('flyDiy: photo mode -', e && e.message); }   // G3742
+    // PHOTO-ONE (the user 21 Nov: "ensure all UI elements are hidden like the cursor and the back button"): with the photo bar
+    // up (its Done, and Esc) the faint back button is not on the screen
+    shotBack.hidden = !on || photoOn;
     // the canvas re-insets through its CSS transition; measure at both ends
     setTimeout(resize, 0); setTimeout(resize, 220);
   }
@@ -19690,6 +19693,9 @@
                     eP: new THREE.Vector3(), eF: new THREE.Vector3() };
   const HEAD_LEVEL_K = 0.10;                                 // the head's tenth toward level
   const HEAD_BOX = { fwd: 0.28, aft: 0.14, up: 0.10, dn: 0.08, side: 0.22 };
+  // PHOTO-ONE (the user 21 Nov: "more camera freedom in interior view for screenshots"): in photo mode the head leans a metre
+  // and more (the cabin's length, its width, standing up) - a framing, not a flight's head
+  const HEAD_BOX_PHOTO = { fwd: 1.4, aft: 1.6, up: 0.7, dn: 0.45, side: 0.9 };
   const HEAD_SPEED = 0.45;                                    // m/s, a head leaning
   const HEADCAM_KEYS = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF']);
   // in flight in the cockpit view, or in the shed's interior preset
@@ -19730,9 +19736,10 @@
     // the box: along the pilot's own axes (forward is -x on every build
     // the join has made, but it is measured, not assumed)
     const along = o.dot(headCam.f), across = o.dot(headCam.r);
-    const alongC = Math.max(-HEAD_BOX.aft, Math.min(HEAD_BOX.fwd, along));
-    const acrossC = Math.max(-HEAD_BOX.side, Math.min(HEAD_BOX.side, across));
-    const yC = Math.max(-HEAD_BOX.dn, Math.min(HEAD_BOX.up, o.y));
+    const HB = (typeof photoOn !== 'undefined' && photoOn && typeof HEAD_BOX_PHOTO !== 'undefined') ? HEAD_BOX_PHOTO : HEAD_BOX;   // (PHOTO-ONE; typeof: a gate's extract of the head has no photo mode)
+    const alongC = Math.max(-HB.aft, Math.min(HB.fwd, along));
+    const acrossC = Math.max(-HB.side, Math.min(HB.side, across));
+    const yC = Math.max(-HB.dn, Math.min(HB.up, o.y));
     o.copy(headCam.f).multiplyScalar(alongC).addScaledVector(headCam.r, acrossC);
     o.y = yC;
     // the look: yaw about the model's up, then pitch about the turned right
@@ -20660,8 +20667,11 @@
     // it), downloads it as flydiy-<date>-<time>.png and brings the interface back. Esc leaves without a picture; a drag
     // frames the shot (the camera's, as always)
     const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: the flight paused, the camera free, a shutter');
-    const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0');
-      return 'flydiy-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
+    // PHOTO-ONE (the user 21 Nov: "the automatic saving and naming"): the picture is named after the aeroplane and the moment
+    const photoPlane = () => { let n = ''; try { n = (def && def.spec && def.spec.meta && (def.spec.meta.name || def.spec.meta.reg)) || (def && def.spec && def.spec.name) || ''; } catch (e) {}
+      return String(n).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32); };
+    const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0'), pl = photoPlane();
+      return 'flydiy-' + (pl ? pl + '-' : '') + (inGarage ? 'shed-' : '') + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
     const photoSave = blob => { if (!blob) return; const a = document.createElement('a'), u = URL.createObjectURL(blob);
       a.href = u; a.download = photoName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
     const flash = mk('div', 'photoFlash');
@@ -20682,17 +20692,40 @@
       '<div class="phActs"><button type="button" id="photoDone">Done</button><button type="button" id="photoShutter" aria-label="Take the picture" title="Take the picture"><i></i></button></div>';
     document.body.appendChild(pBar);
     let photoWas = null;
+    // PHOTO-ONE (the user 21 Nov: "could we integrate the garage screenshot mode and the world screenshot mode? I miss the ability to
+    // set FOV and to have a shutter in the garage mode"): ONE photo mode, the shed's and the flight's - the same bar, the same
+    // shutter, the same named picture. In the shed its rows are the shed's camera: the field of view (the shed's own, given back
+    // at Done) and the two framings, the room (drag to turn, the wheel to come closer) and inside (the crew's eye: WASD to lean,
+    // drag to look - a metre and more of room in photo mode)
+    const phRow = (body, label) => { const r = document.createElement('div'); r.className = 'phRow'; const l = document.createElement('span'); l.textContent = label; r.appendChild(l); body.appendChild(r); return r; };
+    const photoBuildShed = body => {
+      const rf = phRow(body, 'Field of view'), sl = document.createElement('input'), out = document.createElement('b');
+      sl.type = 'range'; sl.min = '15'; sl.max = '90'; sl.step = '1'; sl.value = String(Math.round(camera.fov)); out.textContent = Math.round(camera.fov) + '\u00b0';
+      sl.oninput = () => { camera.fov = +sl.value; camera.updateProjectionMatrix(); out.textContent = sl.value + '\u00b0'; };
+      rf.appendChild(sl); rf.appendChild(out);
+      const rv = phRow(body, 'View');
+      const vb = (t, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.className = 'phPick' + (on ? ' on' : ''); b.onclick = () => { fn(); photoBuild(); }; rv.appendChild(b); };
+      vb('The room', !edEye, () => { if (edEye) { const f = camera.fov; garageCamera(); camera.fov = f; camera.updateProjectionMatrix(); } });
+      vb('Inside', !!edEye, () => { if (!edEye) { const f = camera.fov; enterInterior(); camera.fov = f; camera.updateProjectionMatrix(); } });
+      flNote(body, edEye ? 'Inside: WASD / ZQSD to lean (a metre and more in photo mode), R / F up and down, drag to look.' : 'The room: drag to turn round the aeroplane, the wheel to come closer.');
+    };
     const photoBuild = () => {
       const body = $('photoBody'), keep = body.scrollTop;
       while (body.firstChild) body.removeChild(body.firstChild);
-      FL_BUILD.camera(body);
-      if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
+      if (inGarage) photoBuildShed(body);
+      else {
+        FL_BUILD.camera(body);
+        if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
+        if (cam.mode === 'cockpit') flNote(body, 'Inside: WASD / ZQSD to lean (a metre and more in photo mode), drag to look.');
+      }
+      flNote(body, 'Space takes the picture; H hides this bar (and shows it again).');
       body.scrollTop = keep;
     };
     const photoBegin = () => {
-      if (photoOn || inGarage) return;
-      photoOn = true; photoWas = { mode: cam.mode, fov: cam.fov, held: running };
-      if (running) gmHold(true);
+      if (photoOn) return;
+      photoOn = true; photoWas = { mode: cam.mode, fov: cam.fov, held: running, shed: inGarage, shedFov: camera.fov };
+      if (running && !inGarage) gmHold(true);
+      shotBack.hidden = true; photoIdleArm();
       photoBuild(); pBar.hidden = false;
       if (window.FLYDIY_DRAG) window.FLYDIY_DRAG.register('#photoBar', 'photo', { handle: '.phHead' });
     };
@@ -20700,7 +20733,9 @@
       if (!photoOn) return;
       photoOn = false; pBar.hidden = true;
       const w = photoWas; photoWas = null;
-      if (w) {
+      pBar.classList.remove('phHide'); document.body.classList.remove('phIdle'); clearTimeout(photoIdleT);
+      if (w && w.shed) { if (inGarage) { camera.fov = garageFov; camera.updateProjectionMatrix(); } }   // (the shed's own field of view back)
+      else if (w) {
         if (cam.mode !== w.mode) flCamMode(w.mode);
         if (cam.fov !== w.fov) { cam.fov = w.fov; flSave('Cam', cam); flApplyFov(); }
         if (w.held && !running && !inGarage) gmHold(false);
@@ -20709,6 +20744,17 @@
     photoHook = on => { if (on) photoBegin(); else photoEnd(); };
     const hook0 = flPageHook; flPageHook = () => { if (hook0) hook0(); if (photoOn) photoBuild(); };   // (a pick rebuilds it, as the flyout)
     $('photoShutter').onclick = () => photoTake();
+    // PHOTO-ONE: Space takes the picture, H hides the bar (an OS capture sees the frame alone); the cursor leaves the screen after
+    // a second and a half without moving (the user: "all UI elements are hidden like the cursor")
+    let photoIdleT = 0;
+    function photoIdleArm() { document.body.classList.remove('phIdle'); clearTimeout(photoIdleT); if (photoOn) photoIdleT = setTimeout(() => { if (photoOn) document.body.classList.add('phIdle'); }, 1500); }
+    window.addEventListener('mousemove', () => { if (photoOn) photoIdleArm(); }, { passive: true });
+    window.addEventListener('keydown', e => {
+      if (!photoOn || e.ctrlKey || e.metaKey || e.altKey) return;
+      const tg = e.target && e.target.tagName; if (tg === 'INPUT' && e.target.type !== 'range' || tg === 'TEXTAREA' || tg === 'SELECT') return;
+      if (e.code === 'Space') { e.preventDefault(); e.stopPropagation(); photoTake(); }
+      else if (e.code === 'KeyH') { e.preventDefault(); e.stopPropagation(); pBar.classList.toggle('phHide'); }
+    }, true);
     $('photoDone').onclick = () => shotSet(false);
     bShot.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v10.6H3.5Z"/><circle cx="12" cy="13.2" r="3.4"/></svg>';
     bShot.onclick = () => { gmOpen(false); shotSet(true); };   // photo mode (photoHook): the bar has the shutter and Done
