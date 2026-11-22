@@ -186,7 +186,7 @@ function run(WSsrc, files) {
   ok(/v4\('uG0', GR \? GR\.framePitch : 0, GR \? GR\.stringerPitch : 0/.test(files.skin), 'aeroskin.js: the metric stringers at the grammar\'s pitch');
   // NO PHYSICS, NO FLIGHT COST, NOT THE AEROPLANE
   ok(!/WING_STRUCT|wing_struct/.test(CORE), 'the core never names it');
-  ok(/'wing_struct\.js', 'garage\.js'/.test(files.build) && !/src\/core\/[^']*wing_struct/.test(files.build), 'build.js loads it with the viewer');
+  ok(/'wing_struct\.js', (?:'vehicle_kind\.js', )?'garage\.js'/.test(files.build) && !/src\/core\/[^']*wing_struct/.test(files.build), 'build.js loads it with the viewer');   // TOW-LAUNCH's vehicle_kind.js may sit between it and garage.js (L40g)
   ok(/function wsWreck\(D, K, o\) \{\s*if \(model\.wsRigs !== undefined/.test(files.app) && /if \(!D\.br\.some\(bi =>/.test(files.app), 'app.js builds it only at a broken wing member');
   ok((files.app.match(/wsWreck\(D, K, o\);/g) || []).length === 1 && files.app.indexOf('wsWreck(D, K, o);') > files.app.indexOf('function brkCage('), 'app.js: only brkCage asks for it');
   ok(/wsClear\(model\);/.test(files.app) && /wsClear\(BRK\.model\);/.test(files.app), 'app.js: the heal takes it away');
