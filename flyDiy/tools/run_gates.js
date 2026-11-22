@@ -996,6 +996,9 @@ const GATES = [
   // gear), a hull half again a fuselage's body row, a bare radial's fuselage less the form drag the engine pays; a
   // landplane, an inline engine and a measured cowl untouched.
   { id: 'DRAGROWS', file: '_dragrows_check.js', tier: 'core', wall: 60 },
+  // FUSELAGE-DRAG (2026-11-22): the drag laws that read the aeroplane as drawn, by their own properties - the body by
+  // its shape, the skin, the laminar shares, the legs, the heads, what sticks out, the junctions, a stated propeller cut
+  { id: 'SHAPEDRAG', file: '_shapedrag_check.js', tier: 'core', wall: 10 },
   // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
   // stand beside your build, held to their PUBLISHED span and length — every
   // measurement taken against a reference is worth exactly what that check is
