@@ -208,7 +208,7 @@ Smp rRock(vec3 P, vec3 nG){
     const chunks = new Map(), queue = [], inflight = new Map();
     const ST = { built: 0, workerMs: 0, workerLast: 0, mainMs: 0, verts: 0, tris: 0 };
     let worker = null, seq = 0, cx0 = NaN, cz0 = NaN, KIT0 = null;
-    try { if (typeof Worker !== 'undefined' && typeof ROCK_RING_CORE_SRC !== 'undefined') worker = new Worker(URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' }))); } catch (e) { worker = null; }
+    try { if (typeof Worker !== 'undefined' && typeof ROCK_RING_CORE_SRC !== 'undefined') worker = new Worker(URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' })), { name: 'terrain / rock ring / chunks' }); } catch (e) { worker = null; }
     const I = ctx.isla, IG = I && I.grid;
     const share = (x, z, code) => {   // the map's share of a type at (x, z): the 10 m type, bilinear on 'is it' (6 rock, 5 scree, 8 / 13 forest)
       if (!IG || !I.ttype) return 0; const fx = (x - IG.x0) / IG.cell - 0.5, fz = (z - IG.z0) / IG.cell - 0.5, i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
@@ -364,7 +364,7 @@ Smp rRock(vec3 P, vec3 nG){
       MT.tex.generateMipmaps = true; MT.tex.anisotropy = 4; MT.tex.needsUpdate = true;
       U.uTrMT.value = MT.tex;
       const NW = S.reachCap ? 1 : Math.max(1, Math.min(3, ((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4) - 2));   // (the phone tier: one)
-      try { if (worker) { const url = URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' })); for (let k = 0; k < NW; k++) mworkers.push(new Worker(url)); } } catch (e) { }
+      try { if (worker) { const url = URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' })); for (let k = 0; k < NW; k++) mworkers.push(new Worker(url, { name: 'terrain / rock ring / map tiles ' + (k + 1) })); } } catch (e) { }
     }
     const mtKey = () => [S.ndvi, S.ndviMid, S.off, S.hLo, S.hHi, S.jointDirt, S.wet, S.softGate].join(',');
     const mtInputs = (L, tx, tz) => {

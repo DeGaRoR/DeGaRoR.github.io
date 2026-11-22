@@ -541,7 +541,7 @@
       if (!FB.worker || typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL ||
           !W.PARKED || !W.PARKED.unwrap) return WK;
       const url = URL.createObjectURL(new Blob([workerSource()], { type: 'text/javascript' }));
-      const w = new Worker(url), pend = new Map();
+      const w = new Worker(url, { name: 'terrain / flown ground / bake' }), pend = new Map();
       let id = 0;
       const fail = why => { for (const q of pend.values()) q.rej(new Error(why)); pend.clear(); WK = false; try { w.terminate(); } catch (e) {} };
       w.onmessage = e => { const q = pend.get(e.data.id); if (!q) return; pend.delete(e.data.id); if (e.data.error) q.rej(new Error(e.data.error)); else q.res(e.data); };

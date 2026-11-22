@@ -36,7 +36,10 @@
 //   main thread   the page's thread was busy (the loop's recorded work + long tasks) for >= 70 % of the step
 //   programs      it ended with its last awaited program (the arrow above)
 //   network       it ended within 0.3 s of the last resource in flight during it
-//   not proven    none of these: it waited on something this log does not record (a worker, a timer, the GPU process)
+//   worker        it ended within 0.3 s (+ the 250 ms bucket) of a reply of a worker that had a request out for more
+//                 than half of it, and that is not in constant traffic (a log with the recorder's `workers` table)
+//   not proven    none of these: it waited on something this log does not record (a timer, the GPU process, a worker
+//                 in a log without the table)
 // A step's own seconds are its ELAPSED time. They add up to the load only along one screen's chain (boot.js runs a
 // screen's steps one after the other: that chain IS the critical path of that screen, by construction).
 'use strict';
@@ -132,6 +135,7 @@ function timeline(log, opt) {
     if (e.kind === 'longtask' && e.ms) { X(TASK, 'long task', e.t, e.ms, { ms: e.ms, attribution: e.d }); busyIv.push([e.t, e.t + e.ms]); }
     else if (e.kind === 'loaf' && e.ms) X('main: long animation frames', 'long animation frame: ' + String(e.d || '').split('; ').slice(1, 2).join('').slice(0, 90), e.t, e.ms, { ms: e.ms, scripts: e.d });
     else if (e.kind === 'gtask' && e.ms) X('main: named tasks', 'garage task: ' + e.d, e.t - e.ms, e.ms, { ms: e.ms });
+    else if (e.kind === 'wkmsg' && e.ms) { X('main: named tasks', 'worker reply handled: ' + e.d, e.t, e.ms, { ms: e.ms }); busyIv.push([e.t, e.t + e.ms]); }
     else if (e.kind === 'gc') I(TASK, 'heap drop: ' + e.d, e.t);
   }
 
@@ -172,7 +176,24 @@ function timeline(log, opt) {
     else if (e.kind === 'shaderslow') I('scene', 'shader watchdog: ' + String(e.d).slice(0, 100), e.t, { ms: e.ms });
     else if (e.kind === 'gfx' || e.kind === 'setting') I('scene', 'setting: ' + String(typeof e.d === 'string' ? e.d : JSON.stringify(e.d)).slice(0, 80), e.t);
   }
-  I('workers', 'NOT RECORDED: the page\'s workers (houses, forest, physics) leave no event in this log - a step waiting on one reads "not proven"', T0);
+  // THE WORKERS (the recorder's `workers`: every Worker made, by name, its traffic in buckets of bucketMs). A lane each:
+  // the stretches with a request still out ("waiting on it", to the bucket: +-250 ms), and its replies.
+  const WKS = Array.isArray(log.workers) ? log.workers.map(w => {
+    const B = w.bucketMs || 250, io = w.io || [], bk = [];
+    for (let i = 0; i + 4 < io.length; i += 5) bk.push({ t: io[i] * B, sent: io[i + 1], got: io[i + 2], ms: io[i + 3] || 0, open: io[i + 4] });
+    // out: [from, to) while a request was out - from the bucket that left one out to the next bucket with traffic
+    const out = []; for (let k = 0; k < bk.length; k++) { const b = bk[k]; if (!(b.open > 0)) continue; const to = k + 1 < bk.length ? bk[k + 1].t + B : (w.end != null ? w.end : b.t + B);
+      if (out.length && out[out.length - 1][1] >= b.t) out[out.length - 1][1] = Math.max(out[out.length - 1][1], to); else out.push([b.t, to]); }
+    return { n: w.n, name: w.name, t: w.t, end: w.end, B, bk, out, sent: w.sent, received: w.received, handlerMs: w.handlerMs, cut: !!w.cut };
+  }) : null;
+  if (!WKS) I('workers', 'NOT RECORDED: this log has no `workers` table (a build before PERF-TRACE 5, or ?recwk=0) - a step waiting on a worker reads "not proven"', T0);
+  else if (!WKS.length) I('workers', 'no Worker was made in this log', T0);
+  else for (const w of WKS) {
+    const ln = 'worker ' + String(w.n).padStart(2, '0') + ': ' + w.name;
+    I(ln, 'made', w.t, { sent: w.sent, received: w.received, handlerMs: w.handlerMs, truncated: w.cut }); if (w.end != null) I(ln, 'ended (terminate)', w.end);
+    for (const iv of w.out) X(ln, 'a request out (to the bucket: +-' + w.B + ' ms)', iv[0], iv[1] - iv[0], {});
+    for (const b of w.bk) if (b.got) I(ln, b.got + (b.got > 1 ? ' replies' : ' reply') + (b.ms >= 1 ? ', ' + r1(b.ms) + ' ms in the handler' : ''), b.t + w.B / 2, { sent: b.sent, received: b.got, handlerMs: r1(b.ms), stillOut: b.open });
+  }
 
   // ---- the loading steps, and what bound each ----------------------------------------------------------------------
   const deps = o.appSrc ? declaredDeps(o.appSrc) : new Map();
@@ -190,12 +211,23 @@ function timeline(log, opt) {
     else if (busy >= 0.7 * ms) { bound = 'main thread'; why = 'the page\'s thread was busy ' + r1(busy / 1000) + ' of its ' + r1(ms / 1000) + ' s (the loop\'s work + long tasks)'; }
     else if (lastP && !left && t1 - lastP.readyT <= 300) { bound = 'programs'; why = 'it ended with program #' + lastP.n + ' (' + who(lastP) + '), pending ' + r1((lastP.readyT - lastP.t) / 1000) + ' s'; }
     else if (lastR && t1 - lastR.t1 <= 300 && lastR.t1 - S.t0 > 0.5 * ms) { bound = 'network'; why = 'it ended with ' + String(lastR.name).split('/').pop().replace(/\?.*$/, '') + ' (' + lastR.kb + ' KB)'; }
-    else why = 'main thread busy ' + r1((busy || 0) / 1000) + ' s of ' + r1(ms / 1000) + '; ' + (awaited.length ? awaited.length + ' programs awaited' + (lastP ? ', the last ready ' + r1((t1 - lastP.readyT) / 1000) + ' s before its end' : '') + (left ? ', ' + left + ' still pending at its end' : '') : 'no program awaited') +
-      (res.length ? '; ' + inFlight.length + ' fetches in flight' : '; network not recorded') + '; workers not recorded';
+    // a worker: one whose reply falls at the step's end (within 300 ms + its bucket), that had a request out for more
+    // than half of the step, and that is not in constant traffic (at most one reply a second over the step: a worker
+    // that answers every frame is at every step's end, and proves nothing)
+    const wkIn = (WKS && t1 != null) ? WKS.map(w => { const outMs = unionLen(w.out.map(iv => clip(iv[0], iv[1], S.t0, t1)).filter(Boolean));
+      const got = w.bk.filter(b => b.got && b.t + w.B > S.t0 && b.t < t1), last = got[got.length - 1] || null, replies = got.reduce((a, b) => a + b.got, 0);
+      return { w, outMs, replies, last, atEnd: !!last && t1 - (last.t + w.B) <= 300, chatty: replies > Math.max(3, ms / 1000) }; }).filter(x => x.outMs > 0 || x.replies) : [];
+    const wkEnd = wkIn.filter(x => x.atEnd && !x.chatty && x.outMs > 0.5 * ms).sort((a, b) => b.outMs - a.outMs)[0] || null;
+    const wkNote = !WKS ? 'workers not recorded' : !wkIn.length ? 'no worker had a request out' :
+      'workers: ' + wkIn.sort((a, b) => b.outMs - a.outMs).slice(0, 3).map(x => x.w.name + ' (a request out ' + r1(x.outMs / 1000) + ' s, ' + x.replies + ' replies' + (x.chatty ? ', constant traffic' : x.last ? ', the last ' + r1(Math.max(0, t1 - x.last.t - x.w.B) / 1000) + ' s before its end' : '') + ')').join(', ');
+    if (bound === 'not proven' && wkEnd) { bound = 'worker'; why = 'it ended with a reply of ' + wkEnd.w.name + ' (a request out for ' + r1(wkEnd.outMs / 1000) + ' of its ' + r1(ms / 1000) + ' s; replies are timed to ' + wkEnd.w.B + ' ms)'; }
+    else if (bound === 'not proven') why = 'main thread busy ' + r1((busy || 0) / 1000) + ' s of ' + r1(ms / 1000) + '; ' + (awaited.length ? awaited.length + ' programs awaited' + (lastP ? ', the last ready ' + r1((t1 - lastP.readyT) / 1000) + ' s before its end' : '') + (left ? ', ' + left + ' still pending at its end' : '') : 'no program awaited') +
+      (res.length ? '; ' + inFlight.length + ' fetches in flight' : '; network not recorded') + '; ' + wkNote;
     const label = labels.get(S.id) || '';
     const row = { set: S.set, id: S.id, label, startS: r1(S.bootT / 1000), endS: S.ms == null ? null : r1((S.bootT + S.ms) / 1000), s: S.ms == null ? null : r1(S.ms / 1000), bound, why,
       mainBusyS: busy == null ? null : r1(busy / 1000), programsSubmitted: t1 == null ? null : progs.filter(p => p.t >= S.t0 && p.t < t1).length, programsAwaited: awaited.length, programsStillPending: left,
-      lastProgram: lastP ? { n: lastP.n, owner: who(lastP), readyBeforeEndS: r1((t1 - lastP.readyT) / 1000), pendingS: r1((lastP.readyT - lastP.t) / 1000) } : null, fetchesInFlight: res.length ? inFlight.length : null, deps: deps.get(S.id) || null };
+      lastProgram: lastP ? { n: lastP.n, owner: who(lastP), readyBeforeEndS: r1((t1 - lastP.readyT) / 1000), pendingS: r1((lastP.readyT - lastP.t) / 1000) } : null,
+      workers: WKS ? wkIn.map(x => ({ name: x.w.name, requestOutS: r1(x.outMs / 1000), replies: x.replies, constantTraffic: x.chatty, replyAtEnd: x.atEnd })) : null, fetchesInFlight: res.length ? inFlight.length : null, deps: deps.get(S.id) || null };
     stepOut.push(row);
     if (t1 != null) {
       X(ln, S.id + (label ? '  ' + label : ''), S.t0, Math.max(ms, 0.05), row, 'loading');
@@ -216,7 +248,9 @@ function timeline(log, opt) {
     network: resFrom || 'not recorded', criticalPath: 'a screen\'s steps run one after the other (boot.js): that chain is its critical path by construction; INSIDE a step only the arrows are proven' } };
   const summary = { kind: 'flydiy-load-timeline', v: 1, log: o.logFile || null, build: H.build || null, gpu: (H.gpu || {}).unmaskedRenderer || null, bootT0: T0, milestones: miles, screens, steps: stepOut,
     heavyPrograms: heavy.map(p => ({ n: p.n, owner: who(p), pendingS: r1((p.readyT - p.t) / 1000), shareS: r1(p.share / 1000) })), lanes: [...lanes.keys()], arrows: flowN, events: TE.length,
-    notRecorded: ['workers'].concat(res.length ? [] : ['network']).concat(progs.length ? [] : ['programs']) };
+    workers: WKS ? WKS.map(w => ({ n: w.n, name: w.name, madeS: r1((w.t - T0) / 1000), endedS: w.end == null ? null : r1((w.end - T0) / 1000), sent: w.sent, received: w.received, handlerMs: w.handlerMs,
+      requestOutS: r1(unionLen(w.out.slice()) / 1000), truncated: w.cut })) : null,
+    notRecorded: (WKS ? [] : ['workers']).concat(res.length ? [] : ['network']).concat(progs.length ? [] : ['programs']) };
   return { trace, summary };
 }
 
@@ -229,6 +263,9 @@ function text(S) {
   L.push(''); L.push('THE STEPS (each named as the game names it; bound = what held its end, where the log proves it)');
   L.push('  ' + pad('screen:step', 24) + lp('start', 7) + lp('s', 7) + lp('busy s', 8) + lp('progs', 6) + '  ' + pad('bound', 12) + 'why');
   for (const s of S.steps) if (s.s == null || s.s >= 0.3) L.push('  ' + pad(s.set + ':' + s.id, 24) + lp(s.startS, 7) + lp(s.s, 7) + lp(s.mainBusyS, 8) + lp(s.programsAwaited, 6) + '  ' + pad(s.bound.toUpperCase(), 12) + s.why);
+  if (S.workers && S.workers.length) { L.push(''); L.push('THE WORKERS (made on the page; "request out" = sent more than it had answered, to 250 ms; what a worker computes is not measured)');
+    L.push('  ' + lp('made', 7) + lp('ended', 7) + lp('sent', 7) + lp('recv', 7) + lp('out s', 8) + lp('handler ms', 12) + '  name');
+    for (const w of S.workers) L.push('  ' + lp(w.madeS, 7) + lp(w.endedS == null ? '-' : w.endedS, 7) + lp(w.sent, 7) + lp(w.received, 7) + lp(w.requestOutS, 8) + lp(w.handlerMs, 12) + '  ' + w.name + (w.truncated ? '  (TRUNCATED: over 68 min of traffic)' : '')); }
   if (S.notRecorded.length) { L.push(''); L.push('NOT RECORDED in this log: ' + S.notRecorded.join(', ') + ' - a wait on one of them reads "not proven", never "shaders" or "world"'); }
   return L.join('\n');
 }

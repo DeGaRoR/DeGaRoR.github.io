@@ -6,6 +6,7 @@
 // A material is where a WebGL program comes from. This reads src/ for every site that makes one:
 //     new THREE.<X>Material( ... )      (and the aliases T. / TH. / THREE_.)
 //     MATLIB.make( ... ) / MATLIB.shared( ... ) / MATLIB.arr.material({ ..., owner: '...' })
+//     <any alias of MATLIB>.make(THREE, '<shape>', ...) / .shared(THREE, '<shape>', ...)
 // and holds each to ONE of the accepted declarations of its owner ('feature / system / variant'):
 //   inline    `progOwner` inside the call's own arguments:  new THREE.MeshBasicMaterial({ userData: { progOwner: '...' }, ... })
 //             or MATLIB.make / shared's owner argument (matlib.js writes userData.progOwner, outside the share signature)
@@ -26,7 +27,10 @@ const fs = require('fs'), path = require('path');
 const SRC = path.join(__dirname, '..', 'src');
 // (the third form: a class chosen in the call - `new (phys ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial)({` - AEROSKIN's own)
 // (any alias of three: THREE., T., TH., THREE3. ... - gps_face.js's `new THREE3.` was missed by a list of names, 22 Nov)
-const SITE = /\bnew\s+[A-Za-z_$][\w$]*\.(\w*Material)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(|\bnew\s*\([^()]*\bTHREE\.\w*(Material)\s*\)\s*\(/g;
+// (the fourth: MATLIB reached through an alias - `(typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', {`,
+//  `ML.make(`, `lib.shared(`, `M.shared(T, 'std', {` - 26 sites the first retrofit never saw: the houses' walls, the scars, the hangar's
+//  view. Told from another module's make() by its arguments: three first, then the shape as a string.)
+const SITE = /\bnew\s+[A-Za-z_$][\w$]*\.(\w*Material)\s*\(|\bMATLIB\.(make|shared|arr\.material)\s*\(|\bnew\s*\([^()]*\bTHREE\.\w*(Material)\s*\)\s*\(|(?<!\bMATLIB)\.(make|shared)\s*\((?=\s*[A-Za-z_$][\w$.]*\s*,\s*['\"`])/g;
 
 function walk(dir, out) {
   for (const f of fs.readdirSync(dir)) { const p = path.join(dir, f), st = fs.statSync(p);
@@ -66,12 +70,12 @@ function scanFile(file) {
   while ((m = SITE.exec(code))) {
     const at = m.index, open = at + m[0].length - 1, close = closeOf(src, open), line = lineAt[at];
     const args = close > open ? src.slice(open + 1, close) : '';
-    const kind = m[1] ? m[1] : m[2] ? 'MATLIB.' + m[2] : '(class chosen in the call)';
+    const kind = m[1] ? m[1] : m[2] ? 'MATLIB.' + m[2] : m[4] ? 'MATLIB.' + m[4] + ' (through an alias)' : '(class chosen in the call)';
     let how = null, owner = null;
     const own = /(?:progOwner|\bowner)\s*:\s*(['"`])((?:(?!\1).)*)\1/.exec(args) || /(?:progOwner|\bowner)\s*:\s*([^,}\n]+)/.exec(args);
     if (own) { how = 'inline'; owner = own[2] !== undefined ? own[2] : '(' + own[1].trim() + ')'; }
     // MATLIB's owner argument: make(THREE, shape, params, owner) / shared(THREE, shape, params, scope, owner): a last string argument
-    if (!how && m[2]) { const tail = /,\s*(['"`])((?:(?!\1).)*? \/ (?:(?!\1).)*)\1\s*$/.exec(args); if (tail) { how = 'inline'; owner = tail[2]; } }
+    if (!how && (m[2] || m[4])) { const tail = /,\s*(['"`])((?:(?!\1).)*? \/ (?:(?!\1).)*)\1\s*$/.exec(args); if (tail) { how = 'inline'; owner = tail[2]; } }
     if (!how) {   // wrapped: ... own( <site> , 'owner' )
       const before = code.slice(Math.max(0, at - 40), at), after = src.slice(close + 1, close + 400);
       const w = /\bown\(\s*$/.exec(before), a = /^\s*,\s*(['"`])((?:(?!\1).)*)\1/.exec(after) || /^\s*,\s*([^)\n]+)\)/.exec(after);
@@ -114,7 +118,7 @@ function ownerOK(o) {
   const p = String(o).split(' / ');
   return p.length >= 2 && p.length <= 4 && p.every(x => x.trim().length > 0) && FEATURES.indexOf(p[0].replace(/^shadow pass$/, 'shadow pass')) >= 0;
 }
-module.exports = { scan, scanFile, closeOf, codeOnly, shipped, FEATURES, ownerOK };
+module.exports = { scan, scanFile, closeOf, codeOnly, shipped, walk, SRC, FEATURES, ownerOK };
 
 if (require.main === module) {
   const argv = process.argv.slice(2), R = scan(), S = R.sites;

@@ -301,5 +301,96 @@ function runCensus(ok) {
     }
   }
 }
-module.exports = { run, runSites, runCensus, boot, world, warm };
-if (require.main === module) { let fails = 0; runSites((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); run((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); process.exit(fails ? 1 : 0); }
+// ---- 9: THE WORKERS SAY WHO THEY ARE, AND THE LOG KEEPS THEIR TRAFFIC (PERF-TRACE 5) ----------------------------------
+// A loading step that waits on a worker read "not proven": the recorder now counts every Worker the page makes
+// (flight_recorder.js: THE WORKERS). 9a: every `new Worker(` of the game's source gives it a name (the constructor's
+// standard `name` option), feature first. 9b: the wrapper on a fake page - the worker is the page's own object, its
+// messages pass untouched, the traffic lands in buckets, a slow reply handler is an event, and ?recwk=0 / ?rec=0 leave
+// the page's Worker alone. 9c: the timeline names a step that ends with a worker's reply, and never a worker in
+// constant traffic.
+function runWorkers(ok) {
+  const PS = require('./program_sites.js');
+  // 9a
+  const sites = [];
+  for (const p of PS.walk(PS.SRC, []).sort().concat(PS.shipped())) {
+    const raw = fs.readFileSync(p, 'utf8'), code = PS.codeOnly(raw), re = /\bnew\s+(?:[A-Za-z_$][\w$]*\.)?Worker\s*\(/g; let m;
+    while ((m = re.exec(code))) { const open = m.index + m[0].length - 1, close = PS.closeOf(raw, open), args = close > open ? raw.slice(open + 1, close) : '';
+      const nm = /,\s*\{\s*name:\s*'([^']+)'/.exec(args);
+      sites.push({ file: path.relative(ROOT, p).replace(/\\/g, '/'), line: raw.slice(0, m.index).split('\n').length, name: nm ? nm[1] : null }); }
+  }
+  const un = sites.filter(s => !s.name), badF = sites.filter(s => s.name && PS.FEATURES.indexOf(s.name.split(' / ')[0]) < 0);
+  ok(sites.length >= 10, '9a the scan finds the game\'s Worker sites (src/ and the shipped tools)', sites.length + ' sites in ' + new Set(sites.map(s => s.file)).size + ' files');
+  ok(un.length === 0, '9a every Worker is made with a name (new Worker(url, { name: \'feature / system / what\' }))', un.length ? 'UNNAMED: ' + un.map(s => s.file + ':' + s.line).join(', ') : sites.map(s => s.name).join(' | '));
+  ok(badF.length === 0, '9a every worker\'s name begins with one of the table\'s features', badF.map(s => s.file + ':' + s.line + ' "' + s.name + '"').join(', ') || undefined);
+
+  // 9b
+  const page = search => {
+    const T = { now: 1000 }, made = [];
+    class FakeWorker {
+      constructor(url, opts) { this.url = url; this.opts = opts; this.argc = arguments.length; this.L = []; this.on = null; this.posted = []; this.dead = 0; made.push(this); }
+      postMessage(m, tr) { this.posted.push([m, tr]); return 'posted'; }
+      terminate() { this.dead++; }
+      addEventListener(k, f) { if (k === 'message') this.L.push(f); }
+      get onmessage() { return this.on; } set onmessage(f) { this.on = f; }
+      reply(data) { const e = { data }; for (const f of this.L) f.call(this, e); if (this.on) return this.on.call(this, e); }
+    }
+    const ctx = { console, performance: { now: () => T.now, timeOrigin: 0 }, setTimeout, clearTimeout, requestAnimationFrame: () => 0, cancelAnimationFrame: () => {},
+      navigator: { userAgent: 'node' }, location: { search: search || '', pathname: '/gate' }, Worker: FakeWorker };
+    ctx.globalThis = ctx; ctx.window = ctx; ctx.self = ctx; vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flight_recorder.js'), 'utf8').replace(/^'use strict';/m, ''), ctx, { filename: 'flight_recorder.js' });
+    return { ctx, T, made, FakeWorker, FR: ctx.FLIGHT_REC };
+  };
+  {
+    const P = page(''), { ctx, T, FR } = P;
+    ok(ctx.Worker !== P.FakeWorker && ctx.Worker.prototype === P.FakeWorker.prototype, '9b the page\'s Worker is wrapped, on the same prototype');
+    const w = new ctx.Worker('blob:a', { name: 'town / houses / builder' }), bare = new ctx.Worker('blob:b');
+    ok(w instanceof P.FakeWorker && w === P.made[0] && w.opts.name === 'town / houses / builder' && bare.argc === 1,
+       '9b new Worker() gives the page\'s own worker object, made with the very arguments of the site (one argument stays one)');
+    const seen = []; const h = function (e) { seen.push([this === w, e.data]); if (e.data === 'slow') T.now += 20; return 'handled'; };
+    w.onmessage = h;
+    const msg = { job: 1 }, tr = [new ArrayBuffer(8)];
+    const r1 = w.postMessage(msg, tr); T.now = 1100; w.postMessage({ job: 2 });
+    ok(r1 === 'posted' && w.posted.length === 2 && w.posted[0][0] === msg && w.posted[0][1] === tr, '9b a message is passed on untouched: the same object, the same transfer list, the same return');
+    T.now = 1600; const back = w.reply('slow'); T.now = 5000; w.reply('quick'); T.now = 5100; w.terminate(); w.terminate();
+    ok(w.onmessage === h && back === 'handled' && seen.length === 2 && seen[0][0] && seen[0][1] === 'slow', '9b the site\'s handler is still its own: read back as set, called once a reply with the worker as this, its return kept');
+    ok(w.dead === 2, '9b terminate() reaches the worker each time it is called');
+    const H = FR.rec.header().workers, L = JSON.parse(FR.rec.logParts().join('')).workers, a = L && L[0], b = L && L[1];
+    ok(Array.isArray(H) && H.length === 2 && H[0].name === 'town / houses / builder' && H[1].name === 'UNNAMED' && H[0].io === undefined,
+       '9b the header lists the workers by name (a site without a name reads UNNAMED), without the buckets', H ? H.map(x => x.name).join(' | ') : 'none');
+    ok(!!a && a.sent === 2 && a.received === 2 && a.maxOpen === 2 && a.open === 0 && a.handlerMs === 20 && a.handlerMaxMs === 20 && a.t === 1000 && a.firstSent === 1000 && a.lastReply === 5000 && a.end === 5100,
+       '9b a worker\'s row: made, first sent, last reply, ended; sent, received, the most requests out, the main thread\'s ms in its handler', a ? JSON.stringify(Object.assign({}, a, { io: undefined })) : 'no row');
+    ok(!!a && a.bucketMs === 250 && JSON.stringify(a.io) === JSON.stringify([4, 2, 0, 0, 2, 6, 0, 1, 20, 1, 20, 0, 1, 0, 0]),
+       '9b its traffic in 250 ms buckets: [bucket, sent, received, handler ms, still out]', a ? JSON.stringify(a.io) : undefined);
+    ok(!!b && b.sent === 0 && b.io.length === 0 && b.end === null, '9b a worker that never spoke has an empty row');
+    const E = JSON.parse(FR.rec.logParts().join('')).events;
+    const k = n => E.filter(e => e[1] === n);
+    ok(k('wk').length === 2 && k('wk')[0][3] === '1 town / houses / builder' && k('wkend').length === 1 && k('wkend')[0][0] === 5100, '9b made and ended are events (ended once, however often terminate is called)');
+    ok(k('wkmsg').length === 1 && k('wkmsg')[0][0] === 1600 && k('wkmsg')[0][2] === 20 && k('wkmsg')[0][3] === 'town / houses / builder',
+       '9b a reply whose handler held the main thread 16 ms or more is an event, by the worker\'s name (the quick one is not)', JSON.stringify(k('wkmsg')));
+    w.onmessage = null; ok(w.onmessage === null && w.on === null, '9b a handler set to null is null on the worker');
+  }
+  for (const [q, what] of [['?recwk=0', '?recwk=0'], ['?rec=0', '?rec=0']]) {
+    const P = page(q), w = new P.ctx.Worker('blob:a', { name: 'x' });
+    ok(P.ctx.Worker === P.FakeWorker && !Object.prototype.hasOwnProperty.call(w, 'postMessage') && P.FR.rec.header().workers === null && JSON.parse(P.FR.rec.logParts().join('')).workers === null,
+       '9b ' + what + ' leaves the page\'s Worker untouched, and the log says null');
+  }
+
+  // 9c
+  {
+    const LT = require('./load_timeline.js');
+    const chat = []; for (let b = 36; b < 52; b++) chat.push(b, 1, 1, 0, 1);
+    const log = { header: { cols: [], slots: [], boot: { t0: 0, log: [{ k: 'show', set: 'garage' }, { k: 'step', id: 'settle', t: 1000, ms: 8000 }, { k: 'step', id: 'ring', t: 9000, ms: 4000 }, { k: 'step', id: 'upload', t: 13000, ms: 3000 }] } },
+      frames: { t: [] }, events: [[1500, 'wkmsg', 40, 'town / houses / builder']], programs: [], resources: [],
+      workers: [{ n: 1, name: 'town / houses / builder', t: 500, end: null, sent: 1, received: 1, handlerMs: 3, bucketMs: 250, io: [4, 1, 0, 0, 1, 35, 0, 1, 3, 0], cut: false },
+                { n: 2, name: 'aircraft / flight physics / sim host', t: 8000, end: null, sent: 16, received: 16, handlerMs: 0, bucketMs: 250, io: chat, cut: false }] };
+    const S = LT.timeline(log, {}).summary, st = id => S.steps.find(s => s.id === id);
+    ok(st('settle').bound === 'worker' && /town \/ houses \/ builder/.test(st('settle').why), '9c a step that ends with the reply of a worker it had a request out to: bound by that worker, by name', st('settle').why);
+    ok(st('ring').bound === 'not proven' && /constant traffic/.test(st('ring').why), '9c a worker in constant traffic is at every step\'s end: it is listed, never named as the bound', st('ring').why);
+    ok(st('upload').bound === 'not proven' && /no worker had a request out/.test(st('upload').why), '9c a step no worker was out for says so', st('upload').why);
+    ok(S.notRecorded.indexOf('workers') < 0 && S.workers.length === 2 && S.lanes.some(l => /^worker 01: town/.test(l)) && S.lanes.indexOf('main: named tasks') >= 0, '9c the timeline has a lane a worker and the slow reply handler among the named tasks', S.lanes.filter(l => /^worker/.test(l)).join(' | '));
+    const old = Object.assign({}, log); delete old.workers; const SO = LT.timeline(old, {}).summary;
+    ok(SO.notRecorded.indexOf('workers') >= 0 && SO.steps.find(s => s.id === 'settle').bound === 'not proven' && /workers not recorded/.test(SO.steps.find(s => s.id === 'settle').why), '9c a log without the table still says "workers not recorded", and proves nothing');
+  }
+}
+module.exports = { run, runSites, runCensus, runWorkers, boot, world, warm };
+if (require.main === module) { let fails = 0; runWorkers((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); runSites((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); run((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); process.exit(fails ? 1 : 0); }

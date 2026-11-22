@@ -79,7 +79,7 @@ function ledger(log, opt) {
   const med = {};
   for (const c of ['loading', 'garage', 'world', 'paused']) { const R = rows.filter(r => r.ctx === c && r.dt === r.dt && r.dt <= ORANGE); med[c] = {}; for (const k of SL) med[c][k] = median(R.map(r => r[k]).filter(x => x === x)); med[c].work = median(R.map(r => r.work).filter(x => x === x)); }
   // the events by start time, for the interval look-ups (two pointers would do; the logs are small)
-  const LONGEV = new Set(['longtask', 'loaf', 'link', 'linkwait', 'gtask', 'prem', 'edit']);
+  const LONGEV = new Set(['longtask', 'loaf', 'link', 'linkwait', 'gtask', 'prem', 'edit', 'wkmsg']);
   const evIn = (a, b) => events.filter(e => { const end = e.t + (e.ms && LONGEV.has(e.kind) ? e.ms : 0); return end > a && e.t < b; });
   const budgetOf = r => { const cap = r.cap > 0 ? r.cap : 60; return 1000 / cap; };
 
@@ -130,6 +130,7 @@ function ledger(log, opt) {
       if (e.kind === 'linkwait') add(e, 'draw/compile held on a link: ' + ((typeof e.d === 'number' && owner(e.d)) || 'a program the log does not name'), 'link');
       else if (e.kind === 'link') add(e, 'shader link call: ' + ((typeof e.d === 'number' && owner(e.d)) || 'a program the log does not name'), 'link');
       else if (e.kind === 'gtask') add(e, 'garage task: ' + e.d, 'script');
+      else if (e.kind === 'wkmsg') add(e, 'worker reply handled: ' + (e.d || '?'), 'script');   // (the recorder's worker instrument: a reply's handler of 16 ms or more, by the worker's name)
       else if (e.kind === 'gpuup' && e.d && e.d.at === 'out') { const c = clip(e.t - (e.ms || 0), e.t, loopEnd, t1); if (c) named.push({ iv: c, what: 'GPU data made between frames (textures / buffers)', kind: 'script' }); }
       else if (e.kind === 'deliver' && e.ms) add(e, 'streamer delivered: ' + ((e.d && e.d.s) || '?'), 'script');
       else if (e.kind === 'prem') add(e, 'premises built' + (e.d ? ': ' + String(typeof e.d === 'string' ? e.d : JSON.stringify(e.d)).slice(0, 60) : ''), 'script');

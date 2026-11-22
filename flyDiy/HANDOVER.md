@@ -318295,3 +318295,30 @@ file and line); 8 the standard boots' census: none unowned, a rise has its reaso
 gate threw before its verdict on perf-codex.)
 KNOWN, OLDER THAN THIS WORK: GATE FLIGHTREC fails 3 app.js source checks on claude/perf-codex itself (begin / end round the frame clock,
 holdRender to PACE.end, worldPrelinkGfx).
+
+PERF-TRACE 2-5 (22 Nov, after the first cold captures; the report: reports/PERF-TRACE-COLD-BOOT-2026-11-22.md)
+- THE VARIANT'S REAL AXES: the fragment prefix's #defines are not the whole variant. program_id.js bodyTags() reads, in idle time, what three
+  writes into the BODY: LIGHTS=dir.point.spot.hemi, SHADOWS=dir.point.spot, CLIP=n, TONE=, OUT=sRGB|linear, OPAQUE, DITHERING, a hook's own
+  switches (DMG_* / GD_* / BAND_*, FLOWN_FADE). A row's `body`, appended to its `defs`. tools/program_matrix.js prints a FAMILY (default
+  'aircraft / skin') on those axes - kind, side, near, hook, lights, output, target - with programs, KB, pending share and drawn per value and
+  per combination, and two loads side by side (`--against other.json`). The finish is a uniform: it multiplies nothing.
+- NEVER DRAWN, by target / step / owner (program_report.js): linked in this log and no gl.useProgram of it.
+- THE UPLOADS OF A STEADY FRAME BY OWNER: ?recup=1 (off by default) wraps three's three needsUpdate setters; the log's `uploads` names each
+  buffer / texture marked, its owner, frames, bytes and whether its content CHANGED (a sampled hash, 1 frame in 32). The header's `gpuData` is
+  the run's total (always on); the 'gpuup' event fires only on a frame that CREATES 1 ms or more of GPU data.
+- ?recring=131072 | 262144: a longer frame ring for one run (28 / 57 MB; the default 65 536 unchanged). The header's `seen` and the 'focus' /
+  'vis' events: was the page visible and focused (a hidden page's frames mean nothing).
+- tools/load_brief.js: ten lines a load (--steps a,b --miss S for a warm visit). tools/perf/log_capture.js: a cold load on page_rig.js, saved
+  as flightlog-<tag>.json + capture-<tag>.json (package temperature, hashed cache keys; --compare a b: do two loads key the same programs).
+- THE WORKERS (PERF-TRACE 5; flight_recorder.js THE WORKERS): every `new Worker(` of the game gives the standard `name` option
+  ('feature / system / what': the worker's self.name, the thread's name in DevTools); the recorder wraps window.Worker and keeps, per worker:
+  made / ended / first sent / last reply, and per 250 ms bucket [bucket, sent, received, the main thread's ms in the reply's handler, requests
+  still out]. Header `workers` (totals), log `workers` (buckets), events 'wk', 'wkend', 'wkmsg' ms name (a reply handler of 16 ms or more).
+  What a worker COMPUTES is not measured. load_timeline.js: a lane a worker, and a step is bound WORKER when it ends with the reply of a worker
+  that had a request out for more than half of it and is not in constant traffic (the sim host answers every frame: listed, never named).
+  freeze_ledger.js names 'worker reply handled: <name>' in a frame. COST: one clock read a message sent, two and a wrapper call a reply; no
+  message is copied or delayed. ?recwk=0 leaves the page's Worker untouched. GATE PROGRAMS part 9: every Worker site is named (a new one
+  without a name fails with its file and line), the wrapper on a fake page, the timeline's rule.
+- STILL OPEN: the census of the standard boots is NOT pinned (tools/perf/program_owners.json): the 22 Nov cold load had 61 unowned programs,
+  whose materials the next capture names (an unowned row now describes its material and the object wearing it). A session longer than the
+  ring is saved from the store WITHOUT the programs / workers / uploads tables (storedParts): capture with ?recring for a long run.

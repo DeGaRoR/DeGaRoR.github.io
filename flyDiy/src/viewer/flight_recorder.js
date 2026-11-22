@@ -597,6 +597,7 @@
         gpuData: { frames: UPT[0], texCalls: UPT[1], texMs: Math.round(UPT[2]), megapixels: Math.round(UPT[3]), compressedMB: Math.round(UPT[4] / 1048576), bufferCalls: UPT[5], bufferMs: Math.round(UPT[6]),
           bufferMB: Math.round(UPT[7] / 1048576), updateCalls: UPT[8], updateMB: Math.round(UPT[9] / 1048576) },
         seen: typeof VIS !== 'undefined' ? { start: VIS.start, now: seenNow(), hidden: VIS.hidden, blurs: VIS.blur } : null,   // PERF-TRACE: the page's visibility and focus
+        workers: typeof WK !== 'undefined' && WK.on ? wkRows(false) : null,   // PERF-TRACE: every Worker made, by name, with its traffic's totals (the buckets are the log's `workers`)
       };
       const R = rec.renderer;
       if (R && R.domElement) H.canvas = { w: R.domElement.width, h: R.domElement.height, cssW: R.domElement.clientWidth, cssH: R.domElement.clientHeight, pixelRatio: R.getPixelRatio ? R.getPixelRatio() : null };
@@ -646,7 +647,9 @@
       // timeline's lane (tools/load_timeline.js), on this log's own clock. Read here, at the save; nothing during the frames
       let resrc = null; try { resrc = perf.getEntriesByType ? perf.getEntriesByType('resource').map(r => [String(r.name).replace(/^https?:\/\/[^/]+\//, '').replace(/\?.*$/, '').slice(-90),
         Math.round(r.startTime), Math.round(r.responseEnd), Math.round((r.transferSize || r.encodedBodySize || 0) / 1024), r.initiatorType || '']) : null; } catch (e) {}
-      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + ',"uploads":' + JSON.stringify(upl) + '}');
+      let wks = null; try { wks = typeof WK !== 'undefined' && WK.on ? wkRows(true) : null; } catch (e) {}   // PERF-TRACE: the workers' traffic in 250 ms buckets
+      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + ',"uploads":' + JSON.stringify(upl) +
+        ',"workers":' + JSON.stringify(wks) + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)
@@ -710,6 +713,68 @@
   // it was hidden and lost the focus in between ('vis' and 'focus' events say when).
   const seenNow = () => { try { const d = W.document; return d ? { state: d.visibilityState || null, focus: typeof d.hasFocus === 'function' ? !!d.hasFocus() : null } : null; } catch (e) { return null; } };
   const VIS = { start: seenNow(), hidden: 0, blur: 0 };
+
+  // PERF-TRACE (22 Nov): THE WORKERS. A loading step that waits on a worker (the houses, the rocks, the flown ground's
+  // bake, the flight's physics) left nothing in the log, and the timeline read "not proven" for 20 s of a cold load.
+  // Every Worker the page makes is counted from here:
+  //   who      the standard `name` option of its constructor (new Worker(url, { name: 'town / houses / builder' }): it
+  //            is the worker's self.name and the thread's name in DevTools). A site without one reads UNNAMED, and GATE
+  //            PROGRAMS part 9 lists it.
+  //   when     made, ended (terminate()), first message sent, last reply
+  //   traffic  per 250 ms bucket: messages sent, replies received, the MAIN THREAD's ms inside the reply's handler,
+  //            the requests still out at the bucket's end (sent minus received, floored at 0: a worker that answers
+  //            twice, or never, makes this a hint and not a count)
+  //   'wkmsg'  an event for a reply whose handler held the main thread for 16 ms or more (the freeze ledger's cause)
+  // What the worker computed in between is NOT measured: its thread is not ours to read. A step that ends with a
+  // worker's reply "ended with <name>'s reply", and no more is claimed.
+  // THE COST: one clock read and a bucket update per message sent; two clock reads, a bucket update and one wrapper
+  // call per reply. No message is copied, read or delayed. ?recwk=0 leaves the page's Worker untouched (this
+  // instrument's own A/B), and so does ?rec=0.
+  const WKB = 250, WK_CAP = 16384 * 5, WK = { list: [], on: false };
+  const wkBump = (r, col, v, t) => {
+    const b = Math.floor(t / WKB), io = r.io; let i = io.length - 5;
+    if (i < 0 || io[i] !== b) { if (io.length >= WK_CAP) { r.cut = true; return; } io.push(b, 0, 0, 0, 0); i = io.length - 5; }
+    io[i + col] += v; io[i + 4] = r.open;
+  };
+  const wk1 = x => (x == null ? null : Math.round(x * 10) / 10);
+  const wkRows = full => WK.list.map(r => {
+    const o = { n: r.n, name: r.name, t: wk1(r.t), end: wk1(r.end), sent: r.out, received: r.in, handlerMs: wk1(r.hMs), handlerMaxMs: wk1(r.hMax), open: r.open, maxOpen: r.maxOpen,
+      firstSent: wk1(r.firstOut), lastReply: wk1(r.lastIn), cut: r.cut };
+    if (full) { o.bucketMs = WKB; o.io = r.io.map((v, i) => (i % 5 === 3 ? wk1(v) : v)); }   // [bucket, sent, received, handler ms, still out] x n
+    return o; });
+  try {
+    if (!OFF && typeof W.Worker === 'function' && !/[?&]recwk=0(?:&|$)/.test(q)) {
+      const Native = W.Worker, NP = Native.prototype;
+      const onD = (() => { try { for (let p = NP; p; p = Object.getPrototypeOf(p)) { const d = Object.getOwnPropertyDescriptor(p, 'onmessage'); if (d) return d.set && d.get ? d : null; } } catch (e) {} return null; })();
+      const Wrapped = function Worker(url, opts) {
+        const w = opts === undefined ? new Native(url) : new Native(url, opts);
+        try {
+          const r = { n: WK.list.length + 1, name: (opts && typeof opts === 'object' && opts.name) ? String(opts.name).slice(0, 80) : 'UNNAMED', t: now(), end: null,
+            out: 0, in: 0, hMs: 0, hMax: 0, open: 0, maxOpen: 0, firstOut: null, lastIn: null, cut: false, io: [] };
+          WK.list.push(r);
+          REC.event('wk', r.t, null, r.n + ' ' + r.name);
+          const post = w.postMessage, term = w.terminate;
+          if (typeof post === 'function') w.postMessage = function () {
+            const t = now(); r.out++; r.open++; if (r.open > r.maxOpen) r.maxOpen = r.open; if (r.firstOut === null) r.firstOut = t; wkBump(r, 1, 1, t);
+            return post.apply(w, arguments); };
+          if (typeof term === 'function') w.terminate = function () {
+            if (r.end === null) { r.end = now(); REC.event('wkend', r.end, null, r.n + ' ' + r.name); }
+            return term.apply(w, arguments); };
+          // the replies, counted by a listener of our own (the first one registered: it runs before the site's handler)
+          if (typeof w.addEventListener === 'function') w.addEventListener('message', () => { const t = now(); r.in++; if (r.open > 0) r.open--; r.lastIn = t; wkBump(r, 2, 1, t); });
+          // ... and the site's own handler, timed (every site sets .onmessage; a site that listens otherwise is counted, not timed)
+          if (onD) { let raw = null;
+            Object.defineProperty(w, 'onmessage', { configurable: true, enumerable: true, get: () => raw,
+              set: fn => { raw = fn; onD.set.call(w, typeof fn !== 'function' ? fn : function () {
+                const t0 = now();
+                try { return fn.apply(this, arguments); }
+                finally { const t1 = now(), ms = t1 - t0; r.hMs += ms; if (ms > r.hMax) r.hMax = ms; wkBump(r, 3, ms, t1); if (ms >= 16) REC.event('wkmsg', t0, ms, r.name); } }); } }); }
+        } catch (e) {}
+        return w;
+      };
+      Wrapped.prototype = NP; W.Worker = Wrapped; WK.on = true;
+    }
+  } catch (e) {}
   // =================================================================================================================
   // THE PAGE'S RECORDER: one, from this script on
   // =================================================================================================================

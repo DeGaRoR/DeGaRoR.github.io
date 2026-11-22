@@ -870,7 +870,7 @@ self.onmessage = function (e) {
     const run = () => {
       try {
         if (!workerURL) workerURL = URL.createObjectURL(new Blob([SRC + '\n' + WORKER_JOB], { type: 'text/javascript' }));
-        const w = new Worker(workerURL);
+        const w = new Worker(workerURL, { name: 'fleet / parked aircraft / decimate' });
         w.onmessage = e => { w.terminate(); cb(e.data, null); };
         w.onerror = e => { w.terminate(); cb(null, e && e.message || 'worker error'); };
         w.postMessage(job);

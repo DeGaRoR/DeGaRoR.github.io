@@ -65,7 +65,7 @@ function rockBiasStart(world, BUD) {
       // (17 Nov: THE MAP CARRIES THE MACRO - v1's exposure field over the island, rock_ring_core bakeIsland, in the bias's byte)
       '  const out = (flow && a.TT && ROCK_RING_CORE.bakeIsland) ? ROCK_RING_CORE.bakeIsland({ H: a.H, N: a.N, hx0: a.hx0, hz0: a.hz0, hdx: a.hdx, flow, TT: a.TT, ND: a.ND, IGw: a.IGw, IGh: a.IGh, IGx0: a.IGx0, IGz0: a.IGz0, IGcell: a.IGcell, gx0: a.gx0, gz0: a.gz0, cs: a.cs, W2: a.W2, H2: a.H2 }) : new Uint8Array(a.W2 * a.H2);\n' +
       '  postMessage({ out, flow, ms: performance.now() - t }, [out.buffer].concat(flow ? [flow.buffer] : [])); };';
-    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url, { name: 'terrain / rock bias / island bake' });
     const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); if (job.onDone) job.onDone(); };
     w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.flow = e.data.flow ? { g: e.data.flow, N: g.N, x0: g.x0, z0: g.z0, dx: g.dx } : null; job.done = true; w.terminate(); URL.revokeObjectURL(url);
       if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] });

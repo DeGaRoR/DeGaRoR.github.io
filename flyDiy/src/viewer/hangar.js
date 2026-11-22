@@ -3362,7 +3362,7 @@ const FOOT_MESH = (() => {
   geo.setIndex(idx);
   const ML = typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js');
   const mat = ML.make(THREE, 'basic', { color: 0x0a0906, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-                                        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+                                        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }, 'garage / room / prop foot shadows');
   const m = new THREE.Mesh(geo, mat);
   m.name = 'room:propFoot'; m.renderOrder = 5; m.castShadow = false; m.receiveShadow = false; m.userData.footProps = occ.length;
   G.add(m);
