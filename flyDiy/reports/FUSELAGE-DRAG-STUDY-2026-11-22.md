@@ -337,6 +337,12 @@ the real one reaches 0.40: its cylinder rows are the next thing to true.
 | 9 | **what sticks out**: every fitting by its form and drawn size, the hinges, horns and pushrods by the kit's counts; the drawing decides which heads are in the wind (pods and cheeks cover them) | the core's own fittings table (`GEN_ACCESS`), the hinge kit, the fittings page's family switches |
 | 10 | **each junction by its own root**: `c² (0.75 (t/c)³ - 0.0003)` (Hoerner ch. 8); a root-fillet row (`wgFillet`, absent at 0, not drawn yet) | the wing's root chord and section |
 
+**New rows: one.** The user, 22 Nov: "What are the new fuselage rows? Couldn't we get everything from existing?" The
+line had added six. Five are gone again (build 11): the propeller's cut is read off the propeller page's own design
+point (`cw_rpm` at `cw_tas`), and the cowl's cut-out is a third FORM of the existing cheeks (`cw_lobeStream`: round
+bump / streamlined / cut out - the cheeks' own rows place and size it). The one that stays is `wgFillet` (the wing
+root's fillet): the fin has a fillet row, the wing had none, and nothing is drawn that could be measured.
+
 **Every scored row, inside / near / outside its band** (`real_check --quick`, 17 planes; evidence
 `evidence/FUSELAGE-DRAG-2026-11-22/build10/`):
 

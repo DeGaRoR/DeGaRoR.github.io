@@ -171,9 +171,10 @@ const COWL_ROWS = [
     { k: 'lobeT2', label: 'helmets: every other one\'s station (a two-row radial)', lo: 0, hi: 1, step: 0.01, when: 'P.lobeN>=3' },
     { k: 'lobeCount', label: 'helmets drawn (0 = one per place)', lo: 0, hi: 14, step: 1, when: 'P.lobeN>=3' },
     // streamlined: full over the head, a short rise in front, a long taper behind, stopping inside the cowl
-    { k: 'lobeStream', label: 'cheeks streamlined (long taper aft)', lo: 0, hi: 1, step: 1, when: 'P.lobeN>0' },
-    { k: 'lobeNose', label: 'streamlined: where the front ends', lo: 0.3, hi: 1, step: 0.01, when: 'P.lobeN>0&&P.lobeStream>0' },
-    { k: 'lobeTail', label: 'streamlined: where the tail ends', lo: 0, hi: 0.7, step: 0.01, when: 'P.lobeN>0&&P.lobeStream>0' },
+    // (FUSELAGE-DRAG 2026-11-22: the third form - the cheek CUT OUT, the head standing through the skin; the J-3's cowl)
+    { k: 'lobeStream', label: 'cheek form', lo: 0, hi: 2, step: 1, names: ['round bump', 'streamlined (long taper aft)', 'cut out (the head stands through)'], when: 'P.lobeN>0' },
+    { k: 'lobeNose', label: 'streamlined: where the front ends', lo: 0.3, hi: 1, step: 0.01, when: 'P.lobeN>0&&P.lobeStream===1' },
+    { k: 'lobeTail', label: 'streamlined: where the tail ends', lo: 0, hi: 0.7, step: 0.01, when: 'P.lobeN>0&&P.lobeStream===1' },
     // PROPER-COWLS: two cylinders over the heads, merged into the skin (the Carbon Cub's)
     { k: 'cylOn', label: 'head cylinders (a mirrored pair, merged)', lo: 0, hi: 1, step: 1 },
     { k: 'cylAz', label: 'cylinders: azimuth (0 = the flanks)', lo: -60, hi: 60, step: 0.5, when: 'P.cylOn>0' },
@@ -199,11 +200,6 @@ const COWL_ROWS = [
     { k: 'cylSq', label: 'cylinders: section (round → square)', lo: 0, hi: 1, step: 0.01, when: 'P.cylOn>0' },
     { k: 'cutSpan', label: 'cut-out span (horseshoe)', lo: 0, hi: 200, step: 1 },
     { k: 'cutAz', label: 'cut-out azimuth', lo: 0, hi: 359, step: 1, when: 'P.cutSpan>0' },
-    // FUSELAGE-DRAG (2026-11-22): the flank cut-outs a flat engine's cylinders stand through (the J-3's cowl)
-    { k: 'headCut', label: 'cylinder cut-outs (the flanks)', lo: 0, hi: 1, step: 1, names: ['none', 'one a side'] },
-    { k: 'headCutZ0', label: 'cylinder cut-outs: from (m off the firewall)', lo: 0, hi: 1.2, step: 0.005, when: 'P.headCut>0' },
-    { k: 'headCutZ1', label: 'cylinder cut-outs: to (m off the firewall)', lo: 0.02, hi: 1.4, step: 0.005, when: 'P.headCut>0' },
-    { k: 'headCutSpan', label: 'cylinder cut-outs: height round the flank (deg)', lo: 10, hi: 120, step: 1, when: 'P.headCut>0' },
   ] },
   // ---- Inlets ----
   { id: 'g_ap', name: 'Inlets', rows: [
