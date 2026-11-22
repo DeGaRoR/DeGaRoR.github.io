@@ -77,7 +77,7 @@ const CUB = card('builds/cub_2026-09-20_corrected.json');
 const C172 = card('builds/cessna172r_2026-11-08.json');
 const JOD = card('builds/jodel_2026-09-20_corrected.json');
 const TM = card('builds/candidates/tigermoth_2026-10.json');
-const PET = card('builds/candidates/superpetrel_V4_1.json');
+const PET = card('tools/fixtures/test_copies/superpetrel_V4_1.json');
 const RUF = card('builds/rufus_2026-10-18_certified.json');
 for (const [n, X, lo, hi] of [['list:1 Cub', CUB, 1.5, 3], ['list:50 V2-172', C172, 1.5, 3], ['list:2 Jodel', JOD, 1.5, 3.2]]) {
   const K = coolOf(X.def), row = rowOf(X.def, 'cool.climb');
@@ -110,7 +110,7 @@ console.log('THE HEADS (measured against the drawn cowl; a bare engine\'s figure
 {
   // (TUTORIAL-CUBS 13 Nov: list:26 Client Cub became the validated J-3, its cowl covers its heads; the heads-out card is
   // kept as it stood on L40c, a fixture for this row)
-  const CC = card('tools/fixtures/cool_heads_out_cub.json'), Kc = coolOf(CC.def), rc = rowOf(CC.def, 'cool.climb');
+  const CC = card('tools/fixtures/test_copies/cool_heads_out_cub.json'), Kc = coolOf(CC.def), rc = rowOf(CC.def, 'cool.climb');
   ok(CC.spec.cooling.headsOut > 0.03 && Math.abs(Kc.bareA - CC.spec.cooling.headsOut) < 1e-9 && rc && rc.level === 'pass',
      'the old Client Cub (fixture cool_heads_out_cub): its heads poke through the drawn skin (' + r3(CC.spec.cooling.headsOut) + ' m2), counted, the row passes (' + (rc && rc.value) + ')');
   ok(CUB.spec.cooling.headsOut === 0 && CUB.spec.cooling.headsAll > 0.1, 'list:1 Cub: its cowl covers its heads (0 of ' + r3(CUB.spec.cooling.headsAll) + ' m2 out)');

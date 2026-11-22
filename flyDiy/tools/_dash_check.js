@@ -32,7 +32,7 @@ const crypto = require('crypto');
 const { spawnSync, spawn } = require('child_process');
 const T = __dirname;
 const argv = process.argv.slice(2);
-const BUILDS = ['cub_2026-09-20_corrected.json', 'jodel_2026-09-20_corrected.json', 'cessna172_2026-09-20_corrected.json']
+const BUILDS = ['cub_2026-09-20_corrected.json', 'jodel_2026-09-20_corrected.json', 'cessna172r_2026-11-08.json']
   .map(f => path.join(T, '..', 'builds', f));
 
 // ---- the child: one build, one style, the energy layer's verdict

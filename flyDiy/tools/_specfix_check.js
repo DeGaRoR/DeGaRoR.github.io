@@ -63,7 +63,7 @@ const getP = (o, p) => p.split('.').reduce((x, k) => (x == null ? undefined : x[
 const BUILDS = [
   { key: 'cub', file: 'builds/cub_2026-09-20_corrected.json' },
   { key: 'jodel', file: 'builds/jodel_2026-09-20_corrected.json' },
-  { key: 'cessna', file: 'bugReports/cessnaMetal (1).json' },
+  { key: 'cessna', file: 'builds/cessna172r_2026-11-08.json' },
   { key: 'floats', file: 'bugReports/cessnaFloatsWOrks.json' },
   { key: 'twinFloats', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
     patch: s => { s.gear.type = 'floats'; s.cage = Object.assign({}, s.cage, { gearFloats: 1 }); } },

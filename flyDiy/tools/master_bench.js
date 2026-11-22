@@ -65,7 +65,7 @@ const BUILDS = {   // the three the user validated, and the two floatplanes for 
   cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.json' },   // the user's validated Cub (2026-10-03: 'default' is the Cub-ALIKE archetype the chooser bakes, not their Cub)
   firstBoot: { label: 'first boot (Cub-alike)', build: 'default' },
   jodel: { label: 'Jodel', build: 'builds/jodel_2026-09-20_corrected.json' },
-  metal: { label: 'metal Cessna', build: 'bugReports/cessnaMetal (1).json' },
+  metal: { label: 'metal Cessna', build: 'builds/cessna172r_2026-11-08.json' },
   floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },
   // THE TWIN ON FLOATS (the user, 2026-10-01: "the Cessna floats and the twin-something on floats" are validated too): the
   // user's twin-582 ultralight - the 'floatplane' stock card (tools/_cage_design.js, "a default game plane, along the cub
