@@ -15615,7 +15615,7 @@
   // story's client Cub alone (an offline prop, parked.js's static Cub) -> its slot, or null (the based planes drawn: no filter)
   function fleetOnly(d) {
     if (!(window.PARKED && PARKED.based) || PARKED.based()) return null;
-    try { const s = STORY_PAGE ? storyOf(d) : null, c = s && s.planes && s.planes.client; return c && d.fleet && d.fleet[c] ? [c] : []; } catch (e) { return []; }
+    try { const s = CAREER_DEV && STORY_PAGE ? storyOf(d) : null, c = s && s.planes && s.planes.client; return c && d.fleet && d.fleet[c] ? [c] : []; } catch (e) { return []; }
   }
   const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(fleetCtx()); };   // (PERF-SIMPLIFY: the context carries `only`, the client Cub)
   const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };
