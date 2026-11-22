@@ -60,10 +60,10 @@ else say "part 2b SKIPPED: $(left) min left"; fi
 #     ground from its climb, as the game is today and with ?latelinks=bg (the scuff's programs are what that switch moves).
 #     On the LAB build: the Deform Coordinator owns the crashes and has a later version - this is the lab's baseline only.
 for cq in base latebg; do
-  if [ $(left) -ge 7 ]; then
+  if [ $(left) -ge 9 ]; then
     Q="recring=131072"; [ $cq = latebg ] && Q="$Q&latelinks=bg"
-    say "part 2c: the crash, $cq ($Q), cap 6 min"
-    ( cd "$LAB/flyDiy" && timeout 360 nice -n 19 node tools/flight_script.js tools/flight_scripts/perf/crash_cub.json --runner page --headed --live --size 5120x1271 --q "$Q" --out "$OUT/crash_$cq" --cap 320 ) 2>&1 | tail -12 | tee -a "$LOG"
+    say "part 2c: the crash, $cq ($Q), cap 9 min, crash_cub_quick (the taxi skipped: 215 s of it ran a 420 s cap out on 22 Nov)"
+    ( cd "$LAB/flyDiy" && timeout 520 nice -n 19 node tools/flight_script.js "$W/tools/flight_scripts/perf/crash_cub_quick.json" --runner page --headed --live --size 5120x1271 --q "$Q" --out "$OUT/crash_$cq" --cap 480 ) 2>&1 | tail -12 | tee -a "$LOG"
     J=$(ls -t "$OUT"/crash_$cq/*.flightlog.json 2>/dev/null | head -1)
     if [ -n "$J" ]; then nice -n 19 python tools/perf/user_log.py "$J" --md "$OUT/crash_$cq/against-objectives.md" 2>&1 | sed -n '/^## Row 14/,/^## /p' | head -30 | tee -a "$LOG"
     else say "NO FLIGHT LOG for the $cq crash"; fi
