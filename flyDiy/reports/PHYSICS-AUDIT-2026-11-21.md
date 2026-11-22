@@ -5,8 +5,9 @@ independent assessment, then provide a plan for the new models to be added or mo
 the move of the plane roster ... we shouldn't chase half a percent, but we should build sufficient confidence that our
 performance model is complete and accurate within the range covered by our current roster."*
 
-- Branch `claude/physics-audit`, on master L40H `9349a62c1` (PHYSICS_V 9). **Nothing in `src/` is changed; nothing lands.**
-  GATE REALBAND on this tree: PASS (17 planes, nothing moved).
+- **Status, 22 Nov: the plan was approved and is built. Section 7 has the measured result**; sections 1-6 are the audit
+  and the plan as approved on 21 Nov (their "today" is master L40H `9349a62c1`, PHYSICS_V 9).
+- Branch `claude/physics-audit`, PHYSICS_V 10. **Nothing is on master.**
 - Every number below is a node run of today's model, not a figure taken from a report. The evidence is in
   `reports/evidence/PHYSICS-AUDIT-2026-11-21/`.
 - Units: kg, km/h, m/s, m, m². A cell `-8 → -1` is the error against the reference's middle, today → after the plan;
@@ -16,6 +17,7 @@ performance model is complete and accurate within the range covered by our curre
 node tools/physics_audit.js --all [--proto=...]      the model taken apart per plane: polar, CLmax, propeller, drag rows (6 s)
 node tools/physics_audit_refs.js <audit.json>        the drag area and climb efficiency the parents' figures imply
 node tools/physics_audit_plan.js --rc=<dir>          the plan stage by stage, judged by real_check's verdict rule (30 s)
+node tools/physics_audit_asbuilt.js                  as built: every plane's figures at each committed stage (evidence/asbuilt.md)
 ```
 
 ## 1. The verdict
@@ -311,6 +313,110 @@ The middle of the roster (172R, Cub, DC-3, Jodel, Chinook, Carbon Cub) must not 
 - **The LS4** was measured on a scratch worktree of `claude/ready/ls4-2` (its core built there); it is not on master.
 - **Not looked at:** the take-off roll's own model (the Tiger Moth's -37 % and the Petrel's +50 % against thin rows),
   water performance, hot-and-high, the solver in flight against its own probe.
+
+## 7. As built (22 Nov 2026)
+
+The user, 21 Nov: *"We'll do all steps, so what matters is the final result ... let's go through the steps orderly ...
+I'm OK with the plan and you may proceed"*, and on the Velis: *"I thought it was physically correct to have a propeller
+impose a limit RPM, or the engine? That would also fix Ruckus issue."*
+
+All seven steps are on the branch, in order, under one PHYSICS_V bump (9 → 10). Every number below is
+`real_check --quick` on the final tree (`evidence/step6/`, table `evidence/asbuilt.md`): the airframe reading, not flights.
+
+Mean absolute error on the seven best-documented planes:
+
+| figure | before the audit | read right (step 0) | as built | as built, without the PC-6 |
+|---|---|---|---|---|
+| clean stall | 2 % | 2 % | 2 % | 2 % |
+| cruise at 75 % (4 rows) | 6 % | 5 % | 4 % | 4 % |
+| top speed (6 rows) | 9 % | 6 % | 6 % | **2 %** |
+| rate of climb (7 rows) | 6 % | 9 % | 6 % | **3 %** |
+| best glide (4 rows) | 14 % | 12 % | **5 %** | 5 % |
+| take-off roll (5 rows) | 8 % | 11 % | 8 % | 8 % (2 % without the Tiger Moth's thin row) |
+| verdicts, all 17 planes, every scored row (inside / near / outside) | 55 / 18 / 20 | 56 / 15 / 22 | **61 / 14 / 18** | |
+
+Against the plan (error against the reference's middle, %; `~` near, `!` outside):
+
+| plane | figure | real | read right | the plan said | as built |
+|---|---|---|---|---|---|
+| Cessna 172R | top speed | 228 | 222 (-3) | 232 (+1) | **232 (+2)** |
+| | cruise 75 % | 204-207 | 195 (-5) | 204 (0) | **205 (0)** |
+| | climb | 3.66 | 3.36 (-8~) | 3.64 (-1) | **3.64 (-1)** |
+| | glide, engine idling | 9.0 | 11.3 (+25!) | 9.2 (+3) | **9.2 (+3)** |
+| | TO roll | 288 | 284 (-1) | 281 (-2) | 280 (-3) |
+| Velis Electro | VH at 2300 rpm | 172 | 182 (+6) | 215 (+25!) or an rpm limit | **181 (+5)** |
+| | climb at 48 kW | 3.29 | 2.48 (-25!) | 3.43 (+4), drag as a target | **3.19 (-3)** |
+| | TO roll at 50 kW | 240 | 286 (+19!) | 269 (+12~) | **244 (+2)** |
+| | glide | 15.0 | 12.4 (-17~) | 14.8 (-2), drag as a target | 12.8 (-15~) |
+| Douglas DC-3A | top speed at 8,500 ft | 370 | 340 (-8~) | 362 (-2) | **362 (-2)** |
+| | climb at METO | 5.74-6.20 | 5.47 (-8) | 6.42 (+8) | 6.42 (+7) |
+| | glide | 14.7 | 14.3 (-3) | 14.6 | 14.5 (-1) |
+| Pilatus PC-6 | max cruise | 232 | 270 (+16~) | 229 (-1), if its drag is found | 284 (+23!) |
+| | climb | 5.13 | 5.95 (+16!) | 5.23 (+2), same | 6.57 (+28!) |
+| Tiger Moth | top speed | 172-175 | 168 (-3) | 176 (+1) | 173 (-1) |
+| | climb | 2.54-3.42 | 2.98 (0) | 3.27 (+10) | 3.03 (+2) |
+| Piper Cub | top speed / climb at gross | 140 / 2.29 | 142 / 2.39 | the same | 142 / 2.38 |
+| Carbon Cub SS | cruise 75 % | 177-193 | 169 (-8) | | 172 (-7) |
+| Stearman | top speed | 200-217 | 177 (-15~) | 200 (-4), drag as a target | 186 (-11~) |
+| | climb | 4.27 | 3.64 (-15!) | 4.50 (+6~) | 4.00 (-6~) |
+| Sopwith Camel | top speed | 182-185 | 174 (-5) | 185 (+1) | 178 (-3) |
+| Super Petrel | max cruise | 185 | 208 (+12~) | 185 (0), drag as a target | 208 (+12~) |
+| | glide | 10 | 11.7 (+17~) | | 11.6 (+16~) |
+| Ruckus Solo 103 | top speed | 87 | 87 (0) | 94 (+8~) | 92 (+5~) |
+| | climb | 3.30 | 1.68 (-49!) | | **3.04 (-8~)** |
+| Chinook | top speed | 153 | 155 (+1) | within 2 points | 148 (-3) |
+| PA-18 on floats | climb (the book: 160 hp; the card: 150) | 4.70 | 4.10 (-13~) | within 2 points | 3.73 (-21!) |
+| Archaeopteryx | glide | 28 | 14.8 (-47!) | 24.7 (-12~), drag as a target | 16.6 (-41!) |
+
+**What that says.** Where the plan rested on a prototype (the 172R, the DC-3, the Velis's propeller, the wires, the
+idle propeller) the core does what the prototype said, to the point. Where the plan rested on a drag *target* (step 5)
+the study found only part of it, and those rows did not arrive: the PC-6, the Petrel, the Stearman, the gliders, the
+Velis's glide.
+
+### What each step became
+
+| step | built | where | its gate | against the plan |
+|---|---|---|---|---|
+| 0 | wheels up, the row's altitude, power and rpm; four reference rows; a glide row states its propeller | `real_check.js`, `real_refs.js` | REALBAND re-written | as planned |
+| 1 | span efficiency above AR 6: `max(Raymer, 1 / (1/0.95 + pi AR kv))` by AR 10 | `genOswald` | GEN / DRAG stay green | as planned (the blend starts at 6, not 8, so nothing steps) |
+| 2 | wing-bracing row "round cable / streamline wire"; tail row "by its skin / brace wires / none" | `62_gen_aero`, `61_gen_frame`, two garage rows | WIRES (new) | a cantilever tail is recognised by its skin; the three biplane cards state streamline wire |
+| 3 | the fixed-pitch propeller cut for its aeroplane's own top speed, by blade material, **and held to its redline** | `genPropFit`, `30_solver thrLimit`, `genShaftRpm` | PROPFIT (new) | more than planned: the solver has the rpm limit the user asked about. A climb pitch meets it before the top speed, a cruise pitch never does |
+| 4 | the propeller's drag at closed throttle: idling 0.05, windmilling 0.10, stopped 0.04, electric 0.03, feathered 0.02 of `q x disc` | `30_solver`, `genPropIdleK` | IDLEPROP (new) | as planned |
+| 5 | floats as their own bodies (Cd 0.25 on the frontal area, plus their struts); a hull's step and chines (body x1.5); the bare radial's wake on the fuselage behind it | `62_gen_aero` | DRAGROWS (new) | **a third of the target.** Studied and not built, too small to matter: gear legs by wheel size (+0.05 m² on the PC-6), a laminar skin (-0.02 m² on the Velis) |
+| 6 | a governed propeller flies the actuator disc: `min(static cap, disc thrust at the blade's efficiency)` | `genPropGovern`, `30_solver csThrust`; the R-1830 row is `cs` | PROPFIT check 7 | as planned |
+| cards | the Velis and the Ruckus Solo take the **climb** pitch class | their two build files | REALBAND re-written | the user's point: with the redline in the model, the Velis's VH, climb and roll all land inside (table above) |
+
+Drag area, model over real, before → as built: 172R 0.99 → 0.94, Cub 0.96 → 0.96, DC-3 1.09 → 1.06 (wheels up), Tiger
+Moth 1.12 → 1.05, Camel 1.18 → 1.11, Stearman 1.31 → 1.21, Petrel 0.65 → 0.89, Velis 1.48 → 1.37, Archaeopteryx 2.4 →
+2.2, **PC-6 0.56 → 0.54**.
+
+### For the user's review (the 14-15 Nov ruling: rows that moved away)
+
+| row | before → as built | cause | proposed |
+|---|---|---|---|
+| **PC-6**: max cruise, climb | +16 → +23 %, +16 → +28 % | Its propeller is now right (the same law puts the DC-3 at -2 %). Its drag area is 0.98 m² where 125 KTAS on 550 shp needs 1.7-2.0. Nothing the card draws separates it from a 172 by that factor: legs by wheel +0.05, its windscreen step equals the 172's. | Accept as an honest red until its drag is found. It is a question for the card and the reference (which altitude is the 125 KTAS, what the real aeroplane carries outside), not for a coefficient. Holding the turbines on the old law would hide one error behind another. |
+| **PA-18 on floats**: climb | -13 → -21 % | The floats now bill 0.14 m² more, which the type's own loss of cruise on floats supports. The card flies a wooden standard-pitch propeller and 150 hp; the book is 160 hp. On the same card a climb pitch gives 4.34 m/s (-8 %), a seaplane pitch 5.04 (+7 %). | A card row (the propeller's pitch and blades) on the user's official build: not changed here. |
+| PC-6 on floats | +21 → +12 % speed, +23 → +18 % climb | Its floats now pay. Scored on shape and mass only (N4). | none |
+| Ruckus Solo: TO roll | -39 → -60 % | 43 m against a sheet that is a calculation (107 m), on a card 36 % heavy empty. | none; the sheet row could be dropped |
+| Tiger Moth: cruise 75 % | +3 → +7 %, inside | streamline wires | none |
+
+### Still open (the model's range, honestly)
+
+- **The clean end.** The Archaeopteryx glides 16.6 against 28, the LS4 (its branch, not re-measured) about 25 against
+  40.5, the Velis 12.8 against 15. Half the gliders' gap was the span efficiency (done). The other half is parasite drag
+  that no row of the build-up explains yet: a laminar section, a pod, a flush canopy. On the Velis part of it is the
+  card: three bare wheels where the type wears spats (0.15 m², a third of its drag).
+- **The utility end.** The PC-6, above. The Petrel is closer (0.53 of 0.59 m²) and still +12 % on max cruise.
+- **The Stearman** is -11 % on top speed with 1.36 m² against 1.12: the radial's wake row took 0.05 of the 0.24.
+- **Flights are not re-flown.** `real_check --all` and `real_report` are stale for every moved plane (REALBAND says so).
+  The idle propeller steepens every approach: the pilot's approach and flare are judged by the gates below, not by a
+  flown circuit of each plane.
+- **Nothing was looked at in the browser.** All of this is node.
+
+### Gates
+
+**In progress (22 Nov):** the core tier of gates is running on the final tree; this paragraph is replaced by its result,
+the reds read against master by check name, and every re-pin with its reason.
 
 Sources checked on the web this session: the 172R's POH figures (123 kt at sea level, 122 kt at 80 % / 8000 ft, 720
 fpm) on [172guide.com](https://172guide.com/models/172R.htm) and a [POH scan](https://kerrville.cap.gov/media/cms/Cessna_172R_POH_712F3D6CCB3C7.pdf);
