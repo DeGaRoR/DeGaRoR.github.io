@@ -5951,6 +5951,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         fillDeadline = Infinity;
         try { let r; do r = g.next(); while (!r.done); return r.value; } finally { fillDeadline = dl; }
       }
+      // THE SIZE OF ONE FILL TREE (the build's, and TREE_FILL.census's: one rule, written once)
+      const fillSize = (SH, kSz, sp, w, can) => can < 0 ? -can   // TOWN-1: a town tree, at its record's own size
+        : (can >= EDGE_CAN && SH.h)   // FOREST-EDGE's outward band / a grove's fade: its wood's canopy x the band's size, under the island's floor (a sapling)
+        ? Math.max(0.1, Math.min(FILL.island.max, (can - EDGE_CAN) * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
+        : (ISLC && can > 0 && SH.h)
+        ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
+        : SH.white ? sizeOf(SH.size, w)
+                   : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
       function* buildGen(cx, cz, recs, t0, t1, part) {
         const meshes = [], near = [], imp = [], recsOut = [];
         let act = 0, ts = performance.now();   // the build's own time, its slices summed (STAT.buildMs)
@@ -6026,13 +6034,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // map says (x gain), over the model's own height, with the mix's
             // spread as jitter; elsewhere the collection's size
             if (can < 0) { (rec.town || (rec.town = new Uint8Array(n)))[i] = 1; rec.townN = (rec.townN || 0) + 1; }   // TOWN-1
-            const s = can < 0 ? -can   // TOWN-1: a town tree, at its record's own size
-              : (can >= EDGE_CAN && SH.h)   // FOREST-EDGE's outward band / a grove's fade: its wood's canopy x the band's size, under the island's floor (a sapling)
-              ? Math.max(0.1, Math.min(FILL.island.max, (can - EDGE_CAN) * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
-              : (ISLC && can > 0 && SH.h)
-              ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
-              : SH.white ? sizeOf(SH.size, w)
-                         : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
+            const s = fillSize(SH, kSz, sp, w, can);
             // the stand series is drawn stretched - the dial, not the bake
             sv.set(s, s * (SH.white ? 1 : 0.9 + w * 0.25) * S.scaleY, s);
             pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
@@ -6448,6 +6450,30 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const r = [];
             for (let i = 0; i < out.length; i += 3) if (out[i] >= x0 && out[i] <= x1 && out[i + 1] >= z0 && out[i + 1] <= z1) r.push(out[i], out[i + 1], out[i + 2]);
             return r;
+          },
+          // GARAGE-VIEW (22 Nov): THE TREES THE FILL DRAWS in a rectangle, each as the build stands it - the walk's records
+          // (the town's trees with them) through the build's own series, size (fillSize), sink and yaw; nothing built or kept.
+          // For the cook of the hangars' outdoor scene (tools/garage_view_cook.js) -> [{ key, ser, x, y, z, yaw, s, sy, h, town }]
+          // (y: where the model's origin stands; s / sy: its scale across / up; h: the model's own height, m)
+          census: (x0, z0, x1, z1) => {
+            const out = [];
+            for (let cz = Math.floor(z0 / CH); cz <= Math.floor(z1 / CH); cz++)
+              for (let cx = Math.floor(x0 / CH); cx <= Math.floor(x1 / CH); cx++)
+                for (const part of [BASE, FILLP]) {
+                  const recs = SHAPE.list.map(() => []);
+                  walk(cx, cz, recs, 0, NG, part);
+                  recs.forEach((r, gi) => {
+                    const SH = SHAPE.list[gi], kSz = (SH.key && SP_SIZE[SH.key.split('|')[0]]) || 1;
+                    for (let o = 0; o < r.length; o += FILL_REC) {
+                      const x = r[o], z = r[o + 2]; if (x < x0 || x > x1 || z < z0 || z > z1) continue;
+                      const sp = r[o + 3], w = r[o + 4], can = r[o + 5], md = r[o + 6];
+                      const si = SH.series.length > 1 ? seriesOf(w, TREE_MIX.mixDead && md >= 0 ? md : SH.dead) : 0;
+                      const s = fillSize(SH, kSz, sp, w, can), sy = s * (SH.white ? 1 : 0.9 + w * 0.25) * ((SH.series[si] && SH.series[si].scaleY) || 1);
+                      out.push({ key: SH.key || '', ser: si, x, y: r[o + 1] - 0.05 - (SH.sink || 0) * sy, z, yaw: w * 6.283, s, sy, h: SH.h || 0, town: can < 0 ? 1 : 0 });
+                    }
+                  });
+                }
+            return out;
           },
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; staleAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
