@@ -1497,8 +1497,8 @@
       // now if the room is shown, else when it is next entered (applyEnv bakes it then anyway)
       if (hangar.onFurnLanded) { const h0 = hangar; hangar.onFurnLanded(() => { if (hangar === h0 && inGarage && !envAway && h0.bakeGroundShadow) h0.bakeGroundShadow(renderer, hangarScene); }); }
       const tBake = performance.now();
-      bakeHangarEnv();
-      if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
+      if (ROOM_PREP) envDirty = true;   // (HANGAR-SWITCH prepare: the env bake waits for the swap's sliced re-bake; the floor print is applyEnv's)
+      else { bakeHangarEnv(); if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); }
       ROOM_T.bakeMs = Math.round(performance.now() - tBake);   // (HANGAR-SWITCH: the env + floor-shadow bakes of a first build)
       // the part system (G41, rehomed by HANGARS S1): the shell's default
       // dress first, then every part's saved dress off the player's record —
@@ -1544,7 +1544,8 @@
   // detached, and warms its programs with compileAsync against the garage scene (the lights match) - so the switch that
   // follows only unparks. The build itself is still one task: ROOM_T says what it cost (genMs the generator, buildMs it all)
   const ROOMS = new Map();          // roomId -> { hangar, env, envPM, background, fog, air, at }
-  const ROOM_T = {};                 // the last build / prepare / unpark: { room, how, genMs, buildMs, compileMs, unparkMs }
+  const ROOM_T = {};
+  let ROOM_PREP = false;             // (prepare's build: no bakes in its task)                 // the last build / prepare / unpark: { room, how, genMs, buildMs, compileMs, unparkMs }
   const ROOM_CACHE_ON = () => { try { return !/[?&]roomcache=0(?:&|$)/.test(location.search || ''); } catch (e) { return true; } };
   function roomPark() {
     if (!hangar) return;
@@ -1592,7 +1593,7 @@
       try {
         if (hangar) roomPark();
         d.here = id;                                   // (the build reads the room's record; never saved like this)
-        getHangar();
+        ROOM_PREP = true; try { getHangar(); } finally { ROOM_PREP = false; }
         if (hangar && hangarRoom === id) { roomPark(); rec = ROOMS.get(id); }
       } catch (e) { console.warn('flyDiy: the room could not be prepared -', e && e.message); }
       finally { d.here = here0; if (cur && ROOMS.has(cur)) roomUnpark(cur); }
@@ -1605,11 +1606,16 @@
       const tc = performance.now(), G = rec.hangar.group;
       const dress = fn => { const cur = hangar && hangar.group; if (cur) hangarScene.remove(cur); hangarScene.add(G);
         try { return fn(); } finally { hangarScene.remove(G); if (cur) hangarScene.add(cur); } };
-      return Promise.resolve(compileSliced(G, null, hangarScene, false, dress))
-        .then(() => (typeof firstUseSliced === 'function' ? firstUseSliced() : null), e => { console.warn('flyDiy: the room compile -', e && e.message); return null; })
-        .then(u => { Object.assign(built, { compileMs: Math.round(performance.now() - tc), firstUse: u || null });
-          Object.assign(ROOM_T, { room: id, how: 'prepared', genMs: built.genMs, bakeMs: built.bakeMs, buildMs: built.buildMs, compileMs: built.compileMs });
-          return built; });
+      // (PERF-LEAD: the WHOLE garage scene under the new room's lights - the aircraft's skins, the editor's cage, the props: a new
+      // light count keys every lit program again, and compileSliced only gathers what is in the scene it is given)
+      const lap = k => { const n = performance.now(); built[k] = Math.round(n - lapT); lapT = n; }; let lapT = tc;
+      return Promise.resolve(compileSliced(hangarScene, null, hangarScene, false, dress))
+        .then(() => { lap('compileMs'); return typeof compileDepthVariants === 'function' ? compileDepthVariants(hangarScene, true, dress) : null; })
+        .then(() => { lap('depthMs'); return typeof uploadSliced === 'function' ? uploadSliced(G, 'rooms', 'the room') : null; })
+        .then(() => { lap('uploadMs'); return typeof firstUseSliced === 'function' ? firstUseSliced() : null; })
+        .then(u => { lap('firstUseMs'); built.firstUse = u || null; built.prepMs = Math.round(performance.now() - t0); return built; },
+              e => { console.warn('flyDiy: the room compile -', e && e.message); return built; })
+        .then(b => { Object.assign(ROOM_T, { room: id, how: 'prepared', genMs: b.genMs, buildMs: b.buildMs, compileMs: b.compileMs, depthMs: b.depthMs, uploadMs: b.uploadMs }); return b; });
     },
     cached: () => [...ROOMS.keys()],
     memory: () => { const out = {}; for (const [k, r] of ROOMS) out[k] = roomBytes(r);
@@ -1927,7 +1933,7 @@
       // G1714: where the radio stands now - the garage's music leans toward it (boombox.js -> music.js)
       if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));
       // the kit moved, so its print on the floor moves with it
-      if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
+      { const tS = performance.now(); if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); ROOM_T.shadowMs = Math.round(performance.now() - tS); }
       // and the aeroplane's own print follows the aeroplane — every slider
       // comes back through here (apply -> enterGarage -> applyEnv), so this IS
       // the drag path, and it is four 256^2 draws
