@@ -1,5 +1,5 @@
-FAIL (62 of 266 gates run; PARTIAL: 19 of 23 chunks, 98 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H]
-NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME SCENERYED
+FAIL (68 of 292 gates run; PARTIAL: 20 of 23 chunks, 72 gates still to run): GROUNDQUERY [L40H], FLIGHTREC [L40H], FMIST [NEW], STOL [L40H], GEN [L40H], TAKEOFF [NEW], RADIALDIV [L40H], TAXICLEAR [L40H], ALTIPORT [L40H], GLIDE [L40H], UNIFY [L40H], SLOPE [L40H], TAILWHEEL [L40H], DESTTO [L40H], ROUTE [NEW], TOW [L40H], TREES [L40H], TREECRASH [L40H], DMGCERT [L40H], DMGGEAR [L40H], WILGAGEAR [L40H], SKIS [L40H], DMGCLUSTERS [L40H], DMGINST [L40H], DMGINTEGRITY [L40H], DMGSKIN [NEW], DMGUPLOAD [NEW], DMGSETTLE [NEW], DMGDRIVE [NEW], DMGWRECK [NEW], DMGWALL [NEW], DMGLOOK [NEW], DMGDAMP [L40H], DMGTYRE [L40H], DMGFABRIC [L40H], DMGSCAR [NEW], DMGDETERMINISM [L40H], DMGSCUFF [NEW], FRAMECOST [L40H], ROUNDTRIP [L40H], CONTACT [L40H], TERRAINMATCH [L40H], SHADOWSKY [L40H], RWYLIGHTS [L40H], LAKEBED [L40H], MEDIA [L40H], ASSETS [L40H], LIVERYSET [NEW], FRAMES [NEW], COMMITHYGIENE [NEW], FIN [NEW], GEOPARITY [NEW], WINGROWS [L40H], DESIGNCHECK [L40H], JOINPARITY [L40H], ENGINE [L40H], SAVE [L40H], BENCHTIME [NEW], PARTS [L40H], DESIGN [L40H], SCENERYED [NEW], PREMRASTER [L40H], PARKED [NEW], OBSTACLE [L40H], HITBOX [NEW], SNOWMUDFX [NEW], ROUGHWHEEL [L40H], WATERDAMP [NEW]
+NEW reds (not in master L40h's FAIL list): FMIST TAKEOFF ROUTE DMGSKIN DMGUPLOAD DMGSETTLE DMGDRIVE DMGWRECK DMGWALL DMGLOOK DMGSCAR DMGSCUFF LIVERYSET FRAMES COMMITHYGIENE FIN GEOPARITY BENCHTIME SCENERYED PARKED HITBOX SNOWMUDFX WATERDAMP
 L40h reds that PASS here: MONOWHEEL GFX  (of the gates run so far)
 L40J candidate origin/claude/train/L40J-candidate f80229d71, the CORE tier (364 gates, 387 jobs), cloud session MASTER-GREEN: 4 CPUs / 15 GB, node v22.23.5.
 Command per chunk, from flyDiy/: GATES_CORE=1 node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<the chunk's gates>. The gate table in chunks, in table order (3 large, then 20 small), each kept as it ended: this container restarted three times today and a single run loses every verdict. --only does not set GATES_CORE, so it is exported: the gates scope themselves as in a core run.
@@ -5935,6 +5935,246 @@ PASS the surface and exclude indexes answer as the scans on 1336025 points (0 su
   surfaceAt 157 -> 29 ms, excludeAt 337 -> 22 ms (90 k points, 4 m round the stand)
 GATE PREMRASTER: FAIL
 (exit code 1)
+######## chunk 19 of 23 (26 gates) ########
+=== PREMCOOK ===
+  ok   default: the queue built BACKWARDS on the cooked tallies gives the cooked placements (371 things, hash 353b5cc5e3f68461 / 353b5cc5e3f68461, 0 cells differ; 17.7 s)
+  ok   default: makeTallies.at(rank) is the running sum at every rank (371 ranks, 0 differ)
+GATE PREMCOOK: PASS
+=== TARR ===
+86/86 checks
+GATE TARR: PASS
+=== TOWNKIT ===
+  Metlakatla 383 of 383 plots, the village 46 of 46, outbuildings 68 of 68; nudged 1, mirrored 254
+  36.3 s
+GATE TOWNKIT: PASS
+=== KITHOST ===
+  G the full table: batch 2 meshes / 532 instances; instanced 312 meshes; 312 geometries, 1196446 vertices, 35.7 MB of vertex + index data, 490 looks, built in 623 ms
+  64/64 checks, 29.9 s
+GATE KITHOST: PASS
+=== CITYHOST ===
+  E allocation, bytes a tick over 20 000 ticks: the fixture far 0.11 / near 0.08, the pack metlakatla v2 far 0.12 / near 0.08; kit ring far 0.08, ring idle 0.08
+  95 checks (18.2 s)
+GATE CITYHOST: PASS
+=== METKIT ===
+  G the host: 440 instances, 307 geometries, 36.8 MB, 434 looks, built in 721 ms; the obstacles: 429734 lod-1 triangles rasterised in 334 ms, 46892 cells of 1 m (50.1 s)
+  45 checks, 50.1 s
+GATE METKIT: PASS
+=== CITYCOOK ===
+9. negative controls
+  ok   a plot moved, a plot dropped, an archetype id past the pack, a second draw, a lot row on a missing piece and a bay taken out are each caught; the pack as shipped is not
+GATE CITYCOOK: PASS
+=== PARKED ===
+the cook: 4 keys, cooked on build 48a71176c5a6 - STALE for this build (f4b924fa6deb): the page captures live until tools/parked_cook.js runs
+  11 mine:parkC172: 321434 tris under the Cub, 321434 under the metal Cessna; geometry 36dcdd7d2964f5a3 / 36dcdd7d2964f5a3, atlas e4124767b40ecb7f / 2aa865eeb2ed980a (49 s)
+  11 arch:c172: 317174 tris under the Cub, 317174 under the metal Cessna; geometry 56eea54c5915c2b9 / 56eea54c5915c2b9, atlas 4494d9a50d07e570 / 4494d9a50d07e570 (38 s)
+  11b arch:c172: 1 inside-only buckets, 6062 triangles; in the cut 0; silhouette x 10765 / 10765, y 59164 / 59164, z 23233 / 23233; doctored 6062
+  11 NEGATIVE CONTROL (the leak re-opened): mine:parkC172 385920 tris under the Cub, 374030 under the metal Cessna; geometry 6fc646b9522bd6c8 / e45ef281767baab0, atlas ee41df0f717a25cd / 53a7d583b282443a
+  ! 11 mine:parkC172: the same atlas under both (the copy's digest, the block, the faces) — e4124767b40ecb7f / 2aa865eeb2ed980a: uDecA=[v[-2.800000,0.020000,5.700000,1.5; uDecB=[v[0.750000,0.750000,0.250000,0.25; uDecC=[v[0.040000,-0.050000,1.000000,1.0; uDecD=[v[1.000000,1.000000,1.000000,1.00
+GATE PARKED: FAIL (1)
+[stderr]
+parked: no worker, decimating inline: URL is not defined
+parked: no worker, decimating inline: URL is not defined
+parked: no worker, decimating inline: URL is not defined
+parked: no worker, decimating inline: URL is not defined
+(exit code 1)
+=== FLOWNBAKE ===
+FLOWNBAKE: 83 checks
+GATE FLOWNBAKE: PASS
+=== OBSTACLE ===
+1. the shape
+  ok   a 4.5 x 1.8 x 1.5 box at 0.5 m is 4 x 10 occupied cells, top 1.5 (40, 1.5)
+  ok   a point near the roof goes UP 0.25
+  ok   a point deep in a grounded box goes UP, never into the ground (1.05)
+  ok   a point by the side wall goes SIDEWAYS, outward, in the world frame (0.76,0.00,-0.24)
+  ok   a point by the nose goes out through the nose
+  ok   outside, above and below are free
+  ok   under a deck on posts the air is free
+  ok   just under its underside a point goes DOWN (-0.10)
+2. the registry
+  ok   two added, maxTop the taller
+  ok   near() answers by bin
+  ok   move re-bins and turns
+  ok   remove drops the bins and re-reads maxTop
+  ok   a thing astride a bin edge is in both bins
+3. the discrepancy against the baked meshes
+  ok   101 baked props rasterised from their own geometry
+  ok   every vertex of every mesh lies inside its shape (worst miss 0.0000 m)
+  ok   no shape reaches more than a cell (0.5 m) outside its mesh's box (worst 0.000 m) - the 1 m rule holds by construction
+  ok   no prop off the rule
+4. the solver stops at a wall
+  ok   both runs finite and rolling (8.9 m/s at the most)
+  ok   with no wall the aeroplane rolls through the place (86.5 m)
+  ok   against the wall the solver reports nodes in contact (2 at the most)
+  ok   the nose never passes the far face of the wall (70.2 m of 78)
+  ok   the CG stays this side of the wall (62.5 m of 70)
+  FAIL against the wall under a third of throttle the aeroplane neither rebounds nor pushes on (1.54 m/s into / off the wall; along its face 0.46 m/s, reported)
+5. the world
+  ok   the analytic world registers its 132 settlement buildings (132)
+  ok   a settlement building answers near() at its own place
+25 checks, 1 failed
+GATE OBSTACLE: FAIL
+(exit code 1)
+=== HITBOX ===
+1. the pieces
+  ok   a cube's hull is its six faces  (6 faces)
+  ok   a flat set is no piece
+  ok   a point by the shared face goes UP (its own nearest external face), not into the next piece  (0.000,0.250,0.000)
+  ok   a point by the end goes out through the end  (0.150,0.000,0.000)
+  ok   outside, under and over are free
+  ok   a piece clear of the ground pushes a point just under its floor DOWN  (0.000,-0.100,0.000)
+  ok   a piece on the ground never pushes a node into it  (0.850,0.000,0.000)
+  ok   the yaw carries the push into the world frame  (0.115,0.000,-0.097)
+2. every archetype from its spec
+  ok   cub stands a shape  (62 pieces, 89 ms)
+  ok   pietenpol stands a shape  (68 pieces, 53 ms)
+  ok   tigermoth stands a shape  (84 pieces, 66 ms)
+  ok   stearman stands a shape  (102 pieces, 106 ms)
+  ok   camel stands a shape  (112 pieces, 138 ms)
+  ok   pittsAlike stands a shape  (87 pieces, 91 ms)
+  ok   sesqui stands a shape  (104 pieces, 121 ms)
+  ok   jodel stands a shape  (44 pieces, 41 ms)
+  ok   c172 stands a shape  (49 pieces, 29 ms)
+  ok   chinook stands a shape  (52 pieces, 26 ms)
+  ok   caravan stands a shape  (54 pieces, 57 ms)
+  ok   rv stands a shape  (47 pieces, 47 ms)
+  ok   savannah stands a shape  (48 pieces, 21 ms)
+  ok   ul1 stands a shape  (48 pieces, 41 ms)
+  --   floatplane: floats (no mains: the mesh raster stands it)
+  ok   pusherPod stands a shape  (61 pieces, 50 ms)
+  ok   motorglider stands a shape  (56 pieces, 82 ms)
+  ok   radial stands a shape  (56 pieces, 79 ms)
+  ok   etrainer stands a shape  (61 pieces, 116 ms)
+  ok   ttail stands a shape  (47 pieces, 53 ms)
+  ok   vtail stands a shape  (57 pieces, 48 ms)
+  ok   mw5 stands a shape  (49 pieces, 63 ms)
+  ok   archaeopteryx stands a shape  (39 pieces, 27 ms)
+  ok   da62 stands a shape  (52 pieces, 47 ms)
+  ok   twinBush stands a shape  (55 pieces, 20 ms)
+  ok   skymaster stands a shape  (54 pieces, 38 ms)
+  ok   p38 stands a shape  (60 pieces, 77 ms)
+  ok   pushPull stands a shape  (56 pieces, 49 ms)
+  ok   trimotor stands a shape  (53 pieces, 40 ms)
+  ok   fourEngine stands a shape  (55 pieces, 43 ms)
+  ok   beaver stands a shape  (49 pieces, 37 ms)
+  ok   30 archetypes stand an analytic shape
+  ok   the wing's reach is the spec's half-span on every one (to 2 mm: a bowed tip's last loft row stands at sin(0.965 x 90 deg) of its radius, as drawn)  (worst 1.7 mm, camel)
+  ok   each in a fraction of a second  (slowest 138 ms (first calls pay the JIT))
+3. the captures (the page in node)
+  FAIL arch:cub captured
+  FAIL arch:c172 captured
+  FAIL arch:jodel captured
+41/44 checks
+GATE HITBOX: FAIL
+(exit code 1)
+=== HYDRODYN ===
+PASS an aft-cabin tank (hull slice 2) in a 5 m/s pancake: its slice slammed to 551 kPa (the tank's breach 400) - holed 2 of 2, flooding 22 %, 22 %
+
+GATE HYDRODYN: PASS
+=== WATER ===
+PASS the ring over a bay takes the lake's rule by the bay's weight - after the 'off' return (the reflections off still pay nothing)
+
+GATE WATER: PASS
+=== DUST ===
+  ok   p99 under 1 ms a frame (node, this machine)
+56 checks, 5.5 s
+GATE DUST: PASS
+=== SNOWMUDFX ===
+FAIL E the cost on mud: the frame's simulation p99 under 1 ms (node), the batch within the pools - median 36 us, p99 2411 us, 627 instances
+  FAIL E the cost on powder: the frame's simulation p99 under 1 ms (node), the batch within the pools - median 74 us, p99 2699 us, 317 instances
+  (1 s)
+GATE SNOWMUDFX: FAIL (2)
+(exit code 1)
+=== SINKVIS ===
+(3 s)
+GATE SINKVIS: PASS
+=== MUDCOAT ===
+(8 s)
+GATE MUDCOAT: PASS
+=== MUDDEPOSIT ===
+CUB: grid 137x90x37 (10579 airframe cells) 264 ms, 20 s run 544 ms; thrown 6574, hits 1567, coat 0.105
+C172: grid 141x104x42 (11893 airframe cells) 316 ms, 20 s run 517 ms; thrown 4685, hits 3910, coat 0.032
+GATE MUDDEPOSIT: PASS
+=== GFXLOOK ===
+(13 ms)
+GATE GFXLOOK: PASS
+=== WHEELSIZE ===
+  0.36 m tundra               70 m 9.0 s        70 m 9.1 s        74 m 10.0 s         x1.01 / x1.11         0.6 cm
+  (48 s)
+GATE WHEELSIZE: PASS
+=== ROUGHWHEEL ===
+the Cub (list:1), its main wheels changed; one of the strip's stones under each main 6 m ahead, from rest at a fixed
+  throttle: the share of its speed a wheel keeps over the stone, and the CG's peak vertical acceleration there (m/s^2)
+  stone, throttle         0.15 m standard           0.22 m standard (built)   0.30 m standard           0.36 m tundra             
+  15 cm, 0.3              keeps 69 %, jolt 9.4      keeps 70 %, jolt 8.4      keeps 67 %, jolt 6.0      keeps 60 %, jolt 4.2      
+  20 cm, 0.4              keeps 74 %, jolt 9.5      keeps 75 %, jolt 9.8      keeps 78 %, jolt 9.8      keeps 80 %, jolt 7.7      
+  15 cm, 0.3 OLD LAW      keeps 71 %, jolt 9.5      keeps 72 %, jolt 9.6      keeps 74 %, jolt 9.5      keeps 74 %, jolt 9.5      
+  a 10 m/s taxi over a row of 15 cm stones: the CG's peak vertical acceleration and the gear's peak strain
+    0.15 m standard           16.5 m/s^2, 13.50 %
+    0.22 m standard (built)   15.3 m/s^2, 12.54 %
+    0.30 m standard           14.4 m/s^2, 9.10 %
+    0.36 m tundra             12.6 m/s^2, 7.07 %
+  the strip's own field (STRIP_MICRO chaos 0.8, seed 9), a 10 m/s taxi of 380 m:
+    0.15 m standard           41 s, jolt 8.5 m/s^2, gear 6.96 %; the cams read the ground 49.0 times a frame, the solver 10137 us a frame
+    0.36 m tundra             42 s, jolt 7.9 m/s^2, gear 7.05 %; the cams read the ground 77.0 times a frame, the solver 11962 us a frame
+  FAIL A the 0.15 m wheel stops at the 15 cm stone at 0.3 power - keeps 69 %, jolt 9.4      
+  FAIL A the 0.30 m standard keeps more of its speed than the 0.22 m standard (built) - keeps 67 %, jolt 6.0       vs keeps 70 %, jolt 8.4      
+  FAIL A the 0.36 m tundra keeps more of its speed than the 0.30 m standard - keeps 60 %, jolt 4.2       vs keeps 67 %, jolt 6.0      
+  FAIL C the old point read: the 0.15 m wheel rolled over the 15 cm stone at full speed (the self-test: the old law fails A) - keeps 71 %, jolt 9.5      
+  (105 s)
+GATE ROUGHWHEEL: FAIL (4)
+(exit code 1)
+=== MUDLADDER ===
+  ok   the scenery ship's manifest carries the ladder as a field patch on w6 and w8, with its why
+  (54 s, 56 checks)
+GATE MUDLADDER: PASS
+=== WATERDAMP ===
+1 THE DECAY (ditched at 22 m/s, sinking 1 m/s, throttle closed; 1 s windows, the line out)
+PASS the worker steps 1/60 (SIM_HOST_DT) - the page's step; the runs below are both paths'
+   the user's Cub: per second 141 310 93 149 122 49 93 31 14 10 12 9 ... mm; 10-30 s at most 11.9 mm
+PASS the user's Cub settles under 1 cm p-p from 11 s (bound 12 s: re-derived by name on train 41's honest damper, DMG-DAMP G1885 - the Cub settles in 11 s, not master's 7) and stays under to 30 s (the most after 10 s 11.9 mm)
+   the metal Cessna: per second 161 787 277 18 5 1 4 9 4 2 4 3 ... mm; 10-30 s at most 22.3 mm
+FAIL the metal Cessna settles under 1 cm p-p from 17 s (bound 12 s: re-derived by name on train 41's honest damper, DMG-DAMP G1885 - the Cub settles in 11 s, not master's 7) and stays under to 30 s (the most after 10 s 22.3 mm)
+
+2 THE CONTROL (the old law: 32_hydro.js WB_OPT all 0)
+PASS the old law's Cub never settles under 1 cm by 30 s (never; 20-30 s at least 27.9 mm every second - the limit cycle)
+
+3 THE HELD RATE (radiation off: the held compute against the force computed every substep)
+   held, the fixes            10 s windows: 1925.9 / 93.4 / 26.5 mm
+   every substep (old law)    10 s windows: 1929.2 / 89.5 / 25.5 mm
+   held, the old law          10 s windows: 1930.1 / 94.8 / 39.6 mm
+OPEN the held force is the force: the 10-20 / 20-30 s oscillation 93.4 mm / 26.5 mm held against 89.5 mm / 25.5 mm every substep (bound 2 mm) [owner WATER-LOOK: the held rate against the substep once the rocking is not damped by the old rigid damper (DMG-DAMP G1885), opened 2026-10-09]
+OPEN ...and the old law held is not (39.6 mm at 20-30 s: the cap on the buoyancy, the last compute's air share, the held pose) [owner WATER-LOOK: the held rate against the substep once the rocking is not damped by the old rigid damper (DMG-DAMP G1885), opened 2026-10-09]
+
+4 THE PROP (the Cub ditched, the throttle left at 0.6)
+   damage off: the disc wet at 0.42 s, thrust after 0 N, seized false, drowned true; damage on: wet at 0.42 s, {"eng":0,"what":"water","t":0.40000000000001484}
+PASS damage OFF: the disc meets the water at 0.42 s (bound 1 s), the engine stalls - no thrust after it, the starter cannot catch with the disc under, nothing seized, no strike
+PASS damage ON: a prop strike (water at 0.40 s), the engine seized, no thrust after it
+PASS dry on its strip the engine runs (729 N) and `out` never carries propWet
+
+5 THE FLOATS
+PASS the Cessna on floats: no wet body, 8 s on the water at a quarter throttle with the disc never wet and every engine running (750 N)
+PASS the twin on floats: no wet body, 8 s on the water at a quarter throttle with the disc never wet and every engine running (601 N)
+
+6 THE CRASH ENDING CLOSES THE THROTTLE
+PASS the worker's step: the lever at 0.6 stays 0.6 in flight, and is 0 once the crash is over (0.6 -> 0)
+PASS app.js script() (the inline path) closes the throttle on the same condition
+
+(wall 50 s)
+
+GATE WATERDAMP: FAIL (1)
+(exit code 1)
+=== WETFX ===
+  ok   sim_link.js hands the worker's records as sim.wetFx and restores the inline one at detach (source)
+
+GATE WETFX: PASS
+=== PAVEMENT ===
+PASS the negative control: a plain tiling repeats at its tile (100.0 % of the samples the same 2.00 m on, 100.0 % at 6.00 m)
+PASS no repeat under 300 m: over 1200 lattice shifts (u, v, diagonal, every 1.00 m) at most 0.00 % of 600 samples land on the same fetches
+GATE PAVEMENT: PASS
+=== MICRO ===
+PASS the shader's holes, hazards and relief are the field's, line for line (37 GLSL lines, 28 JS lines), on the field's v (the ribbon's flipped)
+PASS the ribbon's (u, v) is the field's (u, -v) at 71 vertices of w7 (0 off by more than 1 cm)
+GATE MICRO: PASS
 
 ──────── summary (all chunks) ────────
 COVERIDLE PASS     0.0 s
@@ -6203,6 +6443,32 @@ SCENERYED FAIL    52.2 s
 PATCHFAR  PASS     0.1 s
 GROUNDBOX PASS     0.4 s
 PREMRASTER FAIL   189.7 s
-wall (the chunks' own, summed) 32150.3 s  (jobs 4)
+PREMCOOK  PASS   435.6 s
+TARR      PASS     1.5 s
+TOWNKIT   PASS    36.7 s
+KITHOST   PASS    30.0 s
+CITYHOST  PASS    28.3 s
+METKIT    PASS    50.2 s
+CITYCOOK  PASS    19.5 s
+PARKED    FAIL   573.7 s
+FLOWNBAKE PASS     0.2 s
+OBSTACLE  FAIL    17.6 s
+HITBOX    FAIL   208.5 s
+HYDRODYN  PASS   130.9 s
+WATER     PASS     9.8 s
+DUST      PASS     5.5 s
+SNOWMUDFX FAIL     0.9 s
+SINKVIS   PASS     3.6 s
+MUDCOAT   PASS     8.6 s
+MUDDEPOSIT PASS    28.9 s
+GFXLOOK   PASS     0.0 s
+WHEELSIZE PASS    48.2 s
+ROUGHWHEEL FAIL   105.1 s
+MUDLADDER PASS    54.7 s
+WATERDAMP FAIL    49.9 s
+WETFX     PASS    34.0 s
+PAVEMENT  PASS    20.1 s
+MICRO     PASS   138.4 s
+wall (the chunks' own, summed) 32724.0 s  (jobs 4)
 
-PARTIAL CORE BATTERY on the L40J candidate: FAIL - 62 red (204 PASS, 62 FAIL, 0 SKIP of 364)
+PARTIAL CORE BATTERY on the L40J candidate: FAIL - 68 red (224 PASS, 68 FAIL, 0 SKIP of 364)
