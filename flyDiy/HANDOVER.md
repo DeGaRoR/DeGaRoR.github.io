@@ -318243,3 +318243,10 @@ NEW REDS (named):
 - MONOWHEEL: E, parked on the wheel + nose skid + one wingtip skid - FLAGSHIP (the E811 change / electric trainer) to check.
 - TAILWHEEL: I, down & out lands HOME at 22.57 m/s, roll-out 0 deg - Pilot / FLAGSHIP to check against the E811 change.
 NAMED for list:50 (rides L40i): DMGCERT BROKE UP with no BROKE AT (18 wing members kink at 7.4 g, nothing detaches).
+
+## PERF-CODEX-GREEN 2 - GATE PREMISES threw on a perf fixture (PERF-WORLDBUILD for A0, 22 Nov 2026, claude/ready/perf-codex-green-2 off perf-codex-green cc0495b93)
+GATE PREMISES runs every tools/fixtures/premises_v*_*.json. Codex's 8b38df7dc added his perf record there as premises_v1_perf_town_third.json (written by tools/perf/make_compact_town.js, read by tools/_pave_poly_bounds_check.js and tools/_road_bounds_check.js); it carries the Mount Ardent pad mt_t_pad, a terrain entry of kind 'ramp', and the gate's check 7 (grade / flatten / raise / plane) threw at its first sample (tools/_premises_check.js:256, m.plane undefined). Master's L40h log has PREMISES PASS: the gate's fixture set there is the six premises_v1_* files.
+- THE FIX (a source fix; the gate is untouched): the file is tools/fixtures/perf_town_third.json now, out of the gate's pattern; its three users read and write the new name. The gate's fixture set is master's again.
+- Run on this tree: PREMISES PASS; the two unit checks that read the fixture pass.
+- NOT perf-codex's, checked against the WHOLE block of master's L40h log: CONTACT's five rows and TERRAINMATCH's six are master's own, number for number. (A first reading of mine said four of CONTACT's came with perf-codex: wrong, corrected the same hour.) A survey bisect agrees: tools/ground_surface.js --grid / --sep give identical rows with Codex's boundedRoads off, with the terrain memo's legacy hash, and with both.
+- OWED by the scenery's owner, not here: check 7 does not know a 'ramp' entry; a gate fixture that carries one will throw the same way.
