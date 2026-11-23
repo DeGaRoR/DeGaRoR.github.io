@@ -1354,6 +1354,12 @@
      "who": "pete",
      "text": "ct.minedock.05.done"
     }
+   },
+   "validated": {
+    "with": "Cessna 172 floats (career)",
+    "sim": "L40K",
+    "flownS": 428,
+    "sig": "a48a6dde"
    }
   },
   {

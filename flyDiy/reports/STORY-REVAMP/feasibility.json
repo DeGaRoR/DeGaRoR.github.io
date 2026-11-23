@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 40,
+  "feasible": 41,
   "no official plane can fly it (the player builds one)": 2,
-  "not flown": 29,
+  "not flown": 28,
   "an aircraft order (not a flight)": 8,
   "infeasible": 7,
   "stale": 5
  },
- "flownS": 68509,
+ "flownS": 68937,
  "rows": [
   {
    "id": "field.01",
@@ -876,8 +876,32 @@
    "id": "minedock.05",
    "where": "harbour:1",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 428,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 428,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "sub:0@0",
+      "sub:1@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 30,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "minedock.06",

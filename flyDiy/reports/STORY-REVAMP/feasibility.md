@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 40 feasible; 7 infeasible; 2 no official plane can fly it (the player builds one); 29 not flown; 5 stale. Time flown: 1141 min 49 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 41 feasible; 7 infeasible; 2 no official plane can fly it (the player builds one); 28 not flown; 5 stale. Time flown: 1148 min 57 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -29,7 +29,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 40 feasible; 7 infeas
 | mine.03 | mine:3 | feasible | Piper Cub | 46 min 02 s | HOME > mn_strip 994; mn_strip > w3 1048; w3 > mn_strip 720 |  |
 | mine.04 | mine:4 | feasible | PC-6 Turbo Porter | 22 min 06 s | HOME > mn_strip 1326 |  |
 | mine.tour | contract | feasible | PC-6 Turbo Porter | 37 min 03 s | HOME > mn_strip 1326; mn_strip > HOME 897 |  |
-| minedock.05 | harbour:1 | not flown | - | - | - |  |
+| minedock.05 | harbour:1 | feasible | Cessna 172 floats (career) | 7 min 08 s | SEA > mk_sea 428 |  |
 | minedock.06 | harbour:2 | not flown | - | - | - |  |
 | lumber.01 | lumber:1 | feasible | Cessna 172 floats (career) | 6 min 59 s | SEA > mk_sea 419 |  |
 | lumber.02 | lumber:2 | infeasible | Twin busher floats 4b | 6 min 37 s | SEA > mk_sea 397 | the stop refuses the load: aboard 15 kg / 0 pax, the job is 150 kg / 0 pax |
