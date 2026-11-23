@@ -6,11 +6,11 @@
 #   GF_ALL    + the world build in steps and workers (compsteps, stripw, patchw, roadw, near first) and the settle near
 #   GF_ALLW   the same profile again: a returning player
 #   BASE_13   the same build, today's order (no switch): the number garage first is read against
-#   GF_FAST   GF_ALL + the links' pacer at 32 and the scuff's links after the reveal: the garage's own 31 s is 10.6 s of
+#   GF_FAST   GF_ALL + the best load.s set (the pacer at 32, the scuff.s links after the reveal, the pavement and the ground first): the garage's own 31 s is 10.6 s of
 #             shader links and 6.9 s of first frame, both bound by the pacer's 8 at a time (PERF-TRACE's reader, 23 Nov)
 # TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
 GF_ALL    ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
 BASE_13   ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
 GF_PLAIN  ; D:/Dev/perf-lab-built ; boot=garagefirst ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
 GF_ALLW_1 ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
-GF_FAST   ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near&pace=32&latelinks=bg ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
+GF_FAST   ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near&pace=32&latelinks=bg&pavefirst=1&groundfirst=1 ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
