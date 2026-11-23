@@ -93,7 +93,16 @@ const GUARDRAIL = (() => {
   // o: { path (polyRoad: length, at(t) -> {p, tg, n}), w, hAt(lx, lz) -> the ground's height at a
   //     point in the PATH's own coordinates, keep(lx, lz) -> false to forbid a rail, waterY, seed }
   // -> [{ side: -1 | 1, t0, t1, rails: 1 | 2, drop }]  (side multiplies the path's n)
-  function plan(o) {
+  // PERF-WORLDBUILD (23 Nov 2026): IN STEPS. A long road's rail was one task of the world build's 'roads' step (its probes
+  // read ground heights that decode raster tiles on first touch: 452 ms behind a live garage at 5K, 23 Nov). planSteps and
+  // buildSteps are the same work in the same order as generators: they yield every 8 stations of the plan, and before each
+  // run's geometry, when `due()` says so - the host's budget (window.FLYDIY_WORLD_BUDGET.left() <= 0); with no host budget
+  // they never yield. plan and build drain them: the same runs, the same meshes (GATE COMPSTEPS under COMPSTEPS_BUDGET: the
+  // rails' digest).
+  const hostDue = () => { const Bd = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };
+  function plan(o) { const g = planSteps(o, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* planSteps(o, due) {
+    due = due || hostDue;
     const P = o.path, L = P.length, d = Object.assign({}, D, o.D || {});
     const w = o.w || 5;
     if (!P || L < d.minRun || w < d.minW) return [];
@@ -106,6 +115,7 @@ const GUARDRAIL = (() => {
     const n = Math.max(2, Math.ceil(L / d.step)), off = w / 2 + d.offset;
     const hit = [[], []], dropAt = [[], []];
     for (let i = 0; i <= n; i++) {
+      if (i && !(i & 7) && due()) yield 'roads: its rail';
       const t = L * i / n, A = P.at(t);
       // the turn of the tangent over +-8 m: its sign says which side is the outside
       const a0 = P.at(Math.max(0, t - 8)).tg, a1 = P.at(Math.min(L, t + 8)).tg;
@@ -278,10 +288,12 @@ const GUARDRAIL = (() => {
   // ONE MESH A RUN, not one a road: an 11 km mountain road's rails are 34 runs over 11 km, and a
   // single mesh's bounding sphere covers the island - it would be drawn from everywhere. A run is
   // a hundred metres, so the frustum throws away all but the one or two you are over.
-  function build(THREE, o) {
+  function build(THREE, o) { const g = buildSteps(THREE, o, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* buildSteps(THREE, o, due) {
+    due = due || hostDue;
     const mode = o.mode || 'auto';
     if (mode === 'off') return null;
-    const runs = o.runs || (mode === 'on' ? always(o) : plan(o));
+    const runs = o.runs || (mode === 'on' ? always(o) : yield* planSteps(o, due));
     if (!runs.length) return null;
     const d = Object.assign({}, D, o.D || {});
     const grp = new THREE.Group();
@@ -290,6 +302,7 @@ const GUARDRAIL = (() => {
     // the budget: the STEEPEST runs first, so a road past the cap keeps the rails that matter
     for (const run of runs.slice().sort((a, b) => (b.drop || 0) - (a.drop || 0))) {
       if (metres + (run.t1 - run.t0) > d.cap) continue;
+      if (due()) yield 'roads: its rail';
       const G = geometry(THREE, Object.assign({}, o, { runs: [run] }));
       if (!G) continue;
       const m = new THREE.Mesh(G.geo, material(THREE));
@@ -339,7 +352,7 @@ const GUARDRAIL = (() => {
   function set(o) { for (const k in o) if (k in D) D[k] = o[k]; }
   function reset() { D = Object.assign({}, DEF); }
 
-  const api = { DEF, W_BEAM, get D() { return D; }, plan, always, geometry, build, material, attach, forget, dispose, setOn, isOn, stats, list, set, reset };
+  const api = { DEF, W_BEAM, get D() { return D; }, plan, planSteps, always, geometry, build, buildSteps, material, attach, forget, dispose, setOn, isOn, stats, list, set, reset };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = GUARDRAIL;
