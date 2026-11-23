@@ -1,0 +1,102 @@
+{
+ "id": "club.tour",
+ "kind": "challenge",
+ "verdict": "infeasible",
+ "plane": "STOL Cub",
+ "timeS": 1966,
+ "why": "never took off on w5 > HOME (118 s on the ground: TAXI>STOP>HOLD>ROLL>ABORT) - the page ended it as a stop and the career counted it (a step judged on stop.aero alone)",
+ "tried": [
+  "Piper Cub:infeasible",
+  "Jodel D112:infeasible",
+  "Cessna 172 (career):infeasible",
+  "STOL Cub:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 624,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "sub:0@0",
+    "sub:1@0",
+    "timer",
+    "sub:2@0",
+    "stage@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": [
+    "hit:a1",
+    "hit:a2"
+   ]
+  },
+  {
+   "from": "w3",
+   "to": "w5",
+   "t": 421,
+   "how": "stopped",
+   "at": "w5",
+   "stop": [
+    "sub:0@1",
+    "sub:1@1",
+    "timer",
+    "sub:2@1",
+    "stage@1"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": [
+    "hit:b1",
+    "hit:b2"
+   ]
+  },
+  {
+   "from": "w5",
+   "to": "HOME",
+   "t": 118,
+   "how": "stopped",
+   "at": "w5",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "abort"
+   ],
+   "events": []
+  },
+  {
+   "from": "w5",
+   "to": "HOME",
+   "t": 802,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@2",
+    "sub:1@2",
+    "timer",
+    "course",
+    "sub:2@2",
+    "stage@2",
+    "say",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": [
+    "hit:c1",
+    "hit:c2"
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "ba62de102961",
+ "where": "club:2",
+ "pool": "official+57,58+test builds",
+ "wallS": 3325
+}

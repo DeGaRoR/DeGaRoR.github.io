@@ -1,0 +1,36 @@
+{
+ "id": "field.ridge",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "STOL Cub",
+ "timeS": 595,
+ "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+ "tried": [
+  "Cessna 172 (career):infeasible",
+  "Cessna 172 with the STOL kit (test build):infeasible",
+  "Piper Cub:infeasible",
+  "STOL Cub:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 595,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [
+  "the stop counts the build's occupants: Piper Cub flies with 1 aboard (1 passenger(s) asked); STOL Cub flies with 1 aboard (1 passenger(s) asked); Carbon Cub SS flies with 1 aboard (1 passenger(s) asked); Chinook flies with 1 aboard (1 passenger(s) asked); B-ITES flies with 1 aboard (1 passenger(s) asked); PC-6 Turbo Porter flies with 1 aboard (1 passenger(s) asked); Client Cub flies with 1 aboard (1 passenger(s) asked)"
+ ],
+ "untested": false,
+ "key": "4aec0468d36e",
+ "where": "contract",
+ "pool": "official+57,58+test builds",
+ "wallS": 1845
+}

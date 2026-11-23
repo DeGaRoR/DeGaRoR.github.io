@@ -1,0 +1,46 @@
+{
+ "id": "club.regular",
+ "kind": "challenge",
+ "verdict": "infeasible",
+ "plane": "STOL Cub",
+ "timeS": 2158,
+ "why": "no progress: pass r1: not flown yet",
+ "tried": [
+  "Piper Cub:infeasible",
+  "Jodel D112:infeasible",
+  "Cessna 172 (career):infeasible",
+  "STOL Cub:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 1039,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 1119,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "400eecfea2d6",
+ "where": "contract",
+ "pool": "official+57,58+test builds",
+ "wallS": 3725
+}

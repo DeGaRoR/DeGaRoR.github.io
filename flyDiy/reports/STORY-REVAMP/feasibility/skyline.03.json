@@ -1,0 +1,38 @@
+{
+ "id": "skyline.03",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 697,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "tw_ski",
+   "t": 697,
+   "how": "stopped",
+   "at": "tw_ski",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 90,
+   "pax": 0,
+   "faults": [
+    "yield",
+    "prop-strike"
+   ],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "e4c3ba76412f",
+ "where": "skyline:2",
+ "pool": "official+57,58+test builds",
+ "wallS": 249
+}

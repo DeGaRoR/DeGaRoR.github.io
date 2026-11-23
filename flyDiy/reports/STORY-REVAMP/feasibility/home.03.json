@@ -1,18 +1,19 @@
 {
  "id": "home.03",
  "kind": "contract",
- "verdict": "infeasible",
- "plane": "Cessna 172 (career)",
- "timeS": 1673,
- "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+ "verdict": "feasible",
+ "plane": "Cessna 172 with the STOL kit (test build)",
+ "timeS": 1192,
+ "why": "",
  "tried": [
-  "Cessna 172 (career):infeasible"
+  "Cessna 172 (career):infeasible",
+  "Cessna 172 with the STOL kit (test build):feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 551,
+   "t": 485,
    "how": "stopped",
    "at": "w3",
    "stop": [
@@ -26,18 +27,17 @@
   {
    "from": "w3",
    "to": "w1",
-   "t": 1122,
-   "how": "crashed",
-   "at": null,
-   "stop": [],
+   "t": 707,
+   "how": "stopped",
+   "at": "w1",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
    "kg": 250,
    "pax": 0,
-   "faults": [
-    "crash",
-    "yield",
-    "break",
-    "prop-strike"
-   ],
+   "faults": [],
    "events": []
   }
  ],
@@ -45,6 +45,6 @@
  "untested": false,
  "key": "78208ba13b4d",
  "where": "home:2",
- "pool": "validated",
- "wallS": 2488
+ "pool": "official+57,58+test builds",
+ "wallS": 2236
 }

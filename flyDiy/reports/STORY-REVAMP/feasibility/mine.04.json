@@ -2,36 +2,34 @@
  "id": "mine.04",
  "kind": "contract",
  "verdict": "infeasible",
- "plane": "Cessna 172 (career)",
- "timeS": 780,
- "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 1230,
+ "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 2 pax",
  "tried": [
-  "Cessna 172 (career):infeasible"
+  "Cessna 172 (career):infeasible",
+  "Cessna 172 with the STOL kit (test build):infeasible",
+  "PC-6 Turbo Porter:infeasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "mn_strip",
-   "t": 780,
-   "how": "crashed",
-   "at": null,
+   "t": 1230,
+   "how": "stopped",
+   "at": "mn_strip",
    "stop": [],
    "kg": 0,
    "pax": 0,
-   "faults": [
-    "crash",
-    "yield",
-    "break"
-   ],
+   "faults": [],
    "events": []
   }
  ],
  "notes": [
-  "the stop counts the build's occupants: Cessna 172 (career) flies with 2 aboard (2 passenger(s) asked)"
+  "the stop counts the build's occupants: Cessna 172 (career) flies with 2 aboard (2 passenger(s) asked); Cessna 172 with the STOL kit (test build) flies with 2 aboard (2 passenger(s) asked); PC-6 Turbo Porter flies with 1 aboard (2 passenger(s) asked)"
  ],
  "untested": false,
  "key": "05afbea57dd8",
  "where": "mine:4",
- "pool": "validated",
- "wallS": 1100
+ "pool": "official+57,58+test builds",
+ "wallS": 2535
 }

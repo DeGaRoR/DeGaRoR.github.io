@@ -1,0 +1,35 @@
+{
+ "id": "field.hike",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1062,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w8",
+   "t": 1062,
+   "how": "stopped",
+   "at": "w8",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "3e2dff68c195",
+ "where": "contract",
+ "pool": "official+57,58+test builds",
+ "wallS": 373
+}

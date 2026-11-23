@@ -2,53 +2,25 @@
  "id": "obs.05",
  "kind": "contract",
  "verdict": "infeasible",
- "plane": "Cessna 172 (career)",
- "timeS": 558,
- "why": "no progress: already loaded [declined]",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 1227,
+ "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 120 kg / 0 pax",
  "tried": [
-  "Cessna 172 (career):infeasible"
+  "Cessna 172 (career):infeasible",
+  "Cessna 172 with the STOL kit (test build):infeasible",
+  "PC-6 Turbo Porter:infeasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 558,
+   "t": 1227,
    "how": "stopped",
    "at": "w3",
-   "stop": [
-    "picked:0@0"
-   ],
-   "kg": 120,
+   "stop": [],
+   "kg": 0,
    "pax": 0,
    "faults": [],
-   "events": []
-  },
-  {
-   "from": "w3",
-   "to": "mt_strip",
-   "t": 0,
-   "how": "stopped",
-   "at": "w3",
-   "stop": [],
-   "kg": 120,
-   "pax": 0,
-   "faults": [
-    "declined"
-   ],
-   "events": []
-  },
-  {
-   "from": "w3",
-   "to": "mt_strip",
-   "t": 0,
-   "how": "stopped",
-   "at": "w3",
-   "stop": [],
-   "kg": 120,
-   "pax": 0,
-   "faults": [
-    "declined"
-   ],
    "events": []
   }
  ],
@@ -56,6 +28,6 @@
  "untested": false,
  "key": "ad8f003e6b71",
  "where": "observatory:3",
- "pool": "validated",
- "wallS": 509
+ "pool": "official+57,58+test builds",
+ "wallS": 1700
 }

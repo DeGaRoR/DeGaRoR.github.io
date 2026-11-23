@@ -2,34 +2,34 @@
  "id": "home.08",
  "kind": "contract",
  "verdict": "infeasible",
- "plane": "Cessna 172 floats (career)",
- "timeS": 550,
- "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+ "plane": "Twin busher floats 4b",
+ "timeS": 649,
+ "why": "the stop refuses the load: aboard 39 kg / 1 pax, the job is 150 kg / 0 pax",
  "tried": [
-  "Cessna 172 floats (career):infeasible"
+  "Cessna 172 floats (career):infeasible",
+  "PC-6 on Wiplines:infeasible",
+  "Twin busher floats 4b:infeasible"
  ],
  "legs": [
   {
    "from": "SEA",
    "to": "cb_sea",
-   "t": 550,
-   "how": "crashed",
-   "at": null,
+   "t": 649,
+   "how": "stopped",
+   "at": "cb_sea",
    "stop": [],
-   "kg": 150,
+   "kg": 39,
    "pax": 0,
-   "faults": [
-    "crash",
-    "yield",
-    "break"
-   ],
+   "faults": [],
    "events": []
   }
  ],
- "notes": [],
+ "notes": [
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
  "untested": false,
  "key": "e84f8afb87b9",
  "where": "home:4",
- "pool": "validated",
- "wallS": 673
+ "pool": "official+57,58+test builds",
+ "wallS": 2956
 }
