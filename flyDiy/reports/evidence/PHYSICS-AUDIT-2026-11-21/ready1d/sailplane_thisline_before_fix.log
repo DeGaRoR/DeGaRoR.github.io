@@ -1,0 +1,22 @@
+A. THE CATEGORY
+  ok   A the row writes the key: normal undefined, strong "sailplane", very light "light"
+  ok   A very light builds lighter than normal
+  ok   A heavier as a sailplane: the wing 40.6 -> 47.3 kg, the fuselage 27.2 -> 30.5, the gear 16.7 -> 16.8 (Nz not on the gear)
+  ok   A the four constructions: normal 3.8, very light 3.0, strong (sailplanes) 5.3, aerobatic 6.0 - the row's order
+  ok   A an unknown category: no key
+  ok   A the certificate flies the category: genCertify's limit genCertLim, the record's ultimate genCertUlt
+B. THE AIRBRAKES
+  ok   B the clamp: {"z0":0.88,"z1":0.92,"h":0.35} (a span of at least 4 %, the plate's height capped)
+  ok   B the strips: 4 carry the brake (0.38 0.77 0.38 0.77), no other strip a key
+  ok   B the boxes 3.4 kg, their own line
+  ok   B the handle only on a build with brakes
+  FAIL B full out at 28 m/s: the drag 197.1 -> 439.9 N, the L/D 24.5 -> 10.9
+  ok   B the plates drawn, each sliding up (0.16, 0.16 m)
+  ok   B the blue handle in the cockpit, on the airbrake
+  ok   B the input: 8 out, 7 in (the brackets are the radio's), written only where the handle is
+C. THE LS4-ALIKE
+  ok   C the card: engineless, NACA 2415, sailplane, the tow release cg, airbrakes
+  ok   C 170 L in the wings (wingRoot 140, wingPanel 30), dumped in 3.4 min
+  ok   C 30 s at 300 m with the valve open: finite true, the water 170.0 -> 145.0 kg
+GATE SAILPLANE: FAIL (1)
+exit 1
