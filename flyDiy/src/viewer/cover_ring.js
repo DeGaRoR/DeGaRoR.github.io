@@ -349,6 +349,12 @@ var COVER_RING = (() => {
     const speciesOf = () => (pack ? pack.collections : []).filter(c => ROCKS ? c.kind === 'rock' : LAWN ? LAWN_SPECIES.includes(c.name) : FIELD ? FIELD_SPECIES.includes(c.name)
       : ['cover', 'shrub', 'rock', 'debris'].includes(c.kind) && !(ctx.owned && ctx.owned(c.name)) && (SHAPED_ON || !shapedOf(c)));
     const rockish = c => c.kind === 'rock' || c.kind === 'debris';
+    // VEG-NIGHT (23 Nov; GARAGE-VIEW's night captures: the yellow shrub cards and the fireweed GLOWED at night): the scene environment
+    // (the sky probe) lit these thin cards far over the ground beside them. Measured live at night (page v22): the scene's environment
+    // removed, or envMapIntensity 0 WITH a recompile on a material that has drawn, makes them as dark as the rest; envMapIntensity 0 at
+    // construction, a recompile alone and the IBL lines cut in the program did NOT (r186 hands a material without its own envMap the
+    // scene's environmentIntensity). So each flower / card material, ~1 s after it is made, takes envMapIntensity 0 and recompiles, once
+    const NO_ENV = [];
     // THE ROCK SKIN (MOUNTAIN-VEG 17 Nov; the user: "keep your models, which are good and different ... and texture them using the
     // method of the rocks there"): a rock's material (not the debris) takes the ROCK RING's boulder look - rock_ring.js skin(sh): the
     // game's 'cliff' photograph triplanar, toned to the ground's rock, moss on what looks up, the foot darker - with that ring's LIVE
@@ -444,21 +450,11 @@ var COVER_RING = (() => {
       if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
       // a shaped species' own cut (the user 15 Nov: "they would all need the alpha fairly low"): its tint's alpha; a flower keeps 0.5
       const cut = c && shapedOf(c) && c.tint && c.tint.alpha > 0 ? +c.tint.alpha : 0.5;
-      // NO IBL (VEG-NIGHT, 22 Nov; GARAGE-VIEW's night captures: the yellow shrub cards and the fireweed GLOWED at night): the probe's IBL lit
-      // these thin cards far over what the hemisphere gives the ground beside them - with it off (the in-game A/B, page v20) they go as dark as
-      // everything else. NOT by envMapIntensity: r186 overwrites it with scene.environmentIntensity for a material without its own envMap (tried
-      // 11:45, no change in game) - the lights chunk's two IBL lines are cut in the program, the ground's way (render_world: the hemisphere is
-      // the world's ambient). One program per flower material as before (the source changes, not the count)
       const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: cut, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       // no normal override (the bench has none): upHook forced the object normal up on this
       // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
       LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m);   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
-      { const prev = m.onBeforeCompile, SC = THREE.ShaderChunk;
-        m.onBeforeCompile = sh => { if (prev) prev(sh);
-          if (SC && SC.lights_fragment_maps) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_maps>',
-            SC.lights_fragment_maps.replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/* VEG-NIGHT: no IBL irradiance on a flower card */')
-              .replace('vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness );', 'vec3 iblRadiance = vec3( 0.0 );')); };
-        const k0 = m.customProgramCacheKey ? m.customProgramCacheKey() : ''; m.customProgramCacheKey = () => k0 + '-noibl'; }
+      NO_ENV.push({ m, t: performance.now() });   // (VEG-NIGHT, below: its scene IBL off once it has drawn)
       if (c && shapedOf(c)) {   // the shaped cards' normals hold on both faces (see shapedCards): three's back-face flip undone, as a leaf's crown (trees.js uCrownN)
         const prev = m.onBeforeCompile;
         m.onBeforeCompile = sh => { if (prev) prev(sh);
@@ -1668,6 +1664,7 @@ var COVER_RING = (() => {
     let queue = [];
     const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
     function update() {
+      if (NO_ENV.length) { const tn = performance.now(); for (let i = NO_ENV.length - 1; i >= 0; i--) { const e = NO_ENV[i]; if (tn - e.t < 1000) continue; e.m.envMapIntensity = 0; e.m.needsUpdate = true; NO_ENV.splice(i, 1); } }
       { const live = skinRing(); if (live !== skinLive) { skinLive = live; for (const m of skinMats) m.needsUpdate = true; } }   // (the rock skin: on when the rock ring is)
       if (!S.on || S.off || !pack || !BIO) { if (root.visible) root.visible = false; return; }   // (S.off: the GRAPHICS row's 'off' - the field's own `on` is the A/B)
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
