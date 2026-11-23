@@ -10,6 +10,19 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
+## Status for A0 (Mon 23 Nov, fourth note, 10:50 UTC)
+
+- THE FLIGHTS ON L40J's SIM, SO FAR: 17 flown, 16 feasible, 1 red (table: `reports/STORY-REVAMP/feasibility.md`).
+  THE SIX AERO-CLUB EVENTS ARE ALL COVERED: five flown start to end by the Piper Cub on the merged tree (the STOL event,
+  the spot landing, the regularity run, the pylons, the multi-leg tour with its corrected gates and its two field
+  stops); the sixth is the glider order, not a flight. The tour's third leg, which did not leave w5 before the merge,
+  flies on L40J.
+- The one red is home.08 (a 150 kg job onto Cabin Lake): the gap already listed (the lane names no landing direction),
+  flown again with three float planes - two break up on the closed final, the third lands long and its hold is 39 kg.
+  The four other missions that land there will read the same until the island's record names the direction.
+- The rest of the pack is in the air in batches of 14 (a tracked task dies at two hours here); rows are pushed as each
+  batch ends. Nothing else changed since the third note: the story-fields ready and story-8's plan stand.
+
 ## Status for A0 (Mon 23 Nov, third note, 08:40 UTC)
 
 - L40J IS MERGED INTO THIS BRANCH (e82422d65), and it is green on the story gates ONLY with commit 28ef278e5: master's
@@ -44,7 +57,7 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 | story-5 | THE MISSION EDITOR: a row on the start menu, a way back, "Try it in the game", and the story pack's own structure editable (rules, clients, starting kits, projects and steps) | PUSHED `claude/ready/story-5` a02d9d81c |
 | story-6 | story.json IS THE EDITOR'S: the file in the editor's save format, the generator deleted, GATE STORYPACK 9-13 as rules (never today's counts or names), a frozen copy of the pack for the mechanism rows | PUSHED `claude/ready/story-6` |
 | story-7 | THE FIRST FLIGHTS READ: the harness lands a scored landing the way its line names; the pylons' bronze from the measured lap; `story_feas.js --again` and a flight's notes in its row; 12 rows kept as flown | PUSHED `claude/ready/story-7` |
-| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`) | running in the background; 12 of 91 rows: 9 feasible, 3 infeasible as flown - read one by one in "The flights so far" below (the Cessna's slip: master's; Cabin Lake: a datum of the lake). Two club events were red and are corrected and re-flown |
+| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`); a row counts only on the sim it was flown on (the `sim` tag) | on L40J's sim: 17 of 83 flights flown, 16 feasible, 1 red (home.08: Cabin Lake's direction, a listed gap); 8 more are aircraft orders, not flights. The five club flights are feasible. The rest fly in batches |
 | the tutorial flown | `node tools/story_run.js`: 8 beats, 4 flights + the job's 2, 3 753 s flown. GATE TUTORFLY at 89d00aa76 with the story pack in use and adopted from the career's birth: PASS, 19 of 19 checks (49 min) | flown twice, the same times |
 
 ## The rules this work is held to
