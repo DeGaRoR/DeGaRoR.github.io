@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 16 feasible; 1 infeasible; 61 not flown; 5 stale. Time flown: 372 min 55 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 19 feasible; 1 infeasible; 61 not flown; 2 stale. Time flown: 429 min 16 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -12,7 +12,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 16 feasible; 1 infeas
 | field.n1 | contract | not flown | - | - | - |  |
 | field.round | contract | not flown | - | - | - |  |
 | field.hike | contract | feasible | Piper Cub | 17 min 42 s | HOME > w8 1062 |  |
-| field.ridge | contract | stale | - | - | - |  |
+| field.ridge | contract | feasible | STOL Cub | 20 min 58 s | HOME > w3 564; w3 > w4 694 |  |
 | field.cannery | contract | not flown | - | - | - |  |
 | hangar.01 | hangar:1 | feasible | Piper Cub | 16 min 43 s | HOME > w3 560; w3 > HOME 443 |  |
 | hangar.02 | hangar:1 | not flown | - | - | - |  |
@@ -42,7 +42,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 16 feasible; 1 infeas
 | resort.guests | contract | not flown | - | - | - |  |
 | resort.02 | skyline:1 | not flown | - | - | - |  |
 | resort.03 | skyline:2 | not flown | - | - | - |  |
-| skyline.03 | skyline:2 | stale | - | - | - |  |
+| skyline.03 | skyline:2 | feasible | Piper Cub | 20 min 33 s | HOME > tw_ski 1233 |  |
 | resort.05 | skyline:3 | not flown | - | - | - |  |
 | survey.01 | contract | not flown | - | - | - |  |
 | survey.02 | contract | not flown | - | - | - |  |
@@ -71,7 +71,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 16 feasible; 1 infeas
 | home.02 | home:1 | not flown | - | - | - |  |
 | home.03 | home:2 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 20 min 08 s | HOME > w3 486; w3 > w1 722 |  |
 | home.04 | home:2 | not flown | - | - | - |  |
-| home.05 | home:2 | stale | - | - | - |  |
+| home.05 | home:2 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 14 min 50 s | HOME > w1 890 |  |
 | home.06 | home:3 | not flown | - | - | - |  |
 | home.07 | home:3 | not flown | - | - | - |  |
 | home.08 | home:4 | infeasible | Twin busher floats 4b | 10 min 49 s | SEA > cb_sea 649 | the stop refuses the load: aboard 39 kg / 1 pax, the job is 150 kg / 0 pax |

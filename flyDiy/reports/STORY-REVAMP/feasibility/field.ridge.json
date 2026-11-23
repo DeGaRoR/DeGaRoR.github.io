@@ -7,7 +7,6 @@
  "why": "",
  "tried": [
   "Piper Cub:infeasible",
-  "Cessna 172 (career):infeasible",
   "STOL Cub:feasible"
  ],
  "legs": [
@@ -28,7 +27,7 @@
   {
    "from": "w3",
    "to": "w4",
-   "t": 695,
+   "t": 694,
    "how": "stopped",
    "at": "w4",
    "stop": [
@@ -69,7 +68,7 @@
       "three": false,
       "onStrip": true,
       "tdIn": 69,
-      "stopLeft": 357
+      "stopLeft": 358
      }
     },
     {
@@ -81,66 +80,10 @@
      "pax": 0,
      "said": [
       "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 927 m (planned 926)",
-      "slip: high on energy on the short final (+7.6 m at idle) — slipping it down",
-      "go-around: unstabilised approach at 15 m: high 9 m on the slope (attempt 1)"
+      "slip: high on energy on the short final (+7.8 m at idle) — slipping it down",
+      "go-around: unstabilised approach at 13 m: high 10 m on the slope (attempt 1)"
      ],
      "stop": "the aeroplane is wrecked: nothing is delivered"
-    }
-   ]
-  },
-  {
-   "plane": "Cessna 172 (career)",
-   "verdict": "infeasible",
-   "why": "no progress: already loaded [declined]",
-   "legs": [
-    {
-     "from": "HOME",
-     "to": "w3",
-     "t": 538,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "slip: high on the final (16 m over the slope at idle) — slipping it down",
-      "vref-raised: the elevator cannot hold 29.0 m/s at this power — flying the approach faster",
-      "held-speed-short-field: the elevator holds 30.4 m/s on this final: the stop from it needs 336 m, 387 m of Fishing Village Strip are left pas"
-     ],
-     "landing": {
-      "run": 232,
-      "sink": 1.03,
-      "V": 29.9,
-      "offCentre": 0.9,
-      "pastAim": -11,
-      "k": 1,
-      "three": false,
-      "onStrip": true,
-      "tdIn": 21,
-      "stopLeft": 290
-     }
-    },
-    {
-     "from": "w3",
-     "to": "w4",
-     "t": 0,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "strip-too-short: Mountainside Strip has 216 m of strip for a 249 m landing run - not going there"
-     ],
-     "stop": "already loaded"
-    },
-    {
-     "from": "w3",
-     "to": "w4",
-     "t": 0,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "strip-too-short: Mountainside Strip has 216 m of strip for a 249 m landing run - not going there"
-     ],
-     "stop": "already loaded"
     }
    ]
   },
@@ -164,7 +107,7 @@
       "run": 40,
       "sink": 0.9,
       "V": 13.9,
-      "offCentre": -0.3,
+      "offCentre": -0.2,
       "pastAim": 16,
       "k": 1,
       "three": true,
@@ -176,7 +119,7 @@
     {
      "from": "w3",
      "to": "w4",
-     "t": 695,
+     "t": 694,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
@@ -185,16 +128,16 @@
       "slip: high on energy on the short final (+7.0 m at idle) — slipping it down"
      ],
      "landing": {
-      "run": 25,
-      "sink": -2.04,
-      "V": 13.4,
-      "offCentre": 0.5,
-      "pastAim": 18,
+      "run": 26,
+      "sink": -1.86,
+      "V": 13.9,
+      "offCentre": 0.6,
+      "pastAim": 15,
       "k": 0,
       "three": true,
       "onStrip": true,
-      "tdIn": 28,
-      "stopLeft": 163
+      "tdIn": 25,
+      "stopLeft": 166
      }
     }
    ]
@@ -208,5 +151,6 @@
  "key": "4aec0468d36e",
  "where": "contract",
  "pool": "official+57,58+test builds, the seats filled",
- "wallS": 1815
+ "sim": "L40J",
+ "wallS": 1222
 }

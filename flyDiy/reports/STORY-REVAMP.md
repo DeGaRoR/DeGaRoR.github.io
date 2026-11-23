@@ -10,13 +10,79 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
+## HANDOVER (A0 asked, Mon 23 Nov: "what's done, what's left, the feasibility state, how to run" - then this session stands down)
+
+Whoever takes this on needs this section, the table "Where it stands" and the table "Gaps"; the rest is the detail.
+
+### What is done
+
+- THE GAME LAYER IS ON THE MISSION SYSTEM. A player's career reads the story pack `src/missions/story.json` with no
+  flag: no drawn job, contracts in any order, projects as ordered steps tied to a site, each step moving its world
+  track and giving machinery (never bought), the ladder as three lines of the pack. Readies story-1 to story-7 carry it
+  (the table below names each); story-7 and the two-line `story-fields` ready ride L40K.
+- THE PACK IS THE MISSION EDITOR'S FILE (the user, 22 Nov: "Yes"): saved in the editor's format, no generator; the
+  editor edits rules, clients, starting kits, projects and steps. GATE STORYPACK holds the rules and the byte round trip.
+- THE USER'S FOUR LARGE MISSION STORIES are four projects of the pack (8, 7, 6 and 2 steps) with short draft words;
+  their verbatim text is NOT committed (the user, 22 Nov: "no").
+- THE TUTORIAL (v2) IS PLAYED START TO END ON NODE: `tools/story_run.js`, GATE TUTORWALK (core) and TUTORFLY (full).
+- THE AERO CLUB: five scored events (speed pylons, a regularity run, a multi-leg tour, a short-landing event, a spot
+  landing) and one contract; the measurements are wired on the page and in the rig; results are kept on the career.
+  The five events fly start to end on L40J's sim. Gliders and the tow plane wait for a plane (the gaps table).
+- THE FEASIBILITY HARNESS: `tools/mission_feas_lib.js` flies a mission the game's way (the stand, the pilot, the
+  career's stops) with the seats filled through the garage's own door, a course entered on a base turn and left without
+  a climb; `tools/story_feas.js` keeps one row a mission.
+
+### How to run it (from `flyDiy/`, after `node tools/build.js` if `src/` changed)
+
+| what | command | time |
+|---|---|---|
+| the story gates | `node tools/run_gates.js --only=STORYPACK,TUTORWALK,MISSIONLIVE --jobs=3 --no-build` | minutes |
+| the feasibility gate (the built-in pack) | `node tools/run_gates.js --only=MISSIONFEAS --no-build` - ALONE: it times out beside other work | 7-8 min |
+| the tutorial, walked | `node tools/story_run.js --dry` | seconds |
+| the tutorial, every flight flown | `node tools/story_run.js` (GATE TUTORFLY is the same, as a full-tier gate) | ~50 min |
+| the pack's flights still missing | `node tools/story_feas.js --fly --workers=4 --max=14 --rows=reports/STORY-REVAMP/feasibility` | ~25 min of one core a mission |
+| chosen missions again | `node tools/story_feas.js --fly --only=<id>,<id> --again --rows=reports/STORY-REVAMP/feasibility` | |
+| the table from the rows | `node tools/story_feas.js --table --rows=reports/STORY-REVAMP/feasibility` (writes feasibility.json + .md) | seconds |
+| is the pack covered | `node tools/story_feas.js --check` (exit 1 while a mission is not flown, stale or red outside the named classes) | seconds |
+| one mission, the legs printed | `node tools/mission_feas.js --only=<id> --rerun --packs=src/missions --official --also=57,58 --builds=<the two files in story_feas.js BUILDS>` | |
+| a flight with no mission | `node tools/flight_script.js reports/STORY-REVAMP/repro/<file>.json --out <dir>` | minutes |
+
+- A ROW IS CURRENT only for its mission's own record (`key`) AND the sim it was flown on (`sim`, the constant `SIM` in
+  story_feas.js). `SIM` is bumped BY HAND when a merge of master changes the pilot, the flight model or the career's
+  aeroplanes: every row is then stale and flown again. Read a red from its row's `attempts` (each aeroplane tried, the
+  pilot's own words, the landing), never from the one-line verdict.
+- THE POOL (the user, 23 Nov: "you can really try any of the official planes ... maybe you can even build a quick one"):
+  the validated designs first, then every official plane, the two PC-6 of the wip list, and two test builds in
+  `tools/fixtures/storyfeas/` (a Cessna with the STOL kit, on the retired light airframe and on today's).
+- IN A CLOUD CONTAINER: a tracked background task is killed at two hours (finished rows are kept, the flights in the
+  air are lost), so fly `--max=14` at a time; do not rebuild the tree while flights run; commit the rows after each batch.
+
+### What is left
+
+1. THE FLIGHTS: see "the feasibility state" just below; `--check` is not green yet, so GATE STORYFEAS is not registered.
+2. FIVE MISSIONS LAND ON CABIN LAKE, whose record names no landing direction (the island's aerodrome record: the
+   user's document). They stay red until it does; the flight with the direction named lands.
+3. THE GAPS TABLE at the end of this file: scenery for 18 of the 31 world stages, two scenery readies not on master,
+   the clear-day rule, the planes no official list has (a glider, a tow plane, a ski hauler, a STOL hauler), the
+   Projects board and "restart this flight" on the page, portraits, the economy pass.
+4. THE LADDER is a proposal (three lines of the pack): who gives what is the user's and Game's call.
+5. THE WORDS: every mission and step carries short draft words; the stories' own text is the user's to place (the
+   mission editor edits them in the page).
+
+### The feasibility state
+
+<!-- feas-state -->
+On L40J's sim (this branch), of the pack's 91 missions outside the tutorial: 19 FEASIBLE, 1 red as flown (home.08), 63 not flown yet on this sim, 8 aircraft orders (not flights). The table: `reports/STORY-REVAMP/feasibility.md`; each row: `reports/STORY-REVAMP/feasibility/<id>.json`.
+The reds, by cause: home.08 = Cabin Lake's landing direction (item 2 above).
+<!-- /feas-state -->
+
 ## Status for A0 (Mon 23 Nov, fourth note, 10:50 UTC)
 
 - THE FLIGHTS ON L40J's SIM, SO FAR: 17 flown, 16 feasible, 1 red (table: `reports/STORY-REVAMP/feasibility.md`).
-  THE SIX AERO-CLUB EVENTS ARE ALL COVERED: five flown start to end by the Piper Cub on the merged tree (the STOL event,
+  THE AERO CLUB'S FIVE SCORED EVENTS ARE ALL FLOWN start to end by the Piper Cub on the merged tree (the STOL event,
   the spot landing, the regularity run, the pylons, the multi-leg tour with its corrected gates and its two field
-  stops); the sixth is the glider order, not a flight. The tour's third leg, which did not leave w5 before the merge,
-  flies on L40J.
+  stops); the club's sixth mission is a contract, in the next batch. The tour's third leg, which did not leave w5
+  before the merge, flies on L40J.
 - The one red is home.08 (a 150 kg job onto Cabin Lake): the gap already listed (the lane names no landing direction),
   flown again with three float planes - two break up on the closed final, the third lands long and its hold is 39 kg.
   The four other missions that land there will read the same until the island's record names the direction.

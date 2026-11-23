@@ -5,12 +5,12 @@
  "missions": 91,
  "summary": {
   "not flown": 61,
-  "feasible": 16,
-  "stale": 5,
+  "feasible": 19,
+  "stale": 2,
   "an aircraft order (not a flight)": 8,
   "infeasible": 1
  },
- "flownS": 22375,
+ "flownS": 25756,
  "rows": [
   {
    "id": "field.01",
@@ -73,8 +73,44 @@
    "id": "field.ridge",
    "where": "contract",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 1258,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 564,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 694,
+     "how": "stopped",
+     "at": "w4",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "field.cannery",
@@ -401,8 +437,33 @@
    "id": "skyline.03",
    "where": "skyline:2",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1233,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 1233,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 90,
+     "pax": 0,
+     "faults": [
+      "yield",
+      "prop-strike"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "resort.05",
@@ -749,8 +810,31 @@
    "id": "home.05",
    "where": "home:2",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 890,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 890,
+     "how": "stopped",
+     "at": "w1",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 30,
+     "pax": 1,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "home.06",
