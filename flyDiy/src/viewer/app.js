@@ -7090,8 +7090,14 @@
   // Each by stand-in (PROG_WARM.standIn: the object by prototype, never shown for a call) or a plain mesh made for it,
   // compiled as scuffPrelink's (compileSliced: the craft dressed in the world, its lights key them) and first-drawn
   // (warmDrawSliced). FLYDIY_CRASH_PRELINK = false: off (the A/B).
+  if (typeof window !== 'undefined') window.FLYDIY_CRASH_PRE = () => (model && model.crashPre ? Object.assign({}, model.crashPre, { job: undefined }) : null);
   function crashPrelink(inW) {
     if (window.FLYDIY_CRASH_PRELINK === false || !model || model.gen || !craft || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
+    // ONCE A MODEL (PERF-LEAD 23 Nov, the user's row 3: world loading 60 s with its background work, ideally in the garage):
+    // the loading's 'spec' (craftStart: craftEarly) runs it in the background; the craft step's second compileCraftLinks,
+    // under the roll-out's screen, finds it done and pays nothing. Its cost: model.crashPre (FLYDIY_CRASH_PRE())
+    if (model.crashPre) return model.crashPre.job || null;
+    const t0 = performance.now(), prog0 = renderer.info && renderer.info.programs ? renderer.info.programs.length : null;
     try { if (window.SKIN_GPU && window.FLYDIY_SKINGPU !== false && renderer) SKIN_GPU.prepare(renderer); } catch (e) {}   // 3
     const at = model.scuff, W = at && at.W, S = typeof SKIN_SCUFF !== 'undefined' ? SKIN_SCUFF : null;
     const tgt = aa && aa.target ? aa.target() : null, CG = new THREE.Group(), only = [], seen = new Set();
@@ -7131,14 +7137,16 @@
       }
     } catch (e) { console.warn('crash prelink (wing structure):', e && e.message); }
     const done = () => { if (W && S) { W.pre--; S.wakeSet(W); } if (WSG) { try { WING_STRUCT.dispose(WSG); } catch (e) {} WSG = null; } };
-    if (!CG.children.length) { done(); return null; }
+    if (!CG.children.length) { done(); model.crashPre = { n: 0, done: true }; return null; }
     let job;
     try {
       job = compileSliced(CG, tgt, scene, false, inW)
         .then(() => warmDrawSliced(scene, tgt, null, only, inW));
     } catch (e) { job = Promise.reject(e); }
-    model.crashPre = { n: CG.children.length };
-    return shaderProgress(job.then(done, e => { done(); console.warn('crash prelink:', e && e.message); }), 'world', 60000);
+    const CP = model.crashPre = { n: CG.children.length, gatherMs: +(performance.now() - t0).toFixed(1), prog0, at: inGarage ? 'garage' : 'world', t0 };
+    CP.job = shaderProgress(job.then(done, e => { done(); console.warn('crash prelink:', e && e.message); })
+      .then(() => { CP.wallMs = Math.round(performance.now() - t0); CP.programs = prog0 != null && renderer.info.programs ? renderer.info.programs.length - prog0 : null; CP.done = true; }), 'world', 60000);
+    return CP.job;
   }
   // THE RECORDS: the break path's own (brkCageRec - the same record a break would make, off the break list until one
   // comes), only for groups something draws with a pair; ms: the time they may take (Infinity: all of them). The pose
