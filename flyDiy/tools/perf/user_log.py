@@ -36,7 +36,7 @@ def main():
         (', %d events DROPPED' % h['eventsDropped']) if h.get('eventsDropped') else ''))
     if n and h.get('frames') and h['frames'] > n: P('NOTE: the session had %d frames and the ring kept the last %d: the start is not in this log (open the game with ?recring=131072 for a long session)' % (h['frames'], n))
     P('in the garage %.0f s (%d frames), in the world %.0f s (%d frames)' % (secs(garage), len(garage), secs(world), len(world)))
-    P('(the limits sit on a multiple of the screen's 16.7 ms: a frame of 6 intervals is 100.0 ms give or take its jitter. A frame counts as OVER 50 / 100 / 250 ms from 54 / 104 / 254 ms, so the count does not flip on the jitter - 23 Nov)')
+    P("(the limits sit on a multiple of the screen's 16.7 ms: a frame of 6 intervals is 100.0 ms give or take its jitter. A frame counts as OVER 50 / 100 / 250 ms from 54 / 104 / 254 ms, so the count does not flip on the jitter - 23 Nov)")
     # the loading screens: the boot events 'loading <set>' ... 'gone <set>'
     P('')
     P('## Loading screens (rows 2, 3, 4)')
