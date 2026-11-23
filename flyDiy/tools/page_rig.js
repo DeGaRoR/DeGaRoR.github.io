@@ -175,7 +175,9 @@ async function start(o) {
     // A nonzero debugging port avoids Chrome's port0 webdriver signal. The
     // explicit player mode preserves vsync/frame pacing; legacy rigs unchanged.
     const playerPort = o.live ? await freePort() : 0;
-    ch = spawn(chrome, [...(o.headed ? [] : ['--headless=new']), '--remote-debugging-port=' + playerPort, '--window-size=' + size[0] + ',' + size[1], '--user-data-dir=' + udd,
+    // HEADED (the user 22 Nov: GPU work in a visible window): Chrome backgrounds a covered window (no rAF: 'no frame drawn in 5 s')
+    const HEADED_ARGS = ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--window-position=0,0'];
+    ch = spawn(chrome, [...(o.headed ? HEADED_ARGS : ['--headless=new']), '--remote-debugging-port=' + playerPort, '--window-size=' + size[0] + ',' + size[1], '--user-data-dir=' + udd,
       '--disable-gpu-sandbox', ...(o.live ? [] : ['--disable-frame-rate-limit', '--disable-gpu-vsync']), '--no-first-run', '--hide-scrollbars', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });
     let dport = playerPort; for (let i = 0; i < 80 && !dport; i++) { await sleep(250); try { dport = +fs.readFileSync(path.join(udd, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch (e) {} }
     if (!dport) throw new Error('page_rig: Chrome never opened its debugging port');
