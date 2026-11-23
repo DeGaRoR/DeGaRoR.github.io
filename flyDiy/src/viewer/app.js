@@ -8333,6 +8333,77 @@
     for (let j = 0; j < Math.round(n / 5); j++) { const a = Math.random() * 6.2832, rr = 1.2 * Math.random();
       sprayEmit(D, 1, x + Math.cos(a) * rr, h + 0.15, z + Math.sin(a) * rr, Math.cos(a) * 0.8 * Math.min(2, vy), 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy)); }
     return n; }, get fx() { return waterFx; } };
+  // ---- WATER TANKS: THE SHOWER (the user, 15 Nov: "they will have a release mechanism, and a particle animation when it
+  // releases (water shower). There will be a release point, by default a simple downwards opening") -------------------
+  // The solver drains the tanks while the valve is open (ctl.dump, the 'water dump' key) and says how fast
+  // (out.waterFlow, kg/s - carried whole by the physics worker's snapshot); the outlets are the frame's (sim.water.outlets:
+  // node weights and the drop under the skin). Here, once a frame, each outlet throws droplets - the aeroplane's own
+  // velocity plus the jet out of the hole (Torricelli's ~2.2 m/s down) and a little spread - in proportion to the flow;
+  // in the air they slow toward the air they are in (the wind too) and fall, a curtain trailing behind and down, with a
+  // faint mist hanging in it; a droplet dies on the ground or the water. spray.js's sprites (the floats' look): one pool,
+  // made the first time water leaves, in the world scene; nothing flowing and nothing alive: hidden, nothing integrated.
+  const DUMP_N = 1200, DUMP_DROP = { life: [1.1, 2.0], size: [0.006, 0.016], drag: 1.5 }, DUMP_MIST = { life: [1.2, 2.2], size: [0.22, 0.42], drag: 2.4, grow: 1.4, gravity: 0.12 };
+  let dumpFx = null;
+  function dumpFxGet() {
+    if (dumpFx || !window.SPRAY || !THREE.InstancedBufferGeometry) return dumpFx;
+    const pool = SPRAY.make(THREE, DUMP_N); pool.mesh.visible = false; scene.add(pool.mesh);
+    dumpFx = { pool, p: new Float32Array(DUMP_N * 3), v: new Float32Array(DUMP_N * 3), age: new Float32Array(DUMP_N).fill(9),
+               life: new Float32Array(DUMP_N).fill(1), size: new Float32Array(DUMP_N), seed: new Float32Array(DUMP_N),
+               kind: new Uint8Array(DUMP_N), next: 0, live: 0, acc: 0 };
+    return dumpFx;
+  }
+  function dumpEmit(F, kind, x, y, z, vx, vy, vz) {
+    const q = F.next, K = kind === 2 ? DUMP_MIST : DUMP_DROP;
+    F.next = (F.next + 1) % DUMP_N;
+    F.p[q * 3] = x; F.p[q * 3 + 1] = y; F.p[q * 3 + 2] = z; F.v[q * 3] = vx; F.v[q * 3 + 1] = vy; F.v[q * 3 + 2] = vz;
+    F.age[q] = 0; F.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
+    F.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); F.seed[q] = Math.random(); F.kind[q] = kind; F.live++;
+  }
+  function syncDumpFx(dt) {
+    const W = sim && sim.water, flow = sim && sim.out ? +sim.out.waterFlow || 0 : 0;
+    if ((!W || !(flow > 0)) && !(dumpFx && dumpFx.live)) { if (dumpFx && dumpFx.pool.mesh.visible) dumpFx.pool.mesh.visible = false; return; }
+    const F = dumpFxGet(); if (!F || !(dt > 0)) return;
+    const G = 9.81, P = sim.p;
+    if (W && flow > 0 && W.outlets && W.outlets.length) {
+      const vc = sim.cgVel ? sim.cgVel() : [0, 0, 0];
+      F.acc += 240 * Math.min(3, flow / 1.6) * dt;            // ~240 droplets a second for one tank's full jet
+      while (F.acc >= 1) {
+        F.acc -= 1;
+        const o = W.outlets[(Math.random() * W.outlets.length) | 0];
+        let x = 0, y = 0, z = 0, ws = 0;
+        for (const [i, w] of o.pts) { x += w * P[i * 3]; y += w * P[i * 3 + 1]; z += w * P[i * 3 + 2]; ws += w; }
+        if (!(ws > 0)) continue;
+        x /= ws; y = y / ws - (o.dy || 0.03); z /= ws;
+        const sx = (Math.random() - 0.5) * 0.8, sz = (Math.random() - 0.5) * 0.8;
+        dumpEmit(F, Math.random() < 0.12 ? 2 : 0, x + sx * 0.03, y, z + sz * 0.03, vc[0] + sx, vc[1] - 2.2 - Math.random() * 0.6, vc[2] + sz);
+      }
+    }
+    const S = F.pool, wv = LKW(), ax = wv ? wv[0] : 0, az = wv ? wv[1] : 0;
+    const floor = (x, z) => { const t = world.terrainH ? world.terrainH(x, z) : 0, h = world.waterH ? world.waterH(x, z) : -1e9;
+                              return Math.max(Number.isFinite(t) ? t : -1e9, Number.isFinite(h) ? h : -1e9); };
+    let live = 0;
+    for (let q = 0; q < DUMP_N; q++) {
+      if (F.age[q] >= F.life[q]) { S.hide(q); continue; }
+      live++;
+      const K = F.kind[q] === 2 ? DUMP_MIST : DUMP_DROP;
+      F.age[q] += dt;
+      const dr = Math.max(0, 1 - K.drag * dt);
+      F.v[q * 3] = ax + (F.v[q * 3] - ax) * dr;
+      F.v[q * 3 + 2] = az + (F.v[q * 3 + 2] - az) * dr;
+      F.v[q * 3 + 1] = F.v[q * 3 + 1] * (F.kind[q] === 2 ? dr : 1) - G * (K.gravity != null ? K.gravity : 1) * dt;
+      F.p[q * 3] += F.v[q * 3] * dt; F.p[q * 3 + 1] += F.v[q * 3 + 1] * dt; F.p[q * 3 + 2] += F.v[q * 3 + 2] * dt;
+      if (F.p[q * 3 + 1] < floor(F.p[q * 3], F.p[q * 3 + 2])) { F.age[q] = F.life[q]; S.hide(q); continue; }
+      const a01 = F.age[q] / F.life[q];
+      S.set(q, [F.p[q * 3], F.p[q * 3 + 1], F.p[q * 3 + 2]], [F.v[q * 3], F.v[q * 3 + 1], F.v[q * 3 + 2]], a01,
+            F.size[q] * (1 + ((K.grow || 1) - 1) * a01), F.seed[q], F.kind[q]);
+    }
+    F.live = live;
+    S.mesh.visible = live > 0;
+    S.commit();
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity);
+      skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity); S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
+  }
+  if (typeof window !== 'undefined') window.DUMP_FX = { get fx() { return dumpFx; }, sync: dt => syncDumpFx(dt) };
   // ---- DIRT-DUST (2026-11-09): THE DUST A DRY STRIP THROWS - dust.js's system fed the aeroplane's own numbers --------------
   // The user (9 Nov): "when it's really dry, there are huge puffs of dirt clouds ... at every take-off and landing ... they
   // tend to stay a long time ... and diffuse slowly". dust.js holds the laws (the sources, the puffs, the draw); here, once a
@@ -9663,10 +9734,31 @@
     if (skiHandSeen !== null && h !== skiHandSeen) sim.ctl.ski = h === null ? null : h;
     skiHandSeen = h;
   }
+  // WATER TANKS: THE DUMP KEY WHOEVER FLIES. The valve is the pilot's whatever the autopilot does with the stick (a
+  // dump is a utility, not a flight control): under the AP the hand is not written (INP.write), so the key's state is
+  // written through sim.ctl when it CHANGES (the worker's ctl patch under ?simw=1) - a reset that shuts the valve is then
+  // not re-opened by a stale hand. A build without water has no dump key and nothing runs.
+  let dumpHandSeen = null;
+  function dumpKeyUnderAP() {
+    if (manual || !INP || typeof INP.dump !== 'function' || !sim.ctl || !('dump' in sim.ctl)) { dumpHandSeen = null; return; }
+    const h = INP.dump();
+    if (dumpHandSeen !== null && h !== dumpHandSeen) sim.ctl.dump = h;
+    dumpHandSeen = h;
+  }
+  // AIRBRAKES: the handle the same way - the pilot's, whoever flies (written when it changes)
+  let abHandSeen = null;
+  function airbrakeKeyUnderAP() {
+    if (manual || !INP || typeof INP.airbrake !== 'function' || !sim.ctl || !('airbrake' in sim.ctl)) { abHandSeen = null; return; }
+    const h = INP.airbrake();
+    if (abHandSeen !== null && h !== abHandSeen) sim.ctl.airbrake = h;
+    abHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
     gearKeyUnderAP();
     skiKeyUnderAP();
+    dumpKeyUnderAP();
+    airbrakeKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -17535,7 +17627,7 @@
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','abrk','abrkU','wtr','wtrU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
   // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
@@ -17613,6 +17705,20 @@
     for (const s of R.gear.children || []) s.className = 'gl' + (lamp ? ' ' + lamp : '');
     if (R.gearU) R.gearU.textContent = lab;
     if (RD.gear) RD.gear.classList.toggle('warn', (!locked && !up) || /landing$/.test(lab));
+  }
+  // AIRBRAKES AND WATER (the user 15 Nov): two cells beside the gear's, each only on a build that has the thing - the
+  // blue handle's travel (the solver's ctl.airbrake), and the water aboard with DUMPING while the valve runs
+  // (out.waterKg / out.waterFlow: the worker's snapshot carries out whole). Written only when they change
+  let hudAbOn = false, hudAbK = '', hudWtOn = false, hudWtK = '';
+  function hudBrakeWater() {
+    const c = sim && sim.ctl, o = sim && sim.out;
+    const abOn = !!(c && 'airbrake' in c), wtOn = !!(o && typeof o.waterKg === 'number');
+    if (abOn !== hudAbOn || wtOn !== hudWtOn) { hudAbOn = abOn; hudWtOn = wtOn; hudAbK = hudWtK = ''; flInstApply(); }
+    if (abOn && R.abrk) { const e = Math.round(100 * (+c.airbrake || 0)), k = String(e);
+      if (k !== hudAbK) { hudAbK = k; R.abrk.textContent = e + ' %'; if (R.abrkU) R.abrkU.textContent = e > 0 ? 'airbrakes OUT' : 'airbrakes in';
+        if (RD.abrk) RD.abrk.classList.toggle('warn', e > 0); } }
+    if (wtOn && R.wtr) { const kg = Math.round(o.waterKg || 0), run = (o.waterFlow || 0) > 0, k = kg + '|' + run;
+      if (k !== hudWtK) { hudWtK = k; R.wtr.textContent = kg + ' kg'; if (R.wtrU) R.wtrU.textContent = run ? 'water DUMPING' : 'water'; } }
   }
   // THE CONTROLS STRIP (CONTROLS-STRIP, the user 16 Nov: variant A of flydiy design 4AziskHN - "it is instructive to watch
   // what the autopilot does with the stick"). What the hands are doing, from sim.ctl as the solver takes it: the stick
@@ -17733,6 +17839,7 @@
     hudEnergy();
     hudWind();
     hudGear();
+    hudBrakeWater();                       // AIRBRAKES / WATER TANKS: their cells
     ctlStrip();                 // CONTROLS-STRIP: the hands, bottom centre (10 Hz, transforms only)
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
@@ -19406,7 +19513,7 @@
     if (p) p.classList.toggle('small', small);
     for (const d0 in RD) {
       if (!RD[d0]) continue;
-      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : small ? PFD_SMALL.indexOf(d0) < 0
+      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : d0 === 'abrk' ? !hudAbOn : d0 === 'wtr' ? !hudWtOn : small ? PFD_SMALL.indexOf(d0) < 0
                             : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' || d0 === 'wind' ||
                                 instOn[d0]);
     }
@@ -22003,6 +22110,7 @@
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
+    if (!inGarage) syncDumpFx(running ? fdt : 0);                // WATER TANKS: the dump's shower (nothing flowing, nothing alive: nothing)
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane

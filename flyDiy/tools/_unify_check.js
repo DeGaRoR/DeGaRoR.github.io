@@ -118,6 +118,11 @@ if (go('TAIL')) {
 // ---- in the air (GATE GLIDE's way): settled at a's line-up, moved to (x, z) h m up, heading hdg at V ----
 const AD = id => W.aerodromes.find(a => a.id === id);
 function airborne(def, a, x, z, h, hdg, V, keyOff) {
+  // (THE CALM, GATE GLIDE's world - L40c, 15 Nov: the tours before these rows fly the game's day through the sim host,
+  // which leaves it SET on the shared world (setDay persists: its breeze, 4.8 m/s at Jolene). Sharded, ARCH flew after
+  // TAIL in it and its rollout drifted off the side (0.6 m off at the touch, stopped past the edge); alone it was calm.
+  // setWeather(null): the standard day, the zero wind - every glide row as GLIDE flies it, whatever ran before)
+  if (W.setWeather) W.setWeather(null);
   const sim = C.makeSim(def, W); sim.reset(0);
   C.placeAtLineup(sim, a, { x: a.x, z: a.z, hdg }, W, def.refs); for (let i = 0; i < 60; i++) sim.step(1 / 60);
   const P = Float64Array.from(sim.p), cg = sim.cgPos(), y = W.terrainH(x, z) + h;

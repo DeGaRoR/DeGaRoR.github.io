@@ -71,6 +71,7 @@ const MFALL = {
   cast:    lam(0x8e949a),
   hide:    lam(0x3a2a1f),
   ptt:     lam(0xc0302a),
+  brk:     lam(0x2f6fd0),      // AIRBRAKES: the sailplane's blue handle
   ball:    lam(0x1c1e22),      // a throttle's ball
   tread:   lam(0x202227),      // a pedal's rubber
   plateAl: lam(0xd0d4d8),      // a pedal's plate: the dash's own metal
@@ -554,7 +555,18 @@ function buildPedals(g, A, P, sx) {
   // pillow blocks bolted down, a pinch bolt through each cap; in a hull each block stands on the skin at its own x
   // (the two posts unequal on the V) and the axle rides over the higher, the horns 4 cm under it clear of the skin
   const zA = zP, rA = 0.011;
-  const x0 = sx - sp - 0.075, x1 = sx + sp + 0.075;
+  let x0 = sx - sp - 0.075, x1 = sx + sp + 0.075;
+  // (16 Nov 2026, the LS4's narrow nose - the user: "ensure that the pedals ... do not poke through"): the axle and its
+  // blocks stand 2 cm inside the walls at the boards' height - a round belly is narrow there, and the 0.33 m axle
+  // stood 3 cm through the LS4's; never inside the pedals' own spread. (The walls are read at the axle's height off the
+  // boards, yF + 0.042; the hull's per-block ground below then stands each block on the skin at its clamped x.)
+  const wOf = (sd, y, z) => Math.abs((A.wallIn && A.wallIn(sd, y, z)) || (A.wallAt && A.wallAt(sd, y, z)) || 0);
+  {
+    const yA0 = yF + 0.042;
+    const wL = Math.min(wOf(1, yF + 0.005, zA), wOf(1, yA0 + rA, zA)), wR = Math.min(wOf(-1, yF + 0.005, zA), wOf(-1, yA0 + rA, zA));
+    if (wL > 0.05) x1 = Math.max(sx + sp + 0.03, Math.min(x1, wL - 0.02));
+    if (wR > 0.05) x0 = Math.min(sx - sp - 0.03, Math.max(x0, -wR + 0.02));
+  }
   const xBlk = [x0 + 0.022, x1 - 0.022];
   const yG = xBlk.map(xb => groundAt(xb, zA, 0.017));
   const yA = Math.max(yF + 0.042, yG[0] + 0.042, yG[1] + 0.042,
@@ -1066,6 +1078,46 @@ function buildFlapLever(g0, A, P, sx, seat, sbs) {
   tapeOn(g0, 'Flaps', 0.040, [x + sd * 0.0205, y0 + 0.030, z - 0.010], sd > 0 ? -Math.PI / 2 : Math.PI / 2);
   return { obj: gL, label: 'flap lever' };
 }
+// THE AIRBRAKE HANDLE (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a
+// sailplane's blue handle on the LEFT wall by the pilot's knee - a tube on a pivot in a small bracket, a blue grip at
+// its head, forward with the brakes in and pulled aft as they come out (ctl.airbrake 0..1, ~70 deg of swing). Only on
+// a build with airbrakes (the wing's wgBrake row).
+// `left` (16 Nov 2026, the LS4 - the user: "ensure that the pedals and the controls and all that stuff do not poke
+// through"): a sailplane's handle is on the LEFT wall, under the pilot's left hand (the stick in the right) - the
+// side when the build has no throttle there (the caller's); else the right wall, the throttle's hand kept free. The
+// wall is read at the BRACKET's own heights (its foot 7 cm over the floor, where a round belly is narrowest - it was
+// read at 12 cm and the bracket stood 16 mm through the LS4's skin), 3 cm inboard of the narrower
+function buildAirbrakeHandle(g0, A, P, sx, seat, left) {
+  const K = window.GEAR_KIT;
+  if (!K || !+P.wgBrake) return null;
+  const s = left ? 1 : -1;
+  // (16 Nov 2026: 0.28 m ahead of the squab is an upright pilot's reach; a sailplane's back reclined 48 deg puts the
+  //  shoulder ~0.3 m further aft and the LS4's knob stood 0.85 m from it - the reach shortens with the back's recline)
+  const rake = (P.seatRake != null ? +P.seatRake : 13) * D2R;
+  const z = (seat ? seat.szc : A.zBack + 0.20) + 0.28 - 0.40 * Math.sin(Math.max(0, rake));
+  const y0 = A.floorAt(z) + 0.004;
+  let x = s * (Math.abs(sx || 0) + 0.22);
+  {
+    const wOf = y => Math.abs((A.wallIn && A.wallIn(s, y, z)) || (A.wallAt && A.wallAt(s, y, z)) || 0);
+    const w = Math.min(wOf(y0 + 0.07), wOf(y0 + 0.13)) - 0.03;
+    if (w > 0.05) x = s * w;
+  }
+  const piv = [x, y0 + 0.10, z];
+  const br = K.Bag();
+  K.sweep(br, [[x, y0 + 0.07, z], [x, y0 + 0.13, z]],
+    () => [[-0.012, -0.03], [0.012, -0.03], [0.012, 0.03], [-0.012, 0.03]], true, [0, 0, 1]);
+  br.mesh(g0, M.cast);
+  const gH = movingAt(g0, 'edCtl_airbrake', piv, [1, 0, 0], 'airbrake', -1, 1.2);
+  const lev = K.Bag(), grip = K.Bag();
+  const up = _nrm3([0, Math.cos(25 * D2R), Math.sin(25 * D2R)]);
+  K.revolve(lev, [0, 0, 0], up, [[0.005, 0], [0.005, 0.20]], 12, true);
+  K.revolve(grip, _off3([0, 0, 0], up, 0.19), up,
+    [[0.005, 0], [0.013, 0.008], [0.014, 0.040], [0.012, 0.060], [0, 0.066]], 18, false);
+  lev.mesh(gH, M.plated); grip.mesh(gH, M.brk);
+  tapeOn(g0, 'Airbrakes', 0.040, [x - s * 0.016, y0 + 0.10, z - 0.04], -s * Math.PI / 2);
+  // the knob, a grip the free hand can take (the knob's axis, its 13 mm radius - gripAt, G3700 HANDS)
+  return { obj: gripAt(gH, _off3([0, 0, 0], up, 0.225), up, 0.013), label: 'airbrake handle', job: 'airbrake' };
+}
 // THE OVERHEAD CONSOLE (CABIN-INTERIOR G1, the user 2-3 Nov: the cabin's top half, "what you see through windows";
 // the first cut, 3 Nov 08:40). A shallow moulded pod on the ceiling's centreline just forward of the front row's
 // heads - the 172's and every light twin's: two eyeball vents forward, two reading-lamp seats aft, one each side.
@@ -1358,7 +1410,11 @@ function buildFuelSelector(gRoot, A, P, sx, seat) {
   // clear of the frame's tubes: step aft until both hold
   const jamb = A.doorFwdAt ? A.doorFwdAt(sd, y) : Infinity;
   if (isFinite(jamb) && z > jamb - 0.09) { z = jamb - 0.09; y = A.floorAt(z) + 0.26; }
-  const wxAt = () => (A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90));
+  // (16 Nov 2026: the plate's own corners, -3..+5 cm high and +-4 cm long, on the exact wall - A.wallIn - where it is inboard of wallAt's
+  //  coarse one: the LS4's trim plate stood 6 mm through its round flank)
+  const wxAt = () => { const c = A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90);
+    let w = Infinity; if (A.wallIn) for (const yy of [y - 0.03, y, y + 0.05]) for (const zz of [z - 0.04, z, z + 0.04]) { const q = A.wallIn(sd, yy, zz); if (q != null) w = Math.min(w, Math.abs(q)); }
+    return w < Math.abs(c) ? sd * w : c; };
   let wx = wxAt();
   if (A.tubeDist) for (let i = 0; i < 6; i++) {
     if (Math.min(A.tubeDist([wx, y, z]), A.tubeDist([wx, y + 0.06, z])) > 0.05) break;
@@ -1397,7 +1453,11 @@ function buildTrimWheel(gRoot, A, P, sx, seat) {
   let z = (seat ? seat.zBack : A.zBack) + 0.34;
   let y = (seat ? seat.panY : A.floorAt(z) + 0.08) + 0.13;
   const R = 0.046;
-  const wxAt = () => (A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90));
+  // (16 Nov 2026: the plate's own corners, -3..+5 cm high and +-4 cm long, on the exact wall - A.wallIn - where it is inboard of wallAt's
+  //  coarse one: the LS4's trim plate stood 6 mm through its round flank)
+  const wxAt = () => { const c = A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90);
+    let w = Infinity; if (A.wallIn) for (const yy of [y - 0.03, y, y + 0.05]) for (const zz of [z - 0.04, z, z + 0.04]) { const q = A.wallIn(sd, yy, zz); if (q != null) w = Math.min(w, Math.abs(q)); }
+    return w < Math.abs(c) ? sd * w : c; };
   let wx = wxAt();
   if (A.tubeDist) for (let i = 0; i < 4 && A.tubeDist([wx, y, z]) < R + 0.02; i++) { z -= 0.06; wx = wxAt(); }   // off the frame
   // ON THE WALL, NOT THROUGH THE BOTTOM (SEAPLANES 21 Nov): by a hull's chine the wall at the hip's height is the V's
@@ -1747,7 +1807,9 @@ const FLOOR_MARGIN = 0.0015;                // the board's edge stands this far 
                                             // showed as a slot along both edges; 1.5 mm = the hairline every lining kept)
 let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
 const floorThru = (x, z, r) => { FLOOR_THRU.push({ x, z, r }); };
-const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar)/;
+// (16 Nov 2026, the LS4's floor 25 mm through its belly: a composite shell's inner face - the `composite` liner
+//  _cage_gen extrudes inward off the skin on a carbon / glass body - is the wall its board meets, as the skin is)
+const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar|composite)/;
 const FLOOR_FRAME = /^(toele|aluminium)/;      // the metal construction's own sheet frame
 const NOTCH_C = 0.006, NOTCH_MAX = 0.30;       // a notch's clearance, and how far in it may reach
 // a triangle's cut by the plane y = yc, as a segment [[x, z], [x, z]] or null
@@ -1824,6 +1886,10 @@ function floorWalls(mesh, k, yAt, zF, zA) {
       const x = rayAt(y0 + dy, zi, sd);
       if (x != null && (best == null || x < best)) best = x;
     }
+    // (16 Nov 2026, the LS4's nose: the board's TOP meets the wall but its BOTTOM finds none - the belly has risen
+    //  through the board there; that station is the section pinching shut, as a station with no wall at all is: the
+    //  run ends (it stood 18 mm through the LS4's nose under the panel). A door's sill - no wall at the top - is not this)
+    if (best != null && rayAt(y0, zi, sd) != null && rayAt(y0 - FLOOR_T - 0.008, zi, sd) == null) return null;
     return best == null ? null : Math.max(0.03, best - FLOOR_MARGIN);
   };
   const STEP = 0.015, zs = [];
@@ -2751,6 +2817,20 @@ function anchors(spec, P, mesh) {
     for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[1] >= y0 && q[1] <= y1 && q[2] < z) z = q[2];
     return z < 1e8 ? z : dashAftZ;
   };
+  // ...and THE GLASS OVER IT (16 Nov 2026, the user, the LS4: "ensure that the pedals and the controls and all that
+  // stuff do not poke through"): the lowest canopy / windscreen vertex within dx of x, between z0 and z1 and above
+  // yAbove - the ceiling a thing standing on the glareshield must stay under (the portable's cradle); null with none
+  const glassPts = [];
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (!/^(windshield|pilotWindow|drawnPane|skyWindows)$/.test(f.m)) continue;
+      for (const vi of f.v) glassPts.push([mesh.V[vi][0] * k, mesh.V[vi][1] * k, mesh.V[vi][2] * k]);
+    }
+  const ceilAt = (x, dx, z0, z1, yAbove) => {
+    let y = 1e9;
+    for (const q of glassPts) if (Math.abs(q[0] - x) <= dx && q[2] >= z0 && q[2] <= z1 && q[1] > yAbove && q[1] < y) y = q[1];
+    return y < 1e8 ? y : null;
+  };
   const dashBotAt = (x, dx, z0, z1) => {
     let y = 1e9;
     for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[2] >= z0 && q[2] <= z1 && q[1] < y) y = q[1];
@@ -2813,6 +2893,36 @@ function anchors(spec, P, mesh) {
       if (any && y >= y0 - 0.01 && y <= y1 + 0.01 && (best == null || xIn < best)) best = xIn;
     }
     return best != null ? sd * best : null;
+  };
+  // THE WALL AT A HEIGHT, EXACTLY (16 Nov 2026, the LS4 - the user: "ensure that the pedals and the controls and all
+  // that stuff do not poke through"): wallAt reads the widest side vertex within 8 cm of the height and only those
+  // 15 cm off the centreline - low in a round belly there are none, and it answered 90 % of the cabin's half-width:
+  // the pedals' axle, the airbrake's bracket stood 2-3 cm through the LS4's skin. wallIn casts a ray along x at
+  // (y, z) through the wall faces the floor's board meets (FLOOR_WALL), the innermost hit (metres, signed), or null
+  const wallTris = [];
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (!FLOOR_WALL.test(f.m || '')) continue;
+      for (let i = 1; i + 1 < f.v.length; i++) {
+        const t = [f.v[0], f.v[i], f.v[i + 1]].map(vi => [mesh.V[vi][0] * k, mesh.V[vi][1] * k, mesh.V[vi][2] * k]);
+        wallTris.push({ t, y0: Math.min(t[0][1], t[1][1], t[2][1]), y1: Math.max(t[0][1], t[1][1], t[2][1]),
+                        z0: Math.min(t[0][2], t[1][2], t[2][2]), z1: Math.max(t[0][2], t[1][2], t[2][2]) });
+      }
+    }
+  const wallIn = (sd, y, z) => {
+    let best = Infinity;
+    for (const w of wallTris) {
+      if (y < w.y0 || y > w.y1 || z < w.z0 || z > w.z1) continue;
+      const [a, b, c] = w.t;
+      const d = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]);
+      if (Math.abs(d) < 1e-9) continue;
+      const u = ((y - a[1]) * (c[2] - a[2]) - (z - a[2]) * (c[1] - a[1])) / d;
+      const v = ((b[1] - a[1]) * (z - a[2]) - (b[2] - a[2]) * (y - a[1])) / d;
+      if (u < -1e-6 || v < -1e-6 || u + v > 1 + 1e-6) continue;
+      const x = (a[0] + (b[0] - a[0]) * u + (c[0] - a[0]) * v) * sd;
+      if (x > 0.02 && x < best) best = x;
+    }
+    return best < Infinity ? sd * best : null;
   };
   const wallAt = (sd, y, z) => {
     const sh = shoulderAt(sd, y, z);
@@ -2906,7 +3016,7 @@ function anchors(spec, P, mesh) {
   // (G3515: the cockpit's dash shell is the FRONT seat's - a rear pilot's panel
   // stands on its own at the rear station, its height off the floor rule)
   if (rear) { dashLip = null; dashTop = null; dashAftZ = null; face = null; }
-  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch) && !rear, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, skinOver, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch) && !rear, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, skinOver, ceilAt, wallIn, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            zFire: isFinite(zFire) ? zFire : null,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
@@ -3331,6 +3441,9 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // the pilot's, drawn with the controls so the join carries them
   try {
     if (Math.round(+P.flapCtl || 0) !== 1) buildFlapLever(tg, A, P, pilot.x, pilot, sbs);   // G335: else the panel's switch
+    // AIRBRAKES: the blue handle (a build with brakes only) - with no throttle, on the left wall, in the free hand
+    const abH = buildAirbrakeHandle(tg, A, P, pilot.x, pilot, !thr);
+    if (!thr && abH) st1.thr = abH;
     buildBrakeKnob(tg, A, P, pilot.x);
     buildFuelSelector(tg, A, P, pilot.x, pilot);
     buildTrimWheel(tg, A, P, pilot.x, pilot);
@@ -3742,7 +3855,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                   label: hStick + '→' + stick.label });
     }
     if (thr) jobs.push({ chain: hThr === 'L' ? 'armL' : 'armR', a: thr.obj,
-                         label: hThr + '→throttle' });
+                         label: hThr + '→' + (thr.job || 'throttle') });
     if (pedals) {
       jobs.push({ chain: 'legL', a: pedals.objL, label: 'L→pedal' });
       jobs.push({ chain: 'legR', a: pedals.objR, label: 'R→pedal' });
@@ -3833,9 +3946,27 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // ride out with each seat — the join reads the capacity, the occupancy
     // and the loading numbers off this one list
     // SEATS: `kg`, the drawn seat's own mass (its preset's), so the join bills each seat as drawn
-    seatsAt: seats.map(s2 => ({ x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
-                                panY: s2.panY, section: s2.section | 0,
-                                filled: !!s2.filled, kg: s2.kg })),
+    // SEAT-CG (16 Nov 2026, the user: "Fix the balance" - the LS4's pilot lying back): `cgFwd`, how far ahead of the
+    // seat's back its occupant's mass centre sits (the join's station). The join's rule was 0.20 m for every seat;
+    // the drawn pilot's own mass centre (its posed bones, Winter's segment fractions) bears it out upright (0.19) but
+    // a reclined back lays the torso aft: 0.127 m in the Archaeopteryx's 42 deg seat, 0.088 m in the LS4's 50. Fitted
+    // on a sweep of the drawn body (13-61 deg, within 4 mm): the torso's shift goes as the sine of the back's
+    // recline (the seat's rake, plus the pilot's own recline row on the pilot's seat), the legs' with the pedals'
+    // distance - anchored on the old rule at the upright default (rake 13, recline 0, pedals 0.90). BLENDED IN between
+    // 28 and 42 deg of back (a smoothstep): the conventional seats - the Cubs' and Jodels' 25-27 deg, the certified
+    // Rufus - keep the old rule to the millimetre (it reads 2-4 cm forward of their drawn body: a fleet-wide re-baseline
+    // that is A0's to call, not done here); the sailplanes' supine seats (34-56 deg) take the measured body. Seat
+    // geometry only (no character needed): the same number headless and in the game
+    seatsAt: seats.map(s2 => {
+      const effD = Math.max(13, (+s2.SP.rake || 13) + (s2.pilot ? (+P.pilRecline || 0) : 0)), eff = effD * D2R;
+      const pz = s2.pilot && P.pedalZ != null ? +P.pedalZ : 0.90;
+      const body = 0.20 - 0.195 * (Math.sin(eff) - Math.sin(13 * D2R)) + 0.16 * (pz - 0.90);
+      const t = Math.min(1, Math.max(0, (effD - 28) / 14)), wB = t * t * (3 - 2 * t);
+      const cgFwd = 0.20 + wB * (body - 0.20);
+      return { x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
+               panY: s2.panY, section: s2.section | 0,
+               filled: !!s2.filled, kg: s2.kg, cgFwd: +cgFwd.toFixed(4) };
+    }),
     seats: seats.map(s2 => ({ x: +s2.x.toFixed(3),
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };

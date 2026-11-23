@@ -684,7 +684,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // same reason `cover` lives in the skin payload (63_gen_skin.js): the thing
   // that billed the mass knows what it was, and a list maintained anywhere else
   // goes stale the first time a section is added.
-  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1, podLoad: 1 };   // podLoad: the freight in the belly pod (G2410)
+  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1, podLoad: 1, water: 1 };   // water: the water tanks' contents (GEN_RULES.water)   // podLoad: the freight in the belly pod (G2410)
   const bill = (mass, cost) => {
     const e = ledger[SEC] ||
       (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
@@ -1161,6 +1161,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     let a = Math.min(F.length - 1, f + 1);
     for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
     return [f, Math.max(a, Math.min(f + 1, F.length - 1))];
+  };
+  // STRADDLE-FIX (LS4 READY, 16 Nov; the user: "fix it in the release"): WHERE A MASS SITS, the two stations that
+  // BRACKET x - the last at or ahead of it and the next. straddle() keeps a 5 cm dead band round every station and,
+  // for x inside it, skips that station for the ones either side: right for the structure's ties (the wing root's,
+  // which add the nearest ring themselves), wrong for a mass - the Archaeopteryx's pilot (SEAT-CG's 0.129 m, 1.117 m
+  // aft) put 24 kg on the nose ring S0 and 57 on S2 instead of on S1, the ring it sits at (GATE NACELLE C, the nose
+  // keel 27 -> 39 mm). billAt and bodyRing (the masses' two doors) take this; every tie keeps straddle(). Outside the
+  // bands the pair is straddle's; inside, the lever now runs to the station itself
+  const bracket = x => {
+    let f = 0;
+    for (let i = 0; i < ST.length; i++) if (ST[i].x <= x) f = i;
+    return [f, Math.min(f + 1, F.length - 1)];
   };
   const nearestRing = x => {
     let best = 0, bd = 1e9;
@@ -3905,6 +3917,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
   }
 
+  // ---- 5d. AIRBRAKES (GEN_RULES.airbrake; wings[0].airbrake): THE BOXES, a side each ----------------------------
+  // Each box's kilos (kgPerM a metre of its span) on the spar pair at its middle station - 40 % on the front, 60 % on
+  // the rear (the box stands just aft of the main spar, between the two) - its own ledger line; nothing on a wing
+  // without one (no section opened: the ledger's bytes)
+  {
+    const AB = S.wings && S.wings[0] && S.wings[0].airbrake;
+    if (AB && wf.L && wf.R && R.airbrake) {
+      sec('airbrake');
+      const semiAB = G.semi || 1, zm = 0.5 * (AB.z0 + AB.z1) * semiAB, lenM = (AB.z1 - AB.z0) * semiAB;
+      const kgSide = R.airbrake.kgPerM * lenM;
+      for (const W of [wf.L, wf.R]) {
+        let j = 0;
+        for (let q = 1; q < W.F.length; q++) if (Math.abs(Math.abs(P[W.F[q]][2]) - zm) < Math.abs(Math.abs(P[W.F[j]][2]) - zm)) j = q;
+        pt(W.F[j], 0.4 * kgSide); pt(W.R[Math.min(j, W.R.length - 1)], 0.6 * kgSide);
+        spend(R.airbrake.pricePerM * lenM);
+      }
+    }
+  }
+
   // ---- 6. payload, fuel, systems --------------------------------------
   // tandem: pilot in the FRONT seat first (a J-3 is soloed from the rear, but
   // that is a CG choice the player can make by moving the seat, not a default)
@@ -3957,7 +3988,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     pt(b, m * (1 - w)); pt(t, m * w);
   };
   const billAt = (x, m, up) => {
-    const [f, a] = straddle(x);
+    const [f, a] = bracket(x);   // (STRADDLE-FIX: the bracket, not the ties' straddle)
     const put = up ? onRing : (rg, sd, mm) => pt(rg['B' + sd], mm);
     if (f === a || !F[a]) { put(F[f], 'L', 0.5 * m); put(F[f], 'R', 0.5 * m); return; }
     const x0 = ST[f].x, x1 = ST[a].x;
@@ -4029,7 +4060,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const bodyRing = (xWant, lvWant) => {
     const pick = rg => (lvWant >= 0.5) ? [rg.TL, rg.TR] : [rg.BL, rg.BR];
     if (xWant < ST[0].x - 0.05) return noseNodes(xWant, lvWant);
-    const [f, a] = straddle(xWant);
+    const [f, a] = bracket(xWant);   // (STRADDLE-FIX: the bracket, not the ties' straddle)
     if (f === a || !F[a] || !F[f]) { const [n0, n1] = pick(F[f] || F[0]); return [[n0, 0.5], [n1, 0.5]]; }
     const x0 = ST[f].x, x1 = ST[a].x;
     const wa = Math.max(0, Math.min(1, (xWant - x0) / Math.max(1e-6, x1 - x0)));
@@ -4134,6 +4165,63 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       nodes[n2].mFuel = (nodes[n2].mFuel || 0) + w2 * m;
     }
   }
+  // ---- WATER TANKS (GEN_RULES.water; the user 15 Nov: tanks filled with water, a release, a shower) ----------------
+  // The fuel tank's billing again, on its own list: the shell (GEN_VESSELS.waterPoly) is the airframe's ('waterTank'),
+  // the water - capacity x fill - the loading's ('water', a payload section), each on the pair of nodes its bay and
+  // station give (bodyRing / the spar pairs), and recorded per node (`mWater`) for the solver's dump valve as `mFuel`
+  // is for the burn. THE OUTLET: a round hole in the tank's floor, straight down - a body tank's on the centreline at
+  // its station, at the keel's level (bodyRing at lv 0); a wing tank's one a side under its spar pair. parts.water says
+  // where (node weights, the drop below them) and how fast it empties (Torricelli on GEN_RULES.water's hole).
+  const WVES = (S.water && Array.isArray(S.water.vessels)) ? S.water.vessels : [];
+  let WATER = null;
+  if (WVES.length && R.water) {
+    const RW = R.water, outs = [], tanks = [];
+    sec('waterTank');
+    for (const v of WVES) {
+      const BAY = GEN_BAYS[v.bay] || GEN_BAYS.cabin;
+      const bay = genBayResolve(S, GEN_BAYS[v.bay] ? v.bay : 'cabin', ST);
+      const r = genVesselResolve('water', v.capacity, 'waterPoly', 'water');
+      let pair, outl;
+      if (BAY.on === 'wing') {
+        const frac = v.along != null ? v.along : (v.bay === 'wingPanel' || v.bay === 'wing2Panel' ? 0.34 : 0);
+        const [wl, wr] = wingPair(frac, BAY.plane || 0);
+        const rr = wingPairRear(frac, BAY.plane || 0);
+        pair = rr ? [[wl, 0.3], [wr, 0.3], [rr[0], 0.2], [rr[1], 0.2]] : [[wl, 0.5], [wr, 0.5]];
+        outl = rr ? [{ pts: [[wl, 0.6], [rr[0], 0.4]], dy: 0.06 }, { pts: [[wr, 0.6], [rr[1], 0.4]], dy: 0.06 }]
+                  : [{ pts: [[wl, 1]], dy: 0.06 }, { pts: [[wr, 1]], dy: 0.06 }];
+      } else {
+        const xW = v.along != null ? v.along : bay.xMid;
+        const lvW = v.lv != null ? v.lv : 0.5 * ((BAY.lv || [0, 1])[0] + (BAY.lv || [0, 1])[1]);
+        pair = bodyRing(xW, lvW);
+        // (the floor's pair at the station; a tank ahead of the nose ring has its own nodes - bodyRing made them - so its own pair)
+        outl = [{ pts: xW < ST[0].x - 0.05 ? pair : bodyRing(xW, 0), dy: 0.03 }];
+      }
+      if (r.vesselKg > 0) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.vesselKg); spend(r.price); }
+      v._pair = pair; v._res = r; v._out = outl;
+    }
+    sec('water');
+    let kg0 = 0;
+    for (const v of WVES) {
+      const kgW = v._res.contentsKg * (v.fill == null ? 1 : v.fill);
+      const share = 1 / v._out.length;
+      for (const o of v._out) outs.push({ pts: o.pts, dy: o.dy, share, tank: tanks.length });
+      tanks.push({ bay: v.bay, litres: v.capacity, fill: v.fill == null ? 1 : v.fill, kg: kgW });
+      if (!(kgW > 0)) continue;
+      kg0 += kgW;
+      for (const [n2, w2] of v._pair) {
+        if (w2 <= 0) continue;
+        pt(n2, w2 * kgW);
+        nodes[n2].mWater = (nodes[n2].mWater || 0) + w2 * kgW;
+      }
+    }
+    // Torricelli: one hole a tank (a wing tank's two share its flow), its own size or the rule's, litres a second at
+    // full head - the valve's rate is the tanks' sum (each tank's on its record)
+    let rateLs = 0;
+    WVES.forEach((v, k) => { const d = v.outletD > 0 ? v.outletD : RW.outletD, A = Math.PI * d * d / 4;
+      tanks[k].rateLs = 1000 * RW.Cd * A * Math.sqrt(2 * 9.81 * RW.head); rateLs += tanks[k].rateLs; });
+    WATER = { kg0, rateLs, kgL: GEN_WATER.water.kgL, outlets: outs, tanks };
+    for (const v of WVES) { delete v._pair; delete v._res; delete v._out; }
+  }
   // ---- THE FIT, ITEMISED (the panel arc, session 2) ------------------------
   // One lump on the firewall top pair used to stand for the whole fit. Now
   // genSystemsResolve's own rows are billed, each where the thing sits:
@@ -4213,6 +4301,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     let panelM = 0;
     // (the instrument pod, GEN_INSTR_POD: no board - the pod on its stalk, billed where the board was)
     if (S.systems && S.systems.mount === 'pod') panelM = GEN_INSTR_POD.podKg;
+    else if (S.cage && +S.cage.dashHood && +S.cage.intDash && O.hoodKgM2) {
+      // THE INSTRUMENT HOOD (GEN_OUTFIT.hoodKgM2, the cage's dashHood row): the drawn dash's depth, crowned, and its face
+      // (16 Nov 2026, the LS4's pod 0.42 m further aft - the user: "The dash in the real plane really protrudes ... 40,
+      //  even 50 centimeters": the moulding's top runs from the glass base to the face, the SETBACK too, and its face
+      //  rises by the CROWN - both drawn rows, cage units x planeScale like the depth; the depth was read as metres)
+      const psH = +S.cage.planeScale || 1;
+      const depH = (S.cage.dashDepth != null ? +S.cage.dashDepth : 0.42) * psH, backH = (+S.cage.dashBack || 0) * psH,
+            crnH = (+S.cage.dashCrown || 0) * psH;
+      panelM = 2 * cb.halfW * (1.25 * (depH + crnH) + 0.22 + backH) * O.hoodKgM2;
+    }
     else if (cb.panel && cb.panel.on) {
       const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
       panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
@@ -4277,6 +4375,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       : glassKg * (cb.glazedM2 > 0 ? cb.glazedM2
                    : (2 * cb.halfW * cb.h * 0.55 +
                       (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0)));
+    // THE BUBBLE'S FRAME AND HINGE (GEN_OUTFIT.canopyFrameKgM / canopyHingeKg): its edge off the glazed area as a
+    // half-cylinder over the cabin's width; billed with the glass (where the glass is); nothing on any other canopy
+    const bubble = cb.canopy && cb.canopy.style === 'bubble' && cb.glazing !== 'none' && O.canopyFrameKgM > 0 && glassKg > 0 && cb.halfW > 0;
+    const canopyFrameM = bubble ? (() => { const A = glassM / glassKg, Lc = A / (Math.PI * cb.halfW);
+      return O.canopyFrameKgM * 2 * (Lc + 2 * cb.halfW) + O.canopyHingeKg; })() : 0;
     // THE FURNISHING (PERF STUDY chantier 1): the lining, by the fit's tier
     // as a fraction of Raymer's GA law on the DESIGN GROSS (GEN_OUTFIT.furnK)
     // — pass 2 only, on the gross pass 1 solved (genDesignGross carries the
@@ -4322,10 +4425,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       half(noseEng ? F[0].BL : EL, noseEng ? F[0].BR : ER, exhM);
     }
     half(F[1].TL, F[1].TR, glassM);
+    if (canopyFrameM > 0) half(F[1].TL, F[1].TR, canopyFrameM);   // (the bubble's frame and hinge, with its glass)
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
     { const nCowl = (noseEng && engOn) ? 1 + engCowl.length : engCowl.length ? engCowl.length : 1;
-      outfitKg = { panel: panelM, plumbing: plumbM, cowl: nCowl * cowlM, exhaust: nCowl * exhM, glazing: glassM, controls: ctlM }; }
+      outfitKg = { panel: panelM, plumbing: plumbM, cowl: nCowl * cowlM, exhaust: nCowl * exhM, glazing: glassM, controls: ctlM,
+                   ...(canopyFrameM > 0 ? { canopyFrame: canopyFrameM } : {}) }; }
     // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
     sec('furnish');
     if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }
@@ -4511,6 +4616,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   parts.cover = { paintA: coverA, clothA: clothAll };
   if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
   if (SKR) parts.ski = SKR;     // SKIS: the resolved ski gear - the solver's contacts and the drag read it (absent: no key)
+  if (WATER) parts.water = WATER;   // WATER TANKS: the water aboard, the outlets, the dump rate (absent with none: the bytes kept)
   // WILGA-GEAR: THE STRUTS, each designed for this aeroplane (62c gearOleoDesign: the charge for the static deflection
   // at the design gross, the second stage, the orifice for the limit sink) - on the final masses: the wheel's static
   // load is the gross's share the mains carry at the built CG (the third wheel's lever arm), split per side. The
@@ -4673,7 +4779,9 @@ function genDesignGross(S, a, cg) {
   const fu = S.fuse || {}, cb = S.cab || {};
   const freight = fu.cargoLen > 1e-6
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
-  const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
+  // WATER TANKS: the structure carries them full (their capacity, whatever the garage's fill) - absent, 0
+  const waterFull = (S.water && Array.isArray(S.water.vessels)) ? S.water.vessels.reduce((t, v) => t + (+v.capacity || 0) * GEN_WATER.water.kgL, 0) : 0;
+  const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight + waterFull;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
   // THE BUILD WEIGHT (the foot-launch D-tube, GEN_SURF_MATERIALS.dtube): a wing built for buildKg thins below it but
   // never grows past it
@@ -4682,7 +4790,9 @@ function genDesignGross(S, a, cg) {
   const eOf = c => G.e[c] != null ? G.e[c] : G.e[c.replace(/B$/, '')];
   const rowOf = c => c === 'wingB' ? WROW : c === 'tailB' ? TROW : c === 'fusB' ? (GEN_MATERIALS[S.material] || null) : null;   // (L4: the soft shell's)
   const hiOf = c => { const h0 = (G.hiBy && G.hiBy[c]) || G.hi, r = rowOf(c); return r && r.buildKg > 0 ? Math.min(h0, CORE_MATH.pow(r.buildKg / ref(c), eOf(c))) : h0; };   // (MASS-SCALE: a class's own ceiling, the gear's)
-  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), eOf(c))));
+  // THE CATEGORY (GEN_CATEGORY): Nz / 3.8 on the classes it sizes (not the gear: its landing load) - 1 on a normal one
+  const nzK = genCatNz(S) / GEN_CATEGORY.normal.nz;
+  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow((nzK !== 1 && c !== 'gear' ? W * nzK : W) / ref(c), eOf(c))));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)

@@ -192,7 +192,7 @@ const WHEEL_ROWS = [
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat'], notCycle],
   ['whValve', 'valve stem', 0, 1, 1, notCycle],
   ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum'], notCycle],
-  ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
+  ['brkHold', 'brakes (hold, mass)', 0, 4, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs', 'sailplane wheel drum']],
   // CAR (12 Nov): THE CAR SWITCH and the car-only rows (absent = an aeroplane; nothing changes for one)
   ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
   ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],
