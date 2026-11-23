@@ -84,7 +84,23 @@ Branch: `claude/master-green`. Readies: `claude/ready/green-<n>`. This file is k
 - Why chunks: this container RESTARTED at 10:48 UTC. My own battery on ffe95133d died at 126 of 386 jobs and
   `run_gates` prints its verdicts only at the end: all lost. The chunks keep each part as it ends and the run resumes.
 
-## STATUS (updated 23 Nov 13:40 UTC, block 10)
+## STATUS (updated 23 Nov 17:05 UTC, block 11)
+
+- **Train L40K landed (56047b34e, ~16:00). Everything moved onto it as ONE branch, green-4** (local; 21 commits + its
+  (built) 3ef7ab3d1): green-1, green-2 and green-3's fixes cherry-picked one by one. Three were already on L40K and are
+  dropped (WILGAGEAR's CAGE_PYLON, PARTS' cowl rows - 8d56cac43, SKIS' witness paths - LS4-ARCH); DESIGN's roadster
+  line too. Re-checked on L40K: 25 of the fixed gates PASS through the runner; WINGROWS' re-pin REVERTED (L40K's
+  2b3267ee7 put the tip floor back at 0.45, so master's own pins hold); ACCEPT admits the LS4's hudBrakeWater();
+  SKIS re-blessed with both its moves named (the seven leaked rows; the Jodel's sheet, below).
+- **Its core battery runs since 16:59 UTC** (369 gates, 33 chunks). `claude/ready/green-4` is pushed when it ends - the
+  one ready for all of this. green-2's L40J battery was stopped at 10 of 32 chunks when L40K landed (no red in neither
+  list); its partial log is kept.
+- **JOINPARITY row 1 looks CLOSED BY L40K**: node's load door builds the Jodel at 469.732 kg - the page's figure - since
+  L40K's merge of ls4-arch-2 (2b2a52772, bisected through SKIS' Jodel digest). The battery will say.
+- L40K also closed: FLIGHTREC (perf-trace-6), PARTS (canClear + the cowl rows), TAXICLEAR row 1 (6.5 m), WINGROWS.
+- LOAD's glass red bisected: green on HULL-B50's parent (111 % of yield), red on HULL-B50 4ab3c819d (149 %) - the user's
+  composite recalibration (glass x0.75), for FLAGSHIP / the user.
+- A lesson for this box: the container is reclaimed ~6 min after a turn ends, batteries or not (13:41 today).
 
 - green-2's battery: chunks 00-04 done (FLIGHTREC, STOL, TAKEOFF red - all named); ~9 h to go if the box holds.
 - green-3 (local, on green-2) adds: DESTTO (a setup older than CERT-GATES - fixed with the rule asserted), and the soft
