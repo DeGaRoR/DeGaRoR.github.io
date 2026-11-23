@@ -2,7 +2,8 @@
 
 Branch `claude/perf-worldbuild-next`. Landed ref for L40M: `claude/ready/perf-worldbuild-2` = 43f58e871 (off
 `claude/perf-codex` 4421e5416, on `claude/ready/perf-worldbuild-1`). After it, on the branch: round three = 72d9aa4db
-(gated), round four = b49b8a4cd (gated), round five = the commit that carries this file (gated: the far terrain's measure in steps). The canonical entry is HANDOVER.md "PERF-WORLDBUILD 2"; this file is the working picture for
+(gated), round four = b49b8a4cd, round five = 369ad0ec9 (`claude/ready/perf-worldbuild-3` = a226782a7 carries both), round six = the commit that carries this
+file (gated in node, NO browser row yet). The canonical entry is HANDOVER.md "PERF-WORLDBUILD 2"; this file is the working picture for
 whoever takes the world build next.
 
 The mission: no main-thread task over 50 ms while the world is built, no visible change. The architecture PERF-LEAD chose
@@ -44,7 +45,19 @@ Measured in the browser so far (PERF-LEAD, quiet box, six switches, tasks of 50 
 no switch at all - the world step 35.6 -> 25.4 s, the settle 20.8 -> 8.6 s, the garage's tasks over 100 ms 57 -> 35, the
 worst world-build slice 2.0 -> 0.38 s; round three against the same build without it (16:00) - trees 296 -> 64 ms, far
 terrain: a quadrant 142 -> 114 + 72, ring 122 / ground albedo 102 / island ground: the types 65 -> under 50, 61 tasks
-with 16 over 100 (70 and 17 without). ROUNDS FOUR AND FIVE HAVE NO BROWSER ROW YET.
+with 16 over 100 (70 and 17 without). Rounds four and five (17:42, 369ad0ec9, a BUSY box: times ~1.2-1.3x) - the far
+terrain's cut and quadrant, the ring, the albedo and the island's types gone from the list; the one unlabelled slice
+left (194 ms) is a cabin's preparation and an asset load, not the build; patch ground 83, its fields 113, roads 92, the
+built links 116, a site 83, houses 79, forest mist 84. AND ROUND FOUR'S UPLOAD CUTS DID NOT WORK: right after the world
+step two tasks of 902 + 566 ms (622 + 207 before) - three uploads the world's textures (516 ms) and buffers (177 ms) AT
+THE DRAW of the garage's first frame that meets them (renderBufferDirect). The sheds' textures "one a tick" lost the
+race with that frame, and the capped flush left buffers pending for it. Round six answers it (below); it has no row yet.
+
+Round six (under the budget): when the generator ends and BEFORE worldBuilt hands the world over, app.js
+buildWorldSliced drains the waiting geometry (24 MB a tick) and initTextures every texture the scene's materials hold
+(worldPreUpload: the boot's 'upload' list, a texture a tick at least, 6 ms a tick); the side sheds, made inside
+worldBuilt, are hidden while their textures go up one a tick, then shown - in garage first they appear a moment after
+the world: THE ONE VISIBLE EFFECT of these rounds, only under the host, and the user has not seen it yet.
 
 ## 2. The world build's steps, as they stand
 
@@ -78,8 +91,8 @@ step), 11:49 and 14:19 on builds that carry a9fa841d6 (the ready). Rows on round
 | The material map's raster | ~0 with the worker | 'lots' 903 | - | WORKER (`?patchw=1`) |
 | Trams, traffic, animals | 69 | - | 'houses' 78-102 | one task |
 | The town's host (decode, mirrors, geometry, batch, far cells) | 390 (390) | 'trees' 306 | 'trees' 305-386 | SLICE (round three): townkit.js hostSteps / townSteps |
-| Geometry uploads after a slice (GPU_ONLY_GEO.flush) | not seen in node | - | two unlabelled slices 290 + 203 (my reading); 522 buffers, 244 MB in the task after the build | SLICE (round four): 24 MB a call, drained a tick at a time after the build. Browser-only proof |
-| The side sheds' textures (worldBuilt, shedTexWarm) | not seen in node | - | most of a 622 ms task right after the world step (304 texture calls) | SLICE (round four): one a tick. Browser-only proof |
+| Geometry uploads after a slice (GPU_ONLY_GEO.flush) | not seen in node | - | two unlabelled slices 290 + 203 (my reading); 522 buffers, 244 MB in the task after the build | Round four's cap alone made it WORSE at the first draw (17:42); round six drains it BEFORE the world is handed over. Browser-only proof, none yet |
+| The side sheds' textures (worldBuilt, shedTexWarm) | not seen in node | - | most of a 622 ms task right after the world step (304 texture calls) | Round four's "one a tick" lost the race with the frame (17:42); round six uploads the scene's textures before the hand-over and hides the sheds until theirs are up. Browser-only proof, none yet |
 
 Not the build's generator, named by PERF-LEAD's 14:19 profile and NOT cut:
 - The tree impostor sheets' readbacks (render_world.js sheetCheckAsync: three's readRenderTargetPixelsAsync 164 + 279 ms,
