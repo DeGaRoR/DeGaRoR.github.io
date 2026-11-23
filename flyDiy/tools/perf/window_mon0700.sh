@@ -88,6 +88,14 @@ if [ $(left) -ge $(( JM + 1 )) ]; then
   else say "NO FLIGHT LOG for the fartol journey"; fi
 else say "part 3 SKIPPED: $(left) min left"; fi
 
+# 3b. GARAGE FIRST, A FIRST LOOK (23 Nov, the user's row 3: the world loaded behind the garage): the prototype's own build
+#     (D:/Dev/perf-lab-gf, never the standing lab build), one cold load, Go 150 s after the garage shows. Skipped when the
+#     05:00 smoke already ran it (GF_DONE=1) or the build is not there.
+GF=D:/Dev/perf-lab-gf
+if [ -z "$GF_DONE" ] && [ $(left) -ge 8 ] && grep -qs "boot=garagefirst" "$GF/flyDiy/index.html"; then say "part 3b: garage first, one cold load, Go 150 s after the reveal"
+  LM_HELD=1 LM_AFTER=150 LM_SECS=400 LM_EST=330 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=14 bash tools/perf/load_matrix.sh tools/perf/rows/gf-smoke.txt "$OUT/gf" 7 2>&1 | cut -c1-2600 | tee -a "$LOG"
+else say "part 3b SKIPPED: $(left) min left, or already run, or no prototype build"; fi
+
 # 4. the world build's three workers again, in what is left
 R=$(( $(left) - 1 ))
 if [ $R -ge 4 ]; then say "part 4: the roads in the worker, cap $R min"
