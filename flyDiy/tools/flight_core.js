@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b4462f168b848b64
+// body-sha256: 2c3ba7996508c7d0
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7659,6 +7659,7 @@ const GP_PARKED_FOOT = {   // [half-span, nose + prop ahead of the mount, tail b
   mw5: [4.7, 0.6, 5.6], archaeopteryx: [6.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 6.2],
   p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9], pushPull: [5.5, 0.9, 6.2], trimotor: [5.5, 0.8, 6.0], fourEngine: [5.5, 0.6, 6.1],
   camel: [4.3, 0.9, 5.1],      // NEW-SHAPES-1 (the Stearman's tail to 5.5: its re-matched boom, 5.45 m)
+  ls4: [7.5, 0.8, 5.1],        // (MASTER-GREEN 23 Nov: the LS4-alike, L40K - its designBake nodes 7.50 / 0.74 / 5.01 m; inside the envelope)
 };
 const GP_PARKED_DEFAULT = [6.0, 1.6, 6.6];
 function parkedFoot(p) {
