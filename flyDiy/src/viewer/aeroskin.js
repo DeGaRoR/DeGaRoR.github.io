@@ -3180,7 +3180,7 @@ const AERO_VINYL_MARKS = [
   { id: 'bull-moose', name: 'Bull moose', b: [29.7, 35, 234, 196] },
   { id: 'lighthouse', name: 'Lighthouse', b: [2, 26, 198, 244] },
   { id: 'glassy-panorama', name: 'Glassy panorama', b: [2, 14, 318, 148.8] },
-  { id: 'alaska', name: 'Alaska', b: [9, 6, 256, 161.9] },
+  { id: 'alaska', name: 'North Coast', b: [9, 6, 256, 161.9] },   // (GATE NAMES, as the 'alaska' theme: the id stays - livery_marks.js and the tools name it; the shown name is fictional)
 ];
 // A SLOT'S ROWS (`vn<i><field>` in AERO_DEC_DEF; 'stk' is the certification strip's prefix). Off by default. THE FIRST
 // PLACE (the user, 9 Nov: "in the middle of the fuselage"): the editor puts a slot it switches on at the middle of the

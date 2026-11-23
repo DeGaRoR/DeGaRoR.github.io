@@ -5575,7 +5575,7 @@ function buildDecPanel() {
   }
 
   // ---- THE LIVERY STICKERS (LIVERY-STICKERS, 9 Nov) ---------------------------
-  // Four slots, each its own <details> like a kit layer: a mark (the twelve Alaska marks, picked from their pictures),
+  // Four slots, each its own <details> like a kit layer: a mark (the twelve North Coast marks, picked from their pictures),
   // one colour (unset: the trim, like the registration's ink), a size, the livery layer's placement rows, the sides
   // and the mirror. aeroskin draws and places them (aeroVinylLayers); this panel only edits DEC's vn* rows.
   DECG.cur = 'vny';
@@ -5619,7 +5619,7 @@ function buildDecPanel() {
            () => { if (DEC[q + 'On']) { det.open = true; decVinylFirstPlace(q); } redo(); }, det);
       // the mark: twelve buttons, the picked one outlined
       {
-        const d = row('mark', 'the twelve Alaska marks: one colour, cut from vinyl', det);
+        const d = row('mark', 'the twelve North Coast marks: one colour, cut from vinyl', det);
         const grid = document.createElement('div');
         grid.style.cssText = 'flex:1;display:grid;grid-template-columns:repeat(6,1fr);gap:3px';
         const btns = [];
