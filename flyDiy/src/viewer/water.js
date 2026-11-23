@@ -1480,8 +1480,11 @@ const WATER = (() => {
     const skipped = [];
     // (G2836 ring guard) the small things out of the capture: the cover ring (grass, tufts, rocks, debris), the route helpers
     const lean = !RG && MIR.lean && eyeAgl > MIR.leanAgl; if (lean) MIR.leaned++;   // (PERF-LEAD LAB, ?mirlean: the lake's / the bay's capture, high up)
-    const skipList = (RG && MIR.ringSkip) || lean ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : MIR.skip;
-    for (const o of skipList) if (o && o.visible) { o.visible = false; skipped.push(o); }
+    const skipList = RG && MIR.ringSkip ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : MIR.skip;
+    // (?mirlean=1, a SWITCH, off by default: the user's rule of 20 Oct stands - a lake keeps the grass and the cover in its mirror.
+    //  GATE WATER pins the line above; the lab's first cut of 22 Nov had rewritten it and the gate was red on perf-lead-1 and -2)
+    const skipLean = lean ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : null;
+    for (const o of (skipLean || skipList)) if (o && o.visible) { o.visible = false; skipped.push(o); }
     // (G2836 ring guard) THE SCISSOR: a water pixel reads the capture at its own screen row (G460.11.4: projected uv = pixel uv on y),
     // so only the rows under the water's horizon (+ a margin for the slope's walk and the edge fade) are ever read - the rest is not
     // rasterised. The horizon: the plane's far points along the view's left / centre / right headings, through the MAIN camera
