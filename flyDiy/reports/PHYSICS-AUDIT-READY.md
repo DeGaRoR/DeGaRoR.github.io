@@ -1,7 +1,7 @@
-# PHYSICS-AUDIT: READY 1b (the built plan, steps 0-6; ref `claude/ready/physics-audit-1b`, on master 9349a62c1, L40H)
+# PHYSICS-AUDIT: READY 1c (the built plan, steps 0-6; ref `claude/ready/physics-audit-1c`, on master 089297693, L40J)
 
-**1b = 1 (`4a1989294`) plus this note brought up to date (Mon 23 Nov, 05:00 CET). No other file differs.** A pushed
-ready never moves (A0's rule): the next letter is the merge with L40J / L40K's master.
+**1c = 1b (`143eff6db`) merged with L40J's master `089297693` (Mon 23 Nov, 06:10 CET), every conflict re-measured.** A
+pushed ready never moves (A0's rule): -1 and -1b stay as they were, on L40H.
 
 The user, 21 Nov: "We'll do all steps, so what matters is the final result ... I'm OK with the plan and you may
 proceed." A0, 22 Nov (L40L): the built plan only; the fuselage-drag work is a later ref (physics-audit-2).
@@ -24,14 +24,21 @@ The full account: `reports/PHYSICS-AUDIT-2026-11-21.md` section 7 ("As built"); 
 Verdicts over every scored row of the 17 live planes (`real_check --quick`, inside / near / outside):
 before the audit 55 / 18 / 20, as built 61 / 14 / 18.
 
-## The rebase
+## The merge with L40J (1c)
 
-**None was needed when this was pushed** (Sun 22 Nov, 23:30 CET): master was still `9349a62c1`, the plan's own base, and
-the user said "Push". This line is `claude/physics-audit` without its three FUSELAGE-DRAG STUDY commits (reports and
-node-only tools: nothing built moves; they ride physics-audit-2), plus the fiche's physics pages re-baked.
-When L40J and L40K land I MERGE the new master into this ref (no force-push, so no rebase of a pushed ref), re-measure
-what conflicts (A0 named `61_gen_frame.js`, `64_gen_build.js`, `realband_baseline.json`: REALBAND is re-written with its
-reason, never a side picked), and say so here.
+`git merge origin/master` (089297693) into the plan's line - a merge, not a rebase (the line was already pushed).
+`61_gen_frame.js` and `64_gen_build.js` merged by themselves. The conflicts, each RE-MEASURED on the merged tree:
+
+| file | what it became |
+|---|---|
+| `src/core/76_procure.js` (the shop catalogue's effects) | nine rows re-emitted from `_procure_check.js --emit` (the refit 172 x the plan's propeller): c172 o320 rangeKm 47; c172 io360 cruiseKmh 8, rangeKm -103; c172 tank long toM 102, rangeKm 580; c172f o320 cruiseKmh -22, rangeKm 41; c172f io360 cruiseKmh -9, rangeKm 26 |
+| `tools/realband_baseline.json` | re-written on the merged tree (L40J's refit 172 and the user's Chinook, the plan's steps): reason in its history |
+| `tools/fixtures/stol_baseline.json.gz` | re-captured on the merged tree (33 cards + 6 builds) |
+| `media/fiches/*/physics.json` | all 24 re-baked on the merged tree |
+| `HANDOVER.md` | master's bytes, then the PHYSICS-AUDIT block's |
+| the built files | rebuilt, their own (built) commit |
+
+L40K (about noon: the refit 172's tail strut, the route fixture, ls4-arch-1) is NOT in this ref.
 
 ## Every re-pin, with its reason
 
@@ -46,23 +53,19 @@ reason, never a side picked), and say so here.
 
 ## The gates, in chunks (logs: `reports/evidence/PHYSICS-AUDIT-2026-11-21/ready1/chunk_NN.log` on `claude/physics-audit`)
 
-**Run on this exact tree before the push** (13 gates): REALBAND, PLANEFICHE, BUILT, WIRES, PROPFIT, IDLEPROP, DRAGROWS, RPM,
-CARDS, PLANELISTS, SNAPSHOTS, COMMITHYGIENE pass; PHYSPAGES red on one named check (below).
+**Run on this exact tree (1c, merged and rebuilt)**: STOL, REALBAND, PROCURE, SOFTGROUND, TAKEOFF, PILOTCANFLY, WIRES,
+PROPFIT, IDLEPROP, DRAGROWS, RPM, CARDS, PLANELISTS, SNAPSHOTS, PLANEFICHE, BUILT, COMMITHYGIENE pass; BENCH red on the
+shipped Rufus's stamp (below). 17 of 18.
 
-**Run on the same source earlier** (22 Nov, tree 835da79f9: this tree plus the study's files): 109 of the core tier's
-367 gates, listed in the report's section 7 "Gates", each red read against master by check name.
+**Run before the merge, on L40H** (trees 4a1989294 / 835da79f9): chunk 1 of 13 of the core tier (30 gates: 25 pass;
+GLIDE, BENCH, PHYSPAGES = the named reds; REALREFS, APSMOOTH = master's own), FLOATSCLASSIC-WATER (passes), and the 109
+gates of 22 Nov listed in the report's section 7. Logs: `reports/evidence/PHYSICS-AUDIT-2026-11-21/ready1/` on
+`claude/physics-audit`.
 
-**The whole core tier in chunks of 30** (the landing gates first), on tree `4a1989294`; each chunk's log is committed
-to `claude/physics-audit` as it ends (`reports/evidence/PHYSICS-AUDIT-2026-11-21/ready1/chunk_NN.log`).
-
-- **Chunk 1 of 13, ended and pushed** (TAKEOFF, GLIDE, ROUTE, APSMOOTH, PILOTACT, PILOT, PILOTCANFLY, PILOTS, REALBAND, STOL,
-  the four new gates, RPM, SOFTGROUND, PROCURE, BENCH, PHYSPAGES, PLANEFICHE, CARDDRAG, DRAG, HONEST, COOL, ENERGY, CARDS,
-  REALREFS, BUILD, BUILT, COMMITHYGIENE): **25 pass, 5 red** - GLIDE, BENCH, PHYSPAGES (the named reds below), REALREFS and
-  APSMOOTH (master's own, read on master: below).
-- **Chunks 2-13: NOT DONE when this was written.** The cloud container restarted twice in the night (00:25 and 04:31 CET)
-  and killed the runner mid-chunk each time; it now resumes in parts of six gates and is running chunk 2. **This ref is
-  not fully gated**: 13 gates on the exact tree before the push, chunk 1's 30, and the 109 run on the same source on
-  22 Nov. The full verdict is the train's battery.
+**NOT RUN on the merged tree: the rest of the core tier.** The cloud container restarted twice in the night and the
+chunked battery reached chunk 1 only. It is restarted on this tree as this is pushed (landing gates first, parts of
+six gates, each chunk's log to `claude/physics-audit`), but **this ref is not fully gated**: the full verdict is the
+train's battery.
 
 ## Reds, NEW against master (by check name) and left
 
