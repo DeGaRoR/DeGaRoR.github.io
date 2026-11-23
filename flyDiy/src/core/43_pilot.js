@@ -883,6 +883,8 @@ function makePilot(sim, def, world, opts) {
   let slipDr = null, slipLastT = -1e9, wlK = 1, wlSaid = false;
   // G3471 (T-P1 BOUNCE): the time off the ground in this hop of the roll-out, and the hop judged a bounce (flown, not rolled)
   let bounceT = 0, bounceOn = false;
+  // FLARE-LOST (23 Nov): the time a flare has spent flown off the strip, out of a flare's reach (FLARE, below)
+  let flLostT = 0;
   // G3473 (T-P1 PLAN-KEPT): the autopilot given back in the air (ap.reEngage) - the arrival judged from here once
   let reEngAir = false;
   // G1938: THE PIVOT (TAXI / LINEUP, below) - the tightest turn the wheels steer (39_ground_path groundRmin, at the
@@ -5628,6 +5630,15 @@ function makePilot(sim, def, world, opts) {
         if (ap.shortFld && phaseT > 0.5 && aglG > 0.3 && aglG < 1.0 && left < stopDistShort(V) && (ap.gaN || 0) < 2 && !committed) {
           ap.aimBack = { to, m: (ap.aimBack && ap.aimBack.to === to ? ap.aimBack.m : 0) + Math.max(0, stopDistShort(V) - left) + 10 };   // G1949: the next aim, earlier (planArrival)
           SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null; goAround('floating on the short field with ' + Math.round(left) + ' m left, ' + Math.round(stopDistShort(V)) + ' m to stop'); break; }
+        // FLARE-LOST (23 Nov; ALTIPORT 4, the metal Cessna at Skyline): A FLARE FLOWN AWAY FROM THE STRIP IS NOT A LANDING. Committed
+        // (strip-short, committed-unstable) every go-around above is shut - but the touch at 34 m/s bounced it off the altiport's
+        // end, the ground fell away, and it 'flared' 200 m up for 600 s ('gave-up', then capsized). Committing is to the strip,
+        // not to the air past it: 30 m over the ground (no flare arms there: FLARE_ARM_MAX 25 m) while climbing or past the
+        // strip's end, for 1 s - power, and round again, whatever was committed. The circuits' count still says it
+        flLostT = !sim.hydro && onG === 0 && aglG > 30 && (vcg[1] > 0.5 || left < 0) ? flLostT + dt : 0;
+        if (flLostT > 1) {
+          flLostT = 0; SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null;
+          goAround('flown off the flare: ' + Math.round(aglG) + ' m up with ' + Math.round(left) + ' m of strip left'); break; }
         // B4: armed on the STRIP-FRAME crosswind (|windZ| + |windX| armed it on
         // a headwind straight down the strip too) — 39b_servos.js decrabArmed
         const decrab = SV.decrabArmed(agl, F);
