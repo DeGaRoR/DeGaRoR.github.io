@@ -1102,6 +1102,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let envMap = null, probe = null;
   let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
   yield 'sky';
+  // PERF-WORLDBUILD (23 Nov 2026): HOSTB - A HOST'S BUDGET IS ARMED (window.FLYDIY_WORLD_BUDGET = { left: () => ms }: the world
+  // built behind a live garage). Read once, here. The steps only such a host needs hang on it - the sky in five, the ground
+  // colour's rows, the albedo, the island ground's parts, the far terrain's first cut, the water's tile; with none the
+  // build's yields are the ones it had (the loading screen's text and bar are the yields').
+  const HOSTB = typeof window !== 'undefined' && !!window.FLYDIY_WORLD_BUDGET;
+  const hostDue = () => { const Bd = window.FLYDIY_WORLD_BUDGET; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };   // (asked only under HOSTB)
   if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     // THE PROBE FOLLOWS THE SUN (S5). The sky-view LUT for the boot hour and
     // the dome's scale (K_SUN x the world's light unit - LIGHT_UNIT below is
@@ -1110,17 +1116,47 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the day's dials changed - the window fix, and the water's and the
     // skin's. The cap under it is lit by the day (atmo.js groundIrradiance).
     ATMO.update(renderer, world.day, 0);
+    // PERF-WORLDBUILD (23 Nov 2026): THE PROBE BAKE'S UNLINKED PROGRAM, LINKED BEHIND THE STEPS. The clouds' dome in the
+    // probe's scene (CLOUDS.domeMesh: a 34 k fragment) first met the GPU inside the bake, and the draw blocked on its link:
+    // 1.4 s of the 2.0 s this step froze a live garage at 5K (PERF-LEAD's profile, 23 Nov: gl.getProgramInfoLog <
+    // getUniforms < renderBufferDirect; program 'sky / clouds / dome' into PMREM.cubeUv). Under a host with a budget that
+    // can sleep (app.js FLYDIY_WORLD_WAIT), the same maker's mesh - the same text, the same attributes: the same program
+    // key - goes to compileAsync HERE, as the bake will draw it (a bare scene: no light, no fog; a render target bound:
+    // linear out, no tone map), the link runs behind the mist's work, and the step before the bake sleeps on what is left
+    // of it ('sky: the probe programs'). Its material is kept (a program lives while a material holds it). A failure or
+    // 20 s without an answer: the bake goes on and links it itself, as it did.
+    let skyLink = null;
+    if (HOSTB && window.FLYDIY_WORLD_ASYNC === true && typeof renderer.compileAsync === 'function' && THREE.WebGLRenderTarget && typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh) {
+      try { const wm = CLOUDS.domeMesh(0, 20, 24);
+        if (wm) { const ws = new THREE.Scene(); ws.add(wm); const wrt = new THREE.WebGLRenderTarget(4, 4), prev = renderer.getRenderTarget(); let done = false, p = null;
+          try { renderer.setRenderTarget(wrt); p = renderer.compileAsync(ws, camera); } finally { renderer.setRenderTarget(prev); }
+          const fin = () => { done = true; };
+          skyLink = { p: Promise.resolve(p).then(fin, fin), done: () => done, t0: performance.now(), mesh: wm, end() { ws.remove(wm); wrt.dispose(); wm.geometry.dispose(); } };
+          scene.userData.skyLink = skyLink.stats = { linked: false, linkMs: null, sleptMs: null }; } }
+      catch (e) { console.warn('sky: the probe programs: ' + (e && e.message)); skyLink = null; }
+    }
+    // PERF-WORLDBUILD (23 Nov 2026): THE SKY STEP IN FIVE under a host's budget (window.FLYDIY_WORLD_BUDGET - the world
+    // built behind a live garage: this step was its 1.9 s freeze at 5K, 23 Nov): the tables, the mist field, the forest
+    // mist (its map in steps of its own), the world's probe, the cabin's. Nothing between two of them reads what the
+    // next makes (a frame there sees the sky the frames before 'sky' saw: no environment yet, or the world's). With no
+    // host budget: one step, as it was - the loading screen's text and bar are the yields'.
+    if (HOSTB) yield 'sky: the mist field';
     // F2: the mist's field - where the layer LIES, from this world's valley floors and water.
     // Once per world, here, because this is where the world's own fields are already in hand.
     try { const f = ATMO.bakeField && ATMO.bakeField(renderer, world); if (f) console.log('mist field: ' + f.N + '^2 in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'); } catch (e) { console.warn('mist field: ' + e.message); }
     // FOREST-MIST (prototype, ?fmist only): where the pockets can sit, baked from the same land, into the same atlas
-    if (typeof FMIST !== 'undefined' && FMIST.ON) { try { FMIST.bake(renderer, world, scene); } catch (e) { console.warn('forest mist: ' + e.message); } }
+    if (HOSTB) yield 'sky: the forest mist';
+    if (typeof FMIST !== 'undefined' && FMIST.ON) { try { if (HOSTB && FMIST.bakeSteps) yield* FMIST.bakeSteps(renderer, world, scene); else FMIST.bake(renderer, world, scene); } catch (e) { console.warn('forest mist: ' + e.message); } }
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
     // G1460 (SOFT-GPU) NO SKY PROBE ON A SOFTWARE RENDERER: on SwiftShader the probe's PMREM poisons every Standard
     // material of the world - the ground, the trees, the sheds and the aeroplane drew BLACK at the stand (the Lambert far
     // terrain and the sky right), and with scene.environment taken away the same frame drew whole. No probe (null, the
     // path a world without ATMO takes for it), no cube bakes; the hemisphere and the sun light the world
     const softEnv = typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft();
+    if (HOSTB) yield 'sky: the probe';
+    if (skyLink) { const tS = performance.now();   // (linkMs: from the hand-over to the link seen; sleptMs: the part this step slept - the host's log reads both)
+      while (!skyLink.done() && performance.now() - skyLink.t0 < 20000) { window.FLYDIY_WORLD_WAIT = skyLink.p; yield 'sky: the probe programs'; }
+      Object.assign(skyLink.stats, { linked: skyLink.done(), linkMs: Math.round(performance.now() - skyLink.t0), sleptMs: Math.round(performance.now() - tS) }); skyLink.end(); }
     probe = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, pre: true, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
       // re-baked as the clouds drift past the eye
@@ -1134,6 +1170,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // material in the cabin took it as its ambient from below. The same sky over a NEUTRAL cap (the
     // cabin's own floor and walls, a dark warm grey) is the environment while the eye is in the cockpit
     // (app.js hands the view over through WORLD_RIG.interior); baked on the world probe's schedule.
+    if (HOSTB) yield 'sky: the cabin probe';
     probeIn = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, pre: true, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
     if (probeIn) probeIn.bake(world.day);
@@ -1846,7 +1883,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const hG = new Float32Array(N * N), lowG = new Float32Array(N * N);
       const mimg = opts.mini ? sctx.createImageData(N, N) : null;
       const fimg = opts.mask ? sctx.createImageData(N, N) : null;
-      for (let j = 0; j < N; j++) { if (j && !(j & 31)) yield 'ground colour'; for (let i = 0; i < N; i++) {
+      // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the rows are led by it - a block of 32 was 70-117 ms behind a live
+      //  garage at 5K; the same texels in the same order)
+      for (let j = 0; j < N; j++) { if (j && (HOSTB ? hostDue() : !(j & 31))) yield 'ground colour'; for (let i = 0; i < N; i++) {
         const x = x0 + (i + 0.5) / N * EXT, z = z0 + (j + 0.5) / N * EXT;
         colorAt(x, z);
         hG[j * N + i] = _h; lowG[j * N + i] = _low;
@@ -2023,8 +2062,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // G1230 (MEM-BUDGET): UPLOADED AS THE STEP ENDS, NOT AT FIRST LIGHT. The four island textures (~162 MiB of derived
     // bytes) were the GPU's only at the loading's 'upload' step - held through the whole load, the town's and the forest's
     // peak included. initTexture now: onUpdate drops the bytes there and then (the derivation stays for a lost context)
-    const gpuUploadNow = () => { if (!renderer || typeof renderer.initTexture !== 'function') return 0; let n = 0;
-      for (const [t] of gpuTex) if (t.image && t.image.data && t.version > 0) { try { renderer.initTexture(t); n++; } catch (e) { console.warn('island texture upload:', e && e.message); } }
+    const gpuUploadNow = (one) => { if (!renderer || typeof renderer.initTexture !== 'function') return 0; let n = 0;   // (one: that texture alone - the island ground's step in parts)
+      for (const [t] of gpuTex) if ((!one || t === one) && t.image && t.image.data && t.version > 0) { try { renderer.initTexture(t); n++; } catch (e) { console.warn('island texture upload:', e && e.message); } }
       return n; };
     const gpuRestore = () => { let n = 0; for (const [t, derive] of gpuTex) if (!t.image.data) { t.image.data = derive(); t.needsUpdate = true; n++; } return n; };
     { const cv = renderer && renderer.domElement;
@@ -2046,6 +2085,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           for (let k = 0; k < 3; k++) out[o + k] = (src[a + k] + src[b + k] + src[c + k] + src[d + k] + 2) >> 2;
           out[o + 3] = 255; } }
       return out; };
+    if (HOSTB && ISLA) yield 'ground: the albedo';   // (PERF-WORLDBUILD: the drawn lakes' field above, the albedo's texels below - two parts under a host's budget)
     if (ISLA) {
       const G = ISLA.grid, n = G.w * G.h;
       // (G1230: read at the call, not captured - a budget that drops the colour grids once drawn (app.js) leaves this a
@@ -2198,13 +2238,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         gU.uGW1.value = gpuOnly(dataTex(w1()), w1); gU.uGW2.value = gpuOnly(dataTex(w2()), w2);
         return true;
       };
+      // PERF-WORLDBUILD (23 Nov 2026): THE ISLAND GROUND'S STEP IN PARTS under a host's budget (HOSTB: the world built behind
+      // a live garage - this step was a 474 ms freeze at 5K, 23 Nov): the tint (above), the fields' texture, the types' flags
+      // (splat_ground oneCodeSteps: its run passes a block of rows a step), their texture, the uploads one a step, the water's
+      // fields, the sets. The same work in the same order (the uniforms in two assigns, their order kept); nothing between two parts reads what the next makes. With no
+      // host budget: one step, as it was.
+      if (HOSTB) yield 'island ground: the fields';
       Object.assign(gU, {
         uGTint: { value: tintTex },
-        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
-        // (G2075, GROUND-COST: bit 7 of the type = the splat's vote window is one code - splat_ground oneCode; the GPU copy only)
-        // (a plain ground at the build skips it: no vote reads the bit, and a cell without it is only the full vote - correct either way)
-        uGPackB: { value: pk2(ISLA.ndvi, ISLA.ttype ? () => (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND.oneCode && !(typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain')
-          ? SPLAT_GROUND.oneCode(ISLA.ttype, G.w, G.h) : ISLA.ttype) : null) },
+        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) } });   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
+      // (G2075, GROUND-COST: bit 7 of the type = the splat's vote window is one code - splat_ground oneCode; the GPU copy only)
+      // (a plain ground at the build skips it: no vote reads the bit, and a cell without it is only the full vote - correct either way)
+      const oneOn = () => typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND.oneCode && !(typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain');
+      let one1 = null;   // (the flags made in steps: the texture's first make takes them; a later make - a lost context - makes its own)
+      if (HOSTB) { yield 'island ground: the types'; if (ISLA.ttype && oneOn() && SPLAT_GROUND.oneCodeSteps) one1 = yield* SPLAT_GROUND.oneCodeSteps(ISLA.ttype, G.w, G.h); }
+      const packB = pk2(ISLA.ndvi, ISLA.ttype ? () => { if (one1) { const o = one1; one1 = null; return o; } return oneOn() ? SPLAT_GROUND.oneCode(ISLA.ttype, G.w, G.h) : ISLA.ttype; } : null);
+      Object.assign(gU, {
+        uGPackB: { value: packB },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
@@ -2228,7 +2278,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       });
       GROUND.on = true;
       classWeights();   // a saved stack that starts at the class layer asks for them now
-      gpuUploadNow();
+      if (HOSTB) { for (const e of gpuTex.slice()) { const t = e[0]; if (!(t.image && t.image.data && t.version > 0)) continue; yield 'island ground: an upload'; gpuUploadNow(t); }
+        yield 'island ground: the calm field'; }
+      else gpuUploadNow();
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
       if (typeof WATER !== 'undefined' && WATER.setCoast && ISLA) WATER.setCoast(ISLA.grid, ISLA.coast, lakeR);   // G2839: the same fields on the CPU - the ring's distances to land and water
       // BAY-MIRROR: the sea's shelter - the world's own calm field (28_island.js), the bytes its waterH scales the floats' swell
@@ -2243,6 +2295,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const GPLAIN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain';
       // G2075 (GROUND-COST): ...and the LEAN program at the build (retro: one set a type compiled in) - the row's own key from the first compile
       const GLEAN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'lean';
+      if (HOSTB) yield 'island ground: the sets';
       SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA, { plain: GPLAIN0, lean: GLEAN0 }) : null;
       // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22): `side` says what a material does at the disc
       // of fine tiles round the eye - the near ring (-1) DISCARDS its fragments inside the disc's
@@ -3331,7 +3384,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             if (!force && nMax == null && performance.now() - t0 >= 4) break;
           }
           // the patches no quadrant draws any more leave the cache
-          const live = new Set(); for (const Q of FARLOD.quads.values()) for (const f of Q.sig.split(',')) if (f) live.add(+f);
+          // (PERF-WORLDBUILD, 23 Nov 2026: ...and the patches a quadrant still STALE wants stay too. A resink in steps warms the
+          //  dropped patches first, a patch a step (G2063), then re-cuts a quadrant a step: the first quadrant's sweep dropped
+          //  the warmed patches of every other stale quadrant - each made them again inside its own step, all of its patches,
+          //  one task ('far terrain sink' 119 ms behind a live garage at 5K, 23 Nov). The same patches, made once.)
+          const live = new Set(); for (const Q of FARLOD.quads.values()) { for (const f of Q.sig.split(',')) if (f) live.add(+f);
+            if (Q.want && Q.sig !== Q.wantSig) for (const nd of Q.want) live.add(nd.fid); }
           for (const f of [...FARLOD.cache.keys()]) if (!live.has(f)) FARLOD.cache.delete(f);
         }
         let nodes = 0, tris = 0; for (const Q of FARLOD.quads.values()) { tris += Q.tris; nodes += Q.sig ? Q.sig.split(',').length : 0; }
@@ -3358,7 +3416,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain sink'; FARLOD.update(false, 1); }
         return n;
       };
-      FARLOD.update(true);
+      // PERF-WORLDBUILD (23 Nov 2026): THE FIRST CUT A QUADRANT A STEP under a host's budget (it was one task - every quadrant's
+      // patches, 358 ms behind a live garage at 5K): the cut once, then the resink's own way (nMax 1), nearest first as the
+      // forced update sorts them - the same quadrants from the same patches (GATE COMPSTEPS under COMPSTEPS_BUDGET: the digest)
+      if (HOSTB) { FARLOD.update(true, 1); while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain: a quadrant'; FARLOD.update(false, 1); } }
+      else FARLOD.update(true);
       farLod = FARLOD;
       console.log('island far terrain: ' + FARLOD.quads.size + ' meshes, ' + FARLOD.stats.nodes + ' patches, ' + (FARLOD.stats.tris / 1e6).toFixed(2) + ' M tris at the first cut (the eye at ' + camera.position.toArray().map(v => v | 0).join(',') + ')');
     } else { // outer ring: four coarse strips sharing one full-domain texture
@@ -3397,6 +3459,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // ?water=0: the stock material, for an A/B (the perf rig's, the eye's)
     const WSH = (typeof WATER !== 'undefined' && THREE.MeshPhysicalMaterial && !(typeof location !== 'undefined' && /[?&]water=0/.test(location.search))) ? WATER : null;
     yield 'water';
+    if (HOSTB && WSH && WSH.makeTileSteps) yield* WSH.makeTileSteps(THREE);   // (PERF-WORLDBUILD: the detail tile's bake by rows under a host's budget - make() finds it made)
     const waterMat = WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({ userData: { progOwner: 'water / sea / plain surface (water shader off)' },
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
     const wtag = (g, body, wavy) => WSH ? WSH.tag(THREE, g, body, wavy) : g;

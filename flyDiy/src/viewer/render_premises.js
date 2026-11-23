@@ -1398,14 +1398,17 @@ function make(THREE, scene, world, rec0, opts) {
       return true;
     };
   }
-  function buildRail(rd, pr) {
+  function buildRail(rd, pr) { const g = buildRailSteps(rd, pr, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // (PERF-WORLDBUILD, 23 Nov 2026: the rail in steps - guardrail.js buildSteps - for the roads' loop under a host's budget)
+  function* buildRailSteps(rd, pr, due) {
     if (!RAIL || rd.rail === 'off') return null;
     if (METLA_BARE && isMetla(rd.id)) return null;   // G3210: Metlakatla without its barriers (the user, 14 Oct)
     const F = O.frame, hL = (lx, lz) => { const W = F.toWorld(lx, lz); return heightAt(W[0], W[1]); };
-    const m = RAIL.build(THREE, { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
+    const RO = { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
       hAt: hL, heightAt, toWorld: (x, z) => F.toWorld(x, z), seed: PG.fnv(String(rd.id)) % 997,
       waterY: waterB ? ((lx, lz) => { const W2 = F.toWorld(lx, lz); return waterB(W2[0], W2[1]); }) : null,   // (G1406: the build read)
-      keep: railKeep(rd) });
+      keep: railKeep(rd) };
+    const m = RAIL.buildSteps ? yield* RAIL.buildSteps(THREE, RO, due) : RAIL.build(THREE, RO);
     if (m) { m.userData.premId = rd.id; G.roads.add(m); }
     return m;
   }
@@ -1503,6 +1506,7 @@ function make(THREE, scene, world, rec0, opts) {
   // ?pavcache=0, the A/B's restand)
   const PC = { map: new Map(), merged: { road: null, pave: null }, keep: new Map(), keepMerged: new Set() };
   function* buildRoadsSteps(part) {
+    const HOSTB = typeof window !== 'undefined' && !!window.FLYDIY_WORLD_BUDGET;   // (a host's budget is armed: the steps only it needs)
     const want = e => (part ? isTown(e) : !geoLater(e));
     const useRC = !part && !!PAV && RC.on && window.FLYDIY_PAVCACHE !== false && !!(o.editing && o.editing()) && !GEO.split && !!PG.roadBuildKeys;
     if (!useRC || RC.flush) { RC.map.clear(); RC.flush = false; PC.map.clear(); PC.merged = { road: null, pave: null }; }   // (G3101: the aprons and the merges with them)
@@ -1572,7 +1576,11 @@ function make(THREE, scene, world, rec0, opts) {
         const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, wx: RS.wx, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!(rd.sided || rd.taxiway), geo });   // G981: the junctions; G980: a taxiway's sides; G925: a row of the table
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
-        const railG = buildRail(rd, pr), lineG = buildLine(rd, pr, railG);
+        // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the rail and the line are steps of their own - the rail's plan
+        //  and runs in steps besides; the same calls in the same order)
+        let railG, lineG;
+        if (HOSTB) { yield 'roads: its rail'; railG = yield* buildRailSteps(rd, pr); yield 'roads: its line'; lineG = buildLine(rd, pr, railG); }
+        else { railG = buildRail(rd, pr); lineG = buildLine(rd, pr, railG); }
         if (useRC) RC.map.set(rd.id, { key: keys.get(rd.id), mesh: m, row: geo.userData.pavRow || null, line: lineG || null, rail: railG || null });
         yield 'roads';
       }

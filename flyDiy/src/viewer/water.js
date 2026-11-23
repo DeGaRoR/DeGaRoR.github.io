@@ -800,8 +800,15 @@ const WATER = (() => {
   // is an equilibrium k^-3 in height (k^-2 in slope) over wavelengths L/2 .. L/24 with a cos^2 spread
   // about +x (the wind); the crest channel is the height's own -Laplacian; the alpha a value noise.
   // Deterministic (its own LCG), ~2 ms at 256. `w` is the slope range the RG encode spans.
-  function bakeTile(N, seed) {
-    N = N || 256;
+  // PERF-WORLDBUILD (23 Nov 2026): THE BAKE IN STEPS. 96 waves on 256^2 texels is ~190 ms in one task of the world build's
+  // 'water' step (the dial above was a 64^2 tile's) - a frozen garage frame when the world is built behind it. bakeTileSteps
+  // is the same arithmetic in the same order as a generator: it yields at a row's end when `due()` says so - the host's
+  // budget (window.FLYDIY_WORLD_BUDGET.left() <= 0); with no host budget it never yields. bakeTile drains it: the same bytes
+  // (GATE WATER 4).
+  const hostDue = () => { const Bd = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };
+  function bakeTile(N, seed) { const g = bakeTileSteps(N, seed, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* bakeTileSteps(N, seed, due) {
+    N = N || 256; due = due || hostDue;
     let s = (seed || 12345) >>> 0;
     const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
     // a PEAKED spectrum (a Pierson-Moskowitz shape in k: k^-3 above the peak at kp cycles, a k^-4
@@ -819,12 +826,13 @@ const WATER = (() => {
     }
     const h = new Float32Array(N * N), sx = new Float32Array(N * N), sz = new Float32Array(N * N), lap = new Float32Array(N * N);
     let hmax = 0;
-    for (let j = 0, p = 0; j < N; j++) for (let i = 0; i < N; i++, p++) {
+    for (let j = 0, p = 0; j < N; j++) { if (j && due()) yield 'water: the tile'; for (let i = 0; i < N; i++, p++) {
       const u = i / N, v = j / N; let H = 0, X = 0, Z = 0, L = 0;
       for (const w of waves) { const ph = w.kx * u + w.kz * v + w.ph; const c = Math.cos(ph), sn = Math.sin(ph);
         H += w.a * c; X -= w.a * w.kx * sn; Z -= w.a * w.kz * sn; L -= w.a * w.k2 * c; }
       h[p] = H; sx[p] = X; sz[p] = Z; lap[p] = L; if (Math.abs(H) > hmax) hmax = Math.abs(H);
-    }
+    } }
+    if (due()) yield 'water: the tile';
     // THE CRESTS SHARPEN, THE TROUGHS FLATTEN (G460.11): a Stokes second-order profile h' = h + c h^2 / hmax
     // (c 0.4) - a sum of cosines is a gaussian sea, symmetric, and read as a soft plastic sheen up close;
     // the real chop is cusped. The slopes follow: s' = s (1 + 2 c h / hmax); the Laplacian (the crest mask)
@@ -850,9 +858,10 @@ const WATER = (() => {
     return { data, N, w: W, srms: 0.09, hmax: hmax * g };
   }
   let tile = null;
-  function makeTile(THREE) {
-    if (tile) return tile;
-    const b = bakeTile(256, 12345);
+  function makeTile(THREE) { return tile || tileOf(THREE, bakeTile(256, 12345)); }
+  // (PERF-WORLDBUILD: the tile made in steps ahead of the material - the world build's 'water' step under a host's budget)
+  function* makeTileSteps(THREE, due) { if (tile || !THREE.DataTexture) return tile; const b = yield* bakeTileSteps(256, 12345, due); return tile || tileOf(THREE, b); }
+  function tileOf(THREE, b) {
     const t = new THREE.DataTexture(b.data, b.N, b.N, THREE.RGBAFormat, THREE.UnsignedByteType);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
     t.generateMipmaps = true; t.flipY = false; t.anisotropy = 8; t.needsUpdate = true;
@@ -1944,7 +1953,7 @@ const WATER = (() => {
   }
   const API = { lamps, nightSea: NIGHT_SEA, glint: GLINT, NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
-    gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
+    gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, bakeTileSteps, makeTile, makeTileSteps, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
     stamp, fieldStep, fieldOn, fieldProbe, warmList, setSubmerged, SUB_N: 12, setSlicks, SLICK_N: 6, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
