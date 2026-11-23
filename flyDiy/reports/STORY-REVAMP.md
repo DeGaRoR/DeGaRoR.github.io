@@ -1,6 +1,7 @@
 # STORY-REVAMP - progress (structure only)
 
-Cloud session [CLOUD] STORY-REVAMP, branch `claude/story-revamp` (base `origin/master` 9349a62c = train L40H).
+Cloud session [CLOUD] STORY-REVAMP, branch `claude/story-revamp` (`origin/master` 089297693 = train L40J merged in on
+23 Nov, e82422d65; before that the base was 9349a62c = L40H).
 Readies: `claude/ready/story-<n>`, each with its gate results. This file shows STRUCTURE (counts, steps, systems, what
 is wired, what is tested). It carries no dialogue and no twists.
 
@@ -9,30 +10,24 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
-## Status for A0 (Mon 23 Nov, second note)
+## Status for A0 (Mon 23 Nov, third note, 08:40 UTC)
 
-- MASTER L40J (089297693) BREAKS THE STORY PACK, BY A MERGE: `f9f813191` (train L40J: merge one-cessna-4; inside it
-  `7c30889ba`, ONE-CESSNA merged onto L40G) took an OLDER `src/core/72_contract_data.js` for two CONTRACT_FIELDS lines:
-  `xw_rough` is gone from the table (AFB-0220, the user 13 Nov: firm mud, STOL work) and `tw_ski` is back at
-  257 / -7707 / 380 m (SKYLINE-RESORT 146a752b7, 16 Nov: 282 / -7751 / 280 m, which is what the world still has). No
-  message names either as meant. Master's own GATE CONTRACTS is red on it by name ("the 17 runways", "wheels at
-  xw_rough", "amphibian at xw_rough"); its other four reds there are the refitted Cessna's (minedock.02 / .03, resort.05
-  not flyable by a validated design; "the C172 takes two into the mine street").
-  On a trial merge of L40J into this branch: STORYPACK, TUTORWALK and MISSIONLIVE go red on one cause - "field xw_rough
-  is not a field" (the aero club's short-landing event lands there). story-7 on L40K will show the same.
-  WHAT I DO: my merge of master restores those two lines as they were at L40H, in a commit of its own (droppable if you
-  fix it on the train first: the lines are identical).
-- THE REFITTED CESSNA (list:50, 1 006 kg, take-off 357 m) is now the career's `c172`: every feasibility row flown with
-  the light metal Cessna is flown again on the merged tree, and the STOL-kit test build is re-made from list:50.
-- `claude/ready/story-7` 784d85bfe rides L40K: noted. story-8 = this branch merged with master (after L40K if it is
-  there by Tue 05:00, else on L40J), a fresh ref, for L40M.
+- L40J IS MERGED INTO THIS BRANCH (e82422d65), and it is green on the story gates ONLY with commit 28ef278e5: master's
+  merge `f9f813191` (one-cessna-4; inside it `7c30889ba`) took an OLDER `src/core/72_contract_data.js` for two
+  CONTRACT_FIELDS lines - `xw_rough` gone from the table (AFB-0220, the user 13 Nov), `tw_ski` back at 257 / -7707 /
+  380 m (SKYLINE-RESORT 146a752b7: 282 / -7751 / 280 m, what the world has). No message names either as meant; master's
+  own GATE CONTRACTS is red on it by name ("the 17 runways", "wheels at xw_rough", "amphibian at xw_rough").
+  **story-7 (784d85bfe) on L40K will be red on STORYPACK, TUTORWALK and MISSIONLIVE for this one cause** ("field
+  xw_rough is not a field": the aero club's short-landing event lands there) unless the train carries the two lines.
+  28ef278e5 is exactly those two lines as they were at L40H: take it, or the same edit.
+- Gates on the merged tree (95a4bc6c9 + harness commits): STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS;
+  CONTRACTS red on four checks, all master's (the refitted Cessna: minedock.02 / .03 and resort.05 "flyable by a
+  validated design", "the C172 takes two into the mine street"). MISSIONFEAS: running.
+- story-8 = this branch (a fresh ref `claude/ready/story-8`), for L40M, by Tue 07:00: the harness's three faults
+  corrected, club.tour's gates, the rows re-flown on L40J's sim (the refitted Cessna is the career's `c172` now).
 - THE USER'S FOUR LARGE MISSION STORIES ARE IN story-7 (since story-2): four projects of the pack - the remote community
   (8 steps), home improvement (7), the observatory (6), the heritage site (2) - with short draft words. Their VERBATIM
   text is not committed, on the user's own word (22 Nov, asked "commit the four stories verbatim?": "no").
-- The flights: the user, 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3,
-  it's OK ... maybe you can even build a quick [STOL Cessna] to clear these". The harness flies every official plane,
-  the PC-6 (wip list, 57 / 58) and a STOL-kit test build. Two faults of MY harness were found from the rows today and
-  are corrected (the seat fill did not take; the course's entry and exit points) - see "The flights" below.
 
 ## Where it stands
 
