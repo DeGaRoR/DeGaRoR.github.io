@@ -76,7 +76,7 @@
     const line = makeWinchLine(sim, winch, { hook, vTarget: vT, groundAt: (x, z) => world_.terrainH(x, z) });
     // the cable: a line of ROPE_N points, the fairlead to the hook; laid on the grass once released, reeled in
     const gm = new THREE_.BufferGeometry(); gm.setAttribute('position', new THREE_.BufferAttribute(new Float32Array((ROPE_N + 1) * 3), 3));
-    const rope = new THREE_.Line(gm, window.MATLIB.shared(THREE_, 'line', { color: new THREE_.Color(0x2b2b2b) }, 'winch')); rope.frustumCulled = false; scene_.add(rope);
+    const rope = new THREE_.Line(gm, window.MATLIB.shared(THREE_, 'line', { color: new THREE_.Color(0x2b2b2b) }, 'winch', 'vehicles / winch / cable line')); rope.frustumCulled = false; scene_.add(rope);
     Object.assign(TW, { active: true, go: false, t: 0, line, winch, model, own, rope, sim, L, why: null, vT, rel: null,
       hands: ctx.hands || /[?&]towhands=1/.test(location.search || '') ? makeWinchHands(sim, { ground: world_.terrainH(hx, hz), vMin: 1.25 * Vs }) : null });
     WM.towDraw();

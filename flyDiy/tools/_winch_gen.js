@@ -93,23 +93,24 @@ function build(P0) {
   // shared material; the surfaces are the house library's scans and the aeroplanes' weathering (the weather module)
   const ML = root.MATLIB || (typeof MATLIB !== 'undefined' ? MATLIB : null);
   if (!ML) throw new Error('_winch_gen: load src/viewer/matlib.js first (MATLIB makes the winch\'s materials)');
-  const std = (c, o) => { const q = Object.assign({ color: new T.Color(c), roughness: 0.75, metalness: 0 }, o || {});
-    return ML.shared(T, q.transparent ? 'glass' : 'std', q, 'winch'); };
+  // (the owner, GATE PROGRAMS 7's rule: 'props / winch / <its role>' - matlib.js writes userData.progOwner, outside the share key)
+  const std = (c, o, role) => { const q = Object.assign({ color: new T.Color(c), roughness: 0.75, metalness: 0 }, o || {});
+    return ML.shared(T, q.transparent ? 'glass' : 'std', q, 'winch', 'props / winch / ' + role); };
   const MAT = {
-    body: std(dull(paint.body), { roughness: 0.55 + 0.3 * wear }),
-    trim: std(dull(paint.trim), { roughness: 0.6 }),
-    steel: std(0x3a3d40, { roughness: 0.6, metalness: 0.5 }),
-    bright: std(0xa9adb1, { roughness: 0.35, metalness: 0.8 }),
-    deck: std(0x6e7275, { roughness: 0.5, metalness: 0.6 }),
-    rubber: std(0x161616, { roughness: 0.9 }),
-    rim: std(0xb8b8b0, { roughness: 0.4, metalness: 0.6 }),
-    cable: std(0x2a2a2a, { roughness: 0.5, metalness: 0.4 }),
-    red: std(0xc0201a, { roughness: 0.5 }),
-    glass: std(0x6f8fa6, { roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.45 }),
-    grille: std(0x111111, { roughness: 0.8 }),
-    amber: std(0xffa400, { emissive: 0xff8a00, emissiveIntensity: 0.6, roughness: 0.3 }),
-    chute: std(0xff5a1f, { roughness: 0.85, side: T.DoubleSide }),
-    lamp: std(0xd01010, { emissive: 0x400000, roughness: 0.3 }),
+    body: std(dull(paint.body), { roughness: 0.55 + 0.3 * wear }, 'body'),
+    trim: std(dull(paint.trim), { roughness: 0.6 }, 'trim'),
+    steel: std(0x3a3d40, { roughness: 0.6, metalness: 0.5 }, 'steel'),
+    bright: std(0xa9adb1, { roughness: 0.35, metalness: 0.8 }, 'bright'),
+    deck: std(0x6e7275, { roughness: 0.5, metalness: 0.6 }, 'deck'),
+    rubber: std(0x161616, { roughness: 0.9 }, 'rubber'),
+    rim: std(0xb8b8b0, { roughness: 0.4, metalness: 0.6 }, 'rim'),
+    cable: std(0x2a2a2a, { roughness: 0.5, metalness: 0.4 }, 'cable'),
+    red: std(0xc0201a, { roughness: 0.5 }, 'red'),
+    glass: std(0x6f8fa6, { roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.45 }, 'glass'),
+    grille: std(0x111111, { roughness: 0.8 }, 'grille'),
+    amber: std(0xffa400, { emissive: 0xff8a00, emissiveIntensity: 0.6, roughness: 0.3 }, 'amber'),
+    chute: std(0xff5a1f, { roughness: 0.85, side: T.DoubleSide }, 'chute'),
+    lamp: std(0xd01010, { emissive: 0x400000, roughness: 0.3 }, 'lamp'),
   };
   for (const k in MAT) MAT[k].userData.wxRole = k;   // the weathering's substrate, by the bag the part was made in
   MAT.mesh = MAT.trim;   // the cage's welded mesh: painted steel bars (PBR, weathered), never unlit lines (an alias, after the roles)
