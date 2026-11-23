@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 45 feasible; 8 infeasible; 2 no official plane can fly it (the player builds one); 23 not flown; 5 stale. Time flown: 1296 min 17 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 46 feasible; 8 infeasible; 2 no official plane can fly it (the player builds one); 22 not flown; 5 stale. Time flown: 1334 min 06 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -44,7 +44,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 45 feasible; 8 infeas
 | resort.03 | skyline:2 | infeasible | STOL Cub | 21 min 01 s | HOME > tw_ski 572; tw_ski > tw_ski 689 | never took off on tw_ski > tw_ski (689 s on the ground: HOLD>DEPART>TAXI>STOP>HOLD>STOPPED) - the page ended it as a stop and the career counted it (a step judged on stop.aero alone) |
 | skyline.03 | skyline:2 | stale | - | - | - |  |
 | resort.05 | skyline:3 | not flown | - | - | - |  |
-| survey.01 | contract | not flown | - | - | - |  |
+| survey.01 | contract | feasible | Piper Cub | 37 min 49 s | HOME > HOME 1650; HOME > HOME 619 |  |
 | survey.02 | contract | not flown | - | - | - |  |
 | survey.03 | contract | not flown | - | - | - |  |
 | survey.05 | contract | not flown | - | - | - |  |

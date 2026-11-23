@@ -2093,6 +2093,12 @@
      "who": "kate",
      "text": "ct.survey.01.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2269,
+    "sig": "136859d0"
    }
   },
   {
