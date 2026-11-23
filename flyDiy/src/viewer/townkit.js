@@ -285,7 +285,16 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
   }
 
   // ---- THE HOST -------------------------------------------------------------------------------------------------
-  function host(THREE, opts) {
+  // PERF-WORLDBUILD (23 Nov 2026): IN STEPS. The town's host was one constructor inside the world build's 'houses' step -
+  // every archetype's three rungs decoded, mirrored, made geometry, the batch built: 306-384 ms behind a live garage at 5K
+  // (PERF-LEAD's profile, 23 Nov). hostSteps and townSteps are the same statements in the same order as generators: they
+  // yield before an archetype's decode, before the houses' data, before a part's geometry, before the batch, and before a
+  // far cell, when `due()` says so - the host's budget (window.FLYDIY_WORLD_BUDGET.left() <= 0); with no host budget
+  // they never yield. host and town drain them.
+  const hostDue = () => { const Bd = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };
+  function host(THREE, opts) { const g = hostSteps(THREE, opts, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* hostSteps(THREE, opts, due) {
+    due = due || hostDue;
     const o = Object.assign({ mode: 'batch', band: { E0: 150, W0: 40, E1: 1200, W1: 120 }, castFar: 600, hyst: 0.05 }, opts || {});
     const now = o.now || (() => performance.now());   // (GATE CITYHOST's allocation count hands a clock that cannot box)
     const P = o.pack, H0 = P.header, BAGS = H0.bags, HG = o.HG, T = o.tarr, rows = o.rows;
@@ -304,6 +313,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
     const PARTS = new Map();  // key -> [lod] -> { plain, plain2, glass }
     const archBox = new Map();
     for (const [key, nd] of need) {
+      if (due()) yield 'houses: the kit';
       const A = H0.archetypes[nd.a];
       if (!A) throw new Error('townkit: no archetype ' + nd.a);
       const lods = A.lods.map((meta, l) => { const parts = decodeLod(P, meta, l, kindOf); if (nd.mirror) for (const k in parts) parts[k] = mirrorOf(parts[k]); return parts; });
@@ -362,6 +372,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
       ST.slotless = none; ST.missingLayers = missing; ST.waiting = waiting; ST.tries = tries;
       return !waiting;
     }
+    if (due()) yield 'houses: the kit';
     // ---- the per-house data: [look, lights, seed, 0] [a, b, c, d] (the ground field in the GEOMETRY's frame)
     const TW = 1024, N = rows.length, TH = Math.max(1, Math.ceil(N * 2 / TW));
     const DATA = new Float32Array(TW * TH * 4);
@@ -415,11 +426,11 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
     // game's ATMO keeps it behind its accessor), made when that arm is
     // ---- the geometry, made once per part
     const GEO = new Map();   // key*3 + lod -> { kind: BufferGeometry }
-    for (const [key, lods] of PARTS) lods.forEach((parts, l) => {
+    for (const [key, lods] of PARTS) { if (due()) yield 'houses: the kit'; lods.forEach((parts, l) => {
       const G = {};
       for (const k of KINDS) if (parts[k] && parts[k].tris) { G[k] = geometryOf(THREE, parts[k]); ST.geos++; ST.verts += parts[k].n; ST.tris[l] += parts[k].tris; ST.mb += (parts[k].n * (12 + 4 + 8 + 4 + (parts[k].win ? 12 : 0)) + parts[k].idx.byteLength) / 1048576; }
       GEO.set(key * 3 + l, G);
-    });
+    }); }
     PARTS.clear();
     const group = new THREE.Group(); group.name = 'townkit'; group.userData.batch = true;
     const rung = new Int8Array(N).fill(-1), partner = new Int8Array(N).fill(-1);
@@ -494,6 +505,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
       }
       instDirty = false;
     }
+    if (due()) yield 'houses: the kit';
     if (o.mode === 'inst') instBuild(); else batchBuild();
     relook();
     ST.buildMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
@@ -741,7 +753,9 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
     const lod = Object.assign({ far: 1000, nearIn: 950, nearOut: 1050, kitE0: 150, kitE1: 1200, propFar: 600, lotFar: 400, castFar: 600, farGain: 0.2 }, town && town.lod);
     return { town, lod, keys: (town && town.propKeys) || [], cells: out, rows, props: P, lots: LT, lotKit: lotKit || null };
   }
-  function town(THREE, opts) {
+  function town(THREE, opts) { const g = townSteps(THREE, opts, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* townSteps(THREE, opts, due) {
+    due = due || hostDue;
     const o = Object.assign({ move: 40 }, opts || {});
     const city = o.city, cells = city.cells, NCELL = cells.length, rows = city.rows, NH = rows.length, L = o.lod || city.lod;
     const band = Object.assign({ E0: L.kitE0, W0: 40, E1: L.kitE1, W1: 120 }, o.band || {});
@@ -749,7 +763,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
     const t0 = now();
     if (!o.farMats || !o.farMats.shell) throw new Error('townkit.town: o.farMats { shell } (the far town\'s material, the page\'s)');
     // the near kit: the house host, driven per near cell (o.select: no ring of its own); a far cell's rows draw nothing
-    const K = o.kit || host(THREE, { pack: o.pack, rows, tarr: o.tarr, HG: o.HG, mode: 'batch', band, castFar: L.castFar, select: true, farRung: -1, now });
+    const K = o.kit || (yield* hostSteps(THREE, { pack: o.pack, rows, tarr: o.tarr, HG: o.HG, mode: 'batch', band, castFar: L.castFar, select: true, farRung: -1, now }, due));
     for (let h = 0; h < NH; h++) if (!(rows[h].flags & 8)) K.setCast(h, false);   // (the cook's flag 8: this row may cast)
     const group = new THREE.Group(); group.name = 'premises:town'; group.userData.batch = true;
     K.group.name = 'town:kit'; group.add(K.group);
@@ -762,6 +776,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
     const FAR = new Array(NCELL).fill(null), GF = new Array(NCELL);
     for (const c of cells) {
       const F = c.far; if (!F || !F.n) continue;
+      if (due()) yield 'houses: the town';
       const bk = name => F.buckets.find(q => q.name === name) || null, W = bk('walls'), R = bk('roofs');
       const shell = [];
       if (W && R && W.first + W.count === R.first) shell.push({ start: W.first, count: W.count + R.count, materialIndex: 0 });
@@ -1070,7 +1085,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
              get visible() { return group.visible; }, set visible(v) { group.visible = !!v; } };
   }
 
-  const api = { decodePack, decodeInstances, decodeLod, mirrorOf, octDec, editKit, editDepth, host, dials, VDECL, VMAIN, FINISH_KEYS, decodeCityCell, decodeLotKit, cityOf, town, readRow, editLotGround, CITY_MAGIC, CITY_V, LOTKIT_MAGIC };
+  const api = { decodePack, decodeInstances, decodeLod, mirrorOf, octDec, editKit, editDepth, host, hostSteps, dials, VDECL, VMAIN, FINISH_KEYS, decodeCityCell, decodeLotKit, cityOf, town, townSteps, readRow, editLotGround, CITY_MAGIC, CITY_V, LOTKIT_MAGIC };
   if (typeof window !== 'undefined') window.TOWNKIT = api;
   return api;
 })();

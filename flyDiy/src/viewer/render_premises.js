@@ -3400,7 +3400,9 @@ function make(THREE, scene, world, rec0, opts) {
     }
     CITY.hitMs += performance.now() - t0;
   }
-  function cityBuild() {
+  function cityBuild() { const g = cityBuildSteps(() => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // (PERF-WORLDBUILD, 23 Nov 2026: the town's host in steps - townkit.js townSteps - for the 'houses' step under a host's budget)
+  function* cityBuildSteps(due) {
     if (CITY.host && CITY.O === O) return;
     const T = tarr(), HG = window.HOUSE_GEN;
     if (!T || !HG || !KT.pack) return;
@@ -3410,9 +3412,10 @@ function make(THREE, scene, world, rec0, opts) {
       shell.color.setScalar(CITY.city.lod.farGain); shell.name = 'city:shell';
       CITY.farMats = { shell };
       try {
-        CITY.host = window.TOWNKIT.town(THREE, { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell, far: CITY_FAR,
+        const TO = { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell, far: CITY_FAR,
                                                 lotMats: cityLotMats(), lotGround: cityLotGround,
-                                                band: { W0: HLOD.fadeW || 40, W1: 120 } });
+                                                band: { W0: HLOD.fadeW || 40, W1: 120 } };
+        CITY.host = window.TOWNKIT.townSteps ? yield* window.TOWNKIT.townSteps(THREE, TO, due) : window.TOWNKIT.town(THREE, TO);
       } catch (e) { CITY.status = 'error'; CITY.err = String((e && e.message) || e); console.warn('city host: the host', e); return; }
       root.add(CITY.host.group); CITY.host.freeze(); stats.town = 1;
     }
@@ -5184,6 +5187,9 @@ function make(THREE, scene, world, rec0, opts) {
       if (o.editing()) { buildOutlines(dirty); buildHandles(); markDirty(dirty); }   // (G3084: the outlines its box concerns)
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; for (const m of JMARKS) G.handles.remove(m); JMARKS.length = 0; }
       syncHouses();
+      // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the town's host is made in steps HERE, behind hwPrefetch's own
+      //  guards - its ktBuild below then finds it made; the same call at the same place otherwise)
+      if (typeof window !== 'undefined' && window.FLYDIY_WORLD_BUDGET && CITY.on && hwOn() && o.anchor && o.prefetchReach > 0 && !ktWait()) yield* cityBuildSteps();
       hwPrefetch();   // G831: the town step's own dispatch, now - the worker generates while the page lays out the rest
       // THE GAME HAD NEVER DRAWN A RECORD TREE (2026-09-23, the user: "I can see no
       // trees in no garden nor empty lots"). This early return is the game's whole
