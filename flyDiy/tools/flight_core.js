@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c2d790d51e890c3b
+// body-sha256: 3794e8e159d80c4b
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -4925,6 +4925,20 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   // change (setPremises), the one thing that moves the ground after make.
   var thX, thZ, thH, groundVer;
   const TH_N = 16384;
+  // Grid coordinates need high-bit mixing BEFORE the power-of-two mask.
+  // With the old low-bit mask, a 2 m mesh used only two of 16,384 slots.
+  var terrainHashLegacy = typeof location !== 'undefined' && /[?&]terrainhash=legacy(?:&|$)/.test(location.search || '');
+  var terrainWearMemo = typeof location !== 'undefined' && /[?&]terrainwearmemo=1(?:&|$)/.test(location.search || '');
+  var thWear = null;
+  var terrainMemoStats = { hits: 0, misses: 0, wearReads: 0, cachedWearHits: 0 };
+  function terrainMemoIndex(x, z) {
+    let h = Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663);
+    if (!terrainHashLegacy) {
+      h ^= h >>> 16; h = Math.imul(h, 0x7feb352d);
+      h ^= h >>> 15; h = Math.imul(h, 0x846ca68b); h ^= h >>> 16;
+    }
+    return h & (TH_N - 1);
+  }
   // (G611: and the ground's version - the climate's lattice of the solver's ground reads it)
   function terrainClear() { if (thX) thX.fill(NaN); groundVer = (groundVer | 0) + 1; }
   // G1436 (METLA-TAXI): A SCOPE OF BUILD READS - while buildReads(+1)..(-1) is open, a read that would bake a raster tile
@@ -4937,9 +4951,18 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function buildReads(d) { buildDepth = Math.max(0, (buildDepth | 0) + d); }
   function terrainH(x, z) {
     if (buildDepth && PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z)) return PM.terrainH(x, z, baseH(x, z));
-    if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
-    const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
-    if (thX[i] === x && thZ[i] === z) return thH[i];
+    if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); if (terrainWearMemo) thWear = new Uint8Array(TH_N); }
+    const i = terrainMemoIndex(x, z);
+    if (thX[i] === x && thZ[i] === z) {
+      if (terrainMemoStats) terrainMemoStats.hits++;
+      if (terrainWearMemo && thWear[i] && PM && PM.wearDelta) {
+        if (terrainMemoStats) { terrainMemoStats.cachedWearHits++; terrainMemoStats.wearReads++; }
+        const d = PM.wearDelta(x, z, wearScale);
+        return d === null ? thH[i] : thH[i] + d;
+      }
+      return thH[i];
+    }
+    if (terrainMemoStats) terrainMemoStats.misses++;
     const h0 = baseH(x, z);
     // (G614: the premises' raster - the composed ground baked lazily off the same modifiers, 27_premises.js)
     let h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
@@ -4956,9 +4979,13 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     if (PM && PM.stonesAt) { const s = PM.stonesAt(x, z); if (s > 0) h += s; }
     // SNOW-MUD LADDER (15 Nov): a weather strip's worn relief at its rung (27_premises wearDelta; 0 at the record's own) -
     // on its box the answer is never memoised (the rung moves with the soil; the memo would hold the last one)
-    if (PM && PM.wearDelta) { const d = PM.wearDelta(x, z, wearScale); if (d !== null) return h + d; }
+    let wear = null;
+    if (PM && PM.wearDelta) { wear = PM.wearDelta(x, z, wearScale); if (wear !== null) { if (terrainMemoStats) terrainMemoStats.wearReads++; if (!terrainWearMemo) return h + wear; } }
+    // Store only the static composed base. Weather relief is re-read on EVERY
+    // hit inside a weather strip; a changing soil rung is never frozen here.
+    if (terrainWearMemo) thWear[i] = wear === null ? 0 : 1;
     thX[i] = x; thZ[i] = z; thH[i] = h;
-    return h;
+    return wear === null ? h : h + wear;
   }
   // a weather code's worn-relief scale now (07f GROUND_WX's rung off this world's soil)
   function wearScale(code) { return typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(code, soilNow()).wear : 1; }
@@ -5696,6 +5723,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
+    terrainMemo: () => ({ ...terrainMemoStats, legacy: !!terrainHashLegacy, wearBase: !!terrainWearMemo, slots: TH_N }),
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
     // ROCK-STUDY (17 Nov, the user: "a runway there with terraforming ... should follow the terraforming rules"): how much of the
     // NATURAL ground the premises keep at (x, z) - 1 untouched, 0 graded flat - read off the composer itself: its modifiers are
@@ -12701,6 +12729,13 @@ function areaLabel(a) {
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
   const o = opts || {};
+  const boundedRoads = o.boundedRoads !== false;
+  // PERF-WORLDBUILD (22 Nov 2026): THE POLYGON BOUND IS THE DEFAULT. Codex's exact short-cut of 20 Nov (dEdgeOf: a paved polygon
+  // whose box lies beyond the caller's finite reach is not measured) was opt-in while its proof was a fixture's points; GATE
+  // PAVEXACT holds the whole island built with and without it byte for byte (every patch, strip, road and apron vertex).
+  // ?pavepolybound=0 (or o.boundedPolys: false): every polygon measured, as before - the gate's old side.
+  const boundedPolys = o.boundedPolys !== undefined ? !!o.boundedPolys : !(typeof location !== 'undefined' && /[?&]pavepolybound=0(?:&|$)/.test(location.search || ''));
+  const polyBoundsStats = { checks: 0, rejected: 0, exact: 0 };
   // THE STAGES (v1.33): the record as it stands at `o.tracks` (absent: the sandbox, every track at its max) - an
   // unstaged record is untouched, and a staged one composes exactly as its stageView would
   const SV = stageView(normalise(rec0), o.tracks);
@@ -13675,6 +13710,7 @@ function compose(rec0, world, opts) {
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
     pavedAt: (x, z, reach, skip) => pavedAt(x, z, reach, skip),
+    pavePolyStats: () => ({ ...polyBoundsStats, enabled: boundedPolys }),
     // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
     // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
     pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
@@ -13807,14 +13843,23 @@ function compose(rec0, world, opts) {
   }
   for (const pp of pavePolys) {
     const cls = RUNWAY_LOOKS[pp.look].cls, band = paveBand(pp, cls, true), reach = band + PAVE_FADE + 6;
-    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', id: pp.id, cls, band, poly: pp.poly, soft: false });
+    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', id: pp.id, cls, band, poly: pp.poly, bbox: pp.bbox, soft: false });
   }
   const zoneOf = id => rec.layers.zones.find(z => z.id === id) || null;
   // the strip's dEdge (its box's SDF: + inside), the road's (w/2 - the distance), the polygon's
-  const dEdgeOf = (it, lx, lz) => {
+  // A finite reach preserves exact distances for every contributor; farther roads cannot affect the caller.
+  const dEdgeOf = (it, lx, lz, reach = Infinity) => {
     if (it.kind === 'strip') { const dx = lx - it.e0[0], dz = lz - it.e0[1]; const u = dx * it.d[0] + dz * it.d[1], v = -dx * it.d[1] + dz * it.d[0];
       const du = Math.max(-u, u - it.len), dv = Math.abs(v) - it.halfW; return -(Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0)); }
-    if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
+    if (it.kind === 'road') return it.halfW - (boundedRoads && Number.isFinite(reach) ? roadDistNear(it.road, lx, lz, it.halfW + Math.max(0, reach) + 1) : roadDist(it.road, lx, lz));
+    if (boundedPolys && Number.isFinite(reach) && reach >= 0 && it.bbox) {
+      polyBoundsStats.checks++;
+      const b = it.bbox;
+      // Box distance lower-bounds polygon-edge distance outside the box.
+      // Keep a micrometre halo; unbounded connectivity queries stay exact.
+      if (Math.max(b.x0 - lx, lx - b.x1, b.z0 - lz, lz - b.z1) > reach + 1e-6) { polyBoundsStats.rejected++; return -Infinity; }
+    }
+    polyBoundsStats.exact++;
     return -sdPoly(it.poly, lx, lz);
   };
   // G1003 (A6-GROUND, the Jolene playtest: "rocks and debris lie on the taxiway and runway"): IS ANY PAVEMENT HERE, OR
@@ -13835,7 +13880,7 @@ function compose(rec0, world, opts) {
     const cell = CIDX.query(lx, lz);
     if (cell) for (const it of cell) {
       const reach = it.kind === 'road' && !(it.road && it.road.sided) ? it.band + PAVE_FADE : (it.soft ? PAVE_SIDE_SOFT : PAVE_SIDE);   // G1391: a sided road's side; G1395: a soft one's wider fade
-      if (dEdgeOf(it, lx, lz) > -reach) return true;
+      if (dEdgeOf(it, lx, lz, reach) > -reach) return true;
     }
     return false;
   }
@@ -13844,7 +13889,7 @@ function compose(rec0, world, opts) {
     const cell = CIDX.query(lx, lz);
     if (cell) for (const it of cell) {
       if (skip != null && it.id === skip) continue;
-      const d = dEdgeOf(it, lx, lz);
+      const d = dEdgeOf(it, lx, lz, m);
       if (d > -m) return { d, id: it.id, kind: it.kind, cls: it.cls };
     }
     const offs = m > 0 ? [[0, 0], [m, 0], [-m, 0], [0, m], [0, -m]] : [[0, 0]];
@@ -13865,7 +13910,7 @@ function compose(rec0, world, opts) {
     if (!pave && GRASS_SIDES.law === 'sides') return coverSides(lx, lz, cell);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
     if (cell) for (const it of cell) {
-      const d = dEdgeOf(it, lx, lz);              // + inside the pavement, - outside
+      const d = dEdgeOf(it, lx, lz, Math.max(it.band + PAVE_FADE + 6, it.clear >= 0 ? it.clear : 0));              // + inside the pavement, - outside
       const out = -d, clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - nothing grows within it)
       if (out > it.band + PAVE_FADE + 6 && !clr) continue;
       // the pavement and its band: nothing; the fade: 1 -> 0 over PAVE_FADE; the border bump past the band
@@ -13945,13 +13990,13 @@ function compose(rec0, world, opts) {
     const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
     let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity, tall = 0;
     if (cell) for (const it of cell) {
-      const d = dEdgeOf(it, lx, lz), out = -d;
       const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
       // (GRASS-EDGE-FIX, 17 Nov, A0 with SKYLINE-RESORT: a strip whose record SAYS band 0 - tw_ski - asks for no cut band at all: no mow
       //  band and no blend, the wild grass from its drawn edge; every other soft strip keeps the 1.5 m tall band)
       const b0 = it.kind === 'strip' && it.band0;
       const mow = b0 ? 0 : (aero && it.soft ? it.band * G.softBandK : it.band) + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);   // (GRASS TO THE EDGE: a soft strip's band x softBandK)
       const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
+      const d = dEdgeOf(it, lx, lz, Math.max(v0, it.band + PAVE_FADE) + VERGE + Math.max(0, it.clear || 0)), out = -d;
       const clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - bare)
       if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE && !clr) continue;
       if (d > best) { best = d; cls = it.cls; }
@@ -14081,7 +14126,7 @@ function compose(rec0, world, opts) {
     let best = null;
     if (cell) for (const it of cell) {
       if (skip !== undefined && skip !== null && it.id === skip) continue;
-      let d = dEdgeOf(it, lx, lz), dPre = d;
+      let d = dEdgeOf(it, lx, lz, -r0), dPre = d;
       if (it.kind === 'road' && d > r0) {           // past the square end nothing is drawn, not even a side
         const e = roadEndIn(it, lx, lz);
         if (e < 0 || pastJoinedEnd(it, lx, lz, -r0)) continue;
@@ -27238,6 +27283,10 @@ const SERVO_GAINS = {
   // two reversals at most oscHalf s apart scores one; the score decays over oscWin s; at oscN the pitch gains step
   // down by oscStep (oscKMin at least) and the score restarts
   oscAmp: 0.15, oscHalf: 0.35, oscWin: 2.0, oscN: 4, oscStep: 0.85, oscKMin: 0.45,
+  // RUDDER-CHATTER (A0 + FLAGSHIP 22 Nov, L40J): THE YAW DAMPER'S LIMIT CYCLE (S.rollTo), G1949's way: a rudder swing of
+  // yawOscAmp or more between two reversals at most yawOscHalf s apart scores one; at yawOscN the yaw-rate terms step down by
+  // oscStep (oscKMin at least); yawOscQuiet s with no score gives them back at yawOscBack /s
+  yawOscAmp: 0.015, yawOscHalf: 0.15, yawOscWin: 1.0, yawOscN: 6, yawOscQuiet: 10, yawOscBack: 0.05,
 };
 
 // ONE TABLE PER PILOT (A0, 2026-10-04: the Deform Coordinator's DMG-DAMP fixes the
@@ -27289,11 +27338,12 @@ function makeServos(sim, def, opts) {
     beta: 0, V: 0, Vg: 0, vy: 0, onG: 0, accF: 0, vsSlow: 0, out: null,
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
-    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
+    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0, yawOscK: 1, yawOscScore: 0,
     eTrim: 0, phBias: 0, drTrim: 0, betaIK: 1, gI: 0, gIT: -1e9, bdOn: false, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
+  let yawPrev = null, yawDir = 0, yawExt = 0, yawT = -1e9, yawScoreT = -1e9;   // RUDDER-CHATTER: the rudder's, the same way
   let oscPrev = null, oscDir = 0, oscExt = 0, oscT = -1e9;   // G1949: the elevator's last value, its direction, its last extremum and when
   let tgtHP = null, tgtMovedT = -1e9, vPrev = null, pend = false;
   let holdActive = false, holdWas = false;
@@ -27451,8 +27501,30 @@ function makeServos(sim, def, opts) {
     // there: its own weathercock mode) with the track still and the rudder at 0.013 p-p, so nothing damped it. Behind the student's 0.35 s
     // the mode closed through the bank and diverged: heading 34-55 deg p-p, the gear broken. yawRateK is on eR, washed out as eAR is
     // (a steady turn asks nothing). Node, the Cub, HOME > w3 in 8 kts: expert 2.3 -> 1.3 deg, student 34 -> 6 deg p-p, last 30 s of final
-    c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow) - g('yawRateK') * (S.eR - S.eRslow)
+    // RUDDER-CHATTER (A0 + FLAGSHIP 22 Nov, L40J: GATE ROUTE's refit C172, the rudder 20 reversals a minute against PILOTACT's 12;
+    // APSMOOTH's c172 146/min against the old card's 76): on the route's full-power turns (51 m/s, 23 deg of bank) the rudder
+    // swung 0.02-0.03 every second step - 15 Hz, a 4-step cycle, 87 reversals in 20 s - on the yaw-rate terms: eR - eRslow
+    // +-0.013 rad/s through the rate filter's 0.07 at that frequency (the nose's own 0.1 deg at 15 Hz on the refit card).
+    // No pilot's foot moves at 15 Hz. The swings are counted as the elevator's
+    // (G1949); scored, the two yaw-rate terms step down; the beta term, the trim and the aileron's share are not touched.
+    // An aeroplane whose rudder does not chatter never scores and flies the old rudder to the bit (yawOscK stays exactly 1)
+    const kY = S.yawOscK;
+    c.dr = clamp(S.drTrim - g('betaK') * S.beta - kY * g('yawDampK') * (S.eAR - S.eARslow) - kY * g('yawRateK') * (S.eR - S.eRslow)
                  - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
+    if (S.onG === 0) {
+      if (yawPrev !== null) {
+        const d = c.dr - yawPrev, sg = d > 0 ? 1 : d < 0 ? -1 : 0;
+        if (sg !== 0 && yawDir !== 0 && sg !== yawDir) {
+          if (Math.abs(yawPrev - yawExt) >= G.yawOscAmp && S.t - yawT <= G.yawOscHalf) S.yawOscScore += 1;
+          yawExt = yawPrev; yawT = S.t;
+        }
+        if (sg !== 0) yawDir = sg;
+      }
+      yawPrev = c.dr;
+      S.yawOscScore -= S.yawOscScore * S.dt / G.yawOscWin;
+      if (S.yawOscScore >= G.yawOscN) { S.yawOscK = Math.max(G.oscKMin, S.yawOscK * G.oscStep); S.yawOscScore = 0; yawScoreT = S.t; }
+      else if (S.yawOscK < 1 && S.t - yawScoreT > G.yawOscQuiet) S.yawOscK = Math.min(1, S.yawOscK + G.yawOscBack * S.dt);
+    } else { yawPrev = null; yawDir = 0; S.yawOscScore = 0; }
   };
   // course over ground: the standing course trim (a slipping aeroplane needs a
   // standing bank), integrated only while the error is small. The classic
@@ -28907,6 +28979,7 @@ function makePilot(sim, def, world, opts) {
   // circuit planned from there), 'land' (the nearest strip this gear lands on with room)
   ap.drawn = null;
   let routeGo = false, routePerfV = null;
+  const TO_SCREEN_K = 1.2;   // TAKEOFF-SCREEN: the floor under the 15 m screen, x the stall in the flap as set (the POH's 56 KIAS at 10 deg)
   ap.routePerf = () => routePerfV || (routePerfV = (typeof routePerf === 'function' ? routePerf(sheetOf(), A, bankLim) : null));
   // a drawn leg's speed: the point's own, inside the aeroplane's Vmin..Vmax; none, the cruise (the leg is flown AND
   // filleted at it - buildAirPath's speedOf)
@@ -30836,7 +30909,7 @@ function makePilot(sim, def, world, opts) {
     // G2125 PILOT-PROFILE: THE TAKE-OFF CLIMB'S SPEEDS (44_vprofile.js climbSpeeds, off the machine sheet): the stall in
     // the flap as set, the floor 1.3 x it, Vy / Vx raised to the floor, the attitude cap of a full-power climb at the floor
     // speed (a person's over-rotation on top: the expert's is 0)
-    const climbKit = () => VPROFILE.climbSpeeds(SH, A, { flap: c.flap, flapLdg: FS ? (FS.ldg ?? 1) : 1, alphaAt: tAlphaAt, extra: PRA ? (PRF.overRotate || 0) : 0 });
+    const climbKit = (stallK) => VPROFILE.climbSpeeds(SH, A, { stallK, flap: c.flap, flapLdg: FS ? (FS.ldg ?? 1) : 1, alphaAt: tAlphaAt, extra: PRA ? (PRF.overRotate || 0) : 0 });
     // ...AND WHAT STANDS AHEAD OF THE CLIMB-OUT: the corridor's tops (the terrain or water + trees, houses, the drawn
     // trunks: VPROFILE.topAt) every 50 m to 2 km along the take-off direction, sampled ONCE a departure and kept; the
     // steepest gradient they ask from where the aeroplane is now, `clear` metres over them
@@ -32871,7 +32944,7 @@ function makePilot(sim, def, world, opts) {
         // capped at a full-power climb's attitude at the floor speed, and never nose-up under the floor (TECS vFloor).
         // The water's and the high thrust line's lift-offs keep the attitude law above (G396, G435)
         if (!sim.hydro && !highThrust) {
-          const K = climbKit();
+          const K0 = climbKit();
           // PILOT-UNIFY (the user, 13 Nov: the Jodel must take off from Jumbo Mine): THE VALLEY DEPARTURE. Past Jumbo Mine's far end
           // the ground on the runway line rises 24 m at 300 m, 98 at 400, 139 at 500 (a mountain); 20-40 deg off it falls into a
           // valley. The Jodel lifted off 52 m before the end, ran on level in ground effect to Vx (10 s, 230 m) and met the
@@ -32909,7 +32982,20 @@ function makePilot(sim, def, world, opts) {
           }
           const valley = ap.valleyHdg != null;
           const vBank = clamp(0.05 + 0.04 * aglL, 0.05, 0.26);
-          const Vt = valley ? K.Vfloor : (depNeed(15, 1500) > 0 || !!(ap.dep && ap.dep.stol)) ? K.Vx : K.Vy;   // STOL-PILOT: a STOL departure accelerates to Vx only
+          // TAKEOFF-SCREEN (A0 + FLAGSHIP 22 Nov, L40J: GATE TAKEOFF's C172 to 15 m in 794 m against the POH's 514): THE 15 M SCREEN
+          // IS CLIMBED AT Vx, AS THE HANDBOOK FLIES IT. The run-up accelerated to Vy + 0.5 at 2 m (the C172 refit 28.3 -> 36.8 m/s,
+          // 12 s and 400 m in ground effect at 0.6 m/s2: Vs 25.7, Clb -0.075, the stab chord 0.87) and only then climbed. The C172S
+          // POH's take-off distances fly Vr 51 KIAS and 56 KIAS to the 50 ft screen with 10 deg of flap - 1.2 Vs in that flap - and
+          // Vy above it. So under the screen (this phase: CLIMB takes over at hSafe) every land departure's run-up is to Vx, and
+          // the floor is 1.2 Vs in the flap as set (TO_SCREEN_K; Vx is still 7 % over it and never under the sheet's own Vx).
+          // CLIMB keeps the 1.3 Vs floor and Vy, so the speed is gained once the screen is cleared. Measured (pilot_one_trace,
+          // L40J base): the C172 refit 794 -> 674 m (band 308-720), the Cub 300 -> 284, the Jodel 539 -> 431, the lift-offs as before.
+          // The valley departure keeps its own floor (its turn is flown at it).
+          // TAKEOFF-SCREEN-2 (A0 23 Nov, L40J's GATE PROFILE: the climb from 15 m never under 1.3 Vs in the flap flown - the Jodel
+          // 1.28, the C172 1.23 once its flap came up): the screen's speeds are the RUN-UP's only. From the climb's start
+          // (toAccelDone) the 1.3 Vs kit is flown again, so the speed is built over the climb to the screen, not after it
+          const K = (valley || toAccelDone) ? K0 : Object.assign({}, K0, (({ Vfloor, Vx }) => ({ Vfloor, Vx }))(climbKit(TO_SCREEN_K)));
+          const Vt = valley ? K.Vfloor : K.Vx;   // STOL-PILOT: a STOL departure accelerates to Vx only
           // (to the climb speed itself: the ground effect is where the speed is cheap - and where a rotation from 4 to 16
           // deg at the floor speed sent the Jodel back under it)
           const obstTO = Vt === K.Vx && K.Vx < K.Vy;
