@@ -2273,6 +2273,24 @@ function standSoon() {
       const I = standInfo(LAST_SHEET, +$('lvl').value); if (I.ok) standFollowers(I); } } catch (e) {}
   }, 0);
 }
+// PERF-SLIDERS (23 Nov 2026): ...ONLY WHEN THE PRESSED ROW CAN MOVE THE SHEET. The measure (the stand's base, its map, the parts
+// that ride: ~300 ms on the Cub in the garage at 5120, 250-414 ms on the user's S20 FE) ran at EVERY press, and for a
+// wing, tail or gear row - whose ticks keep the sheet and never deform the stand - it was the frame right after the press
+// and nothing else (the Cub's wing span: one 383 ms frame, then 50-67 ms ones). The row is asked directly: the sheet's key
+// with the row one step away against the key as it stands (CAGE2.cageSpec, under a ms). A row that says no and moves the
+// sheet after all (a threshold further along its travel) is measured by its first deforming tick, as a tick that comes
+// before the measure always was. CAGE_UI.standAlways = true: every press, as before.
+function standWanted(rng) {
+  try {
+    if (window.CAGE_UI && window.CAGE_UI.standAlways) return true;
+    const k = rng && typeof rng.id === 'string' && rng.id.slice(0, 2) === 'p_' ? rng.id.slice(2) : null;
+    if (!k || !(k in P)) return true;
+    const st = +rng.step || 0.001, x0 = +rng.value, v = x0 + st <= +rng.max ? x0 + st : x0 - st;
+    if (!isFinite(v) || v === x0) return true;
+    const o = { step: 0, level: 0 }, k0 = sheetKeyOf(P, o), k1 = sheetKeyOf(Object.assign({}, P, { [k]: v }), o);
+    return k0 == null || k1 == null || k0 !== k1;
+  } catch (e) { return true; }
+}
 // the stand as it was built (a drag that came back to the stand's own cage, before a preview of it)
 function standRestore(stand) {
   const I = stand && DEFORM.get(stand);
@@ -3212,7 +3230,7 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     // (PERF-SLIDERS: under a drag budget the press does not measure the stand - 250-414 ms on the user's S20 FE at the
     // first press after a build, whatever the row; the first deform tick measures it itself, as G1443 says it can -
     // and the budget is taken from the frames just drawn, ?dragbudget=auto)
-    rng.addEventListener('pointerdown', () => { releaseFlush(); DRAG_ON = rng; if (budgetMs() > 0) budgetAuto(); else standSoon(); });
+    rng.addEventListener('pointerdown', () => { releaseFlush(); DRAG_ON = rng; if (budgetMs() > 0) budgetAuto(); else if (standWanted(rng)) standSoon(); });
     rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettleLater('release', k); });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
