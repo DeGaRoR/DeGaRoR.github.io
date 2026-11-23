@@ -318588,3 +318588,15 @@ PERF-TRACE 6 (22 Nov, after the 14:00 slot; the journey's log showed what the in
   it is ready; a warm visit re-links the 190 KB+ programs (the skin family) as if cold; every load links 86 programs for light signatures a
   load plus a departure never draws (1.3.6.0: the hangar's second state; 2.0.0.1 / 2.8.0.1); lampsfixed=1 ADDS the night signature and still
   links 75 of the day one.
+## COMPOSITE-FIBRE (G4104) - a cracked laminate holds by its fibres (Deform, 18 Nov 2026, WIP for L40g)
+The user (18 Nov, the electric trainer's nose-down, with 5 real composite wreck photos): the wing "exploding into panels
+that end up perfectly cut ... these things are really getting torn"; the real wrecks keep their wings (a spar broken, the
+skin torn round it), the fuselage / cockpit crushed, at most cut in half. 30_solver: carbon / glass members (tetherKind 3)
+keep a tension tether at their crack - their own crack in tension or a bend's core / fold, or a crushed (kinked) laminate;
+not a joint letting go, a part cut, the gear - GEN_DMG_TETHER.rComp 0.2 x fu, torn once stretched eComp 0.04 past its
+length at the crack (b.Lb); the joints count it as keeping rComp (tetherKeep / tetherGroups). Checked in node only: every
+live tether within 1.03 x its length (a first cut left the kinked carbon's Lb unset: 7.4 x, fixed); the Super Petrel
+tree100 1 piece (95 %), nosedown 4 big pieces (top 42 %) on one run - yesterday's 2 (59 %), the nose-down's spread is
+wide. OWED: the gates (DMGCOMPOSITE first, then the damage set), the electric trainer's crash stills (its branch
+electric-trainer-2 merged with this), and the composite skin torn ragged at a crack if the stills still show clean cuts.
+The user, 22 Nov, on the electric trainer stills (flydiy-notes/evidence/composite-fibre-2026-11-18/): "I'm OK with this last fix, please submit ... for inclusion in next trains".
