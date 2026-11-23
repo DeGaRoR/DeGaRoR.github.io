@@ -1398,7 +1398,13 @@
     "provider": "minedock",
     "gain": 0.5
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "Cessna 172 floats (career)",
+    "sim": "L40K",
+    "flownS": 419,
+    "sig": "71f71535"
+   }
   },
   {
    "id": "lumber.02",

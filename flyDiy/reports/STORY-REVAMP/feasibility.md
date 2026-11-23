@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 33 feasible; 5 infeasible; 2 no official plane can fly it (the player builds one); 36 not flown; 7 stale. Time flown: 879 min 40 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 34 feasible; 5 infeasible; 2 no official plane can fly it (the player builds one); 36 not flown; 6 stale. Time flown: 886 min 39 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -31,7 +31,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 33 feasible; 5 infeas
 | mine.tour | contract | not flown | - | - | - |  |
 | minedock.05 | harbour:1 | not flown | - | - | - |  |
 | minedock.06 | harbour:2 | not flown | - | - | - |  |
-| lumber.01 | lumber:1 | stale | - | - | - |  |
+| lumber.01 | lumber:1 | feasible | Cessna 172 floats (career) | 6 min 59 s | SEA > mk_sea 419 |  |
 | lumber.02 | lumber:2 | not flown | - | - | - |  |
 | lumber.03 | lumber:2 | not flown | - | - | - |  |
 | lumber.04 | lumber:3 | stale | - | - | - |  |

@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 33,
+  "feasible": 34,
   "not flown": 36,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
-  "stale": 7,
+  "stale": 6,
   "infeasible": 5
  },
- "flownS": 52780,
+ "flownS": 53199,
  "rows": [
   {
    "id": "field.01",
@@ -636,8 +636,30 @@
    "id": "lumber.01",
    "where": "lumber:1",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 419,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 419,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "lumber.02",
