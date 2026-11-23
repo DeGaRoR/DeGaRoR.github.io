@@ -39,6 +39,21 @@ A row that meets its bar is "on its bar", not "met": the report always gives bot
 
 The user's page of this table: https://claude.ai/artifact/AazRMiXJ8Ne87sbEgn2vF4
 
+## How a frame is counted against a limit (23 Nov 2026, PERF-LEAD and PERF-TRACE; a READING rule, shown to the user)
+
+The limits of rows 5 to 9 and 14 (50, 100, 250 ms) sit exactly on a multiple of the display's interval at 60 Hz (3, 6 and 15 intervals of 16.7 ms).
+A frame of 6 intervals measures 100.0 ms give or take its jitter, so "over 100 ms" flipped on that jitter: one crash log read 61, 90 or 138
+frames "over 100 ms" depending on where the cut fell.
+
+THE RULE: a frame is OVER a limit when it lasted at least one display interval more than the limit's own count: over 100 ms = 7 intervals or more
+(a frame of 6 intervals is AT 100 ms, not over it). On a 60 Hz display that is counted from 54 / 104 / 254 ms for the 50 / 100 / 250 ms limits;
+the 35 ms limit of row 9 stays (33.3 ms is clear of it). Every reader (tools/perf/user_log.py; freeze_ledger.js, crash_window.js, slot_frames.js,
+big_uploads.js from PERF-TRACE's tool 7b) uses the same three numbers and PRINTS the frames AT the limit beside the count, so a change that
+moves frames from 7 intervals to 6, or back, stays visible. A row is judged on the first number.
+
+WHAT IT MOVED, on one known log (the nose-down crash with ?holdframe=ground, the 20 s after the impact, 190 frames): "over 100 ms" 90 -> 61,
+with 29 frames AT 100 ms. Every count quoted before 23 Nov was made with "over 100.0" and is a little higher than this rule gives.
+
 The user also notes (21 Nov): the sound misbehaves during lags and freezes (huge saturation, slow-down and speed-up, pitch variation). The audio must be robust to main-thread stalls, isolated like the UI's responsiveness.
 
 Baseline on 21 Nov (A0 cold loads, RTX 3080 box, empty shader cache, to the end of the loading screen): master L40h 185-224 s / 488 programs; claude/perf-codex (Codex + the user's cuts) 109-130 s / 451 programs.

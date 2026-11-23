@@ -69,8 +69,8 @@ def main():
 
     def top3(i): return ', '.join('%s %.0f' % (s, v) for v, s in sorted(((f[s][i] or 0), s) for s in slots if s in f)[::-1][:3])
     def freezes(idx, label, t0):
-        fr = [i for i in idx if dt[i] > 104]
-        P('- %s: %d frames over 100 ms%s' % (label, len(fr), (', the worst %.0f ms' % max(dt[i] for i in fr)) if fr else ''))
+        fr = [i for i in idx if dt[i] > 104]; at = sum(1 for i in idx if 96 < dt[i] <= 104)   # (AT 100 ms: a frame of 6 intervals; printed, never dropped - PERF-TRACE's ask)
+        P('- %s: %d frames over 100 ms%s (and %d AT 100 ms, 6 intervals)' % (label, len(fr), (', the worst %.0f ms' % max(dt[i] for i in fr)) if fr else '', at))
         for i in fr[:40]:
             P('    t+%7.1f s  %4.0f ms  %s%s  [%s]' % ((t[i] - t0) / 1000.0, dt[i], ('AGL %4.0f m ' % agl[i]) if agl[i] is not None and label.startswith('world') else '',
                 (codes.get('phase') or [''] * 99)[ph[i] or 0] if label.startswith('world') and ph[i] is not None else '', top3(i)))
@@ -149,6 +149,7 @@ def main():
             thin = [i for i in win if med and calls[i] is not None and calls[i] < 0.1 * med and not (fl[i] & FL.get('noRender', 0))]
             errs = [e for e in ev if e[1] == 'catch' and t[i0] - 1000 <= e[0] <= t[i0] + 20000]
             P('- impact at t+%.1f s (%.0f m/s, AGL %.1f m): the worst frame of the next 20 s is %.0f ms (%+.1f s after) [%s]' % ((t[i0] - t0w) / 1000.0, spd[i0], agl[i0], dt[worst], (t[worst] - t[i0]) / 1000.0, top3(worst)))
+            P('    (AT the limits, not counted as over: %d frames at 250 ms, %d at 100 ms)' % (sum(1 for i in win if 246 < dt[i] <= 254), sum(1 for i in win if 96 < dt[i] <= 104)))
             P('    frames over 250 ms: %d; over 100 ms: %d; frames not rendered: %d; frames drawing under a tenth of the usual %d calls: %d; errors caught in the loop: %d' % (len(over250), len(over100), len(nor), med, len(thin), len(errs)))
             for i in over100[:12]: P('    %+6.2f s  %4.0f ms  calls %s  [%s]' % ((t[i] - t[i0]) / 1000.0, dt[i], calls[i], top3(i)))
             for i in (nor + thin)[:8]: P('    %+6.2f s  a frame with %s draw calls%s' % ((t[i] - t[i0]) / 1000.0, calls[i], ' (not rendered)' if fl[i] & FL.get('noRender', 0) else ''))
