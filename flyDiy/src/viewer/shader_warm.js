@@ -174,12 +174,12 @@ var PROG_WARM = (() => {
       if (scene && material && opt.on() && opt.scenes().indexOf(scene) >= 0) {
         const e = pend.get(material);
         if (e) {
-          if (!e.done) { G.stats.held++; G.heldNow++; if (material.groundFamily || material.heavyLink) G.heldGround++; if (e.w) e.w[1] = ++e.frames; return; }
+          if (!e.done) { G.stats.held++; G.heldNow++; e.now++; if (e.g) G.heldGround++; if (e.w) e.w[1] = ++e.frames; return; }
           pend.delete(material);
         } else if (props.get(material).programs === undefined) {
-          const n = { o: object, m: material, scene, rt: renderer.getRenderTarget(), done: false, t: 0, frames: 0, w: null };
+          const n = { o: object, m: material, scene, rt: renderer.getRenderTarget(), done: false, t: 0, frames: 0, w: null, now: 1, g: !!(material.groundFamily || material.heavyLink) };
           if (G.stats.what.length < 40) G.stats.what.push(n.w = [(object.name || object.type) + '/' + (material.name || material.type), 0, 0]);
-          pend.set(material, n); queue.push(n); G.stats.held++; G.heldNow++; if (material.groundFamily || material.heavyLink) G.heldGround++;
+          pend.set(material, n); queue.push(n); G.stats.held++; G.heldNow++; if (n.g) G.heldGround++;
           if (newNow.length < 12) newNow.push((object.name || object.type) + '/' + (material.name || material.type) + ((material.userData && material.userData.progOwner) ? ' <' + [].concat(material.userData.progOwner)[0] + '>' : ''));
           return;
         }
@@ -194,31 +194,55 @@ var PROG_WARM = (() => {
         const t = performance.now(); p.getUniforms(); ms += performance.now() - t; } } catch (x) {}
       G.stats.firstUseMs = (G.stats.firstUseMs || 0) + ms; };
     // the held compiles, after the frame (never inside a render: compile() swaps three's render state)
-    G.flush = camera => {
-      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      for (const e of pend.values()) if (!e.done && e.t && now - e.t > 20000) { e.done = true; G.stats.timedOut++; }   // a link that never reports: drawn (and waited for) rather than gone
-      // PERF-TRACE 7 (the user's row 14, the blue frame): a frame in which the guard kept draws OUT says so in the log -
-      // how many, and which materials were held for the first time (many at once in the world's scene = a frame of sky)
-      // (PERF-LEAD, the merge of 23 Nov: + ground, the ground family's share of them - what ?holdframe=ground still holds a frame for)
-      if (G.heldNow > 0) { const FRg = (typeof window !== 'undefined' && window.FLIGHT_REC) || null; if (FRg && FRg.event) FRg.event('guardhold', null, { held: G.heldNow, ground: G.heldGround, new: newNow.slice() }); }
-      newNow.length = 0;
-      G.heldNow = 0; G.heldGround = 0;   // (heldGround: the ground family's held draws - ?holdframe=ground)
+    // PERF-TRACE (23 Nov, the user's "no blue screen, ever"): A MATERIAL WHOSE PROGRAM ALREADY EXISTS HOLDS NO FRAME.
+    // The guard holds every material three has no program MAP for - any new material object, also one whose program is
+    // linked and in three's cache (a streamer's fresh material for a new tile, a clone). Nothing links; the draw is held
+    // one frame all the same (compileAsync's promise answers after the frame), and that frame was not presented: the 07:00
+    // journey of 23 Nov, 8 stills of one to three frames in ordinary flight (68-229 ms each), SIX with no link submitted
+    // or pending anywhere over them. So the frame's hold is decided AFTER the compiles have been asked for: settle(camera)
+    // starts them (what flush did a moment later - flush then finds the queue empty), and a material whose program three
+    // answers READY at once (isReady(): one COMPLETION_STATUS read, the poll three makes anyway) is done on the spot - it
+    // draws next frame, and its held draws do not count towards holding this one. waitNow / waitGround: the held draws
+    // whose program is really not ready (or not asked for yet: the pace's queue) - what the frame's hold reads.
+    // Called between the scene pass and the resolve (aa.hold's callback): renderer.render has returned, as for flush.
+    const start = (camera, now) => {
       if (!queue.length) return 0;
       const prev = renderer.getRenderTarget();
       let n = 0;
       try {
         let room = opt.pace ? opt.pace() : Infinity;
-        if (room !== Infinity && queue.length > 1) queue.sort((a, b) => (a.m.groundFamily || a.m.heavyLink ? 0 : 1) - (b.m.groundFamily || b.m.heavyLink ? 0 : 1));
+        if (room !== Infinity && queue.length > 1) queue.sort((a, b) => (a.g ? 0 : 1) - (b.g ? 0 : 1));
         while (queue.length && room-- > 0) {
           const e = queue.shift(); e.t = now;
           try {
             renderer.setRenderTarget(e.rt);
-            renderer.compileAsync(standIn(e.o, e.m), camera, e.scene).then(() => { if (opt.firstUse) firstUse(e.m); e.done = true; G.stats.ready++; if (e.w) e.w[2] = Math.round(performance.now() - e.t); }, () => { e.done = true; });
+            renderer.compileAsync(standIn(e.o, e.m), camera, e.scene).then(() => { if (opt.firstUse) firstUse(e.m); if (!e.done) { e.done = true; G.stats.ready++; } if (e.w) e.w[2] = Math.round(performance.now() - e.t); }, () => { e.done = true; });
             G.stats.compiles++; n++;
+            const p = props.get(e.m).currentProgram;   // (three's compile() has set it; a cached program answers at once)
+            if (p && typeof p.isReady === 'function' && p.isReady()) { e.done = true; e.hit = true; G.stats.ready++; G.stats.hits = (G.stats.hits || 0) + 1; G.hitNow += e.now; }
           } catch (x) { e.done = true; }
         }
       } finally { renderer.setRenderTarget(prev); }
       return n;
+    };
+    G.hitNow = 0; G.waitNow = 0; G.waitGround = 0;
+    G.settle = camera => {
+      G.waitNow = 0; G.waitGround = 0;
+      if (!G.heldNow) return G;
+      start(camera, (typeof performance !== 'undefined' ? performance.now() : Date.now()));
+      for (const e of pend.values()) if (!e.done && e.now) { G.waitNow += e.now; if (e.g) G.waitGround += e.now; }
+      return G;
+    };
+    G.flush = camera => {
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      for (const e of pend.values()) { if (!e.done && e.t && now - e.t > 20000) { e.done = true; G.stats.timedOut++; } e.now = 0; }   // a link that never reports: drawn (and waited for) rather than gone
+      // PERF-TRACE 7 (the user's row 14, the blue frame): a frame in which the guard kept draws OUT says so in the log -
+      // how many, and which materials were held for the first time (many at once in the world's scene = a frame of sky)
+      // (PERF-LEAD, the merge of 23 Nov: + ground, the ground family's share of them - what ?holdframe=ground still holds a frame for)
+      if (G.heldNow > 0) { const FRg = (typeof window !== 'undefined' && window.FLIGHT_REC) || null; if (FRg && FRg.event) FRg.event('guardhold', null, { held: G.heldNow, ground: G.heldGround, hit: G.hitNow, new: newNow.slice() }); }   // (hit: the held draws whose program existed - settle())
+      newNow.length = 0;
+      G.heldNow = 0; G.heldGround = 0; G.hitNow = 0;   // (heldGround: the ground family's held draws - ?holdframe=ground)
+      return start(camera, now);   // (what settle() did not start: no hold callback set, or the pace's queue)
     };
     return G;
   }

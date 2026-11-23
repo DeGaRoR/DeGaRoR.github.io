@@ -22776,7 +22776,11 @@
     // costs, said by the damage's owner: a cut copy not yet linked is not drawn - the tear a row of triangles wider with a
     // clean edge, a piece of debris late - for the 2-3 s its program takes; the links block 26-56 ms a frame meanwhile.
     const HQ = (typeof location !== 'undefined' && (/[?&]holdframe=(0|ground|all)(&|$)/.exec(location.search || '') || [])[1]) || 'ground';
-    if (drawGuard && aa && aa.hold && HQ !== '0') aa.hold(() => (HQ === 'all' ? drawGuard.heldNow : drawGuard.heldGround) > 0);
+    // PERF-TRACE (23 Nov): A MATERIAL WHOSE PROGRAM ALREADY EXISTS HOLDS NO FRAME. The hold is decided after the held
+    // draws' compiles have been asked for (drawGuard.settle, shader_warm.js): a new material object whose program three
+    // answers ready at once (a cache hit: a streamer's fresh material, a clone) draws next frame and does not keep this
+    // one off the screen - the eight single blue frames of the journey's first 8 minutes, six with no link anywhere.
+    if (drawGuard && aa && aa.hold && HQ !== '0') aa.hold(() => { if (!drawGuard.heldNow) return false; drawGuard.settle(camera); return (HQ === 'all' ? drawGuard.waitNow : drawGuard.waitGround) > 0; });
     if (typeof window !== 'undefined') window.FLYDIY_HOLDFRAME = HQ; }
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
   function lampsPrep(want) {
