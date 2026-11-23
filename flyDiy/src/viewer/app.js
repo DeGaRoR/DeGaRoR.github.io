@@ -5477,6 +5477,7 @@
       stats: Object.assign({}, SKIN_GPU.G.stats), tearChecked: BRK.recs.reduce((a, R) => a + (R.tearChecked || 0), 0) } : null });
   function brkRestore() {
     brkGpuFree();
+    brkCutFreeAll(BRK.model || model);                    // FLY-AGAIN DEBRIS: the cut copies' twins with the records
     for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; brkNrm(R); }
     brkHealUpload(BRK.model);
     BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
@@ -5603,6 +5604,7 @@
             let n = 0; for (const R of K.allRecs) { if (BRK.recs.indexOf(R) >= 0 || !(R.dead || R.active || R.torn || R.held)) continue;   // (R.held: FABRIC's held covering, G2040)
               if (SKIN_BREAK.event(R, K.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); n++; }
             if (n) { brkHealUpload(model); model._pose = null; model._poseNG = null; K.healLetGo = (K.healLetGo | 0) + n; } } } }
+      brkCutFreeAll(model);                               // FLY-AGAIN DEBRIS: the cut copies' twins off the healed aeroplane
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       brkLookClear();                                     // G3770
       wsClear(model);                                     // WING-STRUCTURE
@@ -5974,6 +5976,18 @@
     c.onBeforeCompile = f;
     CUT_MAT.set(m, c); return c;
   }
+  // (FLY-AGAIN DEBRIS, the user 23 Nov via A0: "When I crashed then back to shed and fly again, there were some debris pieces
+  // remaining attached to the new plane": the cut copies' twins are CHILDREN OF THEIR HOST MESHES (brkCutBuild m.add(t)),
+  // and a heal - brkState's no-break branch (Fly again, a reset), brkRestore (the roll-out's wreck reset, a model change) -
+  // let the records go without them: brkCutFree ran only from brkCage, which a healed flight never reaches. The twins rode
+  // the next flight's aeroplane drawn in the last wreck's shape. Every heal frees them now (brkCutFreeAll); BRK.cutLive
+  // says whether any are made, so an intact flight's no-break frames pay one test)
+  function brkCutFreeAll(mdl) {
+    if (!BRK.cutLive || window.FLYDIY_HEAL_CUTKEEP === true) return;   // (the switch: the heal as it was - GATE DMGUPLOAD's selftest)
+    for (const R of BRK.recs) brkCutFree(R);
+    const K = mdl && mdl.brk; if (K && K.allRecs) for (const R of K.allRecs) brkCutFree(R);
+    BRK.cutLive = false;
+  }
   function brkCutFree(R) {
     const T = R.cutDraw; if (!T) return;
     for (const t of T.meshes) if (t.parent) t.parent.remove(t);
@@ -6031,7 +6045,7 @@
     if (fits && T.meshes.length) return;   // (the twins already ride this geometry)
     const hosts = []; model.grp.traverse(m => { if (m.isMesh && !m.userData.cutTwin && R.geos && R.geos.indexOf(m.geometry) >= 0) hosts.push(m); });
     for (const m of hosts) { const t = new THREE.Mesh(g, brkCutMat(m.material)); t.userData.cutTwin = true; t.castShadow = false;
-      t.receiveShadow = m.receiveShadow; t.frustumCulled = false; t.renderOrder = m.renderOrder; t.name = (m.name || '') + ':cut'; m.add(t); T.meshes.push(t); }
+      t.receiveShadow = m.receiveShadow; t.frustumCulled = false; t.renderOrder = m.renderOrder; t.name = (m.name || '') + ':cut'; m.add(t); T.meshes.push(t); BRK.cutLive = true; }
   }
   function brkCutDraw(R, off, X, K) {
     const C2 = R.cut2, T = R.cutDraw || (R.cutDraw = { v: -1, geo: null, meshes: [], w: null, n: null, nB: null, ver: null });
