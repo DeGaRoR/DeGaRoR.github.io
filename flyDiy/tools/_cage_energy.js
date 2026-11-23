@@ -1850,7 +1850,7 @@ function outletJudge(ctx, scene, inv, r) {
 let WATER_MAT = null;
 function waterMat() {
   if (WATER_MAT) return WATER_MAT;
-  const m = new THREE.MeshStandardMaterial({ color: 0x8fd0ff, roughness: 0.08, metalness: 0.0,
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / fuel tanks and batteries / water ballast' }, color: 0x8fd0ff, roughness: 0.08, metalness: 0.0,
     transparent: true, opacity: 0.45, depthWrite: false });
   m.userData.aeroskin = 1;
   return (WATER_MAT = m);
