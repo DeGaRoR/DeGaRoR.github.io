@@ -4,12 +4,12 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "not flown": 69,
-  "feasible": 10,
-  "an aircraft order (not a flight)": 8,
-  "stale": 4
+  "not flown": 61,
+  "feasible": 15,
+  "stale": 7,
+  "an aircraft order (not a flight)": 8
  },
- "flownS": 12652,
+ "flownS": 17493,
  "rows": [
   {
    "id": "field.01",
@@ -43,14 +43,36 @@
    "id": "field.hike",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1062,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w8",
+     "t": 1062,
+     "how": "stopped",
+     "at": "w8",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds",
+   "cls": "feasible"
   },
   {
    "id": "field.ridge",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "stale",
    "cls": null
   },
   {
@@ -172,7 +194,7 @@
    "id": "heritage.01",
    "where": "heritage:1",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "stale",
    "cls": null
   },
   {
@@ -355,8 +377,33 @@
    "id": "skyline.03",
    "where": "skyline:2",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 697,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 697,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 90,
+     "pax": 0,
+     "faults": [
+      "yield",
+      "prop-strike"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds",
+   "cls": "feasible"
   },
   {
    "id": "resort.05",
@@ -469,7 +516,7 @@
    "id": "obs.03",
    "where": "observatory:2",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "stale",
    "cls": null
   },
   {
@@ -483,8 +530,44 @@
    "id": "obs.05",
    "where": "observatory:3",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
+   "timeS": 1000,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 470,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "mt_strip",
+     "t": 530,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds",
+   "cls": "feasible"
   },
   {
    "id": "obs.06",
@@ -617,8 +700,44 @@
    "id": "home.03",
    "where": "home:2",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 with the STOL kit (test build)",
+   "timeS": 1192,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 485,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 250,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "w1",
+     "t": 707,
+     "how": "stopped",
+     "at": "w1",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 250,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds",
+   "cls": "feasible"
   },
   {
    "id": "home.04",
@@ -631,8 +750,31 @@
    "id": "home.05",
    "where": "home:2",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
+   "timeS": 890,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 890,
+     "how": "stopped",
+     "at": "w1",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 30,
+     "pax": 1,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds",
+   "cls": "feasible"
   },
   {
    "id": "home.06",
@@ -939,14 +1081,14 @@
    "id": "club.regular",
    "where": "contract",
    "kind": "challenge",
-   "verdict": "not flown",
+   "verdict": "stale",
    "cls": null
   },
   {
    "id": "club.tour",
    "where": "club:2",
    "kind": "challenge",
-   "verdict": "not flown",
+   "verdict": "stale",
    "cls": null
   },
   {

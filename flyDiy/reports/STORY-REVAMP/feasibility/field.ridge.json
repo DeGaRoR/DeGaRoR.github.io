@@ -6,9 +6,8 @@
  "timeS": 595,
  "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
  "tried": [
-  "Cessna 172 (career):infeasible",
-  "Cessna 172 with the STOL kit (test build):infeasible",
   "Piper Cub:infeasible",
+  "Cessna 172 (career):infeasible",
   "STOL Cub:infeasible"
  ],
  "legs": [
@@ -25,12 +24,134 @@
    "events": []
   }
  ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 534,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 106 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear"
+     ],
+     "landing": {
+      "run": 73,
+      "sink": 0.81,
+      "V": 15.5,
+      "offCentre": 0.1,
+      "pastAim": 5,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 70,
+      "stopLeft": 400
+     },
+     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 1 pax"
+    }
+   ]
+  },
+  {
+   "plane": "Cessna 172 (career)",
+   "verdict": "infeasible",
+   "why": "no progress: already loaded [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 538,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "slip: high on the final (16 m over the slope at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 29.0 m/s at this power — flying the approach faster",
+      "held-speed-short-field: the elevator holds 30.4 m/s on this final: the stop from it needs 336 m, 387 m of Fishing Village Strip are left pas"
+     ],
+     "landing": {
+      "run": 232,
+      "sink": 1.03,
+      "V": 29.9,
+      "offCentre": 0.9,
+      "pastAim": -11,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 21,
+      "stopLeft": 290
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Mountainside Strip has 216 m of strip for a 249 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Mountainside Strip has 216 m of strip for a 249 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    }
+   ]
+  },
+  {
+   "plane": "STOL Cub",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 595,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 103 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot"
+     ],
+     "landing": {
+      "run": 27,
+      "sink": 1.1,
+      "V": 11.5,
+      "offCentre": 0.1,
+      "pastAim": 11,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 21,
+      "stopLeft": 495
+     },
+     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 1 pax"
+    }
+   ]
+  }
+ ],
  "notes": [
-  "the stop counts the build's occupants: Piper Cub flies with 1 aboard (1 passenger(s) asked); STOL Cub flies with 1 aboard (1 passenger(s) asked); Carbon Cub SS flies with 1 aboard (1 passenger(s) asked); Chinook flies with 1 aboard (1 passenger(s) asked); B-ITES flies with 1 aboard (1 passenger(s) asked); PC-6 Turbo Porter flies with 1 aboard (1 passenger(s) asked); Client Cub flies with 1 aboard (1 passenger(s) asked)"
+  "the seats filled as the job asks: Piper Cub flown with 2 aboard (the garage's seat-fill)",
+  "the seats filled as the job asks: STOL Cub flown with 2 aboard (the garage's seat-fill)"
  ],
  "untested": false,
  "key": "4aec0468d36e",
  "where": "contract",
  "pool": "official+57,58+test builds",
- "wallS": 1845
+ "wallS": 896
 }

@@ -1,27 +1,158 @@
 {
  "id": "obs.05",
  "kind": "contract",
- "verdict": "infeasible",
- "plane": "PC-6 Turbo Porter",
- "timeS": 1227,
- "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 120 kg / 0 pax",
+ "verdict": "feasible",
+ "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
+ "timeS": 1000,
+ "why": "",
  "tried": [
   "Cessna 172 (career):infeasible",
-  "Cessna 172 with the STOL kit (test build):infeasible",
-  "PC-6 Turbo Porter:infeasible"
+  "Cessna 172 with the STOL kit and a larger elevator (test build):feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 1227,
+   "t": 470,
    "how": "stopped",
    "at": "w3",
-   "stop": [],
-   "kg": 0,
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 120,
    "pax": 0,
    "faults": [],
    "events": []
+  },
+  {
+   "from": "w3",
+   "to": "mt_strip",
+   "t": 530,
+   "how": "stopped",
+   "at": "mt_strip",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 120,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 (career)",
+   "verdict": "infeasible",
+   "why": "no progress: already loaded [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 558,
+     "how": "stopped",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 30.8 m/s until clear",
+      "slip: high on the final (17 m over the slope at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 327,
+      "sink": 0.4,
+      "V": 28.2,
+      "offCentre": 0.5,
+      "pastAim": 20,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 85,
+      "stopLeft": 131
+     }
+    },
+    {
+     "from": "w3",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 249 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    },
+    {
+     "from": "w3",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 249 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    }
+   ]
+  },
+  {
+   "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 470,
+     "how": "stopped",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 25.6 m/s until clear",
+      "vref-raised: the elevator cannot hold 22.2 m/s at this power — flying the approach faster",
+      "slip: high on energy on the short final (+8.5 m at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 129,
+      "sink": -0.07,
+      "V": 24,
+      "offCentre": 2.5,
+      "pastAim": 53,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 63,
+      "stopLeft": 351
+     }
+    },
+    {
+     "from": "w3",
+     "to": "mt_strip",
+     "t": 530,
+     "how": "stopped",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+6.1 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 22.2 m/s at this power — flying the approach faster",
+      "strip-short: Ardent Altiport: the elevator holds 23.4 m/s, the short-field stop from it needs 157 m, 130 m are left past the aim and the flo"
+     ],
+     "landing": {
+      "run": 56,
+      "sink": 1.32,
+      "V": 23.8,
+      "offCentre": 6.8,
+      "pastAim": 0,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 10,
+      "stopLeft": 143
+     }
+    }
+   ]
   }
  ],
  "notes": [],
@@ -29,5 +160,5 @@
  "key": "ad8f003e6b71",
  "where": "observatory:3",
  "pool": "official+57,58+test builds",
- "wallS": 1700
+ "wallS": 1031
 }

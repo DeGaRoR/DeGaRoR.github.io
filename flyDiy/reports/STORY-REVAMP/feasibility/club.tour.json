@@ -2,20 +2,19 @@
  "id": "club.tour",
  "kind": "challenge",
  "verdict": "infeasible",
- "plane": "STOL Cub",
- "timeS": 1966,
- "why": "never took off on w5 > HOME (118 s on the ground: TAXI>STOP>HOLD>ROLL>ABORT) - the page ended it as a stop and the career counted it (a step judged on stop.aero alone)",
+ "plane": "Cessna 172 (career)",
+ "timeS": 1783,
+ "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
  "tried": [
   "Piper Cub:infeasible",
   "Jodel D112:infeasible",
-  "Cessna 172 (career):infeasible",
-  "STOL Cub:infeasible"
+  "Cessna 172 (career):infeasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 624,
+   "t": 717,
    "how": "stopped",
    "at": "w3",
    "stop": [
@@ -36,60 +35,282 @@
   {
    "from": "w3",
    "to": "w5",
-   "t": 421,
-   "how": "stopped",
-   "at": "w5",
-   "stop": [
-    "sub:0@1",
-    "sub:1@1",
-    "timer",
-    "sub:2@1",
-    "stage@1"
-   ],
-   "kg": 0,
-   "pax": 0,
-   "faults": [],
-   "events": [
-    "hit:b1",
-    "hit:b2"
-   ]
-  },
-  {
-   "from": "w5",
-   "to": "HOME",
-   "t": 118,
-   "how": "stopped",
-   "at": "w5",
+   "t": 1066,
+   "how": "crashed",
+   "at": null,
    "stop": [],
    "kg": 0,
    "pax": 0,
    "faults": [
-    "abort"
+    "crash",
+    "yield",
+    "break",
+    "prop-strike"
    ],
    "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "no progress: pass b1: not flown yet",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 674,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-start: flying the drawn route mission from here: WP1 132 m, WP2 133 m, WP3 136 m, WP4 137 m, WP5 141 m, WP6 146 m, WP7 135 m, WP8 108 ",
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Fishing Village Strip"
+     ],
+     "near": {
+      "a1": {
+       "d": 3.4,
+       "agl": 100.3,
+       "msl": 135.9,
+       "t": 347.3
+      },
+      "a2": {
+       "d": 0.2,
+       "agl": 95.9,
+       "msl": 142.9,
+       "t": 381.5
+      }
+     },
+     "landing": {
+      "run": 94,
+      "sink": 0.97,
+      "V": 16.7,
+      "offCentre": -0.1,
+      "pastAim": 19,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 85,
+      "stopLeft": 364
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w5",
+     "t": 516,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 184 m",
+      "slip: high on energy on the short final (+5.1 m at idle) — slipping it down",
+      "off-the-strip: touched 187 m in, stopped -72 m past the end of 310 m (18 m off the centreline)"
+     ],
+     "near": {
+      "b1": {
+       "d": 1.6,
+       "agl": 372.5,
+       "msl": 372.5,
+       "t": 158.7
+      },
+      "b2": {
+       "d": 1.8,
+       "agl": 496.8,
+       "msl": 496.8,
+       "t": 209.1
+      }
+     },
+     "landing": {
+      "run": 51,
+      "sink": 1.3,
+      "V": 15.2,
+      "offCentre": 0.5,
+      "pastAim": 43,
+      "k": 1,
+      "three": false,
+      "onStrip": false,
+      "tdIn": 187,
+      "stopLeft": 72
+     },
+     "stop": "pass b1: not flown yet"
+    },
+    {
+     "from": "w5",
+     "to": "w5",
+     "t": 573,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (85 m, 17.9 m off) — planning the departure again",
+      "taxi-timeout: the route took 117 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "near": {
+      "b1": {
+       "d": 2975.7,
+       "agl": 1.1,
+       "msl": 16.9,
+       "t": 6.8
+      },
+      "b2": {
+       "d": 1166.3,
+       "agl": 1.1,
+       "msl": 16.9,
+       "t": 7
+      }
+     },
+     "stop": "pass b1: not flown yet"
+    }
+   ]
   },
   {
-   "from": "w5",
-   "to": "HOME",
-   "t": 802,
-   "how": "stopped",
-   "at": "HOME",
-   "stop": [
-    "sub:0@2",
-    "sub:1@2",
-    "timer",
-    "course",
-    "sub:2@2",
-    "stage@2",
-    "say",
-    "done"
-   ],
-   "kg": 0,
-   "pax": 0,
-   "faults": [],
-   "events": [
-    "hit:c1",
-    "hit:c2"
+   "plane": "Jodel D112",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a tail member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 684,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-start: flying the drawn route mission from here: WP1 132 m, WP2 133 m, WP3 136 m, WP4 137 m, WP5 141 m, WP6 146 m, WP7 135 m, WP8 108 ",
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Fishing Village Strip"
+     ],
+     "near": {
+      "a1": {
+       "d": 10,
+       "agl": 101.3,
+       "msl": 136.9,
+       "t": 374.3
+      },
+      "a2": {
+       "d": 4.8,
+       "agl": 96.2,
+       "msl": 142.8,
+       "t": 405.1
+      }
+     },
+     "landing": {
+      "run": 139,
+      "sink": 1.22,
+      "V": 19.1,
+      "offCentre": 1.5,
+      "pastAim": 6,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 71,
+      "stopLeft": 333
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w5",
+     "t": 1127,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "committed-unstable: unstabilised (48 m off the centreline) but committed - landing it",
+      "capsized: on its back in ROLLOUT at 8.2 m/s (bank 93 deg)",
+      "out-of-energy: the engine seized at t=1125 s — engines stopped"
+     ],
+     "near": {
+      "b1": {
+       "d": 8.6,
+       "agl": 235.5,
+       "msl": 235.5,
+       "t": 177.9
+      },
+      "b2": {
+       "d": 10.7,
+       "agl": 371.3,
+       "msl": 371.3,
+       "t": 236.7
+      }
+     },
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Cessna 172 (career)",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 717,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "slip: high on the final (16 m over the slope at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 29.0 m/s at this power — flying the approach faster",
+      "held-speed-short-field: the elevator holds 30.4 m/s on this final: the stop from it needs 336 m, 387 m of Fishing Village Strip are left pas"
+     ],
+     "near": {
+      "a1": {
+       "d": 21.7,
+       "agl": 100.9,
+       "msl": 136.1,
+       "t": 296.9
+      },
+      "a2": {
+       "d": 1,
+       "agl": 94.2,
+       "msl": 141.2,
+       "t": 318.8
+      }
+     },
+     "landing": {
+      "run": 241,
+      "sink": 0.96,
+      "V": 30.1,
+      "offCentre": 0.8,
+      "pastAim": -12,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 21,
+      "stopLeft": 281
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w5",
+     "t": 1066,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 444 m",
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 444 m",
+      "go-around: fast on the short final: 31.7 m/s for 26.7 (attempt 1)"
+     ],
+     "near": {
+      "b1": {
+       "d": 2.5,
+       "agl": 306.6,
+       "msl": 306.6,
+       "t": 350.9
+      },
+      "b2": {
+       "d": 2.9,
+       "agl": 489.7,
+       "msl": 489.7,
+       "t": 384.1
+      }
+     },
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
    ]
   }
  ],
@@ -98,5 +319,5 @@
  "key": "ba62de102961",
  "where": "club:2",
  "pool": "official+57,58+test builds",
- "wallS": 3325
+ "wallS": 3764
 }

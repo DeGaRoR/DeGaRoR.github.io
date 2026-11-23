@@ -7,7 +7,7 @@
  "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 2 pax",
  "tried": [
   "Cessna 172 (career):infeasible",
-  "Cessna 172 with the STOL kit (test build):infeasible",
+  "Cessna 172 with the STOL kit and a larger elevator (test build):infeasible",
   "PC-6 Turbo Porter:infeasible"
  ],
  "legs": [
@@ -24,12 +24,91 @@
    "events": []
   }
  ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 (career)",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 780,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "committed-unstable: unstabilised (26 m off the centreline) but committed - landing it",
+      "wings-level: the rudder eased off: the aileron on its stop against 15 deg of bank (-5 deg of sideslip)",
+      "capsized: on its back in FLARE at 27.2 m/s (bank 91 deg)"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 754,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-short: Copperhead Mine Street: the elevator holds 23.6 m/s, the short-field stop from it needs 207 m, 169 m are left past the aim and ",
+      "committed-unstable: unstabilised (15 m off the centreline) but committed - landing it",
+      "wings-level: the rudder eased off: the aileron on its stop against 12 deg of bank (-15 deg of sideslip)"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 2 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 1230,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+6.8 m at idle) — slipping it down",
+      "go-around: floating on the short field with 213 m left, 214 m to stop (attempt 1)",
+      "strip-short: 250 m of strip for a 226 m landing run — landing short-field, no margin"
+     ],
+     "landing": {
+      "run": 150,
+      "sink": 1.12,
+      "V": 23.6,
+      "offCentre": 0.1,
+      "pastAim": 34,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 39,
+      "stopLeft": 61
+     },
+     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 2 pax"
+    }
+   ]
+  }
+ ],
  "notes": [
-  "the stop counts the build's occupants: Cessna 172 (career) flies with 2 aboard (2 passenger(s) asked); Cessna 172 with the STOL kit (test build) flies with 2 aboard (2 passenger(s) asked); PC-6 Turbo Porter flies with 1 aboard (2 passenger(s) asked)"
+  "the seats filled as the job asks: Cessna 172 (career) flown with 3 aboard (the garage's seat-fill)",
+  "the seats filled as the job asks: Cessna 172 with the STOL kit and a larger elevator (test build) flown with 3 aboard (the garage's seat-fill)",
+  "the seats filled as the job asks: PC-6 Turbo Porter flown with 3 aboard (the garage's seat-fill)"
  ],
  "untested": false,
  "key": "05afbea57dd8",
  "where": "mine:4",
  "pool": "official+57,58+test builds",
- "wallS": 2535
+ "wallS": 2419
 }

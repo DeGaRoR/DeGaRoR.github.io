@@ -1,0 +1,92 @@
+{
+ "id": "home.05",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
+ "timeS": 890,
+ "why": "",
+ "tried": [
+  "Cessna 172 (career):infeasible",
+  "Cessna 172 with the STOL kit and a larger elevator (test build):feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w1",
+   "t": 890,
+   "how": "stopped",
+   "at": "w1",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
+   "kg": 30,
+   "pax": 1,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 (career)",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 1131,
+     "how": "crashed",
+     "kg": 30,
+     "pax": 1,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 545 m (planned 544)",
+      "go-around: unstabilised approach at 19 m: high 10 m on the slope (attempt 2)",
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 708 m (planned 473)"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 890,
+     "how": "stopped",
+     "kg": 30,
+     "pax": 1,
+     "said": [
+      "slip: high on energy on the short final (+6.4 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 22.2 m/s at this power — flying the approach faster",
+      "slope: stopped on a 7.2 % grade — rolling 40 m on to the level part"
+     ],
+     "landing": {
+      "run": 101,
+      "sink": -1.01,
+      "V": 25.5,
+      "offCentre": -16.1,
+      "pastAim": 124,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 134,
+      "stopLeft": 148
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "a1a4cbd23be1",
+ "where": "home:2",
+ "pool": "official+57,58+test builds",
+ "wallS": 1421
+}

@@ -1,0 +1,136 @@
+{
+ "id": "obs.03",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "Carbon Cub SS",
+ "timeS": 752,
+ "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+ "tried": [
+  "Cessna 172 (career):infeasible",
+  "STOL Cub:infeasible",
+  "Carbon Cub SS:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mt_strip",
+   "t": 752,
+   "how": "stopped",
+   "at": "mt_strip",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "prop-strike"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 (career)",
+   "verdict": "infeasible",
+   "why": "no progress: the load was not taken on at Ardent Altiport [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 249 m landing run - not going there"
+     ],
+     "stop": "the load was not taken on at Ardent Altiport"
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 249 m landing run - not going there"
+     ],
+     "stop": "the load was not taken on at Ardent Altiport"
+    }
+   ]
+  },
+  {
+   "plane": "STOL Cub",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 849,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 103 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
+      "wings-level: the rudder eased off: the aileron on its stop against 8 deg of bank (9 deg of sideslip)"
+     ],
+     "landing": {
+      "run": 3,
+      "sink": 1.64,
+      "V": 8.9,
+      "offCentre": -1.1,
+      "pastAim": 27,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 37,
+      "stopLeft": 170
+     },
+     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 1 pax"
+    }
+   ]
+  },
+  {
+   "plane": "Carbon Cub SS",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 752,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+6.9 m at idle) — slipping it down",
+      "capsized: on its back in ROLLOUT at 2.7 m/s (bank -93 deg)",
+      "out-of-energy: the engine seized at t=751 s — engines stopped"
+     ],
+     "landing": {
+      "run": 10,
+      "sink": -0.25,
+      "V": 14.2,
+      "offCentre": 0,
+      "pastAim": 33,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 46,
+      "stopLeft": 154
+     },
+     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 1 pax"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats filled as the job asks: STOL Cub flown with 2 aboard (the garage's seat-fill)",
+  "the seats filled as the job asks: Carbon Cub SS flown with 2 aboard (the garage's seat-fill)"
+ ],
+ "untested": false,
+ "key": "c1fa59db2016",
+ "where": "observatory:2",
+ "pool": "official+57,58+test builds",
+ "wallS": 804
+}
