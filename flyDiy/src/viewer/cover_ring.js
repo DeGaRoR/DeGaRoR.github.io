@@ -691,7 +691,7 @@ var COVER_RING = (() => {
     // one placement, two readers - the near cell's instances and the map's sprites agree by
     // construction. emit(p, x, y, z, s, yaw, col, tx, tz) per rock; returns the count.
     const coastAt = world.island && world.island.coastAt ? world.island.coastAt : null;
-    function placeRocks(c, row, F, G, centreMix, cx, cz, C, emit) {
+    function placeRocks(c, row, F, G, centreMix, cx, cz, C, emit, band) {   // band: the lake shore's pass (its points, not the centre's mix)
       const place = c.place || {};
       const P = protosOf(c); if (!P.length) return 0;
       const per = ((c.kind === 'debris' ? F.debris : F.rocks) || 0) / 1000 * S.rocks * (row.proportion === undefined ? 1 : row.proportion);
@@ -704,6 +704,7 @@ var COVER_RING = (() => {
       const n = Math.round(per * C * C); let made = 0;
       for (let i = 0; i < n; i++) {
         const x = x0 + Rq() * C, z = z0 + Rq() * C, r1 = Rq(), r2 = Rq(), r3 = Rq();
+        if (band && !G.shore[G.at(x, z)]) continue;   // (the band's draws off the band: before the ground reads below)
         // the bench's GF.blotch: keeps 1 - blotch .. 1 by area; a rock takes it only when its row says `cluster`
         // (THE ROCKY SHORE: a foreshore's rocks lie in beds along the tide line, not evenly)
         if (blotch && row.cluster && r1 > blotchAt(x, z, sSeed)) continue;
@@ -742,7 +743,7 @@ var COVER_RING = (() => {
           if (Rq() > (1 - row.exposed) + row.exposed * L) continue;
         }
         const gk = G.at(x, z);
-        if (G.mix[gk] !== centreMix) continue;
+        if (band ? !G.shore[gk] : G.mix[gk] !== centreMix) continue;
         // NOTHING LIES ON A PAVEMENT (2026-09-22; G502's rule, kept whole, asked PER PIECE). A log has no
         // business on a runway, an apron, a road or a track. `kill` is 1 over a hard surface AND its drawn
         // band, falling to 0 over the 6 m fade past it - but a GRASS strip only ever thins the cover to 0.6,
@@ -1251,7 +1252,12 @@ var COVER_RING = (() => {
       // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
       const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G585)   // by: this cell's tally per species (STAT.by is the live sum)
       cells.set(cellKey(cx, cz), cell); markBlock(cx, cz);
-      if (!centreMix && !G.lawn && !G.nShore) { STAT.lastMs = performance.now() - t0; return cell; }
+      // VEG-NIGHT 23 Nov: a cell whose centre is on the lake has no mix and no shore point, but the lily pads' band is there -
+      // it went on to the water planter only when the centre was dry, so the pads came in one patch where a cell straddled
+      // the line (the user: "a little overcrowded patch in the middle of nothing"); the cheap centre test, the band's own after
+      const WET = !ROCKS && ctx.lakeSD && ctx.waterY && S.water !== false;
+      const wet = WET && (() => { const d = ctx.lakeSD(x0 + C / 2, z0 + C / 2); return d > -C && d < C * 1.75; })();
+      if (!centreMix && !G.lawn && !G.nShore && !wet) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
       const items = new Map();   // proto -> { pos: [], col: [] | null }
       // the instance record: x y z s yaw tx tz - tx/tz the ground's slope under a rock that `tilt`s to it (0 0 = upright)
@@ -1296,10 +1302,11 @@ var COVER_RING = (() => {
           const sSeed = hashStr(c.name);
           const isRock = rockish(c), isShrub = c.kind === 'shrub', tallCard = shapedOf(c) && (place.size || 0) >= 0.8;
           if (isRock) {   // the rocks and the debris: their own stream, shared with the rock map (placeRocks above)
-            if (band) continue;   // (the lake shore's band: its tufts, flowers and bushes; the stones stay the centre's)
+            // (the lake shore's band: its tufts, flowers and bushes - and, VEG-NIGHT 23 Nov, its own stones on its points: the user, "steeper
+            // banks ... should probably have some rocks"; its rows keep them to the steep (`exposed`), a gentle bank is the grass's)
             // (the split with the rocks' own ring: that ring keeps the big rocks, this one the small - by the rock's height in metres)
             const split = c.kind === 'rock' && (ROCKS || S.rockSplit > 0) ? S.rockSplit : 0;
-            const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, !split ? push : (p, x, y, z, s, yaw, col, tx, tz) => { if (((p.h0 || 1) * s >= split) === ROCKS) push(p, x, y, z, s, yaw, col, tx, tz); });
+            const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, !split ? push : (p, x, y, z, s, yaw, col, tx, tz) => { if (((p.h0 || 1) * s >= split) === ROCKS) push(p, x, y, z, s, yaw, col, tx, tz); }, band);
             if (made) { STAT.by[c.name] = (STAT.by[c.name] || 0) + made; cell.by[c.name] = (cell.by[c.name] || 0) + made; }
             continue;
           }
@@ -1418,7 +1425,7 @@ var COVER_RING = (() => {
         }
       }
       if (!ROCKS && ctx.edgeD && BIO.edgeOn) edgeBand(G, x0, z0, C, push, cell);   // FOREST-EDGE: the bushes and weeds on the open side of an edge
-      if (!ROCKS && ctx.lakeSD && ctx.waterY && S.water !== false) waterBand(G, x0, z0, C, push, cell);   // THE WATER PLANTS: the lily pads on the shallow lake
+      if (WET) waterBand(G, x0, z0, C, push, cell);   // THE WATER PLANTS: the lily pads on the shallow lake
       // the meshes: one InstancedMesh per prototype part
       const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
       let yLo = Infinity, yHi = -Infinity; for (const it of items.values()) for (let i = 1; i < it.xs.length; i += 7) { if (it.xs[i] < yLo) yLo = it.xs[i]; if (it.xs[i] > yHi) yHi = it.xs[i]; }

@@ -1696,9 +1696,9 @@
     },
     "water_lily": {
      "proportion": 1,
-     "density": 0.4,
-     "patch": 3.5,
-     "patchShare": 0.35,
+     "density": 0.35,
+     "patch": 5,
+     "patchShare": 1.6,
      "onWater": [
       0.5,
       7
@@ -1714,6 +1714,41 @@
      "patch": 8,
      "patchShare": 0.75,
      "size": 1.2
+    },
+    "rocks": {
+     "proportion": 0.5,
+     "size": 6,
+     "bury": 0.5,
+     "tint": 0.75,
+     "exposed": 1,
+     "cluster": 1
+    },
+    "coast_land_rocks_02": {
+     "proportion": 0.5,
+     "size": 1,
+     "bury": 0.187,
+     "tilt": 1,
+     "tint": 0.6,
+     "exposed": 1,
+     "cluster": 1
+    },
+    "coast_rocks_05": {
+     "proportion": 0.4,
+     "size": 1,
+     "bury": 0.242,
+     "tilt": 1,
+     "tint": 0.6,
+     "exposed": 1,
+     "cluster": 1
+    },
+    "sand_rocks_small_01": {
+     "proportion": 0.6,
+     "size": 1,
+     "bury": 0.264,
+     "tilt": 1,
+     "tint": 0.6,
+     "exposed": 1,
+     "cluster": 1
     }
    },
    "forest": {
@@ -1730,7 +1765,7 @@
     "blotch": 0.4,
     "blotchM": 14,
     "coverNear": 50,
-    "rocks": 0.5,
+    "rocks": 60,
     "ttype": 1,
     "spread": 0.2,
     "coverSpread": 0.3,
