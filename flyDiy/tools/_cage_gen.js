@@ -9889,6 +9889,10 @@ const CAGE_DEFAULT_ABSENT = { rodOn: 1, spinOn: 1,   // (CAR-1: the rod's tube a
   // aeroplane at train L40h (GATE STOL: "keys MOVED" on all six validated builds; SKIS, the def). Absent again at these
   // values; the Electric trainer's own card sets them and keeps them)
   frLeanCap: 0, boomRound: 0, boomRoundAt: 0.5, finVentralLand: 0,
+  // (MASTER-GREEN 23 Nov, train L40J: CESSNA-REFIT 5a34dcfca's three cowl rows, the same leak. Its message says "new garage
+  // rows, all absent at default", but keelLevel, deckLevel and deckFall were WRITTEN at 0 into every build the load door
+  // joined, and the four keys moved again for every aeroplane. Absent at 0; the 172's card sets them and keeps them)
+  cw_keelLevel: 0, cw_deckLevel: 0, cw_deckFall: 0,
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
   s1Ul: 0,                           // (WEIGHT STUDY L6: no ultralight monowheel)
   towHook: 0,                        // (no tow hook)
