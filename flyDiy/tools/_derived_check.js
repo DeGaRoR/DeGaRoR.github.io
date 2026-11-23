@@ -137,6 +137,13 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       const dk = Array.from(CH.derivedKeys());
       log('== list:' + p.n + ' ' + p.name + '  (' + how + ')  derived reads on: ' + (dk.join(' ') || 'none'));
       snap();
+      // (23 Nov, the PC-6 on Wiplines: a floatplane's CG handshake closes over a few builds - it stood 0.01 mm lower build
+      // after build, and ON, the first of the three, read as 458 objects off OFF on an aeroplane with no derived read and
+      // no overlay at all. The three are compared from a SETTLED aeroplane: plain builds until two in a row are the same
+      // scene and spec, six at most)
+      { let w0 = await stand(false), n = 1, eq = false;
+        for (; n < 6 && !eq; n++) { const w1 = await stand(false); eq = w1.h === w0.h && w1.fp.out.length === w0.fp.out.length && w1.fp.out.every((o, j) => o === w0.fp.out[j]); w0 = w1; }
+        if (n > 2 || !eq) log('   (settled: ' + (eq ? 'two builds the same after ' + n : 'NOT the same after ' + n) + ' builds)'); }
       const SA = await stand(false), SB = await stand(true), SC = await stand(true), sc = cmp(SA, SB, SC);
       stands++; if (!sc.same) bad++;
       const overOn = SA.all !== SB.all;
