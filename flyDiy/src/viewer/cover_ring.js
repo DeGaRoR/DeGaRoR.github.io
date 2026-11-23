@@ -349,12 +349,6 @@ var COVER_RING = (() => {
     const speciesOf = () => (pack ? pack.collections : []).filter(c => ROCKS ? c.kind === 'rock' : LAWN ? LAWN_SPECIES.includes(c.name) : FIELD ? FIELD_SPECIES.includes(c.name)
       : ['cover', 'shrub', 'rock', 'debris'].includes(c.kind) && !(ctx.owned && ctx.owned(c.name)) && (SHAPED_ON || !shapedOf(c)));
     const rockish = c => c.kind === 'rock' || c.kind === 'debris';
-    // VEG-NIGHT (23 Nov; GARAGE-VIEW's night captures: the yellow shrub cards and the fireweed GLOWED at night): the scene environment
-    // (the sky probe) lit these thin cards far over the ground beside them. Measured live at night (page v22): the scene's environment
-    // removed, or envMapIntensity 0 WITH a recompile on a material that has drawn, makes them as dark as the rest; envMapIntensity 0 at
-    // construction, a recompile alone and the IBL lines cut in the program did NOT (r186 hands a material without its own envMap the
-    // scene's environmentIntensity). So each flower / card material, ~1 s after it is made, takes envMapIntensity 0 and recompiles, once
-    const NO_ENV = [];
     // THE ROCK SKIN (MOUNTAIN-VEG 17 Nov; the user: "keep your models, which are good and different ... and texture them using the
     // method of the rocks there"): a rock's material (not the debris) takes the ROCK RING's boulder look - rock_ring.js skin(sh): the
     // game's 'cliff' photograph triplanar, toned to the ground's rock, moss on what looks up, the foot darker - with that ring's LIVE
@@ -454,7 +448,6 @@ var COVER_RING = (() => {
       // no normal override (the bench has none): upHook forced the object normal up on this
       // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
       LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m);   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
-      NO_ENV.push({ m, t: performance.now() });   // (VEG-NIGHT, below: its scene IBL off once it has drawn)
       if (c && shapedOf(c)) {   // the shaped cards' normals hold on both faces (see shapedCards): three's back-face flip undone, as a leaf's crown (trees.js uCrownN)
         const prev = m.onBeforeCompile;
         m.onBeforeCompile = sh => { if (prev) prev(sh);
@@ -1664,7 +1657,6 @@ var COVER_RING = (() => {
     let queue = [];
     const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
     function update() {
-      if (NO_ENV.length) { const tn = performance.now(); for (let i = NO_ENV.length - 1; i >= 0; i--) { const e = NO_ENV[i]; if (tn - e.t < 1000) continue; e.m.envMapIntensity = 0; e.m.needsUpdate = true; NO_ENV.splice(i, 1); } }
       { const live = skinRing(); if (live !== skinLive) { skinLive = live; for (const m of skinMats) m.needsUpdate = true; } }   // (the rock skin: on when the rock ring is)
       if (!S.on || S.off || !pack || !BIO) { if (root.visible) root.visible = false; return; }   // (S.off: the GRAPHICS row's 'off' - the field's own `on` is the A/B)
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
