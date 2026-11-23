@@ -19,8 +19,11 @@ for f in tools/boot_perf.js tools/load_brief.js tools/flight_script.js tools/per
   [ -f "$f" ] || continue
   if nice -n 19 node --check "$f"; then echo "syntax ok $f"; else echo "SYNTAX FAIL $f"; BAD=1; fi; done
 [ $BAD = 0 ] || { echo "syntax failed: no build"; exit 4; }
-if [ "$GATES" = none ]; then nice -n 19 node tools/build.js; echo "== build exit $?"
-else nice -n 19 node tools/run_gates.js --only=$GATES --jobs=1; echo "== run_gates exit $?"; fi   # (run_gates builds the tree first)
+if [ "$GATES" = none ]; then nice -n 19 node tools/build.js; RC=$?; echo "== build exit $RC"
+else nice -n 19 node tools/run_gates.js --only=$GATES --jobs=1; RC=$?; echo "== run_gates exit $RC"; fi
+# 23 Nov: a build that threw (version.json locked for an instant) left the old index.html and this script STOOD it as a new
+# build. A failed build or a red gate stands nothing: the folder that was there stays.
+[ $RC = 0 ] || { echo "the build or a gate FAILED (exit $RC): nothing is stood, $DEST is as it was"; exit 5; }
 [ -s dev.html ] && [ -s index.html ] || { echo "no built page: stop"; exit 5; }
 nice -n 19 node -e "require('./tools/_core_fresh.js').assertFresh(require('path').resolve('tools/flight_core.js'))" || { echo "the core is not this tree's: stop"; exit 5; }
 BUILD=$(cat version.json)
