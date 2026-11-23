@@ -244,7 +244,9 @@ function ledger(log, opt) {
     const gh = events.filter(e => e.kind === 'guardhold' && e.t >= s.t0 - 50 && e.t <= s.t1 + 50), names = [...new Set([].concat(...gh.map(e => (e.d && e.d.new) || [])))];
     return { t: r1(s.t1), s: r1(s.t0 / 1000), ms: r1(s.ms), frames: s.frames, keep: s.keep, by: s.by, open: !!s.open, ctx: ctxAt(s.t1 - 1), seg: segAt(s.t1 - 1),
       pending: [...byO.values()].sort((a, b) => b.pendMs - a.pendMs).slice(0, 8).map(g => ({ owner: g.owner, programs: g.n, pendingMs: Math.round(g.pendMs), readyBeforeEndMs: g.lastReady ? Math.round(s.t1 - g.lastReady) : null, never: g.never })),
-      pendingPrograms: P.length, heldMax: gh.reduce((a, e) => Math.max(a, (e.d && e.d.held) || 0), 0), heldFirst: names.slice(0, 10) }; });
+      pendingPrograms: P.length, heldMax: gh.reduce((a, e) => Math.max(a, (e.d && e.d.held) || 0), 0), heldFirst: names.slice(0, 10),
+      // (the lab's guard also says how many of the held draws are the GROUND family's - what ?holdframe=ground still holds a frame for; null where the event has no such count)
+      heldGroundMax: gh.some(e => e.d && e.d.ground != null) ? gh.reduce((a, e) => Math.max(a, (e.d && e.d.ground) || 0), 0) : null, guardFrames: gh.length }; });
   const stillOf = c => stills.filter(s => s.ctx === c), stillSum = L0 => ({ n: L0.length, over100: L0.filter(s => s.ms > FREEZE).length, over250: L0.filter(s => s.ms > HARD).length, worstMs: L0.length ? Math.max(...L0.map(s => s.ms)) : 0, totalMs: Math.round(L0.reduce((a, s) => a + s.ms, 0)) });
   for (const c of Object.keys(contexts)) contexts[c].stills = stillSum(stillOf(c));
   const W = contexts.world, G = contexts.garage, L = contexts.loading;
@@ -307,7 +309,7 @@ function text(R, show) {
   if (R.stills && R.stills.length) { L.push(''); L.push('THE PICTURE STOOD STILL (frames rendered and NOT presented - the draw guard held a draw; a still is ONE freeze, from the last picture shown to the next; read from ' + (R.stills[0].by === 'event' ? 'the page\'s still events' : 'the frames\' notShown flag') + ')');
     L.push('  ' + lp('at s', 9) + lp('ms', 9) + lp('frames', 8) + lp('context', 9) + lp('linking', 9) + '  the programs still linking over it (owner: programs, ms pending inside it, ready how long before its end)');
     for (const s of R.stills.slice().sort((a, b) => b.ms - a.ms).slice(0, 30)) L.push('  ' + lp(s.s, 9) + lp(s.ms, 9) + lp(s.frames, 8) + lp(s.ctx, 9) + lp(s.pendingPrograms, 9) + '  ' + (s.pending.map(p => p.owner + ': ' + p.programs + ', ' + p.pendingMs + ' ms' + (p.never ? ', ' + p.never + ' NEVER READY' : p.readyBeforeEndMs != null ? ', ready ' + p.readyBeforeEndMs + ' ms before' : '')).join(' | ') || 'no program linking over it') +
-      (s.heldMax ? '   [the guard held up to ' + s.heldMax + ' draws' + (s.heldFirst.length ? ': ' + s.heldFirst.slice(0, 4).join('; ') : '') + ']' : '') + (s.open ? '   (still held at the log\'s end)' : '')); }
+      (s.heldMax ? '   [the guard held up to ' + s.heldMax + ' draws' + (s.heldGroundMax != null ? ', ' + s.heldGroundMax + ' of them the ground family\'s' : '') + (s.heldFirst.length ? '; first held: ' + s.heldFirst.slice(0, 6).join('; ') : '') + ']' : (s.guardFrames === 0 ? '   [no guardhold event over it]' : '')) + (s.open ? '   (still held at the log\'s end)' : '')); }
   L.push(''); L.push('BY CONTEXT');
   L.push('  ' + pad('', 9) + lp('frames', 8) + lp('s', 8) + lp('>35', 7) + lp('>50', 6) + lp('>100', 6) + lp('>250', 6) + lp('worst', 8) + lp('excess>50', 10) + lp('blocks', 7) + lp('orange', 7) + lp('%', 6) + lp('red', 5) + lp('unattr %', 9));
   for (const c of Object.keys(R.contexts)) { const C = R.contexts[c];
