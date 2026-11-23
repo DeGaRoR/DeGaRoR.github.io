@@ -918,7 +918,7 @@ function make(THREE, host) {
   const BATCH = new Map();                          // 'key#part' -> { geo, mat, mesh, cap, idx: [] , shadow }
   let PROC = null;                                  // { cast: {mesh, cap, geoId: Map}, flat: {...} }
   let dirtyDraw = true;
-  const procMat = () => { const m = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.05, side: T.DoubleSide }); m.name = 'life:kit'; return m; };
+  const procMat = () => { const m = new T.MeshStandardMaterial({ userData: { progOwner: 'town / life / procedural kit' }, vertexColors: true, roughness: 0.82, metalness: 0.05, side: T.DoubleSide }); m.name = 'life:kit'; return m; };
   function procSet(shadow) {
     const ids = Object.keys(KIT);
     let nv = 0; for (const k of ids) nv += KIT[k].attributes.position.count;
@@ -1050,7 +1050,7 @@ function make(THREE, host) {
   function beaconSync() {
     if (beacon) { root.remove(beacon); beacon.geometry.dispose(); beacon.material.dispose(); beacon = null; }
     if (!MASTS.length) return;
-    const g = new T.SphereGeometry(0.18, 8, 6), m = new T.MeshStandardMaterial({ color: 0x300000, emissive: 0xff1a0a, emissiveIntensity: 1 });  // pre-ok: tick drives it x P
+    const g = new T.SphereGeometry(0.18, 8, 6), m = new T.MeshStandardMaterial({ userData: { progOwner: 'town / life / mast beacon' }, color: 0x300000, emissive: 0xff1a0a, emissiveIntensity: 1 });  // pre-ok: tick drives it x P
     beacon = new T.InstancedMesh(g, m, MASTS.length);
     const M4 = new T.Matrix4();
     MASTS.forEach((q, i) => { M4.makeTranslation(q.x, q.y + q.h + 0.25, q.z); beacon.setMatrixAt(i, M4); });

@@ -39,7 +39,7 @@ const CONTRACT_FIELDS = {
   mk_sea:   { id: 'mk_sea',   name: GAME_NAMES.fields.mk_sea,          x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
   mn_strip: { id: 'mn_strip', name: GAME_NAMES.fields.mn_strip,        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
   nv_strip: { id: 'nv_strip', name: GAME_NAMES.fields.nv_strip,        x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
-  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
+  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 282,   z: -7751,  len: 280,  surf: 'grass', alti: true, lit: true },
   // (G3014, the user 12 Oct: 'add them' - their rev 26 strips 10 and 11, contracts may land there)
   w5:       { id: 'w5',       name: GAME_NAMES.fields.w5,        x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: GAME_NAMES.fields.w6,        x: -4172, z: -22110, len: 312,  surf: 'dirt', lit: true },
@@ -53,6 +53,8 @@ const CONTRACT_FIELDS = {
   // (OBSERVATORY-SITE 13 Nov: the observatory's altiport on Mount Ardent, 210 m landed uphill to 1 039 m - in no provider's
   //  fields yet: the Game coordinator joins it to the jobs; OBSERVATORY-2 15 Nov: SNOW-MUD's powder - surf 'snow', skis)
   mt_strip: { id: 'mt_strip', name: GAME_NAMES.fields.mt_strip,      x: 9317,  z: -5962,  len: 210,  surf: 'snow', alti: true, lit: true },
+  // (AFB-0220, 13 Nov: 02/20 divided - the bumpy firm-mud lane east of the old concrete band; contracts may land there - STOL work)
+  xw_rough: { id: 'xw_rough', name: GAME_NAMES.fields.xw_rough,  x: 634,   z: -167,   len: 1000, surf: 'mud', lit: true },   // (firm mud, the user 13 Nov)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -102,6 +104,21 @@ const CONTRACT_TRACKS = {
   // buildings, one per step (the tower, the drum, the hall; the pillar stands from the start) - a PROJECT's track, no provider's:
   // nothing in play advances it yet (ECON_BOOK.landmarks 'observatory' is data only); the Game coordinator wires the project
   observatory: { max: 3, stages: ['trk.observatory.1', 'trk.observatory.2', 'trk.observatory.3'] },
+  // STORY-REVAMP (22 Nov, the user's backbone stories of the large missions): four PROJECT tracks, no provider's - a project's
+  // steps advance them (73b careerProjectsTick). The SANDBOX stands every one at its max: the final state the user edits;
+  // a story stage is that state minus what its band removes. No element of the record wears these tracks yet (the scenery
+  // is owed: reports/STORY-REVAMP.md, the gaps) - until then a step counts and its reveal says so (76_ world: false).
+  //   home       the player's own place (Cabin Strip w1, Cabin Lake cb_sea): 1 the strip made safe + a parking area, 2 the new
+  //              cabin across the strip, 3 the road to the lake, 4 the lake dock + the ATV cabin, 5 the larger dock + the
+  //              lakeside cabin, 6 the hangar enlarged
+  //   community  the remote community's new strip (w7; the old one is w6): 1 200 m of mud, 2 400 m past the worst of it,
+  //              3 graded (one bump level less), 4 1 km of gravel, 5 the tower, 6 the hangar, 7 the terminal
+  //   heritage   the totem site (East Point, nv_strip - never lengthened): 1 room to turn round, 2 the new totem raised
+  //   lumber     the camp north of Cedar Harbour (mk_sea): 1 the landing, 2 the camp, 3 the mill
+  home:      { max: 6, stages: ['trk.home.1', 'trk.home.2', 'trk.home.3', 'trk.home.4', 'trk.home.5', 'trk.home.6'] },
+  community: { max: 7, stages: ['trk.community.1', 'trk.community.2', 'trk.community.3', 'trk.community.4', 'trk.community.5', 'trk.community.6', 'trk.community.7'] },
+  heritage:  { max: 2, stages: ['trk.heritage.1', 'trk.heritage.2'] },
+  lumber:    { max: 3, stages: ['trk.lumber.1', 'trk.lumber.2', 'trk.lumber.3'] },
 };
 
 // ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
@@ -471,6 +488,24 @@ const CONTRACT_TEXT = {
   'trk.observatory.1': CT_('The observatory\'s instrument tower on ' + GAME_NAMES.mountain),
   'trk.observatory.2': CT_('The observatory\'s station'),
   'trk.observatory.3': CT_('The observatory\'s hall'),
+  'trk.home.1': CT_('Your strip, smoothed and drained, with room to park'),
+  'trk.home.2': CT_('The new cabin across the strip'),
+  'trk.home.3': CT_('The road down to the lake'),
+  'trk.home.4': CT_('The lake dock and the little cabin with the ATV garage'),
+  'trk.home.5': CT_('The long dock and the lakeside cabin'),
+  'trk.home.6': CT_('Your hangar, big enough for the big ones'),
+  'trk.community.1': CT_('The community\'s first two hundred metres, in the mud'),
+  'trk.community.2': CT_('Four hundred metres, round the worst of the mud'),
+  'trk.community.3': CT_('The strip graded: one bump less'),
+  'trk.community.4': CT_('A kilometre of gravel on the muskeg'),
+  'trk.community.5': CT_('The community\'s little tower'),
+  'trk.community.6': CT_('The community\'s hangar'),
+  'trk.community.7': CT_('The community\'s terminal'),
+  'trk.heritage.1': CT_('Room to turn round at the totem site'),
+  'trk.heritage.2': CT_('The new totem, raised'),
+  'trk.lumber.1': CT_('The lumber camp\'s landing'),
+  'trk.lumber.2': CT_('The lumber camp'),
+  'trk.lumber.3': CT_('The camp\'s mill'),
   // goods (the load words)
   'goods.mail': CT_('mail'), 'goods.tools': CT_('tools'), 'goods.crew': CT_('crew'),
   'goods.parts': CT_('parts'), 'goods.samples': CT_('ore samples'), 'goods.rods': CT_('drill rods'),

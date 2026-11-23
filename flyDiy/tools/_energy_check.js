@@ -710,6 +710,12 @@ if (SHOW) for (const s of seen)
     'look: the join carries the set and the hue into the build');
   check(/\(kud\.vesSet \? 'v' \+ kud\.vesSet \+/.test(jn),
     'look: ...and a tank never merges into a cage section of the same colour');
+  // TANK-PAINT (the user 21 Nov): a shell can be painted like the airframe - AEROSKIN's own sheet in the tank's colour, no
+  // scanned grunge multiplied under it, weathering with the airframe; the not-fit red and every scanned finish unchanged
+  check(/airframe: \{ name: 'painted like the airframe', set: null, col: 0x[0-9a-f]{6}, skin: 'alclad' \}/.test(en2) &&
+        /if \(slot === 'shell' && !bad && FINISH\[fin\] && FINISH\[fin\]\.skin\) \{ const m = skinShellMat\(v, FINISH\[fin\]\.skin\); if \(m\) return m; \}/.test(en2) &&
+        /return A\.aeroMaterial\(THREE, \{ finish: skin, tint,/.test(en2),
+    'look: a tank can be painted like the airframe (the skin factory, its tint, its wear) and not only scanned sheets');
   check(/const uAttr = geo\.attributes\.uv;/.test(jn) &&
         /if \(G3\.uv\) \{/.test(jn) &&
         /uv: \(g\.uv && g\.uv\.length\) \? new Float32Array\(g\.uv\)/.test(jn),

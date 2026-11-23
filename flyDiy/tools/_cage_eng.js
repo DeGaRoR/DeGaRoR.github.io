@@ -1189,13 +1189,13 @@ const matOf = name => {
   }
   if (!matCache[name]) {
     const [met, rgh] = EP.PROPS[name] || [0.55, 0.5];
-    matCache[name] = new THREE.MeshStandardMaterial({
+    matCache[name] = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / engine / part fallback' },
       color: new THREE.Color(EP.COL[name] || EP.NEUTRAL),
       metalness: met, roughness: rgh, side: THREE.DoubleSide });
   }
   return matCache[name];
 };
-const propM = new THREE.MeshStandardMaterial({
+const propM = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / propeller / wood fallback' },
   color: 0xc79a63, metalness: 0.0, roughness: 0.62,
   side: THREE.DoubleSide });
 // THE PROPELLER'S MATERIAL IS A CHOICE, not a name — the cowl bench's own
@@ -1863,7 +1863,7 @@ function engPlace(ctx, prev) {
       }
       u.propFit = { ok: !why.length, why, R, hub: u.prop.hub, wingHits, bodyHits, n };
       if (why.length) {
-        const bad = new THREE.MeshStandardMaterial({ color: 0x7a1a12, roughness: 0.6, metalness: 0.1,
+        const bad = new THREE.MeshStandardMaterial({ userData: { progOwner: 'editor / propeller fit / clash red' }, color: 0x7a1a12, roughness: 0.6, metalness: 0.1,
           emissive: new THREE.Color(0xff2a1a), emissiveIntensity: 0.45 });
         u.prop.group.traverse(o => { if (o.isMesh) o.material = bad; });
       }

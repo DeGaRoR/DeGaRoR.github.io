@@ -4409,7 +4409,12 @@ const AERO_ALBEDO_FS = `
       vec2 dd = boxC;
       if (mode < 0.5) onMe = 0.0;
     #endif
-    float cr = cos(uDecC[di].x), sr = sin(uDecC[di].x);
+    // REG-TURN-MIRROR (the user 21 Nov: "For the 2 sides registration, the turn parameter should be applied the other
+    // direction to the other face, otherwise they drift in orientation"): a mirrored face (the far flank, the underside)
+    // lays the letters along a negated axis, so the same turn tilts them the other way in space - one rising aft, the
+    // other fore. The turn takes the face's own mirror sign (the one its coordinate used); paint (noMirror) keeps 1.
+    float dsg = mix(mix(mir, smir, step(0.5, mode)), pmir, step(1.5, mode));
+    float cr = cos(uDecC[di].x), sr = sin(uDecC[di].x) * dsg;
     dd = vec2(dd.x * cr - dd.y * sr, dd.x * sr + dd.y * cr);
     vec2 q = dd / uDecA[di].zw * 0.5 + 0.5;
     vec2 ib = step(vec2(0.0), q) * step(q, vec2(1.0));
@@ -5074,7 +5079,7 @@ function aeroGlassTint(THREE, o) {
     const col = o.tintLin != null ? new THREE.Color(o.tintLin)
               : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
     const uTint = T.uniform(col), uA = T.uniform(G('opacity')), uFres = T.uniform(G('fresnel'));
-    const m = new THREE.MeshBasicNodeMaterial();
+    const m = new THREE.MeshBasicNodeMaterial({ userData: { progOwner: 'aircraft / glass / pane (TSL)' } });
     const nv = T.clamp(T.dot(T.normalView, T.positionViewDirection), 0.0, 1.0);
     const fr = T.pow(T.oneMinus(nv), 5.0).mul(uFres);
     const pass = T.mix(T.vec3(1.0), uTint, T.clamp(uA.mul(2.0), 0.0, 1.0));
@@ -5096,7 +5101,7 @@ function aeroGlassTint(THREE, o) {
   const col = o.tintLin != null ? new THREE.Color(o.tintLin)
             : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
   const W = aeroWx();
-  const m = new THREE.ShaderMaterial({
+  const m = new THREE.ShaderMaterial({ userData: { progOwner: 'aircraft / glass / pane (shader)' },
     uniforms: Object.assign({ uTint: { value: col }, uA: { value: G('opacity') },
                 uFres: { value: G('fresnel') },
                 uWearK: { value: o.wear != null ? Math.max(0, Math.min(1, +o.wear)) : 1 } },
@@ -5126,7 +5131,7 @@ function aeroGlassTint(THREE, o) {
 let AERO_GNONE = null;
 function aeroGlassNone(THREE) {
   if (!AERO_GNONE) {
-    AERO_GNONE = new THREE.MeshBasicMaterial({ visible: false });  // pre-ok: invisible (visible: false)
+    AERO_GNONE = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / skin / hidden group (never drawn)' }, visible: false });  // pre-ok: invisible (visible: false)
     AERO_GNONE.userData.aeroskin = 1;
   }
   return AERO_GNONE;
@@ -5440,6 +5445,8 @@ function aeroMaterial(THREE, o) {
     m.clearcoatRoughness = row.ccR != null ? row.ccR : 0.2;
     m.transmission = 0;
   }
+  // PERF-TRACE (program_id.js): whose programs these are - the aeroplane's skin, by what it is and its finish
+  m.userData.progOwner = 'aircraft / skin / ' + (o.struct ? 'structure' : o.inside ? 'cabin liner' : 'surface') + ' (' + (o.finish || 'plain') + ')';
   m.userData.aeroU = U;
   m.userData.aeroD = aeroDecUniforms(THREE);
   m.userData.aeroskin = 1;             // the G38 understudy must skip this
@@ -5545,7 +5552,7 @@ function aeroGlass(THREE, o) {
     uGlassE: { value: new THREE.Vector4(ext[0], ext[1], ext[2], ext[3]) },
     uGlassB: { value: new THREE.Vector4(G('fresnel'), G('diffuse'), 0, 0) },
   };
-  const m = new THREE.MeshPhysicalMaterial({
+  const m = new THREE.MeshPhysicalMaterial({ userData: { progOwner: 'aircraft / glass / pane (physical)' },
     color: o.tintLin != null ? new THREE.Color(o.tintLin)
          : aeroLinear(THREE, o.tint != null ? o.tint : 0xaec9d8),
     // G206: the bulk is nearly a mirror and the clear layer carries the

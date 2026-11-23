@@ -318824,3 +318824,295 @@ D:/Dev/flydiy-notes/evidence/perf-check-L40J-2026-11-23/): no regression against
 THE BOX (22-23 Nov): CPU tokens (cpu_token.sh v9: a plain run starts under the governor's MAX 1-4 and < 90 C), trains hold
 tokens only for the gates they run (train_tokens.sh), GPU work HEADED in visible windows (the user 22 Nov), quiet windows for
 the perf checks. Next: L40K (the user's fixes + the story revamp), L40L (the physics audit), L40M.
+## PERF-TRACE - THE ENGINE EXPLAINS ITSELF: every program named by its owner, what each loading step waited for, the freeze ledger (PERF-TRACE, 22 Nov 2026; claude/perf-trace on claude/perf-codex)
+THE USER (21-22 Nov): "requiring new shader programs to identify themselves and their dependencies"; "retro fit shader identity and force the new
+ones to explicitly declare themselves". The independent review (reports/ARCHITECTURE-PERF-REVIEW-2026-11-20.md): attribution before coordination.
+Nothing here changes a pixel, a program key or a shader text; everything reads ONE file, the flight recorder's log.
+
+THE DECLARATION (src/viewer/program_id.js): a material says whose it is, `material.userData.progOwner = 'feature / system / variant'` (a string,
+or an array: a shared material has several owners). Forms: the key in the constructor's literal (`userData: { progOwner: '...' }`), MATLIB's
+owner argument (`make(THREE, shape, params, owner)`, `shared(.., scope, owner)`, `arr.material(THREE, { owner })` - outside the share signature),
+`PROGRAMS.own(m, owner)` (adds), or `m.userData.progOwner = ...` just after. NEVER in customProgramCacheKey, a define, the GLSL or material.name
+(three r186 writes the name into every program: `#define SHADER_NAME <material.name>`). A clone and a warm-up twin are their source's; a warmed
+depth program is its casters' ('shadow pass / depth <- town / houses / walls', shader_warm.js). Every site in src/ and in the generators the build
+ships from tools/ is labelled; the FEATURES (first word) are tools/program_sites.js FEATURES - the decision table's rows.
+
+THE REGISTRY (program_id.js, hooked by flight_recorder.js; off under ?rec=0 and ?progid=0; ?progid=lite = no source hash): one row a
+gl.linkProgram. link number -> three's WebGLProgram (info.programs.push: its .program IS the GL object) -> the materials renderer.compile()
+returns / the rendered scene holds (properties.get(m).programs) -> their owners. READY = the bracket of THREE'S OWN poll (COMPLETION_STATUS_KHR,
+asked by compileAsync / the shaders' screen / the pacer): last seen pending, first seen ready. NO GL CALL IS ADDED (a status poll of its own
+changed the benchmark it measured: Codex). First use and its cost (from three's first status query to the switch), a draw HELD on a link
+(the blocking query, ms), made in compile / render (LATE) / shadow, the source's hash and size, the prefix #defines (the variant).
+Log events: 'prog' { n, id, name, type, own, mat, obj, key, fp, vs, fs, ctx, step, rt }, 'progready' ms [n, lastPending, via, polls],
+'proguse' ms n, 'linkwait' ms n (it names its program now); the saved log's `programs` table (with the defines and a census of the holders),
+`resources` (the browser's resource timing, buffer raised to 4000), `premises` (the stream's slow builds and dearest frame).
+ALSO NEW IN THE LOG: 'gpuup' ms { at, tex: [calls, ms, megapixels, compressed KB], buf: [calls, ms, KB], sub: [calls, KB], mip, geo, texNew } - a
+frame that made 1 ms or more of GPU data (texture / buffer creation timed; bufferSubData counted, no clock); 'premslow' { built: [[id, ms]], worst }
+on a frame whose premises slot took 60 ms or more; 'act' { a: 'garage-change' | 'world-to-garage' | 'interior-view', s } (objectives 5, 4, 6).
+A STREAMER SAYS WHAT IT DELIVERED with FLIGHT_REC.event('deliver', ms, { s: 'cover', n, what }) - the ledger prints it under the frame.
+COST: 0.05-0.1 ms a program (the hash of ~60 KB of GLSL), a WeakMap read a program switch and a status poll, nothing on a draw.
+
+THE TOOLS (each: node tools/<tool>.js <flydiy-flightlog-*.json[.gz]>; the usage is at the top of the file)
+- program_report.js: per loading step, the programs submitted / awaited / still pending, the LAST one ready and the gap to the step's end
+  ("ended WITH its last program" = it waited on that link); per second submitted / seen ready / in flight against the pacer's N; a step is
+  QUEUE-BOUND (in flight at N), HEAVY-BOUND (one program, alone) or PAGE-BOUND (below N); each program's pending time, PENDING SHARE (the link
+  queue's wall time it stands for: an upper bound, not a CPU measurement) and CROWD; by owner; unowned, late, held, never drawn, the largest
+  sources, programs held under 2+ material names. `--pin garage-cold|world-noon|world-night [--until garage|reveal|s] [--reason "..."]`
+  writes tools/perf/program_owners.json (a feature whose count rose is refused without the reason).
+- freeze_ledger.js: every frame over 50 ms with what is KNOWN to have filled it and an explicit UNATTRIBUTED remainder; overrun / spike /
+  outside; what ARRIVED in it (GPU data, programs first used, deliveries, premises built); rows 7-10 of PERF-OBJECTIVES.md. Row 9 over BOTH
+  windows, by name: 20-second blocks (the table) and perf_trace.js's 120-frame meter windows. Orange = 35 ms: flight_recorder.js's own meter line.
+- load_timeline.js: a Chrome-trace JSON (ui.perfetto.dev, DevTools) - lanes: milestones, the loading steps by their own names, the loop, tasks,
+  network, programs by owner, held draws, scene; arrows ONLY where a link is recorded (a step that ended with its last program) or declared
+  (TRIP_STEPS deps) - and per step what BOUND it: main thread / programs / network / NOT PROVEN (workers leave no event yet).
+- decision_table.js: per feature and system: programs, link-queue share, own steps, frame ms, freeze ms; the marginal delay to garage / to
+  flight is UNKNOWN unless a measured on / off pair is given (--ab).
+- program_sites.js: every material site and how it declares its owner (--todo: the undeclared; --owners: every owner string).
+GATE PROGRAMS (tools/_program_check.js; parts 6-8 in tools/_progid_check.js): 6 the real three on the fake GL with the recorder and the registry
+hooked - the link tied, the owner the declared one and in no key or source, late programs, the bracket, held draws, first use, GPU data, the
+context asked exactly what it is asked without the registry; 7 EVERY MATERIAL SITE DECLARES ITS OWNER (a new material without one fails with its
+file and line); 8 the standard boots' census: none unowned, a rise has its reason. (Part 4's sandbox was given the real probeLightPadding: the
+gate threw before its verdict on perf-codex.)
+KNOWN, OLDER THAN THIS WORK: GATE FLIGHTREC fails 3 app.js source checks on claude/perf-codex itself (begin / end round the frame clock,
+holdRender to PACE.end, worldPrelinkGfx).
+
+PERF-TRACE 2-5 (22 Nov, after the first cold captures; the report: reports/PERF-TRACE-COLD-BOOT-2026-11-22.md)
+- THE VARIANT'S REAL AXES: the fragment prefix's #defines are not the whole variant. program_id.js bodyTags() reads, in idle time, what three
+  writes into the BODY: LIGHTS=dir.point.spot.hemi, SHADOWS=dir.point.spot, CLIP=n, TONE=, OUT=sRGB|linear, OPAQUE, DITHERING, a hook's own
+  switches (DMG_* / GD_* / BAND_*, FLOWN_FADE). A row's `body`, appended to its `defs`. tools/program_matrix.js prints a FAMILY (default
+  'aircraft / skin') on those axes - kind, side, near, hook, lights, output, target - with programs, KB, pending share and drawn per value and
+  per combination, and two loads side by side (`--against other.json`). The finish is a uniform: it multiplies nothing.
+- NEVER DRAWN, by target / step / owner (program_report.js): linked in this log and no gl.useProgram of it.
+- THE UPLOADS OF A STEADY FRAME BY OWNER: ?recup=1 (off by default) wraps three's three needsUpdate setters; the log's `uploads` names each
+  buffer / texture marked, its owner, frames, bytes and whether its content CHANGED (a sampled hash, 1 frame in 32). The header's `gpuData` is
+  the run's total (always on); the 'gpuup' event fires only on a frame that CREATES 1 ms or more of GPU data.
+- ?recring=131072 | 262144: a longer frame ring for one run (28 / 57 MB; the default 65 536 unchanged). The header's `seen` and the 'focus' /
+  'vis' events: was the page visible and focused (a hidden page's frames mean nothing).
+- tools/load_brief.js: ten lines a load (--steps a,b --miss S for a warm visit). tools/perf/log_capture.js: a cold load on page_rig.js, saved
+  as flightlog-<tag>.json + capture-<tag>.json (package temperature, hashed cache keys; --compare a b: do two loads key the same programs).
+- THE WORKERS (PERF-TRACE 5; flight_recorder.js THE WORKERS): every `new Worker(` of the game gives the standard `name` option
+  ('feature / system / what': the worker's self.name, the thread's name in DevTools); the recorder wraps window.Worker and keeps, per worker:
+  made / ended / first sent / last reply, and per 250 ms bucket [bucket, sent, received, the main thread's ms in the reply's handler, requests
+  still out]. Header `workers` (totals), log `workers` (buckets), events 'wk', 'wkend', 'wkmsg' ms name (a reply handler of 16 ms or more).
+  What a worker COMPUTES is not measured. load_timeline.js: a lane a worker, and a step is bound WORKER when it ends with the reply of a worker
+  that had a request out for more than half of it and is not in constant traffic (the sim host answers every frame: listed, never named).
+  freeze_ledger.js names 'worker reply handled: <name>' in a frame. COST: one clock read a message sent, two and a wrapper call a reply; no
+  message is copied or delayed. ?recwk=0 leaves the page's Worker untouched. GATE PROGRAMS part 9: every Worker site is named (a new one
+  without a name fails with its file and line), the wrapper on a fake page, the timeline's rule.
+- STILL OPEN: the census of the standard boots is NOT pinned (tools/perf/program_owners.json): the 22 Nov cold load had 61 unowned programs,
+  whose materials the next capture names (an unowned row now describes its material and the object wearing it). A session longer than the
+  ring is saved from the store WITHOUT the programs / workers / uploads tables (storedParts): capture with ?recring for a long run.
+
+PERF-TRACE 6 (22 Nov, after the 14:00 slot; the journey's log showed what the instruments missed)
+- THE UPLOADS' TABLE REPAIRED (?recup=1). The journey named 1.4 MB of 5 255: the list of drawn scenes kept the FIRST 64 ever rendered (the
+  boot's bakes) and never the world's - it is now the 64 drawn most RECENTLY; bytes were counted a mark, not a frame; an object gone by the
+  save had no trail - at its FIRST mark it now keeps who marked it (function@file:line, three's own frames skipped) and what it is.
+- THE GL'S OWN TABLE (`uploads.gl`): every bufferData / bufferSubData / texImage call, a row per ARRAY or IMAGE it read (calls, frames, bytes,
+  the caller, the owner where a drawn scene holds an attribute or texture with that very array). Raw GL uploads (skin_gpu.js) have rows too:
+  the needsUpdate marks were 122 KB a frame against 3.4 MB of bufferSubData at the GL. `bufferData` alone = made and never updated.
+- ?recup=2 = ?recup=1 + a naming walk of the four scenes drawn last every 256th frame: a buffer made new every frame is gone before the save,
+  the walk names one in 256 of them for good. The walk is a spike of the diagnostic's own, logged 'recupwalk' and named as such by the ledger:
+  =2 for a run that asks WHOSE, =1 for a run that also counts freezes.
+- 'laps' EVENT: when each lap of the loop ended, with the draw calls, triangles and GPU-data counters so far - for a frame whose work reached
+  50 ms and for one frame in 256 (?reclaps=N). tools/slot_frames.js: for the frames where ONE slot ran long, what the events say happened
+  inside it (first uses, links, held draws, deliveries, GPU data), the programs by the target they were keyed for (linked at the load / first
+  used in flight), a stretch of the flight against the rest (--from --to), the slot over time. Without laps the slot's window is an estimate.
+- tools/big_uploads.js: every frame with 30 ms+ of new GPU data: its shape, which slot ran long in that frame or the 3 before against that
+  slot's base rate, the eye's place, and the far terrain's unit test (are the bytes whole numbers of nodes?). ON THE JOURNEY: 35 of 37 are
+  whole nodes at patch 32 and `world` is long in the same frame for 39 of 51: render_world.js buildQuad re-sends a whole quadrant (12-44 MB)
+  when one node changes level. buildQuad now reports itself: 'deliver' { s: 'far terrain', n, was, kb }.
+- tools/program_diff.js A B: two loads - the steps, the source texts only one linked (by owner), the heavy programs' submit / ready in both,
+  the whole load by light signature. tools/program_matrix.js: a family on its real axes.
+- THREE'S HELPERS (GridHelper, BoxHelper, Box3Helper) make their material themselves: declared just after (helper.material.userData.progOwner),
+  and the scanner holds them to it. Render targets named for the programs' table: 'water mirror', 'water hull reflection' (33 others read
+  'rt WxH': name them as they come up - a texture's name is in no program key).
+- FOUND ON 22 Nov, NOT FIXED HERE (PERF-LEAD's): the pavement program (202 KB) is pending 52-66 s in every load and each load ends ~12 s after
+  it is ready; a warm visit re-links the 190 KB+ programs (the skin family) as if cold; every load links 86 programs for light signatures a
+  load plus a departure never draws (1.3.6.0: the hangar's second state; 2.0.0.1 / 2.8.0.1); lampsfixed=1 ADDS the night signature and still
+  links 75 of the day one.
+## COMPOSITE-FIBRE (G4104) - a cracked laminate holds by its fibres (Deform, 18 Nov 2026, WIP for L40g)
+The user (18 Nov, the electric trainer's nose-down, with 5 real composite wreck photos): the wing "exploding into panels
+that end up perfectly cut ... these things are really getting torn"; the real wrecks keep their wings (a spar broken, the
+skin torn round it), the fuselage / cockpit crushed, at most cut in half. 30_solver: carbon / glass members (tetherKind 3)
+keep a tension tether at their crack - their own crack in tension or a bend's core / fold, or a crushed (kinked) laminate;
+not a joint letting go, a part cut, the gear - GEN_DMG_TETHER.rComp 0.2 x fu, torn once stretched eComp 0.04 past its
+length at the crack (b.Lb); the joints count it as keeping rComp (tetherKeep / tetherGroups). Checked in node only: every
+live tether within 1.03 x its length (a first cut left the kinked carbon's Lb unset: 7.4 x, fixed); the Super Petrel
+tree100 1 piece (95 %), nosedown 4 big pieces (top 42 %) on one run - yesterday's 2 (59 %), the nose-down's spread is
+wide. OWED: the gates (DMGCOMPOSITE first, then the damage set), the electric trainer's crash stills (its branch
+electric-trainer-2 merged with this), and the composite skin torn ragged at a crack if the stills still show clean cuts.
+The user, 22 Nov, on the electric trainer stills (flydiy-notes/evidence/composite-fibre-2026-11-18/): "I'm OK with this last fix, please submit ... for inclusion in next trains".
+## WINCH - THE GLIDER WINCH LAUNCH: THE WINCH DRAWN AND WEATHERED, THE LINE TO A FIXED DRUM, THE START CHOOSER'S 'winch' (13 Nov 2026, cloud; branch claude/sailplane-launch-study-176kdv, master 23ce68c1f + claude/tow-launch-onmaster 480ea6df merged in)
+
+The user (13 Nov, via A0): "why wouldn't you plan for the winch, and why wouldn't we do a 3D model for that? ... a very
+specialized piece of equipment"; then "full weathering ... the plane or the building methods, or both"; "middle option,
+and take the wheels from the cars sessions, get the ones from the van"; "you may start on the implementation". The
+study before it: futureDesigns/glider-launch/STUDY.md (aerotow / car tow / the trailer / the winch, the probes).
+
+- **THE WINCH, A PROP** (`tools/_winch_gen.js`, WINCH_GEN; the tower generator's grammar: DEF / ROWS / PRESETS / PAINTS /
+  build(P) -> THREE.Group, DIM / KIT for a placer): a twin-drum trailer winch - tandem chassis on leaf springs, the deck at
+  1.0 m, A-frame drawbar and jockey wheel, four stabiliser legs; the engine housing (V8 / diesel / electric) with its
+  grille, louvres and stack; two narrow drums (core 0.80 m, flanges 1.16 m) on one shaft with disc brakes; a levelwind per
+  drum; the rear fairleads with their GUILLOTINES; the mesh cage; the driver's cab facing aft down the cable, its window
+  grilled, the amber beacon; the cable out to the drogue, strop, weak link and rings. THE VAN'S WHEELS: the CAR session's
+  Field Wagon (builds/vehicles/utility_2026-11.json) drawn by GEAR_GEN.wheel with its saved rows (VAN_WHEEL: TYRE 2 x 1.4
+  wide, rim 0.5, six bolts, cap, valve, R 0.45); plain discs when the gear kit is not on the page. Each part carries
+  `aBox` (its half extents and kind) for the weathering's edges; `userData.wx` the weather's sources.
+- **THE WEATHERING, BOTH METHODS** (`tools/_winch_weather.js`, WINCH_WX): the BUILDINGS' scans (house_tex.js's steelgrey
+  / steelrust / rust / galv, triplanar at their own tile; paint as a neutral-map grain under the tint), the house's
+  DIRT_EXPR splash line and age tone; the AEROPLANES' four macros (age / use / field / rain, aeroWxResolve's rule), the
+  grunge sheet (aeroWxGrunge) and AERO_WX_COL, sources placed (the stack's plume, the wheels' mud, grease at the drums,
+  rollers, gearbox and hitch), chips at each part's own edges down to primer and rusting steel, no shiny dirt (grease the
+  one glossy). THE CLUB LOOK on every build (the user's "middle option"). Found tuning it: fade + age tone + rain streaks
+  together washed the yellow to cream - each halved, and the fade bleaches toward the paint's own lighter colour.
+- **THE PHYSICS** (`src/vehicle/winch.js`, pure): tow.js's line with the far end FIXED (the fairlead) and its rest length
+  reeled in at the drum's speed (stretch rate -v_hook.u + v_drum; per-substep exact - nothing moves at the far end); THE
+  CG HOOK (winchHookNodes: a point 0.25 m ahead of the CG on the belly, the pull shared by the belly's two bracketing
+  frame stations) - ON THE NOSE HOOK THE LAUNCH FAILED: the pull held the nose down, the elevator full up, the pitch
+  falling from 30 to 7 deg, 187 m off 1000 m; the DRUM (150 kW, 9 kN cap, 350 kg equivalent, 32 m/s) and its DRIVER (the
+  slack taken up at 2 m/s, the ground run opened over 1.5 s but never pulling past 1.1 x the glider's weight - full power
+  at once snatched the 249 kg glider off a 3.9 kN link in 3 s - the glider's airspeed held in the climb by a PI, the pull
+  capped at 1.3 W, easing off past 50 deg, the brake after the release, the GUILLOTINE past 80 deg or 2.2 W); the
+  releases (the back-release at 70 deg, slack at the top, the cable wound in, the weak link 1.6 W, the key); the hands
+  (makeWinchHands: the ground run, 7 deg off the ground, the climb to 42 deg by height, the nose lowered when slow and as
+  the line steepens). Same surface as tow.js's line, so the page's tow plumbing drives it.
+- **THE PAGE** (`src/viewer/winch_mode.js`, WINCH_MODE, lazy with winch.js / tow.js / the two tools): the start chooser's
+  `winch:HOME` (ok on Jolene AFB, was "not built yet"), START.mode 'winch'; towTick lines the glider up, the motor off,
+  and calls winchStart: the winch built and weathered at the end of up to 1000 m of cable along the runway (the fairlead
+  on the centreline, the drawbar away), the cable drawn with its sag, laid on the grass and reeled in after the release.
+  app.js: towOn() answers WINCH_MODE first (its tow hooks: towPre / towPost / towDraw / towWords / towRelease / towStop
+  and `tow` with kind 'winch'), so the R key, the plate ('winch launch'), the inline flight, the restart and the
+  autopilot's handover (launchHandOver) are the car tow's. MANIFEST.lazy +4.
+- **GATE WINCH** (`tools/_winch_check.js`, core, ~6 min; run_gates row after TRAILER): LAUNCH (1000 m: lift-off 3.9 s,
+  the climb at 22.4-23.8 m/s against 23.5, released at 275 m by the back-release, 2.79 kN at most), GLIDE, RELEASE (the
+  key at 100 m, the drum braked), WEAK (1.5 kN breaks in the roll), CUT (no back-release: the guillotine at 274 m),
+  SHORT (600 m: 135 m), AUTOPILOT (CLIMB -> GLIDE), CIRCUIT (released at 275 m, the glider's circuit, landed on the
+  runway 7.4 m off the centreline, sink 0.40), PERF, MODULE (winch_mode.js run in node on a three scene: the winch drawn
+  and weathered at the far end, a launch by the hands, the plate's words, towStop clean), PAGE (the wiring by source).
+- **NOT DONE / OWED**: the page not flown in a browser (the island boots ~9 min under SwiftShader; MODULE runs the page's
+  half in node, PAGE checks app.js by source); no collision with the winch (the glider is released short of it); one
+  cable of the two used; no winch sound; the winch not in the world outside a winch launch (a scenery placement - the
+  KIT numbers are ready); a pure 0-engine sailplane card still owed (the motorglider flies with its motor off).
+- **WINCH 2 (A0, 13 Nov: "installed PERMANENTLY at Jolene AFB ... PBR materials, reusing the game's existing ones")**:
+  every winch material is a PBR MeshStandardMaterial made by MATLIB.shared in the `winch` scope (GATE ASSETS' rule; the
+  scope keeps the weathering hook off every other family's shared material); the cage's mesh was unlit LineSegments - now
+  thin square bars, one merged geometry, painted steel (it casts its grid's shadow); the scans in the game are the house
+  library's own Images (HOUSE_TEX_SETS - fetched once, shared with the buildings); the weathering's prop space is per
+  placed winch (an inverse world matrix on the group, set before each of its meshes draws). FOUND: the cage's alias
+  (MAT.mesh = MAT.trim) set before the role loop re-tagged trim 'mesh' - 63 meshes unweathered; the alias after the loop.
+  A PERMANENT WINCH: winch_mode.js uses any WINCH_GEN group standing on the centreline ahead (userData.winchProp, its
+  fairlead 300 m+ away) instead of setting one up, and leaves it standing (MODULE row). WINCH_GEN.fairlead(group, drum).
+  The placing session's notes: futureDesigns/glider-launch/WINCH-PLACEMENT.md. GATE ASSETS is red on master's merge of
+  the car branch (tools/_cowl_gen.js, 2 material sites) - not the winch's.
+
+
+## AFB-0220 WINCH - THE GLIDER WINCH INSTALLED PERMANENTLY AT JOLENE AFB, ONE PER DIRECTION OF 13/31 (13 Nov 2026, cloud AFB-0220 for A0; claude/afb-0220-winch, stacked on claude/sailplane-launch-study-176kdv)
+- The user (13 Nov via A0): "THE GLIDER WINCH, installed PERMANENTLY at Jolene on the main runway 13/31 ... CHECK it uses PBR materials". Two editor objects { kind: 'prop', key: 'gen:winch' } in tools/fixtures/island_jolene.json: xw_winch13 (-359.51, 136.34) yaw 0.8552 serves 13; xw_winch31 (-209.03, 267.17) yaw -2.2864 serves 31. Each 25.5 m NE of the centreline (the van 1.5 m off the paved edge), its fairlead 1000 m from its direction's start (60 m in from the end), facing it. The world editor moves, turns, deletes them.
+- render_premises.js GEN_PROPS / buildGenProp: WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 }) in a holder at the record's pose, WINCH_WX.apply once placed, hitAdd(g, 'prop', 0.5): it collides (OBSTACLES). A holder with propPending until the lazy files land (world_boot.js asks for _winch_gen / _winch_weather when the record names gen:winch).
+- winch_mode.js winchStart: the search 30 m off the centreline (was 25 - the van stood on the paved edge), only a winch that FACES the glider, the nearest of those: from 13's start xw_winch13, from 31's xw_winch31 (the other, turned away down the same runway, passed over).
+- PBR, checked (GATE WINCH PLACED): 13 materials on a built winch, every one a MeshStandardMaterial made by MATLIB (the 'winch' scope, WINCH 2). Gates: WINCH PASS (PLACED 5 rows), UISMOKE PASS, PREMISES PASS, BUILT PASS; ASSETS FAIL (tools/_cowl_gen.js 2 material sites - the base's, named in WINCH 2) and SCENERYED FAIL 20b (Metlakatla compose timing - the base fails it too, 3493 ms quiet).
+- OWED: the premises cook (the fixture moved: PREMCOOK, re-cook on the train); the fixture here has no trailing newline (the tow-launch line's form), master's has one - integrate by taking either side and re-splicing the two xw_winch objects; FRAMECOST / the look on a GPU (the winch near the 13/31 edge, both ends).
+
+## WINCH-LAND - THE GLIDER WINCH LANDED: ONE PERMANENT WINCH AT 13/31'S FAR END, THE CHOOSER'S WINCH LAUNCH LIVE (22 Nov 2026, [LOCAL-GPU] WINCH-LAND for A0; claude/ready/winch on origin/claude/perf-codex)
+- THE USER (22 Nov): "The Winch model is already built by a session, even tested ... please check that and try to land it. I'm fine with the winch model to be permanently placed." Then, on the placement (via A0): "the winch on 13/31 at the end, so not where we are taking off usually, of course, at the other end ... we can winch from there, and it does a little element of scenery at the end of the runway".
+- THE MERGE: origin/claude/afb-0220-winch (fd55d8f0) carries the whole study branch (claude/sailplane-launch-study-176kdv is its ancestor), merged onto perf-codex 4421e541. Unions: app.js (the chooser's winch row live, the winch side), build.js MANIFEST.lazy (perf-codex's livery_marks + mission props AND the winch's four files), island_jolene.json (perf-codex's record + the winch object re-spliced), this file (both). Built files rebuilt, never merged.
+- GATE WINCH RED ON THE BASE, FIXED IN SOURCE: the motorglider is 276 kg today (249 on 13 Nov); the hands' proportional pitch hold gave 0.18 elevator for the 3 deg error under 8 m and held the nose at 4 deg - the whole cable flown level at 1-9 m, released 40 m short of the winch (8 rows red). src/vehicle/winch.js makeWinchHands: a TRIM (the integral, 0.02 per deg s, +-0.5, no wind-up while the elevator is at its stop; zeroed on the ground run). Released at 241 m off 1000 m (275 on 13 Nov's lighter build), the circuit landed 0.3 m off the centreline.
+- THE PLACEMENT (the user's): ONE winch, xw_winch (-1164.88, -496.19) yaw -2.2864, replaces the two mid-runway ones (xw_winch13 / xw_winch31, ~100 m either side of the middle). The usual take-off is the game's own line-up from HOME's stand (the pilot's lineupPose: station +1052 m of 13/31, rolling toward -u); the winch stands 40 m inside the OTHER (far) threshold, 25.5 m off the centreline on the SW side (off the paved edge with the van's width), facing the line-up: ~2170 m of cable. FIRST TRIED on the NE side (-1131.42, -534.68, the side the stills of 03:10 show): GATE TAXICLEAR 11a red - the Cub's turn-around at end0 -25 / -33 m swings into it (-3.78 m with the winch's real box). Probed (taxiclear lib planAt, the three builds, HOME end0 at 15-150 m): NE 40 m in -3.78; SW 40 m in +4.64; NE 100 m in +15.8; beyond the end clear; NE 35 m off +5.72.
+- THE CENSUSES DID NOT KNOW THE WINCH: _taxiclear_lib propBoxes stands an unknown prop key in as a person's 0.6 m disc, so the census (TAXICLEAR, the fleet spots) saw the 2.6 x 7.2 m winch as a post. GEN_BB (the generated props' boxes) gives gen:winch [-1.46, 0, -2.98, 1.19, 4.26, 4.25]; GATE WINCH PLACED holds it to WINCH_GEN.build's own Box3. From the far end a launch has the winch behind it: winchStart sets one up and towStop takes it away (unchanged). GATE WINCH PLACED re-written for one winch + LONG (a launch on the whole cable). The chooser's subtitle: "on the cable to the club winch at the far end of Jolene AFB 13/31, released at the top".
+- IN GAME (RTX 3080, 22 Nov 03:10-03:18, tools: a page_rig.js rig in the session's scratchpad; stills D:/Dev/flydiy-notes/evidence/winch-land-2026-11-22/): the motorglider through NEW_PLANE.openShape, motorOff through GARAGE_SPEC.set (the chooser's glider rows - push, car tow, winch - need an unpowered build), FLYDIY_START.go({ start: 'winch:HOME' }): lined up at (494, 912), the cable 2173 m to xw_winch (none built), the climb ~150 s, the back-release at 70 deg ~890 m over the field. THE COST: the winch's programs 2 at the end of the boot (the opaque and the glass PBR + its weathering, cacheKey 'winchwx1'; 545 in all on this rig's settings), 4 after the first close look (2 more variants compiled then; not attributed further in this slot - a named cost for the perf round); its build 19 ms + the weathering's apply 113 ms, once, during the boot; 38 616 triangles, 13 MATLIB materials. The van / tow car untouched (lazy as before).
+- OPEN, for the user (page https://claude.ai/artifact/UKFygDvqa3zy7VBC6fanE7): the full runway gives a long, high launch (2.2 km; in node, calm, released at 572 m after 86 s - GATE WINCH LONG; in game with that morning's wind ~890 m after ~150 s; clubs fly 1-1.5 km to 300-500 m) - default keep. RE-SHOT at the SW spot (RTX 3080, 22 Nov 09:44-09:47; evidence/winch-land-2026-11-22/sw-spot/): the winch on the grass beside the far end, 549 programs at the end of that run, 2 of them the winch's.
+
+## STORY-REVAMP - THE GAME LAYER ON THE MISSION SYSTEM: THE CAREER'S RULES AND CLIENTS RIDE ON THE PACK, THE STORY PACK (91 MISSIONS, 10 PROJECTS, 40 STEPS, NO DRAWN JOB), THE TUTORIAL PLAYED ON NODE, THE AERO CLUB'S SCORING WIRED, THE MACHINERY GIVEN, THE SWITCH-OVER (22 Nov 2026, cloud - node + one headless boot; branch claude/story-revamp off L40H 9349a62c; readies claude/ready/story-1..n; progress file reports/STORY-REVAMP.md)
+
+THE USER (13 Nov, relayed): "NO GENERATED JOBS at all: everything deterministic"; "contracts in any order; projects as ordered steps tied
+to a site and its meshes"; "no buying machinery. A contract/project GIVES the machinery"; "competitions are a priority from the start";
+(16 Nov) "this is a game about building planes"; (17 Nov) the sandbox = the final stage, a story stage = the final state minus removals;
+(22 Nov) four backbone stories for the large missions (the remote community, home improvement, the observatory, the cultural heritage
+site) - the direction of the projects below. Words in the pack are DRAFTS (draft: true) for whoever writes the story.
+
+WHAT A PACK CAN SAY NOW (src/core/73b_missions.js; all optional - a pack that says none of it behaves as before):
+- `rules { jobs: 'generated' | 'none', shady: true | false, unflyable: 'hold' | 'offer' }` - how the career fills its board while the
+  pack is in use (74_ careerOfferIds reads missionPackRules()): none = no job drawn from the seed; shady false = no drawn "no questions"
+  job; unflyable offer = a mission no validated design can fly is on the board all the same (the player builds the plane). The
+  Trust's loan job stays (one fixed errand).
+- a mission's `repeat: { every: n }` (kind other than job): free again once n other contracts are done after its last time.
+- `clients [{ id, name, desc, fields, track, person, colour }]` - a provider that stands in CONTRACT_PROVIDERS only while its pack is
+  in use (no job table); its words are the pack's (prov.<id>.name / .desc / .short). The built-in pack keeps the game's five.
+- a project step's `track: '<track>:<n>'` (the world stage it builds: CONTRACT_TRACKS, never going down along the steps; the tick moves
+  career.tracks and emits { k: 'unlock' }) and `gives: [abilities]`; a mission's or a step's `onDone.gives`. An ability is a word kept
+  once in career.abilities (careerAbilityGrant): 'tech:<n>' opens the machine shop's segment, 'kit:<id>' stands a hangar kit.
+- `start { sheds: { <hangar>: { without: [kits] } } }` - the kits a career on this pack does not start with; careerPackAdopt(doc, use)
+  applies it ONCE a career (career.pack { id, without }) and drops an accepted mission no table knows any more.
+- careerProjectsBoard(doc, projects, now): the projects as a record for the page (locked / open / done, the current step, the works).
+- 74_: the done row keeps a competition's result (laps, course, stol); careerBest(doc, id); contractOnStop keeps r.scores / r.course.
+- 72_ CONTRACT_TRACKS + 76_ STAGE_REVEALS: four project tracks - home 6, community 7, heritage 2, lumber 3 (every reveal world: false
+  until the scenery wears them).
+
+THE STORY PACK (src/missions/story.json, WRITTEN BY tools/_story_pack.js - edit the tool, run it, never the json; --table prints the
+structure, --check is in the gate): rules none / no shady / offer; 3 clients of its own (home, community, aeroclub; stand-in faces);
+91 missions (30 kept from the built-in pack by id); 10 projects: the old hangar (field 1-3 -> the metal shop + segment 2), the old mine
+(minedock 1-2), the harbour (minedock 3-4, after the mine), the lumber camp (lumber 1-3), Skyline (resort 1-3), the totem site
+(heritage 1-2), the observatory (observatory 1-3 -> segment 3), home improvement (home 1-6 -> the wood shop), the community's runway
+(community 1-7), the club house (clients 1-2). The Aero Club: six events on 73c's scoring (a STOL landing, a spot landing, four pylons,
+a regularity run, a three-leg course, a timed gathering), four of them repeating.
+
+THE SWITCH-OVER (ready story-4): build.js CAREER_PACK_DEFAULT = 'story' and CAREER_PACK_LOAD (one rule for both pages) - index.html's
+career loader and dev.html name and fetch the pack for a career of the welcome menu (window.FLYDIY_MODE === 'career' without
+?career=1); app.js CAREER_PACK uses it, keeps its text in flydiy.pack.<id> for a start with no network; the career adopts it at the
+load (playerLoad) and its projects meet the clock at a flight's end, at the load and on a wait (projectsNow; a step's world stage
+noted for the next composition). A career that adopted a pack has a board ONLY while that pack is in use (74_ careerOfferIds). THE
+DEV CAREER (?career=1), ?map=1 and the sandbox are untouched: every gate's fixture career keeps the built-in tables. The tutorial's
+one job leads the board even when it is on it already (found by walking the tutorial with the pack in use).
+
+THE COMPETITIONS' SEAMS (COMPETE-SCORE's 1 and 2, closed): mission_live.js tick(t, x, y, z, agl, more) hands gnd / v / hdg / pitch /
+roll to 73c; a contract with a STOL line open arms a tracker with no gate; such a flight samples at RATE_STOL (30 Hz). app.js
+missionLiveFrame builds the sample off the sim. tools/mission_feas_lib.js feeds the same sample.
+
+TOOLS: tools/story_run.js (the tutorial T0 -> the checkpoint on node, the story pack in use and adopted; --dry the walk, else its four
+flights and its one job flown), tools/_story_pack.js, tools/story_feas.js (the pack's feasibility table kept ROW BY ROW: --fly one
+mission a process, a row keyed by the mission's record; --table; --check = GATE STORYFEAS-to-be, not registered while rows are
+missing: the whole pack is tens of hours of one core), tools/mission_feas.js --official (every official plane in the pool:
+widePool), tools/mission_feas_lib.js (installPack goes through missionPackUse; a project step's mission is put on offer with its
+project standing at that step; the page's STOL / attitude sample).
+
+GATES: STORYPACK (new, core, ~30 s, 119 checks): the rules, the board to the id without rules, one career for three seeds, repeats, a step's track
+and its reveal, what is given, the pack's clients, THE STORY PACK WALKED TO ITS END (every mission, every project, every step in
+order, every track at its max, every aerodrome used), the Aero Club's events, the start and the machinery, the board's record, the
+switch-over (the built page's loader run as written). TUTORWALK (new, core): story_run --dry. TUTORFLY (new, full): the tutorial
+flown. MISSIONLIVE +13 (the story pack's short landing through the page's own call; selftest 12/12). CONTRACTS re-pinned (the track
+list and a new career's tracks name the four project tracks; its own commit).
+
+WHAT IS NOT DONE (reports/STORY-REVAMP.md, the gaps): no scenery wears home / community / heritage / lumber (18 of 31 world stages
+change nothing yet); claude/ready/community-airport and claude/ready/docks-lodge are not on master; 14 missions need a plane no
+validated design can fly; no glider, no aerobatic plane; the Projects board and the machinery's pop-up are the page's (Game, local
+GPU); the economy of the pack is not calibrated (GATE ECON reads the built-in tables).
+
+STORY-REVAMP 7 - THE MISSION EDITOR, FOUND AND USABLE (ready story-5; the user 22 Nov: "there should be an in-game path ... a start menu
+option even ... operated by a human rather than being just a big repository of barely explained parameters"): welcome.js has a
+"Mission editor" row (a light page: tools/mission_editor.html); the editor has "<- The game", "Open story pack", "Try it in the game"
+(a new tab on the TEST career, ?career=1&pack=draft) and edits the pack's rules, clients, starting kits, projects and steps, a
+mission's "Comes back" / "After these projects" / "It gives"; it loads 79b_tech.js too (tools/_missions_lib.js LEAN follows). app.js
+unwraps the editor's draft ({ file, pack }): ?pack=draft could not work before. GATE STORYPACK 18 (133 checks). NOT in the editor:
+the competition fields (raw JSON only). story.json is still WRITTEN BY tools/_story_pack.js (GATE STORYPACK 9): the hand-over to the
+editor is its own small ready, on the user's word.
+
+STORY-REVAMP 8 - story.json IS THE EDITOR'S (ready story-6; the user 22 Nov: "Yes"): src/missions/story.json is in the mission
+editor's save format (JSON.stringify(missionPackNormalise(pack), null, 1) + newline; GATE STORYPACK 9 holds the round trip to the
+byte), tools/_story_pack.js is DELETED - edit the pack in the editor (or by hand), never regenerate it. GATE STORYPACK 9-13 are
+now RULES (valid, no drawn job, every mission placed once, a career walked to its end for three seeds, every step in order, every
+track a project builds at its max, every kit taken at the start given back, every aerodrome used, every scored mission runnable),
+never a count or a name; 14-16, GATE MISSIONLIVE's short landing and nothing else read the FROZEN copy of the pack as handed over,
+tools/fixtures/storypack/story_v0.json (do not edit it with the story; replace it only with the gate rows that read it). The
+totem site's project no longer requires the mine (an invented prerequisite). 132 checks.
+
+STORY-REVAMP 9 - THE FIRST FLIGHTS READ (ready story-7; reports/STORY-REVAMP.md "The flights so far"): tools/mission_feas_lib.js
+lands a contract with an open STOL landing / spot line THE WAY THE LINE NAMES (the field's landHdg for that flight; 73c measures no
+other way and every line of the stop must be measured) and says so in the row; tools/story_feas.js --again re-flies named missions
+after a change of the harness (a row is keyed by the mission's record only) and keeps a flight's notes. club.pylons' bronze and
+target are 250 s (the Cub's lap: 215.9 s). KNOWN, NOT MINE, with their cases in the report: the Cessna 172 capsizes out of its slip
+on a short final (master's own minedock.02 the same - 43_pilot.js WINGS-LEVEL's family); Cabin Lake (cb_sea) is landable one way
+only (approach: 0 on the island's record lands it) and five home missions land there. To trace one flight whole: judgeMission with
+a log callback prints each leg (phases, the pilot's verdicts, the landing, each gate's closest pass).
+- PETREL-FIXES (SEAPLANES, 21-22 Nov; the user via A0 on the Super Petrel: "the pedals poke through the hull of the petrel whatever the settings"; "2 bands with shading issues at its back, and the aft bulkhead does not draw properly. The additional 'ribs' on the hull need further subdivisions"; then "raise the seat"; then the 4 lines traced on the aft deck). Page: claude.ai/artifact/1JSBCwLk2Aijn4g2eByQDm. (1) PARTS OUT THROUGH THE SKIN - _cage_crew.js anchors() gains skinOver(x, y, z): null while the outer skin (every face but linings, glass and fittings: SKIN_NOT) has a face under the point, else the lowest face over it when within 20 cm (farther is a deck over an open part of the sheet, e.g. a nose the cowl layer draws). liftOut(A, x, y, z, hw) reads it at a footprint's edges and middle. buildPedals: each pillow block stands on liftOut(floor line), the axle over the higher block and the horns' ground, the fairlead and the cable's legs lifted only where out; the foot stays at floor + pedalH unless the axle forces it up. The trim wheel steps up its wall while its rim (its own plane, 24 mm in) is out. _seat_gen.js groundAt: the reclined tub's anchors the same way. The floor line is the keel's, flat across: in the Petrel's V the pedals stood 8-13 cm under the skin and pedalH only stretched the bars. Measured (headless level 2, control points with no skin face under them, master -> this): Super Petrel V4.2 739 -> 0, its V1-V4 copies 893 -> 0, Jodel 271 -> 34, build_v7 twin 400 -> 23, ultralight 345 -> 2, Ruckus 1080 -> 538, sailPlane 545 -> 196, Electric trainer 308 -> 34; DC-3, Stearman, Rufus and 27 others untouched (all-planes hash of the controls and seats against master). Earlier versions read "the skin under a point" as a height and lifted clear parts (C172 axle 19 mm, DC-3 trim wheel up its wall, the trainer's fairleads onto its nose top): the poke-through test is the rule. (2) SEATS - the V4.2 card seatH 0.02 -> 0.085 (the user: "raise the seat"): the tubs clear the V, the helmet ~6 cm under the canopy; the join moves only that row. (3) A HULL'S AFT BULKHEAD - _cage_gen.js cageInterior bulkSection, on every hull (S.hull), no row (the user: "that's really the aft bulkhead, why need a new row?"): the pillar band over a hull is an arch whose boundary walk breaks into pieces (five cycles of 71 at level 2) and the ladder filled a sliver of one side; the wall is now the fuselage's own section at the band (96 rays, innermost skin, the plain panel's inset, 5 mm plate); bulkZ +1 = the band's aft-most station (the V4.2 card takes bulkZ 1: the wall behind the headrests). (4) THE TRANSOM - cageAftOutward(m, S): with a tail cut (hullTailCut > 0: the V4.2 only) the cap's fore-aft faces turn to look aft (192 of 192 looked forward: the shader's cabin darkening, and the liner stood 25 mm out through it in two folded strips); the cut's rim takes crease 3 whatever crCap (crCap itself creases the rod's caps, which the join measures: 27 leaves); the cap is one 'taper' section. (5) THE DECK IS ONE SURFACE - the hull-taper branch of the aft rings takes HT_MAT (CAGE_PILLAR('taper')): CAGE_MAT.taper runs the painted longeron rails (a ceilingLoop strip each side, a waistband at the gunwale) through a taper, right on a pod-and-boom; on the hull's afterbody they were the user's "2 bands delimited by 4 lines" across a deck that turns < 2 deg at their edges. (6) THE SPRAY STRAKES - _cage_float.js drawStrakes: 120 stations (40), the run's plan eased +-4 cm, each wedge face its own vertices. The V4.2's join is unchanged by (1) and (3)-(6) (rejoin, master's sheet code vs this: 0 leaves). GATES (this branch, one at a time): PLANELISTS QSCUT CREWLOAD SEATS PILOTS CABINLAMP LIGHT FRAMES FLOATKIT DASH ENERGY PETRELTRIM CREWSEATS PASS; PARTS (canClear), DESIGN (roadster.cw_partLevel), SAVE (skiPos) red on master already, not this change. ALSO SEEN, NOT FIXED: the carbon liner (composite) showing through low on the Petrel's hull sides (x +-0.6, y -0.3, z 1.2-1.4 and 2.5-2.8) - tan patches under the hull.
+- PAGE-RIG-4 (SEAPLANES 22 Nov, A0 + AUDIO): tools/page_rig.js fly() (1) answers a float / hull build's start dialog (#edLaunch, app.js launchAsk: every Go only toggled it - the Super Petrel's 03:18 slot never flew): after each Go, LAUNCH_ANSWER clicks fo.launch 'water' (default) or 'trailer' (CLI --launch trailer); a land build never opens it; (2) FLYING IS NOT DRAWING: once the sim t rises, an open fleet screen / new-plane panel (UI_HOLDS) is closed with ONE Escape (the screens listen on window, capture) and fly() returns only with AA renders > 0 a second (AA_RATE; rig.plane.aaPerS), else throws naming the hold; WHY reports uiHolds. GATE PAGERIG 7o-7r (stubs + source). The in-game proof is SEAPLANES' Petrel slot (~07:50).
+- PETREL-FOLD (SEAPLANES 23 Nov, the user via FLAGSHIP: "the remaining dark bands on the petrel too please ... we need a single body for the aft part"): the Super Petrel's PORT side only kept 114 outer skin faces wound INTO the body at level 2 (11 at level 0) - the cabin's aft pillar band (pillarPassenger, pillarCabin, body, floorLoop: the deck behind the cockpit and the wall down to the waist, z 1.10-1.33 m) just forward of the taper's front (1.13 m), the stretch PETREL-SKIN's afterbody walk (cageAftOutward) stopped short of; the skin shader drew them as the cabin's inside, a dark band with a winding break at each edge; starboard clean. Found headless (a winding probe: each skin face's normal against its station's axis); quickshot cannot show it (no back-face darkening). FIX, tools/_cage_gen.js: (1) cageAftOutward on a HULL (S.hull) walks half a unit (~0.37 m) forward of the taper's front and turns the cabin pillar bands' outer faces too (CAGE_AFT_PILLARS) - the Petrel: 0 inward of 4022; any other build walks as before (every plane-list card's cage windings hashed before / after at level 0: 74 of 76 unchanged, only the Petrel's 9 faces + its liner); (2) cageInterior's aft bulkhead walks its band's boundary by adjacency when the directed walk runs off a dead end (a band of mixed winding after (1): the build threw) - a band the directed walk closes keeps its cycles exactly; (3) cageSheetKept (the editor's kept path) passes the spec to cageAftOutward as cageSheet does - the transom turn (PETREL-FIXES) never ran there. TRIED AND DROPPED: orientCage crossing 3+-face edges last - no effect on the Petrel, and it changed the Chinook's sheet. The V4.2's join is unchanged (rejoin, HEAD's sheet code vs this: 0 leaves). GATES (one run, --jobs=1): PLANELISTS QSCUT CREWLOAD SEATS PILOTS CABINLAMP LIGHT FRAMES FLOATKIT DASH ENERGY PETRELTRIM CREWSEATS PAGERIG PASS. In game: SEAPLANES' 11:12 slot (headed).

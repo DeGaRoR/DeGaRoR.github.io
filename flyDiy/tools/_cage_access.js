@@ -520,7 +520,7 @@ function rodSocket(ctx, P, grp) {
   const bag = K.Bag();
   K.revolve(bag, at(uA, 0, 0), fa, prof, 32, false);
   const MO = window.CAGE_MAT_OF;
-  const mat = (MO && skinM && MO(skinM)) || (MO && MO('body')) || new THREE.MeshStandardMaterial({ color: 0xd9a13b, roughness: 0.6 });
+  const mat = (MO && skinM && MO(skinM)) || (MO && MO('body')) || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / rod boom socket / skin fallback' }, color: 0xd9a13b, roughness: 0.6 });
   const m = bag.mesh(grp, mat);
   if (m) { m.name = 'edRodSocket'; m.userData.edHw = 1; }
   // the tube's root it implies: a few diameters inside the deepest crossing (cage units aft of the bulkhead)
@@ -632,7 +632,7 @@ const dispose = o => {
 // the fallback palette, for the standalone benches and for the editor's
 // material view switched off — the aeroHardMat contract's own three cases
 const lam = (c, o) => new THREE.MeshLambertMaterial(
-  Object.assign({ color: c }, o || {}));
+  Object.assign({ userData: { progOwner: 'aircraft / access fittings / plain fallback' }, color: c }, o || {}));
 let FALLBACK = null;
 const fallbackMats = () => (FALLBACK || (FALLBACK = {
   paint: lam(0xc8ccd2), metal: lam(0xb9c2cc), lens: lam(0xd14b3a),

@@ -1435,6 +1435,12 @@ function makeSim(def, world) {
     // (G4103: and holds no tether - its tether lives in the floor pass, which never walks it: a gear member's tether
     // stayed live past any length, joining a fallen leg to the wreck it lay 40 m from - the 17 Nov nose-down stills)
     else if (b.tt === 1) { b.tt = 0; DMG.tether--; }
+    // G4104: A CRACKED LAMINATE HOLDS BY ITS FIBRES - its own crack (in tension, or a bend's core / fold), not a joint letting
+    // go, a part cut away or the gear: a tether from its length at the crack, walked by the floor pass (no floor: Lf 0)
+    if (TETH && !b.kink && !inGear && !b.seam && (!how || how === 'core' || how === 'fold') && tetherKind(b) === 3) {   // (not a joint: a bonded fitting that lets go is no laminate - nothing bridges it)
+      const L = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
+      b.Lt = L; b.Lb = L; b.Lf = 0; b.tt = 1; DMG.tether++; FLR[nFlr++] = bi; nPost = nFlr + nTieL;
+    }
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     // (GEAR-FALLS: a wire snapping is damage, not a crash - structural's 'a bracing wire snapped'; the leg stands)
     if (gearWire[bi]) { if (how !== 'group') DMG.wires++; }
@@ -1531,7 +1537,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b)) { b.Lt = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b) && !(b.seam && tetherKind(b) === 3)) { b.Lt = L; b.Lb = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
@@ -4134,7 +4140,7 @@ function makeSim(def, world) {
   function tetherKind(b) {
     const R = b.mat ? GEN_CRASH[b.mat] : null;
     if (!R || !(b.Lr > 0)) return 0;
-    return R.etu > 0 ? 1 : b.mat === 'wood' ? 2 : 0;
+    return R.etu > 0 ? 1 : b.mat === 'wood' ? 2 : (b.mat === 'carbon' || b.mat === 'glass') ? 3 : 0;   // (G4104: 3 a laminate's fibres)
   }
   // its pull: kB (L - Lt) to its cap - a fold opening (L under its rest length) at rFold x its crush force, then the
   // creased wall's share of its strength - plastic past the cap (Lt follows: the stored energy at most F^2 / 2 kB); torn
@@ -4147,7 +4153,7 @@ function makeSim(def, world) {
     // tether holds the splinters together, it is no strength: the Jodel's certificate read BROKE AT 9.54 g with 104 of
     // its wing's members broken from 6.01 g while the crushed caps were counted kept, GATE DMGCERT 17 Nov)
     const k = tetherKind(b), fu = b.fu < Infinity ? b.fu : 0;
-    return k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;
+    return k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (G4104: a laminate's fibres hold its pieces but, as crushed wood, keep no joint's strength - DMGCOMPOSITE's certificate read BROKE AT 6.14 g past its 6.13 band with them kept)
   }
   // after a pass: a torn tether's joint has now lost the rest of that member - its group judged again (G1894's third)
   function tetherGroups() {
@@ -4156,7 +4162,7 @@ function makeSim(def, world) {
       const b = beams[bi], g = grpOf[bi];
       if (g < 0 || grpDone[g] || gearGrp[g]) continue;
       const fu = b.fu < Infinity ? b.fu : 0, k = tetherKind(b);
-      grpLost[g] += k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (wood was counted lost whole at its kink: tetherKeep)
+      grpLost[g] += k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (wood and laminate counted lost whole at their crack: tetherKeep)   // (wood was counted lost whole at its kink: tetherKeep)
       const G0 = DGR[g].t0; let cap = 0;
       for (let q = 0; q < G0.length; q++) { const f2 = beams[G0[q]].fu; cap += f2 < Infinity ? f2 : 0; }
       if (cap > 0 && grpLost[g] < GEN_DMG_GROUP.rel * cap * (1 - 1e-9)) continue;
@@ -4169,9 +4175,9 @@ function makeSim(def, world) {
   }
   function tetherPull(b, a3, b3, dx, dy, dz, L) {
     const T = GEN_DMG_TETHER, k = tetherKind(b), R = GEN_CRASH[b.mat];
-    if (L > b.Lr * (1 + (k === 1 ? T.eDuct * R.etu : 0))) { b.tt = 0; DMG.tetherT++; tetherTorn = 1; return; }
+    if (k === 3 ? L > b.Lb * (1 + T.eComp) : L > b.Lr * (1 + (k === 1 ? T.eDuct * R.etu : 0))) { b.tt = 0; DMG.tetherT++; tetherTorn = 1; return; }
     const fu = b.fu < Infinity ? b.fu : 0;
-    const Fm = k === 2 ? T.rWood * fu : L < b.Lr && b.Ff > 0 ? T.rFold * b.Ff : T.rDuct * fu;
+    const Fm = k === 3 ? T.rComp * fu : k === 2 ? T.rWood * fu : L < b.Lr && b.Ff > 0 ? T.rFold * b.Ff : T.rDuct * fu;
     let F = b.kB * (L - b.Lt);
     if (F > Fm) { F = Fm; b.Lt = L - Fm / b.kB; }
     // (and the member's own damper, as its floor's: a folded tube's wall rubs - a piece hung on its tether comes to rest)

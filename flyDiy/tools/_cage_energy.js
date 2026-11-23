@@ -2088,6 +2088,12 @@ const FINISH = {
   plastic: { name: 'moulded plastic', set: 'plastic', col: 0xdedac9 },
   rubber:  { name: 'rubber',          set: 'plastic', col: 0x33333a },
   steel:   { name: 'steel',           set: 'steel',   col: 0xffffff },
+  // TANK-PAINT (the user 21 Nov: "The fuel reservoirs should be an option for being simply painted and receiving the same
+  // wear treatment as the rest. Currently, it keeps applying some grunge in multiply, making it impossible to reach a
+  // painted color without wear"): the airframe's own painted sheet (AEROSKIN's alclad, its clear coat on, the tint the
+  // paint) - no scanned set multiplied under it, and the airframe's weathering (uWear, uWearK 1) as every painted
+  // section wears it. `skin` names the AEROSKIN finish; skinShellMat builds it.
+  airframe: { name: 'painted like the airframe', set: null, col: 0xe9e9e4, skin: 'alclad' },
 };
 // what a catalogue vessel is made of when the player has not said. A rubber
 // bladder is rubber, a moulded tank is polythene, a welded one is bare alloy,
@@ -2198,7 +2204,7 @@ function vesselMat(o) {
               col: O.col == null ? 0xffffff : O.col };
   const bad = !!O.bad;
   const S = (VTEX() || {})[F.set];
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / fuel tanks and batteries / vessel finish' },
     color: new THREE.Color(O.tint == null ? F.col : O.tint),
     // with the maps bound the scalars are MULTIPLIERS and 1.0 means "what the
     // scan measured"; without them they are the scan's own means, so a page
@@ -2281,8 +2287,18 @@ function vesselSetEnv(f) {
 // degree — and that is only sound while no two tanks share the material they
 // are being written on. The hardware, the seals and the markings are shared:
 // they are the same steel and the same rubber on every tank aboard.
+// TANK-PAINT: a shell painted like the airframe is AEROSKIN's own material (pooled there on its look), so it crosses to the
+// flown aeroplane as a skin record (`fin`, the colour) and weathers with the airframe; null when the page has no AEROSKIN
+function skinShellMat(v, skin) {
+  const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+  if (!A || !A.aeroMaterial) return null;
+  const t = tintOf(v) || '#' + ('000000' + FINISH.airframe.col.toString(16)).slice(-6);
+  const tint = typeof t === 'string' && /^#?[0-9a-f]{6}$/i.test(t) ? parseInt(t.replace('#', ''), 16) : FINISH.airframe.col;
+  return A.aeroMaterial(THREE, { finish: skin, tint, surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: 1, inside: 0, decals: 0 });
+}
 function slotMat(slot, bad, i, v) {
   const fin = slot === 'shell' ? finishOf(v) : SLOT_FIN[slot];
+  if (slot === 'shell' && !bad && FINISH[fin] && FINISH[fin].skin) { const m = skinShellMat(v, FINISH[fin].skin); if (m) return m; }
   const id = slot + '|' + fin + (bad ? '!' : '') +
              (slot === 'shell' ? '|' + (i || 0) : '');
   let m = vmats.get(id);
@@ -2299,7 +2315,7 @@ function slotMat(slot, bad, i, v) {
 let wetMat = null;
 function matWet(bad) {
   if (!wetMat) {
-    wetMat = new THREE.MeshStandardMaterial({ color: 0x4a8fd6, roughness: 0.30,
+    wetMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / fuel tanks and batteries / wet wing fuel' }, color: 0x4a8fd6, roughness: 0.30,
       metalness: 0.10, transparent: true, opacity: 0.40, side: THREE.DoubleSide });
     wetMat.userData.aeroskin = 1;
     wetMat.userData.env0 = 1;
@@ -2455,7 +2471,7 @@ function fuelMat() {
   const key = EN.fuel || 'avgas100LL';
   if (fuelMats[key]) return fuelMats[key];
   const col = /avgas/i.test(key) ? 0x3a7fd8 : 0xd9b14a;
-  const m = new THREE.MeshStandardMaterial({ color: col, roughness: 0.25,
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / fuel tanks and batteries / fuel liquid' }, color: col, roughness: 0.25,
     metalness: 0.05, transparent: true, opacity: 0.55, depthWrite: false });
   m.userData.aeroskin = 1;
   return (fuelMats[key] = m);
@@ -2465,14 +2481,14 @@ let CLASH_GEO = null, CLASH_MAT = null;
 function clashGeo() { return CLASH_GEO || (CLASH_GEO = new THREE.SphereGeometry(0.014, 12, 8)); }
 function clashMat() {
   if (CLASH_MAT) return CLASH_MAT;
-  CLASH_MAT = new THREE.MeshBasicMaterial({ color: 0xff2a1a, depthTest: false, transparent: true, opacity: 0.95 });
+  CLASH_MAT = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / tank fit / clash beads' }, color: 0xff2a1a, depthTest: false, transparent: true, opacity: 0.95 });
   CLASH_MAT.userData.aeroskin = 1;
   return CLASH_MAT;
 }
 let ghostMat = null;
 function ghost() {
   if (ghostMat) return ghostMat;
-  ghostMat = new THREE.MeshStandardMaterial({ color: 0x64a8ff, roughness: 0.8,
+  ghostMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'editor / tank fit / bay ghost box' }, color: 0x64a8ff, roughness: 0.8,
     metalness: 0, transparent: true, opacity: 0.10, depthWrite: false,
     side: THREE.DoubleSide });
   ghostMat.userData.aeroskin = 1;
@@ -3236,7 +3252,7 @@ function readoutWorker() {
       'self.onmessage = e => { const job = e.data; try { const r = job.kind === \'balance\' ? computeBal(job, CORE) : compute(job, CORE, BAL); r.seq = job.seq; postMessage(r); }' +
       ' catch (err) { postMessage({ kind: job.kind, seq: job.seq, error: String(err && err.stack || err) }); } };\n';
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
-    const w = new Worker(url);
+    const w = new Worker(url, { name: 'garage / readouts / energy and balance' });
     w.onmessage = e => {
       const r = e.data;
       if (r && r.kind === 'balance') {
@@ -3556,8 +3572,9 @@ function lookRows(B, i, v) {
       x => x.toFixed(0) + '°',
       x => { lookWrite(v, 'hue', x); relayout(); },
       x => { lookWrite(v, 'hue', x); commit(); });
-  const d = row(B, 'tint', 'multiplies the sheet — white leaves it as ' +
-    'scanned, and a colour darkens it towards that colour');
+  const d = row(B, (FINISH[fk] && FINISH[fk].skin) ? 'paint' : 'tint', (FINISH[fk] && FINISH[fk].skin)
+    ? 'the paint colour, exactly as picked - the airframe’s own painted sheet, weathering with the airframe (TANK-PAINT)'
+    : 'multiplies the sheet — white leaves it as scanned, and a colour darkens it towards that colour');
   const c = document.createElement('input');
   c.type = 'color';
   c.value = tintOf(v) ||

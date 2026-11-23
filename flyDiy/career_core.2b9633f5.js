@@ -42,7 +42,7 @@ const CONTRACT_FIELDS = {
   mk_sea:   { id: 'mk_sea',   name: GAME_NAMES.fields.mk_sea,          x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
   mn_strip: { id: 'mn_strip', name: GAME_NAMES.fields.mn_strip,        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
   nv_strip: { id: 'nv_strip', name: GAME_NAMES.fields.nv_strip,        x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
-  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
+  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 282,   z: -7751,  len: 280,  surf: 'grass', alti: true, lit: true },
   // (G3014, the user 12 Oct: 'add them' - their rev 26 strips 10 and 11, contracts may land there)
   w5:       { id: 'w5',       name: GAME_NAMES.fields.w5,        x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: GAME_NAMES.fields.w6,        x: -4172, z: -22110, len: 312,  surf: 'dirt', lit: true },
@@ -56,6 +56,8 @@ const CONTRACT_FIELDS = {
   // (OBSERVATORY-SITE 13 Nov: the observatory's altiport on Mount Ardent, 210 m landed uphill to 1 039 m - in no provider's
   //  fields yet: the Game coordinator joins it to the jobs; OBSERVATORY-2 15 Nov: SNOW-MUD's powder - surf 'snow', skis)
   mt_strip: { id: 'mt_strip', name: GAME_NAMES.fields.mt_strip,      x: 9317,  z: -5962,  len: 210,  surf: 'snow', alti: true, lit: true },
+  // (AFB-0220, 13 Nov: 02/20 divided - the bumpy firm-mud lane east of the old concrete band; contracts may land there - STOL work)
+  xw_rough: { id: 'xw_rough', name: GAME_NAMES.fields.xw_rough,  x: 634,   z: -167,   len: 1000, surf: 'mud', lit: true },   // (firm mud, the user 13 Nov)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -105,6 +107,21 @@ const CONTRACT_TRACKS = {
   // buildings, one per step (the tower, the drum, the hall; the pillar stands from the start) - a PROJECT's track, no provider's:
   // nothing in play advances it yet (ECON_BOOK.landmarks 'observatory' is data only); the Game coordinator wires the project
   observatory: { max: 3, stages: ['trk.observatory.1', 'trk.observatory.2', 'trk.observatory.3'] },
+  // STORY-REVAMP (22 Nov, the user's backbone stories of the large missions): four PROJECT tracks, no provider's - a project's
+  // steps advance them (73b careerProjectsTick). The SANDBOX stands every one at its max: the final state the user edits;
+  // a story stage is that state minus what its band removes. No element of the record wears these tracks yet (the scenery
+  // is owed: reports/STORY-REVAMP.md, the gaps) - until then a step counts and its reveal says so (76_ world: false).
+  //   home       the player's own place (Cabin Strip w1, Cabin Lake cb_sea): 1 the strip made safe + a parking area, 2 the new
+  //              cabin across the strip, 3 the road to the lake, 4 the lake dock + the ATV cabin, 5 the larger dock + the
+  //              lakeside cabin, 6 the hangar enlarged
+  //   community  the remote community's new strip (w7; the old one is w6): 1 200 m of mud, 2 400 m past the worst of it,
+  //              3 graded (one bump level less), 4 1 km of gravel, 5 the tower, 6 the hangar, 7 the terminal
+  //   heritage   the totem site (East Point, nv_strip - never lengthened): 1 room to turn round, 2 the new totem raised
+  //   lumber     the camp north of Cedar Harbour (mk_sea): 1 the landing, 2 the camp, 3 the mill
+  home:      { max: 6, stages: ['trk.home.1', 'trk.home.2', 'trk.home.3', 'trk.home.4', 'trk.home.5', 'trk.home.6'] },
+  community: { max: 7, stages: ['trk.community.1', 'trk.community.2', 'trk.community.3', 'trk.community.4', 'trk.community.5', 'trk.community.6', 'trk.community.7'] },
+  heritage:  { max: 2, stages: ['trk.heritage.1', 'trk.heritage.2'] },
+  lumber:    { max: 3, stages: ['trk.lumber.1', 'trk.lumber.2', 'trk.lumber.3'] },
 };
 
 // ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
@@ -474,6 +491,24 @@ const CONTRACT_TEXT = {
   'trk.observatory.1': CT_('The observatory\'s instrument tower on ' + GAME_NAMES.mountain),
   'trk.observatory.2': CT_('The observatory\'s station'),
   'trk.observatory.3': CT_('The observatory\'s hall'),
+  'trk.home.1': CT_('Your strip, smoothed and drained, with room to park'),
+  'trk.home.2': CT_('The new cabin across the strip'),
+  'trk.home.3': CT_('The road down to the lake'),
+  'trk.home.4': CT_('The lake dock and the little cabin with the ATV garage'),
+  'trk.home.5': CT_('The long dock and the lakeside cabin'),
+  'trk.home.6': CT_('Your hangar, big enough for the big ones'),
+  'trk.community.1': CT_('The community\'s first two hundred metres, in the mud'),
+  'trk.community.2': CT_('Four hundred metres, round the worst of the mud'),
+  'trk.community.3': CT_('The strip graded: one bump less'),
+  'trk.community.4': CT_('A kilometre of gravel on the muskeg'),
+  'trk.community.5': CT_('The community\'s little tower'),
+  'trk.community.6': CT_('The community\'s hangar'),
+  'trk.community.7': CT_('The community\'s terminal'),
+  'trk.heritage.1': CT_('Room to turn round at the totem site'),
+  'trk.heritage.2': CT_('The new totem, raised'),
+  'trk.lumber.1': CT_('The lumber camp\'s landing'),
+  'trk.lumber.2': CT_('The lumber camp'),
+  'trk.lumber.3': CT_('The camp\'s mill'),
   // goods (the load words)
   'goods.mail': CT_('mail'), 'goods.tools': CT_('tools'), 'goods.crew': CT_('crew'),
   'goods.parts': CT_('parts'), 'goods.samples': CT_('ore samples'), 'goods.rods': CT_('drill rods'),
@@ -1191,7 +1226,8 @@ function contractValidate(rec, opts) {
   const id = r.id || '(no id)';
   if (typeof r.id !== 'string' || !r.id) why.push(id + ': no id');
   if (!CONTRACT_KINDS.includes(r.kind)) why.push(id + ': kind ' + r.kind + ' is not one of ' + CONTRACT_KINDS.join(' '));
-  if (!CONTRACT_PROVIDERS[r.provider]) why.push(id + ': no provider ' + r.provider);
+  const PV = opts.providers || CONTRACT_PROVIDERS;                 // (STORY-REVAMP: + the pack's own clients, 73b)
+  if (!PV[r.provider]) why.push(id + ': no provider ' + r.provider);
   for (const k of ['title', 'brief']) if (!contractTextOk(r[k], T)) why.push(id + ': ' + k + ' key ' + r[k] + ' does not resolve');
   if (!Array.isArray(r.stages) || !r.stages.length) why.push(id + ': no stages');
   (r.stages || []).forEach((st, i) => {
@@ -1256,7 +1292,7 @@ function contractValidate(rec, opts) {
     else if (!contractCrit(r).some(c => c.k === b.crit)) why.push(id + ': a bonus on ' + b.crit + ', which is not a criterion');
     if (!(b.pct > 0)) why.push(id + ': a bonus with no pct');
   }
-  if (!r.rep || !CONTRACT_PROVIDERS[r.rep.provider] || !(r.rep.gain >= 0)) why.push(id + ': rep {provider, gain >= 0}');
+  if (!r.rep || !PV[r.rep.provider] || !(r.rep.gain >= 0)) why.push(id + ': rep {provider, gain >= 0}');
   if (r.unlock != null) {
     const m = /^(\w+):(\d+)$/.exec((r.unlock && r.unlock.stage) || '');
     if (!m || !CONTRACT_TRACKS[m[1]] || +m[2] < 1 || +m[2] > CONTRACT_TRACKS[m[1]].max) why.push(id + ': unlock ' + JSON.stringify(r.unlock) + ' is not <track>:<1..max>');
@@ -1303,7 +1339,7 @@ const contractFlyable = (rec, fields) => contractDoers(contractSubsOf(rec).filte
 //           (ldgDistM, cargoL)
 const CONTRACT_RUNTIME_PENDING = [];
 const CONTRACT_RUNTIME_WAITS = [];
-const CONTRACT_ONDONE = ['say', 'pay', 'site'];
+const CONTRACT_ONDONE = ['say', 'pay', 'site', 'gives'];
 function contractRuntimeOk(rec) {
   const r = rec || {};
   for (const k of CONTRACT_RUNTIME_PENDING) if (r[k] != null && !(Array.isArray(r[k]) && !r[k].length)) return k + ': no runtime yet';
@@ -2222,6 +2258,11 @@ function missionPackNormalise(p) {
   // { id, name, client, requires: { projects, rep: { provider: n }, abilities }, offer, steps: [{ id, order, missions,
   //   works: { cost, days } | null, site: { id, state } | null }], onDone: { abilities, projects, missions, clients } }
   o.projects = (Array.isArray(o.projects) ? o.projects : []).map(missionProjectNormalise);
+  if (o.rules != null) o.rules = missionPackRulesNorm(o.rules);   // STORY-REVAMP: the career's rules ride on the pack (below)
+  // ...and its own CLIENTS (missionClientNormalise); a mission of one, with no client of its own, is its person's
+  if (o.start != null && !msObj(o.start)) o.start = {};
+  if (o.clients != null) { o.clients = (Array.isArray(o.clients) ? o.clients : []).map(missionClientNormalise);
+    for (const m of o.missions) { const K = o.clients.find(c => c.id === m.provider); if (K && K.person && m.client == null && m.tutorial == null) m.client = K.person; } }
   return o;
 }
 
@@ -2524,8 +2565,12 @@ function missionPackValidate(pack, opts) {
   for (const k of ['campaigns', 'missions']) if (!Array.isArray(P[k])) why.push(k + ' is not a list');
   if (P.projects != null && !Array.isArray(P.projects)) why.push('projects is not a list');
   else if (Array.isArray(P.projects)) why.push(...missionProjectsWhy(Object.assign({}, P, { projects: P.projects.map(missionProjectNormalise) })));
+  if (P.rules != null) why.push(...missionPackRulesWhy(P.rules));
   if (why.length) return why;
   const T = missionText(P), F = opts.fields || CONTRACT_FIELDS;
+  if (P.clients != null) why.push(...missionClientsWhy(P.clients, T, F));
+  if (P.start != null) why.push(...missionStartWhy(P.start));
+  const PV = missionProvidersWith(P.clients);
   for (const k of Object.keys(P.text || {})) if (!msObj(P.text[k]) || typeof P.text[k].t !== 'string') why.push('text ' + k + ' is not { t }');
   // the sites
   const sites = {};
@@ -2558,8 +2603,11 @@ function missionPackValidate(pack, opts) {
     }
     const n = missionNormalise(m);
     const rec = missionToContract(n, { pack: P });
-    for (const w of contractValidate(rec, { mission: true, text: T, fields: F, ids })) why.push(w);
+    for (const w of contractValidate(rec, { mission: true, text: T, fields: F, ids, providers: PV })) why.push(w);
     for (const w of missionWhy(n, { pack: P, text: T, fields: F, sites, spots: opts.spots })) why.push(w);
+    // (STORY-REVAMP) what its done, or a step's, gives: abilities (missionAbilityWhy)
+    for (const od of [n.onDone].concat(...n.legs.map(L => L.steps.map(s => s.onDone)))) if (od && od.gives != null)
+      for (const g of Array.isArray(od.gives) ? od.gives : [od.gives]) { const w = missionAbilityWhy(g); if (w) why.push(m.id + ': gives - ' + w); }
   }
   // the tree: containers once, their orders, every mission in one chapter at most, the cross-links resolve
   const boxes = {}, placed = {};
@@ -2568,7 +2616,7 @@ function missionPackValidate(pack, opts) {
     if (!msObj(c) || typeof c.id !== 'string' || !c.id) { why.push('a campaign has an id'); continue; }
     if (boxes[c.id] || byId[c.id]) why.push(at + ': id twice'); boxes[c.id] = c;
     if (c.title && !contractTextOk(c.title, T)) why.push(at + ': title key ' + c.title + ' does not resolve');
-    if (c.provider != null && (typeof CONTRACT_PROVIDERS === 'undefined' || !CONTRACT_PROVIDERS[c.provider])) why.push(at + ': no provider ' + c.provider);
+    if (c.provider != null && !PV[c.provider]) why.push(at + ': no provider ' + c.provider);
     const O = missionOrder(c.order);
     if (!O) why.push(at + ': order ' + c.order + ' is not seq | any | choose:N');
     else if (O.kind === 'choose' && O.n > (c.chapters || []).length) why.push(at + ': choose:' + O.n + ' of ' + (c.chapters || []).length + ' chapters');
@@ -2635,7 +2683,7 @@ function missionPackContracts(pack) {
 // kept). `text` is the pack's own words over the model's labels (MISSION_TEXT): the boot merges it into CONTRACT_TEXT
 // with the providers, or the card reads a pack mission's keys as [keys].
 function missionPackInstall(pack, providers) {
-  const P = missionPackNormalise(pack), base = providers || CONTRACT_PROVIDERS, out = {}, held = [];
+  const P = missionPackNormalise(pack), base = missionProvidersWith(P.clients, providers || CONTRACT_PROVIDERS), out = {}, held = [];
   const recs = missionPackContracts(P);
   const PN = missionProjectNeeds(P);   // PROJECTS: a step's missions offered while their project stands at that step
   // ...installed as one campaign per project (its steps as chapters, any order: needs.project does the gating)
@@ -2691,7 +2739,10 @@ function missionProjectNormalise(p) {
     steps: (Array.isArray(P.steps) ? P.steps : []).map((s, i) => { const S = msObj(s) ? s : {};
       const W = msObj(S.works) && msNum(S.works.days) ? { cost: msNum(S.works.cost) ? +S.works.cost : 0, days: +S.works.days } : null;
       const st = msObj(S.site) && typeof S.site.id === 'string' ? { id: S.site.id, state: S.site.state } : null;
-      return { id: typeof S.id === 'string' && S.id ? S.id : 's' + (i + 1), order: MISSION_PROJECT_ORDERS.includes(S.order) ? S.order : 'any', missions: arr(S.missions), works: W, site: st }; }),
+      const o = { id: typeof S.id === 'string' && S.id ? S.id : 's' + (i + 1), order: MISSION_PROJECT_ORDERS.includes(S.order) ? S.order : 'any', missions: arr(S.missions), works: W, site: st };
+      if (S.track != null) o.track = S.track;                    // STORY-REVAMP: the world stage this step builds ('<track>:<n>', 76_stages)
+      if (S.gives != null) o.gives = arr(S.gives);               // ...and the machinery it gives (abilities: careerAbilityGrant)
+      return o; }),
     onDone: { abilities: arr(D.abilities), projects: arr(D.projects), missions: arr(D.missions), clients: arr(D.clients) } };
 }
 // the projects' own refusals (missionPackValidate adds them): ids, steps, missions that exist, projects named that exist
@@ -2703,6 +2754,15 @@ function missionProjectsWhy(P) {
     pids.add(p.id);
     if (!p.steps.length) why.push('project ' + p.id + ' has no step');
     for (const s of p.steps) for (const m of s.missions) if (!ids.has(m)) why.push('project ' + p.id + ' step ' + s.id + ' names no mission ' + m);
+    // STORY-REVAMP: a step's world stage is a track's value (never going down along the steps), what it gives an ability
+    const at = {};
+    for (const s of p.steps) {
+      if (s.track != null) { const m = /^(\w+):(\d+)$/.exec(s.track), T = m && typeof CONTRACT_TRACKS !== 'undefined' ? CONTRACT_TRACKS[m[1]] : null;
+        if (!m || !T || +m[2] < 1 || +m[2] > T.max) why.push('project ' + p.id + ' step ' + s.id + ': track is <track>:<1..max> (76_stages), got ' + JSON.stringify(s.track));
+        else { if (+m[2] <= (at[m[1]] || 0)) why.push('project ' + p.id + ' step ' + s.id + ': track ' + s.track + ' does not go up'); at[m[1]] = +m[2]; } }
+      for (const g of s.gives || []) { const w = missionAbilityWhy(g); if (w) why.push('project ' + p.id + ' step ' + s.id + ': ' + w); }
+    }
+    for (const g of p.onDone.abilities) { const w = missionAbilityWhy(g); if (w) why.push('project ' + p.id + ': ' + w); }
   }
   for (const p of P.projects || []) for (const r of p.requires.projects.concat(p.onDone.projects)) if (!pids.has(r)) why.push('project ' + p.id + ' names no project ' + r);
   return why;
@@ -2746,16 +2806,35 @@ function careerProjectsTick(doc, projects, now) {
       if (st.works && t < S.works.ready) continue;
       S.step = (S.step | 0) + 1; S.works = null;
       if (st.site) { c.sites[st.site.id] = st.site.state; events.push({ k: 'site', id: st.site.id, state: st.site.state, project: p.id }); }
+      // STORY-REVAMP: the step's world stage (the track moves like a contract's unlock: 74_ careerComplete) and its machinery
+      const tm = /^(\w+):(\d+)$/.exec(st.track || '');
+      if (tm) { c.tracks = msObj(c.tracks) ? c.tracks : {}; if ((c.tracks[tm[1]] || 0) < +tm[2]) { c.tracks[tm[1]] = +tm[2]; events.push({ k: 'unlock', unlock: st.track, project: p.id, step: st.id }); } }
+      for (const g of st.gives || []) careerAbilityGrant(d, g, events, p.id + ':' + st.id);
       events.push({ k: 'step', project: p.id, step: st.id });
       if (S.step >= p.steps.length) {
         S.done = true;
-        for (const a of p.onDone.abilities) if (!c.abilities.includes(a)) c.abilities.push(a);
+        for (const a of p.onDone.abilities) careerAbilityGrant(d, a, events, p.id);
         events.push({ k: 'projectDone', project: p.id, abilities: p.onDone.abilities.slice(), projects: p.onDone.projects.slice(), missions: p.onDone.missions.slice(), clients: p.onDone.clients.slice() });
       }
       moved = true;
     }
   }
   return { doc: d, events };
+}
+
+// THE PROJECTS BOARD, AS A RECORD (STORY-REVAMP; the page draws it): every project of the pack as the career stands -
+// -> [{ id, name, client, state: 'locked' | 'open' | 'done', needs: [project ids not done], step (index), steps: [{ id,
+//      state: 'done' | 'current' | 'works' | 'later', missions: [{ id, done }], works: { days, cost } | null, ready (the
+//      works' end, s) | null, track, gives, site }] }]. Pure.
+function careerProjectsBoard(doc, projects, now) {
+  const c = (doc && doc.career) || {}, P = c.projects || {}, done = new Set(((c.contracts && c.contracts.done) || []).map(r => r.id));
+  return (projects || []).map(p => {
+    const S = P[p.id] || { step: 0 }, needs = p.requires.projects.filter(id => !(P[id] || {}).done), k = S.done ? p.steps.length : (S.step | 0);
+    return { id: p.id, name: p.name, client: p.client, state: S.done ? 'done' : needs.length ? 'locked' : 'open', needs, step: k,
+      steps: p.steps.map((st, i) => ({ id: st.id, state: i < k ? 'done' : i > k ? 'later' : S.works ? 'works' : 'current',
+        missions: st.missions.map(id => ({ id, done: done.has(id) })), works: st.works ? { days: st.works.days, cost: st.works.cost } : null,
+        ready: i === k && S.works ? S.works.ready : null, track: st.track || null, gives: (st.gives || []).slice(), site: st.site ? st.site.id : null })) };
+  });
 }
 
 // ---- THE PACK IN USE (MISSIONS-LIVE switch, 13 Nov: "the switch to mission packs: the loader") ----------------------------
@@ -2767,14 +2846,148 @@ function missionPackUse(pack, providers, text) {
   const base = providers || CONTRACT_PROVIDERS, T = text || CONTRACT_TEXT;
   const why = missionPackValidate(pack);
   if (why && why.length) return { ok: false, n: 0, held: [], why: why.slice(0, 5).join('; ') };
+  // (STORY-REVAMP) the pack's own clients stand in the live table while it is in use (the pack before's leave)
+  const N = missionPackNormalise(pack), mine = (N.clients || []).map(c => c.id);
+  for (const p of Object.keys(base)) if (base[p].pack && !mine.includes(p)) delete base[p];
   const I = missionPackInstall(pack, base);
   let n = 0;
+  for (const p of mine) if (I.providers[p] && I.providers[p].pack) base[p] = Object.assign({}, I.providers[p], { arc: [], builds: [], night: [] });
   for (const p of Object.keys(I.providers)) {
     if (!base[p]) continue;
     for (const k of ['arc', 'builds', 'night']) { base[p][k] = I.providers[p][k] || []; n += base[p][k].length; }
   }
   Object.assign(T, I.text || {});
-  return { ok: true, n, held: I.held, why: '', projects: missionPackNormalise(pack).projects };   // (PROJECTS: the page ticks them)
+  MISSION_RULES_LIVE = N.rules || null;                       // STORY-REVAMP: the career reads the pack's rules from now on
+  MISSION_ID_LIVE = N.id || null;
+  return { ok: true, n, held: I.held, why: '', projects: N.projects, rules: MISSION_RULES_LIVE, id: N.id, start: N.start || null };   // (PROJECTS: the page ticks them)
+}
+
+// ---- THE PACK'S RULES (STORY-REVAMP, the user 13 Nov: "NO GENERATED JOBS at all: everything deterministic") --------------
+// pack.rules { jobs: 'generated' | 'none', shady: true | false, unflyable: 'hold' | 'offer' } - how the career fills its
+// board while this pack is in use (74_ careerOfferIds). jobs 'none': no job is drawn from the seed - the board is the
+// pack's missions and nothing else; shady false: no drawn "no questions asked" job either (an authored one is a mission
+// like any other); unflyable 'offer': a mission no validated design can fly is offered all the same (the user 16 Nov:
+// "this is a game about building planes" - the player builds the plane; 'hold' keeps it off the board, as today). A pack
+// that states no rules keeps today's board (the built-in pack). The Trust's loan job stays: one fixed errand, not a draw.
+const MISSION_PACK_RULES = { jobs: ['generated', 'none'], shady: [true, false], unflyable: ['hold', 'offer'] };
+let MISSION_RULES_LIVE = null, MISSION_ID_LIVE = null;
+const missionPackRules = () => MISSION_RULES_LIVE;
+const missionPackId = () => MISSION_ID_LIVE;                    // the pack in use (null: none yet - the tables as built)
+function missionPackRulesNorm(r) {
+  const R = msObj(r) ? r : {}, o = {};
+  for (const k of Object.keys(MISSION_PACK_RULES)) if (R[k] !== undefined) o[k] = R[k];
+  return o;
+}
+function missionPackRulesWhy(r) {
+  if (!msObj(r)) return ['rules is not an object'];
+  const why = [];
+  for (const k of Object.keys(r)) {
+    if (!MISSION_PACK_RULES[k]) why.push('rules.' + k + ' is not a rule (' + Object.keys(MISSION_PACK_RULES).join(', ') + ')');
+    else if (!MISSION_PACK_RULES[k].includes(r[k])) why.push('rules.' + k + ' is ' + MISSION_PACK_RULES[k].join(' | ') + ', got ' + JSON.stringify(r[k]));
+  }
+  return why;
+}
+// THE PACK'S OWN CLIENTS (STORY-REVAMP; the user 13 Nov: "AERO CLUB (new client)"): pack.clients [{ id, name, desc, track?,
+// fields, person?, colour? }] - a provider that exists while the pack is in use (CONTRACT_PROVIDERS' row shape: no job
+// table, no goods; its words are the pack's: `name`, `desc` and prov.<id>.short). person: a GAME_PEOPLE id, its face
+function missionClientNormalise(c) {
+  const C = msObj(c) ? c : {}, id = typeof C.id === 'string' ? C.id : '';
+  const o = { id, name: typeof C.name === 'string' ? C.name : 'prov.' + id + '.name', desc: typeof C.desc === 'string' ? C.desc : 'prov.' + id + '.desc',
+    track: typeof C.track === 'string' ? C.track : null, fields: Array.isArray(C.fields) ? C.fields.filter(f => typeof f === 'string') : [] };
+  if (C.person != null) o.person = C.person;
+  if (C.colour != null) o.colour = C.colour;
+  return o;
+}
+function missionClientsWhy(L, T, F) {
+  if (!Array.isArray(L)) return ['clients is not a list'];
+  const why = [], seen = {};
+  for (const c0 of L) {
+    const c = missionClientNormalise(c0), at = 'client ' + c.id;
+    if (!/^[a-z][a-z0-9]*$/.test(c.id)) { why.push('a client has an id (a lowercase word), got ' + JSON.stringify(c.id)); continue; }
+    if (seen[c.id]) why.push(at + ': twice'); seen[c.id] = 1;
+    const B = typeof CONTRACT_PROVIDERS !== 'undefined' ? CONTRACT_PROVIDERS[c.id] : null;
+    if (B && !B.pack) why.push(at + ': a provider of the game already (72_contract_data.js)');
+    for (const k of [c.name, c.desc, 'prov.' + c.id + '.short']) if (!contractTextOk(k, T)) why.push(at + ': text key ' + k + ' does not resolve');
+    for (const f of c.fields) if (!F[f]) why.push(at + ': field ' + f + ' is not a field');
+    if (c.track != null && (typeof CONTRACT_TRACKS === 'undefined' || !CONTRACT_TRACKS[c.track])) why.push(at + ': no track ' + c.track);
+    if (c.person != null) { const w = missionPersonWhy(c.person, 'its person'); if (w) why.push(at + ': ' + w); }
+    if (c.colour != null && !/^#[0-9a-f]{6}$/i.test(c.colour)) why.push(at + ': colour is #rrggbb');
+  }
+  return why;
+}
+// a providers table with the pack's clients in it (the table handed in is not changed)
+function missionProvidersWith(clients, base) {
+  const B = base || (typeof CONTRACT_PROVIDERS !== 'undefined' ? CONTRACT_PROVIDERS : {});
+  if (!Array.isArray(clients) || !clients.length) return B;
+  const out = Object.assign({}, B);
+  for (const c0 of clients) { const c = missionClientNormalise(c0); if (c.id && !(B[c.id] && !B[c.id].pack)) out[c.id] = Object.assign({ base: 0, goods: [], jobs: [], arc: [], builds: [], night: [], pack: true }, c); }
+  return out;
+}
+// THE START (STORY-REVAMP; the user 13 Nov: "no buying machinery ... Start = tube and fabric ... Old hangar -> metal shop"):
+// pack.start { sheds: { <hangar id>: { without: [kit ids] } } } - the kits a career on this pack does NOT start with in
+// that hangar; a 'kit:<id>' ability puts one back (careerAbilityGrant). careerPackAdopt(doc, use) applies it ONCE a
+// career (career.pack { id, without }), and drops an accepted mission no table knows any more (a career begun on
+// another pack) -> { doc, notes: [..] }; the same document when there is nothing to do.
+function missionStartWhy(S) {
+  const why = [], H = msObj(S.sheds) ? S.sheds : {};
+  for (const k of Object.keys(S)) if (k !== 'sheds') why.push('start.' + k + ' is not known (sheds)');
+  for (const h of Object.keys(H)) {
+    const W = H[h] && H[h].without;
+    if (!Array.isArray(W) || !W.length) { why.push('start.sheds.' + h + ': without is a list of kits'); continue; }
+    for (const k of W) if (k === 'park' || (typeof HANGAR_KITS !== 'undefined' && !HANGAR_KITS[k])) why.push('start.sheds.' + h + ': ' + (k === 'park' ? 'the bare shed stays' : 'no hangar kit ' + k));
+  }
+  return why;
+}
+function careerPackAdopt(doc, use) {
+  const c = doc && doc.career, U = use || {};
+  if (!c || doc.mode !== 'career' || !U.id) return { doc, notes: [] };
+  const notes = [], d = msClone(doc), C = d.career.contracts;
+  if (!d.career.pack || d.career.pack.id !== U.id) {
+    const without = {}, H = (U.start && U.start.sheds) || {}, has = Array.isArray(d.career.abilities) ? d.career.abilities : [];
+    for (const h of Object.keys(H)) {
+      const S = d.sheds && d.sheds[h];
+      if (!S) continue;
+      without[h] = H[h].without.slice();
+      const out = without[h].filter(k => (S.kits || []).includes(k) && !has.includes('kit:' + k));
+      if (out.length) { S.kits = S.kits.filter(k => !out.includes(k)); notes.push(h + ': starts without ' + out.join(', ')); }
+    }
+    d.career.pack = { id: U.id, without };
+  }
+  if (C && typeof careerContract === 'function') {
+    const gone = C.accepted.filter(id => !careerContract(d, id));
+    if (gone.length) { C.accepted = C.accepted.filter(id => !gone.includes(id)); for (const id of gone) delete C.live[id];
+      if (gone.includes(C.tracked)) C.tracked = C.accepted[0] || null; notes.push('no longer on any board: ' + gone.join(', ')); }
+  }
+  return notes.length || !doc.career.pack || doc.career.pack.id !== U.id ? { doc: d, notes } : { doc, notes };
+}
+// THE ABILITIES (what a project, a step or a mission GIVES - the user 13 Nov: "no buying machinery. A contract/project
+// GIVES the machinery"): a word kept once in career.abilities. 'tech:<n>' opens the machine shop's segment n (79b: never
+// down); 'kit:<id>' a hangar kit's machines (26_ HANGAR_KITS); any other word is the pack's own (a requires.abilities key)
+function missionAbilityWhy(a) {
+  if (typeof a !== 'string' || !/^[a-z][\w.-]*(:[\w.-]+)?$/.test(a)) return 'an ability is a word or <kind>:<id>, got ' + JSON.stringify(a);
+  const m = /^(tech|kit):(.+)$/.exec(a);
+  if (m && m[1] === 'tech' && !(typeof TECH_SEGS !== 'undefined' ? TECH_SEGS[m[2]] : /^[1-3]$/.test(m[2]))) return 'no machine shop segment ' + m[2];
+  if (m && m[1] === 'kit' && typeof HANGAR_KITS !== 'undefined' && !HANGAR_KITS[m[2]]) return 'no hangar kit ' + m[2];
+  return '';
+}
+function careerAbilityGrant(d, a, events, from) {
+  const c = d.career;
+  c.abilities = Array.isArray(c.abilities) ? c.abilities : [];
+  if (c.abilities.includes(a)) return false;
+  c.abilities.push(a);
+  const m = /^tech:(\d+)$/.exec(a);
+  if (m && c.tech && typeof techNormalise === 'function') { const t = techNormalise(c.tech); t.seg = Math.max(t.seg, Math.min(TECH_MAX, +m[1])); c.tech = t; }
+  // 'kit:<id>': the kit's machines stand in every hangar the career's start took them out of (careerPackAdopt), in the
+  // kits' own order - "a contract/project gives the machinery ... popping up in the hangar"
+  const k = /^kit:(.+)$/.exec(a), W = k && c.pack && c.pack.without;
+  if (k && W && d.sheds) for (const h of Object.keys(W)) {
+    const S = d.sheds[h];
+    if (!S || !W[h].includes(k[1]) || (S.kits || []).includes(k[1])) continue;
+    const all = (S.kits || []).concat([k[1]]), order = typeof HANGAR_KITS_DEFAULT !== 'undefined' ? HANGAR_KITS_DEFAULT : all;
+    S.kits = order.filter(x => all.includes(x)).concat(all.filter(x => !order.includes(x)));
+  }
+  if (events) events.push({ k: 'gives', what: a, from: from || null });
+  return true;
 }
 
 // ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------
@@ -3895,28 +4108,38 @@ function careerSign(doc, slot, sign) {
 // the next epoch's jobs are new ones). Reputation never hides a tab (g7): it scales the jobs' loads.
 function careerOfferIds(doc) {
   const c = doc.career, C = c.contracts;
+  // (STORY-REVAMP) a career that ADOPTED a pack (73b careerPackAdopt) has a board only while that pack is in use: a page
+  // that could not load it offers nothing, rather than another pack's missions or a drawn job
+  if (c.pack && c.pack.id && typeof missionPackId === 'function' && missionPackId() !== c.pack.id) return [];
   const done = careerDoneIds(doc), taken = new Set(done.concat(C.accepted));
   const out = [];
   const A = contractAuthored(), sky = careerOfferSky(doc);
+  // STORY-REVAMP (the user 13 Nov: "NO GENERATED JOBS at all: everything deterministic"): the pack in use states the
+  // board's rules (73b missionPackRules; none stated = today's board). An authored mission that REPEATS
+  // (repeat: { every: n }) is free again once n other contracts are done after its last time - the board's regular work
+  const R = typeof missionPackRules === 'function' ? missionPackRules() : null;
+  const again = id => { const r = A[id], e = r && r.kind !== 'job' && r.repeat ? +r.repeat.every : 0; return e >= 1 && done.length - 1 - done.lastIndexOf(id) >= e; };
+  const free = id => !C.accepted.includes(id) && (!done.includes(id) || again(id));
   for (const p of Object.keys(CONTRACT_PROVIDERS)) {
     const P = CONTRACT_PROVIDERS[p];
     const next = P.arc.find(r => !done.includes(r.id));
     // (G2320) a contract the certificate cannot answer is HELD OUT (73_ contractCertifiable: the aerobatic box)
     if (next && !taken.has(next.id) && careerNeedsOk(doc, A[next.id]) && contractCertifiable(A[next.id])) out.push(next.id);
-    for (const b of P.builds || []) if (!taken.has(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
+    for (const b of P.builds || []) if (free(b.id) && careerNeedsOk(doc, A[b.id]) && contractCertifiable(A[b.id])) out.push(b.id);
     // (G2665 NIGHT-OPS) the provider's authored night work, each once its needs are met - held out while no validated
     // design can fly it (73_ contractFlyable: the stretcher case)
-    for (const r of P.night || []) if (!taken.has(r.id) && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);
-    for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep, sky })) if (!taken.has(j.id)) out.push(j.id);
+    for (const r of P.night || []) if (free(r.id) && careerNeedsOk(doc, A[r.id]) && ((R && R.unflyable === 'offer') || contractFlyable(A[r.id]))) out.push(r.id);
+    if (!R || R.jobs !== 'none') for (const j of contractJobs(c.seed, p, done.length, { rep: (c.providers[p] || { rep: 0 }).rep, sky })) if (!taken.has(j.id)) out.push(j.id);
   }
   // TUTORIAL v2 (TUTORIAL-LOCK): the story's own job is offered while its beat holds, whatever its chain's `after` says
   // (field.02 waits for field.01 in the career; the tutorial teaches it alone) - first on the list
-  if (typeof storyJobIds === 'function') for (const id of storyJobIds(doc).slice().reverse()) if (!taken.has(id) && !out.includes(id)) out.unshift(id);
+  // (STORY-REVAMP: in a pack whose contracts come in any order it is on the list already - moved to the front all the same)
+  if (typeof storyJobIds === 'function') for (const id of storyJobIds(doc).slice().reverse()) if (!taken.has(id)) { const i = out.indexOf(id); if (i >= 0) out.splice(i, 1); out.unshift(id); }
   // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
   if (loan && !taken.has(loan)) out.unshift(loan);
   // CERT-GATES: the "no questions asked" job, from the second refresh on (76_ econShadyOffer)
-  const shady = typeof econShadyOffer === 'function' ? econShadyOffer(doc) : null;
+  const shady = typeof econShadyOffer === 'function' && !(R && (R.shady === false || (R.jobs === 'none' && R.shady !== true))) ? econShadyOffer(doc) : null;
   if (shady && !taken.has(shady) && careerContract(doc, shady)) out.push(shady);
   // follow-ups: the last of each delivered build contract's chain
   const builds = done.filter(id => { if (/^job:/.test(id)) return false; const r = careerContract(doc, id); return r && r.kind === 'build'; });
@@ -4042,6 +4265,9 @@ function contractOnStop(doc, contract, stop, hooks) {
       // (MISSIONS-P1/P2) the airframe a delivery handed over (the handover's), a lap timed, a line said
       if (st.subs[j].do === 'deliver' && stop.slot) live.slot = stop.slot;
       if (r.timer) { live.timers = Object.assign({}, live.timers || {}); live.timers[r.timer.id] = r.timer; events.push({ k: 'timer', id, timer: r.timer, medal: r.medal || null }); }
+      // (STORY-REVAMP: COMPETE's seam 1) the STOL metres and the course's sum, kept for the card and the done row
+      if (r.scores) { live.scores = (live.scores || []).filter(x => !r.scores.some(y => y.id === x.id)).concat(r.scores); events.push({ k: 'scores', id, scores: r.scores, medal: r.medal || null }); }
+      if (r.course) { live.course = r.course; events.push({ k: 'course', id, course: r.course, medal: r.medal || null }); }
       // (MISSIONS-P3) every step's line, and what its done does (onDone: say, pay, a site's state)
       const sy = st.subs[j].say || r.say;
       if (sy) events.push({ k: 'say', id, say: sy });
@@ -4087,6 +4313,11 @@ function careerComplete(d, rec, live, medal, events) {
   }
   const row = { id: rec.id, at: Math.round(d.clock || 0), pay };
   if (medal) row.medal = medal;
+  // (STORY-REVAMP) a competition's result on its done row: every lap's seconds, the course's sum, the STOL metres - the
+  // club's records are read off the done list (careerBest)
+  if (live.timers) { row.laps = {}; for (const k of Object.keys(live.timers)) if (typeof live.timers[k].s === 'number') row.laps[k] = live.timers[k].s; }
+  if (live.course && typeof live.course.s === 'number') row.course = live.course.s;
+  if (live.scores) { row.stol = {}; for (const x of live.scores) if (typeof x.m === 'number') row.stol[x.id] = x.m; }
   C.done.push(row);
   C.accepted = C.accepted.filter(x => x !== rec.id);
   delete C.live[rec.id];
@@ -4103,7 +4334,24 @@ function careerComplete(d, rec, live, medal, events) {
   if (handover) ev.handover = handover;
   if (live.assess) ev.assess = live.assess;
   if (live.timers) ev.timers = live.timers;
+  if (live.scores) ev.scores = live.scores;
+  if (live.course) ev.course = live.course;
   events.push(ev);
+}
+// (STORY-REVAMP) THE PLAYER'S BEST at a competition flown more than once: over its done rows, the least of each lap, of
+// the course's sum and of each STOL line's metres (a regularity lap's least deviation is its medal's business, not this)
+// -> { n, medal, laps: { id: s }, course: s | null, stol: { id: m } } | null
+function careerBest(doc, id) {
+  const rows = ((doc && doc.career && doc.career.contracts.done) || []).filter(r => r.id === id);
+  if (!rows.length) return null;
+  const rank = { gold: 3, silver: 2, bronze: 1 }, out = { n: rows.length, medal: null, laps: {}, course: null, stol: {} };
+  for (const r of rows) {
+    if (r.medal && (rank[r.medal] || 0) > (rank[out.medal] || 0)) out.medal = r.medal;
+    for (const k of Object.keys(r.laps || {})) if (out.laps[k] == null || r.laps[k] < out.laps[k]) out.laps[k] = r.laps[k];
+    for (const k of Object.keys(r.stol || {})) if (out.stol[k] == null || r.stol[k] < out.stol[k]) out.stol[k] = r.stol[k];
+    if (typeof r.course === 'number' && (out.course == null || r.course < out.course)) out.course = r.course;
+  }
+  return out;
 }
 // (MISSIONS-P3) WHAT A DONE DOES (a step's or the mission's onDone): its line (an event), its pay (a ledger line, the
 // contract's), a site's new state (career.sites; a site whose `track` is a world construction stage reveals it when
@@ -4111,6 +4359,8 @@ function careerComplete(d, rec, live, medal, events) {
 function careerOnDone(d, rec, od, events) {
   if (od.say) events.push({ k: 'say', id: rec.id, say: od.say });
   if (typeof od.pay === 'number' && isFinite(od.pay) && od.pay > 0) { playerCharge(d, -od.pay, 'contract', rec.id); events.push({ k: 'bonus', id: rec.id, pay: od.pay }); }
+  // STORY-REVAMP: what the done GIVES (machinery: 73b careerAbilityGrant - "a contract/project gives the machinery")
+  if (Array.isArray(od.gives) && typeof careerAbilityGrant === 'function') for (const g of od.gives) careerAbilityGrant(d, g, events, rec.id);
   const S = od.site;
   if (S && typeof S.id === 'string') {
     const c = d.career;
@@ -4418,11 +4668,12 @@ function careerMapRecord(doc, world, opts) {
   const C = c.contracts;
   const providers = Object.keys(CONTRACT_PROVIDERS).map(id => {
     const P = CONTRACT_PROVIDERS[id];
-    return { id, name: contractText(P.name), short: contractText('prov.' + id + '.short'), colour: CAREER_MAP_LOOK[id] || '#888',
+    const who = P.person || (typeof peopleClientOf === 'function' ? peopleClientOf(id) : null);   // (STORY-REVAMP: a pack's client names its person)
+    return { id, name: contractText(P.name), short: contractText('prov.' + id + '.short'), colour: P.colour || CAREER_MAP_LOOK[id] || '#888',
              home: (P.fields && P.fields[0]) || null, line: contractText(P.desc),
              rep: (c.providers[id] || {}).rep || 0, track: (c.tracks || {})[P.track] || 0,
-             client: typeof peopleClientOf === 'function' && peopleClientOf(id)
-               ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256), bg: peopleBg(peopleClientOf(id)) } : null };
+             client: who && typeof peopleName === 'function'
+               ? { id: who, name: peopleName(who), face: peopleFace(who, 128), faceBig: peopleFace(who, 256), bg: peopleBg(who) } : null };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
   const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : careerSkyCover(world && world.day) };

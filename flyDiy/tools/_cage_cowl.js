@@ -319,7 +319,7 @@ function innerOf(skin, cA, back) {
   // MATTE AND NOT METAL, whatever the outside is: a polished alclad cowl is
   // still primer on the inside, and a metalness that high on an albedo this
   // low reflects the sky straight back and undoes the darkening.
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / inner lining' },
     color: c, metalness: 0.0, roughness: 0.95,
     side: back ? THREE.BackSide : THREE.DoubleSide,
     transparent: op < 1, opacity: op, depthWrite: op >= 1 });
@@ -336,14 +336,14 @@ function mats() {
   if (MATS) return MATS;
   const D = THREE.DoubleSide;
   MATS = {
-    skin:  new THREE.MeshStandardMaterial({ color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: D }),
-    host:  new THREE.MeshStandardMaterial({ color: 0x99a3ad, metalness: 0.40, roughness: 0.55, side: D }),
-    dark:  new THREE.MeshStandardMaterial({ color: 0x15181b, metalness: 0.10, roughness: 0.92, side: D }),
+    skin:  new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / skin fallback' }, color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: D }),
+    host:  new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / host fallback' }, color: 0x99a3ad, metalness: 0.40, roughness: 0.55, side: D }),
+    dark:  new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / dark fallback' }, color: 0x15181b, metalness: 0.10, roughness: 0.92, side: D }),
     // (no `inner` here: the interior is DERIVED from the built skin by
     // innerOf, on both paths — it is not hardware and has no finish of its
     // own, and GATE SKINMAT reads this table as the list of what does)
-    steel: new THREE.MeshStandardMaterial({ color: 0x6d737a, metalness: 0.90, roughness: 0.35, side: D }),
-    prop:  new THREE.MeshStandardMaterial({ color: 0xc79a63, metalness: 0.0, roughness: 0.62, side: D }),
+    steel: new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / steel fallback' }, color: 0x6d737a, metalness: 0.90, roughness: 0.35, side: D }),
+    prop:  new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / prop fallback' }, color: 0xc79a63, metalness: 0.0, roughness: 0.62, side: D }),
   };
   return MATS;
 }

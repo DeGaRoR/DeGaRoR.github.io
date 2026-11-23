@@ -1325,7 +1325,7 @@ function buildGrille(group,mats){
   const hw=o.w*0.96, hh=o.h*0.96;
   const NR=Math.max(0,Math.round(P.grilleRows||0));
   const R=grilleNumRects({cx:o.cx,cy:o.cy,w:hw,h:hh});
-  const plateM=R?new THREE.MeshStandardMaterial({color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
+  const plateM=R?new THREE.MeshStandardMaterial({userData:{progOwner:'aircraft / cowl / grille number digits'},color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
   const inR=(x,y,r)=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];
   // (the user: "the letter should be white and the rest should not be painted"): the digits ivory, the rest bare grille
   const matAt=(x,y)=>!R?m:(R.ink.some(r=>inR(x,y,r))?plateM:m);
@@ -1383,7 +1383,7 @@ function buildLamps(group,mats,shellM){
   const ze=zEnd(), z=ze-Math.max(0,P.lampBack), cy=spineY(ze)+P.lampY, r=Math.max(0.03,P.lampR);
   const half=surfPoint(0,z)[0];
   const chrome=mats.steel||mats.skin, shell=shellM||mats.skin;
-  const lens=new THREE.MeshStandardMaterial({color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
+  const lens=new THREE.MeshStandardMaterial({userData:{progOwner:'aircraft / cowl / headlamp lens'},color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
   lens.userData.aeroskin=1;
   // CAR-3 (the user, 12 Nov: "two additional openings on the sides in which you're gonna stick the headlamps"):
   // lampIn 1 seats each lamp IN the face's side aperture (apMode 2 / 3: the fitted pair), lampBack behind the face,
@@ -1420,7 +1420,7 @@ function buildBlinkers(group,mats){
   const pr=(P.lampIn>0&&(P.apMode===2||P.apMode===3))?apertureList().slice(P.apMode===3?1:0):null;
   const yT=(pr&&pr.length===2?pr[0].cy:spineY(ze)+P.lampY)-(P.blinkY||0);
   const zc=ze-0.05-len*(1-NOSE)*0.15;                         // the widest station, the nose just short of the face
-  const lens=(typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', {color:new THREE.Color(0xff9a1a).multiplyScalar(0.45),emissive:0xff8a12,emissiveIntensity:0.6,roughness:0.2,metalness:0,side:THREE.DoubleSide});
+  const lens=(typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', {color:new THREE.Color(0xff9a1a).multiplyScalar(0.45),emissive:0xff8a12,emissiveIntensity:0.6,roughness:0.2,metalness:0,side:THREE.DoubleSide},'aircraft / cowl / blinker lens');   // (PERF-TRACE: the owner, MATLIB's 4th argument)
   lens.userData.aeroskin=1;
   const tailM=mats.steel||mats.skin;
   const f=u=>u<=NOSE?Math.sqrt(Math.max(0,1-Math.pow((NOSE-u)/NOSE,2))):Math.pow(Math.max(0,(1-u)/(1-NOSE)),0.72);

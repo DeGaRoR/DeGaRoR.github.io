@@ -82,7 +82,7 @@
       if (meshes.length) return true;
       const T = W.THREE; cam = o.camera || (W.FLIGHT_PROBE && W.FLIGHT_PROBE.camera && W.FLIGHT_PROBE.camera());
       if (!T || !cam) return false;
-      mat = new T.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, side: T.BackSide, blending: T.AdditiveBlending, transparent: false, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+      mat = new T.ShaderMaterial({ userData: { progOwner: 'sky / aurora / curtain' }, uniforms: U, vertexShader: VS, fragmentShader: FS, side: T.BackSide, blending: T.AdditiveBlending, transparent: false, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
       addTo(cam, 1.9, -999);
       const probes = (W.ATMO && W.ATMO.probes) || [], day = W.DAY_CLOCK && W.DAY_CLOCK.day ? W.DAY_CLOCK.day() : null;
       tick();

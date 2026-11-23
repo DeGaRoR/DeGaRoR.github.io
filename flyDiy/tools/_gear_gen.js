@@ -39,7 +39,7 @@ const D2R = Math.PI / 180;
 
 // ---- materials ------------------------------------------------------------
 const lam = (c, o) => new THREE.MeshLambertMaterial(
-  Object.assign({ color: c }, o || {}));
+  Object.assign({ userData: { progOwner: 'aircraft / landing gear / plain fallback' }, color: c }, o || {}));
 const MAT = {
   body:    lam(0x8a95a2, { transparent: true, opacity: 0.20,
                            side: THREE.DoubleSide, depthWrite: false }),
@@ -57,7 +57,7 @@ const MAT = {
   // bottom skins, the non-skid walk, the heel wheel's polyurethane tyre
   skiWhite: lam(0xf1f0ea), skiRed: lam(0xb8261e), skiYellow: lam(0xe9b81c), skiBlack: lam(0x1c1d20), skiCarbon: lam(0x2b2e33),
   skiSole: lam(0xf6f5f0), skiPad: lam(0x1a1b1d), skiHeel: lam(0xe3a91e),
-  mark:    new THREE.MeshBasicMaterial({ color: 0xff4d3d }),  // pre-ok: a bench marker (not used in the world)
+  mark:    new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / landing gear / bench marker' }, color: 0xff4d3d }),  // pre-ok: a bench marker (not used in the world)
 };
 
 // AEROSKIN (G70). The undercarriage was the most visible thing still wearing
@@ -152,7 +152,7 @@ function drawStub(parent, AF, P) {
   const lg = new THREE.BufferGeometry();
   lg.setAttribute('position',
     new THREE.BufferAttribute(new Float32Array(pos), 3));
-  parent.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({
+  parent.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ userData: { progOwner: 'aircraft / landing gear / bench stub body lines' },
     color: 0x7d8996, transparent: true, opacity: 0.42 })));
 }
 
@@ -3740,7 +3740,8 @@ const WHEELTEX = (() => {
       if (srgb && THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; };
     const m = (typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', kind === 'tyre'
       ? { color: 0xffffff, map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0 }
-      : { color: new THREE.Color('#' + (a || 'c8ccd0')), map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0.35 });
+      : { color: new THREE.Color('#' + (a || 'c8ccd0')), map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0.35 },
+      kind === 'tyre' ? 'aircraft / landing gear / tyre texture' : 'aircraft / landing gear / rim texture');   // (PERF-TRACE: the owner, MATLIB's 4th argument)
     m.normalScale.set(kind === 'tyre' ? 1.4 : 0.6, kind === 'tyre' ? 1.4 : 0.6);
     m.userData.tyreTex = key; m.userData.aeroskin = 1;
     pool.set(key, m); return m;
