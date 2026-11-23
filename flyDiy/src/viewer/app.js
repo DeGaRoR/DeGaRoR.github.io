@@ -1001,7 +1001,9 @@
           else if (LAB.groundFirst && (lab === 'ring lod' || lab === 'far terrain' || lab === 'water')) groundFirstHand(lab); } } while (!r.done && !window.FLYDIY_WORLD_WAIT && performance.now() - t0 < SL); }
         catch (e) { console.error('world build:', e); window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null; res(); return; }
         worst = Math.max(worst, performance.now() - t0);
-        if (gfLive()) { const G = LAB.gfS, ms = performance.now() - t0; G.slices++; if (ms > G.worstSlice) { G.worstSlice = Math.round(ms); G.worstLab = lab; } }   // (the longest slice behind the live garage, and its label)
+        if (gfLive()) { const G = LAB.gfS, ms = performance.now() - t0; G.slices++; if (ms > G.worstSlice) { G.worstSlice = Math.round(ms); G.worstLab = lab; }   // (the longest slice behind the live garage, and its label)
+          // ...and every slice over 50 ms by the label it ended on [count, ms in all, the longest]: the garage's freezes, named for PERF-WORLDBUILD
+          if (ms > 50) { const L = G.long || (G.long = {}), k = lab || '(the last)', e = L[k] || (L[k] = [0, 0, 0]); e[0]++; e[1] += Math.round(ms); if (ms > e[2]) e[2] = Math.round(ms); } }
         geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
         if (r.done) {
           window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null;
