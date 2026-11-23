@@ -59,7 +59,9 @@ const XFLAGS = argv.map((a, i) => (a === '--chrome' ? argv[i + 1] : null)).filte
 const HEADED = flag('headed');
 const [SW, SH] = String(opt('size', '1920,1080')).split(/[,x]/).map(Number);
 if (!(SW > 0 && SH > 0)) { console.error('boot_perf: --size W,H'); process.exit(2); }
-const args = [...(HEADED ? ['--window-position=0,0', '--no-default-browser-check'] : ['--headless=new']), '--remote-debugging-port=' + PORT,
+// (23 Nov, A0's fix 6881e8d2a: a COVERED headed window is backgrounded by Chrome - no rAF, a load that never ends; the user's
+//  own windows may cover it during an unattended night window)
+const args = [...(HEADED ? ['--window-position=0,0', '--no-default-browser-check', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'] : ['--headless=new']), '--remote-debugging-port=' + PORT,
   '--window-size=' + SW + ',' + SH, '--hide-scrollbars', '--no-first-run',
   '--user-data-dir=' + UDD, '--disable-gpu-sandbox'].concat(XFLAGS, ['about:blank']);
 const ch = spawn(CHROME, args, { stdio: 'ignore' });
