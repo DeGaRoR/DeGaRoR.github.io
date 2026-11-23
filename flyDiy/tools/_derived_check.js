@@ -22,6 +22,10 @@
 // layer's runs in the ticks are printed for each side: OFF must run it where ON does not, or the gate did not test the
 // mode (a FAIL: `the modes did not differ`, when no value of an aeroplane showed it).
 // An aeroplane with no derived read (a fixed gear) has no walk of that kind and says so.
+// FIRST, PER AEROPLANE: one plain build ON with the calls of CAGE_CHAIN.derived and CAGE_CHAIN.over COUNTED (the gate wraps
+// the two functions in the page). An aeroplane that calls neither is built by the same code in both modes: it is
+// counted and not compared (a comparison there measures only whether the aeroplane repeats itself build after build -
+// a floatplane's CG handshake may not, to 1e-5 m).
 // THE ROWS LAID OVER P (CAGE_CHAIN.over, the same switch): a layer that handed a generator a COPY of P read every row and
 // re-ran on every tick of any row; over() reads through. Two checks, on EVERY aeroplane:
 //   the stand: the aeroplane as loaded, one plain build ON, OFF, OFF - the scene and the spec equal (a generator that
@@ -52,7 +56,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
 
 (async () => {
   const { openPage } = require('./_page_node.js');
-  let bad = 0, walks = 0, saved = 0, withReads = 0, stands = 0, overs = 0, P = null, W = null, D = null, U = null, CH = null, run = null;
+  let bad = 0, walks = 0, saved = 0, withReads = 0, stands = 0, overs = 0, sameCode = 0, P = null, W = null, D = null, U = null, CH = null, run = null;
   const boot = async file => {
     if (P) { try { P.close(); } catch (e) {} }
     P = await openPage({ quiet: true, storage: { 'flydiy.wip': fs.readFileSync(path.join(ROOT, file), 'utf8') }, query: 'fleet=0' });
@@ -62,6 +66,9 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     await P.until(() => false, 6000);
     W.requestAnimationFrame = () => 0;
     U = W.CAGE_UI; CH = W.CAGE_CHAIN;
+    // THE CALLS, COUNTED (the gate's own wrap; the call sites read window.CAGE_CHAIN.over / .derived when they call):
+    // an aeroplane on which neither is called builds by the same code in both modes - nothing to compare there
+    run('(() => { const C = window.CAGE_CHAIN, N = window.__DCN = { over: 0, derived: 0 }; if (C && C.over && !C.over.__n) { const o0 = C.over, d0 = C.derived; C.over = function (P, o) { N.over++; return o0(P, o); }; C.over.__n = 1; C.derived = function (P, n, f) { N.derived++; return d0(P, n, f); }; } return 1; })()');
   };
   const load = async p => {
     W.__DC = 'pending';
@@ -137,6 +144,15 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       const dk = Array.from(CH.derivedKeys());
       log('== list:' + p.n + ' ' + p.name + '  (' + how + ')  derived reads on: ' + (dk.join(' ') || 'none'));
       snap();
+      // WHAT THIS AEROPLANE CALLS: one plain build ON with the counters at zero. Neither called = the two modes are the
+      // same code on it (the PC-6 on Wiplines, 23 Nov: no derived read, no overlay, and an aeroplane that does not
+      // repeat itself build after build - its floats' CG handshake drifts 1e-5 m a build - read as 16 to 458 objects
+      // 'off' between two identical modes)
+      run('window.__DCN.over = 0; window.__DCN.derived = 0; 1');
+      await stand(false);
+      const used = JSON.parse(run('JSON.stringify(window.__DCN)'));
+      if (!used.over && !used.derived && !ROWS.length) { stands++; sameCode++; log('   neither a derived read nor an overlay is CALLED on this aeroplane (one plain build, counted): the two modes are the same code - nothing to compare  (' + Math.round((Date.now() - tP) / 1000) + ' s)'); continue; }
+      log('   called in one plain build: derived ' + used.derived + ', over ' + used.over);
       // (23 Nov, the PC-6 on Wiplines: a floatplane's CG handshake closes over a few builds - it stood 0.01 mm lower build
       // after build, and ON, the first of the three, read as 458 objects off OFF on an aeroplane with no derived read and
       // no overlay at all. The three are compared from a SETTLED aeroplane: plain builds until two in a row are the same
@@ -183,7 +199,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     log('   (' + Math.round((Date.now() - tP) / 1000) + ' s)');
   }
   try { if (P) P.close(); } catch (e) {}
-  log(stands + ' aeroplanes compared on the stand (' + overs + ' with an overlay in use), ' + walks + ' walks compared (' + withReads + ' aeroplanes with a derived read), ' + bad + ' failures; crew runs saved in the ticks: ' + saved);
+  log(stands + ' aeroplanes looked at: ' + sameCode + ' call neither (the same code in both modes), ' + (stands - sameCode) + ' compared on the stand (' + overs + ' where the every-row layers of the two modes differ), ' + walks + ' walks compared (' + withReads + ' aeroplanes with a derived read), ' + bad + ' failures; crew runs saved in the ticks: ' + saved);
   if (!stands) { bad++; log('nothing was compared'); }
   console.log('GATE DERIVED: ' + (bad ? 'FAIL' : 'PASS'));
   process.exit(bad ? 1 : 0);
