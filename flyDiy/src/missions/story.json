@@ -1952,6 +1952,13 @@
      "who": "martha",
      "text": "ct.resort.03.done"
     }
+   },
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "never took off on tw_ski > tw_ski (689 s on the ground: HOLD>DEPART>TAXI>STOP>HOLD>STOPPED) - the page ended it as a stop and the career counted it (a step judg",
+    "sim": "L40K",
+    "sig": "7311e507"
    }
   },
   {

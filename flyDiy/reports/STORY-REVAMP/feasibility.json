@@ -7,11 +7,11 @@
   "feasible": 45,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
-  "not flown": 24,
-  "infeasible": 7,
+  "not flown": 23,
+  "infeasible": 8,
   "stale": 5
  },
- "flownS": 76516,
+ "flownS": 77777,
  "rows": [
   {
    "id": "field.01",
@@ -1231,7 +1231,45 @@
    "id": "resort.03",
    "where": "skyline:2",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "STOL Cub",
+   "timeS": 1261,
+   "why": "never took off on tw_ski > tw_ski (689 s on the ground: HOLD>DEPART>TAXI>STOP>HOLD>STOPPED) - the page ended it as a stop and the career counted it (a step judged on stop.aero alone)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 572,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "tw_ski",
+     "to": "tw_ski",
+     "t": 689,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
