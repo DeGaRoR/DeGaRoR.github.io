@@ -714,6 +714,11 @@ const GATES = [
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
   { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 1200 },   // G2228: measured ALONE 13 Oct 1 078 s (the Cub 404 s: boot 89 + 13 rows ~20 s; the metal 674 s: boot 108 + 13 rows ~36 s) - no slow row, the old 480 was stale
+  // PERF-SLIDERS (23 Nov): GATE INSTANT's check where the Cub and the metal Cessna cannot see - a twin with its engines and
+  // its retracting gear on the wing (the DC-3-alike: its wing span's release left the engines' layer one build behind)
+  // a hull with a pylon engine (the Super Petrel) and the Cub; six rows each, the main gear's station along the fuselage
+  // among them (a row that turns the sit: the Cub's tank, the limbs) - _instant_rel_check.js
+  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', wall: 1500 },
   // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
