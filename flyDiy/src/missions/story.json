@@ -1573,7 +1573,13 @@
      "lumber"
     ]
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "Cessna 172 floats (career)",
+    "sim": "L40K",
+    "flownS": 420,
+    "sig": "ff06d5cd"
+   }
   },
   {
    "id": "resort.01",
