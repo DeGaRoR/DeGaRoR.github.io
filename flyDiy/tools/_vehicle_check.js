@@ -269,5 +269,7 @@ function parkedCase(off) {
   const F = require(path.join(ROOT, 'tools/_core_fresh.js')).fresh(path.join(ROOT, 'tools/flight_core.js'));
   row('BITS', notIn && F.ok && F.judged, 'the vehicle is ' + (notIn ? 'not ' : '') + 'in MANIFEST.core; tools/flight_core.js ' + (F.ok ? 'fresh' : 'STALE') + ' from src/core (' + F.header + ') - the aeroplane\'s core is not touched');
 }
+// ---- LIST: the garage's Vehicles category and its two switches (tools/_vehicle_list_check.js; A0 for the user, 15 Nov) ----
+for (const q of require(path.join(ROOT, 'tools/_vehicle_list_check.js')).check(ROOT)) row('LIST', q.ok, q.msg);
 console.log(fails ? 'GATE VEHICLE: FAIL (' + fails + ' rows)' : 'GATE VEHICLE: PASS');
 process.exitCode = fails ? 1 : 0;

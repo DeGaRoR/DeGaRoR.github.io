@@ -900,6 +900,8 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.paxCount > 0, absent: -1 }],
         ['paxSeatZ',  'fore / aft in bay', -1.50, 1.50, 0.005,
          { when: P => +P.crewOn && +P.paxCount > 0 }],
+        ['paxGap',    'sbs seat gap (passengers; absent = the pilots\')', 0.18, 1.20, 0.005,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxAbreast >= 2 }],   // CAR-3
         ['seat2H',    'squab height',  -1, 1.50, 0.005,
          { link: { sentinel: -1, from: 'seatH', test: v => v < 0 } }],
         ['seat2Rake', 'back recline',  -1, 60, 0.5,
@@ -924,9 +926,16 @@ window.CAGE_PAGE = {
         // WEIGHT STUDY L3 (12 Nov, the user: "they should be fitted in the tubes ... no central levers"): the runs' kind -
         // the billed rate per metre of reach (GEN_OUTFIT.ctlKgM / ctlKgMLight); latent at 0
         ['ctlRuns',   'control runs',   0, 1, 1, ['cables and torque tubes', 'light: push-pull carbon rods, Dyneema'], { absent: 0 }],
-        ['ctlStick',  'pitch/roll',     0, 3, 1, ['stick between legs',
+        ['ctlStick',  'pitch/roll',     0, 4, 1, ['stick between legs',
                                                   'yoke', 'side stick R',
-                                                  'none']],
+                                                  'none', 'steering wheel (car)']],
+        // CAR-3: the steering wheel's size, its column's rake up toward the driver, the hub's reach off the dash
+        ['steerD',    'steering wheel diameter', 0.25, 0.60, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 0.42, dim: 'len' }],
+        ['steerRake', 'steering column rake (deg up)', 0, 70, 1,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 22 }],
+        ['steerReach', 'steering hub off the dash', 0.08, 0.80, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 0.34, dim: 'len' }],
         // (G3573: the controls follow a seat that may now stand a metre higher and further: their ranges doubled)
         ['stickX',    'stick left',    -0.90, 0.90, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],

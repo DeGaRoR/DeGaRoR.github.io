@@ -450,7 +450,7 @@ const MANIFEST = {
          // page's half (drive_mode.js) - fetched when the player asks to drive (the menu's Drive row, ?drive=1), never before:
          // the aeroplane's core and the first load carry none of it
          ['src/cars', 'cars_car.js'], ['src/cars', 'cars_lods.js'],
-         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
+         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'car_sheet_core.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
          ['src/viewer', 'drive_mode.js'],
          // LIVERY-STICKERS (9 Nov): THE TWELVE ALASKA MARKS' GEOMETRY (tools/livery_marks_prep.js) - fetched by aeroskin.js
          // the first time a livery sticker is drawn (aeroVinylGeo), never by an aeroplane that wears none

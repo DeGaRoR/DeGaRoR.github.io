@@ -317816,6 +317816,105 @@ the next steps).
   lip (lipMode 1), the grille five horizontal rows on two uprights set 2 cm back (grilleN 2, grilleRows 5, grilleBar
   0.014), ductLen 0.05; the pair round (pairSq 0.5 - 0 is a diamond), pairX 0.47, r 0.105, level with the grille
   (pairY 0), the headlamps in them (lampOn, lampIn, lampBack 0.03). A radiator cap tried and left off (a dark knob).
+- **CAR-3, THE GRILLE TALLER (12 Nov; the user: "make the grill taller ... to the bottom of the green line")**: the top
+  kept, the bottom down to the livery's green band: apH 0.273 (0.55 m tall), apLift 0.207, the lamps kept where they
+  were (pairY 0.193 - the pair rides the main inlet's axis), grilleRows 11 (the bars' pitch kept). No code change: the
+  aperture fit (sectF at cowlLen) holds it - a try that measured the fit at the dropped face shrank everything and was
+  reverted.
+- **CAR-3, THE VAN'S WHEELS AGAIN (12 Nov; the user: "too round ... get the geometry of the roadster wheels, and then
+  design a rim that looks less vintage ... a basic rim ... a little wavy ... with holes ... probably aluminium ... on a
+  quite fat wheel")**: whRim 4 'pressed, round holes' (_gear_gen.js pressedDisc; _gear_page.js names): a dished plate
+  from the hub boss to the rim's well with N round holes (N = whBolts, 4..10) on a band at 0.275-0.395 Rh, pressed
+  proud between them and dimpled round each (a cos(N th) wave, 4.5 % of the face), 2.2 % Rh thick with a wall round
+  every hole (a closed plate - the gear's materials are FrontSide); the annuli and the holed band share their edge
+  samples (no cracks); in the hub's light alloy. The van: whProfile 2 (the roadster's slim carcass), whWide 1.4 (fat),
+  whRimD 0.6, whRim 4, whBolts 6, whCap 1 (domed); its sheet rewritten (same 1268 kg, still LAUNCHES).
+- **CAR-3, TWO LIVERIES AND A MOUNTAINS PATTERN (12 Nov; the user, with two reference vans: "do a livery, or maybe a
+  couple ... two of these trucks hanging out as utilities ... adding shapes to the livery editor, particularly the
+  mountain shapes ... and a retro one ... vanilla ... colors which are a little happier")**: NEW KIT PATTERN 'mountains'
+  (aeroskin.js AERO_KIT, LAST - index 13, a saved layer's pattern is its index): one to three seeded ranges rising from
+  the layer's bottom edge, far (D) tallest and drawn first, middle (B), near (A); knobs peaks 2-16, height (of the
+  depth), ranges 1-3, roughness (crags); rounded tops (quadratics through the midpoints); above the ridges the page is
+  empty. LIVERY OVERLAYS: tools/_rejoin_build.js takes edits.json,overlay.json,... (cage and meta merged key by key,
+  every other block replaced; one file = as before). builds/edits/utility_2026-11.mountain.json ("Field Wagon Alpine",
+  TOW 2: warm white, a sunset - roundel, sunflower - behind mint / turquoise / deep-teal ranges, satin paint) and
+  .retro.json ("Field Wagon Retro", TOW 3: cream over navy - a 'bands' layer of one - with yellow / orange / red belt
+  stripes - 'bands' lying, three); both side-box layers 5.4 m long from L -2.0 (the side box's L runs aft as it rises:
+  -4.7 is the bumper, +0.7 the tail), so they wrap the rear doors too. Rejoin: node tools/_rejoin_build.js
+  builds/cessna172r_2026-11-08.json out.json builds/edits/utility_2026-11.edits.json,builds/edits/utility_2026-11.retro.json
+  NOTE: GATE LIVERY is red on the cub's strut ("resolves to its painted pin trim - got castAlu", 2 of 328) - red at
+  0c90344f (master's train L38b, before any car work), not ours; reported, not fixed here.
+- **CAR-3, TAIL LAMPS AND BLINKERS (12 Nov; the user: "the TOW session has ... a trailer ... some tail lights. So maybe
+  you can also inherit them ... and use the little lights that we have at the wingtips there to do some blinkers")**:
+  NEW ROW carTail (Car part, 'lamps'; _gear_page.js; absent = none): _cage_gear.js carTailLamps - the trailer's
+  combination lamp (trailer_model.js: black housing, stop/tail red, amber indicator, white reverse) upright on each
+  rounded rear corner, facing back and out along the corner's 45-degree line (found from the airframe's sections ahead of
+  the wall: where the half-width grows as fast as the body runs forward), its foot 5 cm over the rear bumper; a sharp
+  corner takes it on the wall's face. Lenses: emissive MeshStandard (userData.aeroskin), no light source (GATE LIGHT
+  green). NEW ROWS cw_blinkOn / cw_blinkY (the cowl's 'Grille, radiator cap, lamps' group; _cowl_gen.js buildBlinkers;
+  ABSENT_AT 0): the wingtip light's teardrop (the cage light layer's pod: quarter ellipse, fine tail) on each side of
+  the bonnet just behind the face, nose forward, the nose the AMBER lens, the tail chrome, at the headlamps' height less
+  blinkY. Static: they do not blink yet (that is the drive mode's, when the car part takes the game's car). The van:
+  carTail 1, cw_blinkOn 1, cw_blinkY 0.06 (the liveries inherit them - overlays carry paint / finish / meta only).
+- **CAR-3, THE WIDTH CHECKED, THE WHEEL'S HOLES, THE RETRO CHOSEN (12 Nov)**: THE WIDTH (the user: "isn't this thing
+  really too wide? ... compare the half track"): the van is 1.98 m wide, track 1.76 / 1.64 m (half-track 0.88), wheelbase
+  3.20 m, 2.21 m tall - a Chevy Van G20 is 2.02 m, track ~1.77 / 1.71; a Ford Econoline 2.03 m, ~1.76 - a large American
+  van to the centimetre (a VW T5 is 1.90 / 1.63); kept, reported. THE WHEEL (the user: "a larger tire flank ... the
+  holes ... closer to the center ... in between the outer walls and the inner walls of the rim"): whRimD 0.5 (a taller
+  sidewall); pressedDisc's band now 0.205-0.315 Rh, between the hub boss (0.19) and the rim's well wall (0.335), the
+  holes BETWEEN the bolts (half a pitch off), the dish falling to the well outside them. THE RETRO (the user's pick):
+  the navy up to the bonnet's top (the bonnet all navy), the three stripes 8 cm above it under the sills; the lettering
+  PROJECTED (text pieces t1 'Home Field' in Lobster Two bold italic, cream; t2 'OFFICIAL TOW & UTILITY' in Barlow
+  bold, yellow; the registration regMode 1 on the bonnet's flank, Barlow, cream); THE ROOF (the user: "not a big flat
+  white plane"): a plan-view layer, a navy band edged in orange running nose to tail over the roof. PLAN MODE'S AXES:
+  L is ACROSS (the span) and C fore / aft (C runs as the side box's L), so a band along the roof is turned 90 degrees
+  (Rot 1.5708) with W its length - unturned it ran across the whole width and down the walls. Every section metallic
+  (metal 0.45, rough 0.3), the stripes' layers metallic. THE ALPINE: the sun dropped (the user), the mountains one
+  layer of three ranges, metallic. Roof bas-relief: not yet (the band answers the flat white for now).
+- **CAR, THE MUST-LAND (13 Nov; A0's list via TOW-LAUNCH, the user: "put the car in the garage, roll out, pick a
+  destination, drive there ... a few CAR-ONLY destinations ... a ROBUST car detection ... the car AI drives it there";
+  the user kept the WHOLE car part here, the AI included)**:
+  - THE MERGE: claude/tow-launch-onmaster (00b8f7d1f: origin/master 23ce68c1f + the tow branch) merged in - master's
+    per-bay rows (paxLen2..6, doorPaxFront) in place of paxLenLast / doorPaxN (the van: paxLen 1.29, paxLen2 0.933,
+    the same car: 1268 kg); the cars moved by FLAGSHIP out of the plane lists / the pool into builds/lists/vehicles.json.
+  - GATE DRIVE-TRIP went red on the re-bake (master's HOME-DERELICT moved HOME's stand onto a square junction):
+    (1) THE LEAD-IN (vehicle_drive.js legPoly): a leg leaving 20-120 deg off the car's heading starts with a point
+    straight ahead as far as the corner's fillet needs (1.15 rMin tan(th/2) + 2, at most 15 m) - from rest the car swung
+    3.69 m wide joining a route 67 deg off (limit 2.5); now 1.57 m. (2) VI_STOP_IN 12 (vehicle_island.js, was 6): a
+    place's stop 12 m in from its road's end - coming round HOME's square corner the car could not line up in 6 m and
+    stopped 3.2 m off (limit 1 m). The driver's stats keep xtAt (where the worst cross-track was).
+  - THE KIND: window.VEHICLE_KIND(spec) (garage.js) - 'car' when spec.cage.isCar is 1 (an explicit row; 0 is "no (an
+    aeroplane)") or the legacy spec.meta.car; 'plane' otherwise (the Fleet's contract with the game coordinator).
+  - THE VEHICLES LIST: garage.js vehicleList() (builds/lists/vehicles.json, a row's kind 'car' when absent; on the API
+    for the Fleet) and the garage fleet's own 'vehicles (cars)' group (openListed). The list now names the van in its
+    three liveries and the UTV: builds/vehicles/*.json (rejoined from builds/edits/ - the van's overlays as before).
+  - THE CAR SHEET IN THE PAGE: src/vehicle/car_sheet_core.js (lazy, window.CAR_SHEET; tools/car_sheet.js requires it -
+    the same digits): sheetFromBake / tuneFor moved out of the tool, measured in the craft root's frame in the page, and
+    carFromGarage(window) -> { name, sheet, tune, buildRig(THREE, def) }: the RIG OF THE CAR'S OWN MESHES (the garage's
+    drawing cloned - shared geometry and materials - re-framed by a ROTATION, y +90 deg: car_sheet's axis swap is a
+    mirror; a physics wheel at sheet z takes the garage unit at x = -z, the car being symmetric).
+  - THE ROLL-OUT: a car build's Roll out (app.js carBuild()) is DRIVE.enter(): measured on the stand first
+    (carFromGarage), then rolled out, then DRIVE_MODE.enter({ vehicle }) - drive_mode.js vehicleUp(): the vehicle source
+    (ctx.vehicle or DM.vehicleSource - the seam agreed with TOW-LAUNCH) for the drive, the tow and the trailer alike, the
+    Conquer pickup without one; the menu's row reads "Drive <the car>". tools/car_drive_shot.js: the whole flow in the
+    real page (import -> VEHICLE_KIND -> roll out -> drive -> stills).
+  - THE CAR'S DESTINATIONS: vehicle_island.js h.landOnly (no water aerodromes) and h.sites (CAR-ONLY places: the
+    record's named sites, kept when a road passes within 80 m); drive_mode.js CAR_SITES: Dockside Diner, Harbour General
+    Store, Cedar Harbour dock, Hilltop Coffee, Jolene Island Packing (all reached from HOME, ~12 km); the runway ends
+    out of the To list unless a tow is on; the fields with no road (the strips the roads never reach) were already
+    dropped, the unreachable greyed.
+- **CAR-3, A REAL HEADLINER AND PILLAR TRIMS (13 Nov; the user: "a real liner engulfs the pillar structure, and adds 5-10
+  cm of depth. I want to stop seeing the bare metal pillars ... model the roof liner, because this one does nothing")**:
+  NEW ROW hdlDepth (_cage_page5.js 'headliner' group, Fittings > Headliner & trim; absent = the recoloured skin as before):
+  _cage_gen.js cageInterior - the cabin's ceiling skin (inward normal at least 0.8 down, between zA and the windscreen)
+  and the roof hoops' faces within 12 cm of the crown, extruded INTO the cabin as one closed slab hdlDepth deep in the
+  headliner's material (the liner idiom, so it runs on over each hoop as a padded rib - its break left a black slit);
+  the hoops' descent and the pillar bands (PM) from the sill up, a moulded trim min(hdlDepth, 5 cm) deep in the upper
+  wall trim's. Their cabin faces take the skin liner's lit path (LINER-BACK: the skin's winding, flagged back) - a
+  front-facing underside was unlit, a black ceiling. _cage_light.js ceilAt: the lamp's band reaches a padded
+  headliner's underside (hdlDepth + skinT under the crown) - it hung on the skin inside the slab. (intPillars, the
+  composite pillar bands, builds nothing on the van - its zones are not 'carbon'.) The van: hdlDepth 0.075; its
+  builds/vehicles/ files rejoined, its sheet rewritten.
 
 ## TOW-LAUNCH SLOPE - THE GROUND PUSHES ALONG ITS NORMAL (13 Nov, for A0; claude/tow-launch-slope-reaction off L39b 23ce68c1f)
 - THE BUG (the user: "a real nasty bug ... everything should roll"): 30_solver.js pushed every contact node STRAIGHT UP and kept every friction in the horizontal plane, so a slope never pulled anything downhill. The motorglider set on Skyline Altiport (tw_ski, ~9 % grass) never moved; pushed to 4.4 m/s it slowed at g Crr (0.47 m/s2) as on flat ground.
@@ -317829,6 +317928,197 @@ the next steps).
 - PUSHED WITHOUT THE FULL BATTERY (A0's call, 13 Nov: the core battery is ~16 h of wall on the cloud box; train L40b runs every gate on its own box). The targeted branch-vs-master comparison of the ground gates was run side by side.
 - TRAP (named, not fixed here - 39c_placement is not this change's): placeAtAerodrome without seatOnGround on a sloped strip (the spawn identity) drops the aeroplane onto a buried third wheel; on a downhill spawn with the ground's slope now real, a taildragger can go over its nose. The game seats (app.js applyRoute); a gate that spawns raw on Jolene's sloped strips is the place to look first if one goes red on this change.
 
+## CAR (cont., 13 Nov evening - claude/fly-diy-car-build-uu6e6w): the van finished, the kind on saves, the lamp check
+
+- **CAR-3, THE SPARE ON THE REAR DOOR (the user: "for the back to be nice to look at, just put a spare wheel in the middle
+  of the left door, centered on the part without the window at the bottom")**: NEW ROWS spareAt (0 the flank as
+  before / 1 the rear wall), spareX (m across, rear wall), spareK (x the road wheels; absent 1) - _gear_page.js, claimed
+  in _cage_parts.js 'spare wheel'. _cage_gear.js spareBuild draws the same wheel, carrier, strap and buckle in a RIG
+  (+x aft, +z across) stood on the wall plane AF.z0. The van: spareSide 1 (the LEFT), spareX 0.427 (the left door's and
+  its window's centre), spareY -0.222, spareK 0.85 - the wall's clear panel between the bumper's top (-0.537) and the
+  window's bottom (0.274) is 0.81 m, a full 0.9 m road wheel does not fit. spareSide's LABELS were backwards (the cage's
+  +x is PORT, G209): now -1 'right', 1 'left' - no value changed, the roadster's spare (1) was always on its left.
+- **RETRO ROOF BAND**: m3 Pat 0 plan, C -1.015, W 3.53 (the windscreen's top to the rear doors' foot), H 1.70, P 0.941,
+  Q 0.05 - navy +-0.80, keylines to +-0.84, on the flat roof. Wider (H 1.94) painted the upper flanks: a plan
+  projection paints every face in its footprint and the body narrows under 0.88 above y 0.8. The orange keylines run
+  down the rear door edges. Seats: seatGap 0.40, paxGap (new row, passengers' own sbs gap) 0.64.
+- **spec.kind (A0)**: src/viewer/vehicle_kind.js (TOW's, the one rule) - an explicit garage car switch (spec.cage.isCar)
+  wins over a stale spec.kind; VEHICLE_KIND.stamp(spec). garage.js saveAs / exportFile stamp spec.kind ('car';
+  NO key for an aeroplane); garage.js's own vehicleKind defers to window.VEHICLE_KIND (it used to overwrite it). The six
+  car files carry spec.kind 'car', the three car edit sets 'kind' (tools/_rejoin_build.js copies E.kind).
+- **THE CABIN LAMPS UNDER THE LINER ARE LIT**: page probe - flood lens 2.40, pax 0.00 in both the plain and the lined
+  C172, the lamp 5.1 cm lower (on the slab's underside, 0.704 vs the skin 0.761). The dark close-up was plane_shot's:
+  rendered in the other order the PLAIN one is dark - the SECOND build of a plane_shot run renders its cabin lamps off.
+  TRAP (named, not fixed): compare lamps across builds one run per build.
+- **CAR-3, THE TAIL LAMPS FLAT ON THE BACK (the user: "place the backlights flat on the flat back surface ... not at 45
+  degrees")**: NEW ROW carTailAt (_gear_page.js after carTail; absent 0 = the corner's 45-degree station as before,
+  1 = flat). _cage_gear.js carTailLamps: the lens in the back's plane z0 facing aft, centred between the flat wall's
+  edge (halfX at z0 + 1 mm: the van's door edges, 0.855) and the full width (z0 + 12 cm, 0.976), width min(0.11, gap -
+  4.6 cm); the black housing runs forward until the corner's skin passes its outer edge (+12 mm). There is no flat
+  wall OUTBOARD of the van's doors - the corner's radius starts at their edges - so the lamp's face is in the back's
+  plane and its body fills the radius. The van: carTailAt 1 (x 0.873..0.950, just outboard of the lower hinges).
+- **CAR-3, NO STRAP ON THE VAN'S SPARE (the user: "drop the leather")**: NEW ROW spareStrap (absent 1 = the leather
+  strap and buckle as before; 0 = none - the wheel on its carrier, stub and wing nut alone). The van: spareStrap 0.
+- **CAR-3, A BEAM AXLE ON LEAF SPRINGS (the user: "rear suspension clips through rear tyre. Anchor it better,
+  realistic")**: the van's rear station was the aeroplane's swinging-link V (s1Leg 1) - with the wheels tucked into
+  their arches its tubes ran from the flank, outboard of the tyre, to the hub inboard of it: 1376 of the leg's 2149
+  vertices inside each tyre. NEW ROW carBeamR (_gear_page.js after carDrive, claimed in 'drive'; absent 0 = the leg as
+  drawn): the rearmost PAIR of units (not a lever, not a retracting leg) drawn by _cage_gear.js beamAxleSide INTO each
+  side's own edLeg group (a rigid unit: it rides its wheel as the leg did; the physics, contacts and sheet unchanged):
+  the axle tube from the brake plate's back to the centre with its collar; a leaf spring 6 cm inboard of the plate, 4
+  leaves on one quadratic through the front eye (a hanger 7 cm under the floor), the seat and the rear eye (a shackle
+  11 cm under it), UNDERSLUNG when the floor leaves the pack on top less than 1 cm of camber (the van: under); rolled
+  eyes with rubber bushes and bolts; two U-bolts and their plate and nuts; a telescopic shock inboard, from behind the
+  axle up and forward to a floor bracket; on the left side the differential (banjo, rear cover and 10 bolts, pinion
+  snout, flange, universal joint) and the propeller shaft forward under the floor. Measured: 0 vertices inside either
+  tyre. The van: carBeamR 1; src/cars/car_utility.json rewritten (the spare's 5 cm on the box).
+- **CAR-3, THE VAN FINISHED (13 Nov evening; the user, with a 1940s carryall and a military truck for reference)** -
+  every change a row, absent = as before:
+  - **whBrake 2, a car's drum INSIDE the rim** (_gear_gen.js wheel): the aeroplane disc (kind 0) is sized off Rh - on a
+    car's big rim (whRimD) it stood 0.3 m across, outside the wheel's inner face. The drum sits in the rim's well (its
+    radius the well's less 8 mm), three cooling ribs; a pressed backing plate closes the rim's inner opening, 8 bolts.
+    The van: whBrake 2, s2Brake 1 (the front wheels drummed too). The beam axle (carBeamR) now runs its tube INTO the
+    backing plate (the wheel's 'brake' mesh) and its springs 4.5 cm in from the wheel's back ("closer to the actual
+    drivetrains").
+  - **carFender 1 rounded / 2 square, carFenderGap (absent 0.07), carStep** (_gear_page.js, claimed 'mud guards and step';
+    _cage_gear.js fenderBuild, NEW meshes only, group edFenders): a sheet swept along a path round each wheel (the
+    foremost and the aftmost pairs of units) - rounded: a crowned section with a skirt and a rolled bead, the front
+    guard from 52 deg (above the bumper) over to 150 deg then down and aft into the step, the rear rising out of it to
+    165 deg; square: flat top, raked front, a straight slope to the step, a deep square skirt (mitred corners). The
+    step: a ribbed plate with rubber strips on three brackets to the floor. In the livery's TRIM colour (spec.paint.trim
+    x 0.62 - lit flat it read lighter than the body). The van: rounded, with the step.
+  - **ctlStick 4, a STEERING WHEEL** (_cage_crew.js buildSteerWheel; rows steerD 0.42, steerRake 22 deg, steerReach
+    0.34): the yoke's collar on the plate, a raked column and shroud, a column-shift lever, the wheel turning about the
+    column (roll input, 2.2 rad): cast hub dished 4 cm with horn button and plated ring, three spokes, a bakelite rim
+    with finger grips. Hands at a quarter to three; with no throttle lever BOTH hands on the rim; ONE station only (no
+    dual controls - the passenger takes the passenger's pose). The cars: ctlStick 4, ctlThr 3 (no throttle; "for a
+    car, we'll deactivate the throttle control, and we'll keep the pedals"): the van, the UTV, the buggy, the roadster
+    (card and build). The van: consoleOn 1.
+  - **THE REAR CORNERS' SHARDS** ("protruding things at the back"): the padded headliner's pillar trim on the rear
+    corner's faces (within 15 cm of the cabin's aft end) folded round the door frame and, inset 5 cm, came out through
+    the skin - those faces stay bare; the liner's outer sheet now sits 1 cm under the skin (was LIN_EPS 1.5 mm with no
+    shell thickness). TRAP: _cage_light ceilAt's band (crown - 0.06 - hdlDepth - skinT) still reaches the slab, now 1 cm
+    deeper.
+  - **THE TRAILER'S CAR DECK** (src/vehicle/trailer_model.js fit.kind 'car', fit.car { xR, xF, track[F/R], tyreR, tyreW,
+    x0, x1 }): a hardwood deck over the guards (deckY = max(rail + 0.12, 2 wheelR + 0.13)) on outriggers and posts,
+    angle edges with stake pockets and D-rings, a ladder headboard, chocks at the front tyres, a ratchet strap over each
+    tyre's crown, two FOLDING ladder ramps on the tracks (two sections; up for the road, Tr.ramp 'down' to the ground at
+    20 deg). The floats and hull cradles untouched. tools/convoy_shot.js: tow + trailer + cargo in one portrait (the
+    cargo snapshot from its garage load - levelled: the garage tilts the GROUND to a stance, so its axles' ground points
+    differ in the cage frame - its tyres measured from the drawn wheel groups; the trailer on the tow's drawn ball;
+    plane_shot's PORTRAIT routine).
+- **CAR-3, THE GUARDS ARE THE BODY'S SKIN (the user: "just give it exactly the same material as the fuselage, then it can
+  be reached by the livery, it can be reached by the weathering system ... You are reinventing the wheel")**: a new
+  AEROSKIN section `fenderSkin` { parent: 'body', role: 'skin', layer: 'gear' } (aeroskin.js AERO_SEC, beside
+  boomSkin; markings ALLOWED), owned by the Car part (_cage_parts.js sections) - fenderBuild asks CAGE_SECMAT for it
+  the booms' way (surf 0, fieldM 1, struct 1). The livery's markings project onto the guards and the step as onto the
+  body; the Retro's navy band (m1) reaches 25 cm lower (C -0.41, H 1.20) so the step is navy too. (The detour: a
+  hand-tuned colour can never match - the join rebuilds a layer's plain material keeping only its COLOUR, so metal,
+  gloss and coat changed nothing.) GATE LIVERY's 2 fails (the Cub's strut, castAlu) are master's own, unchanged.
+- **CONVOY: THE CARGO KEEPS ITS LIVERY** (the user: "the car has lost its livery"): the garage caches materials across
+  builds (64 of the roadster's 106 came back on the van) and the skin's hook reads the build-wide uniforms by reference,
+  so the next load repainted the snapshot. tools/convoy_shot.js gives the cargo its own: AEROSKIN.aeroDupe per material,
+  both uniform sets deep-copied, every texture redrawn into a canvas of its own - with a NEW THREE.Source (r186: a
+  texture's clone shares its Source; setting the copy's image repointed the original and the van wore the roadster's).
+- **CONVOY: THE CARGO'S SIDE / PLAN MARKINGS FOLLOW IT** (the user: "the nose of the speedster is not silver like it used
+  to be, in the trailer"): the roadster's polished radiator shell (and its tail's pinstripes) are markings projected in
+  the CRAFT's frame - vCraftPos = uCraftInv x modelMatrix x p; the snapshot moved the meshes onto the deck (T = cargo
+  world x G^-1, G the gear layer's world at the snapshot) and kept the garage's uCraftInv, so those markings landed off
+  the car. convoy_shot multiplies each copy's uCraftInv by G x world^-1 (68 materials on the roadster). Surface (field)
+  markings - the script name, the roundels - never moved, which is why they had survived.
+- **LIGHT WEATHERING, TRIED** (the user: "try light weathering too"): spec.finish.wear 0.25 on the Retro van and the
+  roadster renders a fine streaking and a dulled gloss, the livery readable; NOT saved into the builds (the van's is 0,
+  the roadster's absent) - a one-key change when wanted.
+- **RECONCILE NOTE (TOW-LAUNCH, 13 Nov 16:24)**: the car deck (fit.kind 'car', folding ramps, Tr.ramp 'down', from
+  42881221c) now lives in TOW-LAUNCH's reworked src/vehicle/trailer_model.js on claude/tow-launch-trailer-look
+  522f7c7b8 (house-kit materials, UVs in metres, an atlas UV set, baked AO; the planks real boards through trlPlankUV;
+  GATE TRAILER's MODEL row builds the deck). At the reconcile TAKE THEIRS for trailer_model.js; a later deck change goes
+  on top of it (a new plank through trlPlankUV). tools/convoy_shot.js stays this branch's.
+- **CAR-3, 13 Nov late afternoon** (the user): "0,2 for the van; 0,01 for roadster" - finish.wear in the three van
+  liveries' edit sets and the roadster's saved build (a card's finish carries no wear: GATE DESIGN); TOW-LAUNCH's
+  textured trailer MERGED (claude/tow-launch-trailer-look 522f7c7b) and on it the deck: "remove the yellow links and
+  remodel the wheel blocks" - no straps; each tyre fore and aft a moulded chock CUT TO THE TYRE (the arc 8 mm off the
+  tread), a stepped back with three ribs, a grab loop - the profile mirrored in its own coordinates (a scale -1 on a
+  non-indexed extrusion left the faces inside out: "issue with normals on the wheel blocks"); "make the saturation of the
+  wooden planks half" - a map_fragment step chained on the AO patch, cache key 'trl-ao-direct-desat50'. "redo the brake
+  sizing for the speedster too": whBrake 2 on the roadster (card and build). "give the van a proper licence plate": NEW
+  ROW carPlate (Car > lamps) - _cage_gear.js plateBuild, a 12 x 6 in pressed plate (spec.meta.plate { top, main,
+  bottom, bg, fg }; the vans: JOLENE ISLAND / HF 1003 / 46), its drawing its own bump map, on the right rear door's
+  lower panel with a plate lamp; its material marked aeroskin (the understudy greyed it blank) and propMat (its own join
+  bucket). "the wheel well ... a little tight": archGap 0.05 -> 0.10, carFenderGap 0.11 (the guards follow).
+  convoy_shot: the PAGE's trailer model (FLYDIY_LAZY - an injected copy drew white), the house textures read and waited
+  for, the AO bake waited for, the convoy hung off the cage root (a gear-layer rebuild took it away).
+
+CAR-3 WHEEL-TEX (13 Nov, the user: "all the tyres are much too clean. Please do a professional texturing job ... a
+  proper PBR material for the rubber, patterns/writing on the flanks as normals, a proper tyre road pattern - wavy
+  ridges for the speedster, modern all paths and weather for the van ... the same treatment to the rims, proper UV
+  mapping, PBR materials and believable wear and dirt ... also impact the normal planes, at least as an option").
+  NEW ROWS (Wheels > rim): whTex (0 the old flat rubber, 1 textured; absent = 0, so every plane is as before until the
+  row is set), whTexPat (0 auto - a car all-season, a plane aviation ribs; 1 vintage wavy ribs, 2 all-season, 3
+  aviation), whTexDirt (0..1, absent 0.4). UVs: _gear_kit.js Bag takes a uvf and revolve adds a seam column (u = the
+  angle round the axle, so the maps turn WITH the wheel - no swimming); _gear_gen.js wheel() maps the tyre v by the
+  carcass profile's arc length (inboard flank 0-0.3, tread 0.3-0.7, outboard flank 0.7-1) and the rim by r/rimR.
+  Maps: window.CAGE_WHEELTEX (_gear_gen.js) - procedural canvases periodic in u: the tyre 2048 x 512 height field ->
+  normal / albedo / roughness (tread blocks, grooves, sipes, shoulder slots; the flank a bead seat, a rim-protector rib,
+  serrations, raised lettering and a DOT line), the rim 512 x 512 (brake dust, grime in the hub); MeshStandardMaterial
+  per key 'tyre|pat|dirt%' / 'rim|rrggbb|dirt%', userData.tyreTex (own join bucket, keeps its uv; app.js and parked.js
+  rebuild it from the key) and aeroskin (the understudy leaves it). Headless: drawOK() guards the canvas (no maps, flat
+  rubber); plateBuild guarded the same way. The vans whTex 1 / pat 2 / dirt 0.45 (edits, the three vehicles rejoined,
+  names restored); the roadster whTex 1 / pat 1 / dirt 0.15 (card and candidate). The Cub with whTex 1 checked as the
+  plane option (a Cessna's spats hide its wheels). Gates PARTS DESIGN GEAR CAGEFIT VEHICLE UISMOKE TRAILER LIVERYREACH
+  JOIN green; the convoy re-rendered.
+
+CAR-3 FINAL PUSH (13 Nov, the user: "some clipping at the bottom of the back windows ... black stuff", "we really want
+  the blue one", "the wheels ... stick out almost 10 centimeters ... enlarge the track", "the saturation in the middle").
+  The black stuff: the PADDED HEADLINER (hdlDepth) took an upward ledge on the rear wall at the sill line for ceiling and
+  hung its slab under it, the slab's aft side in the skin's own plane - z-fighting under both rear windows (found by
+  raycasting the rear wall in the page: an aeroFinish 'headliner' face at the skin's depth). _cage_gen.js: the ceiling
+  is the roof - faces within 30 cm of its crown. Not the seats, not the wall trim (both ruled out by renders).
+  The track: s1X 0.82 -> 0.90, s2X 0.88 -> 0.96 (8 cm out each side; the guards and arches follow the wheels);
+  paxSeatZ 0.2 -> 0.32. The three vans rejoined. The trailer's wood: TRL_WX.mat timber/plank saturation 0.5 -> 0.7,
+  silvering 0.6 -> 0.3 (GATE TRAILER's check moved with it). The convoy rendered with the Retro (navy) van as the tow.
+
+CAR-3 TOW KIT + REAR GUARDS (13 Nov, the user: "a flat face on top of the windscreen ... signs there, indicating it's
+  the tow vehicle ... beacons ... windshield wipers for all windows"; "the wheel arches hug the fuselage at the back ...
+  real ones are cut to silhouette ... have it come inside the wheel well"). NEW ROWS (Car > lamps): carTowSign,
+  carBeacon, carWipers (absent = none) - _cage_gear.js towKitBuild, placed off the drawn sheet: the windscreen's own
+  faces (material 'windshield'; they are a CUT part - read back through cutOff, as cageAirframe does) give its edges and
+  plane; the sign (amber, black chevrons, "TOW SERVICE", canvas map + bump, propMat 'carTowSign') on the header's
+  frontmost forward-facing faces; two amber beacons on the roof's front corners; two wipers parked along the
+  windscreen's foot, one on each rear window along its sill. The vans have all three. REAR GUARDS (fenderBuild, with
+  the rear well cut, archOn & 1): radius min(R + carFenderGap, R + archGap - 8 mm) - inside the well's opening - and a
+  per-point inner edge: inside the well 3 mm short of its wall, elsewhere 3 mm short of the body's silhouette at that
+  height (the section's crossing); flat inside the body's line, crowned outboard. NOTE: in the game the textured
+  pieces (carPlate, carTowSign) fall back to their bucket colour - propBuild knows neither; a follow-up.
+
+CAR-3 VAN STANCE (13 Nov, the user: "Tyres 70% their current width, + 7 cm outward. Slightly squarer body at the
+  bottom, the step goes up 10 cm ... is the firewall width matched to the bonnet? ... Shot from the top"). whWide 1.4 ->
+  0.98; s1X 0.90 -> 0.97, s2X 0.96 -> 1.03; botRound 0.05 -> 0 (the keel's half-width 0.44 -> 0.48 m, 0.78 -> 0.84 at
+  5 cm up; the frames' BotW rows were tried and NARROW the bottom - the seats came through the flanks; not used). NEW
+  ROW carStepY (step height up, m; absent 0; the vans 0.10; when carFender, not carStep - GATE PARTS' one-step rescue);
+  a step above the body's bottom hugs the side (3 mm off its silhouette) and drops its brackets. THE FIREWALL: the nose
+  ring (noseW 0.8 from task #23) was 0.75 m half-width against the bonnet's rear 0.865 m and the cabin's 0.92 m - a
+  pinch; noseW 0.914 puts the ring on the bonnet's rear edge (measured on the dumped triangles); the plan view now runs
+  bonnet -> scuttle -> windscreen without a step. The three vans rejoined.
+
+CAR VEHICLES CATEGORY (15 Nov, A0 for the user: "The UTV car is also a candidate. Ensure the cars have their own
+  category for loading into the garage for now, so we can easily hide two layers if need be").
+  THE TWO SWITCHES - in builds/lists/vehicles.json, top level, no code to touch:
+    showVehicles   false = no Vehicles category in the garage's Fleet at all (absent / true = shown)
+    showCandidates false = the candidate layer hidden, the validated kept       (absent / true = shown)
+  Each row's `status`: validated | candidate (absent = candidate) | selectable (a car with no garage build).
+  VALIDATED: the Field Wagon van x3 (Retro, base, Alpine) and the boat-tail roadster. CANDIDATES: the Ranch Hand UTV,
+  the Dune Bug. SELECTABLE: the Conquer '89 pickup (file null, sheet src/cars/car_conquer.json) - in the game, not a
+  default, in neither garage layer; removed once the built cars are proven. The rule is one function,
+  VEHICLE_KIND.layers(json) (src/viewer/vehicle_kind.js); the Fleet (garage.js) draws it as "vehicles" (.gfVeh) and
+  "vehicles, candidates" (.gfVehCand), a layer's header hidden with it. No vehicle sits in the plane candidates' index
+  or plane_lists.json. GATE VEHICLE row LIST (tools/_vehicle_list_check.js): every garage-built row lands in one layer
+  and is a car by VEHICLE_KIND, none among the planes, the two switches empty what they should, the user's statuses,
+  the Fleet's two boxes. Page check (dev.html, the Load door): 4 validated, 2 candidates, no page error.
+  ALSO: src/cars/car_utility.json re-measured after the stance change (da97f638; track 1.94 / 2.06 m).
+  PENDING THE USER: merging TOW-LAUNCH's claude/tow-launch-l40d (it holds our car work only to 9819055c, 64 commits
+  behind; its van is old and on the lug tyre, now whProfile 4 there) and the van-as-default swap in drive_mode.js on
+  claude/cars-own for L40e (the Conquer kept selectable).
 ### TOW-LAUNCH L40d (15 Nov) - the set on L40c, and the cars' decision
 
 - claude/tow-launch-l40d = claude/tow-launch-l40c-3 merged onto master 58c681347 (L40c), then (baked), then (built).
@@ -318354,6 +318644,58 @@ NEW REDS (named):
 - MONOWHEEL: E, parked on the wheel + nose skid + one wingtip skid - FLAGSHIP (the E811 change / electric trainer) to check.
 - TAILWHEEL: I, down & out lands HOME at 22.57 m/s, roll-out 0 deg - Pilot / FLAGSHIP to check against the E811 change.
 NAMED for list:50 (rides L40i): DMGCERT BROKE UP with no BROKE AT (18 wing members kink at 7.4 g, nothing detaches).
+CAR x L40e (15 Nov, the user: "do the merge"): claude/tow-launch-l40e merged into claude/fly-diy-car-build-uu6e6w -
+  eae0c0c8 (master L40c/d + the tow set), then b2966b01 (the rope's end: towRingRig in drive_mode's TOW section, theirs
+  whole). Resolved: the lug tyre is whProfile 4 (master's bicycle took 3), the van stays on 2 with its track 0.97 / 1.03;
+  the garage's popup Fleet went (fleet_screen.js) - the Vehicles layers now reach the Fleet screen through garage.js's
+  vehicleLists door (VEHICLE_KIND.layers) and its Vehicles tab heads them Validated / Candidates (GATE VEHICLE LIST reads
+  that); the rows united (brkHold + the car drum and WHEEL-TEX rows under notCycle, ctlRuns + the steering wheel, the
+  cowl's coolOpenings + buildBlinkers, the pressed wheel + the bicycle wheel); the roadster card drops cw_partLevel (no
+  row since L40d: the split is always level). The vans rejoined (the base's registration only).
+  GATES on the merge: VEHICLE DRIVE-TRIP TRAILER UISMOKE LIVERYREACH CAGEFIT KNIFE COWL JOIN GEAR DESIGN PASS. Two reds,
+  both master's named ones (HANDOVER's L40c NEW REDS, owner ARCHAEOPTERYX): PARTS canClear (no part claims it) and TOW
+  CIRCUIT archaeopteryx (capsized on its motor-off circuit). TOW alone takes ~25 min on SwiftShader; under --jobs=2 it
+  overruns the runner's cap - run it alone.
+  NOT DONE (needs a decision): the van as the stock / tow car. drive_mode falls back to the Conquer's sheet AND its model;
+  a garage car drives only from the stand (FLYDIY_GARAGE_CAR -> carFromGarage measures the live garage scene). The van
+  as a default needs its mesh built from builds/vehicles/utility_retro_2026-11.json outside the garage (parked.js's
+  capture machinery is the candidate) and src/cars/car_utility.json as its sheet.
+
+CAR - THE VAN IS THE STOCK CAR (15 Nov, the user: "Yes, the van is the default, with the dark blue livery"). drive_mode.js
+  useCar: with no car handed (the drive, towStart, trailerStart) it takes THE VAN - builds/vehicles/utility_retro_2026-11.json
+  (the Retro: navy, "Home Field", TOW 3) with its sheet src/cars/car_utility.json. Its body is CAPTURED by parked.js
+  (PARKED.capture('car:utility_retro_2026-11', spec): the garage editor's round trip, the build's own livery block, kept in
+  the record for the session; PARKED.build draws it) and fitted into the sheet's frame by its sampled vertices: the long
+  axis on +x, the front the end with the lower top (the bonnet), the front bumper on the sheet box's front, the tyres on
+  y = 0, centred; rotations only. Its drawn wheels stay in the body (they do not spin - the garage car's MVP).
+  ctx.stock 'pickup' drives the Conquer '89, which also drives wherever no editor can capture (node: the gates' PAGE
+  rows). vehicles.json names it (stockCar). tools/car_drive_shot.js takes '-' for the build: no import, the stock car.
+  PAGE CHECK (dev.html, SwiftShader): "Field Wagon (TOW 3)", HOME -> Cedar Harbour, 41 km/h at 15 s, the van on the road
+  the right way round. COST: the first drive of a session captures the van - 23 s here plus a 29 s far-level bake on
+  the idle path (parked.js's own figure on a real GPU: ~10 s for a C172's round trip); later drives reuse the record.
+  OWED: the plate's and the tow sign's textures in the game (propBuild knows neither: the bucket colour shows); a
+  capture under the boot screen (or a cooked record) would take the first-drive wait away; the van's wheels spinning.
+  GATES: VEHICLE DRIVE-TRIP TRAILER UISMOKE PASS; TOW run alone (its CIRCUIT archaeopteryx red is the card's, named).
+
+CAR - THE STOCK VAN'S WHEELS, TEXTURES, SIGN (16 Nov, the user: "No further load on the global loading screen ...
+  only take the hit when required ... Make the wheels spin and the textures show. The tow service sign ... span the
+  whole area on top of the windshield"). LOADING: the van is captured only on demand (drive_mode.js stockVan, the first
+  drive / line tow / trailer tow that needs it) - nothing on the boot screen. WHEELS: _cage_join.js - with four or more
+  contacts a wheel mesh goes to the NEAREST contact of any kind (the van's front pair classes as 'tw' while its groups
+  are edWheelL / R: both left wheels had landed in one part), so each car wheel is its own part about its own axle
+  (aeroplanes: the name rule as before). drive_mode.js vanMesh: parked.js merges a record per material (the near rung
+  too), so the BODY is built from a copy of the record without its wheel parts (its own key: its own cut and bake) and
+  each wheel part is drawn alone (PARKED.levelMeshes; the tyres on CAGE_WHEELTEX, the rest plain in the record's
+  colour) in build()'s frame, then handed to the rig (matched to the sheet's nearest wheel in the holder's WORLD frame =
+  the sheet's): they spin and the front pair steers. The body LEVELLED on the hubs (parked.js stood it as an aeroplane:
+  ~1.8 deg nose-up, the front hubs 10 cm high). DRIVE_MODE.vanInfo (parts, hubs, matched) for the page rigs; check:
+  4 parts, hubs [0.52, 0.46, +-0.97] / [3.72, 0.45, +-1.03], matched RR RL FR FL. TEXTURES: window.CAGE_CARTEX
+  (_cage_gear.js) - the plate's and the tow sign's canvas faces from ONE factory keyed by what they show (JSON: plate
+  top/main/bottom/bg/fg, sign text/aspect); the material carries userData.carTex, the join keeps it (its bucket, its uv),
+  app.js and parked.js rebuild it: the game's plate reads HF 1003. THE SIGN: the header's whole width (the windscreen's
+  top edge, 3 % in each end) and its height the larger of 88 % of the found band and 70 % of the glass-top-to-roof gap.
+  GATES: VEHICLE JOIN KNIFE GEAR CAGEFIT LIVERYREACH DESIGN DRIVE-TRIP TRAILER UISMOKE PASS; PARTS red on master's
+  canClear only (named, ARCHAEOPTERYX's).
 
 ## PERF-CODEX-GREEN 2 - GATE PREMISES threw on a perf fixture (PERF-WORLDBUILD for A0, 22 Nov 2026, claude/ready/perf-codex-green-2 off perf-codex-green cc0495b93)
 GATE PREMISES runs every tools/fixtures/premises_v*_*.json. Codex's 8b38df7dc added his perf record there as premises_v1_perf_town_third.json (written by tools/perf/make_compact_town.js, read by tools/_pave_poly_bounds_check.js and tools/_road_bounds_check.js); it carries the Mount Ardent pad mt_t_pad, a terrain entry of kind 'ramp', and the gate's check 7 (grade / flatten / raise / plane) threw at its first sample (tools/_premises_check.js:256, m.plane undefined). Master's L40h log has PREMISES PASS: the gate's fixture set there is the six premises_v1_* files.

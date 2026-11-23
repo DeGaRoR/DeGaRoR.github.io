@@ -1,7 +1,7 @@
 {
  "what": "flydiy-thumbs",
  "v": 1,
- "baked": "2026-11-17",
+ "baked": "2026-11-22",
  "view": "profile/0.9/480x240",
  "thumbs": {
   "list:25": "list_25.webp",
@@ -61,6 +61,10 @@
   "cand:cub_fittings_hand_2026-10.json": "cand_cub_fittings_hand_2026-10.webp",
   "cand:roadster_2026-11.json": "cand_roadster_2026-11.webp",
   "cand:buggy_2026-11.json": "cand_buggy_2026-11.webp",
-  "list:1": "list_1.webp"
+  "list:1": "list_1.webp",
+  "veh:utility_2026-11.json": "veh_utility_2026-11.webp",
+  "veh:utility_mountain_2026-11.json": "veh_utility_mountain_2026-11.webp",
+  "veh:utility_retro_2026-11.json": "veh_utility_retro_2026-11.webp",
+  "veh:utv_2026-11.json": "veh_utv_2026-11.webp"
  }
 }

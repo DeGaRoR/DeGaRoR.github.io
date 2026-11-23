@@ -2794,7 +2794,20 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               // G345.1: WHAT TURNS, named for the weathering — the cone or a
               // blade; they may share a material row and must not share a bucket
               spinKind = a.name.lastIndexOf('edSpinner', 0) === 0 ? 2 : 1; }
-            else if (m.wheel) part = PARTS.wheels.find(w => w.kind === m.wheel) || null;
+            else if (m.wheel) {
+              // (CAR, 16 Nov: "make the wheels spin" - a car's FOUR wheels are two edWheelL and two edWheelR groups, so a
+              // kind names two contacts: the mesh goes to the NEAREST of them, each wheel its own part about its own axle;
+              // an aeroplane's kinds name one contact each, as before)
+              // (a car's front pair may class as the third wheel 'tw' while its groups are named edWheelL / R: with four or
+              // more contacts the NEAREST of them all takes the mesh, whatever its kind)
+              const C = PARTS.wheels.length >= 4 ? PARTS.wheels : PARTS.wheels.filter(w => w.kind === m.wheel);
+              if (C.length > 1) {
+                if (!geo.boundingSphere) geo.computeBoundingSphere();
+                const c0 = geo.boundingSphere.center.clone().applyMatrix4(tmp);
+                let bd = Infinity; part = null;
+                for (const w of C) { const d = Math.hypot(w.cx - c0.x, w.cy2 - c0.y, w.cz2 - c0.z); if (d < bd) { bd = d; part = w; } }
+              } else part = C[0] || null;
+            }
             else part = PARTS.others.find(u => u.src === m.src) || null;
             // G240: a cockpit control's pivot and axes, IN THE CAGE'S FRAME,
             // taken off the group the crew layer put them on — the crew
@@ -2931,6 +2944,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // keeps its maps and its uv — its own bucket, rebuilt from the
             // props registry
             (kud.propMat ? 'Pm' + kud.propMat : '') +
+            (kud.tyreTex ? 'Tx' + kud.tyreTex : '') +      // WHEEL-TEX: a textured tyre / rim is its own bucket (its uv rides)
+            (kud.carTex ? 'Ct' + kud.carTex : '') +        // CAR-TEX: the plate / the tow sign, one bucket a face (its uv rides)
             (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
             (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
             (kud.aeroFieldM != null ? 'U' + kud.aeroFieldM : '') +
@@ -2998,6 +3013,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.lampKey ? { lamp: ud.lampKey, lampCol: ud.lampCol } : {}),
           ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol, ...(ud.lampK ? { lampK: ud.lampK } : {}) } : {}),
           ...(ud.propMat ? { propMat: ud.propMat } : {}),
+          ...(ud.tyreTex ? { tyreTex: ud.tyreTex } : {}),   // WHEEL-TEX: the game rebuilds it from CAGE_WHEELTEX
+          ...(ud.carTex ? { carTex: ud.carTex } : {}),      // CAR-TEX: the game rebuilds it from CAGE_CARTEX
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
           ...(ud.aeroNoLet ? { noLet: 1 } : {}),   // LOOKS-ROUND2: a float, paint without letters
@@ -3077,6 +3094,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                                         (m0.userData.vesSet ||
                                                          m0.userData.charKey ||
                                                          m0.userData.panelSet ||
+                                                         m0.userData.tyreTex ||   // (WHEEL-TEX: a textured tyre keeps its uv too)
                                                          m0.userData.propMat))
                                                        ? [] : null });
         const lv0 = G3.pos.length / 3;
