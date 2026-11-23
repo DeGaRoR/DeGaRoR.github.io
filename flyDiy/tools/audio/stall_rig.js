@@ -22,6 +22,12 @@
 //                    the underrun counters), and 5 s in the aircraft jumps <km> ahead along its heading WITHOUT a pause
 //                    (a pause silences the sound), 300 m over the ground there, still at 50 m/s: the world streams in and
 //                    compiles around it while the engine plays. Writes <pass>_stream.wav and res.stream
+//        [--repo D:/Dev/perf-lab-built] serve another built tree (page_rig's repo; default this worktree). It must hold
+//                    AUDIO-ROBUST 4 (AUDIO.record, AUDIO.loadingBehind): the rig says so and stops the pass if not
+//        [--behind]  (garage first, PERF-LEAD 23 Nov) the loading recording goes on after the boot, while
+//                    AUDIO.loadingBehindOn (the world still building behind a live garage), up to 240 s
+// ROW 11 (music and radio during loading screens: audible, uninterrupted): summary.json <pass>.row11 = { pass, why }:
+//   the loading recording made, at least 20 s long, NO second under -60 dB (silentSeconds 0), the loading music switch on
 // A BOX RUN: A0's slot (tools/RIG-PROCEDURE.md 1), boxlock.sh take gpu AUDIO, one Chrome, nice 19, the CPU under 80 C.
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -107,7 +113,7 @@ async function pass(name, q, out, o) {
   const PR = require(path.join(__dirname, '..', 'page_rig.js'));
   const res = { pass: name, q };
   let loadStarted = false;
-  const rig = await PR.start({ cap: +opt('cap', 1500), q: flag('menu') ? [q, 'welcome=1'].filter(Boolean).join('&') : q, seed: o.seed, headed: flag('headed') || flag('live'), live: flag('live'), name: 'stall_rig_' + name,
+  const rig = await PR.start({ repo: opt('repo') || undefined, cap: +opt('cap', 1500), q: flag('menu') ? [q, 'welcome=1'].filter(Boolean).join('&') : q, seed: o.seed, headed: flag('headed') || flag('live'), live: flag('live'), name: 'stall_rig_' + name,
     onNavigate: async r => {
       if (flag('noload')) return;
       if (flag('menu')) {   // the menu: wait for it, press Sandbox with a trusted click (the gesture), record from there
@@ -139,6 +145,16 @@ async function pass(name, q, out, o) {
       console.log('stall_rig: the loading recording ' + (loadStarted ? 'started' : 'did NOT start') + ' (' + name + ')');
     } });
   try {
+    if (!loadStarted && !flag('noload')) {
+      res.hasRecord = await rig.J("({ record: !!(window.AUDIO && AUDIO.record), behind: !!(window.AUDIO && 'loadingBehindOn' in AUDIO) })").catch(() => null);
+      if (res.hasRecord && !res.hasRecord.record) throw new Error('this build has no AUDIO.record: it does not hold AUDIO-ROBUST 4 (c8b7f21a5)');
+    }
+    if (loadStarted && flag('behind')) {   // the world still building behind the garage: keep recording
+      const t0 = Date.now(); let on = true;
+      while (on && Date.now() - t0 < 240000) { on = await rig.ev('!!(window.AUDIO && AUDIO.loadingBehindOn)').catch(() => false); if (on) await sleep(500); }
+      res.behindS = +((Date.now() - t0) / 1000).toFixed(1); res.behindTimedOut = on;
+      console.log('stall_rig: loading behind the garage ' + res.behindS + ' s' + (on ? ' (still on at 240 s)' : ''));
+    }
     if (loadStarted) {
       const r = await rig.ev('window.AUDIO.record.stop().then(' + B64 + ')', 60000);
       const pcm = new Int16Array(Buffer.from(r.b64, 'base64').buffer.slice(0));
@@ -232,6 +248,14 @@ async function pass(name, q, out, o) {
   const brief = {};
   for (const p of Object.keys(sum)) { const j = sum[p]; brief[p] = { error: j.error, stall: j.stall && j.stall.analysis, lateTicks: j.stall && j.stall.lateTicks, stallFrames: j.stall && j.stall.stallFrames, playout: j.stall && j.stall.playout,
     load: j.load && { seconds: j.load.seconds, silentSeconds: j.load.silentSeconds, longestSilenceS: j.load.longestSilenceS, music: j.load.music },
+    row11: (() => { const L = j.load, why = [];
+      if (!L) why.push('no loading recording'); else {
+        if (!(L.seconds >= 20)) why.push('recording only ' + L.seconds + ' s');
+        if (L.silentSeconds > 0) why.push(L.silentSeconds + ' silent s (longest ' + L.longestSilenceS + ' s)');
+        if (!(L.music && L.music.musicLoading)) why.push('loading music switch off');
+      }
+      return { pass: why.length === 0, why: why.join('; ') || 'audible every second of ' + (L && L.seconds) + ' s' }; })(),
+    behindS: j.behindS,
     stream: j.streamRec && { peak: j.streamRec.peak, clipped: j.streamRec.clipped, playout: j.streamRec.playout, worstGapMs: j.streamRec.worstGapMs, nGaps: j.streamRec.nGaps, jumpAtS: j.streamRec.jumpAtS } }; }
   fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(brief, null, 1));
   console.log(JSON.stringify(brief, null, 1));
