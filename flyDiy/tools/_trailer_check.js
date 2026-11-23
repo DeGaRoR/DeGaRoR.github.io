@@ -327,7 +327,8 @@ const clipWords = c => (c.n ? c.n + ' points inside a tyre (the worst ' + (c.wor
       // (13 Nov: the sandbox's start chooser - window.FLYDIY_START's six calls, the car tow by its pick, the push stepped
       //  before each solver step after the hand's input, flown inline, and its handover; the story left alone)
       start: ['available:', 'vehicle:', 'powered:', 'async starts()', 'async destinations(startId)', 'go(o)'].every(k => APP.includes('window.FLYDIY_START = {') && APP.includes(k)),
-      cartow: /if \(START\.mode === 'cartow'\) return true;/.test(APP), pushStep: /else if \(START\.push && !START\.push\.done\) pushStep\(\);/.test(APP),
+      // (WINCH-LAND 23 Nov: the car tow's branch may carry the winch launch beside it - the car tow still required)
+      cartow: /if \(START\.mode === 'cartow'( \|\| START\.mode === 'winch')?\) return true;/.test(APP), pushStep: /else if \(START\.push && !START\.push\.done\) pushStep\(\);/.test(APP),
       pushInline: /\|\| START\.mode === 'push';/.test(APP), story: /available: \(\) => !startStory\(\)/.test(APP) };
     const miss = Object.keys(hooks).filter(k => !hooks[k]);
     const okL = lazy.includes('src/vehicle/trailer.js') && lazy.includes('src/vehicle/trailer_model.js') && !B.MANIFEST.core.some(n => /trailer/.test(n));
