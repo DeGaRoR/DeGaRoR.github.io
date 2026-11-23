@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 599f6f6360789ebb
+// body-sha256: 811a3ff5b685b62d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -4925,20 +4925,6 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   // change (setPremises), the one thing that moves the ground after make.
   var thX, thZ, thH, groundVer;
   const TH_N = 16384;
-  // Grid coordinates need high-bit mixing BEFORE the power-of-two mask.
-  // With the old low-bit mask, a 2 m mesh used only two of 16,384 slots.
-  var terrainHashLegacy = typeof location !== 'undefined' && /[?&]terrainhash=legacy(?:&|$)/.test(location.search || '');
-  var terrainWearMemo = typeof location !== 'undefined' && /[?&]terrainwearmemo=1(?:&|$)/.test(location.search || '');
-  var thWear = null;
-  var terrainMemoStats = { hits: 0, misses: 0, wearReads: 0, cachedWearHits: 0 };
-  function terrainMemoIndex(x, z) {
-    let h = Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663);
-    if (!terrainHashLegacy) {
-      h ^= h >>> 16; h = Math.imul(h, 0x7feb352d);
-      h ^= h >>> 15; h = Math.imul(h, 0x846ca68b); h ^= h >>> 16;
-    }
-    return h & (TH_N - 1);
-  }
   // (G611: and the ground's version - the climate's lattice of the solver's ground reads it)
   function terrainClear() { if (thX) thX.fill(NaN); groundVer = (groundVer | 0) + 1; }
   // G1436 (METLA-TAXI): A SCOPE OF BUILD READS - while buildReads(+1)..(-1) is open, a read that would bake a raster tile
@@ -4951,18 +4937,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function buildReads(d) { buildDepth = Math.max(0, (buildDepth | 0) + d); }
   function terrainH(x, z) {
     if (buildDepth && PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z)) return PM.terrainH(x, z, baseH(x, z));
-    if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); if (terrainWearMemo) thWear = new Uint8Array(TH_N); }
-    const i = terrainMemoIndex(x, z);
-    if (thX[i] === x && thZ[i] === z) {
-      if (terrainMemoStats) terrainMemoStats.hits++;
-      if (terrainWearMemo && thWear[i] && PM && PM.wearDelta) {
-        if (terrainMemoStats) { terrainMemoStats.cachedWearHits++; terrainMemoStats.wearReads++; }
-        const d = PM.wearDelta(x, z, wearScale);
-        return d === null ? thH[i] : thH[i] + d;
-      }
-      return thH[i];
-    }
-    if (terrainMemoStats) terrainMemoStats.misses++;
+    if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
+    const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
+    if (thX[i] === x && thZ[i] === z) return thH[i];
     const h0 = baseH(x, z);
     // (G614: the premises' raster - the composed ground baked lazily off the same modifiers, 27_premises.js)
     let h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
@@ -4979,13 +4956,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     if (PM && PM.stonesAt) { const s = PM.stonesAt(x, z); if (s > 0) h += s; }
     // SNOW-MUD LADDER (15 Nov): a weather strip's worn relief at its rung (27_premises wearDelta; 0 at the record's own) -
     // on its box the answer is never memoised (the rung moves with the soil; the memo would hold the last one)
-    let wear = null;
-    if (PM && PM.wearDelta) { wear = PM.wearDelta(x, z, wearScale); if (wear !== null) { if (terrainMemoStats) terrainMemoStats.wearReads++; if (!terrainWearMemo) return h + wear; } }
-    // Store only the static composed base. Weather relief is re-read on EVERY
-    // hit inside a weather strip; a changing soil rung is never frozen here.
-    if (terrainWearMemo) thWear[i] = wear === null ? 0 : 1;
+    if (PM && PM.wearDelta) { const d = PM.wearDelta(x, z, wearScale); if (d !== null) return h + d; }
     thX[i] = x; thZ[i] = z; thH[i] = h;
-    return wear === null ? h : h + wear;
+    return h;
   }
   // a weather code's worn-relief scale now (07f GROUND_WX's rung off this world's soil)
   function wearScale(code) { return typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(code, soilNow()).wear : 1; }
@@ -5723,7 +5696,6 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
-    terrainMemo: () => ({ ...terrainMemoStats, legacy: !!terrainHashLegacy, wearBase: !!terrainWearMemo, slots: TH_N }),
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
     // ROCK-STUDY (17 Nov, the user: "a runway there with terraforming ... should follow the terraforming rules"): how much of the
     // NATURAL ground the premises keep at (x, z) - 1 untouched, 0 graded flat - read off the composer itself: its modifiers are
@@ -9304,7 +9276,9 @@ function hangarFit(dims, kitKeys, opts) {
     if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
     else out.prop = row.prop;
     const label = isRecipe ? row.recipe : row.prop;
-    if (!isRecipe && omit.has(row.prop)) { unplaced.push({ kit, key: label, at: row.at, reason: 'left out of this shed' }); return; }
+    // (GARAGE-FIXES 21 Nov: a shed may leave a named RECIPE out too - the user: "get rid of the wing in construction in the small
+    // hangar" - reported like a prop)
+    if (omit.has(label)) { unplaced.push({ kit, key: label, at: row.at, reason: 'left out of this shed' }); return; }
 
     // 1. bounds — even a `free` row: free waives the keepouts and the
     // packing (the hung wing is ALLOWED across the doorway), never the
@@ -12729,9 +12703,6 @@ function areaLabel(a) {
 // ---------------------------------------------------------------------------
 function compose(rec0, world, opts) {
   const o = opts || {};
-  const boundedRoads = o.boundedRoads !== false;
-  const boundedPolys = o.boundedPolys !== undefined ? !!o.boundedPolys : typeof location !== 'undefined' && /[?&]pavepolybound=1(?:&|$)/.test(location.search || '');
-  const polyBoundsStats = { checks: 0, rejected: 0, exact: 0 };
   // THE STAGES (v1.33): the record as it stands at `o.tracks` (absent: the sandbox, every track at its max) - an
   // unstaged record is untouched, and a staged one composes exactly as its stageView would
   const SV = stageView(normalise(rec0), o.tracks);
@@ -13706,7 +13677,6 @@ function compose(rec0, world, opts) {
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
     pavedAt: (x, z, reach, skip) => pavedAt(x, z, reach, skip),
-    pavePolyStats: () => ({ ...polyBoundsStats, enabled: boundedPolys }),
     // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
     // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
     pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
@@ -13839,23 +13809,14 @@ function compose(rec0, world, opts) {
   }
   for (const pp of pavePolys) {
     const cls = RUNWAY_LOOKS[pp.look].cls, band = paveBand(pp, cls, true), reach = band + PAVE_FADE + 6;
-    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', id: pp.id, cls, band, poly: pp.poly, bbox: pp.bbox, soft: false });
+    addCov({ x0: pp.bbox.x0 - reach, z0: pp.bbox.z0 - reach, x1: pp.bbox.x1 + reach, z1: pp.bbox.z1 + reach }, { kind: 'poly', id: pp.id, cls, band, poly: pp.poly, soft: false });
   }
   const zoneOf = id => rec.layers.zones.find(z => z.id === id) || null;
   // the strip's dEdge (its box's SDF: + inside), the road's (w/2 - the distance), the polygon's
-  // A finite reach preserves exact distances for every contributor; farther roads cannot affect the caller.
-  const dEdgeOf = (it, lx, lz, reach = Infinity) => {
+  const dEdgeOf = (it, lx, lz) => {
     if (it.kind === 'strip') { const dx = lx - it.e0[0], dz = lz - it.e0[1]; const u = dx * it.d[0] + dz * it.d[1], v = -dx * it.d[1] + dz * it.d[0];
       const du = Math.max(-u, u - it.len), dv = Math.abs(v) - it.halfW; return -(Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0)); }
-    if (it.kind === 'road') return it.halfW - (boundedRoads && Number.isFinite(reach) ? roadDistNear(it.road, lx, lz, it.halfW + Math.max(0, reach) + 1) : roadDist(it.road, lx, lz));
-    if (boundedPolys && Number.isFinite(reach) && reach >= 0 && it.bbox) {
-      polyBoundsStats.checks++;
-      const b = it.bbox;
-      // Box distance lower-bounds polygon-edge distance outside the box.
-      // Keep a micrometre halo; unbounded connectivity queries stay exact.
-      if (Math.max(b.x0 - lx, lx - b.x1, b.z0 - lz, lz - b.z1) > reach + 1e-6) { polyBoundsStats.rejected++; return -Infinity; }
-    }
-    polyBoundsStats.exact++;
+    if (it.kind === 'road') return it.halfW - roadDist(it.road, lx, lz);
     return -sdPoly(it.poly, lx, lz);
   };
   // G1003 (A6-GROUND, the Jolene playtest: "rocks and debris lie on the taxiway and runway"): IS ANY PAVEMENT HERE, OR
@@ -13876,7 +13837,7 @@ function compose(rec0, world, opts) {
     const cell = CIDX.query(lx, lz);
     if (cell) for (const it of cell) {
       const reach = it.kind === 'road' && !(it.road && it.road.sided) ? it.band + PAVE_FADE : (it.soft ? PAVE_SIDE_SOFT : PAVE_SIDE);   // G1391: a sided road's side; G1395: a soft one's wider fade
-      if (dEdgeOf(it, lx, lz, reach) > -reach) return true;
+      if (dEdgeOf(it, lx, lz) > -reach) return true;
     }
     return false;
   }
@@ -13885,7 +13846,7 @@ function compose(rec0, world, opts) {
     const cell = CIDX.query(lx, lz);
     if (cell) for (const it of cell) {
       if (skip != null && it.id === skip) continue;
-      const d = dEdgeOf(it, lx, lz, m);
+      const d = dEdgeOf(it, lx, lz);
       if (d > -m) return { d, id: it.id, kind: it.kind, cls: it.cls };
     }
     const offs = m > 0 ? [[0, 0], [m, 0], [-m, 0], [0, m], [0, -m]] : [[0, 0]];
@@ -13906,7 +13867,7 @@ function compose(rec0, world, opts) {
     if (!pave && GRASS_SIDES.law === 'sides') return coverSides(lx, lz, cell);
     let kill = 0, boost = 0, cls = null, best = -Infinity;
     if (cell) for (const it of cell) {
-      const d = dEdgeOf(it, lx, lz, Math.max(it.band + PAVE_FADE + 6, it.clear >= 0 ? it.clear : 0));              // + inside the pavement, - outside
+      const d = dEdgeOf(it, lx, lz);              // + inside the pavement, - outside
       const out = -d, clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - nothing grows within it)
       if (out > it.band + PAVE_FADE + 6 && !clr) continue;
       // the pavement and its band: nothing; the fade: 1 -> 0 over PAVE_FADE; the border bump past the band
@@ -13986,13 +13947,13 @@ function compose(rec0, world, opts) {
     const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
     let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity, tall = 0;
     if (cell) for (const it of cell) {
+      const d = dEdgeOf(it, lx, lz), out = -d;
       const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
       // (GRASS-EDGE-FIX, 17 Nov, A0 with SKYLINE-RESORT: a strip whose record SAYS band 0 - tw_ski - asks for no cut band at all: no mow
       //  band and no blend, the wild grass from its drawn edge; every other soft strip keeps the 1.5 m tall band)
       const b0 = it.kind === 'strip' && it.band0;
       const mow = b0 ? 0 : (aero && it.soft ? it.band * G.softBandK : it.band) + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);   // (GRASS TO THE EDGE: a soft strip's band x softBandK)
       const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
-      const d = dEdgeOf(it, lx, lz, Math.max(v0, it.band + PAVE_FADE) + VERGE + Math.max(0, it.clear || 0)), out = -d;
       const clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - bare)
       if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE && !clr) continue;
       if (d > best) { best = d; cls = it.cls; }
@@ -14122,7 +14083,7 @@ function compose(rec0, world, opts) {
     let best = null;
     if (cell) for (const it of cell) {
       if (skip !== undefined && skip !== null && it.id === skip) continue;
-      let d = dEdgeOf(it, lx, lz, -r0), dPre = d;
+      let d = dEdgeOf(it, lx, lz), dPre = d;
       if (it.kind === 'road' && d > r0) {           // past the square end nothing is drawn, not even a side
         const e = roadEndIn(it, lx, lz);
         if (e < 0 || pastJoinedEnd(it, lx, lz, -r0)) continue;
@@ -58474,7 +58435,9 @@ const BASE_OFFERS = {
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
                    // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
-                   omit: ['panelsaw', 'bandsaw', 'jointer'],
+                   // (GARAGE-FIXES, the user 21 Nov: "Let's get rid of the wing in construction in the small hangar": the wing hung on the
+                   // doors and the wing on its stands both go; the fuselage on its trestles stays)
+                   omit: ['panelsaw', 'bandsaw', 'jointer', 'wipWingHang', 'wsWing'],
                    // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
                    // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
                    workLamp: { cd: 40 },
