@@ -7218,6 +7218,7 @@
              panes: st.panes.map(P => ({ sev: +P.sev.toFixed(3), slot: P.slot })), counts: cnt, busy: S_busy(st) };
   };
   const S_busy = st => (window.SKIN_SCUFF ? SKIN_SCUFF.busy(st) : false);
+  const scuffLayerHere = () => typeof SKIN_SCUFF !== 'undefined';   // (the block's door for a caller outside it: the lab's late links, lateBgScuff)
 
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
   // the ground straight under each tyre (and a faint one under the fuselage), fading with the tyre's height over
@@ -15875,7 +15876,7 @@
   // view - a freeze where it hurts most. Here the boot skips them, and:
   //   1. a few seconds after the garage is revealed (the boot's screen gone, nothing busy, still in the garage) they are
   //      linked in the background: the see-through twins by their own function (twins of the room's materials: no live
-  //      material is touched), the damage look's awake programs on TWINS of the wrapped materials (SKIN_SCUFF's awakeTwin
+  //      material is touched), the damage look's awake programs on TWINS of the wrapped materials (the scuff layer's awakeTwin
   //      hook: the awake key while the live materials sleep on) - compileSliced's stand-ins, a program a group, no draw;
   //   2. the FIRST roll-out's craft step runs again (its key carries the phase) and scuffPrelink does there what it did
   //      under the boot - the live materials compiled awake (the programs are in three's cache: no link) and drawn once,
@@ -15915,7 +15916,7 @@
   }
   function lateBgScuff() {
     const B = LAB.bg, at = model && model.scuff;
-    if (!at || !at.W || at.W.on || !WF || typeof SKIN_SCUFF === 'undefined' || typeof AEROSKIN === 'undefined' || !AEROSKIN.aeroDupe
+    if (!at || !at.W || at.W.on || !WF || !scuffLayerHere() || typeof AEROSKIN === 'undefined' || !AEROSKIN.aeroDupe
         || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
     const twinOf = new Map(), G = new THREE.Group();
     const add = (o, m) => {
@@ -15944,9 +15945,9 @@
       catch (e) { console.warn('craft depth compile:', e && e.message); }
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
-      .then(() => { if (LAB.lateLinks) { LAB.lateSkipped++; return null; }   // (?latelinks=1: see LAB)
-        if (LAB.lateBg && !lateBgRevealed()) { LAB.lateSkipped++; lateBgArm(); return null; }   // (?latelinks=bg: not under the boot - lateBgArm)
-        return scuffPrelink(inW); })
+      // (?latelinks=1: not at all - a measure; ?latelinks=bg: not under the boot's screen but behind the garage - lateBgArm)
+      .then(() => { if (LAB.lateLinks) { LAB.lateSkipped++; return true; } if (LAB.lateBg && !lateBgRevealed()) { LAB.lateSkipped++; lateBgArm(); return true; } return false; })
+      .then(late => late ? null : Promise.resolve().then(() => scuffPrelink(inW)))
       .then(() => compileCraftShed());
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
