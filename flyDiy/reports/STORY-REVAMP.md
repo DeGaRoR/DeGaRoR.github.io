@@ -44,7 +44,7 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 | chosen missions again | `node tools/story_feas.js --fly --only=<id>,<id> --again --rows=reports/STORY-REVAMP/feasibility` | |
 | the table from the rows | `node tools/story_feas.js --table --rows=reports/STORY-REVAMP/feasibility` (writes feasibility.json + .md) | seconds |
 | is the pack covered | `node tools/story_feas.js --check` (exit 1 while a mission is not flown, stale or red outside the named classes) | seconds |
-| one mission, the legs printed | `node tools/mission_feas.js --only=<id> --rerun --packs=src/missions --official --also=57,58 --builds=<the two files in story_feas.js BUILDS>` | |
+| one mission, the legs printed | `node tools/mission_feas.js --only=<id> --rerun --packs=src/missions --out=<a scratch dir> --official --also=57,58 --builds=<the two files in story_feas.js BUILDS>` | |
 | a flight with no mission | `node tools/flight_script.js reports/STORY-REVAMP/repro/<file>.json --out <dir>` | minutes |
 
 - A ROW IS CURRENT only for its mission's own record (`key`) AND the sim it was flown on (`sim`, the constant `SIM` in
