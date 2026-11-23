@@ -724,8 +724,9 @@ const GATES = [
   { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 1200 },   // G2228: measured ALONE 13 Oct 1 078 s (the Cub 404 s: boot 89 + 13 rows ~20 s; the metal 674 s: boot 108 + 13 rows ~36 s) - no slow row, the old 480 was stale
   // PERF-SLIDERS (23 Nov): GATE INSTANT's check where the Cub and the metal Cessna cannot see - a twin with its engines and
   // its retracting gear on the wing (the DC-3-alike: its wing span's release left the engines' layer one build behind)
-  // and a hull with a pylon engine (the Super Petrel); five rows each (_instant_rel_check.js). Measured ALONE: see HANDOVER
-  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', wall: 1200 },
+  // a hull with a pylon engine (the Super Petrel) and the Cub; six rows each, the main gear's station along the fuselage
+  // among them (a row that turns the sit: the Cub's tank, the limbs) - _instant_rel_check.js. Measured ALONE: see HANDOVER
+  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', wall: 1500 },
   // PERF-SLIDERS: A DERIVED READ GIVES THE AEROPLANE THE RAW READ GAVE (CAGE_CHAIN.derived: the dash's gear selector asks
   // "do the mains stand off the centreline", the crew layer no longer re-runs on every tick of the gear's station) - per
   // aeroplane and derived row, three walks from the same aeroplane (ON, OFF, OFF: the two OFF name the noise), the scene's

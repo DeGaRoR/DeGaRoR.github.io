@@ -166,6 +166,15 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       rowT.push([k, Date.now() - tR]);
       for (const i of diffs.slice(0, 3)) { const a = A.out[i] || '(none)', b = B.out[i] || '(none)'; let c = 0; while (c < a.length && a[c] === b[c]) c++;
         log('   @' + i + ' short: ' + a.slice(0, 50) + ' ..@' + c + ': ' + a.slice(Math.max(0, c - 60), c + 120) + '\n     long:  ' + b.slice(0, 50) + ' ..@' + c + ': ' + b.slice(Math.max(0, c - 60), c + 120)); }
+      // PERF-SLIDERS (23 Nov): --multiset - THE SAME OBJECTS IN ANOTHER ORDER, OR OTHER OBJECTS? (PERF-LEAD: "is what differs
+      // visible or flown, or is it the scene's order and five helper objects".) The fingerprint's lines compared as a
+      // multiset, the order left out: what each way holds that the other does not (a line is one object: its type, name,
+      // visibility, matrix, geometry counts and sums, materials)
+      if (!same && argv.includes('--multiset')) { const cnt = new Map(); for (const o of A.out) cnt.set(o, (cnt.get(o) || 0) + 1); for (const o of B.out) cnt.set(o, (cnt.get(o) || 0) - 1);
+        const onlyA = [], onlyB = []; for (const [o, n] of cnt) { for (let i = 0; i < n; i++) onlyA.push(o); for (let i = 0; i < -n; i++) onlyB.push(o); }
+        log('   AS A MULTISET: ' + onlyA.length + ' object(s) only the short way holds, ' + onlyB.length + ' only the long way; the resolved spec ' + (hA === hB ? 'the same' : 'DIFFERS'));
+        for (const o of onlyA.slice(0, 24)) log('     short only: ' + o.slice(0, 330));
+        for (const o of onlyB.slice(0, 24)) log('     long only:  ' + o.slice(0, 330)); }
       if (!same && (fwA.length || fwB.length))
         log('   footwell, crew: short ' + crA + '  long ' + crB + '\n   writes, short:\n     ' + fwA.slice(-5).join('\n     ') +
             '\n   writes, long:\n     ' + fwB.slice(-5).join('\n     '));
