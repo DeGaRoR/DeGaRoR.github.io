@@ -318413,3 +318413,23 @@ chinook-user); KNIFE file:builds/cessna172r_2026-11-08.json (the refit's sheet w
 NAMED for L40J, ONE TAIL-MOVE ITEM for user-fixes / L40K (owner FLAGSHIP): GATE FIN (the refit's fin sheet folds over itself,
 5 faces), GATE GEOPARITY (the drawn fin / stab against the flown ones: fin chord -0.310, stab -0.198, worst dx +0.188) and
 GATE DMGSKIN / DMGGEAR (the fin's front-spar root members VF-S4TL/TR ~3 % under at the FAR 23.473 drop) - all the refit's tail.
+
+## DASH-FIX-3 - L40J's last reds on the refitted 172 (FLAGSHIP, Mon 23 Nov 2026, ~01:40; claude/ready/dash-fix-3 on dash-fix-2)
+
+FIXED: GATE AUDIOENG - the refit carries its engine's own sound row (spec.engines[0].sound: 4 flat, four-stroke, 5.92 L), the
+resolver's first source: cessna's expected source 'custom.name' -> 'spec.sound' (the same cylinders, gear, firings), and the name
+parser keeps its own row (the same engine with the sound row set aside must resolve by its custom name; the 'parse' break turns it
+red, as it did the Cessna's).
+NAMED for L40J, fixed in L40K (owner FLAGSHIP unless said):
+- CONTRACTS (8 of 2549): the minedock / resort stage-0 rows the refit's real 357 m take-off cannot fly - ACCEPTED by the user
+  17 Nov ("a stock Cessna should not be able to clear all stages ... drop it"): the rows' expectations follow that ruling in L40K.
+- DMGDRIVE: the refit's prop overspeeds at VD (3268 rpm against 2450, tip Mach 1.03) and at VNE cruise (2704, 10 %) - its fixed
+  pitch against the refit's lower drag (L/D 11.2 vs the book's ~9): the prop's pitch / the engine's rpm limit from the C172S
+  POH (2700 redline), or the governor of the fixed-pitch overspeed; and the 4.43 g pull row.
+- DMGSCAR / DMGSCUFF / DMGWRECK (all under "the metal Cessna"): ground contacts recorded beyond the wheels in a plain circuit,
+  a taxi and the drops; a scuff when intact; the wing-low slide scraping the HIGH wing; the trunk prop strike not drawn - one
+  low part of the refit touching the ground in ordinary use (the nose strut / lower cowl / the spinner's clearance are the
+  leads) - with the FAR 23.473 drop's tail yield already named (the tail-move item).
+- WATERDAMP: the refit on its floats settles under 1 cm p-p from 17 s (bound 12 s): its mass and inertia moved with the refit.
+- MISSIONS: the bush run (HOME, 20 kg, David and Jody) refuses to load on list:50 - its seats / payload / range under the refit's
+  figures against the story's mission sheet: traced in L40K.
