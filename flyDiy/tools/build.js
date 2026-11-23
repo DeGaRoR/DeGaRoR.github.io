@@ -1085,13 +1085,24 @@ function buildViewer(core) {
   // (G3240 NAMES) the names table rides ahead of the cards, which read it before the core runs (01_names.js: a `var`,
   // so the core's own copy re-declares it)
   const namesJs = cardsJs ? read(path.join(CORE_DIR, '01_names.js')) : '';
+  // AUDIO-ROBUST 5 (the user 22 Nov: "audio should start playing from the menu onwards, and through the loading"): THE MENU'S
+  // MUSIC - menu_music.js and the music catalogue ride in the BOOT slot, ahead of welcome.js (the menu runs before the island
+  // and before audio.js / music.js; music.js takes the menu's song over when it connects). The catalogue is the same JSON
+  // the core's slot inlines (FLYDIY_MUSIC: ~25 KB more page, named in the ready)
+  const MENU_MUSIC_JS = path.join(VIEW_DIR, 'audio', 'menu_music.js');
+  const menuMusicJs = fs.existsSync(MENU_MUSIC_JS) ? read(MENU_MUSIC_JS) : '';
+  if (menuMusicJs) syntaxCheck('audio/menu_music.js', menuMusicJs);
+  const MUSIC_BOOT = fs.existsSync(path.join(VIEW_DIR, 'audio', 'music_catalogue.json')) ? JSON.stringify(JSON.parse(fs.readFileSync(path.join(VIEW_DIR, 'audio', 'music_catalogue.json'), 'utf8'))).replace(/</g, '\\u003c') : '[]';
+  const menuMusicArt = menuMusicJs ? `\n<script>window.FLYDIY_MUSIC=${MUSIC_BOOT};\n${menuMusicJs}</script>` : '';
+  const menuMusicDev = menuMusicJs ? `\n<script>window.FLYDIY_MUSIC=${MUSIC_BOOT};</script>\n<script src="src/viewer/audio/menu_music.js?v=${sha(menuMusicJs).slice(0, 8)}"></script>` : '';
   const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${namesJs}\n${cardsJs}\n${bootJs}</script>`
-    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
+    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + menuMusicArt + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
   const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (namesJs ? `<script src="src/core/01_names.js?v=${sha(namesJs).slice(0, 8)}"></script>\n` : '')
     + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
     + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')
+    + menuMusicDev
     + (welcomeJs ? `\n<script src="src/viewer/${V.welcome}?v=${sha(welcomeJs).slice(0, 8)}"></script>` : ''));
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));

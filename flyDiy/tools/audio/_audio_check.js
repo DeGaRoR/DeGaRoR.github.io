@@ -60,6 +60,8 @@ const FILES = {
   srcaf: 'src/viewer/audio/src_airframe.js', samples: 'src/viewer/audio/samples.js',
   // G1674 (SND-MUSIC): the player, the engine's events, the catalogue, the credits
   music: 'src/viewer/audio/music.js', engine: 'src/viewer/audio/src_engine.js',
+  // AUDIO-ROBUST 5: the menu's music (the BOOT slot) and the menu that mounts its row
+  menu: 'src/viewer/audio/menu_music.js', welcome: 'src/viewer/welcome.js',
   catalogue: 'src/viewer/audio/music_catalogue.json', credits: 'CREDITS.md',
   // SND-RADIO (G1675-G1679): Radio Jolene's talk, the stations' ruling, the key table (read: the free keys)
   radio: 'src/viewer/audio/radio_talk.js', selection: 'tools/audio/music_selection_v1.json', input: 'src/viewer/input.js',
@@ -169,6 +171,7 @@ function makePage(S, opt) {
   }
   vm.createContext(ctx);
   if (opt.before) opt.before(win);
+  for (const [txt, fn] of opt.pre || []) vm.runInContext(txt, ctx, { filename: fn });   // AUDIO-ROBUST 5: the BOOT slot's scripts (menu_music.js)
   vm.runInContext(S.audio, ctx, { filename: 'audio.js' });
   for (const [txt, fn] of opt.after || []) vm.runInContext(txt, ctx, { filename: fn });
   if (opt.airframe) {
@@ -630,6 +633,223 @@ function checkMix(S) {
     mp.gesture('pointerdown');
     for (let k = 1; k <= 6; k++) { T.ms = k * 250; mp.A.ctx.currentTime = k * 0.25; for (const x of iv) if (x.fn) x.fn(); }
     if (mp.M.context !== 'welcome' || mp.F.streaming() !== 1) F.push('under a stalled loop the loading screen is ' + mp.M.context + ' with ' + mp.F.streaming() + ' streaming (want its song)'); }
+  return F;
+}
+
+// AUDIO-ROBUST (22 Nov 2026, the user: "huge saturation, slow-down and speeds up, pitch variation" in lags and freezes).
+// STALL: A MAIN-THREAD BLOCK IS NOT A FRAME.
+//   PUMP   a frame from the loop, then a 1.15 s block: the first task after it is the 4 Hz timer, LATE - it must not run
+//          update() (the old one fired dt 0.5 on the held flight); three on-time ticks with no frame (the loop gone:
+//          holdRender) do run it; a gap past 0.3 s marks the next update a STALL frame (api.stall), the frame after not;
+//          ?audiorobust=0 is the old pump (the before).
+//   SPACE  the Cub flies toward a still listener at 50 m/s, 40 m off its track, from 350 m out (a doppler of ~15 %); 4 s in
+//          comes the old pump's frame (dt 0.5 after a 1 s gap, the aeroplane held - PACE holds the flight), then 1.5 s of
+//          flight (the retarded instant crosses the stall: ~0.45 s of sound in flight). Against the SAME flight with no
+//          block at all (the same positions, frame by frame: the held frame adds none), the engine group's doppler must
+//          stay within 0.3 % (a held note); the same pair with ?audiorobust=0 must differ by more than 1 % (the swoop: the
+//          before, printed); the sound's travel time (AUDIO.lagS) within 5 ms of the same flight's (the held frame is one
+//          frame the aeroplane stood still: 16.7 ms x 50 m/s / c = 2.4 ms; the old frame's half second: ~70 ms). The same pair again with
+//          the CHASE camera (the listener riding along 30 m off): within 0.3 % (the listener's own velocity held too) - the
+//          old frame dragged both velocities together there, so its swing is smaller (printed).
+const STALL_REPORT = [];
+function checkStall(S) {
+  const F = [];
+  { const iv = [], T = { ms: 0 }, pg = makePage(S, { quiet: true, store: {}, interval: iv, clock: () => T.ms }), A = pg.A;
+    pg.gesture();
+    const tick = ms => { T.ms = ms; for (const x of iv) if (x.fn) x.fn(); };
+    T.ms = 100; A.update(null, null, 1 / 60, null, null, false, null);   // the loop draws
+    tick(1250);                                                           // a 1.15 s block ends: the timer comes late
+    if (A.pumped !== 0) F.push('a pump tick late after a block ran update() (pumped ' + A.pumped + '): the stale frame');
+    if (!(A.stalls[0] === 1)) F.push('the late tick was not counted (' + A.stalls[0] + ')');
+    tick(1500); tick(1750);
+    if (A.pumped !== 0) F.push('the pump ran on the 2nd on-time tick with the loop gone (want the 3rd)');
+    tick(2000);
+    if (A.pumped !== 1) F.push('three on-time ticks with no frame did not pump (' + A.pumped + ')');
+    T.ms = 2017; A.update(null, null, 1 / 60, null, null, false, null);
+    T.ms = 3200; A.update(null, null, 1 / 60, null, null, false, null);
+    if (A.stall[0] !== 1) F.push('the frame after a 1.18 s gap is not a stall frame');
+    T.ms = 3217; A.update(null, null, 1 / 60, null, null, false, null);
+    if (A.stall[0] !== 0) F.push('the frame 17 ms later is still a stall frame');
+    A.enable(false); }
+  { const iv = [], T = { ms: 0 }, pg = makePage(S, { quiet: true, store: {}, interval: iv, clock: () => T.ms, search: '?audiorobust=0' }), A = pg.A;
+    pg.gesture();
+    T.ms = 100; A.update(null, null, 1 / 60, null, null, false, null);
+    T.ms = 1250; for (const x of iv) if (x.fn) x.fn();
+    if (A.pumped !== 1) F.push('?audiorobust=0 is not the old pump (pumped ' + A.pumped + ' after a block)');
+    A.enable(false); }
+  const run = (search, stale, chase) => {
+    const pg = spacePage(S, { search }), A = pg.A, T = { ms: 0 };
+    pg.win.performance.now = () => T.ms;
+    pg.place(0, 0, 0);
+    // the listener still, 40 m off the track, the identity orientation; the aeroplane flies along its nose at 50 m/s
+    const e = pg.camera.matrixWorld.elements; e[0] = 1; e[1] = 0; e[2] = 0; e[4] = 0; e[5] = 1; e[6] = 0; e[8] = 0; e[9] = 0; e[10] = 1;
+    const side = [pg.fwd[2], 0, -pg.fwd[0]], sl = Math.hypot(...side);
+    pg.camera.position.x = pg.org[0] + side[0] / sl * 40; pg.camera.position.y = pg.org[1]; pg.camera.position.z = pg.org[2] + side[2] / sl * 40;
+    const p = pg.sim.p, n = p.length / 3, cp = pg.camera.position;
+    const mv = d => { for (let j = 0; j < n; j++) for (let k = 0; k < 3; k++) p[j * 3 + k] += pg.fwd[k] * d;
+      if (chase) { cp.x += pg.fwd[0] * d; cp.y += pg.fwd[1] * d; cp.z += pg.fwd[2] * d; } };
+    if (chase) { cp.x -= pg.fwd[0] * 20; cp.z -= pg.fwd[2] * 20; }   // the chase eye: 20 m behind, 40 m aside
+    mv(-350);
+    const fr = (dt, gapMs, move) => { T.ms += gapMs; if (move) mv(50 * dt); A.ctx.currentTime += gapMs / 1000; A.update(pg.sim, pg.camera, dt, pg.def, pg.cam, false, { surface: () => 0 }); };
+    for (let i = 0; i < 240; i++) fr(1 / 60, 1000 / 60, true);   // 4 s: 150 m out, closing
+    const k0 = A.space.frame[8], ks = [], lg = [];
+    if (stale) { fr(0.5, 1000, false); ks.push(A.space.frame[8]); lg.push(A.lagS[0]); } else { ks.push(k0); lg.push(A.lagS[0]); }   // the old pump's frame after a 1 s block (the flight held) | none
+    for (let i = 0; i < 90; i++) { fr(1 / 60, 1000 / 60, true); ks.push(A.space.frame[8]); lg.push(A.lagS[0]); }
+    return { k0, ks, lg };
+  };
+  const diff = (a, b) => { let w = 0; for (let i = 0; i < a.ks.length; i++) w = Math.max(w, Math.abs(a.ks[i] / b.ks[i] - 1)); return w; };
+  const dlag = (a, b) => { let w = 0; for (let i = 1; i < a.lg.length; i++) w = Math.max(w, Math.abs(a.lg[i] - b.lg[i])); return w; };
+  const now = { k0: 0, worst: 0, lag: 0 }, old = { k0: 0, worst: 0 }, chN = { worst: 0 }, chO = { worst: 0 };
+  { const a = run('', true), b = run('', false); now.k0 = a.k0; now.worst = diff(a, b); now.lag = dlag(a, b); }
+  { const a = run('?audiorobust=0', true), b = run('?audiorobust=0', false); old.k0 = a.k0; old.worst = diff(a, b); }
+  { const a = run('', true, true), b = run('', false, true); chN.worst = diff(a, b); }
+  { const a = run('?audiorobust=0', true, true), b = run('?audiorobust=0', false, true); chO.worst = diff(a, b); }
+  STALL_REPORT.length = 0;
+  STALL_REPORT.push('doppler across a 1 s block (50 m/s toward a still listener, 40 m off): x' + now.k0.toFixed(4) + '; vs the same flight with no block, before swung ' + (old.worst * 100).toFixed(2) + ' %, now within ' + (now.worst * 100).toFixed(3) + ' %');
+  if (!(now.k0 > 1.02)) F.push('the pass reads no doppler before the stall (x' + now.k0.toFixed(4) + '): the test is blind');
+  if (!(now.worst < 0.003)) F.push('the doppler moved ' + (now.worst * 100).toFixed(2) + ' % across a 1 s block (want < 0.3 %: a held note)');
+  if (!(old.worst > 0.01)) F.push('?audiorobust=0 no longer shows the swoop (' + (old.worst * 100).toFixed(2) + ' %): the before is lost');
+  if (!(now.lag < 0.005)) F.push('the travel time of the sound moved ' + (now.lag * 1000).toFixed(1) + ' ms across a 1 s block (want < 5 ms: the clock of the space held to one frame)');
+  if (!(chN.worst < 0.003)) F.push('in the chase camera the doppler moved ' + (chN.worst * 100).toFixed(2) + ' % across a 1 s block (want < 0.3 %)');
+  STALL_REPORT.push('the chase camera (riding along 40 m aside): before swung ' + (chO.worst * 100).toFixed(2) + ' %, now within ' + (chN.worst * 100).toFixed(3) + ' %; the travel time held within ' + (now.lag * 1000).toFixed(2) + ' ms');
+  return F;
+}
+
+// AUDIO-ROBUST 2 (22 Nov 2026, the user: "huge saturation"): CEILING - the WaveShaper after the limiter.
+//   the curve: odd, monotone, the identity (to 1e-6) up to -1 dBFS, |y| <= 1 everywhere and >= 0.999 at +6 dBFS in, its
+//   slope continuous at the knee (within 2 %); 2x oversampled; the shaper is the last node (it, not the limiter, feeds the
+//   speakers; AUDIO.record taps it) behind a 1/2 gain (its domain is +-6 dBFS); ?audiorobust=0 makes none (the before).
+function checkCeiling(S) {
+  const F = [];
+  const mk = search => {
+    const R = { shapers: [] };
+    const pg = makePage(S, { quiet: true, store: {}, search, ctx: (proto, C) => {
+      proto.createWaveShaper = function () { C.nodes++; const ctx = this, n = { curve: null, oversample: 'none', to: [],
+        connect(d) { this.to.push(d === ctx.destination ? 'destination' : d); }, disconnect() {} }; R.shapers.push(n); return n; };
+    } });
+    pg.gesture();
+    return Object.assign(R, { pg });
+  };
+  const R = mk('');
+  if (R.shapers.length !== 1) { F.push('the ceiling: ' + R.shapers.length + ' WaveShaper(s) made (want 1)'); return F; }
+  const sh = R.shapers[0], c = sh.curve, n = c ? c.length : 0, IN = 2, K = Math.pow(10, -1 / 20);
+  if (!c || n < 4097 || n % 2 !== 1) { F.push('the ceiling curve has ' + n + ' points (want odd, >= 4097)'); return F; }
+  if (sh.oversample !== '2x') F.push('the ceiling is oversampled ' + sh.oversample + ' (want 2x)');
+  if (sh.to.length !== 1 || sh.to[0] !== 'destination') F.push('the ceiling does not feed the speakers (' + sh.to.length + ' connection(s))');
+  let mono = true, odd = true, idErr = 0, top = 0;
+  for (let i = 0; i < n; i++) {
+    const u = IN * (2 * i / (n - 1) - 1), y = c[i];
+    if (i && y < c[i - 1]) mono = false;
+    if (Math.abs(y + c[n - 1 - i]) > 1e-7) odd = false;
+    if (Math.abs(u) <= K) idErr = Math.max(idErr, Math.abs(y - u));
+    top = Math.max(top, Math.abs(y));
+  }
+  if (!mono) F.push('the ceiling curve is not monotone');
+  if (!odd) F.push('the ceiling curve is not odd');
+  if (!(idErr < 1e-6)) F.push('the ceiling is not the identity under -1 dBFS (off by ' + idErr + ')');
+  if (!(top <= 1)) F.push('the ceiling reaches ' + top + ' (want <= 1: full scale, never past it)');
+  if (!(c[n - 1] >= 0.999)) F.push('the ceiling at +6 dBFS in gives ' + c[n - 1] + ' (want >= 0.999)');
+  const ik = Math.ceil(((K / IN) + 1) / 2 * (n - 1)) + 1, du = 2 * IN / (n - 1), slope = (c[ik + 1] - c[ik]) / du;
+  if (!(Math.abs(slope - 1) < 0.02)) F.push('the ceiling\'s slope just past the knee is ' + slope.toFixed(4) + ' (want 1: no kink)');
+  const pre = R.pg.params.filter(p => Math.abs(p.value - 1 / IN) < 1e-9).length;
+  if (pre < 1) F.push('no 1/2 gain before the ceiling (its domain is +-6 dBFS)');
+  const O = mk('?audiorobust=0');
+  if (O.shapers.length !== 0) F.push('?audiorobust=0 still makes the ceiling (the before is lost)');
+  return F;
+}
+
+// AUDIO-ROBUST 5 (the user 22 Nov: "audio should start playing from the menu onwards, and through the loading, on by
+// default, and a little button both in the menu and the loading screen to turn it off. Keep the possibility to choose a
+// song, random, or radio Jolene"): MENUMUSIC.
+//   ALONE   menu_music.js (the BOOT slot, before audio.js exists): nothing before a gesture; the first click plays one
+//           song of the player's station (Radio Jolene for a new player), joined 15-60 % in, at master x music x its
+//           trim; the menu row: the pill and the picker (every station of music.js, Random and Radio Jolene among them,
+//           then every song); a song picked plays from its start and its station becomes the player's; the pill turns it
+//           off (flydiy.audio.musicLoading '0', the loading screen's own switch) and on; ?audio=0, the sound off or the
+//           loading music off: nothing plays, no row
+//   TAKEN OVER  menu_music.js then audio.js + music.js (the build's order): the menu's click starts the song, the
+//           context's gesture comes after - music.js's deck 0 IS the menu's element, still playing, the same song, at
+//           volume 1 (its level now the deck's gain: the track's trim), no new start on the loading screen, and the
+//           menu's player hands over (adopted)
+//   WIRING  build.js inlines menu_music.js with the catalogue in the BOOT slot ahead of welcome.js (both pages);
+//           welcome.js mounts the row on the menu card; audio.js unlocks at once on a page already clicked
+//           (navigator.userActivation.hasBeenActive)
+function menuAlone(S, store, search) {
+  const st = { made: 0, plays: 0, srcs: [], els: [], durOf: () => 200 };
+  const dom = fakeDom(st), L = {};
+  const win = { location: { search: search || '' }, localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
+    FLYDIY_MUSIC: SYN.map((t, i) => Object.assign({}, t, { station: i % 2 ? 'roots' : 'jazz', durationS: 200 })),
+    addEventListener: (t, fn) => { (L[t] = L[t] || []).push(fn); }, removeEventListener: (t, fn) => { const a = L[t]; if (a) { const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); } },
+    document: Object.assign(dom, { addEventListener() {}, hidden: false }) };
+  const ctx = { window: win, URLSearchParams, console: { warn() {}, log() {} } };
+  vm.createContext(ctx);
+  vm.runInContext(S.menu, ctx, { filename: 'menu_music.js' });
+  return { M: win.MENU_MUSIC, win, st, store, dom, fire: t => { for (const fn of (L[t] || []).slice()) fn({ type: t }); } };
+}
+function checkMenuMusic(S) {
+  const F = [];
+  { const P = menuAlone(S, {}), M = P.M;
+    if (!M) { F.push('menu_music.js made no MENU_MUSIC'); return F; }
+    if (P.st.made || P.st.plays) F.push('the menu music made ' + P.st.made + ' element(s) before any click');
+    P.fire('pointerdown');
+    const el = P.st.els[0], t = M.track, cat = P.win.FLYDIY_MUSIC;
+    if (!el || el.paused || t < 0) F.push('the first click on the menu played nothing');
+    else {
+      if (cat[t].station !== 'roots') F.push('a new player\'s menu song is on ' + cat[t].station + ' (want roots: Radio Jolene)');
+      if (!(el.currentTime >= 0.15 * 200 - 1e-6 && el.currentTime <= 0.6 * 200 + 1e-6)) F.push('the menu song starts at ' + el.currentTime + ' s of 200 (want joined 15-60 % in)');
+      const trim = typeof cat[t].lufs === 'number' ? Math.max(0.25, Math.min(2, Math.pow(10, (-16 - cat[t].lufs) / 20))) : 1;
+      if (!(Math.abs(el.volume - Math.min(1, 0.8 * 0.6 * trim)) < 1e-9)) F.push('the menu song plays at volume ' + el.volume + ' (want master x music x trim = ' + Math.min(1, 0.48 * trim).toFixed(4) + ')');
+    }
+    P.fire('pointerdown');
+    if (P.st.made !== 1) F.push('a second click made another element (' + P.st.made + ')');
+    const card = P.dom.createElement('div'), row = M.mount(card);
+    if (!row) F.push('the menu has no music row');
+    else {
+      const [btn, sel] = row.children;
+      const keys = [].concat(...sel.children.filter(g => g.label === 'stations').map(g => g.children.map(o => o.value)));
+      for (const k of ['roots', 'mix', 'jazz', 'lofi', 'dubambient', 'blues', 'classical']) if (keys.indexOf(k) < 0) F.push('the menu picker has no station ' + k);
+      const songs = [].concat(...sel.children.filter(g => g.label === 'a song').map(g => g.children));
+      if (songs.length !== cat.length) F.push('the menu picker lists ' + songs.length + ' songs (want every one: ' + cat.length + ')');
+      if (!/on/.test(btn.textContent)) F.push('the pill reads "' + btn.textContent + '" while the song plays');
+      sel.value = 'song:2'; sel.onchange();
+      if (M.track !== 2 || el.currentTime !== 0 || P.store['flydiy.audio.station'] !== cat[2].station) F.push('a song picked does not play from its start on its station (track ' + M.track + ', ' + el.currentTime + ' s, station ' + P.store['flydiy.audio.station'] + ')');
+      sel.value = 'mix'; sel.onchange();
+      if (P.store['flydiy.audio.station'] !== 'mix' || el.paused) F.push('Random picked: station ' + P.store['flydiy.audio.station'] + ', ' + (el.paused ? 'silent' : 'playing'));
+      btn.onclick();
+      if (!el.paused || P.store['flydiy.audio.musicLoading'] !== '0' || !/off/.test(btn.textContent)) F.push('the pill did not turn the music off (' + (el.paused ? 'paused' : 'playing') + ', musicLoading ' + P.store['flydiy.audio.musicLoading'] + ', "' + btn.textContent + '")');
+      btn.onclick();
+      if (el.paused || P.store['flydiy.audio.musicLoading'] !== '1') F.push('the pill did not turn the music back on');
+    } }
+  for (const [why, store, search] of [['?audio=0', {}, '?audio=0'], ['the sound off', { 'flydiy.audio': '0' }, ''], ['the loading music off', { 'flydiy.audio.musicLoading': '0' }, '']]) {
+    const P = menuAlone(S, store, search); P.fire('pointerdown');
+    if (P.st.plays) F.push(why + ': the menu click played music');
+    if (why !== 'the loading music off' && P.M.mount(P.dom.createElement('div'))) F.push(why + ': the menu still shows a music row');
+  }
+  // TAKEN OVER: the menu's click first, then audio.js's gesture and music.js's connect, on a loading screen
+  { const boot = { state: 'loading' };
+    const mp = musicPage(S, { factory: true, boot, noGesture: true, pre: [[S.menu, 'menu_music.js']] });
+    const MM = mp.win.MENU_MUSIC;
+    MM._gesture();
+    const el = mp.st.els[0], t = MM.track;
+    if (!el || el.paused) F.push('the menu song did not start under the taken-over page');
+    else {
+      const pos = el.currentTime;
+      mp.gesture('pointerdown'); mp.F.run(2);
+      const d0 = mp.M._decks()[0];
+      if (!MM.adopted) F.push('music.js did not take the menu song over');
+      if (!d0 || d0.el !== el) F.push('music.js\'s deck 0 is not the menu\'s element');
+      if (el.paused || el.volume !== 1) F.push('the taken-over song is ' + (el.paused ? 'paused' : 'at volume ' + el.volume) + ' (want playing, its level the deck\'s)');
+      if (mp.F.starts.length) F.push('the loading screen started ' + mp.F.starts.length + ' new song(s) over the menu\'s (want the same song on)');
+      if (mp.M.context !== 'welcome' || mp.F.streaming() !== 1) F.push('the loading screen after the menu: ' + mp.M.context + ', ' + mp.F.streaming() + ' streaming (want the welcome, one stream)');
+      if (!(el.currentTime >= pos)) F.push('the taken-over song went back (' + pos + ' -> ' + el.currentTime + ' s)');
+      if (d0 && Math.abs(d0.gain.gain.value - mp.M.trimOf(mp.M.catalogue[t])) > 1e-9) F.push('deck 0 took the menu song at gain ' + d0.gain.gain.value + ' (want its trim)');
+    } }
+  // THE WIRING
+  const bi = S.build.indexOf('menuMusicArt + (welcomeJs ?'), bd = S.build.indexOf('+ menuMusicDev\n');
+  if (bi < 0 || bd < 0) F.push('build.js does not inline menu_music.js ahead of welcome.js on both pages');
+  if (S.build.indexOf('window.FLYDIY_MUSIC=${MUSIC_BOOT}') < 0) F.push('build.js does not hand the menu its catalogue');
+  if (S.welcome.indexOf('W.MENU_MUSIC.mount(card)') < 0) F.push('welcome.js does not mount the music row on the menu');
+  if (S.audio.indexOf('ua.hasBeenActive) unlock()') < 0) F.push('audio.js waits for a second click on a page already clicked');
   return F;
 }
 
@@ -1180,10 +1400,10 @@ function musicPage(S, o) {
   const st = { made: 0, plays: 0, srcs: [], els: [], durOf: u => (o.durs || SYN_DUR)[u] || 60 };
   const store = o.store || {};
   if (!o.factory && !('flydiy.audio.musicGarage' in store)) store['flydiy.audio.musicGarage'] = '1';
-  if (!o.factory && !('flydiy.audio.musicLoading' in store)) store['flydiy.audio.musicLoading'] = '1';   // (off by default since 2026-10-05, like the garage's)
+  if (!o.factory && !('flydiy.audio.musicLoading' in store)) store['flydiy.audio.musicLoading'] = '1';   // (on by default since 22 Nov; written for the checks written before)
   // ...and they were written on lo-fi (the shipped start is Radio Jolene since 2026-10-05: o.factory checks it)
   if (!o.factory && !('flydiy.audio.station' in store)) store['flydiy.audio.station'] = 'lofi';   // the shipped default is OFF (2026-10-04): the music checks turn it on
-  const pg = makePage(S, { quiet: true, store, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook, interval: o.interval,
+  const pg = makePage(S, { quiet: true, store, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook, interval: o.interval, pre: o.pre,
     before: win => { win.FLYDIY_MUSIC = o.cat || SYN; if (o.base != null) win.FLYDIY_ASSET_BASE = o.base; if (o.boot) win.BOOT = o.boot;
       if (o.beforeWin) o.beforeWin(win);   // G1683: the recorded voice's catalogue and fetch
       if (o.speech) { win.speechSynthesis = o.speech.S; win.SpeechSynthesisUtterance = o.speech.U; }   // G1678: the voice's stub
@@ -1563,16 +1783,40 @@ function checkMusicWiring(S) {
   if (S.engine.indexOf("A.emit('engine', 'start')") < 0 || S.engine.indexOf("A.emit('engine', 'catch')") < 0) F.push('src_engine.js emits no engine start / catch for the music to duck under');
   const pg = makePage(S, { quiet: true }), row = pg.A.SETTINGS.find(r => r[0] === 'musicGarage');
   if (!row || row[1] !== 0 || row[2] !== 'bool') F.push('the settings have no "music in the garage" (off by default: the user, 2026-10-04)');
-  { const fb = { state: 'landing' }, fp = musicPage(S, { factory: true, boot: fb }); fp.F.run(2); fb.state = 'gone'; fp.F.garage = true; fp.F.run(4);
-    if (fp.M.context !== 'none' || fp.F.streaming() !== 0 || fp.F.starts.length) F.push('a fresh player hears music (' + fp.M.context + ', ' + fp.F.starts.length + ' starts): the shipped default is music OFF'); }
+  // RE-PINNED (AUDIO-ROBUST 3, 22 Nov 2026): the user's official performance table (21 Nov) asks for "Music and radio Jolene
+  // during loading screens" (audible, uninterrupted) and A0 relayed it as on by default - so a fresh player now hears the
+  // LOADING SCREEN's music (it was silent: the 2026-10-05 "off for now, for the dev process"), and still nothing in the
+  // shed once the loading screen is gone (the garage's music stays off by default: 2026-10-04)
+  { const fb = { state: 'landing' }, fp = musicPage(S, { factory: true, boot: fb }); fp.F.run(2);
+    if (fp.M.context !== 'welcome' || fp.F.streaming() !== 1) F.push('a fresh player loading screen is ' + fp.M.context + ' with ' + fp.F.streaming() + ' streaming (want its song: on by default since 22 Nov)');
+    fb.state = 'gone'; fp.F.garage = true; fp.F.run(8);
+    if (fp.M.context !== 'none' || fp.F.streaming() !== 0) F.push('a fresh player hears music in the shed (' + fp.M.context + ', ' + fp.F.streaming() + ' streaming): the garage default is OFF');
+    // the loading screen is read NOW (BOOT's state), not off the last frame: a screen that just came up is a loading screen
+    fb.state = 'loading';
+    if (fp.A.welcome !== true) F.push('a loading screen just up reads welcome ' + fp.A.welcome + ' before the next frame (want true: read now)'); }
+  // AUDIO-ROBUST 4 (the garage-first loading, PERF-LEAD 22 Nov): ONE stream from the menu click to the world - the loading
+  // screen, the garage while the world builds behind it (AUDIO.loadingBehind(true)), the Go screen: no restart, no second
+  // track; then, the loading over, it fades into the game's mix (the garage's music off by default: silence)
+  { const fb = { state: 'loading' }, fp = musicPage(S, { factory: true, boot: fb }); fp.F.run(2);
+    const s0 = fp.F.starts.length, one = where => { if (fp.M.context !== 'welcome' || fp.F.streaming() !== 1 || fp.F.starts.length !== s0)
+      F.push('the loading music ' + where + ': ' + fp.M.context + ', ' + fp.F.streaming() + ' streaming, ' + (fp.F.starts.length - s0) + ' new start(s) (want the same song on)'); };
+    if (s0 !== 1) F.push('the loading screen started ' + s0 + ' songs (want 1)');
+    fp.A.loadingBehind(true); fb.state = 'gone'; fp.F.garage = true; fp.F.run(6); one('behind the garage');
+    fb.state = 'loading'; fp.F.run(3); one('on the Go screen');
+    fb.state = 'gone'; fp.F.garage = false; fp.A.loadingBehind(false); fp.F.run(8);
+    if (fp.M.context !== 'none' || fp.F.streaming() !== 0) F.push('the loading over, the music stays (' + fp.M.context + ', ' + fp.F.streaming() + ' streaming)'); }
+  // ...and the player who turned it off (the button: flydiy.audio.musicLoading = 0) hears nothing on a loading screen
+  { const fb = { state: 'landing' }, fp = musicPage(S, { factory: true, boot: fb, store: { 'flydiy.audio.musicLoading': '0' } }); fp.F.run(2);
+    if (fp.M.context !== 'none' || fp.F.streaming() !== 0) F.push('the loading music turned off still plays (' + fp.M.context + ', ' + fp.F.streaming() + ' streaming)'); }
   // THE LOADING SCREENS' BUTTON (#bootMusic, the user 2026-10-05): shown when the sound is built, off by default, both ways
   { const pb = musicPage(S, { factory: true, store: {}, beforeWin: w => { const e = w.document.createElement('button'); e.id = 'bootMusic'; e.hidden = true; w.document.body.appendChild(e); } });
     const b = pb.win.document.getElementById('bootMusic');
     if (!b || b.hidden) F.push('the loading screens’ music button stays hidden');
     else {
-      if (pb.A.get('musicLoading') !== 0 || !/off/.test(b.textContent)) F.push('the loading music is not off by default (' + b.textContent + ')');
-      b.onclick(); if (pb.A.get('musicLoading') !== 1 || !/on/.test(b.textContent)) F.push('the button did not turn the loading music on (' + b.textContent + ')');
-      b.onclick(); if (pb.A.get('musicLoading') !== 0) F.push('the button did not turn the loading music off again');
+      // (on by default since AUDIO-ROBUST 3, 22 Nov 2026 - the user's table; it was off since 2026-10-05)
+      if (pb.A.get('musicLoading') !== 1 || !/on/.test(b.textContent)) F.push('the loading music is not on by default (' + b.textContent + ')');
+      b.onclick(); if (pb.A.get('musicLoading') !== 0 || !/off/.test(b.textContent)) F.push('the button did not turn the loading music off (' + b.textContent + ')');
+      b.onclick(); if (pb.A.get('musicLoading') !== 1) F.push('the button did not turn the loading music on again');
     } }
   // THE SHIPPED START (the user, 2026-10-05): Radio Jolene, a new deal each launch, joined partway into the track
   { const firsts = new Set();
@@ -2686,7 +2930,7 @@ function spacePage(S, opt) {
                  'flydiy-electric': prD.X.parameterDescriptors, 'flydiy-airframe': afD };
   const idle = [];
   const shed = o.shed || { dims: { HW: 15, HD: 12.5, EAVE: 7 }, shell: 'club' };
-  const win = { location: { search: '' }, localStorage: { getItem: k => (o.store && k in o.store ? o.store[k] : null), setItem() {} },
+  const win = { location: { search: o.search || '' }, localStorage: { getItem: k => (o.store && k in o.store ? o.store[k] : null), setItem() {} },
     performance: { now: (() => { let k = 0; return () => ++k; })() }, addEventListener() {}, removeEventListener() {},
     document: { hidden: false, hasFocus: () => true, addEventListener() {}, removeEventListener() {} },
     requestIdleCallback: fn => { idle.push(fn); return idle.length; },
@@ -4761,7 +5005,7 @@ function checkCrash(S, report) {
   return F;
 }
 
-const CHECKS = { MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
+const CHECKS = { STALL: checkStall, CEILING: checkCeiling, MENUMUSIC: checkMenuMusic, MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
@@ -4906,8 +5150,33 @@ const MUT = [
   ['the engine\'s frame tau ignored', 'engine', 'const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;', 'const tau = TAU;', 'MIX'],
   ['the prop\'s frame tau ignored', 'srcprop', 'const tau = A.tauS && A.tauS[0] > TAU ? A.tauS[0] : TAU;   // G1724', 'const tau = TAU;   // G1724', 'MIX'],
   ['the frame tau never comes back', 'audio', 'TAU_S[1] += (d - TAU_S[1]) * 0.25;', 'TAU_S[1] = Math.max(TAU_S[1], d);', 'MIX'],
-  ['the pump never runs', 'audio', 'if (el < PUMP_STALL_S || hidden) return;', 'return;', 'MIX'],
-  ['the pump runs over the loop', 'audio', 'if (el < PUMP_STALL_S || hidden) return;', 'if (hidden) return;', 'MIX'],
+  ['the pump never runs', 'audio', 'if (el < PUMP_STALL_S || hidden) { LAST[3] = 0; return; }', 'return;', 'MIX'],
+  ['the pump runs over the loop', 'audio', 'if (el < PUMP_STALL_S || hidden) { LAST[3] = 0; return; }', 'if (hidden) { LAST[3] = 0; return; }', 'MIX'],
+  // AUDIO-ROBUST (22 Nov 2026): a block is not a frame
+  ['a late pump tick fires the stale frame', 'audio', 'if (late) { LAST[3] = 0; STALLS[0]++; return; }', 'if (false) { LAST[3] = 0; STALLS[0]++; return; }', 'STALL'],
+  ['the pump never believes the loop gone', 'audio', 'if (++LAST[3] < PUMP_GONE_TICKS) return;', 'return;', 'STALL'],
+  ['no stall frame after a gap', 'audio', 'pumping || t0 - LAST[0] > STALL_GAP_S * 1000) ? 1 : 0;', 'pumping) ? 1 : 0;', 'STALL'],
+  ['the listener velocity not held', 'space', 'if (T[7] > 0 && L[15] > 0 && !cut) {', 'if (false) {', 'STALL'],
+  ['the ring velocity not held', 'space', 'if (T[7] > 0 && R.n[0] > 1) {', 'if (false) {', 'STALL'],
+  ['no ceiling', 'audio', 'if (ROBUST && ctx.createWaveShaper) {', 'if (false) {', 'CEILING'],
+  ['the ceiling clips hard', 'audio', 'const y = a <= CEIL_K ? a : CEIL_K + (1 - CEIL_K) * Math.tanh((a - CEIL_K) / (1 - CEIL_K));', 'const y = a <= CEIL_K ? a : CEIL_K;', 'CEILING'],
+  ['the ceiling squeezes the mix', 'audio', 'const CEIL_K = Math.pow(10, -1 / 20), CEIL_IN = 2', 'const CEIL_K = Math.pow(10, -6 / 20), CEIL_IN = 2', 'CEILING'],
+  ['the ceiling past the speakers', 'audio', 'L.connect(pre); pre.connect(C); C.connect(ctx.destination);', 'L.connect(pre); pre.connect(C); L.connect(ctx.destination);', 'CEILING'],
+  ['the ceiling aliased', 'audio', "C.curve = ceilingCurve(); C.oversample = '2x';", "C.curve = ceilingCurve(); C.oversample = 'none';", 'CEILING'],
+  ['the loading music drops behind the garage', 'audio', "B.state === 'waiting')) || LB[0] > 0 ? 1 : 0;", "B.state === 'waiting')) ? 1 : 0;", 'MUSIC_WIRING'],
+  // AUDIO-ROBUST 5: the menu's music
+  ['the menu plays before a click', 'menu', "if (!SOUND_OFF && cat.length) { W.addEventListener('pointerdown', gesture, true); W.addEventListener('keydown', gesture, true); }", "if (!SOUND_OFF && cat.length) gesture();", 'MENUMUSIC'],
+  ['the menu ignores the off switch', 'menu', "const on = () => !SOUND_OFF && get(PFX + '.musicLoading', '1') !== '0';", "const on = () => !SOUND_OFF;", 'MENUMUSIC'],
+  ['the menu ignores the station', 'menu', "station: get(PFX + '.station', ST_START)", "station: 'jazz'", 'MENUMUSIC'],
+  ['the menu starts every song at 0', 'menu', 'if (join && cat[t].durationS > 0)', 'if (false)', 'MENUMUSIC'],
+  ['the menu plays at full volume', 'menu', 'S.el.volume = level();', 'S.el.volume = 1;', 'MENUMUSIC'],
+  ['a song picked keeps the old station', 'menu', 'S.station = stationOf(t); put(PFX + \'.station\', S.station);', '', 'MENUMUSIC'],
+  ['the pill does not stop it', 'menu', '    else stop();\n  }', '  }', 'MENUMUSIC'],
+  ['music.js starts its own song', 'music', 'let mm = MM && MM.adopt ? MM.adopt() : null;', 'let mm = null;', 'MENUMUSIC'],
+  ['the taken-over song keeps its element volume', 'music', '      try { mm.el.volume = 1; } catch (e) {}\n', '\n', 'MENUMUSIC'],
+  ['the menu waits for a second click', 'audio', 'if (ua && ua.hasBeenActive) unlock();', 'if (false) unlock();', 'MENUMUSIC'],
+  ['the menu has no row', 'welcome', 'try { if (W.MENU_MUSIC && W.MENU_MUSIC.mount) W.MENU_MUSIC.mount(card); } catch (e) {}', '', 'MENUMUSIC'],
+  ['a stall frame advances the space clock', 'space', '(stl && dt > 1 / 60 ? 1 / 60 : dt)', '(dt)', 'STALL'],
   ['the pump outlives the context', 'audio', 'clearSuspend(); stopPump();', 'clearSuspend();', 'MIX'],
   ['the garage setting ignored', 'music', 'if (garage) return musicGarage ? C_GARAGE : C_NONE;', 'if (garage) return C_GARAGE;', 'MUSIC_CTX'],
   ['the loading button never shown', 'music', 'b.hidden = false;   // shown: the sound is built', 'b.hidden = true;   // shown: the sound is built', 'MUSIC_WIRING'],
@@ -4916,7 +5185,7 @@ const MUT = [
   ['the shed keeps the flight’s rpm', 'app', "for (const k of ['rpm', 'rpmEng', 'thrustPer'])", "for (const k of ['thrustPer'])", 'WIRING'],
   ['the loading setting ignored', 'music', 'if (welcome) return musicLoading ? C_WELCOME : C_NONE;', 'if (welcome) return C_WELCOME;', 'MUSIC_WIRING'],
   ['the loading screens back to the welcome-tagged few', 'music', '(c === C_WELCOME || c === C_CRUISE ? ix.slice() : ix.filter(', '(c === C_CRUISE ? ix.slice() : ix.filter(', 'MUSIC_SHUFFLE'],
-  ['only the first boot is a loading screen', 'audio', "welcome = B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting') ? 1 : 0;", "welcome = welcome && B && B.state !== 'gone' ? 1 : 0;", 'MUSIC_CTX'],
+  ['only the first boot is a loading screen', 'audio', "welcome = (B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting')) || LB[0] > 0 ? 1 : 0;", "welcome = welcome && B && B.state !== 'gone' ? 1 : 0;", 'MUSIC_CTX'],
   ['leaving a context keeps the track', 'music', '      fadeOut(a, XFADE_S);\n    }\n    hideNow();', '    }\n    hideNow();', 'MUSIC_CTX'],
   ['a faded element keeps streaming', 'music', 'if (DK[o + K_STOP] <= 0) release(k); }', '}', 'MUSIC_CTX'],
   ['the suspend leaves it playing', 'music', 'DK[k * K_N + K_PAUSED] = 1; try { decks[k].el.pause(); } catch (e) {}', 'DK[k * K_N + K_PAUSED] = 1;', 'MUSIC_CTX'],
@@ -4939,7 +5208,7 @@ const MUT = [
   ['the hold not re-armed', 'music', '    PS[S_DUCK] = DUCK_HOLD_S;\n    if (!fresh) return;', '    if (!fresh) return;\n    PS[S_DUCK] = DUCK_HOLD_S;', 'MUSIC_DUCK'],
   ['the engine event unheard', 'music', "au.onEvent('engine', onDuck), ", '', 'MUSIC_DUCK'],
   ['a track decoded whole', 'music', 'function release(k) {', 'function release(k) { if (k < 0) ctx.decodeAudioData(null);', 'MUSIC_BUDGET'],
-  ['a third element', 'music', '    for (let k = 0; k < 2; k++) {\n      const el = D.createElement', '    D.createElement(\'audio\');\n    for (let k = 0; k < 2; k++) {\n      const el = D.createElement', 'MUSIC_BUDGET'],
+  ['a third element', 'music', '    for (let k = 0; k < 2; k++) {\n      const el = k === 0 && mm ? mm.el : D.createElement', '    D.createElement(\'audio\');\n    for (let k = 0; k < 2; k++) {\n      const el = k === 0 && mm ? mm.el : D.createElement', 'MUSIC_BUDGET'],   // (AUDIO-ROBUST 5: the anchor follows the take-over's deck 0)
   ['born preloading', 'music', "el.preload = 'none';\n      el.crossOrigin", "el.preload = 'auto';\n      el.crossOrigin", 'MUSIC_BUDGET'],
   ['the music frame allocates', 'music', '    if (au.state === \'suspended\') return;', '    C.last = [dt];\n    if (au.state === \'suspended\') return;', 'MUSIC_BUDGET'],
   ['a steady music frame schedules', 'music', '      } else if (a < 0) startNext(c, 0);', '      } else if (a < 0) startNext(c, 0); else duck.gain.setTargetAtTime(1, 0, 1);', 'MUSIC_BUDGET'],
@@ -5244,7 +5513,7 @@ if (!ONLY_SELFTEST) {
     say(!res[k].length, k + (res[k].length ? ': ' + res[k].length + ' failure(s)' : ''));
     for (const f of res[k]) console.log('         ' + f);
   }
-  for (const r of report.concat(MUSIC_REPORT, SP_REPORT)) console.log('  info ' + r);
+  for (const r of report.concat(MUSIC_REPORT, SP_REPORT, STALL_REPORT)) console.log('  info ' + r);
   for (const b of FLOWN) {
     const AP = loadParams(SRC0.params), o = AP.audioParamsBlock();
     AP.audioParams(b.sim, { mode: 'chase' }, b.def, o, null, 1 / 60);
