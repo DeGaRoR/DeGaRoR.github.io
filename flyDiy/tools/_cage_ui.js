@@ -2404,8 +2404,9 @@ function* releaseSteps(built, rplan) {
     const own = [meshObj, cageObj, loopsObj].filter(o => o && o.parent === scene);
     // (PERF-SLIDERS: `pre` - what a layer added before the layers under it ran: a hull's tub, sponsons and strakes. A whole
     // build adds them after the fuselage's objects, the outermost layer's first)
-    const pre = []; for (let i = CH.layers.length - 1; i >= 0; i--) for (const o of CH.layers[i].pre || []) if (o.parent === scene) pre.push(o);
-    const lay = []; for (const l of CH.layers) for (const o of l.objs || []) if (o.parent === scene) lay.push(o);
+    const seen = new Set(own);
+    const pre = []; for (let i = CH.layers.length - 1; i >= 0; i--) for (const o of CH.layers[i].pre || []) if (o.parent === scene && !seen.has(o)) { seen.add(o); pre.push(o); }
+    const lay = []; for (const l of CH.layers) for (const o of l.objs || []) if (o.parent === scene && !seen.has(o)) { seen.add(o); lay.push(o); }
     const mine = new Set(own.concat(pre, lay));
     const order = scene.children.filter(o => !mine.has(o)).concat(own, pre, lay);
     if (order.length === scene.children.length && order.some((o, i) => o !== scene.children[i]))

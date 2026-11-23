@@ -113,7 +113,8 @@
   // (GATE INSTANTREL, once CAGE_CHAIN.over let its releases go by the plan). A whole build adds them after the
   // fuselage's objects and before every layer's own, the outermost layer's first.
   const preOf = (n, ctx) => { const A = L[n].kidsA; if (!A || !ctx || !ctx.scene) return L[n].pre || [];
-    const inner = new Set(); for (let j = 0; j < n; j++) for (const o of L[j].objs || []) inner.add(o);
+    // (not the layers' under it: their own groups, nor what THEY added before the layers under them)
+    const inner = new Set(); for (let j = 0; j < n; j++) { for (const o of L[j].objs || []) inner.add(o); for (const o of L[j].pre || []) inner.add(o); }
     return ctx.scene.children.filter(o => !A.has(o) && !inner.has(o) && !ADOPT.has(o)); };
   const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); if (n > 0 && L[n]) { L[n].pre = preOf(n, ctx); L[n].kidsA = null; L[n].stat0 = statTxt(ctx); L[n].kids0 = kids(ctx); } });
   let childAcc = 0;
