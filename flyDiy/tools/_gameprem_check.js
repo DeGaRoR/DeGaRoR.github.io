@@ -521,11 +521,15 @@ function run(mut) {
     side.sheds.tw_ski.kits = ['park'];
     ok(R.playerSlots(side, 'tw_ski').total === 3 && R.hangarRoomFor(side.sheds.tw_ski, FOOT('jodel'), [], opts) >= 3, 'GQ7 / G2690: a side club has its floor + two inside');
     let sc = side;
-    for (const n of ['J1', 'J2', 'J3', 'J4']) { sc.fleet[n] = { hangar: null, aero: 'HOME', foot: FOOT('jodel') }; }
+    // (MASTER-GREEN 23 Nov: SIX Jodels, not four. The row was "the altiport has no tie-down spot (its apron 0): the fourth is
+    // kept long-term". SKYLINE-RESORT's parking area gave tw_ski TWO cooked spots (fleet_spots_pack.js; PREM_STORE.spots follows
+    // the pack, GATE STORAGE), so the fourth and the fifth tie down outside and it is the SIXTH that goes long-term: the same
+    // order of places, the overflow still reached, the apron's real count asserted)
+    const JS6 = ['J1', 'J2', 'J3', 'J4', 'J5', 'J6'];
+    for (const n of JS6) { sc.fleet[n] = { hangar: null, aero: 'HOME', foot: FOOT('jodel') }; }
     const k3 = [];
-    for (const n of ['J1', 'J2', 'J3', 'J4']) { const a = R.playerArrive(sc, n, 'tw_ski', opts); k3.push(a.store); sc = a.doc; }
-    // the altiport has no tie-down spot (its apron 0): the fourth is kept long-term in the shed
-    ok(eq(k3, ['inside', 'inside', 'floor', 'long']), 'GQ7 / G2690: Jodels at a side club: two inside, the floor, then long-term (' + k3.join(' ') + ')');
+    for (const n of JS6) { const a = R.playerArrive(sc, n, 'tw_ski', opts); k3.push(a.store); sc = a.doc; }
+    ok(R.PREM_STORE.spots.tw_ski === 2 && eq(k3, ['inside', 'inside', 'floor', 'outside', 'outside', 'long']), 'GQ7 / G2690: Jodels at a side club: two inside, the floor, the altiport\'s two tie-downs, then long-term (' + k3.join(' ') + ')');
     before = clone(sc);
     refused(R.playerStore(sc, 'J4', 'tw_ski', null, opts), before, sc, 'GQ7: wheeling into a side club with every slot taken');
     refused(R.playerUpgrade(sc, 'tw_ski', { shell: 'field', dims: { HW: 9, HD: 10, EAVE: 4 } }, opts), before, sc, 'GQ7: a side club with two inside rebuilt as a one-slot field shed');
