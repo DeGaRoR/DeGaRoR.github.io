@@ -121,7 +121,7 @@
   },
   {
    "date": "2026-11-23",
-   "reason": "LS4-ARCH-2 (23 Nov, SEAPLANES for A0): the L40K candidate 45d2e27f0 + claude/ready/ls4-arch-1 f6fac3b38 - the LS4 release (its STRADDLE-FIX mass placement) and the Archaeopteryx row join L40K's set; L40K's baseline (CHINOOK-USER, DASH-FIX) kept. What moved against L40K's baseline: ls4 new; archaeo (its build file, the Archaeopteryx row); c172v2 and jodelg (the core, ls4-arch-1's STRADDLE-FIX mass placement, meant per REAL-FIGURES); petrel42 (its build file - not this merge, L40K's own: the petrel-fixes trim reached the candidate after its last re-pin; min sm 1.80 -> 0.55 %)",
+   "reason": "LS4-ARCH-2 (23 Nov, SEAPLANES for A0): the L40K candidate 45d2e27f0 + claude/ready/ls4-arch-1 f6fac3b38 - the LS4 release (its STRADDLE-FIX mass placement) and the Archaeopteryx row join L40K's set; L40K's baseline (CHINOOK-USER, DASH-FIX) kept. What moved against L40K's baseline: ls4 new; archaeo (its build file, the Archaeopteryx row); c172v2 and jodelg (the core, ls4-arch-1's STRADDLE-FIX mass placement, meant per REAL-FIGURES); petrel42 (min sm 1.80 -> 0.55 %, typ 2.99 -> 1.60, mtow 14.3 -> 11.6: the core, ls4-arch-1's STRADDLE-FIX like c172v2 and jodelg - CORRECTED by PETREL-FIXES-4, 23 Nov: this entry first said \"its build file, L40K's own\"; real_check petrel42 on 45d2e27f0 and 56dc08acc gives the old figures, on b8511c47b the new, and the build's seatH/bulkZ rows reverted change nothing)",
    "core": "f11b6fa2580a869e",
    "moved": [
     "jodelg",
