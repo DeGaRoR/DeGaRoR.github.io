@@ -554,7 +554,7 @@
       // G1340 (SHADER-GUARD) A HELD FRAME IS NEVER PRESENTED: when the draw guard held a draw in this scene pass (its
       // program still linking), the resolve and the post hook are skipped - nothing reaches the canvas this frame, so the
       // page keeps showing the last whole frame (never a partial one: a ground missing for a frame is the sky's colour)
-      if (S.hold && S.hold()) { S.held++; return 'held'; }
+      if (S.hold && S.hold()) { S.held = (S.held || 0) + 1; return 'held'; }   // (23 Nov, PERF-TRACE: S has no `held` to start with - `S.held++` made it NaN and held() read 0 for ever)
       renderer.render(S.fsScene, S.fsCam);
       // THE POST HOOK (CLOUDS C2): the clouds composite onto the RESOLVED frame, not into the
       // multisampled target - three resolves the whole 8x target at the end of every render()

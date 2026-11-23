@@ -21480,6 +21480,9 @@
       const o = sim && sim.out;
       R.spd = o ? (o.Vg != null ? o.Vg : o.V) : NaN; R.vs = o ? o.vs : NaN;   // the GROUND speed: a parked aeroplane in a wind has an airspeed
       R.agl = (!inGarage && cg) ? cg[1] - groundH(cg[0], cg[2]) : NaN;
+      // PERF-TRACE 7: the broken members, for the recorder's 'crash' events - the damage state AS THE PAGE LAST HAD IT (no hop
+      // asked of the worker here: dmgNow()'s own callers keep it fresh while there is damage to show)
+      { const Dq = (!inGarage && sim) ? (sim.dmgState ? sim.dmgState() : (DMGS.sim === sim ? DMGS.st : null)) : null; R.breaks = (Dq && Dq.br) ? Dq.br.length : 0; }
       // G820 (C1c): the physics worker's step ms, dilation and the steps this frame showed (NaN: the page flies it)
       const wp = SIMW ? SIMW.perf() : null;
       if (wp && wp.live && simwRan >= 0) { R.wms = wp.stepMs; R.wdil = wp.dil; R.wran = simwRan; } else { R.wms = NaN; R.wdil = NaN; R.wran = NaN; }
@@ -22006,6 +22009,7 @@
     POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
     if (window.AUDIO) AUDIO.update(sim, camera, fdt, def, cam, inGarage, world);   // G1600: the sound's numbers off the newest step (audio.js; nothing before a gesture)
     if (window.BOOMBOX) BOOMBOX.frame(camera, bbProp);   // G1711: the radio's panel follows the radio - nothing while it is closed
+    if (FR && !framePresented && FR.notShown) FR.notShown();   // PERF-TRACE 7: rendered, held by the draw guard, NOT on the screen (the row's notShown flag)
     if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
     PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran);   // (G820: the worker's steps are not the page's: their cost is not a page step's)   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing

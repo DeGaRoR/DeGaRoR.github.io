@@ -318350,3 +318350,29 @@ PERF-TRACE 6 (22 Nov, after the 14:00 slot; the journey's log showed what the in
   it is ready; a warm visit re-links the 190 KB+ programs (the skin family) as if cold; every load links 86 programs for light signatures a
   load plus a departure never draws (1.3.6.0: the hangar's second state; 2.0.0.1 / 2.8.0.1); lampsfixed=1 ADDS the night signature and still
   links 75 of the day one.
+
+PERF-TRACE 7 (23 Nov: the user's row 14 - "less than 250 ms freeze on crash, and no sky blue screen (failed render frame)" - and the cover ring)
+- A FRAME THE DRAW GUARD HOLDS IS RENDERED AND NOT PRESENTED (PERF-LEAD, with the user watching): aa_resolve.js returns 'held', the screen
+  keeps its last picture or the page's colour, and the frame's dt is an ordinary frame's - "worst frame 233 ms" while the screen stood still
+  for 4-9 s. READ A FREEZE ON THE SCREEN, NOT ON THE FRAME TIMES. The frame's flag notShown (1024; app.js calls FLIGHT_REC.notShown() before
+  the frame's end), the page's 'still' events (PERF-LEAD's app.js: [t at its end, ms from the last picture shown to the next, { f, keep }]).
+  freeze_ledger.js: a still is ONE freeze of its whole length, with the programs still linking over it; row 8 fails on one over 100 ms, and a
+  log with neither the flag nor the event says "STILL PICTURES NOT RECORDED" instead of reading clean. (aa_resolve's held() read 0 for ever:
+  S.held was never initialised, `undefined++` is NaN. Fixed.)
+- THE CRASH IN THE LOG: 'crash' { k: 'impact', breaks, spd, agl } at the first broken member (the probe's `breaks`: the damage state as the
+  page last had it), { k: 'breaks' } as more follow, { k: 'rest' } when the speed has stayed under 0.5 m/s for 30 frames. fewDraws (512): a
+  world frame whose renders summed to under 60 draw calls (header fewDrawsUnder). 'guardhold' { held, new: [object/material <owner>] } from
+  shader_warm.js's flush on every frame where the guard kept draws out.
+- tools/crash_window.js <log> [--at S | --mark name] [--stills-recorded]: the 20 s after the impact - row 14 (judged on the stills; "NOT
+  JUDGED" where a log does not record them), the longest frames with the slots over their usual cost and what the events put inside, every
+  program LINKED after the impact by what it is, with the nearest program of the same owner linked BEFORE and the defines that differ, the
+  programs first drawn after it, the blue frame. The impact: the 'crash' event; else the flight script's mark "the nose down, into the
+  ground" (a 'mark' event 'seg:<step name>') then the first frame under 1 m above the ground or the 3-D speed's collapse; else a guess, said.
+  FIRST READ (perf-crash-2026-11-22/nose2_base): 15 programs are linked AFTER the impact and stay pending 2-9.9 s (14 cut copies - the
+  scuff twins' and the skins' - whose text nobody linked, 1 skin without CRAFT_NEAR_ONLY): the still. AND the frames run at 5 a second for
+  13-20 s with the `scene` slot 60-140 ms over its usual cost: not links.
+- THE COVER RING SAYS WHAT ITS TIME IS: the recorder's `cover` slot is ONE push round five updates (render_world.js: cover_ring.js's four
+  layers and the rock ring). The evening's journeys: a REGIME, 10-15 ms a frame for hundreds of frames below 100 m (four layers each on its
+  own budgetMs 2-4 ms, then blockBudget block rebuilds with no ms cap). A layer whose update took 4 ms or more reports itself by the
+  streamers' contract: 'deliver' ms { s: 'cover ring: <layer>', n: cells planted, plantMs, blocks, blockMs, queued }. slot_frames.js sums
+  them by layer. The dials: window.TREE_FILL.cover() / .grass() / .lawn() / .rockLayer(), each get() / set({ budgetMs, blockBudget }), live.
