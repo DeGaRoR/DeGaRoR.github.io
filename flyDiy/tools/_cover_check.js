@@ -488,10 +488,14 @@ function waterRing() {
     biomeAt: () => 'land', codeAt: () => 1, okAt: x => x < 60, lakeSD: x => x - 60, waterY: x => (x > 59 ? 0 : null) });
   CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
   for (let i = 0; i < 4; i++) CR.update();
-  const lily = [];
+  const lily = []; let padGeo = null;
   CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'cover' || !(o.material && o.material.map)) return; const M = o.instanceMatrix.array;
-    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) lily.push([M[i * 16 + 12], M[i * 16 + 13]]); });
-  return { lily, stat: CR.stat ? CR.stat() : {} };
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) lily.push([M[i * 16 + 12], M[i * 16 + 13]]);
+    if (!padGeo) { const G = o.geometry, I = G.index, P = G.getAttribute('position'), U = G.getAttribute('uv'); let area = 0, up = true;
+      const v = k => new THREE.Vector3().fromBufferAttribute(P, k), nt = I ? I.count / 3 : 0;
+      for (let t = 0; t < nt; t++) { const a = v(I.getX(t * 3)), b = v(I.getX(t * 3 + 1)), c = v(I.getX(t * 3 + 2)), n = b.sub(a).cross(c.sub(a)); area += n.length() / 2; if (n.y <= 0) up = false; }
+      padGeo = { tris: nt, uv: U ? U.count : 0, up: nt > 0 && up, area }; } });
+  return { lily, padGeo, stat: CR.stat ? CR.stat() : {} };
 }
 { let r = null;
   try { r = waterRing(); } catch (e) { ok(false, '12 the water plants plant', (e && e.message || String(e)).slice(0, 200)); }
@@ -499,7 +503,12 @@ function waterRing() {
     // depth 0.08-1.8 m on a 0.1 m/m bed: x 60.8-78; the band 1-14 m out: x 61-74
     ok(L.length > 20 && xs.every(x => x >= 61 - 1e-6 && x <= 74 + 1e-6) && ys.every(y => Math.abs(y) < 1e-6),
        '12 THE WATER PLANTS: the lily pads stand on the lake, 1-14 m out from the drawn line within their depth, at the water\'s level - none on the land',
-       L.length + ' pads, x ' + (L.length ? Math.min(...xs).toFixed(1) + '..' + Math.max(...xs).toFixed(1) : '-') + ', y ' + (L.length ? Math.min(...ys).toFixed(3) + '..' + Math.max(...ys).toFixed(3) : '-')); } }
+       L.length + ' pads, x ' + (L.length ? Math.min(...xs).toFixed(1) + '..' + Math.max(...xs).toFixed(1) : '-') + ', y ' + (L.length ? Math.min(...ys).toFixed(3) + '..' + Math.max(...ys).toFixed(3) : '-'));
+    // (VEG-NIGHT 23 Nov: 9 600 pads planted and none drawn for six days - the float quad's uv and index sat inside a comment)
+    const g = r.padGeo;
+    ok(g && g.tris === 2 && g.uv === 4 && g.up && g.area > 0.1,
+       '12b THE WATER PLANTS ARE DRAWN: the pad\'s float quad is two triangles facing the sky, with its picture\'s uv',
+       g ? 'tris ' + g.tris + ', uv ' + g.uv + ', up ' + g.up + ', area ' + g.area.toFixed(2) + ' m2' : 'no pad mesh'); } }
 // 13 THE ROCKS' OWN RING (MOUNTAIN-VEG, the user 17 Nov: "rock should be visible for a little while ... a bit further"): layer
 // 'rocks' plants the rock rows' rocks at least rockSplit m tall (the model's height x its scale) on the cover ring's own cells and
 // stream, and the cover ring under that split keeps the rest: together EXACTLY the cover ring's rocks alone - no rock twice, none lost
