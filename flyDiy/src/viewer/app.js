@@ -255,7 +255,11 @@
   // while the pointer or a key moves: ?gfrest=N, ?gfbusy=N). Go joins the load where it stands (gfJoin: the roll-out's
   // screen names the steps left, which then run at full speed). gfS is the rig's read (FLYDIY_LAB.gfS).
   const GFN = (k, d) => { try { const m = new RegExp('[?&]' + k + '=(\\d+(?:\\.\\d+)?)(&|$)').exec(location.search || ''); return m ? +m[1] : d; } catch (e) { return d; } };
-  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), cloudEarly: !LABQ('gfcloud=late'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
+  // THE DEFAULT SINCE 23 Nov 2026 (the user, 21:05, after the day's rows: "Make it default"): a real page boots garage first;
+  // ?boot=loadfirst is the one loading screen as it was (the world before the garage). A page without a real renderer (the node
+  // harness: no compileAsync) keeps the old boot - its steps are synchronous and nothing would run the world behind
+  const GF_DEFAULT = typeof location !== 'undefined' && !!renderer && typeof renderer.compileAsync === 'function' && !LABQ('boot=loadfirst');
+  const LAB = { gf: LABQ('boot=garagefirst') || GF_DEFAULT, gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), cloudEarly: !LABQ('gfcloud=late'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
       inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
     coverK: GFN('coverbudget', 0), coverSet: null,   // (?coverbudget=K: see labCoverBudget)
     noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
@@ -17047,12 +17051,6 @@
   // armed as the boot's screen is done with: the run starts gfS.delayMs after the garage is on screen
   function gfArm() {
     const G = LAB.gfS; if (G.armed) return; G.armed = true;
-    // THE CLOUDS' FIRST DRAW, STILL UNDER THE GARAGE'S OWN LOADING SCREEN (the evening row, 23 Nov: the garage's last 1.4 s
-    // freeze, in every run at the end of first light, was cloudsWarm - the march's two-output variant is built on the GPU
-    // process's main thread at its first draw (CLOUDS.warmDraw's note) and every frame waits for it. Behind a live garage
-    // that is the garage's picture standing still; here it is the loading screen, about 1.5 s longer - A NAMED LOAD COST of
-    // ?boot=garagefirst. ?gfcloud=late: where it was)
-    if (G.cloudEarly) { const t0 = performance.now(); cloudsWarm(); G.cloudAt = [Math.round(t0), Math.round(performance.now() - t0), !!window.FLYDIY_CLOUD_WARM]; }
     try { for (const k of ['pointerdown', 'pointermove', 'wheel', 'keydown']) window.addEventListener(k, () => { G.inputAt = performance.now(); }, { capture: true, passive: true }); } catch (e) {}
     const wait = () => {
       if (G.done || G.running) return;
@@ -23684,6 +23682,14 @@
   // and runs what moved, under the same screen: the first roll-out then finds nothing to do.
   bootStep('recheck', 'your aeroplane, as it settled', 2, () => {
     tripSync = null;
+    // THE CLOUDS' FIRST DRAW, UNDER THE GARAGE'S OWN LOADING SCREEN (?boot=garagefirst). The march's two-output variant is built
+    // on the GPU process's main thread at its first draw (CLOUDS.warmDraw's note) and every frame waits for it: behind the live
+    // garage that was its picture standing 1.4 s at the end of first light (23 Nov 16:34); at the boot's `done` (17:35) the wait
+    // landed 33 ms AFTER the screen had gone - 1.5 s on the garage's first frame (20:00). Here the screen is up for this whole
+    // step, and gl.finish() makes the page wait for the GPU inside it: A NAMED LOAD COST of garage first, about 1.5 s of the
+    // garage's loading screen. ?gfcloud=late: left to first light, as it was
+    if (GF_BOOT && LAB.gfS.cloudEarly) { const t0 = performance.now(); cloudsWarm(); try { renderer.getContext().finish(); } catch (e) {}
+      LAB.gfS.cloudAt = [Math.round(t0), Math.round(performance.now() - t0), !!window.FLYDIY_CLOUD_WARM]; }
     if (GARAGE_ONLY) return;   // G2100: re-planning with bake and craft out would run the flown bake here (the study, §1.3)
     const plan = tripPlan('craft'); if (!plan.length) return;
     const t = tripOpen('recheck');
