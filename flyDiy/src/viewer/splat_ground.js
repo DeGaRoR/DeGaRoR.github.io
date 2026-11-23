@@ -748,13 +748,21 @@ const SPLAT_GROUND = (() => {
       // (G2075: the handover per slot, BEFORE the derived splits - every slot's whole weight but scree's and rock's (5, 6) gives gSBank of
       // itself to the bank, which rides slot 1 (BANK_SLOT: a lake's raster code, muskeg in the vote - never a slot, never handing to itself);
       // rock keeps its full weight and its cliff (12) is cut from it after, 13 / 14 lose their parent's share - SHORES-2's loop, in slots)
-      float mv = 0.0, kb = 1.0 - gSBank;
-      if (k0 > 1 && k0 != 5 && k0 != 6) { mv += v0 * gSBank; v0 *= kb; }
-      if (k1 > 1 && k1 != 5 && k1 != 6) { mv += v1 * gSBank; v1 *= kb; }
-      if (k2 > 1 && k2 != 5 && k2 != 6) { mv += v2 * gSBank; v2 *= kb; }
-      if (k3 > 1 && k3 != 5 && k3 != 6) { mv += v3 * gSBank; v3 *= kb; }
-      if (k4 > 1 && k4 != 5 && k4 != 6) { mv += v4 * gSBank; v4 *= kb; }
-      if (mv > 0.0) { if (k0 < 0) { k0 = 1; v0 = mv; } else if (k1 < 0) { k1 = 1; v1 = mv; } else if (k2 < 0) { k2 = 1; v2 = mv; } else if (k3 < 0) { k3 = 1; v3 = mv; } else if (k4 < 0) { k4 = 1; v4 = mv; }
+      // THE LAKE'S BANKS WEAR THE FOREST FLOOR (MOUNTAIN-VEG 23 Nov; the user: "use the texture we use for forest ground for steep ground, and
+      // possibly for gentle banks too" - the lake banks read bare ochre from a floatplane; "the steep banks on the ocean are almost pure rocks"):
+      // where the bank zone is a LAKE's (its lake term over the sea's), the steep share goes to the forest floor (8) instead of the rocky shore
+      // (the bank, slot 1), and the gentle ground under bankLo gives LAKE_FLOOR of its share to it too, fading over 10 deg; the sea keeps its rock
+      float lkB = (1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)), seB = (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd);
+      float lk = step(seB, lkB), gL = lk * bankZ * (1.0 - smoothstep(uSBank.y - 10.0, uSBank.y, sj)) * 0.6;
+      int tg = lk > 0.5 ? 8 : 1;
+      float mv = 0.0, kb = 1.0 - gSBank, kg = 1.0 - gL;
+      if (k0 > 1 && k0 != 5 && k0 != 6 && k0 != tg) { mv += v0 * gSBank; v0 *= kb; if (lk > 0.5) { mv += v0 * gL; v0 *= kg; } }
+      if (k1 > 1 && k1 != 5 && k1 != 6 && k1 != tg) { mv += v1 * gSBank; v1 *= kb; if (lk > 0.5) { mv += v1 * gL; v1 *= kg; } }
+      if (k2 > 1 && k2 != 5 && k2 != 6 && k2 != tg) { mv += v2 * gSBank; v2 *= kb; if (lk > 0.5) { mv += v2 * gL; v2 *= kg; } }
+      if (k3 > 1 && k3 != 5 && k3 != 6 && k3 != tg) { mv += v3 * gSBank; v3 *= kb; if (lk > 0.5) { mv += v3 * gL; v3 *= kg; } }
+      if (k4 > 1 && k4 != 5 && k4 != 6 && k4 != tg) { mv += v4 * gSBank; v4 *= kb; if (lk > 0.5) { mv += v4 * gL; v4 *= kg; } }
+      if (mv > 0.0) { if (k0 == tg) v0 += mv; else if (k1 == tg) v1 += mv; else if (k2 == tg) v2 += mv; else if (k3 == tg) v3 += mv; else if (k4 == tg) v4 += mv;
+        else if (k0 < 0) { k0 = tg; v0 = mv; } else if (k1 < 0) { k1 = tg; v1 = mv; } else if (k2 < 0) { k2 = tg; v2 = mv; } else if (k3 < 0) { k3 = tg; v3 = mv; } else if (k4 < 0) { k4 = tg; v4 = mv; }
  }   // (all five full - 0.03 % of kernels: the share is dropped, the blend normalises by what it keeps)
     }
 #ifndef GS_NOTROND
@@ -854,7 +862,11 @@ const SPLAT_GROUND = (() => {
       gSBank = max(gSBank, step(0.01, uSBankLip) * step(-8.0, sd) * (1.0 - smoothstep(uSBankLip * 0.35, max(uSBankLip, 0.02), sd + bn * uSBankLip * 1.2))
                            * smoothstep(0.3, 1.0, vWPi.y) * 0.95);   // (no branch of its own: a branch is link time, COLD-LINKS)
       gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
-      for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12) { w[1] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }   // (the bank rides slot 1: BANK_SLOT)
+      // (the lake's banks wear the forest floor - the lean path's twin, above)
+      float lkB = (1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)), seB = (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd);
+      float lk = step(seB, lkB), gL = lk * bankZ * (1.0 - smoothstep(uSBank.y - 10.0, uSBank.y, sj)) * 0.6;
+      for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12 && i != 8) { float t = w[i] * gSBank; w[i] -= t; float g = w[i] * gL; w[i] -= g;
+        if (lk > 0.5) w[8] += t + g; else w[1] += t; }   // (the sea's bank rides slot 1: BANK_SLOT; the lake's the forest floor)
     }
 #ifndef GS_NOTROND
     // R1: THE EXPOSURE (the lean path's twin, above)
