@@ -7801,6 +7801,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const premRec0 = world.premises.rec;
       const premPre = COMPSTEPS && window.RENDER_PREMISES.composeSteps ? (yield* window.RENDER_PREMISES.composeSteps(world, premRec0, premisesTreePool)) : null;
       if (typeof window !== 'undefined') window.FLYDIY_COMPSTEPS = { on: COMPSTEPS, used: !!premPre };
+      if (premPre) yield 'premises: the renderer';   // (the swap was the step before: make()'s own body is this one)
       premisesR = window.RENDER_PREMISES.make(THREE, scene, world, premRec0, { precomposed: premPre,
         game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN), shedDims: () => shedDims,   // (G3096: the main hangar grabbed as drawn)
         // G831: where the town step will build from (app.js's stand, the one loading's) and how far: the house worker is

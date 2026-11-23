@@ -26,6 +26,7 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;
 const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
 // the composition's own labels (27_premises.js composeSteps, 20_world.js setPremisesSteps)
 const OURS = /^premises: (the runways|the roads|the shelves|the overlay|the placement|a site|the links|the built links|plots|the parks|the wood|a wood|the records|the swap)$/;
+const AFTER = 'premises: the renderer';   // (render_world.js: yielded after the swap - make()'s own body runs under it)
 
 async function child(side, out) {
   const { openPage } = require('./_page_node.js');
@@ -38,6 +39,7 @@ async function child(side, out) {
       return { next(v) { const t = now(), r = g.next(v), d = now() - t;
           // the work just done was opened by `label`: the composition's steps by their own labels, the inline child's one task by 'premises'
           if (OURS.test(String(label))) STEPS.push([String(label).slice(10), +d.toFixed(2)]);
+          else if (label === AFTER) STEPS.push(['the renderer (make)', +d.toFixed(2)]);
           else if (label === 'premises' || label === 'premises: the generators') { if (inlineMs === null || d > inlineMs) inlineMs = +d.toFixed(1); }
           if (!r.done && r.value !== undefined) label = r.value;
           // between two of the composition's steps: the premises of BEFORE stand, whole
@@ -71,6 +73,10 @@ async function child(side, out) {
     for (const k of Object.keys(O.records || {}).sort()) { let s; try { s = plain(O.records[k]); } catch (e) { s = 'unserialisable: ' + (e && e.message); } rec['records.' + k] = { n: Array.isArray(O.records[k]) ? O.records[k].length : null, sha: sha(String(s)) }; }
     for (const k of ['aerodromes', 'runways']) { let s; try { s = plain(O[k]); } catch (e) { s = 'unserialisable: ' + (e && e.message); } rec[k] = { n: Array.isArray(O[k]) ? O[k].length : null, sha: sha(String(s)) }; }
   }
+  // (the records themselves beside the result: the parent names the first paths that differ)
+  { const full = {}; if (O) { for (const k of Object.keys(O.records || {})) { try { full['records.' + k] = JSON.parse(plain(O.records[k])); } catch (e) { full['records.' + k] = null; } }
+      for (const k of ['aerodromes', 'runways']) { try { full[k] = JSON.parse(plain(O[k])); } catch (e) { full[k] = null; } } }
+    fs.writeFileSync(out.replace(/\.json$/, '.rec.json'), JSON.stringify(full)); }
   const aero = w.aerodromes.map(a => [a.id, a.kind || '', !!a.premises, +a.x, +a.z, +a.len, +a.wid, +a.hdg]);
   fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, flag: W.FLYDIY_COMPSTEPS || null, census, rec, aero: { n: aero.length, sha: sha(JSON.stringify(aero)) },
     zoneMemo: O && O.zoneMemo || null, swapped: !!(O0 && O && O !== O0), held: HELD, steps: STEPS, inlineMs,
@@ -104,7 +110,16 @@ async function child(side, out) {
   const diff = keys.filter(k => !A.rec[k] || !B.rec[k] || A.rec[k].sha !== B.rec[k].sha || A.rec[k].n !== B.rec[k].n);
   console.log('2. the overlay: ' + keys.map(k => k.replace(/^records\./, '') + ' ' + (B.rec[k] ? B.rec[k].n : '-')).join(', ') + ' - ' + (keys.length - diff.length) + ' of ' + keys.length + ' hash the same' + (diff.length ? '; DIFFER: ' + diff.join(', ') : ''));
   if (!keys.length) bad.push('no overlay records were read: the gate compared nothing');
-  for (const k of diff) bad.push('the overlay\'s ' + k + ' differ (' + JSON.stringify(A.rec[k]) + ' / ' + JSON.stringify(B.rec[k]) + ')');
+  // the first paths that differ, by walking the two records (a number's two values, a missing key, a length)
+  const where = (a, b, p, out) => { if (out.length >= 6) return;
+    if (a === b) return;
+    if (typeof a !== typeof b || a === null || b === null || typeof a !== 'object') { out.push(p + ': ' + JSON.stringify(a === undefined ? '(none)' : a).slice(0, 60) + ' / ' + JSON.stringify(b === undefined ? '(none)' : b).slice(0, 60)); return; }
+    if (Array.isArray(a) !== Array.isArray(b)) { out.push(p + ': an array / an object'); return; }
+    if (Array.isArray(a) && a.length !== b.length) { out.push(p + ': length ' + a.length + ' / ' + b.length); }
+    for (const k of (Array.isArray(a) ? Array.from({ length: Math.min(a.length, b.length) }, (x, i) => i) : [...new Set([...Object.keys(a), ...Object.keys(b)])])) where(a[k], b[k], p + (Array.isArray(a) ? '[' + k + ']' : '.' + k), out); };
+  let FA = null, FB = null; if (diff.length) { try { FA = JSON.parse(fs.readFileSync(path.join(dir, 'inline.rec.json'), 'utf8')); FB = JSON.parse(fs.readFileSync(path.join(dir, 'steps.rec.json'), 'utf8')); } catch (e) { FA = FB = null; } }
+  for (const k of diff) { const w = []; if (FA && FB) where(FA[k], FB[k], k, w);
+    bad.push('the overlay\'s ' + k + ' differ (' + JSON.stringify(A.rec[k]) + ' / ' + JSON.stringify(B.rec[k]) + ')' + (w.length ? ' - first: ' + w.join(' | ') : '')); }
   if (!(A.aero.sha === B.aero.sha && A.aero.n === B.aero.n)) bad.push('the world\'s aerodromes differ (' + A.aero.n + ' ' + A.aero.sha + ' / ' + B.aero.n + ' ' + B.aero.sha + ')');
   console.log('   the world\'s aerodromes: ' + A.aero.n + ' / ' + B.aero.n + ', ' + (A.aero.sha === B.aero.sha ? 'the same' : 'DIFFER') + '; the zones\' memo: inline ' + JSON.stringify(A.zoneMemo) + ', steps ' + JSON.stringify(B.zoneMemo));
   // ---- 4. what the world step built from it

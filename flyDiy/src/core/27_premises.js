@@ -1173,6 +1173,24 @@ function zoneMemoOf(world, o, sig) {
   M.hits = 0; M.misses = 0; M.seen = new Set();
   return M;
 }
+// PERF-WORLDBUILD (23 Nov 2026, with PERF-LEAD): THE HOST'S BUDGET. A long loop of the composition (the sower's plots along
+// a road, the planter's candidates) may stop where an item ends: `if (stepDue(K)) yield label;`. With a host that sets
+// window.FLYDIY_WORLD_BUDGET = { left: () => ms } (garage first: a few ms while a slider moves, ~25 ms at rest) the loop
+// runs until the budget is spent (left() <= 0); with none it yields every K-th ask, a fixed count. Where the yields fall
+// never changes an answer: compose() drains the same generator in one go.
+let stepDueN = 0;
+function stepDue(K) { const B = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return B && typeof B.left === 'function' ? B.left() <= 0 : (++stepDueN % K === 0); }
+const drainSteps = g => { for (;;) { const r = g.next(); if (r.done) return r.value; } };
+// (zoneMemoRun's stepped form: run is a generator - the sower's, the planter's; the same key, the same kept output)
+function* zoneMemoSteps(M, kind, id, keyOf, runSteps) {
+  if (!M) return yield* runSteps();
+  let key = null; try { key = keyOf(); } catch (e) { key = null; }   // (an input that will not serialise: no memo for it)
+  const T = M[kind], had = T.get(id); M.seen.add(kind + ':' + id);
+  if (key !== null && had && had.key === key) { M.hits++; return zmClone(had.out); }
+  const out = yield* runSteps(); M.misses++;
+  if (key !== null) T.set(id, { key, out: zmClone(out) }); else T.delete(id);
+  return out;
+}
 // the memo's answer for a zone (kind 'sow' | 'forest'): the kept output when the key matches, else run() and keep it
 function zoneMemoRun(M, kind, id, keyOf, run) {
   if (!M) return run();
@@ -1190,7 +1208,8 @@ function zoneMemoRun(M, kind, id, keyOf, run) {
 // loop and the riparian rule verbatim; every plot rejected that leaves the
 // zone, enters an exclude / keep-out, or overlaps a plot already sown
 // ---------------------------------------------------------------------------
-function sowPlots(zone, roads, ctx) {
+function sowPlots(zone, roads, ctx) { return drainSteps(sowPlotsSteps(zone, roads, ctx)); }
+function* sowPlotsSteps(zone, roads, ctx) {
   // ctx = { T(lx, lz) the composed ground in the premises frame, waterY, seed, excludes: [poly], plots: [existing], keepOut: [poly] }
   const V = Object.assign({}, ZONE_RULES, KIND_RULES[zone.kind] || {}, zone.rules || {});
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0, 1);
@@ -1248,6 +1267,7 @@ function sowPlots(zone, roads, ctx) {
       let t = tA + 6 + rnd() * 8;
       let k = 0;
       while (t < tB - 26) {
+        if (stepDue(8)) yield 'premises: plots';
         const w = V.plotMin + rnd() * (V.plotMax - V.plotMin);
         if (t + w > tB - 6) break;
         for (const sgn of [1, -1]) {
@@ -1333,7 +1353,8 @@ function pickFor(plot, cat, rnd, theme, zone) {
 // THE FOREST — planTrees' wood layer inside a forest zone: a jittered grid at
 // a spacing the density sets, a clearing noise, off the water, the roads,
 // the plots, the excludes; the species drawn from the palette by proportion
-function planForest(zone, ctx) {
+function planForest(zone, ctx) { return drainSteps(planForestSteps(zone, ctx)); }
+function* planForestSteps(zone, ctx) {
   // ctx = { T, waterY, seed, excludes, plots, roads: [{pts, w}], pool: [{key, size, sink, proportion, h}], trees: [existing] }
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0.05, 3);
   const step = 6 / Math.sqrt(density);
@@ -1371,6 +1392,7 @@ function planForest(zone, ctx) {
   const bb = polyBBox(zone.poly), s = zoneSeed % 1000 * 0.618 + 9;
   const clearing = zone.rules && zone.rules.clearings === false ? -1 : 0.38;
   for (let z = bb.z0 + 1; z < bb.z1; z += step) for (let x = bb.x0 + 1; x < bb.x1; x += step) {
+    if (stepDue(64)) yield 'premises: a wood';
     const px = x + (rnd() - 0.5) * step * 0.75, pz = z + (rnd() - 0.5) * step * 0.75;
     if (!inPoly(zone.poly, px, pz)) continue;
     if (fbm(px * 0.035 + 2.2, pz * 0.035 + 8.8, s, 3) < clearing) continue;
@@ -4356,7 +4378,7 @@ function* composeSteps(rec0, world, opts) {
       yield 'premises: plots';
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
         { let n = 0; const zc = Object.assign({}, ctx, { waterY: zoneWaterY(z) });
-          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; if (plotCarOff(z, p.id)) p.noCar = true; O.records.plots.push(p); n++; }
+          for (const p of yield* zoneMemoSteps(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlotsSteps(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; if (plotCarOff(z, p.id)) p.noCar = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -4446,7 +4468,7 @@ function* composeSteps(rec0, world, opts) {
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes.concat(excl.filter(e => e.roadClear).map(e => e.poly)), plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
       { yield 'premises: a wood'; const zc = Object.assign({}, tctx, { waterY: zoneWaterY(z) });
-        for (const t of zoneMemoRun(ZM, 'forest', z.id, () => zmKey(z, zc, roadObjs, zc), () => planForest(z, zc))) O.records.trees.push(t); }
+        for (const t of yield* zoneMemoSteps(ZM, 'forest', z.id, () => zmKey(z, zc, roadObjs, zc), () => planForestSteps(z, zc))) O.records.trees.push(t); }
     O.zoneMemo = ZM ? { gen: ZM.gen, hits: ZM.hits, misses: ZM.misses } : null;   // (G2960)
     yield 'premises: the records';
     // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
