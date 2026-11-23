@@ -1642,14 +1642,18 @@ let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
 // acceptable. The DC3 should do the same." The reference row is the Chinook on their S20 FE before any fix: a LIVE
 // preview at 99 ms a tick (141 ms a frame, worst 440) on a wing drag, 55 / 80 on cabin length, 124 / 247 on the gear
 // station, the release 0.2-1.3 s. A row as quick as the Chinook's keeps following the finger; only a slower one goes
-// lite or held. BUDGET_PHONE_MS is that tick.
+// lite or held. BUDGET_PHONE_MS is that tick WITH ITS OWN SPREAD: the Chinook's wing ticks on the S20 FE are 99.7 ms at the
+// median and 203 at the worst (realphone_chinook_before.json), so at 100 the reference aeroplane itself was held on every
+// other tick (and on every tick in Chrome's phone emulation, where the same tick is 147 ms: the window of 23 Nov,
+// phone_after.json - 27 to 58 ticks held of 30 to 60 on every aeroplane, the Chinook among them). 150: the Chinook
+// follows as it does today, an aeroplane whose ticks are half as long again still follows, a slower one goes lite or held.
 const BUDGET = { url: 0, auto: 20, work: null, rest: 120, full: new Map(), lone: new Map(), cage: null, top: 0, t: null, force: false, spin: false,
   lite: false, afterLite: false, owed: new Set(), held: 0, lites: 0, rests: 0, live: 0, guesses: 0, last: '' };
 try { const q = (typeof location !== 'undefined' && location.search) || '';
   const m = /(^|[?&])dragbudget=([0-9.]+|auto)/.exec(q); if (m) { const v = +m[2]; BUDGET.url = m[2] === 'auto' ? 'auto' : v > 0 && v < 5 ? 20 : (v || 0); }
   const r = /(^|[?&])dragrest=([0-9.]+)/.exec(q); if (r && +r[2] > 0) BUDGET.rest = +r[2]; } catch (e) {}
 const budgetMs = () => { const U = typeof window !== 'undefined' ? window.CAGE_UI : null; let v = U && U.dragBudgetMs != null ? U.dragBudgetMs : BUDGET.url; if (v === 'auto') v = BUDGET.auto; v = +v; return v > 0 ? v : 0; };
-const BUDGET_PHONE_MS = 100;
+const BUDGET_PHONE_MS = 150;
 function budgetAuto() {
   try { const PF = window.PROFILE; if (PF && PF.is && PF.is('ui', 'touch')) { BUDGET.work = null; BUDGET.auto = BUDGET_PHONE_MS; return; } } catch (e) {}
   let w = null;
