@@ -20,9 +20,13 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
   **story-7 (784d85bfe) on L40K will be red on STORYPACK, TUTORWALK and MISSIONLIVE for this one cause** ("field
   xw_rough is not a field": the aero club's short-landing event lands there) unless the train carries the two lines.
   28ef278e5 is exactly those two lines as they were at L40H: take it, or the same edit.
+  **A READY OF ITS OWN FOR L40K: `claude/ready/story-fields` 8b35f7672** = origin/master 089297693 + those two lines +
+  its (built) commit, nothing else. Gates on it: BUILT, COMMITHYGIENE PASS; CONTRACTS 4 red of 2 549 (master: 8) - the
+  four left are the refitted Cessna's, named below; NAMES red as on master ("Alaska" in livery_marks.js / aeroskin.js).
 - Gates on the merged tree (95a4bc6c9 + harness commits): STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS;
   CONTRACTS red on four checks, all master's (the refitted Cessna: minedock.02 / .03 and resort.05 "flyable by a
-  validated design", "the C172 takes two into the mine street"). MISSIONFEAS: running.
+  validated design", "the C172 takes two into the mine street"). MISSIONFEAS: PASS (438 s, run alone) with the
+  harness's new entry / exit / seat fill.
 - story-8 = this branch (a fresh ref `claude/ready/story-8`), for L40M, by Tue 07:00: the harness's three faults
   corrected, club.tour's gates, the rows re-flown on L40J's sim (the refitted Cessna is the career's `c172` now).
 - THE USER'S FOUR LARGE MISSION STORIES ARE IN story-7 (since story-2): four projects of the pack - the remote community
