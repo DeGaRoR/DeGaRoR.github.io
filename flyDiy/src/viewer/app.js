@@ -4632,17 +4632,22 @@
   // recorder's 'scene' slot +115-142 ms each): THE BREAK PATH'S OWN CLOCK - the four damage calls of poseModel and two
   // steps inside brkCage, summed and their worst kept; a ring of the last 900 frames that did damage work (t, gen,
   // scuff, cage, cut, members, wreck, ms) to say what costs and whether it stops at rest. FLYDIY_DMG_PROF() / (true): reset
-  const DPROF = { n: 0, sum: new Float64Array(6), max: new Float64Array(6), ring: [], keys: ['gen', 'scuff', 'cage', 'cut', 'members', 'wreck'], cur: new Float64Array(6) };
+  const DPROF = { n: 0, sum: new Float64Array(6), max: new Float64Array(6), ring: [], keys: ['gen', 'scuff', 'cage', 'cut', 'members', 'wreck'], cur: new Float64Array(6),
+    // (why the wreck was posed again, bits counted over the frames brkCage did not take its rest return: 1 nodes moved / a
+    // control, 2 not posed yet, 4 a new break event or events left, 8 records still to make, 16 a binding pending, 32 a tear
+    // sample in flight, 64 the wall binding not done or its key stale, 128 a switch flipped)
+    whyN: new Uint32Array(8), wcur: 0, restN: 0 };
   if (typeof window !== 'undefined') window.FLYDIY_DMG_PROF = reset => {
-    const o = { frames: DPROF.n, keys: DPROF.keys, sumMs: Array.from(DPROF.sum, v => +v.toFixed(1)), maxMs: Array.from(DPROF.max, v => +v.toFixed(1)), ring: DPROF.ring.slice() };
-    if (reset) { DPROF.n = 0; DPROF.sum.fill(0); DPROF.max.fill(0); DPROF.ring.length = 0; }
+    const o = { frames: DPROF.n, keys: DPROF.keys, sumMs: Array.from(DPROF.sum, v => +v.toFixed(1)), maxMs: Array.from(DPROF.max, v => +v.toFixed(1)), ring: DPROF.ring.slice(),
+      why: { moved: DPROF.whyN[0], unposed: DPROF.whyN[1], event: DPROF.whyN[2], recs: DPROF.whyN[3], bind: DPROF.whyN[4], tear: DPROF.whyN[5], wall: DPROF.whyN[6], flip: DPROF.whyN[7] }, rested: DPROF.restN };
+    if (reset) { DPROF.n = 0; DPROF.sum.fill(0); DPROF.max.fill(0); DPROF.ring.length = 0; DPROF.whyN.fill(0); DPROF.restN = 0; }
     return o; };
   function dprofEnd() {
     const c = DPROF.cur; let tot = 0; for (let i = 0; i < 6; i++) tot += (i === 3 || i === 4) ? 0 : c[i];   // (cut / members are inside cage)
     if (tot > 0.05) { DPROF.n++; for (let i = 0; i < 6; i++) { DPROF.sum[i] += c[i]; if (c[i] > DPROF.max[i]) DPROF.max[i] = c[i]; }
-      DPROF.ring.push([+(sim ? sim.t : 0).toFixed(2), +c[0].toFixed(1), +c[1].toFixed(1), +c[2].toFixed(1), +c[3].toFixed(1), +c[4].toFixed(1), +c[5].toFixed(1)]);
+      DPROF.ring.push([+(sim ? sim.t : 0).toFixed(2), +c[0].toFixed(1), +c[1].toFixed(1), +c[2].toFixed(1), +c[3].toFixed(1), +c[4].toFixed(1), +c[5].toFixed(1), DPROF.wcur]);
       if (DPROF.ring.length > 900) DPROF.ring.shift(); }
-    c.fill(0); }
+    c.fill(0); DPROF.wcur = 0; }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4865,7 +4870,7 @@
     // the stand and the taxi alike, paused or not). The rows run now when a node has moved more than 0.3 mm or a
     // control more than 1e-4 since the pose last APPLIED (the generated skin's rule, above); the wheels, the engine
     // units, the cockpit's controls and the castor (object transforms) are posed every frame as before.
-    let still = false;
+    let still = false, stillN = false;
     { const n3 = sim.n * 3, P = model._poseNG;
       const nb = (P && P.nb.length === n3) ? P.cur : new Float64Array(n3);
       genNodeBody(sim, nb);
@@ -4877,14 +4882,24 @@
         wr.push(sim.ctl ? (sim.ctl.dr || 0) : 0, fx ? (fx.wrDown ? 1 : 0) : 1, Math.abs((fx ? (fx.wrDown ? 0 : 1) : 0) - r.ret) > 1e-3 ? NaN : 0);
       }
       const rows = [model.rigs, model.strutRigs, model.stretchRigs, model.surfParts, model.floatRigs, model.anchorRigs, model.linkRigs];
-      still = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]) &&
-              !brkCageOn();   // G1851: a wreck is re-posed every frame (its pieces move, its skin is redrawn over them)
-      if (still) for (let i = 0; i < wr.length; i++) if (!(wr[i] === P.wr[i])) { still = false; break; }
+      let same = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]);
+      if (same) for (let i = 0; i < wr.length; i++) if (!(wr[i] === P.wr[i])) { same = false; break; }
       // (G1869: a WRECK is re-posed past WRECK_STILL - a lying wreck's nodes jitter past 0.3 mm for ever, and every frame
       // re-posed the whole snapshot riding: 25-29 ms a frame on the box; 3 mm is not seen at a wreck's distances)
       const tolS = (BRK.recs.length && brkFast()) ? WRECK_STILL : 3e-4;
+      if (same) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { same = false; break; }
+      // (ROW 14, 23 Nov: stillN - THE WRECK ITSELF NOT MOVING: no node past tolS from where it stood when it last moved
+      // past it (model._stillRef, brkCageOn's state left out), the controls and the rows as at the last applied pose.
+      // brkCage starts no new GPU tear sample on such a frame. `still` has brkCageOn in it: a sample in flight made the
+      // frame not still and the next record's sample started - one always in flight on a wreck creeping a few mm a second,
+      // and it re-posed every frame at rest. A wreck moving, slowly or not, passes tolS within frames: its samples go on)
+      { const SR = model._stillRef; let sN = same && !!SR && SR.length === n3;
+        if (sN) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - SR[i]) > tolS) { sN = false; break; }
+        if (!sN) { if (SR && SR.length === n3) SR.set(nb); else model._stillRef = Float64Array.from(nb); }
+        stillN = sN; }
+      still = same;
       if (still) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - P.nb[i]) > tolS) { still = false; break; }
-      if (still) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { still = false; break; }
+      still = still && !brkCageOn();   // G1851: a wreck is re-posed every frame (its pieces move, its skin is redrawn over them)
       if (!still) model._poseNG = { nb, cur: P && P.nb.length === n3 ? P.nb : new Float64Array(n3), gain, rows, wr, link: Object.assign({}, link) }; }
     // G1818 (DMG-SKINGPU): A GROUP THE WRECK RIDES WHOLE is not posed here - its record (rideAll: every vertex on its
     // nodes' frames, from the record's own rest; its normals turned from R.nB) overwrites every position and normal the
@@ -5401,7 +5416,7 @@
       const tP = performance.now();
       scuffFrame(oB);                              // G2004 (DMG-SCUFF): its own event test (two compares; null with the layer off)
       const tQ = performance.now(); DPROF.cur[1] += tQ - tP;
-      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still);   // G1851
+      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still, stillN);   // G1851
       DPROF.cur[2] += performance.now() - tQ; }
     { const tW = performance.now();
       wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
@@ -6031,7 +6046,7 @@
     if (pa.clearUpdateRanges) { pa.clearUpdateRanges(); pa.addUpdateRange(0, C2.nv * 3); } pa.needsUpdate = true;
     if (T.n) { const na = T.geo.attributes.normal; if (na.clearUpdateRanges) { na.clearUpdateRanges(); na.addUpdateRange(0, C2.nv * 3); } na.needsUpdate = true; }
   }
-  function brkCage(xA, yU, cg, o, gain, still) {
+  function brkCage(xA, yU, cg, o, gain, still, stillN) {
     const D = brkState();
     if (!D || model.gen) return;
     // G1864 (DMG-D4b): a wreck at REST is drawn as it stands - no node moved past the pose's 0.3 mm (poseModel's own
@@ -6039,7 +6054,20 @@
     // the whole snapshot riding: 62 ms frames on a broken-up Cub at rest, measured on the box)
     // (train 41: nor while a tear's sample is in flight - at rest the GPU path's last sample landed on no posed frame and
     // the triangles it tears stayed drawn: the 07:25 still pair, stretched strips on the GPU path only)
-    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recPending && !BRK.recs.some(R => R.pending || R.tearAsk != null) && !brkWallStale(D)) return;
+    // (ROW 14, 23 Nov - PERF-LEAD's screen run: 43-51 ms a frame in brkCage with the wreck lying still and the sim stopped;
+    // the rest return never fired. FLYDIY_DMG_PROF's why: 'bind' on every frame - a record's R.pending. Under the INHERITED
+    // binding (brkInhWant, the default) bindMore never runs (below: `if (!inhOn)`), the event leaves every unbound place in
+    // R.pending (it is given no budget) and the inheritance binds them by its own steps and leaves its kept places unbound:
+    // R.pending is never emptied and asks for work nothing will do. Pending counts here only when bindMore would take it;
+    // the inheritance's own unfinished work is brkWallStale's (inhSt not done))
+    // (window.FLYDIY_REST_PENDWORK = true: pending counted under the inherited binding too, as before - GATE DMGPAGEW's selftest)
+    const pendWork = !brkInhWant() || window.FLYDIY_REST_PENDWORK === true;
+    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recPending && !BRK.recs.some(R => (pendWork && R.pending) || R.tearAsk != null) && !brkWallStale(D)) { DPROF.restN++; return; }
+    { const fl = BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false) || !!BRK.reachCopies !== (window.FLYDIY_SKIN_REACHCOPIES === true);
+      const w = (!BRK.posed ? 2 : 0) | (BRK.vB !== D.vB ? 4 : 0) | (BRK.recPending ? 8 : 0) | (BRK.recs.some(R => pendWork && R.pending) ? 16 : 0) |
+                (BRK.recs.some(R => R.tearAsk != null) ? 32 : 0) | (brkWallStale(D) ? 64 : 0) | (fl ? 128 : 0);
+      const wa = w | (!still && !w ? 1 : 0);   // (still is false on any of the others too - brkCageOn - so 1 only when none holds)
+      DPROF.wcur = wa; for (let i = 0; i < 8; i++) if (wa & (1 << i)) DPROF.whyN[i]++; }
     const K = model.brk, SB = SKIN_BREAK, N = def.nodes, n = N.length;
     // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it; and the basis itself
     const inv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
@@ -6201,7 +6229,10 @@
         } else if (!(brkFast() && sinceT < (onGpu ? tearEveryGpu() : TEAR_EVERY))) {
           // (G3022 v2: no sample for a record with nothing to tear - no watched triangle, or tearPlaces' own no-tear rule - nor
           // for one the motion clock has not moved TEAR_MOVE since its last sample: its tear clock starts again)
-          if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
+          // (ROW 14: nor on a frame the wreck has not moved - stillN, poseModel's - as the CPU path tears nothing at rest; its
+          // clocks kept, so the frame it moves again takes the sample due)
+          if (onGpu && stillN) G3022.stillSkip = (G3022.stillSkip | 0) + 1;
+          else if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
                         (R.tearMot != null && (BRK.motion || 0) - R.tearMot < TEAR_MOVE))) { R.tearT = sim.t; G3022.skipped++; }
           else if (onGpu) { R.tearMot = BRK.motion || 0; G3022.sampled++; GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; R.askState = new Map(); }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
