@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 29 feasible; 4 infeasible; 2 no official plane can fly it (the player builds one); 37 not flown; 11 stale. Time flown: 753 min 47 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 30 feasible; 4 infeasible; 2 no official plane can fly it (the player builds one); 37 not flown; 10 stale. Time flown: 771 min 30 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -11,7 +11,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 29 feasible; 4 infeas
 | field.02 | contract | feasible | Piper Cub | 16 min 15 s | HOME > w3 546; w3 > HOME 430 |  |
 | field.n1 | contract | feasible | Piper Cub | 17 min 08 s | HOME > w3 537; w3 > HOME 490 |  |
 | field.round | contract | not flown | - | - | - |  |
-| field.hike | contract | stale | - | - | - |  |
+| field.hike | contract | feasible | Piper Cub | 17 min 43 s | HOME > w8 1063 |  |
 | field.ridge | contract | stale | - | - | - |  |
 | field.cannery | contract | not flown | - | - | - |  |
 | hangar.01 | hangar:1 | feasible | Piper Cub | 16 min 43 s | HOME > w3 560; w3 > HOME 443 |  |

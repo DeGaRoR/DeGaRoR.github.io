@@ -3,7 +3,7 @@
  "kind": "contract",
  "verdict": "feasible",
  "plane": "Piper Cub",
- "timeS": 1062,
+ "timeS": 1063,
  "why": "",
  "tried": [
   "Piper Cub:feasible"
@@ -12,7 +12,7 @@
   {
    "from": "HOME",
    "to": "w8",
-   "t": 1062,
+   "t": 1063,
    "how": "stopped",
    "at": "w8",
    "stop": [
@@ -35,7 +35,7 @@
     {
      "from": "HOME",
      "to": "w8",
-     "t": 1062,
+     "t": 1063,
      "how": "stopped",
      "kg": 60,
      "pax": 0,
@@ -46,10 +46,10 @@
      ],
      "landing": {
       "run": 97,
-      "sink": 1.38,
+      "sink": 1.37,
       "V": 16,
       "offCentre": 0.3,
-      "pastAim": 20,
+      "pastAim": 19,
       "k": 1,
       "three": false,
       "onStrip": true,
@@ -65,6 +65,6 @@
  "key": "3e2dff68c195",
  "where": "contract",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 404
+ "sim": "L40K",
+ "wallS": 382
 }
