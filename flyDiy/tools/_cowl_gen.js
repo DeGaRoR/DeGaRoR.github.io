@@ -1420,7 +1420,7 @@ function buildBlinkers(group,mats){
   const pr=(P.lampIn>0&&(P.apMode===2||P.apMode===3))?apertureList().slice(P.apMode===3?1:0):null;
   const yT=(pr&&pr.length===2?pr[0].cy:spineY(ze)+P.lampY)-(P.blinkY||0);
   const zc=ze-0.05-len*(1-NOSE)*0.15;                         // the widest station, the nose just short of the face
-  const lens=new THREE.MeshStandardMaterial({color:new THREE.Color(0xff9a1a).multiplyScalar(0.45),emissive:0xff8a12,emissiveIntensity:0.6,roughness:0.2,metalness:0,side:THREE.DoubleSide});
+  const lens=(typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', {color:new THREE.Color(0xff9a1a).multiplyScalar(0.45),emissive:0xff8a12,emissiveIntensity:0.6,roughness:0.2,metalness:0,side:THREE.DoubleSide});
   lens.userData.aeroskin=1;
   const tailM=mats.steel||mats.skin;
   const f=u=>u<=NOSE?Math.sqrt(Math.max(0,1-Math.pow((NOSE-u)/NOSE,2))):Math.pow(Math.max(0,(1-u)/(1-NOSE)),0.72);

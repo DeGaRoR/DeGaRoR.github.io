@@ -3738,7 +3738,7 @@ const WHEELTEX = (() => {
     const M = kind === 'tyre' ? tyreMaps(a, dirt) : rimMaps(dirt);
     const tex = (c, srgb) => { const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8;
       if (srgb && THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; };
-    const m = new THREE.MeshStandardMaterial(kind === 'tyre'
+    const m = (typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', kind === 'tyre'
       ? { color: 0xffffff, map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0 }
       : { color: new THREE.Color('#' + (a || 'c8ccd0')), map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0.35 });
     m.normalScale.set(kind === 'tyre' ? 1.4 : 0.6, kind === 'tyre' ? 1.4 : 0.6);

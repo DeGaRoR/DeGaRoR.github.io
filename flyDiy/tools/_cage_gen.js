@@ -8172,7 +8172,10 @@ function cageInterior(m, S) {
       // wall at the sill line passed as ceiling, and its slab hung hdlDepth under it with its aft side IN the skin's
       // plane (the brown headliner fighting the paint under the rear windows). The ceiling is the roof: within 30 cm
       // of its crown
-      for (let j = sel.length - 1; j >= 0; j--) {
+      // (VAN-TOW-2, 23 Nov: these three fixes are the van's - a car's thin shell, t0 0 - and kept to cars: on master's C172 they
+      //  moved GATE KNIFE's pinned sheet; an aeroplane's liner is as master draws it)
+      const CAR = !!I.car;
+      if (CAR) for (let j = sel.length - 1; j >= 0; j--) {
         const cy = F[sel[j]].v.reduce((a, k) => a + V[k][1], 0) / F[sel[j]].v.length;
         if (cy < crown - 0.3 / (S.FS || 1)) sel.splice(j, 1);
       }
@@ -8182,14 +8185,14 @@ function cageInterior(m, S) {
         // (13 Nov, the user: "there are protruding things at the back"): the rear corner's pillar faces (within 15 cm
         // of the cabin's aft end) fold round the door frame; inset 5 cm they came out through the skin - left bare
         const czF = F[i].v.reduce((a, k) => a + V[k][2], 0) / 4;
-        if (czF < zA + 0.15 / (S.FS || 1)) continue;
+        if (CAR && czF < zA + 0.15 / (S.FS || 1)) continue;
         pil.push(i);
       }
       // (13 Nov, the user: "there are protruding things at the back"): the liner closes each piece with an OUTER sheet
       // facing out, LIN_EPS (1.5 mm) under its base - with no shell thickness (t0 0, the van) that is 1.5 mm under the
       // painted skin, and from outside the brown sheet and the skin fought for the depth buffer: jagged dark shards on
       // the rear corners. The base sits a centimetre under the skin instead (the trim's own back, never seen)
-      const tB = Math.max(t0, 0.01);
+      const tB = CAR ? Math.max(t0, 0.01) : t0;
       if (pil.length) { const n1 = add.length;
         liner(pil, tB + Math.min(I.hdlD, 0.05), () => 'cabWall', tB);
         for (let k = n1; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'cabWall') { f.v = f.v.slice().reverse(); f.back = 1; } } }
@@ -10434,6 +10437,7 @@ function cageSpec(P) {
                  // CABIN-INTERIOR (T1/T2): the headliner / the upper wall trim - keys only when on (absent rows)
                  ...(+P.hdlOn ? { hdl: 1 } : {}), ...(+P.wallTrimOn ? { wall: 1 } : {}),
                  ...(+P.hdlOn && +P.hdlDepth > 0 ? { hdlD: +P.hdlDepth } : {}),   // CAR-3: the padded headliner's depth
+                 ...(+P.isCar ? { car: 1 } : {}),   // VAN-TOW-2: a car's liner (cageInterior: the van's 13 Nov fixes; absent on an aeroplane)
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease,
