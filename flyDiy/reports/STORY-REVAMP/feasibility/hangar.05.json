@@ -2,17 +2,18 @@
  "id": "hangar.05",
  "kind": "contract",
  "verdict": "feasible",
- "plane": "Cessna 172",
- "timeS": 1273,
+ "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+ "timeS": 1135,
  "why": "",
  "tried": [
-  "Cessna 172:feasible"
+  "Cessna 172:infeasible",
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 545,
+   "t": 472,
    "how": "stopped",
    "at": "w3",
    "stop": [
@@ -26,7 +27,7 @@
   {
    "from": "w3",
    "to": "HOME",
-   "t": 728,
+   "t": 664,
    "how": "stopped",
    "at": "HOME",
    "stop": [
@@ -44,8 +45,8 @@
  "attempts": [
   {
    "plane": "Cessna 172",
-   "verdict": "feasible",
-   "why": "",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a fus member broke",
    "legs": [
     {
      "from": "HOME",
@@ -58,41 +59,86 @@
       "vx-climb: ground ahead above the aeroplane — climbing at Vx 34.5 m/s until clear"
      ],
      "landing": {
-      "run": 189,
-      "sink": 1.02,
-      "V": 24.2,
-      "offCentre": 3.5,
+      "run": 190,
+      "sink": 1.03,
+      "V": 24.1,
+      "offCentre": 3.6,
       "pastAim": 14,
       "k": 1,
       "three": false,
       "onStrip": true,
       "tdIn": 79,
-      "stopLeft": 276
+      "stopLeft": 275
      }
     },
     {
      "from": "w3",
      "to": "HOME",
-     "t": 728,
+     "t": 272,
+     "how": "crashed",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "committed-takeoff: past the point of stopping at V=21.9 with 242 m left — Vr in 91 m, continuing",
+      "out-of-energy: the engine seized at t=270 s, 13 m up — an emergency: gliding straight ahead for a forced landing"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 472,
      "how": "stopped",
      "kg": 120,
      "pax": 0,
      "said": [
-      "committed-takeoff: past the point of stopping at V=21.9 with 243 m left — Vr in 89 m, continuing",
-      "vx-climb: ground ahead above the aeroplane — climbing at Vx 34.5 m/s until clear",
-      "taxi-in: taxiing in to the stand, 367 m"
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 25.6 m/s until clear",
+      "vref-raised: the elevator cannot hold 22.2 m/s at this power — flying the approach faster",
+      "slip: high on energy on the short final (+7.8 m at idle) — slipping it down"
      ],
      "landing": {
-      "run": 260,
-      "sink": 1.14,
-      "V": 23.9,
-      "offCentre": 1,
-      "pastAim": 40,
+      "run": 112,
+      "sink": 0.21,
+      "V": 22.9,
+      "offCentre": 1.6,
+      "pastAim": 72,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 82,
+      "stopLeft": 349
+     }
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 664,
+     "how": "stopped",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "go-around: unstabilised approach at 50 m: 22 m off the centreline (attempt 1)",
+      "aim-displaced: this airframe flies 6.3 deg at idle (no landing flap) - the approach to Jolene AFB 13/31 aims 23 m in, over the obstacle 150 ",
+      "taxi-in: taxiing in to the stand, 379 m"
+     ],
+     "landing": {
+      "run": 217,
+      "sink": 0.72,
+      "V": 21.8,
+      "offCentre": 10,
+      "pastAim": 255,
       "k": 0,
       "three": false,
       "onStrip": true,
-      "tdIn": 554,
-      "stopLeft": 1511
+      "tdIn": 278,
+      "stopLeft": 1830
      }
     }
    ]
@@ -103,6 +149,6 @@
  "key": "94659d61ad98",
  "where": "hangar:3",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 1560
+ "sim": "L40K",
+ "wallS": 1967
 }

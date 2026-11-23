@@ -5,12 +5,12 @@
  "missions": 91,
  "summary": {
   "not flown": 54,
-  "stale": 19,
-  "feasible": 9,
+  "stale": 18,
+  "feasible": 10,
   "no official plane can fly it (the player builds one)": 1,
   "an aircraft order (not a flight)": 8
  },
- "flownS": 8340,
+ "flownS": 9475,
  "rows": [
   {
    "id": "field.01",
@@ -201,8 +201,45 @@
    "id": "hangar.05",
    "where": "hangar:3",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 1135,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 472,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 664,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "heritage.01",

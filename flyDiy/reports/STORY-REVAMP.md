@@ -82,8 +82,8 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 ### The feasibility state
 
 <!-- feas-state -->
-ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 9 FEASIBLE, 1 red or waiting for a plane the player builds, 73 not flown yet on this sim (19 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
-The feasible ones, by the aeroplane that flew them: 7 Piper Cub, 1 STOL Cub, 1 Jodel D112.
+ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 10 FEASIBLE, 1 red or waiting for a plane the player builds, 72 not flown yet on this sim (18 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
+The feasible ones, by the aeroplane that flew them: 7 Piper Cub, 1 light metal Cessna with the STOL kit (test build), 1 STOL Cub, 1 Jodel D112.
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
 AS FLOWN ON L40J (23 Nov, before the train changed the Cub, the Jodel and the Cessna): 26 flown, 24 feasible, 2 red - home.08 (Cabin Lake's landing direction) and lumber.04 (250 kg on water: no float plane of the pool carries it).
