@@ -1009,7 +1009,7 @@ const CAGE_PARTS = [
                                  'cw_lampOn', 'cw_lampR', 'cw_lampGap', 'cw_lampY', 'cw_lampBack', 'cw_lampIn', 'cw_blinkOn', 'cw_blinkY']],   // CAR-1
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
-                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
+                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_keelLevel', 'cw_deckLevel', 'cw_deckFall', 'cw_deckShoulder', 'cw_deckRound',   // (KEEL/DECK-LEVEL, DECK-FALL: the 172's lines, 16 Nov)
                      'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap', 'cw_lidRW', 'cw_lidRTop', 'cw_lidRBot']],
       ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
                   'cw_taperH', 'cw_lidRise']],
