@@ -1,0 +1,109 @@
+{
+ "id": "minedock.b2",
+ "kind": "build",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1305,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mn_strip",
+   "t": 966,
+   "how": "stopped",
+   "at": "mn_strip",
+   "stop": [
+    "pending"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "mn_strip",
+   "to": "mn_strip",
+   "t": 339,
+   "how": "stopped",
+   "at": "mn_strip",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 966,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 106 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear"
+     ],
+     "landing": {
+      "run": 95,
+      "sink": 1,
+      "V": 15.2,
+      "offCentre": 0.4,
+      "pastAim": 65,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 80,
+      "stopLeft": 75
+     },
+     "stop": "takeoffAt: needs a flight (not yet done there)"
+    },
+    {
+     "from": "mn_strip",
+     "to": "mn_strip",
+     "t": 339,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "backtrack: rolling on to the end of the strip (75 m from it) to turn round 7 m from it - the whole strip for the take-off",
+      "pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot",
+      "committed-takeoff: past the point of stopping at V=14.1 with 166 m left — Vr in 24 m, continuing"
+     ],
+     "landing": {
+      "run": 93,
+      "sink": 1.05,
+      "V": 15.4,
+      "offCentre": 0.4,
+      "pastAim": 70,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 85,
+      "stopLeft": 72
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "e9d8158050a7",
+ "where": "contract",
+ "pool": "validated",
+ "sim": "L40K",
+ "wallS": 758
+}

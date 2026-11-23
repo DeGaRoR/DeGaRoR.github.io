@@ -11,7 +11,7 @@
   "infeasible": 7,
   "stale": 5
  },
- "flownS": 60709,
+ "flownS": 62014,
  "rows": [
   {
    "id": "field.01",
@@ -593,7 +593,43 @@
    "id": "minedock.b2",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1305,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 966,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "pending"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mn_strip",
+     "to": "mn_strip",
+     "t": 339,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
    "cls": "order"
   },
   {
