@@ -1,5 +1,5 @@
 {
- "recordedAt": "2026-11-17T00:27:56.953Z",
+ "recordedAt": "2026-11-22T22:40:09.779Z",
  "head": "60115ff16",
  "items": {
   "file:builds/archaeopteryx_2026-11-10.json": {
@@ -90,8 +90,8 @@
    "hash": "fe2315a468247335d1f0323a7a8bfb0949072d53"
   },
   "file:builds/cessna172r_2026-11-08.json": {
-   "nV": 54124,
-   "nF": 30898,
+   "nV": 54652,
+   "nF": 31366,
    "loops": [
     {
      "n": 56,
@@ -154,7 +154,7 @@
      ]
     }
    ],
-   "hash": "7a99c3b486577a2286c2d0efaf2c9706e892ebd0"
+   "hash": "65b1001b6b349496b344972ce7f2977434a71d99"
   },
   "file:builds/client_cub_floats_2026-11-13.json": {
    "nV": 21054,

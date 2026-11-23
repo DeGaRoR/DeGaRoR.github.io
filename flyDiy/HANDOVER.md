@@ -318403,3 +318403,13 @@ PERF-LEAD's order (22 Nov): Codex's pavepolybound and pavereuse (20-21 Nov, opt-
 - THE OTHER GATES THAT READ THESE FILES, run on this tree (--only, one at a time): WORLDRENDER, PAVEMENT, MICRO, MUDLADDER PASS; Codex's two unit checks (tools/_pave_poly_bounds_check.js: 167 356 comparisons exact; tools/_pavement_refine_reuse_check.js: byte-identical) pass.
   RED, AND NOT THIS CHANGE'S (each run on the untouched base too): CONTACT fails the same 5 rows on claude/perf-codex 4421e5416 without this change, same numbers (strip:gravel p5 -13.6 mm, strip:grass p5 -15.8, apron edge 810 > 749, apron side 2 142 > 1 977, 02/20's band 25 749 of 38 764; master's L40h log has the same five rows, number for number - an earlier wording of this entry said four of them came with perf-codex: wrong, I had read the tail of the block only); TERRAINMATCH fails master's own 6 rows of the L40h log, number for number; PREMISES throws inside the gate (tools/_premises_check.js:256, m.plane undefined on a terrain entry that is neither a grade, a flatten nor a raise) with AND without this change on the perf-codex base - master's L40h log has it PASS: Codex's perf fixture sat in the gate's fixture pattern - fixed by claude/ready/perf-codex-green-2 (a rename).
 - Not run here (the box's and the train's): FRAMECOST, ROUNDTRIP, HOUSEWORKER (a rebuilt tree stales the parked cook), the full battery.
+
+## DASH-FIX-2 - L40J's identity re-pins on FLAGSHIP's cards (Sun 22 Nov 2026, late; claude/ready/dash-fix-2 on dash-fix)
+
+GATE FRAMES and GATE KNIFE re-pinned for the INTENDED card changes only (each gate's --record run, then the corpus kept as it was
+but for these entries - nothing added, nothing dropped): FRAMES file:builds/cessna172r_2026-11-08.json (the refitted 172's tail
+cap band, one-cessna-4) and file:builds/chinook_2026-09-21_corrected.json (the user's modified Chinook's pilPaxA band,
+chinook-user); KNIFE file:builds/cessna172r_2026-11-08.json (the refit's sheet with its whole-width dashboard, dash-fix).
+NAMED for L40J, ONE TAIL-MOVE ITEM for user-fixes / L40K (owner FLAGSHIP): GATE FIN (the refit's fin sheet folds over itself,
+5 faces), GATE GEOPARITY (the drawn fin / stab against the flown ones: fin chord -0.310, stab -0.198, worst dx +0.188) and
+GATE DMGSKIN / DMGGEAR (the fin's front-spar root members VF-S4TL/TR ~3 % under at the FAR 23.473 drop) - all the refit's tail.
