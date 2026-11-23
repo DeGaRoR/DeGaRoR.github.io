@@ -255,7 +255,7 @@
   // while the pointer or a key moves: ?gfrest=N, ?gfbusy=N). Go joins the load where it stands (gfJoin: the roll-out's
   // screen names the steps left, which then run at full speed). gfS is the rig's read (FLYDIY_LAB.gfS).
   const GFN = (k, d) => { try { const m = new RegExp('[?&]' + k + '=(\\d+(?:\\.\\d+)?)(&|$)').exec(location.search || ''); return m ? +m[1] : d; } catch (e) { return d; } };
-  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
+  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
       inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
     coverK: GFN('coverbudget', 0), coverSet: null,   // (?coverbudget=K: see labCoverBudget)
     noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
@@ -16452,6 +16452,16 @@
     return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world views', only, dress || null, { perKey: true, groupMax: 1 })
       .then(drawn => { window.FLYDIY_VIEW_WARM = { objects: only.length, drawn }; return drawn; });
   }
+  // (?boot=garagefirst, the garage ON SCREEN: the six whole views from the stand are not drawn (they would land on the canvas), so
+  //  nothing had handed the world's vertex buffers to the GPU - Go's first world frame did: 2 684 buffers, 402 MB, 364 ms in one
+  //  frame of the roll-out shot (23 Nov 14:19). Every shown object draws one primitive off screen, a slice a task on the
+  //  garage's budget: its own buffers go up. ?gfbuf=0: left to Go's frame)
+  function worldBuffersWarm() {
+    const all = [], t0 = performance.now();
+    scene.traverseVisible(o => { if ((o.isMesh || o.isPoints || o.isLine) && o.material && o.geometry && o.geometry.attributes && o.geometry.attributes.position) all.push(o); });
+    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world buffers', all, craftInWorldNow)
+      .then(n => { LAB.gfS.bufDrawn = [all.length, n, Math.round(performance.now() - t0)]; return n; });
+  }
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
@@ -16766,7 +16776,7 @@
         //  own target, a slice a task (worldViewWarmDraw, the settings screen's), then the shadow pass's; the six whole views
         //  from the stand would land on the canvas. ?gfwarm=0: none here, Go's world phase runs this step once more for them)
         .then(() => { if (inGarage && gfLive()) { const t0 = performance.now();
-            return (LAB.gfS.warm ? worldViewWarmDraw(craftInWorldNow).then(n => { LAB.gfS.warmDrawn = n; return shadowWarm(); }).then(() => { cloudsWarm(); LAB.gfS.warmMs = Math.round(performance.now() - t0); })
+            return (LAB.gfS.warm ? worldViewWarmDraw(craftInWorldNow).then(n => { LAB.gfS.warmDrawn = n; return shadowWarm(); }).then(() => LAB.gfS.bufWarm ? worldBuffersWarm() : null).then(() => { cloudsWarm(); LAB.gfS.warmMs = Math.round(performance.now() - t0); })
               .catch(e => { LAB.gfS.warmErr = String(e && e.message); }) : Promise.resolve()).then(() => hviewBoot()); }
           if (inGarage) return Promise.resolve(worldWarmDraw()).then(shadowWarm).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot());
           return shadowWarm().then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }); }));   // (REVEAL-HITCH: the stand's grass; W6: the shadow pass's first draws, every program's first use; G1998e: the clouds' march; G3630: the view out of the door)
@@ -22974,9 +22984,18 @@
             while (i < reps.length && performance.now() - t0 < Math.min(30, gfSliceMs())) {
               const room = PACE_N ? PACE_N - linkingNow() : Infinity; if (room <= 0) break;   // BOOT-PROGRAMS: the driver full
               const grp = new THREE.Group(), n = Math.min(G, reps.length - i, room), t1 = performance.now();
-              for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
+              // (?boot=garagefirst, the garage ON SCREEN - PERF-TRACE's who-table, 23 Nov: the garage's worst freeze, 1.4 s. A compile
+              //  for ANOTHER state than the frame's - the shed dressed for the roll-out shot: its shadow map on - leaves each
+              //  material's currentProgram on the program it just asked for. A lit material re-keys at the next frame (the
+              //  lights' version moved); one WITHOUT lights - the sky's two domes, 28 and 35 KB - has nothing three checks, so
+              //  the garage's next frame drew the program still linking and waited for it. The live run puts back the
+              //  program the frames were drawing; the new one links behind, as asked)
+              const keepLive = gfLive() && renderer.properties ? [] : null;
+              for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m));
+                if (keepLive) { const pp = renderer.properties.get(m); if (pp && pp.currentProgram) keepLive.push([pp, pp.currentProgram]); } }
               i += n; if (job) job.left = reps.length - i;
               try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
+              if (keepLive) for (const [pp, was] of keepLive) if (pp.currentProgram !== was) { pp.currentProgram = was; pp.uniformsList = null; LAB.gfS.kept = (LAB.gfS.kept || 0) + 1; }
               grp.clear();
               const dt = performance.now() - t1;
               G = Math.max(1, Math.min(GMAX, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms

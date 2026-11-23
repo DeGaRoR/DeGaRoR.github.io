@@ -12,18 +12,18 @@ otherwise. Evidence folders are under `D:/Dev/flydiy-notes/evidence/` (not in gi
 |---|---|---|---|---|
 | 1 | Sliders, desktop | no frame over 50 ms | 0 of 30 aeroplanes (Cub 67 ms, Chinook 117, DC-3 684) | 10 of 30 with `?dragbudget=auto`, by holding the model |
 | 1p | Sliders, phone | no worse than the Chinook as flown | about half the fleet slower; DC-3 release 3-9 s | see PERF-SLIDERS' section |
-| 2 | Menu to garage, cold | 20 s | 119-127 s (the world loads first) | 22-35 s with garage first |
-| 3 | World ready behind the garage | 60 s | not applicable (one loading screen) | 98-123 s behind the garage |
-| 3b | Go to flying, world ready | 3 s (the roll-out shot, ~11 s, not counted) | 2.5 s | 2.6 s with garage first, no loading screen |
+| 2 | Menu to garage, cold | 20 s | 119-127 s (the world loads first) | 25-41 s with garage first (quiet box, 23 Nov 13:00); 20.8 s for a returning player |
+| 3 | World ready behind the garage | 60 s | not applicable (one loading screen) | 80-89 s after the menu with the world-build switches (97 without); 77 s returning |
+| 3b | Go to flying, world ready | 3 s (the roll-out shot, ~11 s, not counted) | 2.5 s | 0.3 s on the screen with garage first, no loading screen; Go at 5 s joins the load (80-84 s, the same total) |
 | 5 | Change garage | under 5 s | about 20 s unprepared | 0.25 s prepared ahead (the Game coordinator's ROOMS 6) |
-| 7 | Garage freeze | none over 100 ms | 1-2 a visit | garage first: 11 over 100 ms in the 30 s after the reveal, worst 0.31 s |
+| 7 | Garage freeze | none over 100 ms | 1-2 a visit | garage first, while the world loads (about 50 s): 153 tasks of 50 ms+ / 45 over 100 / worst 2.3 s at first; 62 / 19 / 1.42 s on perf-lead-1 (9 % of the time); the 1.42 s named and removed in perf-lead-2 (section 4.1) |
 | 8 | World freeze, first 8 min of the journey | none over 100 ms | 25-31 frames | 7 with the flight switches |
 | 9 | Evenness | 5 % of 20-second blocks | 88-100 % | 84 % |
 | 13 | 30 fps in flight | 95 % of seconds at 29+ frames | 55 % (the GPU alone takes 33 ms a frame) | 72 % (GPU 24 ms) |
-| 14 | Crash | no wait over 250 ms for a new picture | the page shown 6.3-10.3 s | no page; worst frame 217-250 ms; 13 fps after until the rest fix |
-| 15 | No blue screen, ever | never | at every crash; single frames in flight | none at a crash (two fixes); the flight's single frames open |
+| 14 | Crash | no wait over 250 ms for a new picture | the page shown 6.3-10.3 s | MET once on perf-lead-1 (23 Nov 14:22): no page, nothing linked after the impact, worst frame 150 ms, 10 frames over 100 ms, longest screen gap 161 ms |
+| 15 | No blue screen, ever | never | at every crash; single frames in flight | none at a crash; none in 500 s of the journey (guard default `ground`, 13:00); the guard's settle patch for cache-hit materials is in perf-lead-1 |
 
-Rows 4, 6, 10, 11, 12: see section 6.
+Row 11 (music during loading): PASS (109 s audible, also behind a garage-first load; AUDIO-ROBUST's rig). Rows 4, 6, 10, 12: see section 6.
 
 ## 2. What is offered to the trains
 

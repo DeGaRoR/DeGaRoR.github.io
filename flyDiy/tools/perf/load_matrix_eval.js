@@ -33,7 +33,7 @@
     ground: L && L.groundFirst ? pick(L.ground, ['at', 'n', 'same', 'keys', 'keysCompile', 'warm', 'err']) : undefined,   // (?groundfirst=1: the labels' times, the materials handed over)
     // (23 Nov) ?boot=garagefirst: the world loaded behind the garage - ms from its start to ready, the garage's reveal (ms of the
     // page), each step [id, ms, ran|same|error, start ms, programs added, live|screen], the longest build slice behind the live garage
-    gf: L && L.gf ? Object.assign(pick(L.gfS, ['running', 'done', 'fast', 'ms', 'step', 'why', 'err', 'joinMs', 'joinStep', 'worstSlice', 'worstLab', 'slices', 'restMs', 'busyMs', 'warm', 'warmDrawn', 'warmMs', 'warmErr', 'long', 'sl']) || {},
+    gf: L && L.gf ? Object.assign(pick(L.gfS, ['running', 'done', 'fast', 'ms', 'step', 'why', 'err', 'joinMs', 'joinStep', 'worstSlice', 'worstLab', 'slices', 'restMs', 'busyMs', 'warm', 'kept', 'bufDrawn', 'warmDrawn', 'warmMs', 'warmErr', 'long', 'sl']) || {},
       { revealAt: Math.round(L.gfS.revealAt || 0), log: L.gfS.log }) : undefined,
     pave: L && L.paveFirst ? pick(L.pave, ['handed', 'at', 'readyAt', 'sig', 'sigCompile', 'err']) : undefined,   // (?pavefirst=1: handed at / ready at (ms of the page), the light set at both keys)
     afterReveal: (() => { const T = g('__LT'); if (!T || !T.reveal) return undefined;

@@ -28,6 +28,10 @@ ok(/function gfSliceMs\(\) \{ const G = LAB\.gfS; if \(!gfLive\(\)\) return 40;/
 ok(/key: \(\) => 'lit' \+ \(gfLive\(\) && !LAB\.gfS\.warm \? '-bg' : ''\)/.test(src), '1g first light\'s key is \'lit\' unless a live run left its draws to Go (?gfwarm=0)');
 ok(/function craftInWorld\(fn\) \{\n\s+if \(!inGarage \|\| !WF\) return fn\(\);\n\s+if \(gfLive\(\)\) return fn\(\);/.test(src), '1h the aeroplane is lent to the world across tasks unless a background run is live');
 ok(/if \(LAB\.gf\) \{ const G = LAB\.gfS;\n\s+if \(G\.joining\) return;\n\s+if \(G\.running\) \{ gfJoin\(\(\) => rollOut\(after, sync\)\); return; \}/.test(src), '1i Go joins a live run, once; a run that never began is left to the roll-out\'s own screen');
+// (23 Nov, the garage's 1.4 s freeze: a live compile for another state - the shed dressed for the shot - left the sky's
+//  materials on programs still linking, and the garage's next frame drew them)
+ok(/const keepLive = gfLive\(\) && renderer\.properties \? \[\] : null;/.test(src) && /if \(keepLive\) for \(const \[pp, was\] of keepLive\) if \(pp\.currentProgram !== was\) \{ pp\.currentProgram = was; pp\.uniformsList = null;/.test(src),
+  '1j a compile behind the live garage puts back the program its frames were drawing (and only a live run does)');
 
 // ---- 2. the runner, on fakes ----
 const a = src.indexOf('  const GF_IDS = ['), b = src.indexOf('  // one phase of a trip: its needed steps under the roll-out screen', a);
