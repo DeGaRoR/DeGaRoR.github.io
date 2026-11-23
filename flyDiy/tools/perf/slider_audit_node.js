@@ -64,7 +64,6 @@ const AUD = `(() => { if (window.__AUD) return 'again';
     await P.until(() => W.BOOT && W.BOOT.state === 'gone', 600000);
     await P.until(() => !!W.CAGE_UI, 60000);
     await P.until(() => false, 6000);
-    W.requestAnimationFrame = () => 0;
     W.__realNow = () => PERF.now();
     U = W.CAGE_UI; CH = W.CAGE_CHAIN; run(AUD);
   };
@@ -106,6 +105,7 @@ const AUD = `(() => { if (window.__AUD) return 'again';
         }
         // back where it stood (a tick), the hand still down
         el.value = String(x0); el.dispatchEvent(new Ev('input')); row.ticks++;
+        if (row.rows % 8 === 0) await P.frames(1);   // (the page's own housekeeping: the first run, no frame at all, died at a 6 GB heap)
       }
       U.dragSettleMs = 350;
       W.dispatchEvent(new PE('pointerup')); if (U.releaseFlush) U.releaseFlush();

@@ -195,10 +195,19 @@
   C.derived = (P, name, fn) => {
     if (C.derivedOff || !CUR) return fn(P);
     const Ly = CUR, keys = new Set(); CUR = null; DERK = keys;
-    let v; try { v = fn(P); } finally { CUR = Ly; DERK = null; }
-    (Ly.der || (Ly.der = new Map())).set(name, { fn, v: snapV(v), keys });
+    let v; const raw = new Map();
+    try { v = fn(P); for (const k of keys) raw.set(k, snapV(P[k])); } finally { CUR = Ly; DERK = null; }
+    (Ly.der || (Ly.der = new Map())).set(name, { fn, v: snapV(v), keys, raw });
     return v;
   };
+  // derivedMoved(P): the layers one of whose derived reads stands on a row that reads differently now than when the layer
+  // last ran (the function's value may be the same: the layer did not run). With the raw read the layer WOULD have run
+  // in the drag - the release's rule on a crew that moved (_cage_ui.js) asks this so the release is the one it was.
+  C.derivedMoved = P => { const out = [];
+    for (const l of L) { if (!l.der) continue; let m = false;
+      for (const d of l.der.values()) { for (const [k, v] of d.raw) if (!same(snapV(P[k]), v)) { m = true; break; } if (m) break; }
+      if (m) out.push(l.name); }
+    return out; };
   C.derivedKeys = () => { const out = new Set(); for (const l of L) if (l.der) for (const d of l.der.values()) for (const k of d.keys) out.add(k); return out; };
   // the run counter (each layer's `seq` is the counter at its last run)
   C.seqNow = () => SEQ;

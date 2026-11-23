@@ -1636,14 +1636,22 @@ let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
 // ?dragbudget=auto (PERF-LEAD, 23 Nov: "50 minus the measured idle work, per device, rather than a fixed 20"): at each
 // press the budget is row 1's 50 ms less the work a frame took over the last 3 s (the flight recorder's own `work`: the
 // user's S20 FE 14 ms with the Chinook, 19 with the DC-3) less 6 ms for what a frame costs outside the loop (the sheet's
-// own repaint, the compositor), between 8 and 40 ms; 20 where no frame was recorded.
+// own repaint, the compositor), between 8 and 40 ms; 20 where no frame was recorded. THAT IS THE DESKTOP'S (row 1 as
+// written). ON THE PHONE (the touch profile) auto is 100 ms: the user, 23 Nov, from the real-phone table - "I found the
+// chinook performance to be acceptable, so you can benchmark this. Even before your fix. Nothing longer, but that felt
+// acceptable. The DC3 should do the same." The reference row is the Chinook on their S20 FE before any fix: a LIVE
+// preview at 99 ms a tick (141 ms a frame, worst 440) on a wing drag, 55 / 80 on cabin length, 124 / 247 on the gear
+// station, the release 0.2-1.3 s. A row as quick as the Chinook's keeps following the finger; only a slower one goes
+// lite or held. BUDGET_PHONE_MS is that tick.
 const BUDGET = { url: 0, auto: 20, work: null, rest: 120, full: new Map(), lone: new Map(), cage: null, top: 0, t: null, force: false, spin: false,
   lite: false, afterLite: false, owed: new Set(), held: 0, lites: 0, rests: 0, live: 0, guesses: 0, last: '' };
 try { const q = (typeof location !== 'undefined' && location.search) || '';
   const m = /(^|[?&])dragbudget=([0-9.]+|auto)/.exec(q); if (m) { const v = +m[2]; BUDGET.url = m[2] === 'auto' ? 'auto' : v > 0 && v < 5 ? 20 : (v || 0); }
   const r = /(^|[?&])dragrest=([0-9.]+)/.exec(q); if (r && +r[2] > 0) BUDGET.rest = +r[2]; } catch (e) {}
 const budgetMs = () => { const U = typeof window !== 'undefined' ? window.CAGE_UI : null; let v = U && U.dragBudgetMs != null ? U.dragBudgetMs : BUDGET.url; if (v === 'auto') v = BUDGET.auto; v = +v; return v > 0 ? v : 0; };
+const BUDGET_PHONE_MS = 100;
 function budgetAuto() {
+  try { const PF = window.PROFILE; if (PF && PF.is && PF.is('ui', 'touch')) { BUDGET.work = null; BUDGET.auto = BUDGET_PHONE_MS; return; } } catch (e) {}
   let w = null;
   try { const R = window.FLIGHT_REC, s = R && R.stats ? R.stats(3000) : null; if (s && s.n > 5 && s.work > 0) w = s.work; } catch (e) {}
   BUDGET.work = w; BUDGET.auto = w == null ? 20 : Math.max(8, Math.min(40, Math.round(50 - w - 6)));
@@ -2536,7 +2544,12 @@ function* buildSteps() {
     // layers between it and the tanks were kept (a dependency no record or edge names yet); with the sheet changed every
     // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
     const crewL = CH.layers.find(l => l.name === 'crew');
-    const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
+    // PERF-SLIDERS (23 Nov): ...OR A ROW THE CREW READS THROUGH A DERIVED READ MOVED (CAGE_CHAIN.derivedMoved: the main gear's
+    // station on a gear that retracts). With the raw read the crew ran in such a drag and this rule sent the release whole;
+    // the derived read spares the ticks, not the release - GATE DERIVED found the plan's release on those aeroplanes not
+    // the whole build's (the DC-3's nacelle wells cut 6 vertices apart, the Super Petrel's float group out of order)
+    const derCrew = !!(rplan && CH.derivedMoved && CH.derivedMoved(P).includes('crew'));
+    const crewMoved = !!(rplan && crewL && (crewL.seq > WHOLE_SEQ || derCrew) && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
     if (rplan && !crewMoved) {
       // PHONE-EDIT-PERF: THE CRAFT FRAME FROM WHERE THE LAST DRAW PUT THE MOUNT - what a whole build measures before its layers
       // (G1301; G1443's deformed drag measures it the same way after its draw). The layers that publish in it (the

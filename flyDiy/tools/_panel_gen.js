@@ -402,26 +402,45 @@ function placeGear(A, o, L) {
     if (b.circle) { const nx = Math.max(x0, Math.min(b.cx, x1)), ny = Math.max(y0, Math.min(b.cy, y1)); return Math.hypot(nx - b.cx, ny - b.cy) < b.r; }
     return x1 > b.x0 && x0 < b.x1 && y1 > b.y0 && y0 < b.y1;
   });
-  const onPlate = (x0, x1, y0, y1) => {
-    if (x0 < -xLim - 1e-6 || x1 > xLim + 1e-6 || y1 > yTop + 1e-6 || y0 < yBot - 1e-6) return false;
-    if (!F) return true;
+  // PERF-SLIDERS (23 Nov 2026): THE PLATE'S OUTLINE OVER [x0, x1] IS THE COLUMN'S, NOT THE CANDIDATE'S. The search below
+  // tries every 5 mm of the plate both ways and asked the outline (F.at: the nearest of the plate's columns, a scan)
+  // at every sample of every candidate - the DC-3's dash: ~38 000 candidates, 0.56 s of every crew build in the page in
+  // node, a third of it in the collector. A candidate's x span depends on its cx and its side alone, so the span's
+  // answer - a sample off the columns (null), else the tightest crown and floor over its samples, each with the very
+  // terms the comparison used - is taken ONCE for the column of candidates (key) and every height is judged against
+  // it: the same comparisons on the same numbers, in another order (a candidate was refused at its first failing
+  // sample; it is refused if any sample fails - the same set).
+  const spans = new Map();
+  const spanOf = (x0, x1) => {
     const ns = Math.max(1, Math.ceil((x1 - x0) / 0.01));
+    let top = Infinity, bot = -Infinity;
     for (let i = 0; i <= ns; i++) {
       const x = x0 + (x1 - x0) * i / ns, c = F.at(x);
-      if (!c || Math.abs(c.x - x) > 0.03) return false;
-      if (y1 > c.y1 - PAN_INSET + 1e-6 || y0 < c.y0 + PAN_INSET - 1e-6) return false;
+      if (!c || Math.abs(c.x - x) > 0.03) return null;
+      const t = c.y1 - PAN_INSET + 1e-6, b = c.y0 + PAN_INSET - 1e-6;
+      if (t < top) top = t;
+      if (b > bot) bot = b;
     }
-    return true;
+    return { top, bot };
+  };
+  const onPlate = (x0, x1, y0, y1, key) => {
+    if (x0 < -xLim - 1e-6 || x1 > xLim + 1e-6 || y1 > yTop + 1e-6 || y0 < yBot - 1e-6) return false;
+    if (!F) return true;
+    let sp = spans.get(key);
+    if (sp === undefined) { sp = spanOf(x0, x1); spans.set(key, sp); }
+    return !!sp && !(y1 > sp.top || y0 < sp.bot);
   };
   const ext = s => ({ x0: Math.min(-GEAR_GATE.w / 2 - 0.001, s * GEAR_LAMP_DX - 0.014), x1: Math.max(GEAR_GATE.w / 2 + 0.001, s * GEAR_LAMP_DX + 0.014),
                       y0: -GEAR_GATE.half, y1: GEAR_GATE.half });
   let best = null;
-  for (let cx = -xLim; cx <= xLim + 1e-9; cx += 0.005)
+  const EN = ext(-1), EP = ext(1), SIDES_L = [-1, 1], SIDES_R = [1, -1];   // (PERF-SLIDERS: made once, not once a candidate)
+  let ix = 0;
+  for (let cx = -xLim; cx <= xLim + 1e-9; cx += 0.005, ix++)
     for (let cy = yBot + GEAR_GATE.half; cy + GEAR_GATE.half <= yTop + 1e-9; cy += 0.005) {
       // the lamps toward the panel's middle (and toward the throttle when it stands beside the plate's edge)
-      for (const s of cx > 1e-9 ? [-1, 1] : [1, -1]) {
-        const e = ext(s), x0 = cx + e.x0, x1 = cx + e.x1, y0 = cy + e.y0, y1 = cy + e.y1;
-        if (!onPlate(x0, x1, y0, y1) || hits(x0 - 0.004, x1 + 0.004, y0 - 0.004, y1 + 0.004)) continue;
+      for (const s of cx > 1e-9 ? SIDES_L : SIDES_R) {
+        const e = s < 0 ? EN : EP, x0 = cx + e.x0, x1 = cx + e.x1, y0 = cy + e.y0, y1 = cy + e.y1;
+        if (!onPlate(x0, x1, y0, y1, ix * 2 + (s < 0 ? 0 : 1)) || hits(x0 - 0.004, x1 + 0.004, y0 - 0.004, y1 + 0.004)) continue;
         const score = Math.abs(cx - xT) + 0.5 * (y0 - yBot) + (s === (cx > 1e-9 ? -1 : 1) ? 0 : 0.002);
         if (!best || score < best.score - 1e-12) best = { cx, cy, s, score, x0, x1, y0, y1 };
       }
