@@ -4490,7 +4490,7 @@ function makeSim(def, world) {
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
       const i3 = i*3;
-      let gy, tcE = 0, kE = -1;
+      let gy, tcE = 0, kE = -1, cam = false;
       if (coneLive) {
         const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
         const c = p[i3+1] - rC[i] - gcy[i] - GROUND_CONE_EPS;
@@ -4503,7 +4503,7 @@ function makeSim(def, world) {
         const o = kE * 7, lf = ENVO[o+6];
         const a = (p[i3] - ENVO[o]) * ENVO[o+2] + (p[i3+2] - ENVO[o+1]) * ENVO[o+3] - ENVO[o+4];   // the axle along the profile
         const hF = envCam(kE, a + 0.5 * lf, rC[i]), hR = envCam(kE, a - 0.5 * lf, rC[i]);
-        gy = 0.5 * (hF + hR); out.envW++;
+        gy = 0.5 * (hF + hR); out.envW++; cam = true;
         tcE = (hF - hR) / lf; if (tcE > ENV_TC) tcE = ENV_TC; else if (tcE < -ENV_TC) tcE = -ENV_TC;
       }
       // SKIS: a ski node's elements meet the ground by their own law; what comes back is the tyre's share for the wheel pass
@@ -4518,7 +4518,10 @@ function makeSim(def, world) {
       if (gH && FnT === null) {   // (a ski node: its own law, master's - SKIS)
         const cdx = p[i3] - snCx[i], cdz = p[i3+2] - snCz[i];
         if (snCf[i] !== snFrame || cdx * cdx + cdz * cdz > GROUND_SLOPE_RE2) {   // the frame's first contact, or the node ran on
-          const sgx = (gH(p[i3] + GROUND_SLOPE_D, p[i3+2]) - gy) / GROUND_SLOPE_D, sgz = (gH(p[i3], p[i3+2] + GROUND_SLOPE_D) - gy) / GROUND_SLOPE_D;
+          // (MASTER-GREEN 23 Nov, GATE ROUGHWHEEL: on the rough ground's cam gy is the cams' mean over the footprint, not the
+          // ground under the node - it sits above a stone and above a slope's line - so the difference reads terrainH here)
+          const g0 = cam ? gH(p[i3], p[i3+2]) : gy;
+          const sgx = (gH(p[i3] + GROUND_SLOPE_D, p[i3+2]) - g0) / GROUND_SLOPE_D, sgz = (gH(p[i3], p[i3+2] + GROUND_SLOPE_D) - g0) / GROUND_SLOPE_D;
           if (sgx !== 0 || sgz !== 0) { sny = 1 / Math.sqrt(sgx * sgx + sgz * sgz + 1); snx = -sgx * sny; snz = -sgz * sny; }
           snCf[i] = snFrame; snCx[i] = p[i3]; snCz[i] = p[i3+2]; snCn[i3] = snx; snCn[i3+1] = sny; snCn[i3+2] = snz;
         } else { snx = snCn[i3]; sny = snCn[i3+1]; snz = snCn[i3+2]; }
@@ -4536,6 +4539,10 @@ function makeSim(def, world) {
       } else {
         f[i3] += Fn * snx; f[i3+1] += Fn * sny; f[i3+2] += Fn * snz;
         cIx += Fn * snx * dt; cIy += Fn * sny * dt; cIz += Fn * snz * dt;
+        // (MASTER-GREEN 23 Nov, GATE ROUGHWHEEL) ROUGH GROUND on a slope: the stone still pushes back - by the part of the cams'
+        // slope along u that the ground's own grade there (read off the normal) does not already give
+        if (tcE !== 0) { const ux = ENVO[kE*7+2], uz = ENVO[kE*7+3], gU = -(snx * ux + snz * uz) / sny, d = tcE - gU;
+          f[i3] -= Fn * d * ux; f[i3+2] -= Fn * d * uz; }
       }
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
