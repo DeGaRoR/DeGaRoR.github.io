@@ -352,6 +352,13 @@ function routeFor(W, objs, survey, from) {
       if (b > 0) out.push(at(E.x - b * dx, E.z - b * dz, 80));
       return out.concat([eP]);
     };
+    // A FIELD THAT LOOKS DOWN THE AXIS NEEDS NO RUN-IN: the gate's lead-in point (600 m before it) within 35 deg of the
+    // axis from the field and 400 m away at least - the take-off is the run-in (club.tour's third leg: the strip 1 km
+    // before its first gate; a run-in there was a base turn 3 km back, over the hills)
+    if (from && typeof from.x === 'number') {
+      const lx = cx - 600 * dx - from.x, lz = cz - 600 * dz - from.z, ll = Math.hypot(lx, lz);
+      if (ll >= 400 && Math.acos(Math.max(-1, Math.min(1, (lx * dx + lz * dz) / ll))) * 180 / Math.PI <= 35) return [];
+    }
     // the field's own side and the long run-in first; the first the planner asks no more than the gate's height + 40 m of,
     // else the one it asks least of
     let best = null, bestM = Infinity;
