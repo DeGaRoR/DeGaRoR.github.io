@@ -12,8 +12,12 @@ frame. The user's word on it (23 Nov, 12:45): the garage must not freeze - no ta
 
 ## 1. What landed, and under which switch
 
-Everything is OFF by default. A page with no switch and no host budget builds the world it built before, in the steps it
-had (the loading screen's text and bar are the build's yields, so a new yield on the default path would move them).
+WITH NO HOST everything is off: a page with no switch and no host budget (`?boot=loadfirst`, node, every gate) builds the
+world it built before, in the steps it had (the loading screen's text and bar are the build's yields, so a new yield on
+that path would move them). UNDER THE GARAGE-FIRST HOST (the default boot since the user's word of 23 Nov 21:05), since
+`claude/ready/perf-worldbuild-5`: stripw, patchw, roadw and compsteps are ON by default (each off with `?name=0`); nearfirst
+and settle=near are on by the host's word (`window.FLYDIY_WORLD_DEFAULTS = { nearfirst: true, settle: 'near' }`, the
+user 22:10: "turn them on by default ... we can turn them off easily afterwards"; off with `?nearfirst=0`, `?settle=0`).
 
 | Switch | What it does | Gate |
 |---|---|---|
