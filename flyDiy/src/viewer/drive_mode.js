@@ -131,7 +131,7 @@
       const mats = rec.vis.mats, pool = src.wheelMats || (src.wheelMats = {});
       const matFor = k => { if (pool[k]) return pool[k]; const m = mats[k] || {};
         const tm = m.tyreTex && window.CAGE_WHEELTEX ? window.CAGE_WHEELTEX.material(m.tyreTex) : null;
-        return pool[k] = tm || new T.MeshStandardMaterial({ userData: { progOwner: 'car / wheels / plain fallback' }, color: m.color !== undefined ? m.color : 0x333333, metalness: m.metal !== undefined ? m.metal : 0.4, roughness: m.rough !== undefined ? m.rough : 0.5 }); };
+        return pool[k] = tm || new T.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car wheels / plain fallback' }, color: m.color !== undefined ? m.color : 0x333333, metalness: m.metal !== undefined ? m.metal : 0.4, roughness: m.rough !== undefined ? m.rough : 0.5 }); };
       matFor.tint = m0 => m0;
       for (const q of wParts) {
         const lv = P.levelMeshes(T, { vis: { groups: {}, parts: [q], mats }, geos: rec.geos || (rec.geos = new Map()) }, matFor, false);
