@@ -3,7 +3,7 @@
  "kind": "contract",
  "verdict": "feasible",
  "plane": "Piper Cub",
- "timeS": 2293,
+ "timeS": 2292,
  "why": "",
  "tried": [
   "Piper Cub:feasible"
@@ -26,7 +26,7 @@
   {
    "from": "mn_strip",
    "to": "w7",
-   "t": 1301,
+   "t": 1300,
    "how": "stopped",
    "at": "w7",
    "stop": [
@@ -73,7 +73,7 @@
     {
      "from": "mn_strip",
      "to": "w7",
-     "t": 1301,
+     "t": 1300,
      "how": "stopped",
      "kg": 60,
      "pax": 0,
@@ -83,16 +83,16 @@
       "slip: high on the final (15 m over the slope at idle) — slipping it down"
      ],
      "landing": {
-      "run": 213,
-      "sink": 0.64,
-      "V": 17.8,
-      "offCentre": -1.9,
-      "pastAim": 303,
+      "run": 203,
+      "sink": 0.61,
+      "V": 17.4,
+      "offCentre": -2,
+      "pastAim": 311,
       "k": 0,
       "three": false,
       "onStrip": true,
-      "tdIn": 491,
-      "stopLeft": 316
+      "tdIn": 498,
+      "stopLeft": 319
      }
     }
    ]
@@ -103,6 +103,6 @@
  "key": "9bcab69cedeb",
  "where": "community:4",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 788
+ "sim": "L40K",
+ "wallS": 786
 }

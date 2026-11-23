@@ -59,7 +59,7 @@
      ],
      "landing": {
       "run": 83,
-      "sink": 1.04,
+      "sink": 1.03,
       "V": 16.4,
       "offCentre": 0.1,
       "pastAim": 15,
@@ -103,6 +103,6 @@
  "key": "99aacaeedaea",
  "where": "community:2",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 780
+ "sim": "L40K",
+ "wallS": 884
 }

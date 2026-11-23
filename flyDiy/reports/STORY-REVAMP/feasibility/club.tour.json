@@ -1,18 +1,20 @@
 {
  "id": "club.tour",
  "kind": "challenge",
- "verdict": "feasible",
- "plane": "Piper Cub",
- "timeS": 2139,
- "why": "",
+ "verdict": "infeasible",
+ "plane": "STOL Cub",
+ "timeS": 4443,
+ "why": "no progress: pass c1: not flown yet",
  "tried": [
-  "Piper Cub:feasible"
+  "Piper Cub:infeasible",
+  "Jodel D112:infeasible",
+  "STOL Cub:infeasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 855,
+   "t": 873,
    "how": "stopped",
    "at": "w3",
    "stop": [
@@ -33,7 +35,7 @@
   {
    "from": "w3",
    "to": "w5",
-   "t": 532,
+   "t": 572,
    "how": "stopped",
    "at": "w5",
    "stop": [
@@ -54,33 +56,35 @@
   {
    "from": "w5",
    "to": "HOME",
-   "t": 752,
+   "t": 1546,
    "how": "stopped",
-   "at": "HOME",
-   "stop": [
-    "sub:0@2",
-    "sub:1@2",
-    "timer",
-    "course",
-    "sub:2@2",
-    "stage@2",
-    "say",
-    "done"
+   "at": "w5",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "prop-strike"
    ],
+   "events": []
+  },
+  {
+   "from": "w5",
+   "to": "HOME",
+   "t": 1452,
+   "how": "stopped",
+   "at": "w5",
+   "stop": [],
    "kg": 0,
    "pax": 0,
    "faults": [],
-   "events": [
-    "hit:c1",
-    "hit:c2"
-   ]
+   "events": []
   }
  ],
  "attempts": [
   {
    "plane": "Piper Cub",
-   "verdict": "feasible",
-   "why": "",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a tail member broke",
    "legs": [
     {
      "from": "HOME",
@@ -124,14 +128,14 @@
     {
      "from": "w3",
      "to": "w5",
-     "t": 532,
+     "t": 530,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
-      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 189 m",
-      "slip: high on energy on the short final (+7.7 m at idle) — slipping it down",
-      "flap-limited: the elevator cannot hold flap 0.70 — landing on 0.45"
+      "flap-limited: the elevator cannot hold flap 0.70 — landing on 0.45",
+      "flap-limited: the elevator cannot hold flap 0.66 — landing on 0.41",
+      "off-the-strip: touched 192 m in, stopped -59 m past the end of 310 m (14 m off the centreline)"
      ],
      "near": {
       "b1": {
@@ -148,56 +152,379 @@
       }
      },
      "landing": {
-      "run": 62,
-      "sink": 1.51,
-      "V": 15.8,
+      "run": 60,
+      "sink": 1.37,
+      "V": 16,
       "offCentre": 0.4,
-      "pastAim": 52,
+      "pastAim": 48,
       "k": 1,
       "three": false,
-      "onStrip": true,
-      "tdIn": 196,
-      "stopLeft": 53
+      "onStrip": false,
+      "tdIn": 192,
+      "stopLeft": 59
      }
     },
     {
      "from": "w5",
      "to": "HOME",
-     "t": 752,
+     "t": 92,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route: the drawn route mission: 7 points, then dest",
+      "pivot: a turn of 170 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "in-the-water: under the water at t=92 s — the flight is over"
+     ],
+     "near": {
+      "c1": {
+       "d": 1020.2,
+       "agl": 1.1,
+       "msl": 17,
+       "t": 3.8
+      },
+      "c2": {
+       "d": 2907.1,
+       "agl": 1.1,
+       "msl": 17,
+       "t": 3.8
+      }
+     },
+     "stop": "pass c1: not flown yet"
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 5,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route: the drawn route mission: 7 points, then dest",
+      "in-the-water: under the water at t=0 s — the flight is over",
+      "out-of-energy: the engine seized at t=2 s — engines stopped"
+     ],
+     "near": {
+      "c1": {
+       "d": 1099.5,
+       "agl": -7.8,
+       "msl": 17.1,
+       "t": 0
+      },
+      "c2": {
+       "d": 3007.5,
+       "agl": 1,
+       "msl": 17.9,
+       "t": 5.2
+      }
+     },
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Jodel D112",
+   "verdict": "infeasible",
+   "why": "no progress: pass c1: not flown yet",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 857,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-start: flying the drawn route mission from here: WP1 136 m, WP2 136 m, WP3 136 m, WP4 133 m, WP5 136 m, WP6 137 m, WP7 141 m, WP8 147 ",
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Fishing Village Strip"
+     ],
+     "near": {
+      "a1": {
+       "d": 9.1,
+       "agl": 99.8,
+       "msl": 135.5,
+       "t": 546.7
+      },
+      "a2": {
+       "d": 5.2,
+       "agl": 96.5,
+       "msl": 143,
+       "t": 577.5
+      }
+     },
+     "landing": {
+      "run": 140,
+      "sink": 1.16,
+      "V": 19.1,
+      "offCentre": 1.2,
+      "pastAim": 6,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 71,
+      "stopLeft": 332
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w5",
+     "t": 1233,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "go-around: unstabilised approach at 88 m: 49 m off the centreline (attempt 2)",
+      "committed-unstable: unstabilised (49 m off the centreline) but committed - landing it",
+      "off-the-strip: touched -59 m in, stopped -200 m past the end of 310 m (1 m off the centreline)"
+     ],
+     "near": {
+      "b1": {
+       "d": 3.9,
+       "agl": 104.3,
+       "msl": 104.3,
+       "t": 297
+      },
+      "b2": {
+       "d": 6.2,
+       "agl": 117.5,
+       "msl": 120.8,
+       "t": 337.7
+      }
+     },
+     "landing": {
+      "run": 169,
+      "sink": 0.43,
+      "V": 19.9,
+      "offCentre": -44.2,
+      "pastAim": -77,
+      "k": 0,
+      "three": true,
+      "onStrip": false,
+      "tdIn": -59,
+      "stopLeft": 200
+     }
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 723,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
       "route-done: the drawn route flown - on to the destination",
       "route-arrival: arriving at Jolene AFB 13/31",
-      "taxi-in: taxiing in to the stand, 459 m"
+      "taxi-in: taxiing in to the stand, 362 m"
      ],
      "near": {
       "c1": {
-       "d": 0.5,
-       "agl": 135.6,
-       "msl": 135.6,
-       "t": 279
+       "d": 12.4,
+       "agl": 229.5,
+       "msl": 229.5,
+       "t": 275.3
       },
       "c2": {
-       "d": 3.4,
-       "agl": 99.5,
-       "msl": 127.4,
-       "t": 347.6
+       "d": 2.3,
+       "agl": 99.9,
+       "msl": 127.8,
+       "t": 336.3
       }
      },
      "landing": {
-      "run": 173,
-      "sink": 0.96,
-      "V": 16.9,
-      "offCentre": 0.3,
-      "pastAim": 36,
+      "run": 283,
+      "sink": 1.01,
+      "V": 19.6,
+      "offCentre": -0.4,
+      "pastAim": 22,
       "k": 0,
-      "three": false,
+      "three": true,
       "onStrip": true,
-      "tdIn": 550,
-      "stopLeft": 1603
+      "tdIn": 536,
+      "stopLeft": 1506
+     },
+     "stop": "pass c1: not flown yet"
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 976,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Jolene AFB 13/31",
+      "taxi-in: taxiing in to the stand, 370 m"
+     ],
+     "near": {
+      "c1": {
+       "d": 3.1,
+       "agl": 547.2,
+       "msl": 547.2,
+       "t": 530.9
+      },
+      "c2": {
+       "d": 2.5,
+       "agl": 315,
+       "msl": 342.9,
+       "t": 594
+      }
+     },
+     "landing": {
+      "run": 275,
+      "sink": 1.27,
+      "V": 19.3,
+      "offCentre": -0.6,
+      "pastAim": 22,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 536,
+      "stopLeft": 1514
+     },
+     "stop": "pass c1: not flown yet"
+    }
+   ]
+  },
+  {
+   "plane": "STOL Cub",
+   "verdict": "infeasible",
+   "why": "no progress: pass c1: not flown yet",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 873,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-start: flying the drawn route mission from here: WP1 136 m, WP2 136 m, WP3 136 m, WP4 133 m, WP5 136 m, WP6 137 m, WP7 141 m, WP8 147 ",
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Fishing Village Strip"
+     ],
+     "near": {
+      "a1": {
+       "d": 5.8,
+       "agl": 99.7,
+       "msl": 135.4,
+       "t": 495.4
+      },
+      "a2": {
+       "d": 2.1,
+       "agl": 97,
+       "msl": 143.9,
+       "t": 530.8
+      }
+     },
+     "landing": {
+      "run": 27,
+      "sink": 1.06,
+      "V": 11.5,
+      "offCentre": 0,
+      "pastAim": 10,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 20,
+      "stopLeft": 496
      }
+    },
+    {
+     "from": "w3",
+     "to": "w5",
+     "t": 572,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "aim-displaced: the approach to Cannery Runway needs 22.2 deg over the obstacle 25 m out (10 m); flying 9.1 deg to an aim 133 m in",
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 162 m",
+      "slip: high on energy on the short final (+9.0 m at idle) — slipping it down"
+     ],
+     "near": {
+      "b1": {
+       "d": 0.8,
+       "agl": 103.9,
+       "msl": 103.9,
+       "t": 267.4
+      },
+      "b2": {
+       "d": 0.2,
+       "agl": 116.9,
+       "msl": 119.7,
+       "t": 313.7
+      }
+     },
+     "landing": {
+      "run": 20,
+      "sink": 1.32,
+      "V": 11.2,
+      "offCentre": 1.3,
+      "pastAim": 13,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 146,
+      "stopLeft": 145
+     }
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 1546,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (298 m, 35.7 m off) — planning the departure again",
+      "taxi-timeout: the route took 361 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "near": {
+      "c1": {
+       "d": 1050.2,
+       "agl": 1.4,
+       "msl": 17.3,
+       "t": 14.7
+      },
+      "c2": {
+       "d": 2946.9,
+       "agl": 1.4,
+       "msl": 17.3,
+       "t": 14.8
+      }
+     },
+     "stop": "pass c1: not flown yet"
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 1452,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "gave-up: still in TAXI at t=1146 s — out of patience, not out of sky",
+      "taxi-timeout: the route took 361 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "near": {
+      "c1": {
+       "d": 1152.2,
+       "agl": 1.4,
+       "msl": 16.6,
+       "t": 1451.5
+      },
+      "c2": {
+       "d": 3067.4,
+       "agl": 1.4,
+       "msl": 16.6,
+       "t": 0
+      }
+     },
+     "stop": "pass c1: not flown yet"
     }
    ]
   }
@@ -207,6 +534,6 @@
  "key": "6a060fc48c63",
  "where": "club:2",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 888
+ "sim": "L40K",
+ "wallS": 7431
 }
