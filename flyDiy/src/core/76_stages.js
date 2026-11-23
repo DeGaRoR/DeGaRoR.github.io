@@ -49,6 +49,18 @@ const STAGE_REVEALS = {
   'observatory:1': { at: 'mt_strip', caption: 'trk.observatory.1', world: true },   // the tower: the core and the top saucer
   'observatory:2': { at: 'mt_strip', caption: 'trk.observatory.2', world: true },   // the drum: the two-tier disc
   'observatory:3': { at: 'mt_strip', caption: 'trk.observatory.3', world: true },   // the hall: the flat disc
+  // STORY-REVAMP (22 Nov): the four project tracks (72_ CONTRACT_TRACKS). world: false on every one - no element of the
+  // record wears these tracks yet (the scenery is owed); each turns true with the scenery that stages it
+  'home:1': { at: 'w1', caption: 'trk.home.1', world: false }, 'home:2': { at: 'w1', caption: 'trk.home.2', world: false },
+  'home:3': { at: 'w1', caption: 'trk.home.3', world: false }, 'home:4': { at: 'cb_sea', caption: 'trk.home.4', world: false },
+  'home:5': { at: 'cb_sea', caption: 'trk.home.5', world: false }, 'home:6': { at: 'w1', caption: 'trk.home.6', world: false },
+  'community:1': { at: 'w7', caption: 'trk.community.1', world: false }, 'community:2': { at: 'w7', caption: 'trk.community.2', world: false },
+  'community:3': { at: 'w7', caption: 'trk.community.3', world: false }, 'community:4': { at: 'w7', caption: 'trk.community.4', world: false },
+  'community:5': { at: 'w7', caption: 'trk.community.5', world: false }, 'community:6': { at: 'w7', caption: 'trk.community.6', world: false },
+  'community:7': { at: 'w7', caption: 'trk.community.7', world: false },
+  'heritage:1': { at: 'nv_strip', caption: 'trk.heritage.1', world: false }, 'heritage:2': { at: 'nv_strip', caption: 'trk.heritage.2', world: false },
+  'lumber:1': { at: 'mk_sea', caption: 'trk.lumber.1', world: false }, 'lumber:2': { at: 'mk_sea', caption: 'trk.lumber.2', world: false },
+  'lumber:3': { at: 'mk_sea', caption: 'trk.lumber.3', world: false },
 };
 // the shot's eye about its target (A0's GPU still frames it: tools/stages_shot.js): metres back, elevation, and the
 // caption's time on screen

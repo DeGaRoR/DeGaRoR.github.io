@@ -1,0 +1,37 @@
+{
+ "id": "mine.04",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "Cessna 172 (career)",
+ "timeS": 780,
+ "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+ "tried": [
+  "Cessna 172 (career):infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mn_strip",
+   "t": 780,
+   "how": "crashed",
+   "at": null,
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "crash",
+    "yield",
+    "break"
+   ],
+   "events": []
+  }
+ ],
+ "notes": [
+  "the stop counts the build's occupants: Cessna 172 (career) flies with 2 aboard (2 passenger(s) asked)"
+ ],
+ "untested": false,
+ "key": "05afbea57dd8",
+ "where": "mine:4",
+ "pool": "validated",
+ "wallS": 1100
+}

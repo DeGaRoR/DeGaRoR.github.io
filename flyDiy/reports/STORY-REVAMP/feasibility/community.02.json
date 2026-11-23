@@ -1,0 +1,49 @@
+{
+ "id": "community.02",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 2066,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 571,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "w7",
+   "t": 1495,
+   "how": "stopped",
+   "at": "w7",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "99aacaeedaea",
+ "where": "community:2",
+ "pool": "validated",
+ "wallS": 1665
+}

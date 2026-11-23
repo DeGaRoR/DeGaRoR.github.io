@@ -1,0 +1,37 @@
+{
+ "id": "community.01",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Cessna 172 (career)",
+ "timeS": 931,
+ "why": "",
+ "tried": [
+  "Cessna 172 (career):feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w6",
+   "t": 931,
+   "how": "stopped",
+   "at": "w6",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [
+  "the stop counts the build's occupants: Piper Cub flies with 1 aboard (1 passenger(s) asked); Jodel D112 flies with 1 aboard (1 passenger(s) asked)"
+ ],
+ "untested": false,
+ "key": "576af83b325a",
+ "where": "community:1",
+ "pool": "validated",
+ "wallS": 1975
+}

@@ -318679,3 +318679,95 @@ study before it: futureDesigns/glider-launch/STUDY.md (aerotow / car tow / the t
 - THE CENSUSES DID NOT KNOW THE WINCH: _taxiclear_lib propBoxes stands an unknown prop key in as a person's 0.6 m disc, so the census (TAXICLEAR, the fleet spots) saw the 2.6 x 7.2 m winch as a post. GEN_BB (the generated props' boxes) gives gen:winch [-1.46, 0, -2.98, 1.19, 4.26, 4.25]; GATE WINCH PLACED holds it to WINCH_GEN.build's own Box3. From the far end a launch has the winch behind it: winchStart sets one up and towStop takes it away (unchanged). GATE WINCH PLACED re-written for one winch + LONG (a launch on the whole cable). The chooser's subtitle: "on the cable to the club winch at the far end of Jolene AFB 13/31, released at the top".
 - IN GAME (RTX 3080, 22 Nov 03:10-03:18, tools: a page_rig.js rig in the session's scratchpad; stills D:/Dev/flydiy-notes/evidence/winch-land-2026-11-22/): the motorglider through NEW_PLANE.openShape, motorOff through GARAGE_SPEC.set (the chooser's glider rows - push, car tow, winch - need an unpowered build), FLYDIY_START.go({ start: 'winch:HOME' }): lined up at (494, 912), the cable 2173 m to xw_winch (none built), the climb ~150 s, the back-release at 70 deg ~890 m over the field. THE COST: the winch's programs 2 at the end of the boot (the opaque and the glass PBR + its weathering, cacheKey 'winchwx1'; 545 in all on this rig's settings), 4 after the first close look (2 more variants compiled then; not attributed further in this slot - a named cost for the perf round); its build 19 ms + the weathering's apply 113 ms, once, during the boot; 38 616 triangles, 13 MATLIB materials. The van / tow car untouched (lazy as before).
 - OPEN, for the user (page https://claude.ai/artifact/UKFygDvqa3zy7VBC6fanE7): the full runway gives a long, high launch (2.2 km; in node, calm, released at 572 m after 86 s - GATE WINCH LONG; in game with that morning's wind ~890 m after ~150 s; clubs fly 1-1.5 km to 300-500 m) - default keep. RE-SHOT at the SW spot (RTX 3080, 22 Nov 09:44-09:47; evidence/winch-land-2026-11-22/sw-spot/): the winch on the grass beside the far end, 549 programs at the end of that run, 2 of them the winch's.
+
+## STORY-REVAMP - THE GAME LAYER ON THE MISSION SYSTEM: THE CAREER'S RULES AND CLIENTS RIDE ON THE PACK, THE STORY PACK (91 MISSIONS, 10 PROJECTS, 40 STEPS, NO DRAWN JOB), THE TUTORIAL PLAYED ON NODE, THE AERO CLUB'S SCORING WIRED, THE MACHINERY GIVEN, THE SWITCH-OVER (22 Nov 2026, cloud - node + one headless boot; branch claude/story-revamp off L40H 9349a62c; readies claude/ready/story-1..n; progress file reports/STORY-REVAMP.md)
+
+THE USER (13 Nov, relayed): "NO GENERATED JOBS at all: everything deterministic"; "contracts in any order; projects as ordered steps tied
+to a site and its meshes"; "no buying machinery. A contract/project GIVES the machinery"; "competitions are a priority from the start";
+(16 Nov) "this is a game about building planes"; (17 Nov) the sandbox = the final stage, a story stage = the final state minus removals;
+(22 Nov) four backbone stories for the large missions (the remote community, home improvement, the observatory, the cultural heritage
+site) - the direction of the projects below. Words in the pack are DRAFTS (draft: true) for whoever writes the story.
+
+WHAT A PACK CAN SAY NOW (src/core/73b_missions.js; all optional - a pack that says none of it behaves as before):
+- `rules { jobs: 'generated' | 'none', shady: true | false, unflyable: 'hold' | 'offer' }` - how the career fills its board while the
+  pack is in use (74_ careerOfferIds reads missionPackRules()): none = no job drawn from the seed; shady false = no drawn "no questions"
+  job; unflyable offer = a mission no validated design can fly is on the board all the same (the player builds the plane). The
+  Trust's loan job stays (one fixed errand).
+- a mission's `repeat: { every: n }` (kind other than job): free again once n other contracts are done after its last time.
+- `clients [{ id, name, desc, fields, track, person, colour }]` - a provider that stands in CONTRACT_PROVIDERS only while its pack is
+  in use (no job table); its words are the pack's (prov.<id>.name / .desc / .short). The built-in pack keeps the game's five.
+- a project step's `track: '<track>:<n>'` (the world stage it builds: CONTRACT_TRACKS, never going down along the steps; the tick moves
+  career.tracks and emits { k: 'unlock' }) and `gives: [abilities]`; a mission's or a step's `onDone.gives`. An ability is a word kept
+  once in career.abilities (careerAbilityGrant): 'tech:<n>' opens the machine shop's segment, 'kit:<id>' stands a hangar kit.
+- `start { sheds: { <hangar>: { without: [kits] } } }` - the kits a career on this pack does not start with; careerPackAdopt(doc, use)
+  applies it ONCE a career (career.pack { id, without }) and drops an accepted mission no table knows any more.
+- careerProjectsBoard(doc, projects, now): the projects as a record for the page (locked / open / done, the current step, the works).
+- 74_: the done row keeps a competition's result (laps, course, stol); careerBest(doc, id); contractOnStop keeps r.scores / r.course.
+- 72_ CONTRACT_TRACKS + 76_ STAGE_REVEALS: four project tracks - home 6, community 7, heritage 2, lumber 3 (every reveal world: false
+  until the scenery wears them).
+
+THE STORY PACK (src/missions/story.json, WRITTEN BY tools/_story_pack.js - edit the tool, run it, never the json; --table prints the
+structure, --check is in the gate): rules none / no shady / offer; 3 clients of its own (home, community, aeroclub; stand-in faces);
+91 missions (30 kept from the built-in pack by id); 10 projects: the old hangar (field 1-3 -> the metal shop + segment 2), the old mine
+(minedock 1-2), the harbour (minedock 3-4, after the mine), the lumber camp (lumber 1-3), Skyline (resort 1-3), the totem site
+(heritage 1-2), the observatory (observatory 1-3 -> segment 3), home improvement (home 1-6 -> the wood shop), the community's runway
+(community 1-7), the club house (clients 1-2). The Aero Club: six events on 73c's scoring (a STOL landing, a spot landing, four pylons,
+a regularity run, a three-leg course, a timed gathering), four of them repeating.
+
+THE SWITCH-OVER (ready story-4): build.js CAREER_PACK_DEFAULT = 'story' and CAREER_PACK_LOAD (one rule for both pages) - index.html's
+career loader and dev.html name and fetch the pack for a career of the welcome menu (window.FLYDIY_MODE === 'career' without
+?career=1); app.js CAREER_PACK uses it, keeps its text in flydiy.pack.<id> for a start with no network; the career adopts it at the
+load (playerLoad) and its projects meet the clock at a flight's end, at the load and on a wait (projectsNow; a step's world stage
+noted for the next composition). A career that adopted a pack has a board ONLY while that pack is in use (74_ careerOfferIds). THE
+DEV CAREER (?career=1), ?map=1 and the sandbox are untouched: every gate's fixture career keeps the built-in tables. The tutorial's
+one job leads the board even when it is on it already (found by walking the tutorial with the pack in use).
+
+THE COMPETITIONS' SEAMS (COMPETE-SCORE's 1 and 2, closed): mission_live.js tick(t, x, y, z, agl, more) hands gnd / v / hdg / pitch /
+roll to 73c; a contract with a STOL line open arms a tracker with no gate; such a flight samples at RATE_STOL (30 Hz). app.js
+missionLiveFrame builds the sample off the sim. tools/mission_feas_lib.js feeds the same sample.
+
+TOOLS: tools/story_run.js (the tutorial T0 -> the checkpoint on node, the story pack in use and adopted; --dry the walk, else its four
+flights and its one job flown), tools/_story_pack.js, tools/story_feas.js (the pack's feasibility table kept ROW BY ROW: --fly one
+mission a process, a row keyed by the mission's record; --table; --check = GATE STORYFEAS-to-be, not registered while rows are
+missing: the whole pack is tens of hours of one core), tools/mission_feas.js --official (every official plane in the pool:
+widePool), tools/mission_feas_lib.js (installPack goes through missionPackUse; a project step's mission is put on offer with its
+project standing at that step; the page's STOL / attitude sample).
+
+GATES: STORYPACK (new, core, ~30 s, 119 checks): the rules, the board to the id without rules, one career for three seeds, repeats, a step's track
+and its reveal, what is given, the pack's clients, THE STORY PACK WALKED TO ITS END (every mission, every project, every step in
+order, every track at its max, every aerodrome used), the Aero Club's events, the start and the machinery, the board's record, the
+switch-over (the built page's loader run as written). TUTORWALK (new, core): story_run --dry. TUTORFLY (new, full): the tutorial
+flown. MISSIONLIVE +13 (the story pack's short landing through the page's own call; selftest 12/12). CONTRACTS re-pinned (the track
+list and a new career's tracks name the four project tracks; its own commit).
+
+WHAT IS NOT DONE (reports/STORY-REVAMP.md, the gaps): no scenery wears home / community / heritage / lumber (18 of 31 world stages
+change nothing yet); claude/ready/community-airport and claude/ready/docks-lodge are not on master; 14 missions need a plane no
+validated design can fly; no glider, no aerobatic plane; the Projects board and the machinery's pop-up are the page's (Game, local
+GPU); the economy of the pack is not calibrated (GATE ECON reads the built-in tables).
+
+STORY-REVAMP 7 - THE MISSION EDITOR, FOUND AND USABLE (ready story-5; the user 22 Nov: "there should be an in-game path ... a start menu
+option even ... operated by a human rather than being just a big repository of barely explained parameters"): welcome.js has a
+"Mission editor" row (a light page: tools/mission_editor.html); the editor has "<- The game", "Open story pack", "Try it in the game"
+(a new tab on the TEST career, ?career=1&pack=draft) and edits the pack's rules, clients, starting kits, projects and steps, a
+mission's "Comes back" / "After these projects" / "It gives"; it loads 79b_tech.js too (tools/_missions_lib.js LEAN follows). app.js
+unwraps the editor's draft ({ file, pack }): ?pack=draft could not work before. GATE STORYPACK 18 (133 checks). NOT in the editor:
+the competition fields (raw JSON only). story.json is still WRITTEN BY tools/_story_pack.js (GATE STORYPACK 9): the hand-over to the
+editor is its own small ready, on the user's word.
+
+STORY-REVAMP 8 - story.json IS THE EDITOR'S (ready story-6; the user 22 Nov: "Yes"): src/missions/story.json is in the mission
+editor's save format (JSON.stringify(missionPackNormalise(pack), null, 1) + newline; GATE STORYPACK 9 holds the round trip to the
+byte), tools/_story_pack.js is DELETED - edit the pack in the editor (or by hand), never regenerate it. GATE STORYPACK 9-13 are
+now RULES (valid, no drawn job, every mission placed once, a career walked to its end for three seeds, every step in order, every
+track a project builds at its max, every kit taken at the start given back, every aerodrome used, every scored mission runnable),
+never a count or a name; 14-16, GATE MISSIONLIVE's short landing and nothing else read the FROZEN copy of the pack as handed over,
+tools/fixtures/storypack/story_v0.json (do not edit it with the story; replace it only with the gate rows that read it). The
+totem site's project no longer requires the mine (an invented prerequisite). 132 checks.
+
+STORY-REVAMP 9 - THE FIRST FLIGHTS READ (ready story-7; reports/STORY-REVAMP.md "The flights so far"): tools/mission_feas_lib.js
+lands a contract with an open STOL landing / spot line THE WAY THE LINE NAMES (the field's landHdg for that flight; 73c measures no
+other way and every line of the stop must be measured) and says so in the row; tools/story_feas.js --again re-flies named missions
+after a change of the harness (a row is keyed by the mission's record only) and keeps a flight's notes. club.pylons' bronze and
+target are 250 s (the Cub's lap: 215.9 s). KNOWN, NOT MINE, with their cases in the report: the Cessna 172 capsizes out of its slip
+on a short final (master's own minedock.02 the same - 43_pilot.js WINGS-LEVEL's family); Cabin Lake (cb_sea) is landable one way
+only (approach: 0 on the island's record lands it) and five home missions land there. To trace one flight whole: judgeMission with
+a log callback prints each leg (phases, the pilot's verdicts, the landing, each gate's closest pass).
