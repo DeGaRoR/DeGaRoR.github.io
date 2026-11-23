@@ -48,7 +48,7 @@ const rowFile = id => path.join(ROWS, id + '.json');
 const rowOf = id => { try { return JSON.parse(fs.readFileSync(rowFile(id), 'utf8')); } catch (e) { return null; } };
 // a row is CURRENT when it is this mission's record flown - and, when it is not feasible, flown with the pool of today (a
 // "no" from the career's designs alone is not a "no" from every official plane, the PC-6 and the test builds)
-const POOL = m => m.order ? 'validated' : 'official+' + opt('also', ALSO) + '+test builds';
+const POOL = m => m.order ? 'validated' : 'official+' + opt('also', ALSO) + '+test builds, the seats filled';
 const current = m => { const r = rowOf(m.id); return r && r.key === m.key && (r.verdict === 'feasible' || r.pool === POOL(m)) ? r : null; };
 
 async function fly() {
