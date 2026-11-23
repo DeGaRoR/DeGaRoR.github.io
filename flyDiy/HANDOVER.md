@@ -318433,3 +318433,52 @@ NAMED for L40J, fixed in L40K (owner FLAGSHIP unless said):
 - WATERDAMP: the refit on its floats settles under 1 cm p-p from 17 s (bound 12 s): its mass and inertia moved with the refit.
 - MISSIONS: the bush run (HOME, 20 kg, David and Jody) refuses to load on list:50 - its seats / payload / range under the refit's
   figures against the story's mission sheet: traced in L40K.
+
+## L40J (A0, Mon 23 Nov 2026, pushed ~05:00) - Codex's perf work with the user's cuts LIVE, the refitted Cessna (T-RUEX), the user's Chinook, the PC-6 liveries
+
+WHAT LANDED (merge order): claude/perf-codex (Codex's perf work; the user's accepted cuts are DEFAULTS: cliffs/rocks R1
+dormant `?rocks=1`, the player's flown bakes off `?flownbake=1`, the static parked trio `?parktrio=0` for the player-derived
+props, the cloud-pass forest mist; + A0's gate/tool follow-ups: FMIST and HITBOX specs follow the cuts, parked_cook follows
+the static trio, page_rig headed windows keep rendering when covered), programs-sandbox, perf-codex-green + green-2,
+one-cessna-4 (the refitted 172, reg T-RUEX), chinook-user (the user's Chinook, list:8), pc6-liveries-3, perfbench-gfx,
+perf-worldbuild-1b, dash-fix + dash-fix-2 + dash-fix-3 (FLAGSHIP: the refit's dash across the cabin, FRAMES/KNIFE identity
+re-pins with reasons, the refit's engine sound row), and as CHERRY-PICKS (their branches sat on A0's candidate commit
+f80229d71, built + cook in one commit - COMMITHYGIENE): pilot-takeoff-yaw d83064264 (Pilot: run-up to ~1.2 Vs before the
+climb pitch + a 15 Hz rudder-chatter detector: c172 to 15 m 794 -> 674 m, the metal route's rudder 20.3 -> 3.3 reversals/min)
+and pilot-takeoff-yaw-2 98d28fe57 (the 1.2 Vs screen speeds for the ground-effect run-up only, the 1.3 Vs kit from the climb's
+start: GATE PROFILE's 'climb from 15 m never under 1.3 Vs' - Jodel 1.28, C172 1.23 with -1 alone - green again)
+and dmg-bakeoff f42051157 (Deform: skin_gpu's swapped geometries carry a CPU-pose bounding box - the crash threw on the
+default bake-off path; DMGUPLOAD bakes with &flownbake=1 + default-path rows).
+
+THE BATTERY: the core tier in 13 chunks of 30 (the user 22 Nov: "run the gates in little chunks"), 359 gates on fe0028603,
+then the late fixes' gates and the pilot-heavy chunks again on the final tree. Reds against master L40H: 19 new, every one
+FIXED or NAMED with its owner (GFX and MONOWHEEL turned green).
+
+NAMED, NOT HELD (owners; fixes in L40K unless said):
+- FLAGSHIP, the refitted 172 (one cause family, the tail move + the low drag): a low part (nose strut / lower cowl /
+  spinner) touches the ground in a plain circuit and taxi - DMGSCAR, DMGSCUFF, DMGWRECK (FIRST in user-fixes: a player sees
+  scars on an ordinary taxi); the tail's lower strut ~3 % under strength at the FAR 23.473 limit drop (DMGSKIN, DMGGEAR rows),
+  the fin sheet folds (FIN) and the drawn tail differs from the flown one (GEOPARITY fin chord -0.31, stab -0.198);
+  fixed-pitch prop overspeed at VD / VNE (DMGDRIVE); floats settle in 17 s against 12 (WATERDAMP); the bush run refuses
+  list:50 (MISSIONS); 8 CONTRACTS rows (stage 0 at the refit's 357 m take-off - ACCEPTED by the user 17 Nov); ROUTE
+  fly:metal's 3 fixture rows (a 51 m/s aeroplane on a route drawn for slow ones; WP1's climb leg 2.5 vs the plan limit 2.4);
+  APSMOOTH c172 student roll 6.0 > 6; CLIP the aerial wire's tip 22 mm into the fin.
+- TAKEOFF technique c172: to 15 m 732 m against [0.6, 1.4] x 514 m = 720 m (12 m over; was 794 m before pilot-takeoff-yaw;
+  Pilot's own tree passed without dash-fix's +8 kg) - Pilot + FLAGSHIP tune it in L40K. PROFILE is GREEN again (-2).
+- PARKED: the meeting row, fixed in perf-simplify-2 (L40K).
+- Master's own (L40H's list) stand as they were.
+
+THE PERF CHECK (PERF-LEAD, 03:15-03:41, headed 5120x1440, quiet box, tools/perf/window_train_check.sh; evidence
+D:/Dev/flydiy-notes/evidence/perf-check-L40J-2026-11-23/): no regression against the lab base; the loading gain is real.
+- Cold load 121.3-123.4 s / 456 programs (L40H 185-224 s / 488: -35 to -45 %); a returning player 98.7 s (worldCompile
+  37 -> 3.7 s: the shader cache works; the world build + settle remain). Go -> flying 2.5 s (shot skipped) / 11.6 s (played).
+- The journey's first 8 min at 5K: row 13 55 % of seconds at 29+ fps (bar 85, target 95); row 8 31 frames > 100 ms, worst
+  283 ms (bar 5); row 9 88 % of blocks late (bar 25 %); causes: render 14.7 s, the water mirror 12.8 s (33 % of the flight),
+  the cover 7.8 s.
+- Row 15 (no blue screen): the journey CLEAN on the screen recording (532 pictures, longest gap 211 ms); the CRASH shows the
+  page 6.3-7.1 s from the impact (27-30 programs compiled there) - not met, as in every build before; the fixes are the lab's
+  ?holdframe=ground and Deform's crash prelink (L40M candidates).
+
+THE BOX (22-23 Nov): CPU tokens (cpu_token.sh v9: a plain run starts under the governor's MAX 1-4 and < 90 C), trains hold
+tokens only for the gates they run (train_tokens.sh), GPU work HEADED in visible windows (the user 22 Nov), quiet windows for
+the perf checks. Next: L40K (the user's fixes + the story revamp), L40L (the physics audit), L40M.
