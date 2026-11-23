@@ -255,7 +255,7 @@
   // while the pointer or a key moves: ?gfrest=N, ?gfbusy=N). Go joins the load where it stands (gfJoin: the roll-out's
   // screen names the steps left, which then run at full speed). gfS is the rig's read (FLYDIY_LAB.gfS).
   const GFN = (k, d) => { try { const m = new RegExp('[?&]' + k + '=(\\d+(?:\\.\\d+)?)(&|$)').exec(location.search || ''); return m ? +m[1] : d; } catch (e) { return d; } };
-  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
+  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
       inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
     noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
     groundFirst: LABQ('groundfirst=1'), ground: { at: {}, n: 0, keys: [], keysCompile: null, same: null, err: null }, paveFirst: LABQ('pavefirst=1'), pave: { handed: false, at: 0, readyAt: 0, sig: null, sigCompile: null, err: null },
@@ -16250,7 +16250,7 @@
   // First use of these off-camera world variants still links lazily in ANGLE after
   // compileSliced reports ready. Draw one smallest representative per program/layout
   // under first light, including hidden LODs; leave live materials and visibility alone.
-  function worldViewWarmDraw() {
+  function worldViewWarmDraw(dress) {   // (dress: the craft dressed in the world a task at a time - the garage on screen, ?boot=garagefirst)
     if (!WF || !renderer.properties || typeof renderer.compileAsync !== 'function') return Promise.resolve(0);
     const reps = new Map();
     scene.traverse(o => {
@@ -16268,7 +16268,7 @@
       }
     });
     const only = [...new Set(reps.values())];
-    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world views', only, null, { perKey: true, groupMax: 1 })
+    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world views', only, dress || null, { perKey: true, groupMax: 1 })
       .then(drawn => { window.FLYDIY_VIEW_WARM = { objects: only.length, drawn }; return drawn; });
   }
   function worldWarmDraw() {
@@ -16569,7 +16569,7 @@
     // B9: in the boot (the shed on screen) the frames are ONE warm draw of the world from the stand (worldWarmDraw)
     // (?boot=garagefirst: behind a LIVE garage the step runs without its warm draws - they would land on the canvas - and its
     //  key says so ('lit-bg'): Go's own world phase then runs it once more under the roll-out's screen, for the draws alone)
-    { id: 'frames', part: 'world', label: 'first light', w: 4, key: () => 'lit' + (gfLive() ? '-bg' : ''), deps: ['world', 'town', 'ring', 'parking', 'settle', 'worldCompile'], fn: t => {
+    { id: 'frames', part: 'world', label: 'first light', w: 4, key: () => 'lit' + (gfLive() && !LAB.gfS.warm ? '-bg' : ''), deps: ['world', 'town', 'ring', 'parking', 'settle', 'worldCompile'], fn: t => {
       if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
       // G732.1: the catch-up's depth variants a slice a task (compileDepthVariants' `sliced`, the settings screen's since G991):
       // unsliced, compileAsync built every new depth program's source in one task - 21 of them here, a 983 ms task
@@ -16580,7 +16580,12 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage && gfLive()) return hviewBoot();   // (the view out of the door comes in when the world is ready: its faces are drawn off screen, one a task)
+        // (?boot=garagefirst, the garage ON SCREEN: the world's first draws go OFF SCREEN - one stand-in a program into the frame's
+        //  own target, a slice a task (worldViewWarmDraw, the settings screen's), then the shadow pass's; the six whole views
+        //  from the stand would land on the canvas. ?gfwarm=0: none here, Go's world phase runs this step once more for them)
+        .then(() => { if (inGarage && gfLive()) { const t0 = performance.now();
+            return (LAB.gfS.warm ? worldViewWarmDraw(craftInWorldNow).then(n => { LAB.gfS.warmDrawn = n; return shadowWarm(); }).then(() => { cloudsWarm(); LAB.gfS.warmMs = Math.round(performance.now() - t0); })
+              .catch(e => { LAB.gfS.warmErr = String(e && e.message); }) : Promise.resolve()).then(() => hviewBoot()); }
           if (inGarage) return Promise.resolve(worldWarmDraw()).then(shadowWarm).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot());
           return shadowWarm().then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }); }));   // (REVEAL-HITCH: the stand's grass; W6: the shadow pass's first draws, every program's first use; G1998e: the clouds' march; G3630: the view out of the door)
     } },
