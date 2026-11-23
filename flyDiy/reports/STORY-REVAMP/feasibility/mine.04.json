@@ -1,23 +1,28 @@
 {
  "id": "mine.04",
  "kind": "contract",
- "verdict": "infeasible",
+ "verdict": "feasible",
  "plane": "PC-6 Turbo Porter",
- "timeS": 1230,
- "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 2 pax",
+ "timeS": 1326,
+ "why": "",
  "tried": [
   "Cessna 172 (career):infeasible",
   "Cessna 172 with the STOL kit and a larger elevator (test build):infeasible",
-  "PC-6 Turbo Porter:infeasible"
+  "PC-6 Turbo Porter:feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "mn_strip",
-   "t": 1230,
+   "t": 1326,
    "how": "stopped",
    "at": "mn_strip",
-   "stop": [],
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
    "kg": 0,
    "pax": 0,
    "faults": [],
@@ -28,75 +33,116 @@
   {
    "plane": "Cessna 172 (career)",
    "verdict": "infeasible",
-   "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+   "why": "no progress: already loaded [declined]",
    "legs": [
     {
      "from": "HOME",
      "to": "mn_strip",
-     "t": 780,
-     "how": "crashed",
+     "t": 0,
+     "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
-      "committed-unstable: unstabilised (26 m off the centreline) but committed - landing it",
-      "wings-level: the rudder eased off: the aileron on its stop against 15 deg of bank (-5 deg of sideslip)",
-      "capsized: on its back in FLARE at 27.2 m/s (bank 91 deg)"
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 271 m landing run - not going there"
+     ]
+    },
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 271 m landing run - not going there"
      ],
-     "stop": "the aeroplane is wrecked: nothing is delivered"
+     "stop": "already loaded"
+    },
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 271 m landing run - not going there"
+     ],
+     "stop": "already loaded"
     }
    ]
   },
   {
    "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
    "verdict": "infeasible",
-   "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+   "why": "no progress: already loaded [declined]",
    "legs": [
     {
      "from": "HOME",
      "to": "mn_strip",
-     "t": 754,
-     "how": "crashed",
+     "t": 0,
+     "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
-      "strip-short: Copperhead Mine Street: the elevator holds 23.6 m/s, the short-field stop from it needs 207 m, 169 m are left past the aim and ",
-      "committed-unstable: unstabilised (15 m off the centreline) but committed - landing it",
-      "wings-level: the rudder eased off: the aileron on its stop against 12 deg of bank (-15 deg of sideslip)"
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 277 m landing run - not going there"
+     ]
+    },
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 277 m landing run - not going there"
      ],
-     "stop": "the aeroplane is wrecked: nothing is delivered"
+     "stop": "already loaded"
+    },
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 277 m landing run - not going there"
+     ],
+     "stop": "already loaded"
     }
    ]
   },
   {
    "plane": "PC-6 Turbo Porter",
-   "verdict": "infeasible",
-   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 2 pax",
+   "verdict": "feasible",
+   "why": "",
    "legs": [
     {
      "from": "HOME",
      "to": "mn_strip",
-     "t": 1230,
+     "t": 1326,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
-      "slip: high on energy on the short final (+6.8 m at idle) — slipping it down",
-      "go-around: floating on the short field with 213 m left, 214 m to stop (attempt 1)",
-      "strip-short: 250 m of strip for a 226 m landing run — landing short-field, no margin"
+      "strip-short: 250 m of strip for a 246 m landing run — landing short-field, no margin",
+      "go-around: floating on the short field with 232 m left, 232 m to stop (attempt 2)",
+      "strip-short: 250 m of strip for a 246 m landing run — landing short-field, no margin"
      ],
      "landing": {
-      "run": 150,
-      "sink": 1.12,
-      "V": 23.6,
+      "run": 158,
+      "sink": 1.08,
+      "V": 24.6,
       "offCentre": 0.1,
-      "pastAim": 34,
+      "pastAim": 47,
       "k": 0,
       "three": true,
       "onStrip": true,
-      "tdIn": 39,
-      "stopLeft": 61
-     },
-     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 2 pax"
+      "tdIn": 37,
+      "stopLeft": 56
+     }
     }
    ]
   }
@@ -109,6 +155,6 @@
  "untested": false,
  "key": "05afbea57dd8",
  "where": "mine:4",
- "pool": "official+57,58+test builds",
- "wallS": 2419
+ "pool": "official+57,58+test builds, the seats filled",
+ "wallS": 1083
 }

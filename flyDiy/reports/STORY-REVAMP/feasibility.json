@@ -5,11 +5,11 @@
  "missions": 91,
  "summary": {
   "not flown": 61,
-  "feasible": 15,
-  "stale": 7,
+  "feasible": 16,
+  "stale": 6,
   "an aircraft order (not a flight)": 8
  },
- "flownS": 17493,
+ "flownS": 18819,
  "rows": [
   {
    "id": "field.01",
@@ -250,8 +250,31 @@
    "id": "mine.04",
    "where": "mine:4",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 1326,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 1326,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "mine.tour",

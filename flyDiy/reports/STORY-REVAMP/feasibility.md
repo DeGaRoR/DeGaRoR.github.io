@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 15 feasible; 61 not flown; 7 stale. Time flown: 291 min 33 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 16 feasible; 61 not flown; 6 stale. Time flown: 313 min 39 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -27,7 +27,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 15 feasible; 61 not f
 | minedock.01 | mine:1 | not flown | - | - | - |  |
 | minedock.02 | mine:2 | not flown | - | - | - |  |
 | mine.03 | mine:3 | not flown | - | - | - |  |
-| mine.04 | mine:4 | stale | - | - | - |  |
+| mine.04 | mine:4 | feasible | PC-6 Turbo Porter | 22 min 06 s | HOME > mn_strip 1326 |  |
 | mine.tour | contract | not flown | - | - | - |  |
 | minedock.05 | harbour:1 | not flown | - | - | - |  |
 | minedock.06 | harbour:2 | not flown | - | - | - |  |
