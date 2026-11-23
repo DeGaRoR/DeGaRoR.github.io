@@ -2555,9 +2555,7 @@ function* buildSteps() {
   // G1451: a drag's release that keeps the sheet runs what the drag reached
   if (RELEASE || CG_ONLY) {
     const why = releaseWhy(built);
-    // (PERF-SLIDERS: WHOLE_SEQ - the release's own edges fire on the layers the drag's previews ran, _cage_chain.js plan;
-    // budgetPlan - the layers a lite drag owes)
-    const rplan = !why ? budgetPlan(CH.plan(P, true, built.sheet, WHOLE_SEQ), false) : null;
+    const rplan = !why ? budgetPlan(CH.plan(P, true, built.sheet), false) : null;   // (PERF-SLIDERS: the layers a lite drag owes)
     // PHONE-EDIT-PERF: a floatplane's float layer reads the CG, which no record holds - it runs on every release
     if (rplan && +P.gearFloats > 0) CH.layers.forEach((l, i) => { if (l.name === 'float' && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'cg'; } });
     // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too
@@ -2574,7 +2572,20 @@ function* buildSteps() {
     // the whole build's (the DC-3's nacelle wells cut 6 vertices apart, the Super Petrel's float group out of order)
     const derCrew = !!(rplan && CH.derivedMoved && CH.derivedMoved(P).includes('crew'));
     const crewMoved = !!(rplan && crewL && (crewL.seq > WHOLE_SEQ || derCrew) && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
-    if (rplan && !crewMoved) {
+    // PERF-SLIDERS (23 Nov 2026): ...OR THE WING THAT MOVED IN THE DRAG CARRIES THE ENGINES. A preview runs the wing at the hand's
+    // last value, so the release's plan finds the wing's reads as they stand and runs neither it nor its release edge to the
+    // engine layer (CAGE_CHAIN REL_FEEDS wing > eng, cowl): the DC-3's wing span ended with its nacelle engines one build
+    // behind (587 objects and the resolved spec off the plain build's, the weathering's engine sources 14.5 cm out; GATE
+    // INSTANT's check on master's own files, 23 Nov). Running the engine and the cowl alone in the release is not the plain
+    // build either (tried: the wing places a wing-mounted unit once more over the wing it publishes, CAGE_WING_EARLY, and
+    // the nacelles' wells are cut from the gear's legs - 372 objects off). So: the whole build, as a moved sit sent every
+    // such release until PHONE-EDIT-PERF (2 Nov). Only where the engine stands ON the wing (the mounts _cage_eng.js hands
+    // to the wing's early readers); a nose or pusher engine keeps the plan (GATE INSTANT's rows on the Cub and the metal
+    // Cessna). GATE INSTANTREL holds it (the DC-3-alike, the Super Petrel).
+    const wingL = CH.layers.find(l => l.name === 'wing'), eM = Math.round(+P.engMount || 0);
+    const wingMoved = !!(rplan && wingL && wingL.seq > WHOLE_SEQ && ([2, 3, 5, 6, 7].includes(eM) || (eM === 1 && +P.hangOn)) &&
+      !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
+    if (rplan && !crewMoved && !wingMoved) {
       // PHONE-EDIT-PERF: THE CRAFT FRAME FROM WHERE THE LAST DRAW PUT THE MOUNT - what a whole build measures before its layers
       // (G1301; G1443's deformed drag measures it the same way after its draw). The layers that publish in it (the
       // weathering's sources: applyWeather, every release) then publish in this one
@@ -2590,7 +2601,7 @@ function* buildSteps() {
       }
       GE.path = 'release plan'; yield* releaseSteps(built, rplan); eyeAfterBuild(); return;
     }
-    RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
+    RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : wingMoved ? 'the wing moved under its engines' : (why || 'no plan') };
     GE.why = RELEASE_INFO.last.whole;
   }
   LAST_SHEET = built;
