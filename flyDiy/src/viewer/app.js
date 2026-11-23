@@ -4628,6 +4628,21 @@
     model.grp.matrix.premultiply(SINK_M.fromArray(groundSinkMatrix(SINK_V, cg[0], cg[1], cg[2], SINK_A)));
   }
   let PC6Q = null;                           // PC6-OLEO: the mechanism rig's scratch quaternions and vectors
+  // ROW 8 / 13 / 14 (PERF-LEAD 23 Nov: after the Cub's nose-down impact the frames ran at 5 a second for 13 s, the
+  // recorder's 'scene' slot +115-142 ms each): THE BREAK PATH'S OWN CLOCK - the four damage calls of poseModel and two
+  // steps inside brkCage, summed and their worst kept; a ring of the last 900 frames that did damage work (t, gen,
+  // scuff, cage, cut, members, wreck, ms) to say what costs and whether it stops at rest. FLYDIY_DMG_PROF() / (true): reset
+  const DPROF = { n: 0, sum: new Float64Array(6), max: new Float64Array(6), ring: [], keys: ['gen', 'scuff', 'cage', 'cut', 'members', 'wreck'], cur: new Float64Array(6) };
+  if (typeof window !== 'undefined') window.FLYDIY_DMG_PROF = reset => {
+    const o = { frames: DPROF.n, keys: DPROF.keys, sumMs: Array.from(DPROF.sum, v => +v.toFixed(1)), maxMs: Array.from(DPROF.max, v => +v.toFixed(1)), ring: DPROF.ring.slice() };
+    if (reset) { DPROF.n = 0; DPROF.sum.fill(0); DPROF.max.fill(0); DPROF.ring.length = 0; }
+    return o; };
+  function dprofEnd() {
+    const c = DPROF.cur; let tot = 0; for (let i = 0; i < 6; i++) tot += (i === 3 || i === 4) ? 0 : c[i];   // (cut / members are inside cage)
+    if (tot > 0.05) { DPROF.n++; for (let i = 0; i < 6; i++) { DPROF.sum[i] += c[i]; if (c[i] > DPROF.max[i]) DPROF.max[i] = c[i]; }
+      DPROF.ring.push([+(sim ? sim.t : 0).toFixed(2), +c[0].toFixed(1), +c[1].toFixed(1), +c[2].toFixed(1), +c[3].toFixed(1), +c[4].toFixed(1), +c[5].toFixed(1)]);
+      if (DPROF.ring.length > 900) DPROF.ring.shift(); }
+    c.fill(0); }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4784,7 +4799,7 @@
       const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       genNodeBody(sim, model.nodeBody, model.oNode);
       // G1851 (DMG-D4a): over a break the skin's records (skin_break.js) pose it; nothing broken, nothing of it runs
-      const BK = brkGen(gain);
+      const tG = performance.now(); const BK = brkGen(gain); DPROF.cur[0] += performance.now() - tG;
       // THE SKIN IS POSED WHEN IT HAS MOVED (PERF 2026-09-23). Everything below is in the BODY frame -
       // the nodes against their rest, the control deflections, the gain - and it was redone, and every
       // skin buffer re-uploaded (54 of them, 2.8 MB a frame on the Cub-alike), on every frame: paused, at
@@ -5383,9 +5398,15 @@
       }
     }
     { const oB = [O[0] + oR[0], O[1] + oR[1], oR[2]];
+      const tP = performance.now();
       scuffFrame(oB);                              // G2004 (DMG-SCUFF): its own event test (two compares; null with the layer off)
-      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still); }   // G1851
-    wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
+      const tQ = performance.now(); DPROF.cur[1] += tQ - tP;
+      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still);   // G1851
+      DPROF.cur[2] += performance.now() - tQ; }
+    { const tW = performance.now();
+      wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
+      DPROF.cur[5] += performance.now() - tW; }
+    dprofEnd();
   }
   // G1851 / G1852 (DMG-D4a): THE SKIN OVER A BREAK (src/viewer/skin_break.js; DEFORM-AND-BREAK §2.5, §5.1, §8.4). Both
   // skins read the one damage state (dmgNow: the broken list and DMG-D1b's pieces, inline or from the worker on change).
@@ -6124,7 +6145,7 @@
     if (!inhOn) for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
     const t2 = performance.now();
     SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
-    if (LOOK.pools && LOOK.slots) DMG_MEMBERS.frame(LOOK.pools, sim.p, K.NF.q, cg);   // G3770
+    if (LOOK.pools && LOOK.slots) { const tM = performance.now(); DMG_MEMBERS.frame(LOOK.pools, sim.p, K.NF.q, cg); DPROF.cur[4] += performance.now() - tM; }   // G3770
     const t3 = performance.now();
     const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
     BRK.X = X;
@@ -6148,7 +6169,7 @@
         X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
         SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
       }
-      if (R.cut2 || (R.cutDraw && R.cutDraw.geo)) brkCutDraw(R, off, X, K);   // G4102: the cut copies beside it
+      if (R.cut2 || (R.cutDraw && R.cutDraw.geo)) { const tC = performance.now(); brkCutDraw(R, off, X, K); DPROF.cur[3] += performance.now() - tC; }   // G4102: the cut copies beside it
       // (G1869: the tear checked at most every TEAR_EVERY s of sim time - a check is every live triangle's three edges;
       // G1818: on the GPU's riding, on its places' world positions - skin_break.js tearPlaces. Train 41: AT THE CPU'S
       // CADENCE - the frame the tear is due asks the places pass (that frame's positions); the read lands a frame or two
