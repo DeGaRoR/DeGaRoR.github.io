@@ -52,7 +52,7 @@ async function child(side, out) {
           return r; },
         return(v) { return g.return ? g.return(v) : { done: true, value: v }; }, throw(e) { return g.throw(e); }, [Symbol.iterator]() { return this; } }; };
     wrapped.__cs = true; W.buildWorldSceneSteps = wrapped; } };
-  const P = await openPage({ quiet: true, hooks, query: side === 'steps' ? 'compsteps=1' : '', workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(os.tmpdir(), 'cs-idb-')), workerWaitMs: 900000 });
+  const P = await openPage({ quiet: true, hooks, query: side === 'steps' ? 'compsteps=1' + (process.env.COMPSTEPS_QUERY ? '&' + process.env.COMPSTEPS_QUERY : '') : '', workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(os.tmpdir(), 'cs-idb-')), workerWaitMs: 900000 });
   const W = P.win;
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 3600000);
   // ---- the families' digests (as GATE PATCHWORKER)
@@ -94,7 +94,7 @@ async function child(side, out) {
     R[side] = JSON.parse(fs.readFileSync(f, 'utf8'));
   }
   const A = R.inline, B = R.steps;
-  console.log('GATE COMPSTEPS - build ' + B.build + '; inline ' + JSON.stringify(A.flag) + ', steps ' + JSON.stringify(B.flag));
+  console.log('GATE COMPSTEPS - build ' + B.build + '; inline ' + JSON.stringify(A.flag) + ', steps ' + JSON.stringify(B.flag) + (process.env.COMPSTEPS_QUERY ? ' - THE STEPS SIDE ALSO WITH ' + process.env.COMPSTEPS_QUERY + ' (COMPSTEPS_QUERY: a set of switches against the default world)' : ''));
   // ---- 1. who composed how
   if (!(A.flag && A.flag.on === false && A.flag.used === false)) bad.push('the inline child composed in steps (' + JSON.stringify(A.flag) + ')');
   if (!(B.flag && B.flag.on === true && B.flag.used === true)) bad.push('the steps child did not compose in steps (' + JSON.stringify(B.flag) + ')');

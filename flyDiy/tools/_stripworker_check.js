@@ -75,13 +75,37 @@ async function boot(query, before) {
 const wantOf = world => world.aerodromes.filter(a => !(a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises)));
 const warnsOf = P => P.errors.concat(P.logs || []).filter(e => /strip worker|house worker/i.test(String(e)));   // (the page's warnings are in its logs)
 
+// (2c) a stand-in list as { name -> { key, text, mesh } }: the material's program key and the text its hook leaves of
+// three's own library source (what the compiler is handed; null where the page's three has no ShaderLib)
+const GW = { orig: null, early: null, patch: null };
+function warmSnap(W, list) {
+  const T = W.THREE, out = new Map();
+  for (const e of list) {
+    let text = null;
+    const lib = T.ShaderLib && T.UniformsUtils ? T.ShaderLib[e.material.isMeshStandardMaterial ? 'physical' : 'lambert'] : null;
+    if (lib) { const sh = { uniforms: T.UniformsUtils.clone(lib.uniforms), defines: {}, vertexShader: lib.vertexShader, fragmentShader: lib.fragmentShader };
+      e.material.onBeforeCompile(sh, null); text = crypto.createHash('sha256').update(sh.vertexShader + '|FRAGMENT|' + sh.fragmentShader).digest('hex').slice(0, 12) + ' (' + (sh.vertexShader.length + sh.fragmentShader.length) + ' chars)'; }
+    out.set(e.name, { key: e.key, text, mesh: e.mesh, material: e.material });
+  }
+  return out;
+}
+
 // ---- THE LOAD -----------------------------------------------------------------------------------------------------------
 async function load() {
   const TAPS = [];   // { id, sd, verts, diff, posSha }
   // render_world's tap: a strip stood from the worker's arrays - the inline build made beside it, the two compared here
   const { P, W, bootS } = await boot('stripw=1', Wn => { Wn.FLYDIY_STRIPW_TAP = (id, sd, g) => {
     let diff; try { const ref = Wn.PAVEMENT.stripGeometry(Wn.THREE, sd); diff = diffView(view(g), view(ref)); ref.dispose(); } catch (e) { diff = ['the inline build threw: ' + (e && e.message)]; }
-    TAPS.push({ id, sd, verts: g.attributes.position.count, diff, posSha: sha(g.attributes.position.array) }); }; });
+    TAPS.push({ id, sd, verts: g.attributes.position.count, diff, posSha: sha(g.attributes.position.array) }); };
+    // (2c: the ground family's stand-ins as they are AT the 'ground programs' step - where a host links them)
+    const orig = Wn.buildWorldSceneSteps; GW.orig = orig;
+    if (typeof orig === 'function') Wn.buildWorldSceneSteps = function* (scene) {
+      const g = orig.apply(this, arguments);
+      for (;;) { const r = g.next(); if (r.done) return r.value;
+        if (r.value === 'ground programs' && !GW.early) { try { GW.early = warmSnap(Wn, scene.userData.groundWarm()); } catch (e) { GW.early = { err: String(e && e.stack || e) }; } }
+        if (r.value === 'premises made' && !GW.patch) { try { GW.patch = warmSnap(Wn, scene.userData.patchWarm()); } catch (e) { GW.patch = { err: String(e && e.stack || e) }; } }
+        yield r.value; }
+    }; });
   const S = W.FLYDIY_STRIPW, world = W.FLIGHT_PROBE.world(), PAV = W.PAVEMENT;
   say('THE LOAD (?stripw=1) - the page booted in ' + bootS + ' s (build ' + W.FLYDIY_BUILD + ')');
   if (!chk(!!S, 'no FLYDIY_STRIPW: render_world has no strip worker')) return;
@@ -112,9 +136,51 @@ async function load() {
       say('2b. the stand-in: ' + mine + '; the scene draws ' + drawn.length + ' meshes on its material: ' + [...sets].map(([k, n]) => n + ' x ' + k).join(' || '));
       chk(drawn.length > 0, 'no drawn mesh is on the material of the stand-in (the table material is not the one the strips draw with)');
       for (const [k, n] of sets) chk(k === mine, n + ' drawn pavement meshes differ from the stand-in (' + k + '): an early link would key another program');
-      let steps = null; try { steps = /yield 'pavement program';\s*yield 'terrain';/.test(String(W.buildWorldSceneSteps)); } catch (e) {}
+      let steps = null; try { steps = /yield 'pavement program';\s*yield 'terrain';/.test(String(GW.orig || W.buildWorldSceneSteps)); } catch (e) {}
       chk(steps === true, 'buildWorldSceneSteps has no "pavement program" yield just before "terrain" (after the probe and the lights)');
     }
+  }
+  // ---- 2c. THE GROUND FAMILY'S STAND-INS (WORLD.ground.warm(), the generator's 'ground programs' yield) AND THE PATCH'S
+  // (WORLD.premises.patchWarm(), from 'premises made'): each drawn ground material on one bare triangle. What a host links
+  // at that step must be the program the first frame draws with: the same material object, a mesh flagged as the drawn
+  // ones, the same key and the same hook text then as now. (Three's key reads which of ITS attributes exist - position,
+  // normal, uv.., color, tangent, the morphs - not a custom one: the patch's aPav is on the sunk chunks only, and is said.)
+  {
+    const CORE = /^(position|normal|uv\d?|color|tangent)$/;
+    const names = g => Object.keys(g.attributes).filter(k => CORE.test(k)).sort().join(','), extra = g => Object.keys(g.attributes).filter(k => !CORE.test(k)).sort().join(',');
+    const flags = o => names(o.geometry) + ' | receiveShadow ' + !!o.receiveShadow + ' | morph ' + Object.keys(o.geometry.morphAttributes || {}).length;
+    const warmCheck = (tag, step, E, lateList, need) => {
+      const late = lateList ? warmSnap(W, lateList) : null;
+      if (!chk(E instanceof Map && E.size > 0, tag + ': no stand-in list at the "' + step + '" step' + (E && E.err ? ': ' + E.err : ' (the step was never yielded, or the list was empty)'))) return;
+      if (!chk(!!late && late.size === E.size, tag + ': the api lists ' + (late ? late.size : 'nothing') + ' at the end, ' + E.size + ' at the step')) return;
+      for (const [name, a] of E) {
+        const b = late.get(name);
+        if (!chk(!!b, 'the stand-in ' + name + ' is not in the end\'s list')) continue;
+        chk(a.mesh === b.mesh && a.material === b.material, name + ': a second stand-in (or another material) at the end');
+        chk(!a.mesh.parent, name + ': the stand-in is in a scene (it is handed over, never drawn)');
+        chk(a.mesh.geometry.attributes.position.count === 3 && !a.mesh.geometry.index, name + ': the stand-in is not one bare triangle');
+        chk(a.key === b.key, name + ': the program key moved between the step and the end (' + a.key + ' -> ' + b.key + '): an early link keys another program');
+        chk(a.text === b.text, name + ': the hook\'s text moved between the step and the end (' + a.text + ' -> ' + b.text + '): an early link compiles another source');
+        const drawn = []; W.WORLD.scene.traverse(o => { if (o.isMesh && o.material === a.material) drawn.push(o); });
+        const sets = new Map(), ex = new Set(); for (const o of drawn) { const k = flags(o); sets.set(k, (sets.get(k) || 0) + 1); ex.add(extra(o.geometry) || '-'); }
+        const mine = flags(a.mesh);
+        say('2c. ' + name + ' [' + a.key + '] text ' + a.text + ': ' + mine + '; drawn ' + drawn.length + (drawn.length ? ': ' + [...sets].map(([k, n]) => n + ' x ' + k).join(' || ') + '; their own attributes: ' + [...ex].join(' / ') + ' (the stand-in: ' + (extra(a.mesh.geometry) || '-') + ')' : ' (none stands in this page)'));
+        // (the far terrain's quadrants hold an EMPTY geometry until their first cut: no attribute to read there)
+        for (const [k, n] of sets) chk(k === mine || /^ \|/.test(k), n + ' drawn ' + name + ' meshes differ from the stand-in (' + k + '): an early link would key another program');
+        if (need.includes(name)) chk(drawn.length > 0, 'no drawn mesh is on the material of the stand-in ' + name);
+      }
+      return E;
+    };
+    const EG = warmCheck('the ground', 'ground programs', GW.early, W.WORLD.ground && W.WORLD.ground.warm ? W.WORLD.ground.warm() : null, ['island-ring', 'island-outer']);
+    const EP = warmCheck('the patch', 'premises made', GW.patch, W.WORLD.premises && W.WORLD.premises.patchWarm ? W.WORLD.premises.patchWarm() : null, ['premises-patch']);
+    // every drawn ground-family mesh is on a material with a stand-in, or keys as one that has (the tier's copy, the far
+    // terrain's patch clone: three links one program a key)
+    const keys = new Set(), mats = new Set(); for (const E of [EG, EP]) if (E) for (const a of E.values()) { keys.add(a.material.customProgramCacheKey()); mats.add(a.material); }
+    const orphan = new Map(); W.WORLD.scene.traverse(o => { if (o.isMesh && o.material && o.material.groundFamily && !mats.has(o.material)) { const k = o.material.customProgramCacheKey(); if (!keys.has(k)) orphan.set(k, (orphan.get(k) || 0) + 1); } });
+    say('2c. drawn ground-family meshes whose key no stand-in carries: ' + (orphan.size ? [...orphan].map(([k, n]) => n + ' x ' + k).join(', ') : 'none'));
+    chk(orphan.size === 0, 'a drawn ground-family program has no stand-in: ' + [...orphan.keys()].join(', '));
+    let steps = null; try { steps = /yield 'ground programs';/.test(String(GW.orig)); } catch (e) {}
+    chk(steps === true, 'buildWorldSceneSteps has no "ground programs" yield');
   }
   // ---- 3. another rung: the ground held, every strip asked again with the page's scales
   const HWK = W.HOUSE_WORKER, HQ = W.WORLD.premises.hw;

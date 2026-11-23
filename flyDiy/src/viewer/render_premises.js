@@ -953,16 +953,6 @@ function make(THREE, scene, world, rec0, opts) {
     }
     return blocks.size ? { A, blocks, edit: true } : null;
   }
-  function* buildPatchSteps(part) {
-    const b = extentWorld();
-    const A = part ? part.A : activeChunks(b, GEO.split ? geoLater : null);
-    let list = [...A.act].sort();
-    const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
-    const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
-    if (!part && patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
-    if (!part) { FAR.src.clear(); FAR.cells.clear(); FAR.group = null; }   // (G3088: the merges went with the patch)
-    patchAct = A; patchB = b; patchDepthCells.clear();   // invalidate on full builds, edits and town expansion alike
-    lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
     // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
     const matOwn = (k, tier) => {
@@ -989,6 +979,41 @@ function make(THREE, scene, world, rec0, opts) {
       if (tier) { M.polygonOffset = true; M.polygonOffsetFactor = -1; M.polygonOffsetUnits = -1; return (patchMatTier[k] = M); }
       return (patchMatOwn[k] = M);
     };
+  // PERF-WORLDBUILD (23 Nov 2026, for PERF-LEAD's early links): THE PATCH PROGRAM'S STAND-IN. The patch's clone of the
+  // ring's twin is the one ground program no host could reach before the first chunk stood: the clone is made by the
+  // build and its key and text carry the SLOT COUNT, set when the material map is painted (matFinish), after the patch.
+  // patchWarm() names the count as matSetup + matFinish will (the record's sets in order, four slots: nothing is
+  // rastered), makes the clone the build will use (matOwn's memo: the same object) and gives { name, key, material,
+  // mesh } - the clone on one bare triangle flagged as a chunk's mesh, never in a scene, the same object every call.
+  // The far terrain's clone is not listed: with no set injected it keys as its base (G1310) - the outer ring's program,
+  // render_world's ground.warm(). Nothing is made or named until a host asks.
+  let patchWarmMesh = null;
+  function patchWarm() {
+    if (!o.game || !o.patchMat) return [];
+    const S = [null, null, null, null];
+    for (const m of (O.materials || [])) { let k = S.indexOf(m.set); if (k < 0) { k = S.indexOf(null); if (k >= 0) S[k] = m.set; } }
+    const used = S.filter(Boolean).length;
+    if (used !== NSLOT) { NSLOT = used; groundMat.needsUpdate = true; for (const M of patchMatOwn) if (M) M.needsUpdate = true; }
+    if (!patchWarmMesh) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 0, 1]), 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0]), 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6), 2));
+      patchWarmMesh = new THREE.Mesh(g, matOwn(0)); patchWarmMesh.name = 'warm:premises-patch'; patchWarmMesh.receiveShadow = true; patchWarmMesh.frustumCulled = false;
+    }
+    const M = patchWarmMesh.material;
+    return [{ name: 'premises-patch', key: M.customProgramCacheKey(), material: M, mesh: patchWarmMesh }];
+  }
+  function* buildPatchSteps(part) {
+    const b = extentWorld();
+    const A = part ? part.A : activeChunks(b, GEO.split ? geoLater : null);
+    let list = [...A.act].sort();
+    const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
+    const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
+    if (!part && patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
+    if (!part) { FAR.src.clear(); FAR.cells.clear(); FAR.group = null; }   // (G3088: the merges went with the patch)
+    patchAct = A; patchB = b; patchDepthCells.clear();   // invalidate on full builds, edits and town expansion alike
+    lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     patchMatOf = matOwn;
     // TWO GROUNDS UNDER ONE PATCH (G527): a chunk wears the ground it lies on - the host's patchPick says
     // which (the game: the inner ring's material and uv law inside the ring, the far terrain's past it). It
@@ -5350,6 +5375,7 @@ function make(THREE, scene, world, rec0, opts) {
     },
     pavedAt: (x, z, reach, skip) => (O.pavedAt ? O.pavedAt(x, z, reach, skip) : null),       // G660: the patch is sunk under a pavement's opaque interior by it (G2115: reach, skip passed on)
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
+    patchWarm,   // (PERF-WORLDBUILD: the patch program's stand-in, above)
     patchActive: () => !!patchAct,   // (PERF-WORLDBUILD: the patch's active set is known - patchCovers answers)
     patchDepth, ringSink, tuck: PATCH_TUCK,   // G752: metres inside the patch (0 outside); the rings' sink by it (0 at the border); the two laws' dials
     patchBounds: () => (patch ? extentWorld() : null),
