@@ -5146,6 +5146,25 @@ function cageInterior(m, S) {
            v = nxt.get(v)) { cyc.push(v); seen.add(v); }
       cycles.push(cyc);
     }
+    // (SEAPLANES 23 Nov) A BAND OF MIXED WINDING: on a hull the afterbody's outward walk (cageAftOutward) turns the band's
+    // inside-out faces one by one, so its boundary edges no longer run head to tail and the walk above runs off a dead end
+    // (an undefined vertex: the Super Petrel's build threw here). Then the same boundary is walked by adjacency, its
+    // direction ignored - every band the walk above closes keeps its cycles exactly.
+    if (cycles.some(c => c.some(v => !V[v]))) {
+      const adj = new Map(), link = (a, b) => (adj.get(a) || adj.set(a, []).get(a)).push(b);
+      for (const [, [a, b]] of dir) { link(a, b); link(b, a); }
+      cycles.length = 0; const used = new Set();
+      for (const s0 of adj.keys()) {
+        if (used.has(s0)) continue;
+        const cyc = [s0]; used.add(s0);
+        for (let prev = s0, v = adj.get(s0)[0]; v != null && v !== s0 && cyc.length <= adj.size; ) {
+          cyc.push(v); used.add(v);
+          const nx = (adj.get(v) || []).find(w => w !== prev && (!used.has(w) || w === s0));
+          prev = v; v = nx;
+        }
+        cycles.push(cyc);
+      }
+    }
     if (!cycles.length) return;
     cycles.sort((a, b) =>
       b.reduce((s, v) => s + V[v][2], 0) / b.length -
@@ -8760,6 +8779,7 @@ function cageSubdivide(m) {
 // own to look away from the fuselage's axis at its station; the body forward of it, the caps and the inner parts keep
 // the walk's winding. Drawing only: the physics fingerprint through the load door is unchanged (see the commit).
 const CAGE_AFT_SKIN = new Set(['taper', 'taperPanel', 'body', 'waistband', 'floorLoop', 'pillarTaper', 'pillarTail']);
+const CAGE_AFT_PILLARS = new Set(['pillarPassenger', 'pillarCabin']);   // (a hull's fold: see cageAftOutward)
 function cageAftOutward(m, S) {
   let zHi = -1e9, zLo = 1e9;
   for (const f of m.F) if (f.m === 'taper') for (const vi of f.v) { const z = m.V[vi][2]; if (z > zHi) zHi = z; if (z < zLo) zLo = z; }
@@ -8785,11 +8805,19 @@ function cageAftOutward(m, S) {
     const p = m.V[vi], k = stK(p[2]), r = stY.get(k) || [1e9, -1e9];
     stY.set(k, [Math.min(r[0], p[1]), Math.max(r[1], p[1])]);
   }
+  // THE FOLD RUNS ON INTO THE CABIN'S AFT PILLAR ON A HULL (SEAPLANES 23 Nov, the user on the Super Petrel: "the remaining
+  // dark bands on the petrel too please ... we need a single body for the aft part"): on a boat hull's buoyant taper the
+  // inside-out stretch does not stop at the taper's front - the Petrel's port side kept 114 skin faces at level 2 (the
+  // cabin's aft pillar band, its deck and wall down to the waist, z 1.10-1.33 m against the taper's front at 1.13 m)
+  // facing in, a dark band with a winding break at each edge, the starboard twin clean. On a hull the walk reaches half
+  // a unit (~0.37 m) forward of the taper's front and turns the cabin's pillar bands' outer faces too; any other build
+  // walks as before.
+  const hullFold = !!(S && S.hull), zFwd = hullFold ? zHi + 0.5 : zHi;
   for (const f of m.F) {
-    if (f.v.length < 3 || f.capFace || !CAGE_AFT_SKIN.has(f.m)) continue;
+    if (f.v.length < 3 || f.capFace || !(CAGE_AFT_SKIN.has(f.m) || (hullFold && CAGE_AFT_PILLARS.has(f.m)))) continue;
     const p = f.v.map(i => m.V[i]), L = p.length;
     const c = [0, 1, 2].map(a => p.reduce((t, q) => t + q[a], 0) / L);
-    if (c[2] > zHi + 1e-6 || c[2] < zLo - 1e-6) continue;   // forward of the taper (or past it): the walk's
+    if (c[2] > zFwd + 1e-6 || c[2] < zLo - 1e-6) continue;   // forward of the taper (or past it): the walk's
     const u = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
     const w = [p[L - 1][0] - p[1][0], p[L - 1][1] - p[1][1], p[L - 1][2] - p[1][2]];
     const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
@@ -11728,7 +11756,8 @@ function cageSheetKept(spec, step, L) {
     let s = m;
     for (let i = 0; i < L; i++) s = cageSubdivide(s);
     if (L > 0) s = cageRefitArc(s);
-    cageAftOutward(s);                         // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward)
+    cageAftOutward(s, S);                      // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward); (23 Nov)
+                                               // with the spec, as cageSheet's: the editor's kept path turned no transom
     const drawn = KG && S.windows && S.windows.length;
     // THE PILOT'S GLASS AS A PANEL (12 Nov, FIT-PROCEDURE; the user: "make it a full panel where the window part is
     // actually just a panel and we cut through"): S.glaze.pilotPanel turns the cockpit's glazed band into skin, as
