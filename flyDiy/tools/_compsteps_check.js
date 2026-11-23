@@ -30,18 +30,27 @@ const AFTER = 'premises: the renderer';   // (render_world.js: yielded after the
 
 async function child(side, out) {
   const { openPage } = require('./_page_node.js');
-  const STEPS = [], HELD = { looks: 0, bad: [] };
+  const STEPS = [], HELD = { looks: 0, bad: [] }, SKYL = new Set(), UP = [];
   let world = null, O0 = null, inlineMs = null;
   const hooks = { afterScript(n, P) { const W = P.win;
     if (typeof W.GPU_ONLY_GEO === 'function' && !W.GPU_ONLY_GEO.__keep) { W.GPU_ONLY_GEO = function () {}; W.GPU_ONLY_GEO.__keep = true; }   // the arrays kept for the digest
+    // (COMPSTEPS_BUDGET=<ms>: the steps side under a host's budget that always answers that - 0 = "yield now" at every
+    //  guard of the build: the most yields a host can ever ask for, the records and the families still the default's)
+    if (side === 'steps' && process.env.COMPSTEPS_BUDGET !== undefined && !W.FLYDIY_WORLD_BUDGET) { const ms = +process.env.COMPSTEPS_BUDGET; W.FLYDIY_WORLD_BUDGET = { left: () => ms }; }
     const orig = W.buildWorldSceneSteps; if (typeof orig !== 'function' || orig.__cs) return;
-    const wrapped = function () { const g = orig.apply(this, arguments); world = arguments[1]; let label = 'setup';
+    const wrapped = function () {
+      // the build's big data textures as they go up (renderer.initTexture: the island ground's - the albedo, the tint, the
+      // fields, the types with their one-code flags; the bytes are dropped at the upload, so they are hashed on the way)
+      { const rdr = arguments[2]; if (rdr && typeof rdr.initTexture === 'function' && !rdr.__cs) { const it = rdr.initTexture.bind(rdr); rdr.__cs = true;
+          rdr.initTexture = t => { const d = t && t.image && t.image.data; if (d && d.buffer && d.length >= 1e6) UP.push(t.image.width + 'x' + t.image.height + ' ' + d.length + ' ' + crypto.createHash('sha256').update(Buffer.from(d.buffer, d.byteOffset, d.byteLength)).digest('hex').slice(0, 16)); return it(t); }; } }
+      const g = orig.apply(this, arguments); world = arguments[1]; let label = 'setup';
       return { next(v) { const t = now(), r = g.next(v), d = now() - t;
           // the work just done was opened by `label`: the composition's steps by their own labels, the inline child's one task by 'premises'
           if (OURS.test(String(label))) STEPS.push([String(label).slice(10), +d.toFixed(2)]);
           else if (label === AFTER) STEPS.push(['the renderer (make)', +d.toFixed(2)]);
           else if (label === 'premises' || label === 'premises: the generators') { if (inlineMs === null || d > inlineMs) inlineMs = +d.toFixed(1); }
           if (!r.done && r.value !== undefined) label = r.value;
+          if (!r.done && /^(sky|ground|island ground|far terrain|water): /.test(String(r.value))) SKYL.add(String(r.value));   // (the labels only a host's budget asks for)
           // between two of the composition's steps: the premises of BEFORE stand, whole
           if (!r.done && OURS.test(String(r.value)) && world && world.premises) {
             const ov = world.premises.overlay; if (!O0) O0 = ov; HELD.looks++;
@@ -78,7 +87,7 @@ async function child(side, out) {
       for (const k of ['aerodromes', 'runways']) { try { full[k] = JSON.parse(plain(O[k])); } catch (e) { full[k] = null; } } }
     fs.writeFileSync(out.replace(/\.json$/, '.rec.json'), JSON.stringify(full)); }
   const aero = w.aerodromes.map(a => [a.id, a.kind || '', !!a.premises, +a.x, +a.z, +a.len, +a.wid, +a.hdg]);
-  fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, flag: W.FLYDIY_COMPSTEPS || null, census, rec, aero: { n: aero.length, sha: sha(JSON.stringify(aero)) },
+  fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, labels: [...SKYL], flag: W.FLYDIY_COMPSTEPS || null, census, uploads: UP, rec, aero: { n: aero.length, sha: sha(JSON.stringify(aero)) },
     zoneMemo: O && O.zoneMemo || null, swapped: !!(O0 && O && O !== O0), held: HELD, steps: STEPS, inlineMs,
     warns: P.errors.concat(P.logs || []).filter(e => /compsteps|premises: the swap|world build:/i.test(String(e))) }));
   process.exit(0);
@@ -94,7 +103,8 @@ async function child(side, out) {
     R[side] = JSON.parse(fs.readFileSync(f, 'utf8'));
   }
   const A = R.inline, B = R.steps;
-  console.log('GATE COMPSTEPS - build ' + B.build + '; inline ' + JSON.stringify(A.flag) + ', steps ' + JSON.stringify(B.flag) + (process.env.COMPSTEPS_QUERY ? ' - THE STEPS SIDE ALSO WITH ' + process.env.COMPSTEPS_QUERY + ' (COMPSTEPS_QUERY: a set of switches against the default world)' : ''));
+  console.log('GATE COMPSTEPS - build ' + B.build + '; inline ' + JSON.stringify(A.flag) + ', steps ' + JSON.stringify(B.flag) + (process.env.COMPSTEPS_QUERY ? ' - THE STEPS SIDE ALSO WITH ' + process.env.COMPSTEPS_QUERY + ' (COMPSTEPS_QUERY: a set of switches against the default world)' : '')
+    + (process.env.COMPSTEPS_BUDGET !== undefined ? ' - UNDER A HOST BUDGET THAT ALWAYS ANSWERS ' + process.env.COMPSTEPS_BUDGET + ' ms (COMPSTEPS_BUDGET; the labels seen: ' + [...new Set(B.labels || [])].join(', ') + ')' : ''));
   // ---- 1. who composed how
   if (!(A.flag && A.flag.on === false && A.flag.used === false)) bad.push('the inline child composed in steps (' + JSON.stringify(A.flag) + ')');
   if (!(B.flag && B.flag.on === true && B.flag.used === true)) bad.push('the steps child did not compose in steps (' + JSON.stringify(B.flag) + ')');
@@ -129,6 +139,11 @@ async function child(side, out) {
     console.log('   ' + k.padEnd(16) + String(b.meshes).padStart(7) + String(b.verts).padStart(12) + String(b.tris).padStart(12) + '   ' + a.digest + '   ' + b.digest + (same ? '' : '   DIFFER'));
     if (!same) bad.push(k + ': the two builds differ (' + a.meshes + ' / ' + b.meshes + ' meshes, ' + a.verts + ' / ' + b.verts + ' vertices, ' + a.digest + ' / ' + b.digest + ')');
   }
+  // the build's big texture uploads (the island ground's): the same textures, the same bytes
+  { const UA = (A.uploads || []).slice().sort(), UB = (B.uploads || []).slice().sort();
+    console.log('   the build\'s big texture uploads: ' + UA.length + ' / ' + UB.length + (UA.join('|') === UB.join('|') ? ', the same bytes' : ', DIFFER') + ' (' + UB.join(', ') + ')');
+    if (!(UB.length >= 3)) bad.push('only ' + UB.length + ' big texture uploads were seen (the island ground\'s tint, fields and types): the gate compared nothing');
+    else if (UA.join('|') !== UB.join('|')) bad.push('the build\'s texture uploads differ (' + UA.join(', ') + ' / ' + UB.join(', ') + ')'); }
   for (const k of ['premises:patch', 'pavement', 'road', 'pave']) if (!B.census[k] || !(B.census[k].verts > 0)) bad.push('no ' + k + ' geometry was built: the gate compared nothing');
   if (B.warns && B.warns.length) bad.push('the page warned: ' + B.warns.slice(0, 3).join(' | '));
   // ---- the report: the one task against the steps (node ms, never ratcheted)
