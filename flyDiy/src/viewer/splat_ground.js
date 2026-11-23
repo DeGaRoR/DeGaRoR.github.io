@@ -738,7 +738,11 @@ const SPLAT_GROUND = (() => {
       vec2 q = (xz + vWPi.y * vec2(0.71, -0.59)) / max(uSBank2.z, 0.5);   // (the height in it: on a face a noise of xz alone runs in vertical streaks)
       bn = gVnoise(q * 0.21 - 5.1) * 0.45 + gVnoise(q) * 0.35 + gVnoise(q * 2.71 + 17.3) * 0.2 - 0.5;   // (three octaves: a far bank's edge is ragged too)
       float sj = slope + bn * uSBank2.y;
-      gSBank = bankZ * smoothstep(uSBank.y - uSBank2.x, uSBank.z + uSBank2.x, sj);
+      // (MOUNTAIN-VEG 23 Nov: which shore the bank is - the lake's term over the sea's; the SEA's ramp starts SEA_EARLY deg sooner, the user:
+      // "all these steep banks on the ocean are almost pure rocks" - and its steepest share goes on to the bare rock (5), below)
+      float lkB = (1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)), seB = (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd);
+      float lk = step(seB, lkB), sS = 6.0 * (1.0 - lk), gR = (1.0 - lk) * smoothstep(uSBank.y, uSBank.z, sj);
+      gSBank = bankZ * smoothstep(uSBank.y - sS - uSBank2.x, uSBank.z - sS + uSBank2.x, sj);
       // THE CREST OF THE SEA'S STEP (G1959): the land keeps its own height to the coastline and the shelf drops to -5 m just
       // past it (28_island seaFloor), so the face's top is the first row of land vertices - a long line at one height. The
       // rock spills over it by up to bankLip m, ragged, where the ground stands over the water (a real step, not a flat beach)
@@ -752,8 +756,7 @@ const SPLAT_GROUND = (() => {
       // possibly for gentle banks too" - the lake banks read bare ochre from a floatplane; "the steep banks on the ocean are almost pure rocks"):
       // where the bank zone is a LAKE's (its lake term over the sea's), the steep share goes to the forest floor (8) instead of the rocky shore
       // (the bank, slot 1), and the gentle ground under bankLo gives LAKE_FLOOR of its share to it too, fading over 10 deg; the sea keeps its rock
-      float lkB = (1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)), seB = (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd);
-      float lk = step(seB, lkB), gL = lk * bankZ * (1.0 - smoothstep(uSBank.y - 10.0, uSBank.y, sj)) * 0.6;
+      float gL = lk * bankZ * (1.0 - smoothstep(uSBank.y - 10.0, uSBank.y, sj)) * 0.6;
       int tg = lk > 0.5 ? 8 : 1;
       float mv = 0.0, kb = 1.0 - gSBank, kg = 1.0 - gL;
       if (k0 > 1 && k0 != 5 && k0 != 6 && k0 != tg) { mv += v0 * gSBank; v0 *= kb; if (lk > 0.5) { mv += v0 * gL; v0 *= kg; } }
@@ -761,6 +764,9 @@ const SPLAT_GROUND = (() => {
       if (k2 > 1 && k2 != 5 && k2 != 6 && k2 != tg) { mv += v2 * gSBank; v2 *= kb; if (lk > 0.5) { mv += v2 * gL; v2 *= kg; } }
       if (k3 > 1 && k3 != 5 && k3 != 6 && k3 != tg) { mv += v3 * gSBank; v3 *= kb; if (lk > 0.5) { mv += v3 * gL; v3 *= kg; } }
       if (k4 > 1 && k4 != 5 && k4 != 6 && k4 != tg) { mv += v4 * gSBank; v4 *= kb; if (lk > 0.5) { mv += v4 * gL; v4 *= kg; } }
+      float mr = mv * gR; mv -= mr;   // (the sea's steepest: the bare rock, 5 - into its slot, else a free one)
+      if (mr > 0.0) { if (k0 == 5) v0 += mr; else if (k1 == 5) v1 += mr; else if (k2 == 5) v2 += mr; else if (k3 == 5) v3 += mr; else if (k4 == 5) v4 += mr;
+        else if (k0 < 0) { k0 = 5; v0 = mr; } else if (k1 < 0) { k1 = 5; v1 = mr; } else if (k2 < 0) { k2 = 5; v2 = mr; } else if (k3 < 0) { k3 = 5; v3 = mr; } else if (k4 < 0) { k4 = 5; v4 = mr; } }
       if (mv > 0.0) { if (k0 == tg) v0 += mv; else if (k1 == tg) v1 += mv; else if (k2 == tg) v2 += mv; else if (k3 == tg) v3 += mv; else if (k4 == tg) v4 += mv;
         else if (k0 < 0) { k0 = tg; v0 = mv; } else if (k1 < 0) { k1 = tg; v1 = mv; } else if (k2 < 0) { k2 = tg; v2 = mv; } else if (k3 < 0) { k3 = tg; v3 = mv; } else if (k4 < 0) { k4 = tg; v4 = mv; }
  }   // (all five full - 0.03 % of kernels: the share is dropped, the blend normalises by what it keeps)
@@ -855,7 +861,11 @@ const SPLAT_GROUND = (() => {
       vec2 q = (xz + vWPi.y * vec2(0.71, -0.59)) / max(uSBank2.z, 0.5);   // (the height in it: on a face a noise of xz alone runs in vertical streaks)
       bn = gVnoise(q * 0.21 - 5.1) * 0.45 + gVnoise(q) * 0.35 + gVnoise(q * 2.71 + 17.3) * 0.2 - 0.5;   // (three octaves: a far bank's edge is ragged too)
       float sj = slope + bn * uSBank2.y;
-      gSBank = bankZ * smoothstep(uSBank.y - uSBank2.x, uSBank.z + uSBank2.x, sj);
+      // (MOUNTAIN-VEG 23 Nov: which shore the bank is - the lake's term over the sea's; the SEA's ramp starts SEA_EARLY deg sooner, the user:
+      // "all these steep banks on the ocean are almost pure rocks" - and its steepest share goes on to the bare rock (5), below)
+      float lkB = (1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)), seB = (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd);
+      float lk = step(seB, lkB), sS = 6.0 * (1.0 - lk), gR = (1.0 - lk) * smoothstep(uSBank.y, uSBank.z, sj);
+      gSBank = bankZ * smoothstep(uSBank.y - sS - uSBank2.x, uSBank.z - sS + uSBank2.x, sj);
       // THE CREST OF THE SEA'S STEP (G1959): the land keeps its own height to the coastline and the shelf drops to -5 m just
       // past it (28_island seaFloor), so the face's top is the first row of land vertices - a long line at one height. The
       // rock spills over it by up to bankLip m, ragged, where the ground stands over the water (a real step, not a flat beach)
@@ -863,10 +873,9 @@ const SPLAT_GROUND = (() => {
                            * smoothstep(0.3, 1.0, vWPi.y) * 0.95);   // (no branch of its own: a branch is link time, COLD-LINKS)
       gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
       // (the lake's banks wear the forest floor - the lean path's twin, above)
-      float lkB = (1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)), seB = (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd);
-      float lk = step(seB, lkB), gL = lk * bankZ * (1.0 - smoothstep(uSBank.y - 10.0, uSBank.y, sj)) * 0.6;
+      float gL = lk * bankZ * (1.0 - smoothstep(uSBank.y - 10.0, uSBank.y, sj)) * 0.6;
       for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12 && i != 8) { float t = w[i] * gSBank; w[i] -= t; float g = w[i] * gL; w[i] -= g;
-        if (lk > 0.5) w[8] += t + g; else w[1] += t; }   // (the sea's bank rides slot 1: BANK_SLOT; the lake's the forest floor)
+        if (lk > 0.5) w[8] += t + g; else { w[1] += t * (1.0 - gR); w[5] += t * gR; } }   // (the sea's bank rides slot 1: BANK_SLOT; the lake's the forest floor)
     }
 #ifndef GS_NOTROND
     // R1: THE EXPOSURE (the lean path's twin, above)
