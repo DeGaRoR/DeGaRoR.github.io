@@ -159,7 +159,29 @@ instead (neither target fails the airworthiness tier) and stand in for the bench
 The walk with the pack in use found a bug of the switch-over: the tutorial's one job sat second on a board whose
 contracts come in any order; it leads it again.
 
-## The flights so far (12 of 91)
+## The flights so far (22 of 83 flown missions have a row; 8 more are aircraft orders, not flights)
+
+THE POOL (the user, 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's
+OK ... maybe you can even build a quick one to clear these. The players will not be limited to existing planes"): a
+mission is flown by the career's designs first, then every official plane, the PC-6 (wip list rows 57 / 58) and a test
+build, the shortest take-off first, three aeroplanes at most; a row keeps EVERY aeroplane tried with its legs and the
+pilot's own words (`attempts`). `node tools/story_feas.js --fly [--only=a,b --again]`, then `--table`.
+
+What 23 Nov's rows taught, each read from its row:
+
+| found | what the row said | what was wrong | state |
+|---|---|---|---|
+| the seat fill did not take | "flown with 2 aboard" in the notes, and the stop: "aboard 0 pax, the job is 1 pax" - on five missions | MY HARNESS: it wrote the filled seats into the build FILE, and the load door rebuilds the cabin from the design. It fills them now by the garage's own door (the spec the game flies, pilots 1, pax n - 1) | corrected; mine.04 (the PC-6, two aboard), field.ridge and heritage.01 (the STOL Cub) re-flown: FEASIBLE |
+| a course's entry | club.regular: the Jodel turned back 2 km short of the entry point and joined the axis past the first gate (216 m wide) | MY HARNESS: out of a field ahead of the entry the turn onto the axis is 160 deg. A base turn on the field's side now, its corner about a right angle | corrected; club.regular flown by the Jodel: both gates within 7 m, FEASIBLE |
+| a course's exit | club.tour's second leg: both gates crossed at 373 and 498 m (150 at most) | MY HARNESS: the pilot's planner looks 1500 m past a leg's end and moves a climb earlier; the run-out pointed at the hills east of the strip (519 m asked). The run-out is chosen on the planner's own measure now (none there) | corrected; flown by the Cub: 115 and 143 m |
+| the Cub at w5 (Cannery Runway) | club.tour's third leg never leaves: "rejected take-off: will not reach Vr", after "off-the-strip: touched 187 m in, stopped 72 m past the end of 310 m" | NOT THE MISSION'S: `reports/STORY-REVAMP/repro/cub_w5_back.json` (plain HOME > w5 > leg back, no mission) ends the same - the pilot aims 144 m in over a 10 m obstacle 25 m before the threshold, runs off the end, and on the line-up back the propeller is in the water. From w5's stand (`cub_w5_stand.json`) the Cub flies home | the pilot's / the field's: listed under Gaps. club.tour stays red on it; being flown with w5 landed each way |
+| the PC-6 (wip list) | flew passenger jobs "with 0 pax" | the same seat fill (it has 8 seats); its FREIGHT card is another matter (no door named: carries no cargo as built) | passengers: fine. Cargo: listed under Gaps |
+
+THE CAREER'S CESSNA CHANGES UNDER THESE ROWS: master L40J makes list:50 (the refitted 172: 1 006 kg, take-off 357 m) the
+career's `c172`. Rows flown with the light metal Cessna (and the STOL-kit test build made from it) are flown again on
+the merged tree; a first STOL kit on list:50 measures Vs 25.8 > 21.5 m/s and the take-off run 414 > 260 m.
+
+### The first twelve (22 Nov)
 
 Every row is kept AS FLOWN (`reports/STORY-REVAMP/feasibility/<id>.json`); none is re-pinned or dropped. Nine missions
 are feasible (hangar.01, home.01, obs.01, community.02 and the club's three in the Cub; community.01 in the Cessna 172; lumber.01 on floats). Five were not, read one by one
@@ -276,6 +298,9 @@ tables.
 | no glider, no aerobatic plane on the official list; the 6 g order is out of the pack | planes | plane_lists.json |
 | Cabin Lake (`cb_sea`) names no landing direction: the test pilot takes the closed end and capsizes; `approach: 0` on the lane lands it (flown). Its way out is not flown | the island's aerodrome record | the feasibility flight of home.08, three times |
 | the Cessna 172 capsizes out of its slip on a short final (mn_strip, w1; master's own `minedock.02` the same) | the pilot (43_pilot.js, WINGS-LEVEL's family) | the feasibility flights of mine.04 and home.03, and master's baseline |
+| a landing at w5 (Cannery Runway) on the game's day runs off the strip's end, and the leg back never leaves (the Cub; the STOL Cub rejects its take-off there too) | the pilot (43_pilot.js: the end it picks has a 10 m obstacle 25 m out, the aim is displaced 144 m into 310 m) or the field's record | `node tools/flight_script.js reports/STORY-REVAMP/repro/cub_w5_back.json` (no mission in it) |
+| the PC-6 Turbo Porter of the wip list carries no cargo: its loading card names no door and no seat row (passengers ride: 8 seats) | the PC-6 build (the drafting table's) | the feasibility flights of the cargo missions |
+| master L40J: `xw_rough` out of CONTRACT_FIELDS and `tw_ski` back at 380 m, by a merge (see the status at the top) | master's (the train) | the trial merge; master's own GATE CONTRACTS |
 | the two clients the pack brings wear stand-in faces (home: sophie; community: james) | portraits | 72_people.js |
 | a project's works cost nothing but at home (0 everywhere else); home's missions pay nothing | economy pass (ready 5) | the pack |
 | the machinery pop-up animation and the reveal's panning shot | local GPU work | out of scope here |
