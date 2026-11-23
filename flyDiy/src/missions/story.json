@@ -1275,7 +1275,13 @@
      "mine"
     ]
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "PC-6 Turbo Porter",
+    "sim": "L40K",
+    "flownS": 2223,
+    "sig": "98534ec6"
+   }
   },
   {
    "id": "minedock.05",

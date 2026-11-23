@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 34,
-  "not flown": 36,
+  "feasible": 35,
+  "not flown": 35,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
   "stale": 6,
   "infeasible": 5
  },
- "flownS": 53199,
+ "flownS": 55422,
  "rows": [
   {
    "id": "field.01",
@@ -615,8 +615,45 @@
    "id": "mine.tour",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 2223,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 1326,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mn_strip",
+     "to": "HOME",
+     "t": 897,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "minedock.05",
