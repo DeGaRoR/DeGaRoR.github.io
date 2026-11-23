@@ -31,6 +31,7 @@ const AFTER = 'premises: the renderer';   // (render_world.js: yielded after the
 async function child(side, out) {
   const { openPage } = require('./_page_node.js');
   const STEPS = [], HELD = { looks: 0, bad: [] }, SKYL = new Set(), UP = [];
+  let built = false;   // (the build's own uploads only: what a host hands the GPU after the generator has ended is not the build's)
   let world = null, O0 = null, inlineMs = null;
   const hooks = { afterScript(n, P) { const W = P.win;
     if (typeof W.GPU_ONLY_GEO === 'function' && !W.GPU_ONLY_GEO.__keep) { W.GPU_ONLY_GEO = function () {}; W.GPU_ONLY_GEO.__keep = true; }   // the arrays kept for the digest
@@ -42,9 +43,9 @@ async function child(side, out) {
       // the build's big data textures as they go up (renderer.initTexture: the island ground's - the albedo, the tint, the
       // fields, the types with their one-code flags; the bytes are dropped at the upload, so they are hashed on the way)
       { const rdr = arguments[2]; if (rdr && typeof rdr.initTexture === 'function' && !rdr.__cs) { const it = rdr.initTexture.bind(rdr); rdr.__cs = true;
-          rdr.initTexture = t => { const d = t && t.image && t.image.data; if (d && d.buffer && d.length >= 1e6) UP.push(t.image.width + 'x' + t.image.height + ' ' + d.length + ' ' + crypto.createHash('sha256').update(Buffer.from(d.buffer, d.byteOffset, d.byteLength)).digest('hex').slice(0, 16)); return it(t); }; } }
+          rdr.initTexture = t => { const d = t && t.image && t.image.data; if (!built && d && d.buffer && d.length >= 1e6) UP.push(t.image.width + 'x' + t.image.height + ' ' + d.length + ' ' + crypto.createHash('sha256').update(Buffer.from(d.buffer, d.byteOffset, d.byteLength)).digest('hex').slice(0, 16)); return it(t); }; } }
       const g = orig.apply(this, arguments); world = arguments[1]; let label = 'setup';
-      return { next(v) { const t = now(), r = g.next(v), d = now() - t;
+      return { next(v) { const t = now(), r = g.next(v), d = now() - t; if (r.done) built = true;
           // the work just done was opened by `label`: the composition's steps by their own labels, the inline child's one task by 'premises'
           if (OURS.test(String(label))) STEPS.push([String(label).slice(10), +d.toFixed(2)]);
           else if (label === AFTER) STEPS.push(['the renderer (make)', +d.toFixed(2)]);

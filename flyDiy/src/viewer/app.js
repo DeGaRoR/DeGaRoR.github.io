@@ -843,11 +843,12 @@
   let shedTexSliced = false;
   function shedTexWarm() {
     if (!WF || !renderer || typeof renderer.initTexture !== 'function') return 0;
-    const seen = new Set(); let n = 0; const later = shedTexSliced ? [] : null;
+    const seen = new Set(); let n = 0; const later = shedTexSliced ? [] : null, hid = [];
     const warm = t => { if (t && t.isTexture && !seen.has(t)) { seen.add(t); if (later) { later.push(t); return; } try { renderer.initTexture(t); n++; } catch (e) {} } };
     try {
       scene.traverse(o => {
         if (!o.name || o.name.indexOf('shed:') !== 0) return;
+        if (later && o.visible) { o.visible = false; hid.push(o); }   // (sliced: not drawn until its textures are up - a draw would upload them all at once)
         o.traverse(m => {
           const ms = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
           for (const mt of ms) { for (const k in mt) warm(mt[k]); if (mt.uniforms) for (const k in mt.uniforms) warm(mt.uniforms[k] && mt.uniforms[k].value); }
@@ -857,8 +858,9 @@
     if (later && later.length) { let i = 0;
       const tick = () => { const B = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; let k = 0;
         while (i < later.length && (k === 0 || (B && typeof B.left === 'function' && B.left() > 0))) { try { renderer.initTexture(later[i]); } catch (e) {} i++; k++; }
-        if (i < later.length) setTimeout(tick, 0); };
+        if (i < later.length) setTimeout(tick, 0); else for (const o of hid) if (o.parent) o.visible = true; };
       setTimeout(tick, 0); }
+    else for (const o of hid) o.visible = true;
     return n;
   }
   function worldBuilt(wf) {
@@ -917,6 +919,12 @@
         geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
         if (r.done) {
           window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null;
+          // PERF-WORLDBUILD (23 Nov 2026): UNDER A HOST'S BUDGET THE WORLD'S TEXTURES AND ITS WAITING GEOMETRY GO UP BEFORE THE
+          // WORLD IS HANDED OVER (worldPreUpload, below): behind a live garage the frame after worldBuilt drew the world for
+          // the first time and three uploaded every texture and buffer it met AT THAT DRAW - 902 + 566 ms, two frozen frames
+          // (PERF-LEAD's row, 23 Nov 17:42: texture calls 516 ms, bufferData 177 ms under renderBufferDirect). No budget: as before.
+          const fin = () => {
+          if (WF) { res(); return; }   // (a synchronous door built it while the uploads ran: none today)
           worldBuilt(r.value);
           // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the flush is capped a call - assets.js - so what is left goes up
           //  a tick at a time from here; a flush that uploads nothing ends it)
@@ -925,7 +933,9 @@
             setTimeout(drain, 0); }
           if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
           window.__WORLD_SLICES = { n, worst: Math.round(worst), ms: Math.round(performance.now() - t00) };
-          res(); return;
+          res(); };
+          if (window.FLYDIY_WORLD_BUDGET && typeof renderer.initTexture === 'function') worldPreUpload(scene).then(fin, fin); else fin();
+          return;
         }
         BOOT.phase('world', 'laying out the world' + (lab ? ': ' + lab : ''), Math.min(0.95, n / WORLD_YIELDS));
         const wt = window.FLYDIY_WORLD_WAIT; window.FLYDIY_WORLD_WAIT = null;
@@ -16536,6 +16546,38 @@
   // material: this walk missed them, and the first world frame uploaded them itself (the node census: 325 MB of
   // texSubImage2D and 80 MB of texSubImage3D in the roll-out's 'frames' step; ~0.4 s of its long task in Chrome). Once a
   // material is compiled three keeps the shader's uniforms, the hook's included, in its properties: read them there too.
+  // PERF-WORLDBUILD (23 Nov 2026): the textures the world's materials hold (the boot's 'upload' step's own list: uploadSliced
+  // below) and the geometry still waiting for its flush, on the GPU a tick at a time - a texture at least a tick, more for
+  // 6 ms; a capped flush a tick (assets.js: 24 MB under the budget). For the world built behind a live garage (buildWorldSliced).
+  function worldPreUpload(sc) {
+    return new Promise(res => {
+      let list = [], i = 0, geoDone = !(typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && GPU_ONLY_GEO.pending);
+      try { list = sceneTexList(sc); } catch (e) { list = []; }
+      const tick = () => {
+        const t0 = performance.now(); let k = 0;
+        try {
+          if (!geoDone && GPU_ONLY_GEO.pending() > 0) { if (!(GPU_ONLY_GEO.flush(renderer) > 0)) geoDone = true; }
+          else { geoDone = true; while (i < list.length && (k === 0 || performance.now() - t0 < 6)) { try { renderer.initTexture(list[i]); } catch (e) {} i++; k++; } }
+        } catch (e) { geoDone = true; i = list.length; }
+        if (i >= list.length && geoDone) res(); else setTimeout(tick, 0);
+      };
+      setTimeout(tick, 0);
+    });
+  }
+  function sceneTexList(sc) {
+    const texs = new Set();
+    const uni = U => { if (U) for (const k in U) { const v = U[k] && U[k].value; if (v && v.isTexture) texs.add(v);
+      else if (Array.isArray(v)) for (const x of v) if (x && x.isTexture) texs.add(x); } };
+    const grab = m => { if (!m) return; for (const k in m) { const v = m[k]; if (v && v.isTexture) texs.add(v); }
+      uni(m.uniforms);
+      const pr = renderer.properties && renderer.properties.has && renderer.properties.has(m) ? renderer.properties.get(m) : null;
+      if (pr && pr.uniforms && pr.uniforms !== m.uniforms) uni(pr.uniforms); };
+    sc.traverse(o => { if (o.material) for (const material of (Array.isArray(o.material) ? o.material : [o.material]))
+      (groundCache ? groundCache.materials(material) : [material]).forEach(grab); });
+    if (sc.environment) texs.add(sc.environment);
+    if (sc.background && sc.background.isTexture) texs.add(sc.background);
+    return [...texs].filter(t => !(groundCache && groundCache.ownsTexture(t)) && (t.image || t.isDataTexture || t.isCanvasTexture));
+  }
   function uploadSliced(sc, id, label) {
     const texs = new Set();
     const uni = U => { if (U) for (const k in U) { const v = U[k] && U[k].value; if (v && v.isTexture) texs.add(v);
