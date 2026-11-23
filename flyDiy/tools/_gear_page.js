@@ -192,7 +192,7 @@ const WHEEL_ROWS = [
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat'], notCycle],
   ['whValve', 'valve stem', 0, 1, 1, notCycle],
   ['whBrake', 'brake type', 0, 2, 1, ['disc', 'drum', 'car drum (inside the rim)'], notCycle],
-  ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
+  ['brkHold', 'brakes (hold, mass)', 0, 4, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs', 'sailplane wheel drum']],
   // CAR-3 (WHEEL-TEX): the tyres' and rims' own PBR maps - the tread, the sidewall's lettering, the wear and the dirt
   // (absent = the plain materials); the pattern (auto: a car all-season, an aeroplane ribbed) and the dirt. Not on the
   // bicycle wheel (wheelCycle draws its own)

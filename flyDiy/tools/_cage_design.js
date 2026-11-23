@@ -1130,7 +1130,8 @@ function iconBrake(mode) {
   const cal = (x, y) => ({ d: 'M' + P2(x - 3, y - 4) + ' L' + P2(x + 3, y - 4) + ' L' + P2(x + 3, y + 4) + ' L' + P2(x - 3, y + 4) + ' Z', w: 1 });
   const paths = [{ d: ring(16) }, { d: ring(4) }];
   if (mode === 1) paths.push({ d: ring(10), w: 1 });
-  if (mode >= 2) { paths.push({ d: ring(9), w: 1 }); paths.push(cal(32, 11)); }
+  if (mode === 4) paths.push({ d: ring(7), w: 1 });   // (the sailplane's one small drum)
+  if (mode >= 2 && mode <= 3) { paths.push({ d: ring(9), w: 1 }); paths.push(cal(32, 11)); }
   if (mode === 3) paths.push(cal(32, 29));
   return { vb: '0 0 64 40', paths };
 }
@@ -2279,9 +2280,10 @@ const DESIGN_ROWS = [
     options: () => [['as it was', 'locks the wheels on any surface (the old law, no mass)', 0],
                     ['Heel drums', 'about 0.2 g on a 550 kg aeroplane: the J-3, the D.112', 1],
                     ['Single-caliper discs', 'Cleveland class: about the grass grip of a 600 kg aeroplane', 0],
-                    ['Double-caliper discs', 'Beringer / Grove class: the bush builds', 0]]
+                    ['Double-caliper discs', 'Beringer / Grove class: the bush builds', 0],
+                    ['Sailplane drum', 'one small drum in a glider\'s wheel, on the airbrake handle', 1]]
       .map(([label, note, drum], i) => {
-        const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double'][i];
+        const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double', 'sailplane'][i];
         const R = B && k ? B[k] : null;
         // (a slot tile writes its own row only, GATE DESIGN: the drawn brake stays the gear page's whBrake row)
         void drum;
@@ -3481,7 +3483,22 @@ const ARCHETYPES = [
             // 0.58 m (the shorter case brought the blades into the aft pod). And the motor BOLTED ON THE MAST in the frame
             // (61_gen_frame: a hanging nacelle's pusher ties to the mast's back face, no 4130 bearers billed: -3.6 kg)
             spec: { fuel: { litres: 0 },
-                    energy: { kind: 'battery', cell: 'nmc', vessels: [{ bay: 'underFloor', capacity: 2 }] },
+                    // THE PACKS WHERE THE REAL ONES ARE (15 Nov, the user: "at the level of the thighs of the pilot"; then
+                    // the photos: TWO packs standing on the cabin's side walls, left and right of the pilot's legs, below the
+                    // sill, forward of the seat). It had no station (L7: 'under the floor', settled by the bay at 1.18 m, 0.13 m
+                    // AFT of the seat); now the cabin bay, one 1 kWh pack a side at 0.85 m aft of the datum (the photo's
+                    // box: ~0.71-1.14 m against the nose and the wheel, ~0.3 m ahead of the hip), mid-wall (lv 0.35: floor
+                    // to sill). A real figure, not a re-tune
+                    energy: { kind: 'battery', cell: 'nmc', vessels: [{ bay: 'cabin', capacity: 1, along: 0.85, lv: 0.35 },
+                                                                      { bay: 'cabin', capacity: 1, along: 0.85, lv: 0.35 }] },
+                    // THE NOSE WATER TANK (the user, 15 Nov: "add 5 kg weight ballast in nose", then "remove the ballast
+                    // option and replace with the tanks, including for the archaeopteryx"): 5 L of water in the very nose,
+                    // full - standing for the rescue parachute and the kit stowed there, which nothing else bills - and
+                    // the pilot can dump it (GEN_RULES.water: the outlet straight down, the valve, the shower). The nose bay
+                    // (this pod's datum, x 0, is the panel's ring; the nose cone runs to -0.43): a long slim cylinder
+                    // 0.52 x 0.115 x 0.12 m centred 0.06 m ahead of it - the pod's nose is tight, the layer reads it 1 mm
+                    // into the nose's shoulder (a cubic 5 L tank 17-47 mm; a slimmer one fits and holds 4 L)
+                    water: { vessels: [{ bay: 'nose', capacity: 5, fill: 1, along: -0.06, lv: 0.3, form: 'cyl', dims: { L: 0.52, W: 0.115, H: 0.12 } }] },
                     systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi'] },   // (L3: airspeed, altimeter, vario)
                     // (WEIGHT STUDY: white from the gelcoat and the cloth - no paint, 5.1 -> 0 kg; the registration is vinyl)
                     paint: { job: 'self', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
@@ -3490,6 +3507,76 @@ const ARCHETYPES = [
                       sections: { ...BODY_PAINT(0xf3f4f1), wingSkin: { tint: 0xf3f4f1 }, finSkin: { tint: 0xf3f4f1 },
                                   stabSkin: { tint: 0xf3f4f1 }, boomTube: { tint: 0xf3f4f1 }, boomSkin: { tint: 0xf3f4f1 } } },
                     meta: { reg: 'HB-WXA' } } } },
+  // THE LS4-ALIKE (the user 13-15 Nov: the LS4 from the motorglider - the sailplane preset's pod, engineless, the
+  // LS4's wing and tail fitted to the factory sheet 1U-87 and the 0-4 m three-view (tools/ref_match/refs/ls4/), the
+  // retracting ultralight monowheel, the wingtip skids, the clear canopy; then: the wing at 15 % (the LS4's thin-section
+  // Wortmann mod., the FX 67-K-150's thickness), 170 L of water in the wings (2 x 85 L, the LS4-a / -b's bags) dumped by
+  // 20 mm outlets in ~3.4 min, the CG tow release, the sailplane category (+5.3 g, CS-22), Schempp-Hirth airbrakes
+  // (0.30-0.46 of the semispan, 0.2 c plates). The card is the motorglider's tiles and the rows the build
+  // builds/ls4_2026-11-13.json differs by (the fit's own record: born_ls4.js + prototype_cage.json + the later rows).
+  // Open: the mass (204 kg empty against the LS4-b's 238), the drag (L/D ~17 here: the drag study)
+  { key: 'ls4', kind: 'recreation', name: 'LS4-alike', note: 'Standard Class sailplane, 15 m, ' +
+      'water ballast, airbrakes, retracting monowheel',
+    sel: {class: "sail",role: "glider",seatLayout: 0,paxCount: 0,canopy: "bubble",mirror: 1,intCons: 5,boomStyle: 0,section: 3,wgPos: 1,wgBrace: 1,wgTip: 2,wgFlapType: 0,engFamily: "electric",engModel: "pipistrel E-811",engMount: "nose",gearLayout: "tail",suspension: "spring",s1Fair: 1,empennage: "t",scheme: "trim",base: 15722191,trim: 1784412},
+    over: { cage: {
+                    planeScale: 0.595, boomLen: 6.14, cabPillarW: 0.085, paxPillarW: 0.115, pillarW: 0.085,
+                    halfW: 0.43, roofHalfW: 0.41, roofY: 0.625, keelY: -0.74, ceilInset: 0.2, waistY: -0.05,
+                    bandH: 0.084, aftRoofY: 0.47, aftKeelY: -0.635, tailRoofY: 0.18, tailKeelY: 0.08, ringPullIn: 0,
+                    apilW: 1.12, noseLen: 0.97, noseW: 0.9, pfW: 1.21, topComp: 1.15, bubble: 0, crFrontCap: 0,
+                    crNoseCap: 0, botRound: 0.36, cowlEase: 0.53, cowlBulge: 0.975, noseFinish: 1, aeroNose: 1,
+                    aeroLen: 1, aeroDroop: 0, aeroTipW: 0.08, aeroTipH: 0.08, boomMidPinch: 0.75, bubH: 0.9,
+                    bubAt: 0.55, canLoops: 3, bubH2: 0.56, bubAt2: 0.18, bubH3: 0.5, bubAt3: 0.78, noseTip: 0.98,
+                    aftNoseTip: 0.21, noseJointOn: 0, aftRingWinW: 0.08, aftRingScrW: -0.03, aftRingCowl1W: 0,
+                    aftRingCowl2W: 0, aftPilotLen: 0.42, aftWsRun: 0.95, aftNoseLen: 0.75, aftNoseW: 0.98,
+                    aftNoseH: 1.2, aftDroop: -0.005, aftNoseCrown: 0.585, aftCowlEase: 0.03, aftCowlBulge: 0.985,
+                    aftWsBaseLift: 0.255, aftWsTopOff: 0.081824, aftWsBaseBow: 0.45, aftWsCeilBow: 0.3,
+                    aftCowlLoops: 2, aftRingNoseTop: 0.285, aftRingNoseBot: -0.14, frNoseTopY: -0.39999999999999997,
+                    frWinBotY: -0.68329950868154, frPostWaistW: 0.545, frPostBotW: 0.545, frCabWaistW: 0.545,
+                    frCabBotW: 0.545, rimW: 0.01, doorSill: 0.094, dashHood: 1, canClear: 1,
+                    stY: -0.06, stZ: 0.25, stSpan: 1.027, stChord: 0.59, finVentralOn: 0, finFillet: 0.04,
+                    finDorsal: 0, finTipZ: 0.25, finTipY: -0.3, finAftZ: 0, finAftY: -0.3, finBaseZ: 0, finBaseY: 0,
+                    finMidY: -0.2, finUY: 0, finLEZ: -0.1, finShoulderZ: 0.15, finSharpBase: 3, finSharpLE: 3,
+                    finHeight: 0.98, finChord: 1.12, finChordTip: 0.8, finSweep: 4, wgSpan: 15, wgChord: 0.9,
+                    wgChordTip: 0.36, wgTipX: 0.09, wgCrankChord: 0.72, wgCrankX: 0.05, wgWashout: 2.1, wgThick: 15,
+                    wgTipSkid: 1, wgTipSkidH: 0.06, wgCrankAt: 0.6, wgDx: -1.04, wgCons: 6, engOn: 0, cowlOn: 0,
+                    s1Z: 0.6, s1X: 0, s1R: 0.155, s1Drop: 0.05, s1Fair: 0, s2Drop: 0.05, s2Fair: 0, whProfile: 3,
+                    s2_twSpringLen: 0.12, s2_twSpringDrop: 0.02, s2_twLegDrop: 0, gearRetract: 1, gearRetT: 3,
+                    gearRetAct: 2, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1, gearWellCut: 0, gearDoors: 2,
+                    gearLegDoor: 1, gearNacFit: 1, gearNacPod: 0, gearShort: 0, gearShortNose: 0, gearKneeDoor: 0,
+                    gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0, gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0,
+                    gnTwist: 0, seatType: 11, seatH: 0, seatGap: 0.285, pedalSpread: 0.09, pilElbows: 0,
+                    pilRecline: 6,
+                    // THE PILOT LYING BACK (the user 16 Nov: "the pilot is still sitting a little forward. In the
+                    // pictures, the head is really at the back of the canopy ... ensure that the pedals and the controls
+                    // and all that stuff do not poke through"): the seat 0.44 m aft of the cabin's aft ring (the mirrored
+                    // section - nothing holds it in the cabin), its back at 50 deg, the boards 25 mm up off the keel; the
+                    // head in the canopy's rear third, 3 cm under the glass; the stick between the knees (aft, its pivot
+                    // inside the belly), the feet on the pedals under the panel; no throttle (an engineless glider) and so
+                    // the airbrakes' blue handle on the LEFT wall in the left hand; no centre console. Every crew part
+                    // inside the skin (the cut and the poke check: scratchpad tools, HANDOVER 16 Nov)
+                    seatZ: -0.40, seatRake: 50, floorLift: 0.025, consoleOn: 0, ctlThr: 3,
+                    stickZ: -0.15, stickY: 0.02, stickLen: 0.33, pedalZ: 1.03, pedalH: 0.15,
+                    // THE INSTRUMENT POD (the user 16 Nov: "The dash in the real plane really protrudes ... maybe 40,
+                    // even 50 centimeters ... have this thing go slightly up and bulge a little"; "bring the pedals ...
+                    // closer to the feet ... extend his feet a tad more"): the moulded hood 0.42 m further aft (dashBack
+                    // 0.10 -> 0.70 cage, its range opened to 1.00), crowned 0.18 m, its face shallow (dashDepth 0.42 ->
+                    // 0.12) so the extended legs run under it, the seat 4 cm forward again; no clash of the body with the
+                    // pod (the clash check), nothing through the skin. The portable GPS finds no room for its cradle under
+                    // the glass: named, not drawn (still billed)
+                    dashBack: 0.70, dashCrown: 0.30, dashDepth: 0.12,
+                    noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 2, brkHold: 4,
+                    wgBrake: 1, wgBrakeAt: 0.3, wgBrakeLen: 0.16, wgBrakeH: 0.2,
+                    },
+            // THE KIT (the user 15 Nov: "let's try to bridge the weight gap ... More avionics, heavier batteries? Paint,
+            // seat?"): a sailplane's panel - the airspeed, the altimeter, the vario, the compass - a VHF radio, a Mode-S
+            // transponder (the competition glider's), a portable GPS in a cradle standing for the flight computer, the
+            // glider's batteries (one lead-acid 16 Ah row, ~7 kg: two 12 V 7 Ah gel cells are ~5), a moulded seat pan with
+            // its cushion and harness. No paint: the white is the gelcoat, already in the glass row's cover
+            spec: { systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi', 'compass'], elec: { battery: 'lead' },
+                               avionics: { com: 'compact', xpdr: 'modeS', gps: 'portable' } },
+                    outfit: { seats: 'basic' },
+                    paint: {job: "self",sweep: 0,base: 15987953,trim: 1520222}, finish: {sections: {body: {tint: 15987953}}},
+                    water: {vessels: [{bay: "wingRoot",capacity: 140,fill: 1,outletD: 0.02},{bay: "wingPanel",capacity: 30,fill: 1,outletD: 0.02}]} } } },
   // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
   // a couple of them. I'm thinking a luxury, small tourer, like the Diamond
   // DA62 or the Beechcraft Baron, and a larger plane (maybe our first)".

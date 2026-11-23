@@ -486,7 +486,7 @@ function renderPanel() {
         pair && k === 'gps2' ? 'the MFD: the moving map with the engine strip down its left, on the avionics bus behind its breaker'
           : 'the moving map: the island, your track, the next waypoint and the ground speed, alive on the avionics bus behind its breaker');
       const line = S && S.line === 'centre' ? 'beside the PFD' : S && S.line === 'copilot' ? 'in front of the passenger' : 'in front of the pilot';
-      d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : 'on the panel, ' + line)
+      d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : S.side ? 'on a side arm, on the right wall' : 'on the panel, ' + line)
         : (lay2 ? 'no room on this dash — not fitted, not billed' : '…')));
       if (lay2 && !S) d.lastChild.style.color = '#e08a5a';
     }
@@ -2546,6 +2546,17 @@ function build(parent, A, P, pilotX) {
       bevelBlockInto(foot, S.cx, S.top + 0.003, S.z + 0.02, S.z - 0.02, 0.022, 0.003, 0.001);
       K.revolve(foot, [S.cx, S.top, S.z + 0.006], [0, 1, 0], [[0.006, 0], [0.006, 0.014], [0, 0.014]], 16, false);
       foot.mesh(grp, matFor('plate'));
+    } else if (S.side) {
+      // THE SIDE ARM (16 Nov 2026, _panel_gen's side mount): a clamp on the wall, a rod inboard to the unit's back,
+      // the unit turned (S.yaw) toward the pilot and leaning back 8 deg, in the panel's own (unrotated) frame
+      sg = new THREE.Group();
+      sg.position.set(S.cx, S.cy, S.z);
+      sg.rotation.set(0.14, S.yaw, 0, 'YXZ');
+      grp.add(sg);
+      const K = KIT(), arm = K.Bag(), xw = S.wallX, xb = S.cx - S.sd * 0.012;
+      K.boxIn(arm, [xw - S.sd * 0.004, S.cy, S.z], [0.004, 0.028, 0.018], [1, 0, 0], [0, 1, 0], [0, 0, 1]);   // the clamp on the wall
+      K.revolve(arm, [xw - S.sd * 0.008, S.cy, S.z], [-S.sd, 0, 0], [[0.006, 0], [0.006, Math.abs(xw - xb) - 0.008], [0, Math.abs(xw - xb) - 0.008]], 14, false);   // the rod
+      arm.mesh(grp, matFor('plate'));
     } else sg = standOn(S.cx, S.cy, Math.min(S.w, S.h) * 0.4);
     sg.name = S.k === 'gps2' ? 'edGps2' : 'edGps';
     gpsUnitAt(sg, S, R.avionics.gps, S.k === 'gps2' ? 1 : 0);
