@@ -60,7 +60,8 @@ async function fly() {
   // --again (with --only): fly the named missions even when their row is current - a row is keyed by the mission's record,
   // and a change of the HARNESS (how a kind of mission is flown) leaves the key as it was
   let todo = list.filter(m => (!current(m) || (only && has('again'))) && (!only || only.includes(m.id)));
-  todo.sort((a, b) => { const ia = FIRST.indexOf(a.id), ib = FIRST.indexOf(b.id); return (ia < 0 ? 1e6 : ia) - (ib < 0 ? 1e6 : ib); });
+  const ORD = only || FIRST;   // (--only names its own order: the list as given)
+  todo.sort((a, b) => { const ia = ORD.indexOf(a.id), ib = ORD.indexOf(b.id); return (ia < 0 ? 1e6 : ia) - (ib < 0 ? 1e6 : ib); });
   todo = todo.slice(0, max);
   console.log('story_feas: ' + todo.length + ' mission(s) to fly of ' + list.length + ' (' + (list.length - list.filter(m => !current(m)).length) + ' rows current), ' + workers + ' at a time');
   const packs = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy-storyfeas-packs-'));
