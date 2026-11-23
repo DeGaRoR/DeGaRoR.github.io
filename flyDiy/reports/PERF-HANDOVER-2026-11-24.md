@@ -16,11 +16,11 @@ otherwise. Evidence folders are under `D:/Dev/flydiy-notes/evidence/` (not in gi
 | 3 | World ready behind the garage | 60 s | not applicable (one loading screen) | 80-89 s after the menu with the world-build switches (97 without); 77 s returning |
 | 3b | Go to flying, world ready | 3 s (the roll-out shot, ~11 s, not counted) | 2.5 s | 0.3 s on the screen with garage first, no loading screen; Go at 5 s joins the load (80-84 s, the same total) |
 | 5 | Change garage | under 5 s | about 20 s unprepared | 0.25 s prepared ahead (the Game coordinator's ROOMS 6) |
-| 7 | Garage freeze | none over 100 ms | 1-2 a visit | garage first, while the world loads (about 50 s): 153 tasks of 50 ms+ / 45 over 100 / worst 2.3 s at first; 62 / 19 / 1.42 s on perf-lead-1 (9 % of the time); the 1.42 s named and removed in perf-lead-2 (section 4.1) |
+| 7 | Garage freeze | none over 100 ms | 1-2 a visit | garage first, while the world loads (about 50-90 s): 153 tasks of 50 ms+ / 45 over 100 / worst 2.3 s at first; 62 / 19 / 1.42 s on perf-lead-1; on perf-lead-2 both 1.4 s freezes gone, 12-17 over 100 ms left, the worst 0.6-0.9 s right after the world step (section 4.1) |
 | 8 | World freeze, first 8 min of the journey | none over 100 ms | 25-31 frames | 7 with the flight switches |
 | 9 | Evenness | 5 % of 20-second blocks | 88-100 % | 84 % |
 | 13 | 30 fps in flight | 95 % of seconds at 29+ frames | 55 % (the GPU alone takes 33 ms a frame) | 72 % (GPU 24 ms) |
-| 14 | Crash | no wait over 250 ms for a new picture | the page shown 6.3-10.3 s | MET once on perf-lead-1 (23 Nov 14:22): no page, nothing linked after the impact, worst frame 150 ms, 10 frames over 100 ms, longest screen gap 161 ms |
+| 14 | Crash | no wait over 250 ms for a new picture | the page shown 6.3-10.3 s (6.7 s on L40K, twice) | MET on two builds (23 Nov 14:22 and 16:37): no page, nothing linked after the impact, worst frame 133-150 ms, 5-10 frames over 100 ms, longest screen gap 138-161 ms |
 | 15 | No blue screen, ever | never | at every crash; single frames in flight | none at a crash; none in 500 s of the journey (guard default `ground`, 13:00); the guard's settle patch for cache-hit materials is in perf-lead-1 |
 
 Row 11 (music during loading): PASS (109 s audible, also behind a garage-first load; AUDIO-ROBUST's rig). Rows 4, 6, 10, 12: see section 6.
@@ -143,6 +143,15 @@ row 11 music during loading: AUDIO-ROBUST's rig (`tools/audio/stall_rig.js`, ver
 - The built files (`index.html`, `dev.html`, `sw.js`, `version.json`, `tools/flight_core.js`) stay modified in a lab
   worktree; putting them back from git leaves a stale core and every rig load refuses.
 
-## 8. The other sessions' sections
+## 8. The other sessions' own handovers (read them: each is the detail of its part)
 
-(PERF-TRACE, PERF-WORLDBUILD, PERF-SLIDERS: appended below from their own files.)
+- `flyDiy/reports/PERF-TRACE-HANDOVER.md` and `flyDiy/tools/PERF_TRACE.md` (PERF-TRACE): every program named and owned,
+  the who-table of link waits (which program a frame waited on, who linked it, in which step, what else linked beside
+  it), the freeze ledger, the scene split (`?recscene=1`). The who-table is what named the garage's freezes.
+- `flyDiy/reports/PERF-WORLDBUILD-HANDOVER.md` (PERF-WORLDBUILD): the world build in workers and steps - what is under
+  which switch, the steps table, the host's contract (`window.FLYDIY_WORLD_BUDGET.left()`), its gates, its next three
+  cuts (the impostor sheets' readbacks; a station's build; the raster's tile decodes).
+- `flyDiy/reports/PERF-SLIDERS-HANDOVER.md` (PERF-SLIDERS, on its own branch until its ready lands): the sliders' table
+  on 30 aeroplanes, the release rules (landed as perf-sliders-release-1 / -2), the drag budget and the derived read
+  (not fully gated on 23 Nov: a preview build only).
+- The Deform Coordinator's crash work is in its HANDOVER.md entries (crash prelink, wreck rest, wreck clear).
