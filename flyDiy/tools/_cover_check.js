@@ -539,10 +539,10 @@ function splitRings() {
 // 14 THE ALPINE ROCKS (MOUNTAIN-VEG, the user 22 Nov: "a lot more rocks in the alpine section ... rocks are a bit like trees" and "not to
 // land very easily on mountain tops"): a mix's forest.rockUp [h0, h1, k] multiplies its rocks above the band (and fades the exposed rule);
 // the rocks' own ring registers each landed cell's big rocks as ONE trunk-law hit set (world.treeHits) and drops it with the cell;
-// ?alprocks=0 = neither
+// ?alprocks=0 = neither; the runs ask ?alprocks=1 / =0 outright, so the check holds whichever default a branch ships (the lab: off)
 function alpRing(height, off) {
   const B = boot(), { THREE, ctx } = B;
-  if (off) ctx.location = { search: '?alprocks=0' };
+  ctx.location = { search: off ? '?alprocks=0' : '?alprocks=1' };   // (MOUNTAIN-VEG 23 Nov: the lab's default is OFF unless ?alprocks=1 - the 'on' runs ask for it, as a player of the lab would)
   B.load(path.join('src', 'viewer', 'trees.js')); B.load(path.join('src', 'core', '29_obstacles.js'));
   const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
   const cols = [{ name: 'rocks', kind: 'rock', place: {} }];
