@@ -119,7 +119,24 @@ function crashWindow(log, opt) {
   if (row14.met !== null) row14.met = row14.met && row14.worstStillMs <= 250 + EDGE;
   const blue = after.filter(f => f.few && !f.noRender && f.ctx === 'world'), guards = events.filter(e => e.kind === 'guardhold' && e.t >= T && e.t <= Z);
   const errs = events.filter(e => (e.kind === 'err' || e.kind === 'contextlost' || e.kind === 'contextrestored') && e.t >= A && e.t <= Z).map(e => ({ s: s(e.t), what: e.kind + ': ' + String(e.d).slice(0, 160) }));
-  return { kind: 'flydiy-crash-window', v: 1, build: H.build || null, gpu: (H.gpu || {}).unmaskedRenderer || null, canvas: H.canvas ? H.canvas.w + 'x' + H.canvas.h : null, impact: { t: r1(T), sinceRevealS: r1((T - reveal) / 1000), by, restS: rest ? s(rest.t) : null }, marks: marksAll,
+  // ---- the seconds after (23 Nov, the 07:00 crash rows) ------------------------------------------------------------
+  // The longest frames say how bad; this says HOW LONG, and whether it ends: half-second bins to 9 s, seconds after - the
+  // frames a second, the loop's work, each slot's cost over its usual one, and the programs still linking (linked after the
+  // impact, not ready yet). The first read: the `scene` slot stays 40-50 ms over its usual 2 ms for the whole 20 s, with
+  // the wreck at 0 m/s and no program linking - the frame rate after a crash is the wreck's own cost, not the links'.
+  const medOf = a => median(a.filter(x => x === x)), series = [];
+  for (let b = -2; b < AFTER / 1000; b += (b < 9 ? 0.5 : 1)) { const w = b < 9 ? 0.5 : 1, Fb = frames.filter(f => f.s >= b && f.s < b + w); if (!Fb.length) continue;
+    const ex = k => r1(medOf(Fb.map(f => f.slots[k] || 0))), t0 = T + b * 1000, t1 = t0 + w * 1000;
+    series.push({ s: b, w, frames: Fb.length, fps: Math.round(Fb.length / w), dtMed: r1(medOf(Fb.map(f => f.dt))), workMed: r1(medOf(Fb.map(f => f.work))), scene: ex('scene'), render: ex('render'), shader: ex('shader'), cover: ex('cover'),
+      spd: r1(medOf(Fb.map(f => f.spd))), linking: progs.filter(p => p.three && p.t >= T && p.t < t1 && (p.readyT == null || p.readyT > t0)).length }); }
+  const tail = series.filter(x => x.s >= 10), lastLinkS = progs.filter(p => p.three && p.t >= T && p.t <= Z && p.readyT != null).reduce((a, p) => Math.max(a, s(p.readyT)), 0);
+  const atRest = tail.length ? { fromS: 10, fps: medOf(tail.map(x => x.fps)), workMs: r1(medOf(tail.map(x => x.workMed))), sceneOverMs: r1(medOf(tail.map(x => x.scene))), linkingMax: Math.max(...tail.map(x => x.linking)), spd: r1(medOf(tail.map(x => x.spd))), lastLinkReadyS: lastLinkS || null } : null;
+  // (the scene slot's own split: ?recscene=1 samples one frame in 31 - pose, contact shadows, damage marks, camera, meshes, water - 'sceneDetail' [frame, ...ms])
+  const SD = events.filter(e => e.kind === 'sceneDetail' && Array.isArray(e.d)), sdCols = ((H.sceneDetail || {}).columns || ['frame', 'pose', 'contact', 'damage', 'camera', 'meshes', 'water']).slice(1);
+  const sdOf = (a, b) => { const X = SD.filter(e => e.t >= a && e.t < b); return { samples: X.length, ms: X.length ? sdCols.map((c, i) => r1(medOf(X.map(e => e.d[i + 1])))) : null }; };
+  const sceneDetail = SD.length ? { columns: sdCols, before: sdOf(T - 20000, T), spans: [[0, 3], [3, 8], [8, AFTER / 1000]].map(([a, b]) => Object.assign({ from: a, to: b }, sdOf(T + a * 1000, T + b * 1000))) } : null;
+  return { kind: 'flydiy-crash-window', v: 1, build: H.build || null, gpu: (H.gpu || {}).unmaskedRenderer || null, canvas: H.canvas ? H.canvas.w + 'x' + H.canvas.h : null, impact: { t: r1(T), sinceRevealS: r1((T - reveal) / 1000), sinceFirstRevealS: reveals.length > 1 ? r1((T - reveals[0]) / 1000) : null, by, restS: rest ? s(rest.t) : null }, marks: marksAll,
+    series, atRest, sceneDetail, sceneUsualMs: r1(med.scene),
     before: BEFORE / 1000, after: AFTER / 1000, usual: { workMs: r1(med.work), calls: med.calls, tris: med.tris, gpuMs: r1(med.gpu) }, row14, hasBody: progs.some(p => Array.isArray(p.body)),
     linked: { programs: linked.length, kb: linked.reduce((a, p) => a + (p.kb || 0), 0), heldMs: r1(linked.reduce((a, p) => a + (p.heldMs || 0), 0)), byKind: group(linked), rows: linked.sort((a, b) => a.s - b.s) },
     firstUsed: { programs: firstUsed.length, firstUseMs: r1(firstUsed.reduce((a, p) => a + (p.firstUseMs || 0), 0)), byKind: group(firstUsed), rows: firstUsed.sort((a, b) => (b.firstUseMs || 0) - (a.firstUseMs || 0)) }, raw,
@@ -134,7 +151,7 @@ function text(R) {
   const mk = R.marks && R.marks.length ? '  the script\'s marks (s after the reveal): ' + R.marks.map(m => m.mark + ' ' + m.s).join(', ') : '  the log has no script marks';
   if (!R.impact) { L.push('CRASH WINDOW  build ' + (R.build || '?') + ': NO IMPACT FOUND - ' + R.why); L.push(mk + '   (--at S or --mark name places it)'); return L.join('\n'); }
   L.push('CRASH WINDOW  build ' + (R.build || '?') + '  ' + (R.gpu || '') + '  canvas ' + (R.canvas || '?'));
-  L.push('  THE IMPACT: ' + R.impact.sinceRevealS + ' s after the reveal, by ' + R.impact.by + (R.impact.restS != null ? '; the wreck at rest ' + R.impact.restS + ' s later' : ''));
+  L.push('  THE IMPACT: ' + R.impact.sinceRevealS + ' s after the reveal' + (R.impact.sinceFirstRevealS != null ? ' (the LAST of the log\'s reveal events; ' + R.impact.sinceFirstRevealS + ' s after the first, the origin slot_frames.js and the rig\'s t+ use)' : '') + ', by ' + R.impact.by + (R.impact.restS != null ? '; the wreck at rest ' + R.impact.restS + ' s later' : ''));
   L.push(mk);
   L.push('  before it the loop took ' + R.usual.workMs + ' ms a frame with ' + R.usual.calls + ' draw calls, ' + R.usual.tris + ' triangles, GPU ' + R.usual.gpuMs + ' ms');
   const W = R.row14;
@@ -155,6 +172,16 @@ function text(R) {
     if (f.guard.length) bits.push('GUARD HELD ' + f.guard.map(g => (g && g.held) || g).join('+') + ' draws');
     if (f.few) bits.push('FEW DRAWS'); if (f.noRender) bits.push('no render'); if (f.tasks >= 50) bits.push('a task of ' + Math.round(f.tasks) + ' ms'); if (f.errs.length) bits.push(f.errs.join('; '));
     L.push('  ' + lp(f.s, 7) + lp(f.dt, 8) + lp(f.work, 8) + lp(f.calls, 7) + lp(f.tris != null ? r1(f.tris / 1e6) : null, 8) + lp(f.gpuMs, 7) + lp(f.spd, 6) + '  ' + (bits.join(' | ') || 'nothing recorded')); }
+  if (R.series && R.series.length) { L.push(''); L.push('THE SECONDS AFTER THE IMPACT (medians a bin; + = a slot\'s cost over its usual one before the impact, the scene slot\'s usual ' + R.sceneUsualMs + ' ms; linking = programs linked after the impact and not ready yet)');
+    L.push('  ' + lp('from s', 8) + lp('frames', 8) + lp('a second', 10) + lp('frame ms', 10) + lp('work ms', 9) + lp('scene +', 9) + lp('render +', 10) + lp('shader +', 10) + lp('cover +', 9) + lp('m/s', 7) + lp('linking', 9));
+    for (const x of R.series) L.push('  ' + lp(x.s, 8) + lp(x.frames, 8) + lp(x.fps, 10) + lp(x.dtMed, 10) + lp(x.workMed, 9) + lp(x.scene, 9) + lp(x.render, 10) + lp(x.shader, 10) + lp(x.cover, 9) + lp(x.spd, 7) + lp(x.linking, 9));
+    const Q = R.atRest; if (Q) L.push('  THE WRECK AT REST (from ' + Q.fromS + ' s, ' + Q.spd + ' m/s): ' + Q.fps + ' frames a second, the loop ' + Q.workMs + ' ms against ' + R.usual.workMs + ' before the impact; the scene slot ' + Q.sceneOverMs + ' ms over its usual, ' + Q.linkingMax + ' program(s) linking' +
+      (Q.lastLinkReadyS ? ' (the last link was ready ' + Q.lastLinkReadyS + ' s after the impact)' : '') + (Q.linkingMax === 0 && Q.sceneOverMs >= 8 ? '  <- NOT THE LINKS: the wreck costs this every frame, at rest' : ''));
+    const D = R.sceneDetail;
+    if (D) { L.push('  INSIDE THE SCENE SLOT (?recscene=1: one frame in 31, ms, medians): ' + lp('', 2) + D.columns.map(c => lp(c, 9)).join(''));
+      const line = (name, x) => L.push('    ' + name.padEnd(30) + (x.ms ? x.ms.map(v => lp(v, 9)).join('') + '   (' + x.samples + ' samples)' : '  no sample'));
+      line('the 20 s before the impact', D.before); for (const x of D.spans) line(x.from + ' to ' + x.to + ' s after it', x); }
+    else if (Q && Q.sceneOverMs >= 8) L.push('  INSIDE THE SCENE SLOT: not recorded - ?recscene=1 on the page splits it (pose, contact shadows, damage marks, camera, meshes, water)'); }
   for (const [title, S, kind] of [['PROGRAMS LINKED AFTER THE IMPACT', R.linked, 'l'], ['LINKED BEFORE THE IMPACT, FIRST DRAWN AFTER IT', R.firstUsed, 'u']]) {
     L.push(''); L.push(title + ': ' + S.programs + (kind === 'l' ? ' (' + S.kb + ' KB; draws held on them ' + S.heldMs + ' ms)' : ' (' + S.firstUseMs + ' ms of first use)'));
     if (!S.programs) continue;

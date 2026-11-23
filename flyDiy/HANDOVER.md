@@ -318376,3 +318376,23 @@ PERF-TRACE 7 (23 Nov: the user's row 14 - "less than 250 ms freeze on crash, and
   own budgetMs 2-4 ms, then blockBudget block rebuilds with no ms cap). A layer whose update took 4 ms or more reports itself by the
   streamers' contract: 'deliver' ms { s: 'cover ring: <layer>', n: cells planted, plantMs, blocks, blockMs, queued }. slot_frames.js sums
   them by layer. The dials: window.TREE_FILL.cover() / .grass() / .lawn() / .rockLayer(), each get() / set({ budgetMs, blockBudget }), live.
+
+PERF-TRACE 7c (23 Nov, tools only: the 07:00 window's crash rows and a garage-first load's CPU profile)
+- THE RECORDER'S GL WRAPPERS IN A CPU PROFILE ARE THE GL CALLS, NOT THE RECORDER: a sampled profile has no frame for a native WebGL call,
+  so its time lands as SELF time of the function that made it - with the recorder on, flight_recorder.js's wrapper in place of three's.
+  One garage-first load: `held` 6 022 ms in the profile against 5 990 ms of 'linkwait' in the log; gl.<computed> 1 728 against
+  gpuData.texMs 1 706; gl.bufferData 744 against bufferMs 767. Nothing to switch off. What the 6 s ARE: draws blocked on a link.
+- tools/link_waits.js <log> [--until garage|reveal|world|all]: the page blocked on a link, by owner and by boot step, the longest first,
+  each "at once" (drawn within 100 ms of its own link: a prelink ahead of the first draw removes it) or "late". That load: the sky's
+  programs 3.9 s of the 6.0 (clouds / dome 1.4 s into the hangar's cube and 1.5 s into the world's target, atmosphere / dome 0.27 + 0.26,
+  the clouds' noise bake 0.35), characters 0.29, the garage's tree cards 0.21.
+- tools/crash_window.js: THE SECONDS AFTER THE IMPACT - half-second bins of the frames a second, the loop, each slot's cost over its
+  usual one and the programs still linking; THE WRECK AT REST; the scene slot's own split where the page ran ?recscene=1 (perf-codex's
+  sceneDetail: one frame in 31 - pose, contact, damage, camera, meshes, water). The four rows of 23 Nov 07:00 (Cub, nose down from
+  50 m): 6-8 frames a second for 3 s, 10 to 7 s, and 13-14 FOR AS LONG AS THE WRECK IS ON SCREEN - the scene slot 40-50 ms over its
+  usual 2 ms with the wreck at 0 m/s and no program linking. Not the links: the break's cage re-posed every frame (Deform's own clock
+  says the same: brkCage 43-51 ms a frame at rest, its rest return never fires). The still itself (6.9-7.9 s) is the 14-16 torn-edge
+  copies (app.js brkCutMat, made when a member parts) linked after the impact; ?holdframe=ground logs none.
+- tools/freeze_ledger.js: a still prints how many of the held draws are the ground family's (the lab's `ground` in 'guardhold').
+  The 07:00 journey: 8 stills in ordinary flight (0.9 s, the longest 229 ms), SIX OF THEM WITH NO PROGRAM LINKING over them - the guard
+  held a frame for a material, not for a link.
