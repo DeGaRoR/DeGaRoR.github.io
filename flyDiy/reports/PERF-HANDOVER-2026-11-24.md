@@ -66,6 +66,12 @@ Row 11 (music during loading): PASS (109 s audible, also behind a garage-first l
      `currentProgram` on the program it asked for; three re-keys a lit material at the next frame, nothing re-keys one
      without lights (the sky's two domes, the outdoors' tree cards), so the frame drew programs still linking. Fixed in
      perf-lead-2: `compileSliced` puts back the program the frames were drawing.
+   - a second 1.4 s at the end of first light, in every run, with or without a long task (a gap between two frames):
+     THE CLOUDS' FIRST DRAW. The march writes two targets and the driver builds that variant on the GPU process's main
+     thread at its first draw (`CLOUDS.warmDraw`'s note); behind a live garage the warm draw held the garage's picture.
+     perf-lead-2 runs it at the boot's end, under the garage's own loading screen (about 1.5 s longer: a named cost;
+     `?gfcloud=late` is the old place). `gf_garage.py` prints THE PICTURE STANDING STILL since: long tasks alone called
+     a row with a 1.45 s frozen picture clean.
    - 0.62 + 0.19 + 0.21 s right after the world step: the world's first textures and buffers in one frame (304 texture
      calls, 1 157 MP; 522 buffers, 244 MB), then a readback (`readRenderTargetPixelsAsync`, `render_world.js sheetStat`).
      OPEN, PERF-WORLDBUILD's side.
