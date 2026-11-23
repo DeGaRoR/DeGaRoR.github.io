@@ -1210,7 +1210,13 @@
      "text": "ms.mine.04.done"
     }
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "PC-6 Turbo Porter",
+    "sim": "L40K",
+    "flownS": 1326,
+    "sig": "c7d274be"
+   }
   },
   {
    "id": "mine.tour",
