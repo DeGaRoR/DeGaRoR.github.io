@@ -1657,6 +1657,12 @@
      "who": "martha",
      "text": "ct.resort.01.done"
     }
+   },
+   "validated": {
+    "with": "Jodel D112",
+    "sim": "L40K",
+    "flownS": 962,
+    "sig": "11c6b7f4"
    }
   },
   {
