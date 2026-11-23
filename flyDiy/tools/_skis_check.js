@@ -5,6 +5,16 @@
 //   node tools/_skis_check.js            -> "GATE SKIS: PASS|FAIL"   (core: sections 1-9)
 //   node tools/_skis_check.js --fly      -> "GATE SKISFLY: PASS|FAIL" (full: the two validation planes' circuits)
 //   node tools/_skis_check.js --bless    write tools/fixtures/skis/base.json from THIS tree (run it in a base worktree)
+//   RE-BLESSED 23 Nov (MASTER-GREEN, on train L40K 56047b34e): SEVEN DEFS, ONE CAUSE; AND THE JODEL'S SHEET AND STEPS. L40K's base (LS4-ARCH a8cbe6b81) was
+//   taken while seven garage rows leaked into every joined build at their defaults - ELECTRIC-TRAINER's frLeanCap,
+//   boomRound, boomRoundAt, finVentralLand and CESSNA-REFIT's cw_keelLevel, cw_deckLevel, cw_deckFall (no
+//   CAGE_DEFAULT_ABSENT entry: every build's certificate / parked / store / procurement keys moved). With them absent
+//   again (tools/_cage_gen.js, this branch) all seven defs lose exactly those seven keys of def.spec.cage - diffed key by
+//   key against L40K, nothing else. THE JODEL'S SHEET AND 300 STEPS moved inside L40K itself (red on plain L40K: bisected
+//   over its merges to 2b2a52772, the merge of ls4-arch-2): node's load door now builds the Jodel at 469.732 kg - the
+//   PAGE's figure (GATE JOINPARITY's capture), where it built 470.666 since REAL-CANON - its tank 50 L, its masses
+//   ~0.1 % lighter, Vs 18.97 -> 18.95 m/s. A correction, blessed as it stands. Every other sheet and every other flown
+//   step is L40K's base to the bit.
 //
 //  1 ABSENT IS AS TODAY: seven builds without skis (the validated six and the Carbon Cub) build the def, the shakedown
 //    sheet and 300 flown steps of the core before the skis, to the bit (tools/_skis_bytes.js, a process a build;
