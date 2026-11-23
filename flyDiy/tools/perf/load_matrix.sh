@@ -81,7 +81,15 @@ SRV=; SRVDIR=
 serve() {   # one static server at a time, restarted when the row's built dir changes
   [ "$1" = "$SRVDIR" ] && return 0
   [ -n "$SRV" ] && kill $SRV 2>/dev/null; SRV=
-  nice -n 19 node "$T/_serve.js" $PORT0 "$1" > "$OUT/srv.log" 2>&1 & SRV=$!; SRVDIR=$1; sleep 3; }
+  nice -n 19 node "$T/_serve.js" $PORT0 "$1" > "$OUT/srv.log" 2>&1 & SRV=$!; SRVDIR=$1; sleep 3
+  # 23 Nov: THE PORT MUST SERVE THIS FOLDER. A leftover server of an earlier run held the port from 22 Nov 15:11, and every
+  # row since that named ANOTHER folder was served the lab build instead (the L40J check's three loads, the garage-first
+  # smoke): _serve.js said "CANNOT SERVE" into srv.log and the row ran all the same. The build the port answers with is
+  # compared with the folder's own version.json; a difference stops the whole run (exit 6).
+  local want got; want=$(tr -d '\r\n ' < "$1/flyDiy/version.json" 2>/dev/null); got=$(curl -s -m 5 "http://localhost:$PORT0/flyDiy/version.json" 2>/dev/null | tr -d '\r\n ')
+  if grep -q "CANNOT SERVE" "$OUT/srv.log" 2>/dev/null || [ -z "$want" ] || [ "$want" != "$got" ]; then
+    echo "SERVER CHECK FAILED: port $PORT0 does not serve $1 (the folder's build: ${want:-none}; the port answers: ${got:-nothing}; $(head -1 "$OUT/srv.log" 2>/dev/null | cut -c1-140)) - THE RUN STOPS" | tee -a "$SUM"; return 1; fi
+  echo "  server: port $PORT0 serves $1, build $want" | tee -a "$SUM"; return 0; }
 if [ -z "$LM_DRY" ] && [ -n "$LM_HELD" ]; then
   trap '[ -n "$SRV" ] && kill $SRV 2>/dev/null' EXIT
 elif [ -z "$LM_DRY" ]; then
@@ -104,7 +112,7 @@ for i in $(seq 0 $((N - 1))); do
   if [ -n "$LM_DRY" ]; then t=dry; cp "$LM_DRY" "$L"; mkdir -p "$UDD"
   else
     t=$(COOL) || { echo "$TAG: NOT RUN - the package stayed too hot (LM_COOL) for 15 min, or the sensor feed is gone: STOP" | tee -a "$SUM"; exit 4; }
-    serve "$DIR"; HOLD
+    serve "$DIR" || exit 6; HOLD
     timeout $(( SECS + 90 )) node "$T/boot_perf.js" --url "$URL" --udd "$UDD" --secs $SECS --after $AFTER --tag $TAG --out "$OUT/$TAG.json" ${EVALF:+--eval-file "$EVALF"} ${DUMPF:+--dump-file "$DUMPF" "$OUT/$TAG.flightlog.json"} $M $X > "$L" 2>&1 || mine "$UDD"
   fi
   # PERF-TRACE's ten lines on the row's flight log (the step's kind, the programs that held it, first uses, long tasks)
