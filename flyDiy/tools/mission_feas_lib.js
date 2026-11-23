@@ -135,6 +135,27 @@ function planeDef(file) {
   return (DEFS[file] = { def, spec: def.spec, shake });
 }
 
+// (STORY-REVAMP, the wider pool) THE SEATS FILLED AS THE JOB ASKS. The stop counts the BUILD's occupants (the garage's seat-fill,
+// cabin.occupied), and a build saved with its pilot alone is refused a passenger job it has the seats for - what a player
+// settles in the garage before the flight. With opts.fill the build is flown with 1 + the job's passengers in its seats
+// (never more than it has): the same file with cabin.occupied filled, built as any build (the mass and the pilot's speeds
+// follow). The default (no fill) is the build as saved - GATE MISSIONFEAS's rows
+function planeDefFilled(file, pax) {
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'));
+  const base = planeDef(file), seats = base.spec.seats | 0, want = Math.min(seats, 1 + Math.max(0, pax | 0));
+  if (!raw.spec || !raw.spec.cabin || want <= (base.spec.occupants != null ? base.spec.occupants : 1)) return base;
+  const k = file + '#' + want;
+  if (DEFS[k]) return DEFS[k];
+  raw.spec.cabin.occupied = Array.from({ length: seats }, (_, i) => (i < want ? 1 : 0));
+  raw.spec.cabin.pax = Math.max(0, want - (raw.spec.cabin.pilots | 0 || 1));
+  const os = require('os'), tmp = path.join(os.tmpdir(), 'flydiy-feas-filled-' + process.pid + '-' + path.basename(file).replace(/[^\w.]+/g, '_') + '-' + want + '.json');
+  fs.writeFileSync(tmp, JSON.stringify(raw));
+  const def = TR.defOf(C, PT, tmp);
+  try { fs.unlinkSync(tmp); } catch (e) { /* kept */ }
+  const shake = C.genShakedown(C.buildGen(def.spec), { corners: false });
+  return (DEFS[k] = { def, spec: def.spec, shake, filled: want });
+}
+
 // ---- THE PACKS ----------------------------------------------------------------------------------------------------
 function readPacks(dir) {
   const D = dir || path.join(ROOT, 'src', 'missions');
@@ -285,6 +306,7 @@ function nextTarget(doc, rec, cur) {
 }
 
 // the drawn route through the objectives (38c ROUTE-DRAW's record, end 'dest': on to the leg's To and land there)
+const RUN_IN = 1800;
 function routeFor(W, objs, survey) {
   const pts = [];
   const gnd = (x, z) => Math.max(W.terrainH(x, z), W.waterH ? W.waterH(x, z) : -Infinity);
@@ -302,12 +324,21 @@ function routeFor(W, objs, survey) {
       const top = P.alt && P.alt.max != null ? (P.alt.ref === 'msl' ? P.alt.max - gnd(cx, cz) : P.alt.max) : 150;
       const bot = P.alt && P.alt.min != null ? (P.alt.ref === 'msl' ? P.alt.min - gnd(cx, cz) : P.alt.min) : 0;
       const agl = Math.max(bot + 10, Math.min(top - 30, 100));
+      const firstObj = !prev;
       const li = lead(cx, cz, 600);
+      // (STORY-REVAMP) THE FIRST GATE'S RUN-IN. The pilot flies a drawn route by its corners (43_ routeStart: the turn onto a leg
+      // is a fillet), and out of the climb the turn onto the first gate's axis can be 120-150 deg: a fillet of that angle
+      // rejoins the axis 2 to 4 turn radii past the corner - beyond a gate 600 m from it. Flown: club.regular's first gate
+      // passed 280 to 790 m wide by four aeroplanes, club.tour's by 88 and 424 m, club.pylons' by 68 m (the Jodel). A
+      // competitor lines up from far out: the first objective gets an entry point 1800 m before it on its axis
+      if (firstObj) pts.push({ x: cx - RUN_IN * dx, z: cz - RUN_IN * dz, alt: agl, ref: 'agl', V: null });
       pts.push({ x: cx - li * dx, z: cz - li * dz, alt: agl, ref: 'agl', V: null }, { x: cx, z: cz, alt: agl, ref: 'agl', V: null }, { x: cx + 0.5 * Math.min(li, 600) * dx, z: cz + 0.5 * Math.min(li, 600) * dz, alt: agl, ref: 'agl', V: null });
     } else if (P.ring) {
       let dx = 0, dz = -1;
       if (typeof P.dir === 'number') { const a = P.dir * Math.PI / 180; dx = Math.sin(a); dz = -Math.cos(a); }
+      const firstObj = !prev;
       const li = lead(P.ring[0], P.ring[2], 600);
+      if (firstObj) pts.push({ x: P.ring[0] - RUN_IN * dx, z: P.ring[2] - RUN_IN * dz, alt: P.ring[1], ref: 'msl', V: null });
       pts.push({ x: P.ring[0] - li * dx, z: P.ring[2] - li * dz, alt: P.ring[1], ref: 'msl', V: null }, { x: P.ring[0], z: P.ring[2], alt: P.ring[1], ref: 'msl', V: null },
                { x: P.ring[0] + 0.5 * li * dx, z: P.ring[2] + 0.5 * li * dz, alt: P.ring[1], ref: 'msl', V: null });
     } else if (P.pt) {
@@ -418,8 +449,9 @@ function flyOne(ctx, cur, to, o) {
 function flyMission(env, rec, plane, opts) {
   const o = opts || {};
   const { W } = env;
-  const P = planeDef(plane.file);
+  const P = o.fill ? planeDefFilled(plane.file, o.fill) : planeDef(plane.file);
   const out = { plane: plane.name, design: plane.design, file: plane.file, legs: [], timeS: 0, stops: [], notes: [] };
+  if (P.filled) out.notes.push('the seats filled as the job asks: ' + plane.name + ' flown with ' + P.filled + ' aboard (the garage\'s seat-fill)');
   let { doc, why, effects } = careerWith(rec, plane.design);
   if (why) { out.verdict = 'broken'; out.why = why; return out; }
   out.effects = effects;
@@ -593,7 +625,7 @@ function judgeMission(env, packRow, m, opts) {
   const offerWhy = () => { const cw = careerWith(rec, pool[0].design); return cw.offer === false ? cw.why : ''; };
   if (rec.kind === 'build') { const w = offerWhy(); if (w) { R.verdict = 'infeasible'; R.why = w; return R; } }
   const isBuild = rec.kind === 'build';
-  let order = [];
+  let order = [], paxAsk = 0;
   if (isBuild) {
     // the client's own airframe (startFrom: a design) is the one delivered; else the official planes that answer the order
     const BC = buildCandidates(rec);
@@ -630,8 +662,10 @@ function judgeMission(env, packRow, m, opts) {
     // garage's seat-fill), not the job's passengers (a passengers-only job has no loading-view door: "they board, they
     // don't fit"). A plane that seats too few for the job's passengers is tried last, and said
     const paxNeed = Math.max(0, ...subs.map(s => (s.load && s.load.pax) || 0));
+    paxAsk = paxNeed;
     if (paxNeed > 0) {
-      const seatsOk = p => { const P = planeDef(p.file); return Math.max(0, (P.spec.occupants != null ? P.spec.occupants : 1) - 1) >= paxNeed; };
+      // (the wider pool fills the seats: what counts there is the seats the build HAS)
+      const seatsOk = p => { const P = planeDef(p.file); return Math.max(0, (o.official ? (P.spec.seats | 0) : (P.spec.occupants != null ? P.spec.occupants : 1)) - 1) >= paxNeed; };
       const short = order.filter(p => !seatsOk(p));
       if (short.length) R.notes.push('the stop counts the build\'s occupants: ' + short.map(p => p.name + ' flies with ' + planeDef(p.file).spec.occupants + ' aboard (' + paxNeed + ' passenger(s) asked)').join('; '));
       order = order.filter(seatsOk).concat(short);
@@ -653,7 +687,7 @@ function judgeMission(env, packRow, m, opts) {
                                              flights: book.slice() });
       return C.acceptVerdict(crit, ev);
     };
-    const A = flyMission(env, rec, plane, { log: o.log, tMax: o.tMax, maxFlights: o.maxFlights, verdictOf });
+    const A = flyMission(env, rec, plane, { log: o.log, tMax: o.tMax, maxFlights: o.maxFlights, verdictOf, fill: o.official ? paxAsk : 0 });
     R.attempts.push(A);
     finalize({ attempts: [A] });
     if (A.verdict === 'feasible' || A.verdict === 'broken') break;

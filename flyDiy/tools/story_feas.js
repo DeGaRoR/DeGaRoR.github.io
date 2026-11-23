@@ -68,7 +68,7 @@ async function fly() {
     const m = todo[next++];
     if (!m) return res(false);
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy-storyfeas-out-')), t0 = Date.now();
-    const args = [path.join(T, 'mission_feas.js'), '--only=' + m.id, '--rerun', '--packs=' + packs, '--out=' + out, '--quiet', '--tries=' + opt('tries', '4')];
+    const args = [path.join(T, 'mission_feas.js'), '--only=' + m.id, '--rerun', '--packs=' + packs, '--out=' + out, '--quiet', '--tries=' + opt('tries', '3')];
     // (the user 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK ... the
     // players will not be limited to existing planes, they will modify them, and that's the point") EVERY mission is flown
     // with the wider pool: the career's designs first, then every official plane and the PC-6 (ALSO), the shortest take-off first
@@ -97,7 +97,12 @@ function slim(R) {
     stop: L.stop ? (L.stop.events || []).slice() : [], kg: L.load ? L.load.kg : 0, pax: L.load ? L.load.pax : 0,
     faults: (L.faults || []).map(f => f.k), events: (L.events || []).map(e => e.k + ':' + e.key + (e.m != null ? '=' + e.m : '')) })) : [];
   return { id: R.id, kind: R.kind || null, verdict: R.verdict, plane: R.plane || null, timeS: Math.round(R.timeS || 0), why: R.verdict === 'feasible' ? '' : String(R.why || '').slice(0, 600),
-    tried: (R.attempts || []).map(a => a.plane + ':' + a.verdict), legs, notes: [...new Set((R.notes || []).concat(...(R.attempts || []).map(x => x.notes || [])))].slice(0, 6), untested: !!R.untested };
+    tried: (R.attempts || []).map(a => a.plane + ':' + a.verdict), legs,
+    // every aeroplane tried, with its own reason and where each of its flights ended (the pilot's last words, each gate's
+    // closest pass): a "no" is read from its row, not from a second flight
+    attempts: (R.attempts || []).map(a => ({ plane: a.plane, verdict: a.verdict, why: String(a.why || '').slice(0, 300),
+      legs: (a.legs || []).map(L => Object.assign({ from: L.from || null, to: L.to || null, t: Math.round(L.t || 0), how: L.how || null, kg: L.load ? L.load.kg : 0, pax: L.load ? L.load.pax : 0,
+        said: (L.verdicts || []).slice(-3).map(v => String(v).slice(0, 140)) }, L.near ? { near: L.near } : {}, L.landing ? { landing: L.landing } : {}, L.stop && L.stop.why ? { stop: String(L.stop.why).slice(0, 160) } : {})) })), notes: [...new Set((R.notes || []).concat(...(R.attempts || []).map(x => x.notes || [])))].slice(0, 6), untested: !!R.untested };
 }
 
 // the classes a mission may be in without a feasible flight (named, counted, never hidden)
