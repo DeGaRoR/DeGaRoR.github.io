@@ -45,7 +45,7 @@ const BASE_FILE = path.join(T, 'fixtures', 'skis', 'base.json');
 const ABSENT = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-20_corrected.json', 'bugReports/cessnaMetal (1).json',
                 'bugReports/cessnaFloatsWOrks.json', 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
                 'builds/candidates/superpetrel_V4_1.json', 'builds/candidates/carbon_cub_ss.json'];
-const CC_CARD = 'tools/fixtures/skis/carbon_cub_ss_skis.json', PC6_CARD = 'tools/fixtures/skis/pc6_skis.json', POD_CARD = 'tools/fixtures/skis/carbon_cub_ss_pod.json';
+const CC_CARD = 'tools/fixtures/test_copies/carbon_cub_ss_skis.json', PC6_CARD = 'tools/fixtures/test_copies/pc6_skis.json', POD_CARD = 'tools/fixtures/test_copies/carbon_cub_ss_pod.json';
 
 function bytesAll() {
   return Promise.all(ABSENT.map(f => new Promise(res => {

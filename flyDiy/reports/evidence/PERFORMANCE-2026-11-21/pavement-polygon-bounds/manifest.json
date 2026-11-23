@@ -1,0 +1,47 @@
+{
+  "started": "2026-11-21T12:47:32.430Z",
+  "common": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8",
+  "cases": [
+    {
+      "id": "control",
+      "label": "Original polygon edge queries",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8",
+      "validationScope": "startup-only",
+      "nativeClock": true,
+      "coolSeconds": 45,
+      "started": "2026-11-21T12:48:18.510Z",
+      "startC": 34,
+      "finished": "2026-11-21T12:50:51.047Z",
+      "exitCode": 0
+    },
+    {
+      "id": "candidate",
+      "label": "Reject unreachable pavement polygons",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&pavepolybound=1",
+      "validationScope": "startup-only",
+      "nativeClock": true,
+      "coolSeconds": 45,
+      "started": "2026-11-21T12:51:36.713Z",
+      "startC": 37,
+      "finished": "2026-11-21T12:54:09.068Z",
+      "exitCode": 0
+    },
+    {
+      "id": "control-close",
+      "label": "Repeated original polygon queries",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8",
+      "validationScope": "startup-only",
+      "nativeClock": true,
+      "coolSeconds": 45,
+      "started": "2026-11-21T12:54:54.730Z",
+      "startC": 38,
+      "finished": "2026-11-21T12:57:05.975Z",
+      "exitCode": 1
+    }
+  ],
+  "startMaxC": 38,
+  "coolingDeadlineMs": 180000,
+  "reportTool": "flyDiy/tools/perf/pave_poly_report.js",
+  "protocol": "Same build122b7038117c, fresh native-player Chrome profiles, saved Cub/full hangar/5120x1271/DPR1, saved night/30fps. Approved mist B/original scuff. All seven systems,town,full high-poly runway geometry/cues retained; only accepted cliff/runtime-aircraft-bake cuts. Failed terrain-weather-base cache OFF, experimental GPU caches OFF.20s garage soak; no day change or departure. Controls bracket the exact query optimization. Driver cache not erased; no world FPS claim.",
+  "error": "Error: control-close failed; stop study, do not silently replace or accept the run"
+}

@@ -484,7 +484,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     return r.readRenderTargetPixelsAsync(skyRT, 0, 0, SKY_W, SKY_H * SKY_EYES, px).then(b => skyShare(b || px));
   }
   // ATMO's own GLSL: the AP atlas sample + the mist (the splice's functions, verbatim)
-  const ATMO_GLSL = () => (typeof ATMO !== 'undefined' && ATMO.GLSL) ? ATMO.GLSL.AP + ATMO.GLSL.MIST : 'uniform vec4 uAtmoAP; vec4 apSample(vec3 d, float k) { return vec4(0.0, 0.0, 0.0, 1.0); } vec4 apScaled(vec4 a) { return a; } vec3 mistApply(vec3 c, vec3 d, float D, float y) { return c; }';
+  const ATMO_GLSL = () => (typeof ATMO !== 'undefined' && ATMO.GLSL) ? ATMO.GLSL.AP + (ATMO.GLSL.MIST_CLOUD || ATMO.GLSL.MIST) : 'uniform vec4 uAtmoAP; vec4 apSample(vec3 d, float k) { return vec4(0.0, 0.0, 0.0, 1.0); } vec4 apScaled(vec4 a) { return a; } vec3 mistApply(vec3 c, vec3 d, float D, float y) { return c; }';
   // THE COMPOSITE: the march's radiance tone-mapped like the dome, alpha over the frame in display
   // space, through a depth-aware upsample - the four half texels round the pixel weighted by the
   // bilinear weight x the nearness of the depth they saw to the pixel's own (both logarithmic depths

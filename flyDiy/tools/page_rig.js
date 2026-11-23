@@ -40,6 +40,7 @@
 //     boot     seconds allowed for BOOT.state 'gone' (default 420)
 //     needGpu  true (default): refuse SwiftShader / a software GPU before the boot is spent
 //     init     page JS run before every load, after the wipe (a career on a rig: q 'mode=career' + the init RIG-PROCEDURE 2 names)
+//     onNavigate async diagnostic callback receiving rig before the boot wait; throw to stop a phase-only probe cleanly
 //
 // A CLI (plain stills):
 //   node tools/page_rig.js --views views.json --out <dir> [--q k=v&k2=v2] [--size 1600x900] [--cap 600] [--page dev.html]
@@ -88,6 +89,7 @@ const INFRAME = p => '(() => { const cam = FLIGHT_PROBE.camera && FLIGHT_PROBE.c
   ' return { x: +(cx / cw).toFixed(4), y: +(cy / cw).toFixed(4), z: +(cz / cw).toFixed(4), front: vz < 0, dist: +Math.hypot(vx, vy, vz).toFixed(2) }; })()';
 // the page's flying test: every condition RIG-PROCEDURE 2 names; -1 = not flying, else the sim's clock
 const SIMT = "(()=>{ const b = document.body && document.body.classList; if (!b || !window.FLIGHT_PROBE || (window.BOOT && BOOT.state !== 'gone') || !b.contains('mode-fly') || b.contains('rollShot') || b.contains('mode-ws')) return -1; const s = FLIGHT_PROBE.sim(); return s && typeof s.t === 'number' ? s.t : -1; })()";
+const BOOT_HEALTH = "(()=>{const B=window.BOOT;if(!B)return {ok:false,reason:'no BOOT'};const rows=B.log||[],failures=rows.filter(e=>e.k==='fail'||e.k==='error'),normalReady=rows.some(e=>e.k==='ready'),busy=!!(B.busy&&B.busy());return {ok:B.state==='gone'&&!busy&&normalReady&&!failures.length,state:B.state,busy,normalReady,failures};})()";
 const FRAMES = n => `new Promise(r => { let k = ${n | 0}; const f = () => { if (--k <= 0) r(1); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 // the localStorage wipe (flydiy.* only, once per tab: a sessionStorage guard, so a page's own reload keeps its state), then the seed
 const wipeScript = seed => 'try{if(!sessionStorage.getItem("page_rig_wiped")){for(const k of Object.keys(localStorage)) if(/^flydiy\\./.test(k)) localStorage.removeItem(k);' +
@@ -170,9 +172,14 @@ async function start(o) {
     if (!up) throw new Error('page_rig: the server on ' + sport + ' never answered');
 
     // Chrome: headless on the real GPU, its own profile, its own debugging port (read back from DevToolsActivePort)
-    ch = spawn(chrome, ['--headless=new', '--remote-debugging-port=0', '--window-size=' + size[0] + ',' + size[1], '--user-data-dir=' + udd,
-      '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync', '--no-first-run', '--hide-scrollbars', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });
-    let dport = 0; for (let i = 0; i < 80 && !dport; i++) { await sleep(250); try { dport = +fs.readFileSync(path.join(udd, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch (e) {} }
+    // A nonzero debugging port avoids Chrome's port0 webdriver signal. The
+    // explicit player mode preserves vsync/frame pacing; legacy rigs unchanged.
+    const playerPort = o.live ? await freePort() : 0;
+    // HEADED (the user 22 Nov: GPU work in a visible window): Chrome backgrounds a covered window (no rAF: 'no frame drawn in 5 s')
+    const HEADED_ARGS = ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--window-position=0,0'];
+    ch = spawn(chrome, [...(o.headed ? HEADED_ARGS : ['--headless=new']), '--remote-debugging-port=' + playerPort, '--window-size=' + size[0] + ',' + size[1], '--user-data-dir=' + udd,
+      '--disable-gpu-sandbox', ...(o.live ? [] : ['--disable-frame-rate-limit', '--disable-gpu-vsync']), '--no-first-run', '--hide-scrollbars', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });
+    let dport = playerPort; for (let i = 0; i < 80 && !dport; i++) { await sleep(250); try { dport = +fs.readFileSync(path.join(udd, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch (e) {} }
     if (!dport) throw new Error('page_rig: Chrome never opened its debugging port');
     let tgt = null; for (let i = 0; i < 40 && !tgt; i++) { try { tgt = (await getJSON('http://127.0.0.1:' + dport + '/json')).find(t => t.type === 'page'); } catch (e) {} if (!tgt) await sleep(250); }
     if (!tgt) throw new Error('page_rig: no page target');
@@ -208,11 +215,15 @@ async function start(o) {
     await cmd('Emulation.setDeviceMetricsOverride', { width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false });
     const url = 'http://localhost:' + sport + '/flyDiy/' + (o.page || 'index.html') + (o.q ? '?' + o.q : '');
     log('load ' + url); rig.url = url;
+    const navigationStarted = Date.now();
     await cmd('Page.navigate', { url });
+    // Optional diagnostic before the normal boot wait. Throwing closes this
+    // rig's browser/server, allowing a phase-only probe to stop without a full boot.
+    if (o.onNavigate) await o.onNavigate(rig);
 
     // the boot: BOOT.state 'gone' (the cover stays up until every program links; a click under it never reaches a flight)
-    const bootS = +(o.boot || 420), tb = Date.now(); let bs = null, noneSince = 0;
-    while ((Date.now() - tb) / 1000 < bootS) {
+    const bootS = +(o.boot || 420), tb = navigationStarted; let bs = null, noneSince = 0;
+    while (bs === null || (Date.now() - tb) / 1000 < bootS) {
       try { bs = await rig.ev("window.BOOT ? BOOT.state : (document.readyState === 'complete' ? 'none' : 'loading')", 10000); } catch (e) { bs = 'navigating'; }
       if (bs === 'gone') break;
       if (bs === 'none') { if (!noneSince) noneSince = Date.now(); else if (Date.now() - noneSince > 30000) break; } else noneSince = 0;
@@ -221,6 +232,12 @@ async function start(o) {
     rig.bootS = Math.round((Date.now() - tb) / 1000);
     log('boot ' + bs + ' after ' + rig.bootS + ' s');
     if (bs !== 'gone') { const w = await rig.why(); log('WHY ' + JSON.stringify(w)); throw new Error('page_rig: no boot in ' + bootS + ' s (BOOT.state ' + bs + ')'); }
+    rig.bootHealth = await rig.J(BOOT_HEALTH);
+    if (!rig.bootHealth.ok) {
+      log('BOOT NOT ACCEPTED ' + JSON.stringify(rig.bootHealth));
+      if (!o.allowBootFailure) throw new Error('page_rig: loading screen gone without a healthy completed boot');
+      log('Diagnostic capture continues; this is not a passing boot or responsiveness result.');
+    }
     const g2 = await rig.ev("(() => { const g = window.FLYDIY_RENDERER && FLYDIY_RENDERER.getContext(), d = g && g.getExtension('WEBGL_debug_renderer_info'); return d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : null; })()");
     if (g2 && g2 !== rig.gpu) { log('the game renderer reports ' + g2); rig.gpu = g2; }
     if (o.needGpu !== false && g2 && !REAL_GPU(g2)) throw new Error('page_rig: the game renderer is not on a real GPU: ' + g2);
@@ -230,12 +247,15 @@ async function start(o) {
   // fly: Go until FLYING - all of RIG-PROCEDURE 2's conditions, the sim's clock rising. The text HOLDING is not flying.
   rig.fly = async (fo) => {
     fo = fo || {}; const tries = fo.tries || 8;
-    for (let a = 0; a < tries && !rig.flying; a++) {
+    if(o.live){const r=await require('./perf/native_fly_wait')({timeoutMs:fo.timeoutMs||180000,sleep,
+      state:()=>rig.J(`({t:(${SIMT}),ready:document.body.classList.contains('mode-fly')&&!document.body.classList.contains('mode-ws')&&!document.body.classList.contains('rollShot')&&BOOT.state==='gone'&&!BOOT.busy(),garage:document.body.classList.contains('mode-ws'),roll:document.body.classList.contains('rollShot'),busy:BOOT.state!=='gone'||BOOT.busy()})`),
+      click:()=>rig.ev("(()=>{const b=document.getElementById('bGo');if(b&&!b.disabled)b.click();return !!b;})()"),progress:s=>log('native flight wait '+JSON.stringify(s))});rig.flying=r.ok;
+    }else for (let a = 0; a < tries && !rig.flying; a++) {
       await rig.ev("(() => { const b = document.getElementById('bGo'); if (b) b.click(); return !!b; })()"); await sleep(fo.waitMs || 6000);
       const ta = await rig.ev(SIMT); await sleep(1500); const tb = await rig.ev(SIMT);
       rig.flying = ta >= 0 && tb > ta; log('fly try ' + (a + 1) + ': sim t ' + ta + ' -> ' + tb + ', body ' + await rig.ev('document.body.className'));
     }
-    if (!rig.flying) { const w = await rig.why(); log('WHY ' + JSON.stringify(w)); if (fo.need !== false) throw new Error('page_rig: not flying after ' + tries + ' Go clicks (the free eye would be inert)'); return false; }
+    if (!rig.flying) { const w = await rig.why(); log('WHY ' + JSON.stringify(w)); if (fo.need !== false) throw new Error(o.live?'page_rig: native flight readiness deadline (no two advancing sim samples)':'page_rig: not flying after ' + tries + ' Go clicks (the free eye would be inert)'); return false; }
     await rig.frames(30); const A = await rig.anchor();
     if (A.miss) { if (fo.need !== false) throw new Error('page_rig: flying, but ' + A.miss); return false; }
     // (page-rig-2) the chase camera shows the aircraft after fly(): its CG projects inside the frame (GATE PAGERIG 6b)
@@ -385,5 +405,5 @@ async function cli(argv) {
   return bad ? 1 : 0;
 }
 
-module.exports = { start, parseViews, cli, REAL_GPU, SIMT, PAGE_HOOK, WHY, RAFRATE, SETTLE_RAF, pickAnchor, frameVerdict, ANCHOR, INFRAME, ORIGIN_R, STALE_M };
+module.exports = { start, parseViews, cli, REAL_GPU, SIMT, BOOT_HEALTH, PAGE_HOOK, WHY, RAFRATE, SETTLE_RAF, pickAnchor, frameVerdict, ANCHOR, INFRAME, ORIGIN_R, STALE_M };
 if (require.main === module) cli(process.argv.slice(2)).then(c => process.exit(c), e => { console.error('page_rig: ' + (e && e.stack || e)); process.exit(1); });

@@ -31,7 +31,7 @@ const BUILDS = {
   cubWing: { file: 'builds/cub_2026-09-20_corrected.json', patch: s => {
     s.fuel = Object.assign({}, s.fuel, { tank: 'wing' });
     s.energy.vessels = s.energy.vessels.map(v => Object.assign({}, v, { bay: 'wingRoot', along: 0.28, lv: null })); } },
-  metal: { file: 'bugReports/cessnaMetal (1).json' },
+  metal: { file: 'builds/cessna172r_2026-11-08.json' },
   jodel: { file: 'builds/jodel_2026-09-20_corrected.json' },
 };
 // G1985 (JOIN-PARITY): each flown AS THE GAME FLIES IT - the file (and cubWing's edit) through the page's load chain

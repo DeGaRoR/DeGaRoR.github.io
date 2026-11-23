@@ -1,6 +1,6 @@
 // bay_stage.js - THE BAYS' STILLS, staged at the stand by tools/soft_still.js (BAY-MIRROR, 2026-11-03)
 //
-//   node tools/soft_still.js --page index.html --build bugReports/cessnaFloats.json --q 'world=jolene&idle=0&intro=0' \
+//   node tools/soft_still.js --page index.html --build bugReports/cessnaFloatsWOrks.json --q 'world=jolene&idle=0&intro=0' \
 //        --size 1280x720 --secs 5400 --stage tools/perf/bay_stage.js --out <dir>/stand.jpg
 //   env BAY_OUT=<dir> (the stills' directory, default reports/evidence/BAY-MIRROR), BAY_TAG=before|after (the file suffix),
 //       BAY_VIEWS=a,b (a subset), BAY_FRAMES=4 (the frames drawn on a view before its still), BAY_MIRROR=auto (the row),

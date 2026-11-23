@@ -89,8 +89,9 @@ function sourceRows(S) {
   const need = (src, re, what) => { if (!re.test(S[src])) bad.push(src + ': ' + what); };
   need('garage', /const CAND_DIR = 'builds\/candidates\/'/, 'the pool is read from builds/candidates/');
   need('garage', /fetch\(CAND_DIR \+ 'index\.json'\)/, 'the index is fetched from the repo folder');
-  need('garage', /const loadCandidate = c => fetch\(CAND_DIR \+ encodeURIComponent\(c\.file\)\)[\s\S]{0,200}?loadSpec\(g\.spec, ''\)/,
-    'a candidate opens unnamed, with no plaque and an empty log (loadSpec(spec, ""))');
+  // PC6-LIVERIES (18 Nov): and with the card's own liveries, if it carries any (loadSpec's 6th argument)
+  need('garage', /const loadCandidate = c => fetch\(CAND_DIR \+ encodeURIComponent\(c\.file\)\)[\s\S]{0,400}?loadSpec\(g\.spec, '', null, null, null, lvOf\(g\)\)/,
+    'a candidate opens unnamed, with no plaque and an empty log, wearing its own liveries (loadSpec(spec, "", null, null, null, lvOf(g)))');
   // FLEET (13 Nov): the pool is the Fleet's All planes group 'Candidates: built here, not yet certified', its tiles open it
   need('fleet', /'Candidates: built here, not yet certified'/, "the Fleet's pool group (PLANE-LIST: 'built here, not yet certified')");
   need('fleet', /g\.candidates\(\)\.then\(l => \{ cands = l/, 'the Fleet reads the pool through the garage');
@@ -197,14 +198,17 @@ if (SELF) {
   red('a plaque', () => { const o = JSON.parse(P.files[first]); o.plaque = { ok: true }; return poolRows({ index: P.index, files: Object.assign({}, P.files, { [first]: JSON.stringify(o) }) }).bad; });
   red('not a build', () => poolRows({ index: P.index, files: Object.assign({}, P.files, { [first]: '{"what":"x"}' }) }).bad);
   red('a path in the index', () => { const o = JSON.parse(P.index); o.planes[0].file = '../' + o.planes[0].file; return poolRows({ index: JSON.stringify(o), files: P.files }).bad; });
-  red('the candidate opened with its plaque', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("loadSpec(g.spec, '')", 'loadSpec(g.spec, c.name, g.plaque, g.log)') })));
+  // (PC6-LIVERIES: the opener passes the card's liveries now - the break plants the plaque into that call)
+  red('the candidate opened with its plaque', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("loadSpec(g.spec, '', null, null, null, lvOf(g))", 'loadSpec(g.spec, c.name, g.plaque, g.log, null, lvOf(g))') })));
   red("a career's row keeps the note", () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("note: dev ? c.note : ''", 'note: c.note') })));
   red('a tooltip reads the file', () => sourceRows(Object.assign({}, S, { np: S.np.replace('b.title = c.tip;', 'b.title = c.file;') })));
   red('a map row without its picture', () => sourceRows(Object.assign({}, S, { map: S.map.replace("planeIc('design:' + L.design, ", "planeIc('', ") })));
   red('the Fleet pool group gone', () => sourceRows(Object.assign({}, S, { fleet: S.fleet.replace("'Candidates: built here, not yet certified'", "''") })));
   red('the core names the pool', () => sourceRows(Object.assign({}, S, { core: S.core + "\nconst X = 'builds/candidates/a.json';" })));
-  red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(R.files)[0], name: 'x' }); return reviewRows(R, JSON.stringify(o)); });
-  red('a review plane with no REVIEW.md row', () => reviewRows({ files: R.files, md: '' }, P.index));
+  // (CANON-CLEAN 13 Nov: review/ may hold no plane - the breaks then run on a stand-in, so they are never inert)
+  const RS = Object.keys(R.files).length ? R : { files: { 'stand_in.json': P.files[first] }, md: R.md + '\n| stand_in.json | a stand-in |\n' };
+  red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(RS.files)[0], name: 'x' }); return reviewRows(RS, JSON.stringify(o)); });
+  red('a review plane with no REVIEW.md row', () => reviewRows({ files: RS.files, md: '' }, P.index));
   red('a pool tile without its picture', () => sourceRows(Object.assign({}, S, { fleet: S.fleet.replace("thumb: key", 'thumb: null') })));   // PLANE-LIST: no stock shelf, its break retired
   red('no export all button', () => sourceRows(Object.assign({}, S, { body: S.body.replace('<button id="gExportAll"', '<button id="gX"') })));
 }

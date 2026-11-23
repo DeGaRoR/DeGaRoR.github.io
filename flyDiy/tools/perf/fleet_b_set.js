@@ -8,10 +8,10 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const FLEET = [
   ['fleet-1-cub', 'builds/cub_2026-09-20_corrected.json'],
   ['fleet-2-jodel', 'builds/jodel_2026-09-20_corrected.json'],
-  ['fleet-3-c172', 'builds/cessna172_2026-09-20_corrected.json'],
+  ['fleet-3-c172', 'builds/cessna172r_2026-11-08.json'],
   ['fleet-4-c172floats', 'bugReports/cessnaFloatsWOrks.json'],
   ['fleet-5-twinfloats', 'tools/fixtures/build_v7_ultralight_2026-09-05.json', j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; }],
-  ['fleet-6-metal', 'bugReports/cessnaMetal (1).json'],
+  ['fleet-6-metal', 'builds/cessna172r_2026-11-08.json'],
 ];
 // localStorage entries: { 'flydiy.build.<name>': <text>, ..., 'flydiy.player': <text> }
 function storage() {

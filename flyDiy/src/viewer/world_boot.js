@@ -60,7 +60,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const T = { all: false, off: TO ? TO.drop.slice() : ['mk_'], keep: TO ? TO.keep.slice() : [], cut: null, n: 0 };
     try { const q = new URLSearchParams(location.search).get('town'); const g = window.GFX && window.GFX.get ? window.GFX.get() : null;
       // G1526 (POTATO-DEEP): the row under the build budget's cap - potato / laptop / the software rung never build Metlakatla
-      T.all = q !== null ? (q === '1' || q === 'all') : (window.GFX && window.GFX.townAll ? window.GFX.townAll() : !!(g && g.town === 'all')); } catch (e) {}
+      T.all = q !== null ? (q === '1' || q === 'all') : (window.GFX && window.GFX.townAll ? window.GFX.townAll() : !!(g && g.town === 'all'));
+      if (q === 'none') { T.off = ['mk_']; T.keep = []; } } catch (e) {}
     return T;
   })();
   let premisesPlaced = (() => {

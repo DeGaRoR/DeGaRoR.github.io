@@ -524,7 +524,7 @@ const GATES = [
   // its strain at break, torn by strain; the Cub's struck wing held; the page's batching changes no bit; damage off and the
   // ties off = the base's bytes; the hop carries the ties. --selftest: red with the ties disabled. Three children at once
   { id: 'DMGFABRIC', file: '_dmg_fabric_check.js', tier: 'core', weight: 3, wall: 600 },
-  // G2047-G2049 (DMG-COMPOSITE): the composite build (builds/composite_jodel_2026-10-07.json: the Jodel in E-glass) certifies
+  // G2047-G2049 (DMG-COMPOSITE): the composite build (tools/fixtures/test_copies/composite_jodel_2026-10-07.json: the Jodel in E-glass) certifies
   // (BROKE AT in the band, no set) and flies a circuit; it breaks brittle - no laminate member set in DMG-TUNE's standard
   // crashes, pieces off at 30 m/s, the shell cracked (never past 5 % + 1 cm) on more than one piece; damage OFF on the
   // base's bytes for the Cub, the Jodel and the metal Cessna. Three children at once. Carries --selftest
@@ -577,6 +577,10 @@ const GATES = [
   { id: 'FRAMECOST', file: '_framecost_check.js', tier: 'core', weight: 2, wall: 180 },
   { id: 'ROUNDTRIP', file: '_roundtrip_check.js', tier: 'core', wall: 800 },
   { id: 'HOUSEWORKER', file: '_houseworker_check.js', tier: 'core', wall: 520 },   // C2a G830-G833: the houses generated in a worker, bit-identical to the inline build; no generation on the page's thread in the town step; a warm IndexedDB cache builds 0   // B8/B9 G1020-G1026: the one loading, the round trips keyed on their inputs, the setup screen from the rail's registry
+  // PERF-WORLDBUILD (22 Nov 2026): Codex's two exact pavement short-cuts (the polygon bound, the refinement's height reuse) are
+  // the default; the island built with them and without (?pavepolybound=0&pavereuse=0) is the same patch, strips, roads, aprons,
+  // rails, poles and far terrain byte for byte. Two page processes one after the other
+  { id: 'PAVEXACT', file: '_pavexact_check.js', tier: 'core', wall: 300 },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s

@@ -11,7 +11,7 @@
 // RECORDING WebGL2 (tools/_fake_gl.js makeGL: every call, the uniform / buffer / texture bytes, the programs reflected
 // off their GLSL so three uploads what a driver would make it upload), a small document (tools/_page_dom.js) and a
 // VIRTUAL clock (every timer and frame on it, Math.random seeded) - deterministic, node only, no GPU. For each build
-// (the default Cub - the first boot, no working build - and the metal Cessna, bugReports/cessnaMetal (1).json) the
+// (the default Cub - the first boot, no working build - and the metal Cessna, builds/cessna172r_2026-11-08.json) the
 // garage boots, `Roll out` is pressed, the roll-out screen runs, the flight is PAUSED (the pause button: FLYDIY_HELD,
 // every clock still) and two VIEWS are rendered N frames each through the page's own loop:
 //   stand   the aeroplane on HOME's stand, the chase camera settled;
@@ -64,7 +64,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const flag = k => argv.includes('--' + k);
 const UPDATE = argv.includes('--update');
 const FRAMES = +opt('frames', 12), WARM = +opt('warm', 6);
-const BUILDS = { cub: null, cessna: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: null, cessna: 'builds/cessna172r_2026-11-08.json' };
 
 // THE TOLERANCE: the counts are exact on one tree (the clock is virtual); the slack absorbs a frame whose periodic
 // work (a probe, a cascade every other frame) lands on the other side of the window after an unrelated change

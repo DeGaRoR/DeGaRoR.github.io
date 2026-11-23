@@ -1,0 +1,8 @@
+'use strict';
+global.CORE_MATH=require('./flight_core').CORE_MATH;
+const assert=require('assert/strict'),T=require('../vendor/three.min'),P=require('../src/viewer/pavement'),PG=require('../src/core/27_premises');
+const cases=[['strip',{x:120,z:-90,len:180,wid:18,hdg:.37,cls:'dirt',shoulderW:6,resU:6,resV:2,sinkD0:.8,refineMin:.75}],['road',{road:PG.polyRoad([[-90,-20],[-20,5],[30,60],[100,70]],8),w:8,cls:'gravel',shoulderW:4,step:4,resV:2,sinkD0:.8,refine:true}]];
+const report=[];
+for(const [kind,options]of cases){const calls=[0,0],meshes=[];for(let mode=0;mode<2;mode++){const heightAt=(x,z)=>{calls[mode]++;return 30+Math.sin(x*.12)*.18+Math.cos(z*.2)*.11;};meshes.push(P[kind+'Geometry'](T,{...options,heightAt,reuseRefine:!!mode}));}
+ const [a,b]=meshes;assert.deepEqual(Object.keys(a.attributes),Object.keys(b.attributes));for(const name of Object.keys(a.attributes)){const x=a.attributes[name].array,y=b.attributes[name].array;assert(Buffer.from(x.buffer,x.byteOffset,x.byteLength).equals(Buffer.from(y.buffer,y.byteOffset,y.byteLength)),kind+' '+name+' differs');}assert.deepEqual(a.index.array,b.index.array);assert.equal(JSON.stringify(a.userData),JSON.stringify(b.userData));assert(calls[1]<calls[0],kind+' must avoid duplicate height calls');report.push({kind,vertices:a.attributes.position.count,heightCalls:calls,saved:calls[0]-calls[1],byteIdentical:true});a.dispose();b.dispose();}
+console.log(JSON.stringify({scope:'Real high-detail strip/curved-road builders, wavy height field, all positions/normals/UV/pavement attributes and indices byte-identical; no resolution change.',cases:report}));

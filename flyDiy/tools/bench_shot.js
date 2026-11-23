@@ -5,7 +5,7 @@
 // camera (CAGE_UI.setView: yaw, pitch, zoom). Runs on a box with no GPU: Chromium with SwiftShader (slow: ~1-3 min a
 // build to come up, ~10 s a view).
 //   (serve the repo root first: python3 -m http.server 8450, from the repo root)
-//   node tools/bench_shot.js --file tools/fixtures/stearman_2026-10.json --out screenshots/newshapes/stearman
+//   node tools/bench_shot.js --file builds/candidates/stearman_2026-10.json --out screenshots/newshapes/stearman
 //        [--url http://localhost:8450/flyDiy/tools/_cage8.html] [--views q,s,top,r,c] [--w 1600 --h 1000]
 //        [--set '{"cpOpen":0}']   rows written over the file's cage before the load (a before / after)  [--log]
 'use strict';

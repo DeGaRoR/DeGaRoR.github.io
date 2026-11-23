@@ -1,0 +1,188 @@
+{
+  "valid": true,
+  "build": "458534f65c13",
+  "seconds": 120.4975,
+  "peakC": 77,
+  "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&pavepolybound=1&pavereuse=1",
+  "clock": {
+    "mode": 30,
+    "cap": 30,
+    "legacy": false,
+    "steps": 2,
+    "dt": 0.03330000000000291,
+    "stats": {
+      "down": 0,
+      "up": 0,
+      "trialsFailed": 0,
+      "guarded": 0,
+      "cut": 0,
+      "stalls": 6
+    },
+    "holdUpS": 0,
+    "dilation": 0.8713885485693437,
+    "stepMs": 0,
+    "otherMs": 35.95986517578704,
+    "droppedS": 0,
+    "workMs": 0,
+    "rateFps": 0,
+    "trials": 0,
+    "simw": false
+  },
+  "stages": {
+    "treeBins": 0.007,
+    "aircraft": 0.86,
+    "garage": 0.693,
+    "editor": 0.083,
+    "seed": 1.104,
+    "world": 31.061,
+    "town": 2.278,
+    "parking": 0.229,
+    "trees": 0,
+    "ring": 2.35,
+    "settle": 16.111,
+    "parked": 0,
+    "snapshot": 1.006,
+    "bake": 0,
+    "spec": 0.396,
+    "restore": 0.004,
+    "images": 0.095,
+    "upload": 2.227,
+    "worldCompile": 41.208,
+    "compile": 3.998,
+    "firstFrame": 2.985,
+    "frames": 5.061,
+    "craft": 0.234,
+    "recheck": 0.019
+  },
+  "programQueryErrors": [],
+  "garageResponsiveness": {
+    "samples": 1154,
+    "p50": 16.69999999999709,
+    "p99": 16.800000000017462,
+    "max": 17,
+    "over100": 0,
+    "over1000": 0,
+    "longTasks": []
+  },
+  "bakeAudit": {
+    "refineHeightReuse": true,
+    "polyQueries": {
+      "checks": 13528849,
+      "rejected": 10952552,
+      "exact": 2576350,
+      "enabled": true
+    },
+    "trim": true,
+    "flownModule": false,
+    "flownFlag": 0,
+    "parked": {
+      "staticTrio": true,
+      "fleetOn": false,
+      "queued": 0,
+      "busy": false,
+      "stats": {
+        "queued": 0,
+        "captures": 0,
+        "bakes": 0,
+        "hits": 0,
+        "stored": 0,
+        "decodes": 0,
+        "worldRefused": 0,
+        "flightRefused": 0,
+        "evicted": 0,
+        "bakeInWorld": 0,
+        "notWanted": 0,
+        "inputWaits": 0
+      },
+      "records": [
+        "arch:jodel",
+        "arch:cub",
+        "arch:c172"
+      ]
+    },
+    "rockStats": null,
+    "rockRing": false,
+    "terrainMemo": {
+      "hits": 8818624,
+      "misses": 21312056,
+      "wearReads": 472403,
+      "cachedWearHits": 0,
+      "legacy": false,
+      "wearBase": false,
+      "slots": 16384
+    }
+  },
+  "sceneryAudit": {
+    "biomes": {
+      "subOn": true,
+      "edgeOn": true
+    },
+    "mistStats": {
+      "level": "none",
+      "rho": 0.00075,
+      "on": true,
+      "use": {
+        "a": true,
+        "b": false,
+        "c": false
+      },
+      "cards": 0,
+      "bakeMs": 442.7,
+      "noiseAtlas": false,
+      "noiseBakeMs": 0,
+      "k": [
+        0,
+        0,
+        0
+      ],
+      "hoursDry": 96,
+      "drift": [
+        0,
+        0
+      ],
+      "map": {
+        "N": 512,
+        "x0": -13824,
+        "z0": -29591,
+        "inv": 0.000025513458349279244,
+        "poolMean": 0.053743202458555656,
+        "wispMean": 0.046831098584152464
+      }
+    },
+    "dustAllocated": true,
+    "damageLook": true,
+    "scuff": true,
+    "pavementNoise": {
+      "reference": false,
+      "enabled": false,
+      "requested": false
+    },
+    "query": "?mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&pavepolybound=1&pavereuse=1",
+    "mist": {
+      "on": true,
+      "a": true,
+      "b": false,
+      "c": false
+    },
+    "town": {
+      "all": true,
+      "removed": 0,
+      "keep": [
+        "mk_sea",
+        "mk_mp_air",
+        "mk_mf_air"
+      ]
+    },
+    "premises": {
+      "animals": 64,
+      "traffic": 141,
+      "town": 1,
+      "runways": 17
+    }
+  },
+  "pageWarnings": [
+    "ERR impostor bake: birch|Birch2_21 snag sheet EMPTY (drawn 0.46 %, mean byte 49.6)",
+    "ERR impostor bake: pine_lampi.glb|bark04_0 snag sheet EMPTY (drawn 0.50 %, mean byte 65.4)"
+  ],
+  "scope": "Single combined native startup smoke test on a later build. No isolated or cumulative loading-saving estimate; no departure/FPS or full-map visual acceptance. Both flags remain OFF by default."
+}

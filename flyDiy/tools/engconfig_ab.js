@@ -19,7 +19,7 @@ const LB = require('./_load_build.js');
 const C = require('./flight_core.js');
 const FILES = {
   cub: LB.VALIDATED.cub.build, jodel: LB.VALIDATED.jodel.build, metal: LB.VALIDATED.metal.build, floats: LB.VALIDATED.floats.build,
-  rufus: 'tools/fixtures/repro/rufus_2026-10-18_certified.json',
+  rufus: 'tools/fixtures/test_copies/rufus_2026-10-18_certified.json',
 };
 const key = process.argv[2];
 if (!FILES[key]) { console.error('usage: node tools/engconfig_ab.js ' + Object.keys(FILES).join('|')); process.exit(2); }

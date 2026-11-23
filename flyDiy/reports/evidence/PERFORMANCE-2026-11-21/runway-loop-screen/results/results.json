@@ -1,0 +1,178 @@
+{
+  "scope": "Compiler-only wall time of complete captured real-game source pairs, one link at a time. Prepared source interventions identify compiler work; no game rendering or visual acceptance is claimed. No scene rendering, no loading-time saving or exclusive CPU attribution. Fresh visible Chrome per order, real GPU; driver cache erasure not claimed.",
+  "runs": [
+    {
+      "order": 0,
+      "rows": [
+        {
+          "name": "Original complete pavement program",
+          "family": "Original",
+          "ms": 28954.80000001192,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(930,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 342701,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 8,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Uniform-bound original hole/way loops",
+          "family": "Same formulas, uniform loop bounds",
+          "ms": 26407.89999999106,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(932,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 342869,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 8,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Small descriptor bakes with uniform loops",
+          "family": "Bakes with uniform loops",
+          "ms": 25147.19999998808,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(946,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 340987,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uPavStatic",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uPavWays",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 10,
+          "fragmentTextureUnitLimit": 16
+        }
+      ],
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    }
+  ],
+  "complete": true
+}

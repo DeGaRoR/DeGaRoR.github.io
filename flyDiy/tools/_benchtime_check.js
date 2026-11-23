@@ -51,7 +51,7 @@ ok(has(BSRC, 'benchWorking') && has(CSS, 'body.benchWorking, body.benchWorking *
    'the cursor spins (body.benchWorking) and so does the computing row');
 
 console.log('AS FAST AS THE BENCH CHECK');
-const BUILDS = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-20_corrected.json', 'bugReports/cessnaMetal (1).json',
+const BUILDS = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-20_corrected.json', 'builds/cessna172r_2026-11-08.json',
   'builds/rufus_2026-10-18_certified.json', 'builds/pa18_floats_2026-10-23.json'].filter(b => fs.existsSync(path.join(FLY, b)));
 for (const b of BUILDS) {
   const nm = path.basename(b, '.json');

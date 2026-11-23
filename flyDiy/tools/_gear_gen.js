@@ -677,9 +677,17 @@ function spat(bags, hub, axis, R, o) {
     up = nrm(add(mul(up, cR), mul(fwd, sR)));
     fwd = f2;
   }
-  const zN = R * 1.62, zT = R * 2.45 * tail;     // nose ahead, tail behind
-  const Hm = R * 1.20, Wm = R * 0.62 * wid;      // depth and half width
+  // SPAT-NOSE-DEPTH (15 Nov, the 172's wheel pants from its blueprint): the nose's reach ahead of the axle and the
+  // shell's depth, as multiples of the tyre (absent 1: the shell as it always was)
+  const noseK = clamp(O.nose || 1, 0.70, 1.80), depK = clamp(O.depth || 1, 0.70, 1.50);
+  const zN = R * 1.62 * noseK, zT = R * 2.45 * tail;     // nose ahead, tail behind
+  const Hm = R * 1.20 * depK, Wm = R * 0.62 * wid;      // depth and half width
   const yCut = -R * clamp((full ? 0.80 : 0.48) + (O.skirt || 0), 0.30, 0.92);
+  // FAIR-FACET (16 Nov, the 172's wheel pants, the user: "more pointy at the front and the back ... a polygonal shape
+  // with beveled edges ... alternative wheel fairings"): style 1 = a pointed nose and tail and an octagonal section (a
+  // box with its four long edges bevelled); `kick` (x R) sweeps the tail up behind the tyre (clear of a tail-down
+  // rotation). Absent: the rounded shell, level, as it always was
+  const style = Math.round(O.style || 0) === 1 ? 1 : 0, kick = clamp(O.kick || 0, 0, 0.8);
   const NT = 30, NA = 22;
   // THE FAIRING IS THE GREATER OF TWO SHAPES. Streamline alone is
   // shallower than the tyre at the front and back of the wheel, and the
@@ -687,9 +695,32 @@ function spat(bags, hub, axis, R, o) {
   // and it encloses the wheel AND runs out to a fine tail.
   const gap = R * 0.07;
   const env = z => Math.abs(z) < R ? Math.sqrt(Math.max(0, R * R - z * z)) : 0;
-  const stream = z => z >= 0
-    ? Hm * Math.sqrt(Math.max(0, 1 - (z / zN) * (z / zN)))
-    : Hm * Math.pow(Math.max(0, 1 - Math.pow(-z / zT, 1.85)), 0.62);
+  const stream = style === 1
+    ? (z => z >= 0 ? Hm * Math.max(0, 1 - Math.pow(z / zN, 1.6))
+                   : Hm * Math.max(0, 1 - Math.pow(-z / zT, 1.35)))
+    : (z => z >= 0
+      ? Hm * Math.sqrt(Math.max(0, 1 - (z / zN) * (z / zN)))
+      : Hm * Math.pow(Math.max(0, 1 - Math.pow(-z / zT, 1.85)), 0.62));
+  // the section point at angle an (0 crown, pi keel): the ellipse, or (style 1) the bevelled box - the ray from the
+  // centre to the octagon |x| <= 1, |y| <= 1, |x| + |y| <= 2 - BEV (the bevel cuts BEV off each corner)
+  const BEV = 0.62;
+  const sec = (an, Hh, Ww) => {
+    const ux = Math.sin(an), uy = Math.cos(an);
+    if (style !== 1) return [Ww * ux, Hh * uy];
+    const r = 1 / Math.max(Math.abs(ux), Math.abs(uy), (Math.abs(ux) + Math.abs(uy)) / (2 - BEV), 1e-9);
+    return [Ww * r * ux, Hh * r * uy];
+  };
+  // where the section meets the cut, measured from the crown (the octagon's y falls monotonically with an)
+  const aCut = Hh => {
+    if (style !== 1) return Math.acos(clamp(yCut / Hh, -1, 1));
+    if (sec(Math.PI, Hh, 1)[1] >= yCut) return Math.PI;
+    let lo = 0, hi = Math.PI;
+    for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (sec(m, Hh, 1)[1] > yCut) lo = m; else hi = m; }
+    return 0.5 * (lo + hi);
+  };
+  // the tail's sweep up, from just behind the axle to the tip (a parabola: level where it leaves the tyre)
+  const z0K = -R * 0.6;
+  const kickAt = z => kick > 0 && z < z0K ? kick * R * Math.pow((z0K - z) / Math.max(1e-6, zT + z0K), 2) : 0;
   const Hat = z => Math.max(stream(z), env(z) > 0 ? env(z) + gap : 0);
   const Wat = z => {
     // full width wherever the tyre is, easing out just past it
@@ -699,18 +730,23 @@ function spat(bags, hub, axis, R, o) {
   };
   const bag = bags.fair;
   const rows = [], edges = [[], []];
+  // FAIR-FACET (16 Nov, the user: "cut clean and straight, just in the last little portion"): the faceted shell stops
+  // short of its point (CUT of the tail's run) and is closed by a flat end; the rounded one runs to its tip as always
+  const CUT = style === 1 ? 0.86 : 1, endPts = [];
   for (let i = 0; i <= NT; i++) {
     const t = i / NT;
-    const z = zN - t * (zN + zT);
+    const z = zN - t * (zN + zT * CUT);
     const Hh = Math.max(1e-4, Hat(z)), Ww = Math.max(1e-4, Wat(z));
-    // where the ellipse meets the cut, measured from the crown
-    const c = clamp(yCut / Hh, -1, 1);
-    const aMax = Math.acos(c);                   // 0 = crown, pi = keel
+    // where the section meets the cut, measured from the crown
+    const aMax = aCut(Hh);                       // 0 = crown, pi = keel
+    const yK = kickAt(z);
     const row = [];
     for (let j = 0; j <= NA; j++) {
       const an = -aMax + 2 * aMax * j / NA;
-      const y = Hh * Math.cos(an), x = Ww * Math.sin(an);
-      row.push(bag.v(add(hub, add(mul(fwd, z), add(mul(up, y), mul(ax, x))))));
+      const [x, y] = sec(an, Hh, Ww);
+      const pp = add(hub, add(mul(fwd, z), add(mul(up, y + yK), mul(ax, x))));
+      row.push(bag.v(pp));
+      if (i === NT && CUT < 1) endPts.push(pp);
     }
     rows.push(row);
     // THE BEAD RUNS WHERE THE OPENING IS (A7, 2026-09-21, the user of
@@ -722,8 +758,8 @@ function spat(bags, hub, axis, R, o) {
     // with a pinch where they parted at the opening's ends. The edges stop
     // at the last open station; the closed run-out is plain shell.
     if (aMax < Math.PI - 1e-3) {
-      const pE = an2 => add(hub, add(mul(fwd, z),
-        add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
+      const pE = an2 => { const q = sec(an2, Hh, Ww);
+        return add(hub, add(mul(fwd, z), add(mul(up, q[1] + yK), mul(ax, q[0])))); };
       edges[0].push(pE(-aMax));
       edges[1].push(pE(aMax));
     }
@@ -745,6 +781,15 @@ function spat(bags, hub, axis, R, o) {
       bag.quad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]);
     else
       bag.quad(rows[i][j + 1], rows[i][j], rows[i + 1][j], rows[i + 1][j + 1]);
+  }
+  // the faceted shell's flat end: a fan from its centre, every face turned to look aft
+  if (CUT < 1 && endPts.length > 2) {
+    const cc = endPts.reduce((a, q) => add(a, mul(q, 1 / endPts.length)), [0, 0, 0]), ic = bag.v(cc), last = rows[NT];
+    const aft = mul(fwd, -1);
+    for (let j = 0; j < NA; j++) {
+      const nn = crs(sub(endPts[j], cc), sub(endPts[j + 1], cc));
+      if (dot(nn, aft) >= 0) bag.tri(ic, last[j], last[j + 1]); else bag.tri(ic, last[j + 1], last[j]);
+    }
   }
   // the rolled edge bead down both sides of the opening
   for (const e of edges)
@@ -1453,12 +1498,16 @@ function legShroud(bag, path, yStop, chord, thick) {
 //   turning fork, and the housing's own height is exactly where the turning
 //   part begins (CASTOR_HOUSE, the profile castorUnit revolves).
 const CASTOR_HOUSE = 0.062;
+// LEG-FAIR-TO (the user 15 Nov, the C172 refit: the main legs' fairings "look broke now, spending only half/a third of the
+// total arm length"): with a wheel pant on (fair 1) and legFairTo set, the leg's shroud runs on INTO the pant - its end
+// hidden in the pant's inboard face, 0.4 tyre radii over the axle - as a spring-steel leg's fairing meets the spat on the
+// real aeroplane. Absent / no pant: it stops above the tyre as it always has.
 // (INLINE-FORK, proto 17 Nov: the inline fork's wheel is ON the leg's axle - no castor below it - so its shroud stops
 // clear of the tyre and of the spat's crown, the user: "it should stop short of the fairing and the wheel")
 const fairStopY = (st, axleY) =>
   st.inline ? axleY + st.R * (st.fair ? 1.3 : 1.08)
   : (st.steer > 0 && st.x <= 0.01) ? axleY + CASTOR_HOUSE
-                                 : axleY + st.R * 1.04;
+                                 : axleY + st.R * (st.legFairTo && st.fair === 1 ? 0.4 : 1.04);
 
 // the STUB AXLE: from where the leg ends, out through the hub and a
 // little past it — the piece that was missing when legs ran to the
@@ -3180,7 +3229,8 @@ function legTailwheel(bags, AF, P, st) {
   if (st.fair) {
     spat(bags.castorBags || bags, u.hub, u.axis, st.R,
          { full: st.fair === 2, skirt: st.fairSkirt, tail: st.fairTail,
-           rake: st.fairRake, width: st.fairW });
+           rake: st.fairRake, width: st.fairW, nose: st.fairNose, depth: st.fairH,
+           style: st.fairStyle, kick: st.fairKick });
     if (st.fair === 2)
       legShroud(bags.fair, path, tip[1] + 0.02,
                 Math.max(0.10, P.twSpringW * 2.2),

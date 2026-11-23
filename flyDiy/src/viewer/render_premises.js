@@ -781,6 +781,10 @@ function make(THREE, scene, world, rec0, opts) {
   // the near level's vertex at (x, z) over the ground h there: buildPatchSteps' Y0 less sinkNear (the tier's law with terrainH)
   const nearY = (h, x, z, pavR) => { const r = Math.min(1, patchDepth(x, z) / PATCH_TUCK.tuckW); return h - patchDrop(x, z) * r - PATCH_TUCK.tuck * (1 - r) * (1 - r) - (pavR && O.pavedAt ? sinkNear(O.pavedAt(x, z), pavR) : 0); };
   let patchB = null;
+  // A build samples thousands of vertices in each active cell. Its missing
+  // neighbours do not change until the active patch is replaced; compute their
+  // rectangles once, rather than rebuilding eight string keys per vertex.
+  const patchDepthCells = new Map();
   function patchDepth(x, z) {
     const A = patchAct, b = patchB; if (!A || !b) return 0;
     // (the chunk the point is IN, a shared edge the upper chunk's: a point on an unbuilt chunk's edge is 0 deep. The
@@ -788,12 +792,20 @@ function make(THREE, scene, world, rec0, opts) {
     // low z edge never measured the unbuilt chunk it lay on: it stood at the ground, a column 2 m over its tucked
     // neighbour 2 m in - a thin wall along two of every border's four sides)
     const ei = Math.floor(x / PCH), ej = Math.floor(z / PCH);
-    if (!A.act.has(A.key(ei, ej))) return 0;
+    const cell = A.key(ei, ej);
+    let missing = patchDepthCells.get(cell);
+    if (missing === undefined) {
+      if (!A.act.has(cell)) return 0;   // do not retain off-patch flight samples
+      missing = [];
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+        if ((!di && !dj) || A.act.has(A.key(ei + di, ej + dj))) continue;
+        missing.push((ei + di) * PCH, (ej + dj) * PCH);
+      }
+      patchDepthCells.set(cell, missing);
+    }
     let edge = Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
-    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
-      if (!di && !dj) continue;
-      if (A.act.has(A.key(ei + di, ej + dj))) continue;
-      const nx0 = (ei + di) * PCH, nz0 = (ej + dj) * PCH;
+    for (let i = 0; i < missing.length; i += 2) {
+      const nx0 = missing[i], nz0 = missing[i + 1];
       const dx = Math.max(nx0 - x, x - nx0 - PCH, 0), dz = Math.max(nz0 - z, z - nz0 - PCH, 0);
       edge = Math.min(edge, Math.hypot(dx, dz));
     }
@@ -834,7 +846,7 @@ function make(THREE, scene, world, rec0, opts) {
     const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
     if (!part && patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
     if (!part) { FAR.src.clear(); FAR.cells.clear(); FAR.group = null; }   // (G3088: the merges went with the patch)
-    patchAct = A; patchB = b;   // the world's rings read it (patchCovers, patchDepth): the ring sinks under the patch (G434.1)
+    patchAct = A; patchB = b; patchDepthCells.clear();   // invalidate on full builds, edits and town expansion alike
     lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
     // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
@@ -1824,6 +1836,7 @@ function make(THREE, scene, world, rec0, opts) {
   const AMBIENT = () => (typeof window !== 'undefined' && window.FLYDIY_FLOCKS !== undefined
     ? (window.FLYDIY_FLOCKS | 0) : 2);
   function syncAnimals() {
+    if (typeof location !== 'undefined' && /[?&]animals=0(?:&|$)/.test(location.search)) { stats.animals = 0; return; }
     const spots = (O.records && O.records.animals) || [];
     const air = window.ANIMALS && window.ANIMALS.list ? (window.ANIMALS.list('air')[0] || null) : null;
     const nAmb = (o.game && air) ? AMBIENT() : 0;
@@ -1897,6 +1910,7 @@ function make(THREE, scene, world, rec0, opts) {
     return m.filter(k => PR && PR.props[k]);
   };
   function syncTraffic() {
+    if (typeof location !== 'undefined' && /[?&]cars=0(?:&|$)/.test(location.search)) { stats.traffic = 0; return; }
     const pp = typeof propPlace === 'function' ? propPlace : null, HG = window.HOUSE_GEN;
     const want = new Map();
     if (pp) for (const rd of O.roads) if (trafficOf(rd) > 0 && rd.pts.length >= 2) want.set(rd.id, rd);
