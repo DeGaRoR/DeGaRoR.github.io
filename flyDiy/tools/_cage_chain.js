@@ -105,7 +105,17 @@
   // ...and the scene's top-level objects each layer's own body added (a release that keeps a layer puts the layers'
   // groups back in the chain's order, as a whole build leaves them)
   const kids = ctx => (ctx && ctx.scene && ctx.scene.children) ? new Set(ctx.scene.children) : null;
-  const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); if (n > 0 && L[n]) { L[n].stat0 = statTxt(ctx); L[n].kids0 = kids(ctx); } });
+  // PERF-SLIDERS (23 Nov 2026): ...AND WHAT A LAYER ADDED BEFORE IT CALLED THE LAYERS UNDER IT (`pre`). The float layer draws a
+  // hull's tub, sponsons and spray strakes first thing in its body, then runs the chain below it; `objs` (what stands
+  // in the scene after the layers below, less what stood before) never held them, so a release that put each layer's
+  // groups back in a whole build's order (_cage_ui.js releaseSteps) left them ahead of the fuselage's own objects - the
+  // Super Petrel after a tail-span drag: the same objects, three places of the scene's order off the plain build's
+  // (GATE INSTANTREL, once CAGE_CHAIN.over let its releases go by the plan). A whole build adds them after the
+  // fuselage's objects and before every layer's own, the outermost layer's first.
+  const preOf = (n, ctx) => { const A = L[n].kidsA; if (!A || !ctx || !ctx.scene) return L[n].pre || [];
+    const inner = new Set(); for (let j = 0; j < n; j++) for (const o of L[j].objs || []) inner.add(o);
+    return ctx.scene.children.filter(o => !A.has(o) && !inner.has(o) && !ADOPT.has(o)); };
+  const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); if (n > 0 && L[n]) { L[n].pre = preOf(n, ctx); L[n].kidsA = null; L[n].stat0 = statTxt(ctx); L[n].kids0 = kids(ctx); } });
   let childAcc = 0;
   // the clock (a node rig puts the machine's under the page's virtual one as window.__realNow)
   const now = () => (window.__realNow ? window.__realNow() : performance.now());
@@ -119,7 +129,7 @@
     if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.der = null; Ly.all = false; Ly.allSnap = null; } else CUR = null;
     const outer = childAcc; childAcc = 0;
     const t0 = now();
-    Ly.stat0 = statTxt(ctx); Ly.kids0 = kids(ctx);
+    Ly.stat0 = statTxt(ctx); Ly.kids0 = kids(ctx); Ly.kidsA = Ly.kids0; Ly.pre = [];
     try { return Ly.f.call(PAGE, ctx); }
     finally {
       const k0 = Ly.kids0; Ly.kids0 = null;
