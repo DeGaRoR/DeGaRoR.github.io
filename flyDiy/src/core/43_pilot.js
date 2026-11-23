@@ -4808,8 +4808,11 @@ function makePilot(sim, def, world, opts) {
           // the floor is 1.2 Vs in the flap as set (TO_SCREEN_K; Vx is still 7 % over it and never under the sheet's own Vx).
           // CLIMB keeps the 1.3 Vs floor and Vy, so the speed is gained once the screen is cleared. Measured (pilot_one_trace,
           // L40J base): the C172 refit 794 -> 674 m (band 308-720), the Cub 300 -> 284, the Jodel 539 -> 431, the lift-offs as before.
-          // The valley departure keeps its own floor (its turn is flown at it)
-          const K = valley ? K0 : Object.assign({}, K0, (({ Vfloor, Vx }) => ({ Vfloor, Vx }))(climbKit(TO_SCREEN_K)));
+          // The valley departure keeps its own floor (its turn is flown at it).
+          // TAKEOFF-SCREEN-2 (A0 23 Nov, L40J's GATE PROFILE: the climb from 15 m never under 1.3 Vs in the flap flown - the Jodel
+          // 1.28, the C172 1.23 once its flap came up): the screen's speeds are the RUN-UP's only. From the climb's start
+          // (toAccelDone) the 1.3 Vs kit is flown again, so the speed is built over the climb to the screen, not after it
+          const K = (valley || toAccelDone) ? K0 : Object.assign({}, K0, (({ Vfloor, Vx }) => ({ Vfloor, Vx }))(climbKit(TO_SCREEN_K)));
           const Vt = valley ? K.Vfloor : K.Vx;   // STOL-PILOT: a STOL departure accelerates to Vx only
           // (to the climb speed itself: the ground effect is where the speed is cheap - and where a rotation from 4 to 16
           // deg at the floor speed sent the Jodel back under it)
