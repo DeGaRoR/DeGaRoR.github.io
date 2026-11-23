@@ -113,7 +113,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
   let outerMatShared = null;          // G398.3: the outer ring's material (its canopy tint), for a premises' patch beyond the inner ring
   let outerUVShared = null;           // G527: ...and its uv law (an island's grid, not the analytic world's square), for the same patch
-  let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
+  let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [], warm: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let groundTier = null;              // G2115 (TERRAIN-MATCH): the 1 m contact tier under the aeroplane (ground_tier.js; its update, its state)
@@ -2100,6 +2100,28 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     let GROUND_DISC_SHARED = typeof location !== 'undefined' && /[?&]groundshare=1(&|$)/.test(location.search);
     let groundSync = () => {}, groundFullNow = false, groundKey = base => () => base;
     const islandKeyed = (m, base) => { m.customProgramCacheKey = groundKey(base); m.groundFamily = GROUND_FAMILY; GROUND_FAMILY.add(m); return m; };
+    // PERF-WORLDBUILD (23 Nov 2026, for PERF-LEAD's ?groundfirst=1): THE GROUND FAMILY'S STAND-INS. A host that links the
+    // ground's programs early found only the ring: the fine tiles and the contact tier are built by the frames, the far
+    // terrain's quadrants by its first cut - no mesh to hand to the compiler until the eye is there. groundWarm lists
+    // each DRAWN material of the family with the attribute names its meshes carry (three's key reads which exist; the
+    // hook reads them) - groundApi.warm() gives, for each, { name, key, material, mesh }: the material ITSELF on one
+    // bare triangle flagged as the drawn meshes are (receiveShadow), never in the scene, the same object every call.
+    // (The twin is not in the list: it is only ever drawn as the premises patch's clone - render_premises patchWarm. Nor
+    // is the contact tier's copy of the fine material: the same key, so the fine tiles' program - three links it once.)
+    // Nothing is made until a host asks.
+    const GROUND_WARM = [], WARM_SIZE = { position: 3, normal: 3, uv: 2, aCoarse: 1, aCoarseN: 3 };
+    const groundWarm = (name, mat, attrs) => { GROUND_WARM.push({ name, mat, attrs, mesh: null }); };
+    const groundWarmList = () => GROUND_WARM.map(e => {
+      if (!e.mesh) {
+        const g = new THREE.BufferGeometry();
+        for (const a of e.attrs) g.setAttribute(a, new THREE.BufferAttribute(new Float32Array(3 * WARM_SIZE[a]), WARM_SIZE[a]));
+        g.attributes.position.setXYZ(1, 1, 0, 0); g.attributes.position.setXYZ(2, 0, 0, 1);
+        for (let i = 0; i < 3; i++) g.attributes.normal.setXYZ(i, 0, 1, 0);
+        const m = new THREE.Mesh(g, e.mat()); m.name = 'ground:warm:' + e.name; m.receiveShadow = true; m.frustumCulled = false;
+        e.mesh = m;
+      }
+      return { name: e.name, key: e.mesh.material.customProgramCacheKey(), material: e.mesh.material, mesh: e.mesh };
+    });
     yield 'island ground';
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
@@ -2508,6 +2530,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (u && gU[u]) gU[u].value = GROUND[k]; } classWeights(); groundSync(); return groundApi.get(); },
       classWeights: () => !!(gU.uGW1 && gU.uGW1.value.image.width > 1),   // built yet? (AS1, G906: on demand)
       gpuTex: () => ({ list: gpuTex.map(([t]) => t), restore: gpuRestore }),   // the GPU-only island textures and their re-derive (GATE FRAMECOST reads it)
+      warm: () => groundWarmList(),   // PERF-WORLDBUILD: the family's stand-ins (groundWarm above), whole from the 'ground programs' step
     };
     yield 'ground bake';
     const tex = islandTex || (yield* bakeGroundSteps(-INNER, -INNER, INNER, INNER, 512, { grain: true }));
@@ -2697,7 +2720,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
     if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring'); rockGroundMat = gMat;
-      gMatTwin.onBeforeCompile = islandGroundHook0; islandKeyed(gMatTwin, 'island-twin'); }   // (the hooks share one source text: the keys keep the programs apart)
+      gMatTwin.onBeforeCompile = islandGroundHook0; islandKeyed(gMatTwin, 'island-twin');   // (the hooks share one source text: the keys keep the programs apart)
+      groundWarm('island-ring', () => gMat, ['position', 'normal', 'uv']); }
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
@@ -2858,6 +2882,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (FINE.on) {
       FINE.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
       FINE.mat.onBeforeCompile = sh => { islandGroundHookFine(sh); sh.uniforms.uTier = TIER_U.fine; }; islandKeyed(FINE.mat, 'island-fine');   // (G2115: the tier's sink, its own)
+      groundWarm('island-fine', () => FINE.mat, ['position', 'normal', 'uv', 'aCoarse', 'aCoarseN']);
       const SEG = 2 * INNER / 512, RP = geo.attributes.position, RN = geo.attributes.normal, RW = 513;
       // the ring's surface at (x, z): its own triangles (PlaneGeometry's a-b-d / b-c-d split, the
       // diagonal from (ix, iy+1) to (ix+1, iy)) and its own vertex normals, so the tile's rim is the ring
@@ -2940,8 +2965,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let fineTierMat = null;
       const fineMatTier = () => { if (fineTierMat) return fineTierMat;
         const m = FINE.mat.clone(); m.onBeforeCompile = islandGroundHookFine; islandKeyed(m, 'island-fine');   // the fine program, the hook's own uTier (off)
-        m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1; return (fineTierMat = m); };
-      const Hf = (x, z) => world.terrainH(x, z) - groundSink(x, z);   // FINE.build's H
+        m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1; return (fineTierMat = m); };      const Hf = (x, z) => world.terrainH(x, z) - groundSink(x, z);   // FINE.build's H
       const fineUV = (x, z) => (islandUV ? islandUV(x, z) : [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]);
       const modeAt = (cx, cz) => {
         const P = premisesR;
@@ -3009,8 +3033,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;
-      if (islandGroundHook) islandKeyed(oMat, 'island-outer');
+      if (islandGroundHook) { islandKeyed(oMat, 'island-outer'); groundWarm('island-outer', () => oMat, ['position', 'normal', 'uv']); }
       outerMatShared = oMat;
+      // PERF-WORLDBUILD (23 Nov): the family is whole here - the ring, the fine tiles and this one. A host
+      // that matches this label hands groundApi.warm()'s meshes (scene.userData.groundWarm(), the api is not out yet) to
+      // its compiler, before the far terrain's first cut. This step does nothing itself.
+      scene.userData.groundWarm = () => groundWarmList();
+      yield 'ground programs';
       outerUVShared = islandUV ? ((x, z) => islandUV(x, z)) : ((x, z) => [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]);   // the far terrain's own law (patchOf)
       // (the lake-free twin, PERF 2026-09-23, is gone with the lake cut, G1335: one material, every quadrant one draw)
       // THE CUT FOLLOWS THE EYE (PERF 2026-09-23, the frame study: every leaf drawn at every
@@ -3253,9 +3282,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     } else { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;   // the far tier lives mostly out here
-      if (islandGroundHook) islandKeyed(oMat, 'island-outer');
+      if (islandGroundHook) { islandKeyed(oMat, 'island-outer'); groundWarm('island-outer', () => oMat, ['position', 'normal', 'uv']); }
       outerMatShared = oMat;
-      const strip = (x0, z0, x1, z1, sx, sz) => {
+      const strip =(x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
         g2.rotateX(-Math.PI / 2);
         g2.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
@@ -7819,6 +7848,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         defer: townGeoDefer(), geoReach: geoQ('reach'),
         tierU: TIER_U.patch,   // G2115: the patch under the contact tier sinks by it
       });
+      // (PERF-WORLDBUILD, 23 Nov: the patch program's stand-in for a host's early link - render_premises patchWarm; the
+      // record's slot count is named there, so the key and the text are the drawn ones from this step on)
+      scene.userData.patchWarm = () => (premisesR && premisesR.patchWarm ? premisesR.patchWarm() : []);
       yield 'premises made';
       if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
       // G680: the rebuild in its own slices (PERF-WORLDBUILD: ...and the strips asked of the house worker as soon as the patch
