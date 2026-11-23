@@ -318600,3 +318600,82 @@ tree100 1 piece (95 %), nosedown 4 big pieces (top 42 %) on one run - yesterday'
 wide. OWED: the gates (DMGCOMPOSITE first, then the damage set), the electric trainer's crash stills (its branch
 electric-trainer-2 merged with this), and the composite skin torn ragged at a crack if the stills still show clean cuts.
 The user, 22 Nov, on the electric trainer stills (flydiy-notes/evidence/composite-fibre-2026-11-18/): "I'm OK with this last fix, please submit ... for inclusion in next trains".
+## WINCH - THE GLIDER WINCH LAUNCH: THE WINCH DRAWN AND WEATHERED, THE LINE TO A FIXED DRUM, THE START CHOOSER'S 'winch' (13 Nov 2026, cloud; branch claude/sailplane-launch-study-176kdv, master 23ce68c1f + claude/tow-launch-onmaster 480ea6df merged in)
+
+The user (13 Nov, via A0): "why wouldn't you plan for the winch, and why wouldn't we do a 3D model for that? ... a very
+specialized piece of equipment"; then "full weathering ... the plane or the building methods, or both"; "middle option,
+and take the wheels from the cars sessions, get the ones from the van"; "you may start on the implementation". The
+study before it: futureDesigns/glider-launch/STUDY.md (aerotow / car tow / the trailer / the winch, the probes).
+
+- **THE WINCH, A PROP** (`tools/_winch_gen.js`, WINCH_GEN; the tower generator's grammar: DEF / ROWS / PRESETS / PAINTS /
+  build(P) -> THREE.Group, DIM / KIT for a placer): a twin-drum trailer winch - tandem chassis on leaf springs, the deck at
+  1.0 m, A-frame drawbar and jockey wheel, four stabiliser legs; the engine housing (V8 / diesel / electric) with its
+  grille, louvres and stack; two narrow drums (core 0.80 m, flanges 1.16 m) on one shaft with disc brakes; a levelwind per
+  drum; the rear fairleads with their GUILLOTINES; the mesh cage; the driver's cab facing aft down the cable, its window
+  grilled, the amber beacon; the cable out to the drogue, strop, weak link and rings. THE VAN'S WHEELS: the CAR session's
+  Field Wagon (builds/vehicles/utility_2026-11.json) drawn by GEAR_GEN.wheel with its saved rows (VAN_WHEEL: TYRE 2 x 1.4
+  wide, rim 0.5, six bolts, cap, valve, R 0.45); plain discs when the gear kit is not on the page. Each part carries
+  `aBox` (its half extents and kind) for the weathering's edges; `userData.wx` the weather's sources.
+- **THE WEATHERING, BOTH METHODS** (`tools/_winch_weather.js`, WINCH_WX): the BUILDINGS' scans (house_tex.js's steelgrey
+  / steelrust / rust / galv, triplanar at their own tile; paint as a neutral-map grain under the tint), the house's
+  DIRT_EXPR splash line and age tone; the AEROPLANES' four macros (age / use / field / rain, aeroWxResolve's rule), the
+  grunge sheet (aeroWxGrunge) and AERO_WX_COL, sources placed (the stack's plume, the wheels' mud, grease at the drums,
+  rollers, gearbox and hitch), chips at each part's own edges down to primer and rusting steel, no shiny dirt (grease the
+  one glossy). THE CLUB LOOK on every build (the user's "middle option"). Found tuning it: fade + age tone + rain streaks
+  together washed the yellow to cream - each halved, and the fade bleaches toward the paint's own lighter colour.
+- **THE PHYSICS** (`src/vehicle/winch.js`, pure): tow.js's line with the far end FIXED (the fairlead) and its rest length
+  reeled in at the drum's speed (stretch rate -v_hook.u + v_drum; per-substep exact - nothing moves at the far end); THE
+  CG HOOK (winchHookNodes: a point 0.25 m ahead of the CG on the belly, the pull shared by the belly's two bracketing
+  frame stations) - ON THE NOSE HOOK THE LAUNCH FAILED: the pull held the nose down, the elevator full up, the pitch
+  falling from 30 to 7 deg, 187 m off 1000 m; the DRUM (150 kW, 9 kN cap, 350 kg equivalent, 32 m/s) and its DRIVER (the
+  slack taken up at 2 m/s, the ground run opened over 1.5 s but never pulling past 1.1 x the glider's weight - full power
+  at once snatched the 249 kg glider off a 3.9 kN link in 3 s - the glider's airspeed held in the climb by a PI, the pull
+  capped at 1.3 W, easing off past 50 deg, the brake after the release, the GUILLOTINE past 80 deg or 2.2 W); the
+  releases (the back-release at 70 deg, slack at the top, the cable wound in, the weak link 1.6 W, the key); the hands
+  (makeWinchHands: the ground run, 7 deg off the ground, the climb to 42 deg by height, the nose lowered when slow and as
+  the line steepens). Same surface as tow.js's line, so the page's tow plumbing drives it.
+- **THE PAGE** (`src/viewer/winch_mode.js`, WINCH_MODE, lazy with winch.js / tow.js / the two tools): the start chooser's
+  `winch:HOME` (ok on Jolene AFB, was "not built yet"), START.mode 'winch'; towTick lines the glider up, the motor off,
+  and calls winchStart: the winch built and weathered at the end of up to 1000 m of cable along the runway (the fairlead
+  on the centreline, the drawbar away), the cable drawn with its sag, laid on the grass and reeled in after the release.
+  app.js: towOn() answers WINCH_MODE first (its tow hooks: towPre / towPost / towDraw / towWords / towRelease / towStop
+  and `tow` with kind 'winch'), so the R key, the plate ('winch launch'), the inline flight, the restart and the
+  autopilot's handover (launchHandOver) are the car tow's. MANIFEST.lazy +4.
+- **GATE WINCH** (`tools/_winch_check.js`, core, ~6 min; run_gates row after TRAILER): LAUNCH (1000 m: lift-off 3.9 s,
+  the climb at 22.4-23.8 m/s against 23.5, released at 275 m by the back-release, 2.79 kN at most), GLIDE, RELEASE (the
+  key at 100 m, the drum braked), WEAK (1.5 kN breaks in the roll), CUT (no back-release: the guillotine at 274 m),
+  SHORT (600 m: 135 m), AUTOPILOT (CLIMB -> GLIDE), CIRCUIT (released at 275 m, the glider's circuit, landed on the
+  runway 7.4 m off the centreline, sink 0.40), PERF, MODULE (winch_mode.js run in node on a three scene: the winch drawn
+  and weathered at the far end, a launch by the hands, the plate's words, towStop clean), PAGE (the wiring by source).
+- **NOT DONE / OWED**: the page not flown in a browser (the island boots ~9 min under SwiftShader; MODULE runs the page's
+  half in node, PAGE checks app.js by source); no collision with the winch (the glider is released short of it); one
+  cable of the two used; no winch sound; the winch not in the world outside a winch launch (a scenery placement - the
+  KIT numbers are ready); a pure 0-engine sailplane card still owed (the motorglider flies with its motor off).
+- **WINCH 2 (A0, 13 Nov: "installed PERMANENTLY at Jolene AFB ... PBR materials, reusing the game's existing ones")**:
+  every winch material is a PBR MeshStandardMaterial made by MATLIB.shared in the `winch` scope (GATE ASSETS' rule; the
+  scope keeps the weathering hook off every other family's shared material); the cage's mesh was unlit LineSegments - now
+  thin square bars, one merged geometry, painted steel (it casts its grid's shadow); the scans in the game are the house
+  library's own Images (HOUSE_TEX_SETS - fetched once, shared with the buildings); the weathering's prop space is per
+  placed winch (an inverse world matrix on the group, set before each of its meshes draws). FOUND: the cage's alias
+  (MAT.mesh = MAT.trim) set before the role loop re-tagged trim 'mesh' - 63 meshes unweathered; the alias after the loop.
+  A PERMANENT WINCH: winch_mode.js uses any WINCH_GEN group standing on the centreline ahead (userData.winchProp, its
+  fairlead 300 m+ away) instead of setting one up, and leaves it standing (MODULE row). WINCH_GEN.fairlead(group, drum).
+  The placing session's notes: futureDesigns/glider-launch/WINCH-PLACEMENT.md. GATE ASSETS is red on master's merge of
+  the car branch (tools/_cowl_gen.js, 2 material sites) - not the winch's.
+
+
+## AFB-0220 WINCH - THE GLIDER WINCH INSTALLED PERMANENTLY AT JOLENE AFB, ONE PER DIRECTION OF 13/31 (13 Nov 2026, cloud AFB-0220 for A0; claude/afb-0220-winch, stacked on claude/sailplane-launch-study-176kdv)
+- The user (13 Nov via A0): "THE GLIDER WINCH, installed PERMANENTLY at Jolene on the main runway 13/31 ... CHECK it uses PBR materials". Two editor objects { kind: 'prop', key: 'gen:winch' } in tools/fixtures/island_jolene.json: xw_winch13 (-359.51, 136.34) yaw 0.8552 serves 13; xw_winch31 (-209.03, 267.17) yaw -2.2864 serves 31. Each 25.5 m NE of the centreline (the van 1.5 m off the paved edge), its fairlead 1000 m from its direction's start (60 m in from the end), facing it. The world editor moves, turns, deletes them.
+- render_premises.js GEN_PROPS / buildGenProp: WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 }) in a holder at the record's pose, WINCH_WX.apply once placed, hitAdd(g, 'prop', 0.5): it collides (OBSTACLES). A holder with propPending until the lazy files land (world_boot.js asks for _winch_gen / _winch_weather when the record names gen:winch).
+- winch_mode.js winchStart: the search 30 m off the centreline (was 25 - the van stood on the paved edge), only a winch that FACES the glider, the nearest of those: from 13's start xw_winch13, from 31's xw_winch31 (the other, turned away down the same runway, passed over).
+- PBR, checked (GATE WINCH PLACED): 13 materials on a built winch, every one a MeshStandardMaterial made by MATLIB (the 'winch' scope, WINCH 2). Gates: WINCH PASS (PLACED 5 rows), UISMOKE PASS, PREMISES PASS, BUILT PASS; ASSETS FAIL (tools/_cowl_gen.js 2 material sites - the base's, named in WINCH 2) and SCENERYED FAIL 20b (Metlakatla compose timing - the base fails it too, 3493 ms quiet).
+- OWED: the premises cook (the fixture moved: PREMCOOK, re-cook on the train); the fixture here has no trailing newline (the tow-launch line's form), master's has one - integrate by taking either side and re-splicing the two xw_winch objects; FRAMECOST / the look on a GPU (the winch near the 13/31 edge, both ends).
+
+## WINCH-LAND - THE GLIDER WINCH LANDED: ONE PERMANENT WINCH AT 13/31'S FAR END, THE CHOOSER'S WINCH LAUNCH LIVE (22 Nov 2026, [LOCAL-GPU] WINCH-LAND for A0; claude/ready/winch on origin/claude/perf-codex)
+- THE USER (22 Nov): "The Winch model is already built by a session, even tested ... please check that and try to land it. I'm fine with the winch model to be permanently placed." Then, on the placement (via A0): "the winch on 13/31 at the end, so not where we are taking off usually, of course, at the other end ... we can winch from there, and it does a little element of scenery at the end of the runway".
+- THE MERGE: origin/claude/afb-0220-winch (fd55d8f0) carries the whole study branch (claude/sailplane-launch-study-176kdv is its ancestor), merged onto perf-codex 4421e541. Unions: app.js (the chooser's winch row live, the winch side), build.js MANIFEST.lazy (perf-codex's livery_marks + mission props AND the winch's four files), island_jolene.json (perf-codex's record + the winch object re-spliced), this file (both). Built files rebuilt, never merged.
+- GATE WINCH RED ON THE BASE, FIXED IN SOURCE: the motorglider is 276 kg today (249 on 13 Nov); the hands' proportional pitch hold gave 0.18 elevator for the 3 deg error under 8 m and held the nose at 4 deg - the whole cable flown level at 1-9 m, released 40 m short of the winch (8 rows red). src/vehicle/winch.js makeWinchHands: a TRIM (the integral, 0.02 per deg s, +-0.5, no wind-up while the elevator is at its stop; zeroed on the ground run). Released at 241 m off 1000 m (275 on 13 Nov's lighter build), the circuit landed 0.3 m off the centreline.
+- THE PLACEMENT (the user's): ONE winch, xw_winch (-1164.88, -496.19) yaw -2.2864, replaces the two mid-runway ones (xw_winch13 / xw_winch31, ~100 m either side of the middle). The usual take-off is the game's own line-up from HOME's stand (the pilot's lineupPose: station +1052 m of 13/31, rolling toward -u); the winch stands 40 m inside the OTHER (far) threshold, 25.5 m off the centreline on the SW side (off the paved edge with the van's width), facing the line-up: ~2170 m of cable. FIRST TRIED on the NE side (-1131.42, -534.68, the side the stills of 03:10 show): GATE TAXICLEAR 11a red - the Cub's turn-around at end0 -25 / -33 m swings into it (-3.78 m with the winch's real box). Probed (taxiclear lib planAt, the three builds, HOME end0 at 15-150 m): NE 40 m in -3.78; SW 40 m in +4.64; NE 100 m in +15.8; beyond the end clear; NE 35 m off +5.72.
+- THE CENSUSES DID NOT KNOW THE WINCH: _taxiclear_lib propBoxes stands an unknown prop key in as a person's 0.6 m disc, so the census (TAXICLEAR, the fleet spots) saw the 2.6 x 7.2 m winch as a post. GEN_BB (the generated props' boxes) gives gen:winch [-1.46, 0, -2.98, 1.19, 4.26, 4.25]; GATE WINCH PLACED holds it to WINCH_GEN.build's own Box3. From the far end a launch has the winch behind it: winchStart sets one up and towStop takes it away (unchanged). GATE WINCH PLACED re-written for one winch + LONG (a launch on the whole cable). The chooser's subtitle: "on the cable to the club winch at the far end of Jolene AFB 13/31, released at the top".
+- IN GAME (RTX 3080, 22 Nov 03:10-03:18, tools: a page_rig.js rig in the session's scratchpad; stills D:/Dev/flydiy-notes/evidence/winch-land-2026-11-22/): the motorglider through NEW_PLANE.openShape, motorOff through GARAGE_SPEC.set (the chooser's glider rows - push, car tow, winch - need an unpowered build), FLYDIY_START.go({ start: 'winch:HOME' }): lined up at (494, 912), the cable 2173 m to xw_winch (none built), the climb ~150 s, the back-release at 70 deg ~890 m over the field. THE COST: the winch's programs 2 at the end of the boot (the opaque and the glass PBR + its weathering, cacheKey 'winchwx1'; 545 in all on this rig's settings), 4 after the first close look (2 more variants compiled then; not attributed further in this slot - a named cost for the perf round); its build 19 ms + the weathering's apply 113 ms, once, during the boot; 38 616 triangles, 13 MATLIB materials. The van / tow car untouched (lazy as before).
+- OPEN, for the user (page https://claude.ai/artifact/UKFygDvqa3zy7VBC6fanE7): the full runway gives a long, high launch (2.2 km; in node, calm, released at 572 m after 86 s - GATE WINCH LONG; in game with that morning's wind ~890 m after ~150 s; clubs fly 1-1.5 km to 300-500 m) - default keep. RE-SHOT at the SW spot (RTX 3080, 22 Nov 09:44-09:47; evidence/winch-land-2026-11-22/sw-spot/): the winch on the grass beside the far end, 549 programs at the end of that run, 2 of them the winch's.
