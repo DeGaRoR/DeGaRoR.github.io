@@ -2607,7 +2607,7 @@ function spareBuild(group, P, AF) {
   // THE WHEEL, drawn fresh by the road wheels' own builder - no brake, NO HUB CAP (the user: "remove the little hubcap so
   // that it presents a flatter surface"), built at the origin first to measure its tyre, then seated
   const wb = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(), alloy: GG.Bag(), dark: GG.Bag(), brakefix: GG.Bag(), steel: GG.Bag() };
-  GG.wheel(wb, [0, 0, 0], [sg, 0, 0], R, { brake: false, inboard: sg, P: Object.assign({}, P, { whCap: 0 }) });
+  GG.wheel(wb, [0, 0, 0], [sg, 0, 0], R, { brake: false, inboard: sg, P: ((window.CAGE_CHAIN && window.CAGE_CHAIN.over) || ((p, o) => Object.assign({}, p, o)))(P, { whCap: 0 }) });   // (PERF-SLIDERS: CAGE_CHAIN.over, no copy of every row)
   const wg = new THREE.Group();
   for (const k of ['tyre', 'hub', 'alloy', 'dark']) if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
   root.add(wg);

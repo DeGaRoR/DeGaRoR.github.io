@@ -134,7 +134,10 @@ const HARNESS = `(() => { if (window.__SW) return 'again';
   // the aeroplane on the stand (the editor's scene, visible)
   G.plane = () => { const S = window.CAGE_SCENE; if (!S) return null; let meshes = 0, tris = 0, verts = 0;
     const walk = o => { if (!o.visible) return; if (o.isMesh && o.geometry && o.geometry.attributes && o.geometry.attributes.position) { const g = o.geometry, n = g.attributes.position.count; meshes++; verts += n; tris += (g.index ? g.index.count : n) / 3 * (o.isInstancedMesh ? o.count : 1); }
-      for (const c of o.children) walk(c); }; walk(S); return { meshes, tris: Math.round(tris), verts }; };
+      for (const c of o.children) walk(c); }; walk(S);
+    // (the layers that enumerated the rows on their last run - CAGE_CHAIN's all flag: such a layer re-runs on EVERY tick of ANY row)
+    let all = null; try { all = window.CAGE_CHAIN.layers.filter(l => l.all).map(l => l.name); } catch (e) {}
+    return { meshes, tris: Math.round(tris), verts, all }; };
   const PE = (t, o) => { try { return new PointerEvent(t, Object.assign({ bubbles: true, pointerId: 7, pointerType: 'touch' }, o || {})); } catch (e) { return new Event(t, { bubbles: true }); } };
   // THE DRAG'S TICKS (the release is G.dragEnd: a profile stops between the two)
   G.dragTicks = async (k, sec) => {

@@ -568,7 +568,10 @@ const podPlate = (P, face) => {
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
   if (mount >= 4 && mount <= 7) {
-    const one = (m, extra) => engineFaces(mesh, FS, Object.assign({}, P, { engMount: m }, extra || {}));
+    // (PERF-SLIDERS: CAGE_CHAIN.over - the rows laid over P, P's own read through and not copied: the copy read every row
+    // and the cowl layer re-ran on every tick of any slider on a mount 4-7 aeroplane)
+    const over = ((window.CAGE_CHAIN && window.CAGE_CHAIN.over) || ((p, o) => Object.assign({}, p, o)));
+    const one = (m, extra) => engineFaces(mesh, FS, over(P, Object.assign({ engMount: m }, extra || {})));
     if (mount === 4) return one(0).concat(one(1));
     // HULL-B15: THE TANDEM - the over-the-wing mount's face twice, back to back: the front unit pulls (its block
     // forward of the face), the rear one pushes (aft of it), a hand's gap between their plates; one pylon (the first)

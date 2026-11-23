@@ -200,6 +200,16 @@
     (Ly.der || (Ly.der = new Map())).set(name, { fn, v: snapV(v), keys, raw });
     return v;
   };
+  // PERF-SLIDERS (23 Nov 2026): over(P, o) - P WITH A FEW ROWS LAID OVER IT, WITHOUT READING EVERY ROW OF P. A layer that
+  // handed a generator `Object.assign({}, P, { engMount: m })` read every row (the copy enumerates P: the record's `all`),
+  // so it re-ran on EVERY tick of ANY row - the cowl layer of every aeroplane with a nose-and-aft pair or three or four
+  // engines (engMount 4-7: the Pawnee, the sailplane, the twin-boom of the list, ~70 ms of each tick in the garage at
+  // 5120, whatever the slider), the wing's of one with a cabin pylon, the gear's of one carrying a spare wheel, the
+  // crew's of one whose passengers sit on another seat than the pilots. over() answers an object whose own rows are o's
+  // and whose every other row is read THROUGH to P (its prototype: the recording view records the rows the generator
+  // asks for, one by one). The generator must not enumerate what it is handed (none of the four does: _cage_cowl.js
+  // engineFaces, CAGE_PYLON.drawPylonBlade, GEAR_GEN.wheel, SEAT_GEN.build). ?derived=0 / derivedOff: the copy, as before.
+  C.over = (P, o) => (C.derivedOff ? Object.assign({}, P, o) : Object.assign(Object.create(P), o));
   // derivedMoved(P): the layers one of whose derived reads stands on a row that reads differently now than when the layer
   // last ran (the function's value may be the same: the layer did not run). With the raw read the layer WOULD have run
   // in the drag - the release's rule on a crew that moved (_cage_ui.js) asks this so the release is the one it was.

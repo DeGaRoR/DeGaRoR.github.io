@@ -1213,7 +1213,7 @@ function cabPylonDraw(ctx) {
     const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
                 foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
     cabPyGroup = new THREE.Group(); cabPyGroup.name = 'cageLayer:cabPylon';
-    PY.drawPylonBlade(cabPyGroup, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
+    PY.drawPylonBlade(cabPyGroup, f, ((window.CAGE_CHAIN && window.CAGE_CHAIN.over) || ((p, o) => Object.assign({}, p, o)))(P, { engPylonFair: 3 }), GK, false,   // (PERF-SLIDERS: CAGE_CHAIN.over, no copy of every row)
                       PY.pylonCaster(ctx, FS, PLS ? [-0.4, 0.4, zc - Math.max(1.2, Lp), zc + Math.max(1.2, Lp)] : [-1.0, 1.0, zc - 1.2, zc + 1.2]));
     scene.add(cabPyGroup);
   } catch (e) { console.error('cabane pylon:', e); }

@@ -21,7 +21,15 @@
 // idle pose, the beacon's turn, a floatplane's CG handshake), counted apart; the spec hash the same way. The crew
 // layer's runs in the ticks are printed for each side: OFF must run it where ON does not, or the gate did not test the
 // mode (a FAIL: `the modes did not differ`, when no value of an aeroplane showed it).
-// An aeroplane with no derived read (a fixed gear) has nothing to compare and says so.
+// An aeroplane with no derived read (a fixed gear) has no walk of that kind and says so.
+// THE ROWS LAID OVER P (CAGE_CHAIN.over, the same switch): a layer that handed a generator a COPY of P read every row and
+// re-ran on every tick of any row; over() reads through. Two checks, on EVERY aeroplane:
+//   the stand: the aeroplane as loaded, one plain build ON, OFF, OFF - the scene and the spec equal (a generator that
+//   enumerated what it was handed would build another aeroplane from the overlay), and the layers that read every row
+//   in each mode are printed;
+//   where the two modes' lists differ (an overlay is in use on this aeroplane), the walk above on four rows that are
+//   none of the overlay's (the wing's span, the tail's, the main gear's station, the seat's height) to four fifths of
+//   their range - OFF re-ran the layer on every tick, ON did not, the aeroplane after the release must be the same.
 // Usage: node --max-old-space-size=6144 tools/_derived_check.js [--planes list:12,list:41 | --all] [--rows k1,k2]
 // GATES_CORE=1 (the runner's core tier): two aeroplanes (a retractable twin, a hull amphibian).
 // Exit 1 on any difference. Ends with one line: GATE DERIVED: PASS|FAIL. No --help.
@@ -38,12 +46,13 @@ const want = opt('planes', null) ? opt('planes').split(',').map(num) : (process.
 const PLANES = want ? want.map(n => LISTS.find(p => p.n === n)).filter(has) : LISTS.filter(p => has(p) && !p.rides && (argv.includes('--all') || PLAYER.includes(p.list)));
 const ROWS = opt('rows', '') ? opt('rows').split(',') : [];
 const SETTLE = +opt('settle', 1500);
+const OVER_ROWS = ['wgSpan', 'stSpan', 's1X', 'seatH'];
 const log = s => console.log('  ' + s);
 const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), 'utf8').match(/const FP = `([\s\S]*?)`;\n/)[1];
 
 (async () => {
   const { openPage } = require('./_page_node.js');
-  let bad = 0, walks = 0, saved = 0, withReads = 0, P = null, W = null, D = null, U = null, CH = null, run = null;
+  let bad = 0, walks = 0, saved = 0, withReads = 0, stands = 0, overs = 0, P = null, W = null, D = null, U = null, CH = null, run = null;
   const boot = async file => {
     if (P) { try { P.close(); } catch (e) {} }
     P = await openPage({ quiet: true, storage: { 'flydiy.wip': fs.readFileSync(path.join(ROOT, file), 'utf8') }, query: 'fleet=0' });
@@ -95,6 +104,26 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     CH.derivedOff = false;
     return out;
   };
+  // the stand (the header's): the aeroplane as loaded, a plain build in the mode; the scene, the spec, the layers that read every row
+  const ROTOR = '(() => { const S = window.CAGE_SCENE; if (S) S.traverse(o => { if (/^liRotor/.test(o.name || "")) { o.rotation.set(0, 0, 0); o.updateMatrix(); o.updateMatrixWorld(true); } }); return 1; })()';
+  const stand = async off => {
+    restore(); CH.derivedOff = !!off; U.build();
+    await P.until(() => false, SETTLE);
+    run(ROTOR);
+    const out = { h: hash(), fp: JSON.parse(run(FP)), all: Array.from(CH.layers).filter(l => l.all).map(l => l.name).join(' ') };
+    CH.derivedOff = false;
+    return out;
+  };
+  const cmp = (A, B, C) => { const diffs = []; let noise = 0;
+    for (let i = 0; i < Math.max(A.fp.out.length, B.fp.out.length); i++) {
+      if (A.fp.out[i] === B.fp.out[i]) continue;
+      if (A.fp.out.length === B.fp.out.length && B.fp.out.length === C.fp.out.length && (B.fp.out[i] !== C.fp.out[i] || A.fp.out[i] === C.fp.out[i])) { noise++; continue; }
+      diffs.push(i);
+    }
+    const specNoise = A.h !== B.h && B.h !== C.h, specBad = A.h !== B.h && !specNoise;
+    return { diffs, noise, specNoise, specBad, same: !diffs.length && !specBad }; };
+  const show = (A, B, diffs) => { for (const i of diffs.slice(0, 3)) { const a = A.fp.out[i] || '(none)', b = B.fp.out[i] || '(none)'; let c = 0; while (c < a.length && a[c] === b[c]) c++;
+    log('     @' + i + ' on:  ' + a.slice(0, 50) + ' ..@' + c + ': ' + a.slice(Math.max(0, c - 60), c + 120) + '\n       off: ' + b.slice(0, 50) + ' ..@' + c + ': ' + b.slice(Math.max(0, c - 60), c + 120)); } };
   log('GATE DERIVED: ' + PLANES.length + ' aeroplanes, the derived reads\' own rows' + (ROWS.length ? ' + ' + ROWS.join(' ') : ''));
   let first = true;
   for (const p of PLANES) {
@@ -104,17 +133,25 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       if (first) { await boot(p.file); first = false; }
       else { how = await load(p); if (how !== 'ok') { log('list:' + p.n + ' not loaded in the page (' + how + '): a fresh boot'); await boot(p.file); how = 'boot'; } }
       if (!CH || typeof CH.derived !== 'function' || typeof CH.derivedKeys !== 'function') { log('NO CAGE_CHAIN.derived / derivedKeys on this page'); bad++; break; }
+      if (typeof CH.over !== 'function') { log('NO CAGE_CHAIN.over on this page'); bad++; break; }
       const dk = Array.from(CH.derivedKeys());
-      const rows = [...new Set([...dk, ...ROWS])];
-      if (!rows.length) { log('== list:' + p.n + ' ' + p.name + '  (' + how + ')  no derived read on this aeroplane: nothing to compare  (' + Math.round((Date.now() - tP) / 1000) + ' s)'); continue; }
       log('== list:' + p.n + ' ' + p.name + '  (' + how + ')  derived reads on: ' + (dk.join(' ') || 'none'));
       snap();
+      const SA = await stand(false), SB = await stand(true), SC = await stand(true), sc = cmp(SA, SB, SC);
+      stands++; if (!sc.same) bad++;
+      const overOn = SA.all !== SB.all;
+      if (overOn) overs++;
+      log('   the stand   objects ' + SA.fp.out.length + '/' + SB.fp.out.length + '  ' + (sc.same ? 'same' : 'DIFFER ' + sc.diffs.length + (sc.specBad ? ' + spec ' + SA.h + ' vs ' + SB.h : '')) + (sc.noise ? '  (noise ' + sc.noise + ')' : '') + (sc.specNoise ? '  (spec noise)' : '') +
+        '  layers that read every row: on [' + SA.all + '], off [' + SB.all + ']');
+      show(SA, SB, sc.diffs);
+      const rows = [...new Set([...dk, ...ROWS, ...(overOn ? OVER_ROWS : [])])];
+      if (!rows.length) { log('   no derived read and no overlay in use on this aeroplane: no walk  (' + Math.round((Date.now() - tP) / 1000) + ' s)'); continue; }
       let moded = 0, dwalks = 0;
       for (const k of rows) {
         const el = D.getElementById('p_' + k);
         if (!el || el.type !== 'range' || el.disabled) { log('   ' + k.padEnd(10) + ' (no slider)'); continue; }
         const lo = +el.min, hi = +el.max, x0 = +el.value, st = +el.step || 0.001;
-        for (const v of [lo, lo + (hi - lo) * 0.5, lo + (hi - lo) * 0.8]) {
+        for (const v of (dk.includes(k) || ROWS.includes(k) ? [lo, lo + (hi - lo) * 0.5, lo + (hi - lo) * 0.8] : [lo + (hi - lo) * 0.8])) {
           if (Math.abs(v - x0) < st * 1.5) continue;
           const A = await walk(k, v, false), B = await walk(k, v, true), C = await walk(k, v, true);
           const diffs = []; let noise = 0;
@@ -139,8 +176,8 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     log('   (' + Math.round((Date.now() - tP) / 1000) + ' s)');
   }
   try { if (P) P.close(); } catch (e) {}
-  log(walks + ' walks compared on ' + withReads + ' aeroplanes with a derived read, ' + bad + ' failures; crew runs saved in the ticks: ' + saved);
-  if (!walks) { bad++; log('nothing was compared'); }
+  log(stands + ' aeroplanes compared on the stand (' + overs + ' with an overlay in use), ' + walks + ' walks compared (' + withReads + ' aeroplanes with a derived read), ' + bad + ' failures; crew runs saved in the ticks: ' + saved);
+  if (!stands) { bad++; log('nothing was compared'); }
   console.log('GATE DERIVED: ' + (bad ? 'FAIL' : 'PASS'));
   process.exit(bad ? 1 : 0);
 })().catch(e => { console.error('_derived_check: ' + (e && e.stack || e)); console.log('GATE DERIVED: FAIL'); process.exit(1); });

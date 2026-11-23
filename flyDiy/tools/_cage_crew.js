@@ -182,7 +182,7 @@ function buildSeat(parent, A, P, sx, zBack, sbs, SP, pl) {
     const own = P.paxSeatType != null ? Math.round(+P.paxSeatType) : -1;
     const pre = SG.PRESET_OF(P.seatType || 0);
     const t = own >= 0 ? own : (pre && pre.paxType != null ? pre.paxType : -1);
-    if (t >= 0 && t !== Math.round(P.seatType || 0)) P = Object.assign({}, P, { seatType: t });
+    if (t >= 0 && t !== Math.round(P.seatType || 0)) P = ((typeof window !== 'undefined' && window.CAGE_CHAIN && window.CAGE_CHAIN.over) || ((p, o) => Object.assign({}, p, o)))(P, { seatType: t });   // (PERF-SLIDERS: CAGE_CHAIN.over, no copy of every row)
   }
   const r = SG ? SG.build(parent, A, P, g, Object.assign({}, SP, { pax: isPax }), sbs) : null;
   // THE LAP BELTS ARE GONE (2026-09-20, the user, on the 172) and with the seat library no seat carries a belt (the
