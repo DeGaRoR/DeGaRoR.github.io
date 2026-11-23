@@ -42,15 +42,24 @@ if [ "${PIPESTATUS[0]}" = 5 ]; then
 fi
 grep -h "^SMOKE_MON" "$OUT"/smoke*/summary.txt | grep -o 'rollout: [^|]*' | tee -a "$LOG"
 
-# 1. the early Go, watched to the flight
-if [ $(left) -ge 12 ]; then say "part 1: Go 6 s after the reveal, watched 60 s"
-  LM_HELD=1 LM_AFTER=6 LM_SECS=330 LM_EST=200 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=20 bash tools/perf/load_matrix.sh tools/perf/rows/mon-0700-go.txt "$OUT/go6" 11 2>&1 | tee -a "$LOG"
+# 0b. THE LIVE BUILD'S LOADS, OWED (23 Nov 06:00): the L40J check's three load rows of 03:15 were served the LAB build by a
+#     leftover server on the rows' port (load_matrix.sh now compares the port's build with the folder's and stops on a
+#     difference). The live build, stood from master's own built files: cold x2 (the shot skipped, then played), returning.
+LIVE=D:/Dev/perf-live-l40j
+if [ -z "$LIVE_DONE" ] && [ $(left) -ge 11 ] && [ -f "$LIVE/flyDiy/index.html" ]; then say "part 0b: the live build's loads ($(cat "$LIVE/flyDiy/version.json" | cut -c1-40))"
+  LM_HELD=1 LM_AFTER=12 LM_SECS=330 LM_EST=200 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=14 bash tools/perf/load_matrix.sh tools/perf/rows/live-l40j.txt "$OUT/live" 11 2>&1 | cut -c1-1800 | tee -a "$LOG"
+  grep -h "^LIVE_" "$OUT/live/summary.txt" | grep -o '^[A-Z0-9_]*\|rollout: [^|]*' | paste - - | cut -c1-300 | tee -a "$LOG"
+else say "part 0b SKIPPED: $(left) min left, or done, or no live folder"; fi
+
+# 1. the early Go, watched to the flight (ONE row since 23 Nov: the window also owes the live build's loads and the crash rows)
+if [ $(left) -ge 6 ]; then say "part 1: Go 6 s after the reveal, watched 60 s"
+  LM_HELD=1 LM_AFTER=6 LM_SECS=330 LM_EST=200 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=20 bash tools/perf/load_matrix.sh tools/perf/rows/mon-0700-go.txt "$OUT/go6" 5 2>&1 | tee -a "$LOG"
   grep -h "^GO6" "$OUT/go6/summary.txt" | grep -o '^[A-Z0-9_]*\|rollout: [^|]*' | paste - - | tee -a "$LOG"
 else say "part 1 SKIPPED: $(left) min left"; fi
 
 # 2. the best load twice beside the base (Go after 45 s), then Go after 12 s
-if [ $(left) -ge 16 ]; then say "part 2: the best load, twice, beside the base"
-  LM_HELD=1 LM_AFTER=45 LM_SECS=330 LM_EST=215 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=30 bash tools/perf/load_matrix.sh tools/perf/rows/mon-0700-best.txt "$OUT/best" 15 2>&1 | tee -a "$LOG"
+if [ $(left) -ge 9 ]; then say "part 2: the best load beside the base (one of each since 23 Nov)"
+  LM_HELD=1 LM_AFTER=45 LM_SECS=330 LM_EST=215 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=30 bash tools/perf/load_matrix.sh tools/perf/rows/mon-0700-best.txt "$OUT/best" 8 2>&1 | tee -a "$LOG"
 else say "part 2 SKIPPED: $(left) min left"; fi
 if [ $(left) -ge 6 ]; then say "part 2b: the best load, Go 12 s after the reveal"
   LM_HELD=1 LM_AFTER=12 LM_SECS=330 LM_EST=200 LM_BRIEF_ARGS="$BR" LM_BRIEF_LINES=20 bash tools/perf/load_matrix.sh tools/perf/rows/mon-0700-go12.txt "$OUT/go12" 5 2>&1 | tee -a "$LOG"
