@@ -753,7 +753,8 @@ function garageInit(api) {
     .then(j => ((j && j.planes) || []).filter(p => p && p.official && labOk(p)).map(c => Object.assign(candRow(c), { tip: 'official' })), () => []);
   const loadCandidate = c => fetch(CAND_DIR + encodeURIComponent(c.file))
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-    .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })
+    // PC6-LIVERIES: a card's own liveries (the file's { liveries, livery }, 66c_livery.js) come with it; no plaque, an empty log
+    .then(t => { const g = unwrap(t); loadSpec(g.spec, '', null, null, null, lvOf(g)); })
     .catch(e => alert('That candidate could not be loaded: ' + c.file + ' (' + ((e && e.message) || e) + ')'));
   // PLANE-LISTS (the user 4 Nov, off the all-planes sheet: "so we have an exhaustive list"): builds/lists/plane_lists.json, every
   // aeroplane we have. PLANE-LIST (the user 10 Nov, the classes): REPRODUCTIONS (the types REAL-FIGURES tests against the real
@@ -780,7 +781,7 @@ function garageInit(api) {
     if (p.gen) { loadSpec(api.defaults(), ''); return; }
     return fetch(p.file.split('/').map(encodeURIComponent).join('/'))
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-      .then(t => { const g = unwrap(t); for (const k in p.over || {}) g.spec[k] = Object.assign({}, g.spec[k], p.over[k]); loadSpec(g.spec, '');
+      .then(t => { const g = unwrap(t); for (const k in p.over || {}) g.spec[k] = Object.assign({}, g.spec[k], p.over[k]); loadSpec(g.spec, '', null, null, null, lvOf(g));
         // the fiche's rec.listFile / listRow (FICHE_BOARD's ctx): the row this plane was opened from, while it is the one on the stand
         listedRow = { file: p.file, row: p.thumb || (p.n != null ? 'list:' + p.n : ''), spec }; })
       .catch(e => alert('That aeroplane could not be loaded: ' + p.file + ' (' + ((e && e.message) || e) + ')'));

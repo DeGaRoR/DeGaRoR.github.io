@@ -24,7 +24,7 @@ const PORT = +opt('port', 8131), FLY_S = +opt('fly', 900), ONLY_UI = process.arg
 let pw;
 try { pw = require('playwright'); } catch (e) { pw = require(path.join(cp.execSync('npm root -g').toString().trim(), 'playwright')); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const WIP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_cub_wip.json'), 'utf8');
+const WIP = fs.readFileSync(path.join(__dirname, 'fixtures', 'test_copies', 'garage_lag_cub_wip.json'), 'utf8');
 // GATE ROUTE's route (tools/_route_check.js ROUTE_PTS): offsets from HOME's centre, m MSL
 const PTS = [[1500, -2500, 175], [-3000, -5000, 320], [-4500, -2000, 260], [-3500, 1000, 215], [-1500, 2500, 170]];
 

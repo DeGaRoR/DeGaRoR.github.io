@@ -1,0 +1,152 @@
+{
+  "updated": "2026-11-21T13:09:32.425Z",
+  "runs": [
+    {
+      "id": "control",
+      "label": "Original polygon edge queries",
+      "folder": "control",
+      "valid": true,
+      "seconds": 123.485,
+      "peakC": 79,
+      "queries": {
+        "checks": 0,
+        "rejected": 0,
+        "exact": 13528786,
+        "enabled": false
+      },
+      "stages": {
+        "treeBins": 0.002,
+        "aircraft": 0.866,
+        "garage": 0.694,
+        "editor": 0.091,
+        "seed": 1.079,
+        "world": 32.982,
+        "town": 2.439,
+        "parking": 0.324,
+        "trees": 0,
+        "ring": 2.755,
+        "settle": 15.449,
+        "parked": 0,
+        "snapshot": 1.035,
+        "bake": 0,
+        "spec": 0.365,
+        "restore": 0.006,
+        "images": 0.105,
+        "upload": 1.855,
+        "worldCompile": 40.998,
+        "compile": 4.003,
+        "firstFrame": 2.957,
+        "frames": 6.859,
+        "craft": 0.229,
+        "recheck": 0.02
+      },
+      "response": {
+        "samples": 1153,
+        "p50": 16.69999999999709,
+        "p99": 16.800000000017462,
+        "max": 16.900000000023283,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "errors": [],
+      "build": "122b7038117c"
+    },
+    {
+      "id": "candidate",
+      "label": "Reject unreachable pavement polygons",
+      "folder": "candidate",
+      "valid": true,
+      "seconds": 123.46620000000298,
+      "peakC": 81,
+      "queries": {
+        "checks": 13528613,
+        "rejected": 10952548,
+        "exact": 2576118,
+        "enabled": true
+      },
+      "stages": {
+        "treeBins": 0.007,
+        "aircraft": 0.87,
+        "garage": 0.691,
+        "editor": 0.088,
+        "seed": 1.075,
+        "world": 30.664,
+        "town": 2.435,
+        "parking": 0.341,
+        "trees": 0,
+        "ring": 1.929,
+        "settle": 16.2,
+        "parked": 0,
+        "snapshot": 1.1,
+        "bake": 0,
+        "spec": 0.338,
+        "restore": 0.004,
+        "images": 0.097,
+        "upload": 1.891,
+        "worldCompile": 41.764,
+        "compile": 4.942,
+        "firstFrame": 2.922,
+        "frames": 6.656,
+        "craft": 0.236,
+        "recheck": 0.02
+      },
+      "response": {
+        "samples": 1151,
+        "p50": 16.69999999999709,
+        "p99": 16.800000000017462,
+        "max": 16.90000000000873,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "errors": [],
+      "build": "122b7038117c"
+    },
+    {
+      "id": "control-close",
+      "label": "Repeated original polygon queries",
+      "folder": "control-close",
+      "valid": false,
+      "seconds": null,
+      "peakC": 86,
+      "queries": {
+        "checks": 0,
+        "rejected": 0,
+        "exact": 13528786,
+        "enabled": false
+      },
+      "stages": {
+        "treeBins": 0.003,
+        "aircraft": 0.869,
+        "garage": 0.662,
+        "editor": 0.091,
+        "seed": 1.13,
+        "world": 32.238,
+        "town": 2.361,
+        "parking": 0.244,
+        "trees": 0,
+        "ring": 2.767,
+        "settle": 15.174,
+        "parked": 0,
+        "snapshot": 1.013,
+        "bake": 0,
+        "spec": 0.37,
+        "restore": 0.006,
+        "images": 0.102,
+        "upload": 1.851,
+        "worldCompile": 41.037,
+        "compile": 4.823,
+        "firstFrame": 2.979,
+        "frames": 5.575,
+        "craft": 0.228,
+        "recheck": 0.02
+      },
+      "errors": [
+        "Error: Invalid rendered readiness: shader/draw errors; timings excluded"
+      ],
+      "build": "122b7038117c"
+    }
+  ],
+  "reportMarkdown": "## Conservative pavement-polygon query bounds\n\nSame build122b7038117c, fresh native-player Chrome profiles, saved Cub/full hangar/5120x1271/DPR1, saved night/30fps. Approved mist B/original scuff. All seven systems,town,full high-poly runway geometry/cues retained; only accepted cliff/runtime-aircraft-bake cuts. Failed terrain-weather-base cache OFF, experimental GPU caches OFF.20s garage soak; no day change or departure. Controls bracket the exact query optimization. Driver cache not erased; no world FPS claim.\n\n| Case | Garage(s) | World generation(s) | Nearby queues(s) | Exact polygon queries | Distant queries skipped | Peak CPU°C |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\n| Original polygon edge queries | 123.485 | 32.982 | 15.449 | 13528786 | 0 | 79 |\n| Reject unreachable pavement polygons | 123.466 | 30.664 | 16.200 | 2576118 | 10952548 | 81 |\n| Repeated original polygon queries — incomplete/excluded | — | — | — | — | — | 86 |\n\nA polygon outside the caller’s finite reach cannot contribute. Reject it using its existing bounding box plus a1µm safety halo; all near-polygon distances retain the original arithmetic and record ordering. Unbounded road-end connectivity checks are untouched. No mesh, texture, vegetation distribution, climate, relief or visual setting changes. Actual composed-fixture test:167,356 complete output comparisons match exactly across23,908 random/edge/threshold points and seven pavement/cover query modes. Four alternating-order micro runs cut representative pavedAt query time~52→27–28ms; these are not game-loading savings. Candidate remains opt-in during testing.\n\nActual candidate rejects10,952,548 polygon queries, reducing full distance evaluations13,528,786→2,576,118 (~81%). World generation32.982→30.664s in the valid opening pair; nearby queues15.449→16.200s. Whole loading123.485→123.466s is effectively unchanged. Later shader/first-draw work masks the CPU-stage reduction. Closing original-control observation122.291s is EXCLUDED: GL1281 at readiness, not a faster valid run. Do not claim a repeated loading gain; keep opt-in pending validation-fault diagnosis and combined real-world testing.\n\n"
+}

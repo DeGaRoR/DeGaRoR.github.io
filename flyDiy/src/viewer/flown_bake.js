@@ -63,6 +63,14 @@
 'use strict';
 (function () {
   const W = (typeof window !== 'undefined') ? window : globalThis;
+  // Benchmark trim: park the implementation before allocating shader strings,
+  // rest-position copies, atlases, workers or cache state. The live model flies.
+  // DEFERRED (the user, 21 Nov): off in the browser unless ?flownbake=1; node gates keep exercising it.
+  if (W.location && !/[?&]flownbake=1(?:&|$)/.test(W.location.search || '')) {
+    W.FLYDIY_FLOWN_BAKE = 0;
+    W.FLOWN_BAKE = null;
+    return;
+  }
   const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
                 hybrid: true, hyA: 1.0, hyB: 1.25,   // G1325 HYBRID-FARTHER's band (the live aeroplane from 1 px a texel; was 1.6-2.0), back with G1490: train 29 took it out (live at the taxi, the way back cost 2.8 s and the next roll-out a 5.2 s link - the band twins drawn in the shed's lights, see rest()); ?fbake=hy1.6-2.0 the old band
                 hyEase: 0.5,   // G1494 ON BY DEFAULT (the user, 2026-10-05: "dissolve"): the band crossed over 0.5 s, no steady dither, +1.4 ms at the taxi chase vs +2.15 hard (?fbake=hyease=0 the hard band)

@@ -15,7 +15,7 @@
 //   node tools/_mount_check.js --selftest -> negative verification
 //
 // For every mount kind on the stock build, and for the twin as the user saved
-// it (tools/fixtures/build_v7_twin_2026-09-04.json — the join's MEASURED
+// it (tools/fixtures/test_copies/build_v7_twin_2026-09-04.json — the join's MEASURED
 // stations, which is the case the derived default did not show):
 //   1 SAG      parked and settled 10 s, each engine node's body-frame offset
 //              from the centroid of its own anchor nodes, live minus rest,
@@ -52,7 +52,7 @@ const say = s => console.log(s);
 const chk = (c, m) => { if (!c) { ok = false; why.push(m); } return c; };
 
 const twin = JSON.parse(fs.readFileSync(
-  path.join(__dirname, 'fixtures', 'build_v7_twin_2026-09-04.json'), 'utf8')).spec;
+  path.join(__dirname, 'fixtures', 'test_copies', 'build_v7_twin_2026-09-04.json'), 'utf8')).spec;
 const stock = (mount, extra) => {
   const sp = JSON.parse(JSON.stringify(GEN_DEFAULT));
   sp.engines = [{ type: sp.engines && sp.engines[0].type, mount }];

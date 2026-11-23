@@ -46,7 +46,7 @@ const TSCENES = CAREER ? list('tscenes', SCENES.join(',')) : ['club'];   // the 
 const SECS = +opt('secs', 0) || 0, THROTTLE = +opt('cpu-throttle', 0) || 0, GPUX = +opt('gpux', 0) || 0;
 const SPORT = +opt('sport', 8591), DPORT = +opt('dport', 9491), UDD = opt('udd', 'C:/gcozy'), WAITS = +opt('wait', 300);
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const FLEET = { Jodel: 'builds/jodel_2026-09-20_corrected.json', Cub: 'builds/cub_2026-09-20_corrected.json', Cessna: 'bugReports/cessnaMetal (1).json' };
+const FLEET = { Jodel: 'builds/jodel_2026-09-20_corrected.json', Cub: 'builds/cub_2026-09-20_corrected.json', Cessna: 'builds/cessna172r_2026-11-08.json' };
 const STAND = 'Jodel', SWAPIN = 'Cub';
 const env = n => { const o = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'flyDiy', FLEET[n]), 'utf8')); o.name = n; return JSON.stringify(o); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));

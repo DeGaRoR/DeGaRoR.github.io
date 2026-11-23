@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // GATE DMGSETTLE (G2044-G2046, DMG-SETTLE) - A WRECK'S PIECES LIE ON THE GROUND, node only. The user (2026-10-06): "breaking
 // in pieces looks good, but the individual pieces tend to hover over the ground rather than falling and lying on the ground".
-// On the user's Cub (builds/cub_2026-09-20_corrected.json), the Jodel and the metal Cessna (bugReports/cessnaMetal (1).json),
+// On the user's Cub (builds/cub_2026-09-20_corrected.json), the Jodel and the metal Cessna (builds/cessna172r_2026-11-08.json),
 // damage ON, the 30 m/s trunk break-up (tools/_treecrash_lib.js atTrunk: the centreline and 2.5 m out) flown 15 s - every
 // piece still by then - with the flown cage snapshot built headless (tools/_dmg_wall_lib.js) and ridden as app.js brkCage
 // rides it (the inherited binding, the nodes' frames in the world: tools/_dmg_wall_study.js's 'inh'), at rest:

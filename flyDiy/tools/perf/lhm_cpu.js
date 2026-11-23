@@ -1,0 +1,8 @@
+'use strict';
+// Discover once, then read only CPU Core Max + Package via read-only Sensor/Get.
+// Avoid formatting the entire83KB hardware dashboard every second.
+const http=require('http'),agent=new http.Agent({keepAlive:true,maxSockets:2});
+function json(url){return new Promise((resolve,reject)=>{const q=http.get(url,{agent},r=>{if(r.statusCode!==200){r.resume();reject(Error('LHM HTTP '+r.statusCode));return;}let s='';r.setEncoding('utf8');r.on('data',v=>{s+=v;if(s.length>2000000)q.destroy(Error('Sensor response too large'));});r.on('end',()=>{try{resolve(JSON.parse(s));}catch(e){reject(e);}});});q.setTimeout(3000,()=>q.destroy(Error('LHM sensor timeout')));q.on('error',reject);});}
+function pick(tree){const all=[];function walk(n){if(/^\/intelcpu\/.*\/temperature\//.test(n.SensorId||'')&&!/Distance|TjMax/i.test(n.Text||''))all.push({name:n.Text,id:n.SensorId});for(const c of n.Children||[])walk(c);}walk(tree);const primary=all.filter(s=>/^(Core Max|CPU Package)$/.test(s.name));if(!primary.some(s=>s.name==='Core Max')||!primary.some(s=>s.name==='CPU Package'))throw Error('CPU Core Max/Package pair missing');return primary;}
+function createReader(fetch=json){let selected;return async function(){if(!selected)selected=pick(await fetch('http://127.0.0.1:8085/data.json'));const sensors=await Promise.all(selected.map(async s=>{const v=await fetch('http://127.0.0.1:8085/Sensor?action=Get&id='+encodeURIComponent(s.id));if(v.result==='fail'||typeof v.value!=='number'||!Number.isFinite(v.value)||v.value<1||v.value>200)throw Error('Invalid CPU sensor '+s.name);return {...s,c:v.value};}));return {utc:new Date().toISOString(),cpuMaxC:Math.max(...sensors.map(s=>s.c)),sensors,source:'LHM read-only CPU Sensor/Get'};};}
+module.exports={createReader,pick};

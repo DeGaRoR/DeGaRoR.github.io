@@ -1,0 +1,7 @@
+'use strict';
+const fs=require('fs'),zlib=require('zlib'),path=require('path'),F=require('../../src/viewer/pavement_field_cache'),S=require('../../src/viewer/pavement_static_cache'),W=require('../../src/viewer/pavement_way_cache');
+const d=JSON.parse(zlib.gunzipSync(fs.readFileSync(process.argv[2]))),out=path.resolve(process.argv[3]);
+const p=d.programs.find(p=>p.shaders.some(k=>d.sources[k].includes('bool paved = cls < 1.5'))),sources=p.shaders.map(k=>d.sources[k]),vs=sources.find(s=>s.includes('gl_Position')),original=sources.find(s=>s.includes('pc_fragColor'));
+let baked=F.common(original,{bytes:true});const readerAt=baked.lastIndexOf('void pvReadFields(');if(readerAt<0)throw Error('Missing field reader');const reader=baked.slice(readerAt);baked=baked.slice(0,readerAt);const version=baked.indexOf('#version');if(version<0)throw Error('Missing version');const prefix=baked.slice(0,version);baked=F.map(baked.slice(version).replace('struct Smp {',prefix+'\n'+reader+'\nstruct Smp {'));
+const rows=[{name:'Original complete pavement program',family:'Original',vs,fs:original},{name:'Compact relief and curvature fields',family:'Byte fields',vs,fs:baked},{name:'Compact fields plus hole and way descriptors',family:'Combined compact bakes',vs,fs:W.patch(S.patch(baked))}];
+fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'sources.json'),JSON.stringify(rows));console.log('Prepared three actual compact-field compiler variants');

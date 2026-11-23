@@ -2,7 +2,7 @@
 // panel_shot.js - THE PANEL FROM THE PILOT'S EYE, HEADLESS (A3, 2026-09-20)
 //
 //   node tools/panel_shot.js --url "http://localhost:8462/flyDiy/dev.html?world=none" \
-//        --build "bugReports/flydiy-build (4).json" --out bench/panel/shot.png \
+//        --build "builds/candidates/flydiy-build (4).json" --out bench/panel/shot.png \
 //        [--soc 0.35] [--drain] [--cam cockpit|chase] [--look 30] [--wait 6000] [--js "<expr>"] [--scale 2] [--clip x,y,w,h]
 //
 // island_shot's rig (headless Chrome on this machine's GPU, the roll-out

@@ -20,7 +20,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const FILES = [opt('progs', null), opt('progs2', null)].filter(Boolean);
 if (!FILES.length) { console.error('cold_links_bench: --progs <sources.json> is required'); process.exit(2); }
-const OUT = opt('out', null), BATCH = +opt('batch', 0);
+const OUT = opt('out', null), BATCH = +opt('batch', 0), CAP = +opt('cap', 0);
 
 // the page side: every program compiled and linked at once, its completion polled (0x91B1 COMPLETION_STATUS_KHR)
 const RUN = progs => `(async () => { const BATCH = ${BATCH} || 1e9;
@@ -52,10 +52,16 @@ const RUN = progs => `(async () => { const BATCH = ${BATCH} || 1e9;
 
 (async () => {
   const R = { runs: [] };
+  let activeBrowser = null;
+  const capTimer = CAP > 0 ? setTimeout(async () => {
+    console.error('cold_links_bench: hard cap reached after ' + CAP + ' seconds');
+    try { if (activeBrowser) await activeBrowser.close(); } finally { process.exit(3); }
+  }, CAP * 1000) : null;
   for (let fi = 0; fi < FILES.length; fi++) {
     const progs = JSON.parse(fs.readFileSync(path.resolve(FILES[fi]), 'utf8'));
     const udd = path.resolve(opt('udd', path.join(os.tmpdir(), 'clb')) + (FILES.length > 1 ? '_' + fi : ''));
     const b = await MB.browser(udd);
+    activeBrowser = b;
     try {
       await sleep(1500);
       const t = Date.now();
@@ -63,8 +69,9 @@ const RUN = progs => `(async () => { const BATCH = ${BATCH} || 1e9;
       d.file = FILES[fi]; d.wallS = +((Date.now() - t) / 1000).toFixed(1); d.udd = udd; R.runs.push(d);
       console.log('cold_links_bench ' + FILES[fi] + ' (' + d.renderer + '): wall ' + d.wallS + ' s');
       for (const r of d.rows) console.log('  ' + (r.ms / 1000).toFixed(1).padStart(6) + ' s  ' + (r.ok ? 'linked' : 'FAILED ') + '  hlsl fs ' + String(r.hlslFs).padStart(7) + '  ' + r.name + (r.ok ? '' : '  ' + r.log + ' ' + r.fsLog));
-    } finally { await b.close(); }
+    } finally { await b.close(); activeBrowser = null; }
   }
   if (OUT) fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
+  if (capTimer) clearTimeout(capTimer);
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

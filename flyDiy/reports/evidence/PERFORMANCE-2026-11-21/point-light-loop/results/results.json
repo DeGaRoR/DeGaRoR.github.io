@@ -1,0 +1,762 @@
+{
+  "scope": "Compiler-only wall time of complete captured real-game source pairs, one link at a time. Prepared source interventions identify compiler work; no game rendering or visual acceptance is claimed. No scene rendering, no loading-time saving or exclusive CPU attribution. Fresh visible Chrome per order, real GPU; driver cache erasure not claimed.",
+  "runs": [
+    {
+      "order": 0,
+      "rows": [
+        {
+          "name": "Coarse ground / original unrolled lights",
+          "family": "Coarse ground",
+          "ms": 7847.600000008941,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 197976,
+          "samplers": [
+            {
+              "name": "uRockMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGTint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackA",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackB",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uSplat",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uSplatN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Coarse ground / compact point-light loop",
+          "family": "Coarse ground",
+          "ms": 7654.899999991059,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 191038,
+          "samplers": [
+            {
+              "name": "uRockMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGTint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackA",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackB",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uSplat",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uSplatN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Coarse ground / uniform-bound compact loop",
+          "family": "Coarse ground",
+          "ms": 7782.9000000059605,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 191186,
+          "samplers": [
+            {
+              "name": "uRockMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGTint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackA",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackB",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uSplat",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uSplatN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Road/runway pavement / original unrolled lights",
+          "family": "Road/runway pavement",
+          "ms": 27836.70000000298,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(930,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 342701,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 8,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Road/runway pavement / compact point-light loop",
+          "family": "Road/runway pavement",
+          "ms": 27010.39999999106,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(930,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 335763,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 8,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Road/runway pavement / uniform-bound compact loop",
+          "family": "Road/runway pavement",
+          "ms": 26862.10000000894,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(931,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 335909,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 8,
+          "fragmentTextureUnitLimit": 16
+        }
+      ],
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    {
+      "order": 1,
+      "rows": [
+        {
+          "name": "Road/runway pavement / uniform-bound compact loop",
+          "family": "Road/runway pavement",
+          "ms": 28588.29999999702,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(931,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 335909,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 8,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Road/runway pavement / compact point-light loop",
+          "family": "Road/runway pavement",
+          "ms": 26160.89999999106,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(930,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 335763,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 8,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Road/runway pavement / original unrolled lights",
+          "family": "Road/runway pavement",
+          "ms": 27191.20000000298,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "(930,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 342701,
+          "samplers": [
+            {
+              "name": "uPavA",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uPavT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 8,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Coarse ground / uniform-bound compact loop",
+          "family": "Coarse ground",
+          "ms": 6935.399999991059,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 191186,
+          "samplers": [
+            {
+              "name": "uRockMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGTint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackA",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackB",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uSplat",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uSplatN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Coarse ground / compact point-light loop",
+          "family": "Coarse ground",
+          "ms": 6920.5,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 191038,
+          "samplers": [
+            {
+              "name": "uRockMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGTint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackA",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackB",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uSplat",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uSplatN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        },
+        {
+          "name": "Coarse ground / original unrolled lights",
+          "family": "Coarse ground",
+          "ms": 7322,
+          "ok": true,
+          "vsOk": true,
+          "fsOk": true,
+          "log": "",
+          "vsLog": "",
+          "fsLog": "",
+          "glError": 0,
+          "hlslChars": 197976,
+          "samplers": [
+            {
+              "name": "uRockMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGTint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackA",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uGPackB",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uSplat",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "uSplatN",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "envMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "uApAtlas",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "dfgLUT",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 2,
+              "type": 35682
+            }
+          ],
+          "activeSamplerElements": 12,
+          "fragmentTextureUnitLimit": 16
+        }
+      ],
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    }
+  ],
+  "complete": true
+}
