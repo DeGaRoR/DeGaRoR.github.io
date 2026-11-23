@@ -476,7 +476,10 @@
     }
 
     // setScale(k): the render scale, 0.5..1 - the scene drawn at k x the canvas and enlarged by the resolve
-    function setScale(k) { k = Math.max(0.5, Math.min(1, +k || 1)); if (Math.abs(k - S.scale) < 1e-3) return S.scale; S.scale = k; buildRT(); return S.scale; }
+    function setScale(k) { k = Math.max(0.5, Math.min(1, +k || 1)); if (Math.abs(k - S.scale) < 1e-3) return S.scale; S.scale = k; buildRT();
+      // (PERF-TRACE 9: the render scale in the flight log when it CHANGES - the automatic scale's steps were never seen in a flight)
+      try { if (typeof FLIGHT_REC !== 'undefined' && FLIGHT_REC.event) FLIGHT_REC.event('aascale', null, { scale: k, auto: AUTO.on ? 1 : 0, w: S.rt ? S.rt.width : null, h: S.rt ? S.rt.height : null }); } catch (e) {}
+      return S.scale; }
     // THE AUTO SCALE (PERF 2026-09-23, G528): the render scale held to the frame budget - a new player's machine is not
     // known, and a big screen or a small GPU is exactly what the scale buys back. Every 30 frames the median frame is
     // read: over 1.08 x the budget (60 fps) the scale steps DOWN one of the menu's own steps (1 / .85 / .75 / .67 / .5,
@@ -541,7 +544,11 @@
       // turns, not after, and renderer.render (which would) comes next. So the clouds were marched with this frame's
       // eye position and LAST frame's rotation: they slid against the world while orbiting, more as the fps fell, and
       // snapped back on a mirror-capture frame (the mirror refreshes the camera). The matrix is made current first.
+      // PERF-TRACE 9 (?recgpu=pass): the passes of this function, each its own GPU timer segment (FLIGHT_REC.gpuMark returns at once without the switch)
+      const GM = (typeof FLIGHT_REC !== 'undefined' && FLIGHT_REC.gpuMark) || null;
+      if (GM && S.pre) GM('clouds march');
       if (S.pre) { if (camera.updateWorldMatrix) camera.updateWorldMatrix(true, false); S.pre(renderer, camera, S.rt, scene); }
+      if (GM) GM('scene pass');
       renderer.setRenderTarget(S.rt);
       // the auto scale's GPU reading: the scene pass alone (the clouds' and the post passes' own timers are outside it)
       let aq = null;
@@ -549,20 +556,24 @@
         const gl = renderer.getContext(); aq = gl.createQuery(); gl.beginQuery(AUTO.ext.TIME_ELAPSED_EXT, aq); }
       renderer.render(scene, camera);
       if (aq) { renderer.getContext().endQuery(AUTO.ext.TIME_ELAPSED_EXT); AUTO.q.push(aq); }
+      if (GM && S.overlay) GM('clouds overlay');
       if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds' march (reads the target's depth)
       renderer.setRenderTarget(prevTarget);
       // G1340 (SHADER-GUARD) A HELD FRAME IS NEVER PRESENTED: when the draw guard held a draw in this scene pass (its
       // program still linking), the resolve and the post hook are skipped - nothing reaches the canvas this frame, so the
       // page keeps showing the last whole frame (never a partial one: a ground missing for a frame is the sky's colour)
       if (S.hold && S.hold()) { S.held = (S.held || 0) + 1; return 'held'; }   // (23 Nov, PERF-TRACE: S has no `held` to start with - `S.held++` made it NaN and held() read 0 for ever)
+      if (GM) GM('aa resolve');
       renderer.render(S.fsScene, S.fsCam);
       // THE POST HOOK (CLOUDS C2): the clouds composite onto the RESOLVED frame, not into the
       // multisampled target - three resolves the whole 8x target at the end of every render()
       // into it, and one more fullscreen draw there cost a second resolve (7 ms on a 3080 under
       // ANGLE, measured with the GPU timer; the march itself is 0.3 ms)
+      if (GM && S.post) GM('post');
       if (S.post) S.post(renderer, camera, S.rt);
       // THE TAP (G1357): the flight recorder's frame catcher sees the frame's target once the post chain is done (a small
       // copy into its own target, read back asynchronously - nothing here waits on it)
+      if (GM && S.tap) GM('frame tap');
       if (S.tap) S.tap(renderer, camera, S.rt);
       return true;
     }

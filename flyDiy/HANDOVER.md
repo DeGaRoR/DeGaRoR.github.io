@@ -319278,3 +319278,19 @@ under the loading screen (1.4 s, 1.7 s before the screen goes), no freeze at the
 NOT DONE: the world build's six switches (stripw, patchw, roadw, nearfirst, compsteps, settle=near) are still switches - the default page builds
 the world the slow way behind the garage until claude/ready/perf-worldbuild-5 flips them under the live host. THE FALLBACK is one line:
 GF_DEFAULT false. VISIBLE: the game opens in the garage; the side sheds appear a moment after the world.
+
+PERF-TRACE 9 (24 Nov: the user - "try and get some headroom on the graphic card, maybe reach below 30 ms per frame")
+- THE GPU'S TIME BY PASS, behind ?recgpu=pass[:N] (nothing by default; N = one frame in N, 4). flight_recorder.js times such a frame
+  as a CHAIN of TIME_ELAPSED queries - one ends and the next begins at every boundary the frame already has: the loop's laps (`world` =
+  the streamers' uploads, `mirror` = the water mirror's capture), the shadow maps (their push), and FLIGHT_REC.gpuMark(name), which
+  aa_resolve.js calls for 'clouds march', 'scene pass', 'clouds overlay', 'aa resolve', 'post', 'frame tap'. Queries never nest; the
+  frame's gpu column is its passes' sum; each segment keeps the draw calls and triangles of the renders that returned in it; another
+  module's timer on such a frame spoils it (counted). The log's table: gpuPasses { every, labels, frames, rows }.
+- tools/gpu_passes.js <log> [--from S --to S | --mark step] [--against other.json]: each pass's median / p90 / share / ms a megapixel,
+  the passes' sum against the whole-frame timer of the other frames (they must agree), the render scale as it changed ('aascale', a
+  new event from aa_resolve.js setScale: the automatic scale's steps were never seen in a flight) with the GPU's ms at each scale.
+  A FAMILY INSIDE THE SCENE PASS (cover ring, far terrain, trees) IS NOT A SEGMENT - three draws a pass sorted by material and depth:
+  fly the same seconds with the family off (the gfx settings) and read the two logs with --against.
+- GATE PROGRAMS part 10 (tools/_progid_check.js runGpuPass): the chain on a fake GPU - no query beyond the whole frame's without the
+  switch, each pass gets what was spent in it, the sum is the frame, a rogue timer spoils and is counted, the reader's table.
+- NOT YET RUN ON A REAL GPU when this was written: the table of a 5K cruise is the next thing to make (PERF-LEAD's window).
