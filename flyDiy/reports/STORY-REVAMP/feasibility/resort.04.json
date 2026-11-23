@@ -1,0 +1,18 @@
+{
+ "id": "resort.04",
+ "kind": "build",
+ "verdict": "untested",
+ "plane": null,
+ "timeS": 0,
+ "why": "no criterion fails on Electric trainer (not a career design: untested here - powertrain, seats, enduranceMin, landAt)",
+ "tried": [],
+ "legs": [],
+ "attempts": [],
+ "notes": [],
+ "untested": true,
+ "key": "c9ad56d37e84",
+ "where": "contract",
+ "pool": "validated",
+ "sim": "L40K",
+ "wallS": 88
+}

@@ -1077,7 +1077,12 @@
    "id": "resort.04",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "untested",
+   "plane": null,
+   "timeS": 0,
+   "why": "no criterion fails on Electric trainer (not a career design: untested here - powertrain, seats, enduranceMin, landAt)",
+   "legs": [],
+   "pool": "validated",
    "cls": "order"
   },
   {
