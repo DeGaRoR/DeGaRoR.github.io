@@ -10,6 +10,19 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
+## Status for A0 (Mon 23 Nov, sixth note, 20:45 UTC) - story-9
+
+- **`claude/ready/story-9`** = story-8 + (1) THE VALIDATED-WITH FLAG on the missions and its display in the mission
+  editor (the user asked for it this evening), (2) the cargo seating correction of the harness, (3) the rows flown on
+  L40K's sim so far and their flags, (4) `story_feas --only` in the order given. It CONTAINS story-8: take the latest
+  ready. Under `src/` only `src/missions/story.json` moves (the flags); the built files move with the editor (its
+  (built) commit: index.html, dev.html, sw.js, version.json - flight_core.js and the chunks byte for byte).
+- GATES ON IT: STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS; MISSIONS red on 8 checks, the same 8
+  lines on the tree without these changes (the bush run: master's, named in L40K's note); MISSIONFEAS passed on the
+  merged tree before the seating correction, whose path it does not use (run again when the flights end); CONTRACTS
+  master's four. The editor was read in a headless page: no page error, the flag's states on the missions.
+- The flights go on overnight; rows and flags are pushed to `claude/story-revamp` as they land.
+
 ## HANDOVER (A0 asked, Mon 23 Nov: "what's done, what's left, the feasibility state, how to run" - then this session stands down)
 
 Whoever takes this on needs this section, the table "Where it stands" and the table "Gaps"; the rest is the detail.
@@ -30,6 +43,14 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
   All six flew start to end on L40J's sim (re-flown on L40K: the state below). GLIDERS AND THE TOW: L40K lands the
   LS4-alike, the Archaeopteryx-alike, a winch and a van tow - the club's glider and tow events can be authored on
   them now; none is authored here.
+- VALIDATED WITH (the user, 23 Nov: "add a flag on the missions, possibly direct in editor, like validated with XXX
+  plane"): every mission of `src/missions/story.json` carries the test pilot's flight of it - `validated { with:
+  <aeroplane> | null, sim, flownS | verdict + why, sig }` - written from the kept rows by `node tools/story_feas.js
+  --stamp`. THE MISSION EDITOR SHOWS IT: on a mission "Validated with: <aeroplane> - time flown - sim", or why it is
+  not, or that it was never flown; a mark and the aeroplane in the mission list; the count by aeroplane on the pack.
+  `sig` is what the mission asks of a flight as written (kind, legs and steps, order, timers, course, landing lines):
+  edit a step in the editor and the flag reads "edited since the test pilot flew it" until it is flown and stamped
+  again. The contract record does not carry the flag (the career and the page are untouched).
 - THE FEASIBILITY HARNESS: `tools/mission_feas_lib.js` flies a mission the game's way (the stand, the pilot, the
   career's stops) with the seats filled through the garage's own door, a course entered on a base turn and left without
   a climb; `tools/story_feas.js` keeps one row a mission.
@@ -45,6 +66,7 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 | the pack's flights still missing | `node tools/story_feas.js --fly --workers=4 --tmax=2400 --rows=reports/STORY-REVAMP/feasibility` (`--only=<ids>` for a group, `--max=N` for a batch) | ~25 min of one core a feasible mission; a red one up to 3 aeroplanes x its legs x tmax |
 | chosen missions again | `node tools/story_feas.js --fly --only=<id>,<id> --again --rows=reports/STORY-REVAMP/feasibility` | |
 | the table from the rows | `node tools/story_feas.js --table --rows=reports/STORY-REVAMP/feasibility` (writes feasibility.json + .md) | seconds |
+| the flags on the missions | `node tools/story_feas.js --stamp` (writes `validated` into story.json from the current rows; then GATE STORYPACK) - open `tools/mission_editor.html`, "Open story pack", to read them | seconds |
 | is the pack covered | `node tools/story_feas.js --check` (exit 1 while a mission is not flown, stale or red outside the named classes) | seconds |
 | one mission, the legs printed | `node tools/mission_feas.js --only=<id> --rerun --packs=src/missions --out=<a scratch dir> --official --also=57,58 --builds=<the two files in story_feas.js BUILDS>` | |
 | a flight with no mission | `node tools/flight_script.js reports/STORY-REVAMP/repro/<file>.json --out <dir>` | minutes |
@@ -56,6 +78,9 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 - THE POOL (the user, 23 Nov: "you can really try any of the official planes ... maybe you can even build a quick one"):
   the validated designs first, then every official plane, the two PC-6 of the wip list, and two test builds in
   `tools/fixtures/storyfeas/` (a Cessna with the STOL kit, on the retired light airframe and on today's).
+  THE CABIN IS SEATED AS THE JOB ASKS, both ways, through the garage's seat door: its passengers aboard, and the
+  pilot alone for freight (the Cessnas and the DC-3-alike are SAVED with two aboard: a cargo job flew with that seat
+  taken and half the loading card's room until 23 Nov evening; feasible rows flown the heavier way stand).
 - IN A CLOUD CONTAINER: a tracked background task is killed at two hours WITH its flights (finished rows are kept), and
   a detached process dies when the turn ends (the container sleeps). What works: the run detached in its own session
   (`setsid nohup`), and a tracked task that only waits on it (`while pgrep -f <the run>; do sleep 60; done`), started
