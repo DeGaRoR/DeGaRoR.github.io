@@ -467,6 +467,55 @@ figure, its root junctions 0.002. The card drew two steps and three handles (0.0
 The away-move was the old card's: its open pod ended in a 0.45 m² base. The user's is skinned and longer (span
 10.6 m, chord 1.21, a 1.5 m cruise-pitch propeller); its base is 0.32 m² and its steps 0.09.
 
+### 7.4 The Ruckus pair (the user, 23 Nov: "just check the Ruckus ... are we better on the solo 103?")
+
+**The Back-Country's rows are not a model miss.** No Back-Country figures are sourced: `real_refs` scores it against
+the Solo 103's sheet (37 hp, 115 kg empty; the row's own note says so). The card is a Rotax 582 at 64 hp, 202 kg empty:
+"+30 % top speed, +70 % climb, -76 % take-off roll" is a 64 hp aeroplane against a 37 hp book. The two cards agree with
+each other (115 against 93 km/h on 68 % more power). Its four "outside" rows should not count until it has figures.
+
+**The Solo 103**, at the sheet's 249 kg: cruise +3 %, top speed +7 %, climb -7 %, glide 5.4 against 4.6 (+16 %), stall 45
+against 39 km/h (+16 %), take-off roll 43 against 107 m, empty 156 against 115 kg.
+- The glide: the sheet's own polar (CD 0.13 + 0.088 CL²) has LESS parasite drag than ours (1.47 against 1.57 m²) and a
+  far steeper lift term (e 0.54 against our 0.74). The miss is the drag due to lift of a slatted, strutted wing at a
+  high lift coefficient, not the body. A fixed slot on the card moves it 5.3 → 5.2.
+- The stall: 24.1 mph at 550 lb needs CLmax 3.0; the model gives the slatted wing about 2.2.
+- The take-off roll: with the 986 N the model gives this engine standing (the class makes about 100 kgf) 249 kg rolls
+  30-45 m. 350 ft needs a third of that thrust: the sheet's 350 / 300 ft read as round or over-obstacle figures. Not
+  proven either way.
+- The empty weight is the card's: 41 kg over the Part 103 limit.
+
+## 7.5 State at close (23 Nov 2026) - what physics-audit-2 starts from
+
+Everything in section 7 is on `claude/focused-pasteur-f8vawq` (builds 1-12b), on master L40H `9349a62c1` plus the plan
+(physics-audit-1's source up to 840e0da89). It is NOT a ready: it was built and read, not gated as a whole.
+
+**In it:** the body's shape law, the skin by material, the laminar shares (body and lifting surfaces), the gear legs
+as drawn, the heads by the drawing, what sticks out, the junctions by their roots, the propeller's stated cut (the
+existing design-point rows), the cheeks' cut-out form, the drawn root fillet (one new row, `wgFillet`); GATE SHAPEDRAG
+(28 checks); the fiche's Drag page and the 24 baked physics pages; the cards of 7.2 (the Client Cub's cowl, the
+Velis's propeller cut and the DC-3's fillet live only here; seven others went ahead as `claude/ready/physics-cards-1`).
+
+**To make it a ready, in this order:**
+1. Merge it onto the master that carries physics-audit-1 and physics-cards-1 (the seven cards conflict trivially: the
+   same edits).
+2. `PHYSICS_V` 10 → 11 and its history lines (60_gen_spec), then the pins that follow a bump: REALBAND re-written with
+   its reason, GATE STOL's fixture re-captured, SOFTGROUND, PROCURE's catalogue effects, BENCH's shipped certificate
+   (the box).
+3. The whole core tier, reds read against master by check name. Known today: DRAG "rv" (the RV-alike's derived cowl
+   leaves its cylinders outside the drawn skin: a cowl fit); `tools/tutorial_cubs.js --check` has master's own four
+   lines; PARTS master's two.
+4. The fillet in the PAGE (it has only been drawn headless), in a wreck (the mesh is not bound to the frame's
+   members yet), and its picture on the fiche; AIRCRAFT-LOOKS for the thumbnails of every card that changed.
+5. A flown `real_check --all` and `real_report`, then the fiche's Reference page.
+
+**For the user's review** (the 14-15 Nov ruling): the rows that moved away in 7.2's table, the Velis's propeller cut
+(identified against POH-128, not a published pitch), the Jodel's leg fairings (photographs).
+
+**Not built, by decision:** the slipstream term (its own study, with the blade efficiencies), the exhaust by its own
+size. **Open:** the Archaeopteryx's pod, the take-off rolls (18 % mean error, untouched by any of this), the Ruckus
+Solo's weight and its lift-dependent drag.
+
 ## 8. Limits
 
 - The constants are handbook orders of magnitude from memory (Hoerner's fuselage and windscreen chapters, the usual
