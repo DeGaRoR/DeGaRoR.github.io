@@ -1854,7 +1854,13 @@
     "every": 3
    },
    "goods": "goods.guests",
-   "client": "martha"
+   "client": "martha",
+   "validated": {
+    "with": "Jodel D112",
+    "sim": "L40K",
+    "flownS": 1793,
+    "sig": "2208cdc4"
+   }
   },
   {
    "id": "resort.02",

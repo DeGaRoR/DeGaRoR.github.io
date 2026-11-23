@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 44 feasible; 7 infeasible; 2 no official plane can fly it (the player builds one); 25 not flown; 5 stale. Time flown: 1245 min 23 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 45 feasible; 7 infeasible; 2 no official plane can fly it (the player builds one); 24 not flown; 5 stale. Time flown: 1275 min 16 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -39,7 +39,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 44 feasible; 7 infeas
 | resort.01 | contract | feasible | Jodel D112 | 16 min 02 s | HOME > tw_ski 962 |  |
 | resort.04 | contract | order | - | - | - |  |
 | resort.b2 | contract | order | Jodel D112 | 10 min 53 s | HOME > tw_ski 653 |  |
-| resort.guests | contract | not flown | - | - | - |  |
+| resort.guests | contract | feasible | Jodel D112 | 29 min 53 s | HOME > tw_ski 962; tw_ski > HOME 830 |  |
 | resort.02 | skyline:1 | feasible | Piper Cub | 34 min 31 s | HOME > w3 570; w3 > tw_ski 1502 |  |
 | resort.03 | skyline:2 | not flown | - | - | - |  |
 | skyline.03 | skyline:2 | stale | - | - | - |  |

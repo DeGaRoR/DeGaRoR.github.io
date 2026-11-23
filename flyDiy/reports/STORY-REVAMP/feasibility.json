@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 44,
+  "feasible": 45,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
-  "not flown": 25,
+  "not flown": 24,
   "infeasible": 7,
   "stale": 5
  },
- "flownS": 74723,
+ "flownS": 76516,
  "rows": [
   {
    "id": "field.01",
@@ -1141,8 +1141,45 @@
    "id": "resort.guests",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Jodel D112",
+   "timeS": 1793,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 962,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "tw_ski",
+     "to": "HOME",
+     "t": 830,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "resort.02",
