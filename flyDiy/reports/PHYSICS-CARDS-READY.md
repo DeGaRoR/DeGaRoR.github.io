@@ -1,4 +1,7 @@
-# PHYSICS-CARDS: READY 1 (ref `claude/ready/physics-cards-1`, ON TOP of `claude/ready/physics-audit-1`)
+# PHYSICS-CARDS: READY 1b (ref `claude/ready/physics-cards-1b`, ON TOP of `claude/ready/physics-audit-1b`)
+
+**1b = 1 (`c77a37959`) carried onto physics-audit-1b (`143eff6db`), whose only change is its own note. The cards, the
+baseline and the two fiches are the same bytes.**
 
 The user, 22 Nov: "If you modified the planes disabling handle and stuff like that, you should submit their new
 version, shouldn't you?" - and "Yes you may push". A0, 22 Nov: its own ref, on top of physics-audit-1 (its figures
@@ -31,7 +34,8 @@ want a re-bake on the box (A0: AIRCRAFT-LOOKS, on the merged tree).
 
 ## Gates
 
-Run on this exact tree (physics-audit-1 4a1989294 + the cards + the baseline + the two re-baked fiches): CARDS, PLANELISTS,
+Run on the same files (physics-cards-1: physics-audit-1 4a1989294 + the cards + the baseline + the two re-baked fiches;
+on 1b itself CARDS, PLANELISTS, SNAPSHOTS, BUILT and COMMITHYGIENE were run again): CARDS, PLANELISTS,
 REALBAND, SNAPSHOTS, DRAGROWS, COOL, BIPLANE, WIRES, CARDDRAG, HONEST, PLANEFICHE, BUILT, COMMITHYGIENE - 13 of 13 pass.
 
 Nothing else was run on this ref: it changes no code, so its reds are physics-audit-1's (that ref's note and its
