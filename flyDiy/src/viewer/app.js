@@ -1022,7 +1022,8 @@
         worst = Math.max(worst, performance.now() - t0);
         if (gfLive()) { const G = LAB.gfS, ms = performance.now() - t0; G.slices++; if (ms > G.worstSlice) { G.worstSlice = Math.round(ms); G.worstLab = lab; }   // (the longest slice behind the live garage, and its label)
           // ...and every slice over 50 ms by the label it ended on [count, ms in all, the longest]: the garage's freezes, named for PERF-WORLDBUILD
-          if (ms > 50) { const L = G.long || (G.long = {}), k = lab || '(the last)', e = L[k] || (L[k] = [0, 0, 0]); e[0]++; e[1] += Math.round(ms); if (ms > e[2]) e[2] = Math.round(ms); } }
+          if (ms > 50) { const L = G.long || (G.long = {}), k = lab || '(the last)', e = L[k] || (L[k] = [0, 0, 0]); e[0]++; e[1] += Math.round(ms); if (ms > e[2]) e[2] = Math.round(ms);
+            if ((G.sl || (G.sl = [])).length < 90) G.sl.push([k, Math.round(t0), Math.round(ms)]); } }   // (...and each one's start on the page's clock: the CPU profile is cut by it, tools/perf/profile_window.py)
         geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
         if (r.done) {
           window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null;

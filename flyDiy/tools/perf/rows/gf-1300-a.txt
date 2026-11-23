@@ -9,7 +9,7 @@
 #   GF_FAST   GF_ALL + the best load.s set (the pacer at 32, the scuff.s links after the reveal, the pavement and the ground first): the garage's own 31 s is 10.6 s of
 #             shader links and 6.9 s of first frame, both bound by the pacer's 8 at a time (PERF-TRACE's reader, 23 Nov)
 # TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
-GF_ALL    ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
+GF_ALL    ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js --profile-out D:/Dev/flydiy-notes/evidence/perf-mon1300-2026-11-23/gfA/GF_ALL.cpuprofile.json
 BASE_13   ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
 GF_PLAIN  ; D:/Dev/perf-lab-built ; boot=garagefirst ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
 GF_ALLW_1 ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js

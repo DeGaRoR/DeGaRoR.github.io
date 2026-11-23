@@ -256,6 +256,13 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
       fs.mkdirSync(path.dirname(path.resolve(argv[di + 2])), { recursive: true }); fs.writeFileSync(argv[di + 2], v);
       console.log('  dump ' + argv[di + 2] + ' ' + fs.statSync(argv[di + 2]).size + ' bytes'); } catch (e) { console.log('  dump failed: ' + e.message); } }
   const prof = (await cmd('Profiler.stop')).result.profile;
+  // --profile-out <file> (23 Nov): the sampled profile kept whole (nodes, samples, their deltas), so a window of it can be
+  // cut AFTER the run by times the page itself logged (garage first's slices: tools/perf/profile_window.py)
+  { const po = opt('profile-out', null);
+    if (po) { try { fs.mkdirSync(path.dirname(path.resolve(po)), { recursive: true });
+      fs.writeFileSync(po, JSON.stringify({ startTime: prof.startTime, endTime: prof.endTime, samples: prof.samples, timeDeltas: prof.timeDeltas,
+        nodes: prof.nodes.map(n => [n.id, (n.callFrame.url || '').replace(/\?.*$/, '').replace(/^.*\//, '') || '(native)', n.callFrame.functionName || '(anon)', n.callFrame.lineNumber + 1, n.children || []]) }));
+      console.log('  profile ' + po + ' ' + fs.statSync(po).size + ' bytes'); } catch (e) { console.log('  profile-out failed: ' + e.message); } } }
   // --window a,b (ms of the page's clock, roughly): the self time by function inside it
   const WIN = opt('window', null);
   if (WIN) {
