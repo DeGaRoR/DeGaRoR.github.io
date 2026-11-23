@@ -10,7 +10,7 @@
 // sequence every player flies again and again, is what is timed.
 //
 //   node tools/physics_perf.js                         the stock build, Jolene, calm, the roll-out
-//   node tools/physics_perf.js --build bugReports/cessnaFloats.json   a saved build (floats start on the SEA lane)
+//   node tools/physics_perf.js --build tools/fixtures/test_copies/build_v10_c172_wipline2350_2026-09-20.json   a saved build (floats start on the SEA lane)
 //   node tools/physics_perf.js --preset thermal        a WEATHER_UI preset's wind (calm/breeze/ridge/thermal/hot/front/gale)
 //   node tools/physics_perf.js --world none            the analytic world
 //   node tools/physics_perf.js --premises none         the island without its premises layer (the ?premises=none page)
@@ -83,7 +83,7 @@ const buildPath = arg('build', null), archKey = arg('arch', null);
 const spec = buildPath ? (j => j.spec || j)(JSON.parse(fs.readFileSync(buildPath, 'utf8')))
   : archKey ? (() => { const D = require(path.join(T, '_cage_design.js')); const a = D.ARCHETYPES.find(x => x.key === archKey);
       if (!a) throw new Error('no archetype ' + archKey + ': ' + D.ARCHETYPES.map(x => x.key).join(' ')); return D.designBake(a.sel, a.over); })()
-  : JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'build_v9_stock_2026-09-15.json'), 'utf8')).spec;
+  : JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'test_copies', 'build_v9_stock_2026-09-15.json'), 'utf8')).spec;
 const def = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec) : spec);
 // --subcap N (an EXPERIMENT, not the game): every beam that asks more than N substeps has its spring
 // (omega dt 0.45) and its damper (c dt 0.65) cut to what N carries, and the build flies N - what a

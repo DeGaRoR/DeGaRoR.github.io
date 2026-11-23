@@ -24,9 +24,9 @@ const r2 = v => v == null || !isFinite(v) ? null : Math.round(v * 100) / 100;
 const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 
 const FILES = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  rufus: 'builds/rufus_2026-10-18_certified.json', dc3: 'tools/fixtures/dc3_2026-10.json',
-  tiger: 'tools/fixtures/tigermoth_2026-10.json', camel: 'tools/fixtures/camel_2026-10.json',
-  twin: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json' };
+  rufus: 'builds/rufus_2026-10-18_certified.json', dc3: 'tools/fixtures/test_copies/dc3_2026-10.json',
+  tiger: 'tools/fixtures/test_copies/tigermoth_2026-10.json', camel: 'builds/candidates/camel_2026-10.json',
+  twin: 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json' };
 // the twin-boom fixture made a taildragger by the Undercarriage tile's own writes (a tailwheel a boom), and that one
 // with the Empennage tile's inverted V (here at 30 deg, the tips 0.6 m apart: its tail sits tail-down on them)
 const TD = { s2On: 1, s2Leg: 3, s2Z: 0.06, s2X: 0, s2R: 0.07, s2Steer: 1, s2Brake: 0, s1Z: 2.00, s1Steer: 0, s1On: 1, gearFloats: 0 };

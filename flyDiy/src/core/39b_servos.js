@@ -128,6 +128,10 @@ const SERVO_GAINS = {
   // two reversals at most oscHalf s apart scores one; the score decays over oscWin s; at oscN the pitch gains step
   // down by oscStep (oscKMin at least) and the score restarts
   oscAmp: 0.15, oscHalf: 0.35, oscWin: 2.0, oscN: 4, oscStep: 0.85, oscKMin: 0.45,
+  // RUDDER-CHATTER (A0 + FLAGSHIP 22 Nov, L40J): THE YAW DAMPER'S LIMIT CYCLE (S.rollTo), G1949's way: a rudder swing of
+  // yawOscAmp or more between two reversals at most yawOscHalf s apart scores one; at yawOscN the yaw-rate terms step down by
+  // oscStep (oscKMin at least); yawOscQuiet s with no score gives them back at yawOscBack /s
+  yawOscAmp: 0.015, yawOscHalf: 0.15, yawOscWin: 1.0, yawOscN: 6, yawOscQuiet: 10, yawOscBack: 0.05,
 };
 
 // ONE TABLE PER PILOT (A0, 2026-10-04: the Deform Coordinator's DMG-DAMP fixes the
@@ -179,11 +183,12 @@ function makeServos(sim, def, opts) {
     beta: 0, V: 0, Vg: 0, vy: 0, onG: 0, accF: 0, vsSlow: 0, out: null,
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
-    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
+    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0, yawOscK: 1, yawOscScore: 0,
     eTrim: 0, phBias: 0, drTrim: 0, betaIK: 1, gI: 0, gIT: -1e9, bdOn: false, aDe: 0, aDa: 0, aDr: 0, tailUp: false, thrCap: 1,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
+  let yawPrev = null, yawDir = 0, yawExt = 0, yawT = -1e9, yawScoreT = -1e9;   // RUDDER-CHATTER: the rudder's, the same way
   let oscPrev = null, oscDir = 0, oscExt = 0, oscT = -1e9;   // G1949: the elevator's last value, its direction, its last extremum and when
   let tgtHP = null, tgtMovedT = -1e9, vPrev = null, pend = false;
   let holdActive = false, holdWas = false;
@@ -341,8 +346,30 @@ function makeServos(sim, def, opts) {
     // there: its own weathercock mode) with the track still and the rudder at 0.013 p-p, so nothing damped it. Behind the student's 0.35 s
     // the mode closed through the bank and diverged: heading 34-55 deg p-p, the gear broken. yawRateK is on eR, washed out as eAR is
     // (a steady turn asks nothing). Node, the Cub, HOME > w3 in 8 kts: expert 2.3 -> 1.3 deg, student 34 -> 6 deg p-p, last 30 s of final
-    c.dr = clamp(S.drTrim - g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow) - g('yawRateK') * (S.eR - S.eRslow)
+    // RUDDER-CHATTER (A0 + FLAGSHIP 22 Nov, L40J: GATE ROUTE's refit C172, the rudder 20 reversals a minute against PILOTACT's 12;
+    // APSMOOTH's c172 146/min against the old card's 76): on the route's full-power turns (51 m/s, 23 deg of bank) the rudder
+    // swung 0.02-0.03 every second step - 15 Hz, a 4-step cycle, 87 reversals in 20 s - on the yaw-rate terms: eR - eRslow
+    // +-0.013 rad/s through the rate filter's 0.07 at that frequency (the nose's own 0.1 deg at 15 Hz on the refit card).
+    // No pilot's foot moves at 15 Hz. The swings are counted as the elevator's
+    // (G1949); scored, the two yaw-rate terms step down; the beta term, the trim and the aileron's share are not touched.
+    // An aeroplane whose rudder does not chatter never scores and flies the old rudder to the bit (yawOscK stays exactly 1)
+    const kY = S.yawOscK;
+    c.dr = clamp(S.drTrim - g('betaK') * S.beta - kY * g('yawDampK') * (S.eAR - S.eARslow) - kY * g('yawRateK') * (S.eR - S.eRslow)
                  - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
+    if (S.onG === 0) {
+      if (yawPrev !== null) {
+        const d = c.dr - yawPrev, sg = d > 0 ? 1 : d < 0 ? -1 : 0;
+        if (sg !== 0 && yawDir !== 0 && sg !== yawDir) {
+          if (Math.abs(yawPrev - yawExt) >= G.yawOscAmp && S.t - yawT <= G.yawOscHalf) S.yawOscScore += 1;
+          yawExt = yawPrev; yawT = S.t;
+        }
+        if (sg !== 0) yawDir = sg;
+      }
+      yawPrev = c.dr;
+      S.yawOscScore -= S.yawOscScore * S.dt / G.yawOscWin;
+      if (S.yawOscScore >= G.yawOscN) { S.yawOscK = Math.max(G.oscKMin, S.yawOscK * G.oscStep); S.yawOscScore = 0; yawScoreT = S.t; }
+      else if (S.yawOscK < 1 && S.t - yawScoreT > G.yawOscQuiet) S.yawOscK = Math.min(1, S.yawOscK + G.yawOscBack * S.dt);
+    } else { yawPrev = null; yawDir = 0; S.yawOscScore = 0; }
   };
   // course over ground: the standing course trim (a slipping aeroplane needs a
   // standing bank), integrated only while the error is small. The classic

@@ -838,8 +838,8 @@ async function pageRows() {
   const crypto = require('crypto'), C2D = require('./_c2d_digest.js');
   const { openPage } = require('./_page_node.js');
   const rd = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
-  const CUB = rd('builds/cub_2026-09-20_corrected.json').spec, MET = rd('tools/fixtures/build_v10_cessnaMetal_2026-09-26.json').spec;
-  const C172 = rd('tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json').spec;
+  const CUB = rd('builds/cub_2026-09-20_corrected.json').spec, MET = rd('builds/cessna172r_2026-11-08.json').spec;
+  const C172 = rd('bugReports/cessnaFloatsWOrks.json').spec;
   const env = (name, spec) => JSON.stringify({ what: 'flydiy-build', v: 10, name, spec });
   const t0 = Date.now();
   // THE PAGE ROWS RUN THE PLAYER-DERIVED PROPS (?parktrio=0). Since 21 Nov the default is the STATIC TRIO (the user's call:

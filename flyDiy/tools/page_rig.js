@@ -176,7 +176,6 @@ async function start(o) {
     // explicit player mode preserves vsync/frame pacing; legacy rigs unchanged.
     const playerPort = o.live ? await freePort() : 0;
     // HEADED (the user 22 Nov: GPU work in a visible window): Chrome backgrounds a covered window (no rAF: 'no frame drawn in 5 s')
-    // (A0's fix, claude/perf-codex 6881e8d2a, carried here 23 Nov before the night's unattended windows)
     const HEADED_ARGS = ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--window-position=0,0'];
     ch = spawn(chrome, [...(o.headed ? HEADED_ARGS : ['--headless=new']), '--remote-debugging-port=' + playerPort, '--window-size=' + size[0] + ',' + size[1], '--user-data-dir=' + udd,
       '--disable-gpu-sandbox', ...(o.live ? [] : ['--disable-frame-rate-limit', '--disable-gpu-vsync']), '--no-first-run', '--hide-scrollbars', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });

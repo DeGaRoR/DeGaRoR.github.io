@@ -5,7 +5,7 @@
 // is JSON: { outcome, ga, appr: { technique, gust, Vref, stol }, landing (the report's), touches (the first touch + every
 // lift of >= 0.15 s back off the surface after it, pilot_trace's bounce rule), td: { bank, sink, V } at the first touch }.
 //
-//   node tools/_stol_leg.js tools/fixtures/stol_cub_showcase.json [--profile bush] [--wind x,z] [--gust g] [--max s]
+//   node tools/_stol_leg.js builds/candidates/stol_cub_showcase.json [--profile bush] [--wind x,z] [--gust g] [--max s]
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname;
