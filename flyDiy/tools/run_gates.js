@@ -718,7 +718,8 @@ const GATES = [
   // its retracting gear on the wing (the DC-3-alike: its wing span's release left the engines' layer one build behind)
   // a hull with a pylon engine (the Super Petrel) and the Cub; six rows each, the main gear's station along the fuselage
   // among them (a row that turns the sit: the Cub's tank, the limbs) - _instant_rel_check.js
-  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', wall: 1500 },
+  // (A0, 23 Nov: 1 405 s alone was the battery's longest chunk - one aeroplane a shard: the DC-3 ~7 min, the Petrel ~13, the Cub ~4)
+  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', shards: 3, wall: 900 },
   // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)

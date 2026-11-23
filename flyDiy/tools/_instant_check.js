@@ -36,6 +36,7 @@ const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/ces
   // (the Super Petrel) - GATE INSTANTREL's two (_instant_rel_check.js)
   dc3: 'builds/candidates/dc3_2026-10.json', petrel: 'builds/candidates/superpetrel_V4_2.json' };
 const WANT = opt('builds', 'cub,metal').split(',');
+const SHD = require('./_shard.js');   // PERF-SLIDERS: the builds dealt over the runner's shards (GATE INSTANTREL: three aeroplanes, ~4 / 7 / 13 min)
 // the rows: one or more of each preview kind (a kept sheet's layer rows, the cage's rows, the sheet's detail rows)
 const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW', 'dashBack', 'shoulderT']);
 const log = s => console.log('  ' + s);
@@ -53,6 +54,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
   let bad = 0;
   const T = [];   // G2228: the wall per build and per row (the summary names a slow one)
   for (const bk of WANT) {
+    if (!SHD.take()) continue;   // (run_gates --shard=i/N: one build a shard; unsharded, every build)
     const tB = Date.now(), rowT = [];
     const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[bk] || bk), 'utf8') };
     if (FLEETQ) Object.assign(storage, require('./perf/fleet_b_set.js').storage());
