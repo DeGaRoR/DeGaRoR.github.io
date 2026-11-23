@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 43,
+  "feasible": 44,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
-  "not flown": 26,
+  "not flown": 25,
   "infeasible": 7,
   "stale": 5
  },
- "flownS": 72652,
+ "flownS": 74723,
  "rows": [
   {
    "id": "field.01",
@@ -1148,8 +1148,47 @@
    "id": "resort.02",
    "where": "skyline:1",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 2071,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 570,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "tw_ski",
+     "t": 1502,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [
+      "prop-strike"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "resort.03",

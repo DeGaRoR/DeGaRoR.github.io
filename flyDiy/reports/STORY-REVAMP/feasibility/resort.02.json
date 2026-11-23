@@ -1,0 +1,111 @@
+{
+ "id": "resort.02",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 2071,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 570,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "tw_ski",
+   "t": 1502,
+   "how": "stopped",
+   "at": "tw_ski",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [
+    "prop-strike"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 570,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 103 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 22.9 m/s until clear"
+     ],
+     "landing": {
+      "run": 86,
+      "sink": 1,
+      "V": 16.4,
+      "offCentre": 0.1,
+      "pastAim": 6,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 71,
+      "stopLeft": 386
+     }
+    },
+    {
+     "from": "w3",
+     "to": "tw_ski",
+     "t": 1502,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "off-the-strip: touched 117 m in, stopped -98 m past the end of 280 m (16 m off the centreline)",
+      "slope: stopped on a 6.1 % grade — rolling 30 m on to the level part",
+      "slope-parked: the grade is too steep to taxi up - parked on the brakes 30 m short of the level part"
+     ],
+     "landing": {
+      "run": 65,
+      "sink": -1.23,
+      "V": 15.6,
+      "offCentre": 6.1,
+      "pastAim": 100,
+      "k": 1,
+      "three": true,
+      "onStrip": false,
+      "tdIn": 117,
+      "stopLeft": 98
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "93faa5c7939b",
+ "where": "skyline:1",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 650
+}

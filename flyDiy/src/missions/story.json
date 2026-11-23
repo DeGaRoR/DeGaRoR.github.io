@@ -1894,6 +1894,12 @@
      "who": "martha",
      "text": "ct.resort.02.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2071,
+    "sig": "90aab816"
    }
   },
   {
