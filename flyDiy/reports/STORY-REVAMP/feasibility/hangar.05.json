@@ -1,0 +1,50 @@
+{
+ "id": "hangar.05",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Cessna 172 (career)",
+ "timeS": 1286,
+ "why": "",
+ "tried": [
+  "Cessna 172 (career):feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 558,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 120,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "HOME",
+   "t": 727,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
+   "kg": 120,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "94659d61ad98",
+ "where": "hangar:3",
+ "pool": "validated",
+ "wallS": 1457
+}

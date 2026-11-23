@@ -46,7 +46,10 @@ function load() {
 }
 const rowFile = id => path.join(ROWS, id + '.json');
 const rowOf = id => { try { return JSON.parse(fs.readFileSync(rowFile(id), 'utf8')); } catch (e) { return null; } };
-const current = m => { const r = rowOf(m.id); return r && r.key === m.key ? r : null; };
+// a row is CURRENT when it is this mission's record flown - and, when it is not feasible, flown with the pool of today (a
+// "no" from the career's designs alone is not a "no" from every official plane, the PC-6 and the test builds)
+const POOL = m => m.order ? 'validated' : 'official+' + opt('also', ALSO) + '+test builds';
+const current = m => { const r = rowOf(m.id); return r && r.key === m.key && (r.verdict === 'feasible' || r.pool === POOL(m)) ? r : null; };
 
 async function fly() {
   const { list } = load();
@@ -76,7 +79,7 @@ async function fly() {
       let R = null;
       try { R = JSON.parse(fs.readFileSync(path.join(out, 'reruns', 'rerun_' + m.id + '.json'), 'utf8')).rows.find(x => x.id === m.id); } catch (e) { R = null; }
       const row = R ? slim(R) : { id: m.id, verdict: 'broken', why: 'the rig ended with no row (exit ' + code + '): ' + err.slice(-300) };
-      Object.assign(row, { key: m.key, where: m.where, pool: m.order ? 'validated' : 'official+' + opt('also', ALSO) + '+test builds', wallS: Math.round((Date.now() - t0) / 1000) });
+      Object.assign(row, { key: m.key, where: m.where, pool: POOL(m), wallS: Math.round((Date.now() - t0) / 1000) });
       fs.writeFileSync(rowFile(m.id), JSON.stringify(row, null, 1) + '\n');
       done++;
       console.log('  ' + String(done).padStart(3) + '/' + todo.length + ' ' + row.verdict.toUpperCase().padEnd(10) + ' ' + m.id.padEnd(15) + ' ' + (row.plane || '-').padEnd(24) + ' ' + String(row.timeS || 0).padStart(5) + ' s flown, ' + row.wallS + ' s wall' + (row.verdict === 'feasible' ? '' : '  ' + (row.why || '').slice(0, 160)));

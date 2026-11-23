@@ -1,0 +1,61 @@
+{
+ "id": "obs.05",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "Cessna 172 (career)",
+ "timeS": 558,
+ "why": "no progress: already loaded [declined]",
+ "tried": [
+  "Cessna 172 (career):infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 558,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 120,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "mt_strip",
+   "t": 0,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [],
+   "kg": 120,
+   "pax": 0,
+   "faults": [
+    "declined"
+   ],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "mt_strip",
+   "t": 0,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [],
+   "kg": 120,
+   "pax": 0,
+   "faults": [
+    "declined"
+   ],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "ad8f003e6b71",
+ "where": "observatory:3",
+ "pool": "validated",
+ "wallS": 509
+}

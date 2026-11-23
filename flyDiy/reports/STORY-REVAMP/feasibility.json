@@ -1,0 +1,960 @@
+{
+ "what": "flydiy-story-feasibility",
+ "v": 1,
+ "pack": "story",
+ "missions": 91,
+ "summary": {
+  "not flown": 69,
+  "feasible": 10,
+  "an aircraft order (not a flight)": 8,
+  "stale": 4
+ },
+ "flownS": 12652,
+ "rows": [
+  {
+   "id": "field.01",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "field.02",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "field.n1",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "field.round",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "field.hike",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "field.ridge",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "field.cannery",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "hangar.01",
+   "where": "hangar:1",
+   "kind": "contract",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1006,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 560,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 446,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "hangar.02",
+   "where": "hangar:1",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "hangar.03",
+   "where": "hangar:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "hangar.04",
+   "where": "hangar:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "hangar.05",
+   "where": "hangar:3",
+   "kind": "contract",
+   "verdict": "feasible",
+   "plane": "Cessna 172 (career)",
+   "timeS": 1286,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 558,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 727,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "heritage.01",
+   "where": "heritage:1",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "heritage.02",
+   "where": "heritage:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "minedock.n1",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "minedock.b1",
+   "where": "contract",
+   "kind": "build",
+   "verdict": "not flown",
+   "cls": "order"
+  },
+  {
+   "id": "minedock.b2",
+   "where": "contract",
+   "kind": "build",
+   "verdict": "not flown",
+   "cls": "order"
+  },
+  {
+   "id": "minedock.01",
+   "where": "mine:1",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "minedock.02",
+   "where": "mine:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "mine.03",
+   "where": "mine:3",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "mine.04",
+   "where": "mine:4",
+   "kind": "contract",
+   "verdict": "stale",
+   "cls": null
+  },
+  {
+   "id": "mine.tour",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "minedock.05",
+   "where": "harbour:1",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "minedock.06",
+   "where": "harbour:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "lumber.01",
+   "where": "lumber:1",
+   "kind": "contract",
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 419,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 419,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "lumber.02",
+   "where": "lumber:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "lumber.03",
+   "where": "lumber:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "lumber.04",
+   "where": "lumber:3",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "lumber.run",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "resort.01",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "resort.04",
+   "where": "contract",
+   "kind": "build",
+   "verdict": "not flown",
+   "cls": "order"
+  },
+  {
+   "id": "resort.b2",
+   "where": "contract",
+   "kind": "build",
+   "verdict": "not flown",
+   "cls": "order"
+  },
+  {
+   "id": "resort.guests",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "resort.02",
+   "where": "skyline:1",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "resort.03",
+   "where": "skyline:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "skyline.03",
+   "where": "skyline:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "resort.05",
+   "where": "skyline:3",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "survey.01",
+   "where": "contract",
+   "kind": "survey",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "survey.02",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "survey.03",
+   "where": "contract",
+   "kind": "survey",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "survey.05",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "survey.04",
+   "where": "contract",
+   "kind": "build",
+   "verdict": "not flown",
+   "cls": "order"
+  },
+  {
+   "id": "obs.01",
+   "where": "observatory:1",
+   "kind": "survey",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 3841,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1426,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1798,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:1@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 617,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "obs.02",
+   "where": "observatory:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "obs.03",
+   "where": "observatory:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "obs.04",
+   "where": "observatory:3",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "obs.05",
+   "where": "observatory:3",
+   "kind": "contract",
+   "verdict": "stale",
+   "cls": null
+  },
+  {
+   "id": "obs.06",
+   "where": "observatory:4",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "obs.07",
+   "where": "observatory:4",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "obs.08",
+   "where": "observatory:5",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "obs.09",
+   "where": "observatory:6",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "clients.01",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "clients.n1",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "clients.n2",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "clients.03",
+   "where": "contract",
+   "kind": "challenge",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "clients.02",
+   "where": "contract",
+   "kind": "build",
+   "verdict": "not flown",
+   "cls": "order"
+  },
+  {
+   "id": "clients.04",
+   "where": "contract",
+   "kind": "build",
+   "verdict": "not flown",
+   "cls": "order"
+  },
+  {
+   "id": "clients.b1",
+   "where": "contract",
+   "kind": "build",
+   "verdict": "not flown",
+   "cls": "order"
+  },
+  {
+   "id": "booze.01",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "booze.02",
+   "where": "contract",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.01",
+   "where": "home:1",
+   "kind": "contract",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1184,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 1184,
+     "how": "stopped",
+     "at": "w1",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "home.02",
+   "where": "home:1",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.03",
+   "where": "home:2",
+   "kind": "contract",
+   "verdict": "stale",
+   "cls": null
+  },
+  {
+   "id": "home.04",
+   "where": "home:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.05",
+   "where": "home:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.06",
+   "where": "home:3",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.07",
+   "where": "home:3",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.08",
+   "where": "home:4",
+   "kind": "contract",
+   "verdict": "stale",
+   "cls": null
+  },
+  {
+   "id": "home.09",
+   "where": "home:4",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.10",
+   "where": "home:5",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.11",
+   "where": "home:5",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.12",
+   "where": "home:6",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.13",
+   "where": "home:7",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "home.14",
+   "where": "home:7",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.01",
+   "where": "community:1",
+   "kind": "contract",
+   "verdict": "feasible",
+   "plane": "Cessna 172 (career)",
+   "timeS": 931,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w6",
+     "t": 931,
+     "how": "stopped",
+     "at": "w6",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "community.02",
+   "where": "community:2",
+   "kind": "contract",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 2066,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 571,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "w7",
+     "t": 1495,
+     "how": "stopped",
+     "at": "w7",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "community.03",
+   "where": "community:2",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.04",
+   "where": "community:3",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.05",
+   "where": "community:4",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.06",
+   "where": "community:4",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.07",
+   "where": "community:4",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.08",
+   "where": "community:5",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.09",
+   "where": "community:6",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.10",
+   "where": "community:7",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "community.11",
+   "where": "community:8",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "club.stol",
+   "where": "contract",
+   "kind": "challenge",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 489,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "xw_rough",
+     "t": 489,
+     "how": "stopped",
+     "at": "xw_rough",
+     "stop": [
+      "sub:0@0",
+      "scores",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": [
+      "stol:ld=197.8"
+     ]
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "club.spot",
+   "where": "contract",
+   "kind": "challenge",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 488,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w2",
+     "t": 488,
+     "how": "stopped",
+     "at": "w2",
+     "stop": [
+      "sub:0@0",
+      "scores",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": [
+      "stol:sp=95.3"
+     ]
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "club.pylons",
+   "where": "contract",
+   "kind": "challenge",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 942,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 942,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "sub:1@0",
+      "sub:2@0",
+      "sub:3@0",
+      "timer",
+      "sub:4@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": [
+      "hit:g1",
+      "hit:g2",
+      "hit:g3",
+      "hit:g4"
+     ]
+    }
+   ],
+   "pool": "validated",
+   "cls": "feasible"
+  },
+  {
+   "id": "club.regular",
+   "where": "contract",
+   "kind": "challenge",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "club.tour",
+   "where": "club:2",
+   "kind": "challenge",
+   "verdict": "not flown",
+   "cls": null
+  },
+  {
+   "id": "club.breakfast",
+   "where": "club:1",
+   "kind": "contract",
+   "verdict": "not flown",
+   "cls": null
+  }
+ ]
+}
