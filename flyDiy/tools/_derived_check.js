@@ -34,7 +34,8 @@
 //   where the two modes' lists differ (an overlay is in use on this aeroplane), the walk above on four rows that are
 //   none of the overlay's (the wing's span, the tail's, the main gear's station, the seat's height) to four fifths of
 //   their range - OFF re-ran the layer on every tick, ON did not, the aeroplane after the release must be the same.
-// Usage: node --max-old-space-size=6144 tools/_derived_check.js [--planes list:12,list:41 | --all] [--rows k1,k2]
+// --mode afmemo is GATE AFMEMO (below, in the aeroplane's loop): CAGE_CHAIN.afMemo ON / OFF / OFF / ON on every aeroplane.
+// Usage: node --max-old-space-size=6144 tools/_derived_check.js [--planes list:12,list:41 | --all] [--rows k1,k2] [--mode afmemo]
 // GATES_CORE=1 (the runner's core tier): two aeroplanes (a retractable twin, a hull amphibian).
 // Exit 1 on any difference. Ends with one line: GATE DERIVED: PASS|FAIL. No --help.
 'use strict';
@@ -51,6 +52,7 @@ const PLANES = want ? want.map(n => LISTS.find(p => p.n === n)).filter(has) : LI
 const ROWS = opt('rows', '') ? opt('rows').split(',') : [];
 const SETTLE = +opt('settle', 1500);
 const OVER_ROWS = ['wgSpan', 'stSpan', 's1X', 'seatH'];
+const MODE = opt('mode', 'derived');   // 'afmemo': the sheet's airframe built once, ON against OFF, every aeroplane (GATE AFMEMO, below)
 const log = s => console.log('  ' + s);
 const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), 'utf8').match(/const FP = `([\s\S]*?)`;\n/)[1];
 
@@ -114,11 +116,11 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
   // the stand (the header's): the aeroplane as loaded, a plain build in the mode; the scene, the spec, the layers that read every row
   const ROTOR = '(() => { const S = window.CAGE_SCENE; if (S) S.traverse(o => { if (/^liRotor/.test(o.name || "")) { o.rotation.set(0, 0, 0); o.updateMatrix(); o.updateMatrixWorld(true); } }); return 1; })()';
   const stand = async off => {
-    restore(); CH.derivedOff = !!off; U.build();
+    restore(); if (MODE === 'afmemo') CH.afMemo.on = !off; else CH.derivedOff = !!off; U.build();
     await P.until(() => false, SETTLE);
     run(ROTOR);
     const out = { h: hash(), fp: JSON.parse(run(FP)), all: Array.from(CH.layers).filter(l => l.all).map(l => l.name).join(' ') };
-    CH.derivedOff = false;
+    CH.derivedOff = false; if (CH.afMemo) CH.afMemo.on = true;
     return out;
   };
   const cmp = (A, B, C) => { const diffs = []; let noise = 0;
@@ -144,6 +146,24 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       const dk = Array.from(CH.derivedKeys());
       log('== list:' + p.n + ' ' + p.name + '  (' + how + ')  derived reads on: ' + (dk.join(' ') || 'none'));
       snap();
+      // --mode afmemo (GATE AFMEMO): THE SHEET'S AIRFRAME BUILT ONCE IS THE AIRFRAME BUILT EVERY TIME, ON EVERY AEROPLANE.
+      // From a settled aeroplane four plain builds - the memo ON, OFF, OFF, ON - and an object (or the resolved spec) is
+      // the memo's doing only where the two ON agree, the two OFF agree, and ON is not OFF; anything else that moves is
+      // the aeroplane not repeating itself (a floatplane's CG handshake) and is counted as drift. The ON builds must
+      // have used the memo (its hits), or nothing was tested.
+      if (MODE === 'afmemo') {
+        if (!CH.afMemo) { log('NO CAGE_CHAIN.afMemo on this page'); bad++; break; }
+        { let w0 = await stand(false), n = 1, eq = false; for (; n < 4 && !eq; n++) { const w1 = await stand(false); eq = w1.h === w0.h && w1.fp.out.length === w0.fp.out.length && w1.fp.out.every((o, j) => o === w0.fp.out[j]); w0 = w1; } }
+        const h0 = CH.afMemo.hits;
+        const A = await stand(false), hits = CH.afMemo.hits - h0, B = await stand(true), C = await stand(true), D = await stand(false);
+        const diffs = []; let drift = 0; const N = Math.max(A.fp.out.length, B.fp.out.length, C.fp.out.length, D.fp.out.length);
+        for (let i = 0; i < N; i++) { const a = A.fp.out[i], b = B.fp.out[i], c = C.fp.out[i], d = D.fp.out[i]; if (a === b && b === c && c === d) continue; if (a === d && b === c && a !== b) diffs.push(i); else drift++; }
+        const specBad = A.h === D.h && B.h === C.h && A.h !== B.h, same = !diffs.length && !specBad && hits > 0;
+        stands++; if (!same) bad++;
+        log('   the stand, the memo ON / OFF / OFF / ON   objects ' + A.fp.out.length + '  ' + (!hits ? 'THE MEMO WAS NOT USED (0 hits)' : same ? 'same' : 'DIFFER ' + diffs.length + (specBad ? ' + spec ' + A.h + ' vs ' + B.h : '')) + '  (hits in the ON build ' + hits + (drift ? ', drift ' + drift : '') + ')  (' + Math.round((Date.now() - tP) / 1000) + ' s)');
+        show(A, B, diffs);
+        continue;
+      }
       // WHAT THIS AEROPLANE CALLS: one plain build ON with the counters at zero. Neither called = the two modes are the
       // same code on it (the PC-6 on Wiplines, 23 Nov: no derived read, no overlay, and an aeroplane that does not
       // repeat itself build after build - its floats' CG handshake drifts 1e-5 m a build - read as 16 to 458 objects
@@ -201,6 +221,6 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
   try { if (P) P.close(); } catch (e) {}
   log(stands + ' aeroplanes looked at: ' + sameCode + ' call neither (the same code in both modes), ' + (stands - sameCode) + ' compared on the stand (' + overs + ' where the every-row layers of the two modes differ), ' + walks + ' walks compared (' + withReads + ' aeroplanes with a derived read), ' + bad + ' failures; crew runs saved in the ticks: ' + saved);
   if (!stands) { bad++; log('nothing was compared'); }
-  console.log('GATE DERIVED: ' + (bad ? 'FAIL' : 'PASS'));
+  console.log('GATE ' + (MODE === 'afmemo' ? 'AFMEMO' : 'DERIVED') + ': ' + (bad ? 'FAIL' : 'PASS'));
   process.exit(bad ? 1 : 0);
 })().catch(e => { console.error('_derived_check: ' + (e && e.stack || e)); console.log('GATE DERIVED: FAIL'); process.exit(1); });
