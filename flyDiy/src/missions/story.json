@@ -1457,7 +1457,14 @@
     "provider": "minedock",
     "gain": 0.5
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 15 kg / 0 pax, the job is 150 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "01623f70"
+   }
   },
   {
    "id": "lumber.03",
