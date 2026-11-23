@@ -167,6 +167,26 @@ function apprTrim(sim, def, W, flap, Vs0) {
   const dM = (m1 - m0) / 0.20;
   return Math.abs(dM) < 1e-9 ? 0 : -m0 / dM;
 }
+// READ RIGHT (PHYSICS-AUDIT step 0, 21 Nov 2026; reports/PHYSICS-AUDIT-2026-11-21.md N1-N3). Three conditions the
+// airframe reading did not carry - none of them a model change:
+//   WHEELS UP   a retractable's cruise, climb and glide are flown with the gear up. A reset sim stands on its wheels and
+//               the retraction only runs in step(), so the probe read the DC-3 with 0.49 m2 of gear in the wind. The
+//               flight rows (V75, Vmax, roc, L/D, the parasite fit) are probed on a copy of the def whose body row has
+//               the retraction's own share off (params.retract.cdA x frac: what the solver takes off at pos 0); the
+//               stall, the take-off roll and the approach trim stay wheels down
+//   THE ROW'S ALTITUDE  a level-speed row stated at an altitude (row.alt, m) is solved there: the same drag at the
+//               same EAS, the thrust the core gives at that height (sim.thrustAt(TAS, floor, h)), read in TAS
+//   THE ROW'S POWER     a row flown at less than the rated power (row.power, a fraction: a climb at max continuous, a
+//               take-off at a de-rated setting) is read at that fraction of the full-throttle thrust
+//   THE ROW'S RPM       (step 3) a level-speed row flown at a lower rpm limit than the rated speed (row.rpm, a fraction:
+//               the Velis's VH "at 2300 rpm" on a 2500 rpm motor) is read on the thrust the redline leaves there
+// A row that carries either is read into `atRow[<row key>]`; verdicts() takes it in place of the case's own figure.
+function flightDef(spec, lc) {
+  const def = loadedDef(spec, lc), RET = def.params.retract;
+  if (!(RET && RET.cdA > 0)) return null;
+  def.params.fusCdA[0] -= RET.cdA * (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1);
+  return def;
+}
 function airframe(spec, lc, R, P) {
   const def = loadedDef(spec, lc);
   const sim = C.makeSim(def, null); sim.reset(0);
@@ -174,18 +194,58 @@ function airframe(spec, lc, R, P) {
   const Vs = stallOf(sim, def, W, 0);
   const fTO = flapFrac(def, poh.flapTO), fL = flapFrac(def, poh.flapLDG);
   const VsTO = fTO ? stallOf(sim, def, W, fTO) : Vs, Vs0 = fL ? stallOf(sim, def, W, fL) : Vs;
-  const rows = PP.sweepAt(def, sim, W, Vs);
+  // the flight configuration: wheels up on a retractable
+  const defUp = flightDef(spec, lc), gearUp = !!defUp;
+  let simF = sim; if (defUp) { simF = C.makeSim(defUp, null); simF.reset(0); }
+  const rows = PP.sweepAt(defUp || def, simF, W, Vs);
   const V75 = PP.levelSpeedAt(rows, 0.75), Vmax = PP.levelSpeedAt(rows, 1.0);
   let roc = 0, Vy = 0, LD = 0, Vbg = 0;
   for (const r of rows) { if (r.excess > roc) { roc = r.excess; Vy = r.V; } if (r.LD > LD) { LD = r.LD; Vbg = r.V; } }
-  const fit = PP.parasiteFit(rows, Vs, sim.probeAir().rho);
+  const fit = PP.parasiteFit(rows, Vs, simF.probeAir().rho);
   let to = null; try { to = C.genTORunAt(sim, def, W); } catch (e) {}
   const sh = C.genShakedown(def, { slim: true });
   const cgMAC = sh && sh.cBar ? (sh.cgX - sh.xLEmac) / sh.cBar * 100 : null;
   const deAppr = apprTrim(sim, def, W, fL, Vs0), deApprClean = apprTrim(sim, def, W, 0, Vs);
+  // the rows stated at an altitude or a power
+  const atRow = {};
+  // (step 4) A FLOWN GLIDE ROW (row.prop 'idle': a handbook's engine-out glide) is read with the propeller in it - dead
+  // and windmilling, or a motor's off (60_gen_spec GEN_PROP_IDLE: a share of the disc as drag); a computed polar's or
+  // a glider's row ('none') and a brochure's ('unknown') stay the clean reading
+  if (R.rows && R.rows.LD && R.rows.LD.prop === 'idle' && typeof C.genPropIdleK === 'function') {
+    const pr = (defUp || def).params.prop, kw = C.genPropIdleK((defUp || def).params.engine, pr, 'dead');
+    if (kw > 0) {
+      const cdA = kw * Math.PI * pr.D * pr.D / 4 * ((defUp || def).params.nEngines || 1), rho = simF.probeAir().rho;
+      let best = 0; for (const r of rows) best = Math.max(best, W / (r.drag + 0.5 * rho * r.V * r.V * cdA));
+      atRow.LD = best;
+    }
+  }
+  for (const rk of Object.keys(R.rows || {})) {
+    const row = R.rows[rk], k = row.key || rk, kP = row.power > 0 ? row.power : 1, h = row.alt > 0 ? row.alt : 0, rK = row.rpm > 0 && row.rpm < 1 ? row.rpm : 0;
+    if (kP === 1 && !h && !rK) continue;
+    if (k === 'Vmax' || k === 'V75') {
+      // (step 3: `rpm` - a row flown at a lower rpm limit than the rated speed: the thrust the redline leaves there)
+      const sg = h ? C.ATMOS_ISA.sigma(h) : 1, rt = Math.sqrt(sg);
+      const rw = rows.map(r => { const Vt = r.V / rt, Tf = kP * (h ? simF.thrustAt(Vt, 1, h) : r.T1);
+                                 return { V: Vt, drag: r.drag, T1: rK ? Math.min(Tf, simF.thrustAt(Vt, 1, h || undefined, rK)) : Tf }; });
+      const v = PP.levelSpeedAt(rw, k === 'V75' ? 0.75 : 1); if (v) atRow[rk] = v * 3.6;
+    } else if (k === 'roc') {
+      let best = 0; for (const r of rows) best = Math.max(best, (kP * r.T1 - r.drag) * r.V / W);
+      atRow[rk] = best;
+    } else if (k === 'TO' && kP !== 1) {
+      // the roll at the row's power: the same aeroplane with its thrust law scaled (the propeller's two numbers)
+      try {
+        const d2 = loadedDef(spec, lc); d2.params.prop.Tstatic *= kP; d2.params.prop.kV2 *= kP;
+        // (a governed propeller flies the disc on the engine's power - step 6: the power itself, and the static cap by P^(2/3))
+        if (d2.params.prop.cs) { d2.params.prop.cs = { T0: d2.params.prop.cs.T0 * Math.pow(kP, 2 / 3), etaB: d2.params.prop.cs.etaB };
+                                 d2.params.engine = Object.assign({}, d2.params.engine, { powerW: d2.params.engine.powerW * kP }); }
+        const s2 = C.makeSim(d2, null); s2.reset(0);
+        const t2 = C.genTORunAt(s2, d2, W); if (t2 && t2.sRoll > 0) atRow[rk] = t2.sRoll;
+      } catch (e) {}
+    }
+  }
   return { mass: sim.totalM, W, Vs: Vs * 3.6, VsTO: VsTO * 3.6, Vs0: Vs0 * 3.6, V75: V75 && V75 * 3.6, Vmax: Vmax && Vmax * 3.6, roc, Vy: Vy * 3.6, LD, Vbg: Vbg * 3.6,
            CdS: fit && fit.CdS, TOgrass: to && to.sRoll, T0: sim.thrustAt(0, 1), cgMAC, sm: sh && sh.staticMargin * 100, stabTrim: sh && sh.stabTrim * 180 / Math.PI,
-           deAppr, deApprClean, flapLdg: fL, flapTO: fTO };
+           deAppr, deApprClean, flapLdg: fL, flapTO: fTO, ...(gearUp ? { gearUp: true } : {}), ...(Object.keys(atRow).length ? { atRow } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -593,7 +653,9 @@ function verdicts(out) {
       continue;
     }
     const kg = refKg(R, row);
-    for (const [who, sel] of (SRC[k] || [])) {
+    for (const [who, sel0] of (SRC[k] || [])) {
+      // (step 0: a row stated at an altitude or a power is read there - the case's atRow)
+      const sel = /^airframe/.test(who) ? (c, id) => (c.atRow && c.atRow[rk] != null ? c.atRow[rk] : sel0(c, id)) : sel0;
       const s = series(sel); if (!s.some(q => q.v != null)) continue;
       const a = interp(s, kg[0], true), b = interp(s, kg[1], true);
       if (a == null || b == null) continue;
@@ -634,6 +696,10 @@ function md(out) {
   L.push('| load | mass kg | CG % MAC | SM % | Vs | Vs0 | V75 | Vmax | ROC m/s (Vy) | L/D | CdS | TO grass (analytic) | approach trim de (flap) |');
   L.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const c of out.cases) L.push('| ' + c.id + ' | ' + f(c.mass) + ' | ' + f(c.cgMAC) + ' | ' + f(c.sm) + ' | ' + f(c.Vs) + ' | ' + f(c.Vs0) + ' | ' + f(c.V75) + ' | ' + f(c.Vmax) + ' | ' + f(c.roc, 2) + ' (' + f(c.Vy) + ') | ' + f(c.LD, 1) + ' | ' + f(c.CdS, 2) + ' | ' + f(c.TOgrass) + ' | ' + f(c.deAppr, 3) + ' (' + f(c.flapLdg, 2) + ') |');
+  // (step 0: how the rows are read)
+  { const c0 = out.cases[0] || {}, rk = Object.keys(R.rows || {}).filter(k => R.rows[k].alt > 0 || R.rows[k].power > 0);
+    if (c0.gearUp || rk.length) L.push((c0.gearUp ? 'The cruise, climb and glide columns are flown wheels up (the stall, the roll and the approach trim wheels down). ' : '') +
+      (rk.length ? 'Read at the row\'s own conditions: ' + rk.map(k => k + (R.rows[k].alt > 0 ? ' at ' + f(R.rows[k].alt) + ' m' : '') + (R.rows[k].power > 0 ? ' at ' + f(100 * R.rows[k].power) + ' % power' : '')).join(', ') + '.' : '')); }
   L.push('');
   if (Object.keys(out.flights).length) {
     L.push('Flown on ' + out.surface + ' (flat, calm, ISA). game = the pilot as it ships; POH = the same pilot on the handbook schedule.');

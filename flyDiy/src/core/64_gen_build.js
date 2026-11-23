@@ -173,8 +173,10 @@ function genTrim(def) {
   // prop (a GARAGE build always has one) AND its engine count — the two things
   // this block used to re-derive, and the second of which it once got wrong
   // (it read the per-disc figure while the solver flew on twice it, G4.9).
-  const Tavail = sim.thrustAt(V, 1);
-  def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, fin.r.drag / Tavail));
+  // (PHYSICS-AUDIT step 4: the thrust runs from the idling propellers' drag to the law's thrust, T = thr Tav - (1 -
+  //  thr) Dw, so the throttle that balances a drag D is (D + Dw) / (Tav + Dw); Dw 0 on a build without a propeller)
+  const Tavail = sim.thrustAt(V, 1), DwC = sim.idleDragAt ? sim.idleDragAt(V) : 0;
+  def.params.ap.thrCruise = Math.min(0.95, Math.max(0.15, DwC > 0 ? (fin.r.drag + DwC) / (Tavail + DwC) : fin.r.drag / Tavail));
   def.params.gen.alphaCruise = fin.a;
   def.params.gen.LD = fin.r.Fy / Math.max(1e-6, fin.r.drag);
   // G185: how the lift is shared between the planes at cruise (a monoplane's
@@ -330,8 +332,12 @@ function genTrim(def) {
       sim.ctl.flap = 0; g.alphaApprClean = genAlphaForLift(sim, g.VApprClean, W, aMax); sim.ctl.flap = ldg;
     } else { g.VApprClean = Va; g.alphaApprClean = aA; }
     g.LDappr = rA.Fy / Math.max(1e-6, rA.drag);
-    g.dragAppr = rA.drag;
-    g.TavailAppr = Tav(Va);
+    // (PHYSICS-AUDIT step 4: the approach's two numbers carry the idling propellers' drag Dw - the idle-equilibrium
+    //  slope genTuneAP compares the glideslope with is the aeroplane's WITH its propeller idling, and the throttle on
+    //  the slope is (D + Dw - W gs) / (Tav + Dw): the same lines, the same algebra. Dw 0 without a propeller)
+    const DwA = sim.idleDragAt ? sim.idleDragAt(Va) : 0;
+    g.dragAppr = DwA > 0 ? rA.drag + DwA : rA.drag;
+    g.TavailAppr = DwA > 0 ? Tav(Va) + DwA : Tav(Va);
     // arrival attitude, for the flare ceiling
     g.alphaTD = genAlphaForLift(sim, 1.10 * (g.VsFlapAP || g.VsFlap), W, aMax);
     sim.ctl.flap = 0;
@@ -1123,6 +1129,29 @@ function buildGen(specIn) {
     S.prop.pitch = S.prop.pitchAuto;
     S._auto['prop.pitch'] = true;
     params.prop = { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 };
+  }
+  // THE PROPELLER IS CUT FOR THE AEROPLANE (PHYSICS-AUDIT step 3, 2026-11-21; 60_gen_spec genPropFit): here for the
+  // same reason the class is chosen here - the drag is known now (genParams' body row, the surfaces' polars, the
+  // struts' blobs) and the design weight is `gClean`'s. Wheels up on a retractable (the top speed is flown clean). A
+  // governed propeller (the engine's `cs`) flies the disc itself (step 6, genPropGovern); an unpowered build has none.
+  if (S.prop && !S.prop.none && params.prop) {
+    let fSurf = 0;
+    for (const st of strips) {
+      const pol = st.kind === 'wing' ? ((params.polarWings && params.polarWings[st.plane | 0]) || params.polarWing)
+                : st.kind === 'fin' ? (params.polarFin || params.polarTail) : params.polarTail;
+      fSurf += (pol.Cd0 + (st.stol ? st.stol.cd || 0 : 0)) * st.area;
+    }
+    const RT = params.retract, nB = (def.refs.strutDrag || []).length, G_ = params.gen;
+    const f = params.fusCdA[0] + fSurf + (params.strutCdA ? params.strutCdA[0] * nB : 0)
+            - (RT && RT.cdA > 0 ? RT.cdA * (RT.frac > 0 && RT.frac < 1 ? RT.frac : 1) : 0);
+    const eAR = (S.wings || []).length > 1 ? Math.PI * GEN_PROP_FIT.eBiplane * G_.span * G_.span / G_.Sw : params.polarWing.eAR;
+    const AP = { nE: params.nEngines || 1, f, W: gClean.W, S: gClean.Sw, eAR };
+    if (params.engine && params.engine.cs) {
+      // (step 6: a governed propeller flies the disc - params.prop.cs is the solver's law, the quadratic an estimate)
+      if (genPropGovern(S.prop, AP)) { params.prop.Tstatic = S.prop.Tstatic; params.prop.kV2 = S.prop.kV2; params.prop.cs = S.prop.cs; }
+    } else if (genPropFit(S.prop, AP)) {
+      params.prop.Tstatic = S.prop.Tstatic; params.prop.kV2 = S.prop.kV2; params.prop.V1 = S.prop.V1;
+    }
   }
   if (params.flaps) {
     const g = genClMax(def, params.flaps.ldg ?? 1);

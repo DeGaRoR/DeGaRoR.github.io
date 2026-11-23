@@ -1,0 +1,278 @@
+{
+ "key": "ls4",
+ "stamp": {
+  "build": {
+   "file": "builds/candidates/ls4_2026-11.json",
+   "blob": "2016bf8f68e7dc334eb436b26131d7f885508a54"
+  },
+  "core": "0c3710fdfe9336f4",
+  "harness": "113035338ec0e0e6941779b66003a112073c8f60",
+  "ref": {
+   "key": "ls4",
+   "hash": "d9cd18a6f8a897a2"
+  },
+  "plane": {
+   "key": "ls4",
+   "hash": "a7630fe2acb18d5f"
+  },
+  "at": "2026-11-21T23:10:10.843Z"
+ },
+ "label": "LS4-alike (candidate)",
+ "file": "builds/candidates/ls4_2026-11.json",
+ "ref": "ls4",
+ "refName": "Rolladen-Schneider LS4 (LS4-b)",
+ "official": false,
+ "engineNote": null,
+ "provisional": false,
+ "note": "engineless, 170 L of water, airbrakes, CS-22 strength: 230 kg empty against 238; its glide waits for the drag study",
+ "group": "glider",
+ "card": null,
+ "shape": {
+  "drawn": {
+   "span": 15.06,
+   "length": 11.280000000000001,
+   "height": 2.735658764090819,
+   "heightLevel": 2.31,
+   "deckDeg": 4.279891450075378,
+   "points": 18337,
+   "suspect": [
+    "length",
+    "height"
+   ]
+  },
+  "dims": {
+   "span": 15.06,
+   "length": 6.793670325134502,
+   "height": 1.21444737613049,
+   "S": 10.623332091453003,
+   "cRoot": 0.9,
+   "cTip": 0.36,
+   "hSpan": 2.4954386568069458,
+   "Sh": 0.8861726533707216,
+   "Sv": 0.9246691705420029,
+   "track": null
+  },
+  "nodes": {
+   "span": 15,
+   "length": 6.793670325134502,
+   "height": 1.21444737613049
+  },
+  "specs": {
+   "engine": "none (sailplane)",
+   "hp": null,
+   "nE": 1,
+   "propD": 1.91,
+   "blades": 2,
+   "empty": 231.7057415823616,
+   "mtow": 481.70574158236167,
+   "fuelL": 0,
+   "seats": 1
+  }
+ },
+ "joinErrors": [
+  "tail: the drawn hChord 0.355m is outside the flown envelope 0.4–1.6m and flies clamped — the drawn tail is not the flown tail"
+ ],
+ "facts": {
+  "empty": 231.7057415823616,
+  "baked": 481.7057415823619,
+  "fuelKg": 0,
+  "seats": 1,
+  "occupied": [
+   true
+  ],
+  "baggage": 0,
+  "engine": "none (sailplane)",
+  "hp": 0,
+  "S": 10.623332091453003,
+  "flapsGame": null,
+  "landsFlapless": false,
+  "tail": {
+   "Sh": 0.8861726533707216,
+   "hSpan": 2.4954386568069458,
+   "Sv": 0.9246691705420029
+  }
+ },
+ "cases": [
+  {
+   "id": "min",
+   "label": "MIN: 70 kg pilot, 1/4 fuel",
+   "fuel": 0.25,
+   "mass": 471.7057415823619,
+   "W": 4627.43332492297,
+   "Vs": 76.35455035574583,
+   "VsTO": 76.35455035574583,
+   "Vs0": 76.35455035574583,
+   "V75": null,
+   "Vmax": null,
+   "roc": 0,
+   "Vy": 0,
+   "LD": 19.510502276521287,
+   "Vbg": 103.07864298025684,
+   "CdS": 0.24969792726170395,
+   "TOgrass": 2003,
+   "T0": 1,
+   "cgMAC": 26.611045971969727,
+   "sm": 35.288773782286576,
+   "stabTrim": -6.925462270191354,
+   "deAppr": 0.09607722530883141,
+   "deApprClean": 0.09607722530883141,
+   "flapLdg": 0,
+   "flapTO": 0
+  },
+  {
+   "id": "typ",
+   "label": "TYP: 80 kg pilot, 1/2 fuel",
+   "fuel": 0.5,
+   "mass": 481.7057415823619,
+   "W": 4725.533324922971,
+   "Vs": 77.15965091466832,
+   "VsTO": 77.15965091466832,
+   "Vs0": 77.15965091466832,
+   "V75": null,
+   "Vmax": null,
+   "roc": 0,
+   "Vy": 0,
+   "LD": 19.510502276521326,
+   "Vbg": 104.16552873480225,
+   "CdS": 0.24968959860917986,
+   "TOgrass": 2045,
+   "T0": 1,
+   "cgMAC": 24.76379438824082,
+   "sm": 37.4883559979123,
+   "stabTrim": -6.925462270191354,
+   "deAppr": 0.11617119544637729,
+   "deApprClean": 0.11617119544637729,
+   "flapLdg": 0,
+   "flapTO": 0
+  },
+  {
+   "id": "mtow",
+   "label": "MTOW 525 kg: every seat, full fuel, baggage to gross",
+   "fuel": 1,
+   "mass": 524.9999999999998,
+   "W": 5150.249999999998,
+   "Vs": 80.55249459439962,
+   "VsTO": 80.55249459439962,
+   "Vs0": 80.55249459439962,
+   "V75": null,
+   "Vmax": null,
+   "roc": 0,
+   "Vy": 0,
+   "LD": 19.510502276521287,
+   "Vbg": 108.74586770243947,
+   "CdS": 0.24982740485214566,
+   "TOgrass": 2229,
+   "T0": 1,
+   "cgMAC": 20.76369583034314,
+   "sm": 42.976216506099654,
+   "stabTrim": -6.925462270191354,
+   "deAppr": 0.16088448612304632,
+   "deApprClean": 0.16088448612304632,
+   "flapLdg": 0,
+   "flapTO": 0
+  }
+ ],
+ "flights": {},
+ "sweep": null,
+ "water": {},
+ "t": {
+  "airframe": 27.982,
+  "total": 27.983
+ },
+ "verdicts": [
+  {
+   "k": "empty",
+   "src": "ledger",
+   "ref": [
+    238,
+    238
+   ],
+   "refBand": [
+    226.1,
+    249.9
+   ],
+   "kg": null,
+   "ours": [
+    231.7057415823616,
+    231.7057415823616
+   ],
+   "verdict": "inside",
+   "mAt": null
+  },
+  {
+   "k": "Vs1",
+   "src": "airframe",
+   "ref": [
+    68,
+    68
+   ],
+   "refBand": [
+    64.6,
+    71.4
+   ],
+   "kg": [
+    308,
+    525
+   ],
+   "ours": [
+    70.78117024217555,
+    80.55249459439963
+   ],
+   "verdict": "inside",
+   "extrap": true,
+   "mAt": 367.91221289766787,
+   "series": [
+    {
+     "m": 471.7057415823619,
+     "v": 76.35455035574583
+    },
+    {
+     "m": 481.7057415823619,
+     "v": 77.15965091466832
+    },
+    {
+     "m": 524.9999999999998,
+     "v": 80.55249459439962
+    }
+   ]
+  },
+  {
+   "k": "LD",
+   "src": "airframe",
+   "ref": [
+    40.5,
+    40.5
+   ],
+   "refBand": [
+    36.45,
+    44.550000000000004
+   ],
+   "kg": [
+    308,
+    525
+   ],
+   "ours": [
+    19.510502276521287,
+    19.510502276521287
+   ],
+   "verdict": "outside",
+   "extrap": true,
+   "mAt": null,
+   "series": [
+    {
+     "m": 471.7057415823619,
+     "v": 19.510502276521287
+    },
+    {
+     "m": 481.7057415823619,
+     "v": 19.510502276521326
+    },
+    {
+     "m": 524.9999999999998,
+     "v": 19.510502276521287
+    }
+   ]
+  }
+ ],
+ "wall": 27.984
+}

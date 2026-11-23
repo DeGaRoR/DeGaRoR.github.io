@@ -1,0 +1,266 @@
+{
+ "rows": {
+  "c172v2": {
+   "name": "Cessna 172R",
+   "W": 1111,
+   "S": 16.17,
+   "b": 11,
+   "nE": 1,
+   "D": 1.905,
+   "mat": "alu",
+   "P": 119.3,
+   "Vmax": 227.79600000000002,
+   "alt": 0,
+   "roc": 3.6576000000000004,
+   "Vy": 146.30800000000002,
+   "Pc": 119.3,
+   "lit": {
+    "CD0": 0.0319,
+    "LD": 11.6,
+    "src": "Loftin, NASA SP-468 (Skyhawk)"
+   },
+   "src": "172R POH: 123 KTAS at sea level, 720 fpm at 79 KIAS, 2450 lb"
+  },
+  "cub": {
+   "name": "Piper J-3C-65",
+   "W": 550,
+   "S": 16.58,
+   "b": 10.74,
+   "nE": 1,
+   "D": 1.83,
+   "mat": "wood",
+   "P": 48.5,
+   "Vmax": 140.01292800000002,
+   "alt": 0,
+   "roc": 2.286,
+   "Vy": 88.51392000000001,
+   "Pc": 48.5,
+   "lit": {
+    "CD0": 0.0373,
+    "LD": 9.6,
+    "src": "Loftin, NASA SP-468"
+   },
+   "src": "J-3C-65 sheet: 87 mph, 450 fpm (the weight not stated; read at gross)",
+   "thin": "IAS on a 1940s ASI; weight unstated"
+  },
+  "dc3r": {
+   "name": "Douglas DC-3A",
+   "W": 11431,
+   "S": 91.7,
+   "b": 28.96,
+   "nE": 2,
+   "D": 3.51,
+   "mat": "alu",
+   "cs": true,
+   "P": 783,
+   "Vmax": 370.14912000000004,
+   "alt": 2591,
+   "roc": 5.7404,
+   "Vy": 203.72,
+   "Pc": 783,
+   "lit": {
+    "CD0": 0.0249,
+    "LD": 14.7,
+    "src": "Loftin, NASA SP-468"
+   },
+   "src": "Francillon: 230 mph at 8,500 ft; 1,130 fpm at 25,200 lb; METO 1,050 hp",
+   "thin": "the power at 8,500 ft is taken as METO 1,050 hp"
+  },
+  "pc6": {
+   "name": "Pilatus PC-6/B2-H4",
+   "W": 2800,
+   "S": 30.15,
+   "b": 15.87,
+   "nE": 1,
+   "D": 2.56,
+   "mat": "alu",
+   "cs": true,
+   "P": 410,
+   "Vmax": 231.5,
+   "alt": 0,
+   "roc": 5.13,
+   "Vy": 138.9,
+   "Pc": 410,
+   "alt2": {
+    "P": 373,
+    "alt": 3048,
+    "note": "125 KTAS read at 10,000 ft on ~500 shp (the usual statement of the type's max cruise; the factsheet row states no altitude)"
+   },
+   "src": "Pilatus factsheet: max cruise 125 KTAS, 1010 fpm at 2800 kg",
+   "thin": "the altitude and the power of the 125 KTAS are not stated; Vy assumed 75 KIAS"
+  },
+  "tigermothm": {
+   "name": "DH.82A Tiger Moth",
+   "W": 828,
+   "S": 22.2,
+   "b": 8.94,
+   "nE": 1,
+   "D": 1.93,
+   "mat": "wood",
+   "P": 97,
+   "Vmax": 175.418496,
+   "alt": 0,
+   "roc": 3.048,
+   "Vy": 106.21670400000001,
+   "Pc": 97,
+   "src": "Jackson: 109 mph; AAIB 1/2019: 500-650 fpm at 66 mph, 1,760-1,790 lb",
+   "thin": "the top speed's altitude is not confirmed"
+  },
+  "stearman": {
+   "name": "Boeing-Stearman PT-17",
+   "W": 1232,
+   "S": 27.6,
+   "b": 9.8,
+   "nE": 1,
+   "D": 2.59,
+   "mat": "alu",
+   "P": 164,
+   "Vmax": 199.558656,
+   "alt": 0,
+   "roc": 4.2672,
+   "Vy": 120.70080000000002,
+   "Pc": 164,
+   "src": "type sheets: 124 mph, 840 fpm at 2,717 lb",
+   "thin": "search extracts; Vy assumed 75 mph"
+  },
+  "camelm": {
+   "name": "Sopwith Camel F.1",
+   "W": 659,
+   "S": 21.46,
+   "b": 8.53,
+   "nE": 1,
+   "D": 2.59,
+   "mat": "wood",
+   "P": 97,
+   "Vmax": 185,
+   "alt": 0,
+   "lit": {
+    "CD0": 0.0378,
+    "LD": 7.7,
+    "src": "Loftin, NASA SP-468"
+   },
+   "src": "185 km/h (one database)",
+   "thin": "one source"
+  },
+  "petrel42": {
+   "name": "Super Petrel LS",
+   "W": 600,
+   "S": 15,
+   "b": 8.9,
+   "nE": 1,
+   "D": 1.72,
+   "mat": "carbon",
+   "P": 69,
+   "Vmax": 185.20000000000002,
+   "alt": 0,
+   "roc": 5.08,
+   "Vy": 120.38000000000001,
+   "Pc": 73.5,
+   "src": "maker: max cruise 100 kt (912 iS at max continuous, 69 kW), 1000 fpm",
+   "thin": "weights not stated (read at 600 kg); Vy assumed"
+  },
+  "ruckus": {
+   "name": "Top Rudder Ruckus",
+   "W": 249,
+   "S": 11.33,
+   "b": 8.66,
+   "nE": 1,
+   "D": 1.6,
+   "mat": "carbon",
+   "P": 27.6,
+   "Vmax": 86.904576,
+   "alt": 0,
+   "roc": 3.302,
+   "Vy": 48.28032,
+   "Pc": 27.6,
+   "lit": {
+    "CD0": 0.13,
+    "LD": 4.6,
+    "src": "the maker's own drag polar CD = 0.13 + 0.088 CL^2"
+   },
+   "src": "B&B sheet: 54 mph at 37 hp, 650 fpm at 30 mph",
+   "thin": "a designer's calculation (it implies a constant 57 % propeller)"
+  },
+  "etrainer": {
+   "name": "Pipistrel Velis Electro",
+   "W": 600,
+   "S": 9.51,
+   "b": 10.71,
+   "nE": 1,
+   "D": 1.64,
+   "mat": "carbon",
+   "P": 49.2,
+   "roc": 3.28676,
+   "Vy": 138.9,
+   "Pc": 48,
+   "glide": {
+    "LD": 15,
+    "V": 118.528,
+    "prop": "electric"
+   },
+   "src": "POH-128: 647 fpm at 75 KIAS on 48 kW; best glide 15:1; VH is rpm-limited (no top-speed row)"
+  }
+ },
+ "out": {
+  "c172v2": {
+   "fReal": 0.538879767681331,
+   "fModel": 0.5354702506464749,
+   "etaVyNeeded": 0.6673595970638022,
+   "etaVyModel": 0.6454716836133904
+  },
+  "cub": {
+   "fReal": 0.8536418987689661,
+   "fModel": 0.8204169217285032,
+   "etaVyNeeded": 0.5473910301777207,
+   "etaVyModel": 0.5854247209470003
+  },
+  "dc3r": {
+   "fReal": 2.20097485113611,
+   "fModel": 2.4097210865757988,
+   "etaVyNeeded": 0.6996370596873314,
+   "etaVyModel": 0.6716770795212522
+  },
+  "pc6": {
+   "fReal": 1.842104848610974,
+   "fModel": 1.0228814191283906,
+   "etaVyNeeded": 0.5761127883161309,
+   "etaVyModel": 0.6804289644484309
+  },
+  "tigermothm": {
+   "fReal": 0.8804989886650604,
+   "fModel": 0.9843031535508503,
+   "etaVyNeeded": 0.5503082400236751,
+   "etaVyModel": 0.5576503000252712
+  },
+  "stearman": {
+   "fReal": 1.1203379851092672,
+   "fModel": 1.4665863177341312,
+   "etaVyNeeded": 0.6551706247603474,
+   "etaVyModel": 0.5762814025635038
+  },
+  "camelm": {
+   "fReal": 0.8224190486169963,
+   "fModel": 0.9679747841129428,
+   "etaVyNeeded": null,
+   "etaVyModel": 0.5808794521840769
+  },
+  "petrel42": {
+   "fReal": 0.5923405622922358,
+   "fModel": 0.3850304950757305,
+   "etaVyNeeded": 0.635179887505421,
+   "etaVyModel": 0.6205316936437542
+  },
+  "ruckus": {
+   "fReal": 1.9296189593717274,
+   "fModel": 1.6376925129186972,
+   "etaVyNeeded": 0.5312743302476411,
+   "etaVyModel": 0.4292124104499662
+  },
+  "etrainer": {
+   "fReal": 0.2769617087830475,
+   "fModel": 0.4090101045758501,
+   "etaVyNeeded": 0.8228145218241392,
+   "etaVyModel": 0.64853845986233
+  }
+ }
+}
