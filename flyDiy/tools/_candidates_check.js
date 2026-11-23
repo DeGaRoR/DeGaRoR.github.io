@@ -53,7 +53,21 @@ function poolRows(P) {
     if (o.plaque) bad.push(f + ' carries a plaque - a candidate claims no certificate');
     ok.push(f);
   }
-  for (const f of Object.keys(P.files)) if (!seen.has(f)) bad.push(f + ' is in builds/candidates/ but not in index.json (the game cannot reach it)');
+  // (MASTER-GREEN 23 Nov) THE CARS: FLAGSHIP's choice (b), 12 Nov, via A0 - "a car is not a plane ... so the cars live
+  // here [builds/lists/vehicles.json], not in plane_lists.json or the candidates pool". Their files stayed in this folder
+  // (vehicles.json names builds/candidates/<file>; the Fleet screen's Vehicles tab loads them), so a file a vehicles row
+  // names IS reached by the game, through that tab. Such a file must still be a build with no plaque, the pool may not
+  // list it as well (a car is not a candidate aeroplane), and a vehicles row must name a file that is here.
+  const veh = new Set(P.vehicles || []);
+  for (const f of veh) {
+    if (seen.has(f)) { bad.push(f + ' is a car (builds/lists/vehicles.json) and is listed in the pool as well'); continue; }
+    const txt = P.files[f];
+    if (txt == null) { bad.push(f + ' is named by builds/lists/vehicles.json but not in builds/candidates/'); continue; }
+    let o = null; try { o = JSON.parse(txt); } catch (e) { bad.push(f + ' (a car) does not parse'); continue; }
+    if (!o || !o.spec || typeof o.spec !== 'object' || !o.spec.cage) bad.push(f + ' (a car) is not a build (no spec)');
+    else if (o.plaque) bad.push(f + ' (a car) carries a plaque');
+  }
+  for (const f of Object.keys(P.files)) if (!seen.has(f) && !veh.has(f)) bad.push(f + ' is in builds/candidates/ but not in index.json (the game cannot reach it)');
   return { bad, ok, list: idx.planes };
 }
 function reviewRows(R, index) {
@@ -80,7 +94,10 @@ function reviewNow() {
 function poolNow() {
   const files = {};
   for (const f of fs.readdirSync(DIR)) if (/\.json$/.test(f) && f !== 'index.json') files[f] = fs.readFileSync(path.join(DIR, f), 'utf8');
-  return { index: fs.readFileSync(path.join(DIR, 'index.json'), 'utf8'), files };
+  // the cars' rows (builds/lists/vehicles.json): the files of this folder the Vehicles tab reaches
+  const V = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'lists', 'vehicles.json'), 'utf8'));
+  const vehicles = (V.vehicles || []).map(v => v && v.file).filter(f => typeof f === 'string' && f.startsWith('builds/candidates/') && !f.slice(18).includes('/')).map(f => f.slice(18));
+  return { index: fs.readFileSync(path.join(DIR, 'index.json'), 'utf8'), files, vehicles };
 }
 
 // ---- the page's source ------------------------------------------------------------------------------------------------
@@ -194,7 +211,15 @@ if (SELF) {
   const red = (what, fn) => { const r = fn(); console.log('  selftest ' + what + ': ' + (r.length ? 'red (ok)' : 'GREEN - the check is inert')); if (!r.length) bad.push('selftest inert: ' + what); };
   const first = Object.keys(P.files)[0];
   red('a listed file missing', () => { const Q = { index: P.index, files: Object.assign({}, P.files) }; delete Q.files[first]; return poolRows(Q).bad; });
-  red('an orphan file', () => poolRows({ index: P.index, files: Object.assign({ 'stray.json': P.files[first] }, P.files) }).bad);
+  red('an orphan file', () => poolRows({ index: P.index, files: Object.assign({ 'stray.json': P.files[first] }, P.files), vehicles: P.vehicles }).bad);
+  // (MASTER-GREEN 23 Nov: the cars' rows - each break must go red)
+  if (P.vehicles.length) {
+    const car = P.vehicles[0];
+    red('a car file gone from vehicles.json', () => poolRows({ index: P.index, files: P.files, vehicles: P.vehicles.slice(1) }).bad);
+    red('a car listed in the pool too', () => { const o = JSON.parse(P.index); o.planes.push({ file: car, name: 'x' }); return poolRows({ index: JSON.stringify(o), files: P.files, vehicles: P.vehicles }).bad; });
+    red('a vehicles row naming no file', () => poolRows({ index: P.index, files: P.files, vehicles: P.vehicles.concat(['no_such_car.json']) }).bad);
+    red('a car that is not a build', () => poolRows({ index: P.index, files: Object.assign({}, P.files, { [car]: '{"what":"x"}' }), vehicles: P.vehicles }).bad);
+  }
   red('a plaque', () => { const o = JSON.parse(P.files[first]); o.plaque = { ok: true }; return poolRows({ index: P.index, files: Object.assign({}, P.files, { [first]: JSON.stringify(o) }) }).bad; });
   red('not a build', () => poolRows({ index: P.index, files: Object.assign({}, P.files, { [first]: '{"what":"x"}' }) }).bad);
   red('a path in the index', () => { const o = JSON.parse(P.index); o.planes[0].file = '../' + o.planes[0].file; return poolRows({ index: JSON.stringify(o), files: P.files }).bad; });
