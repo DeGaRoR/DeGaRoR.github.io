@@ -7,7 +7,7 @@
 # committed here): the slot of 14:00 lost an hour because the earlier script put them back from git, and boot_perf in
 # this tree then refused its stale tools/flight_core.js for every load.
 T="$(cd "$(dirname "$0")/.." && pwd)"; cd "$T/.." || exit 9
-W="$(git rev-parse --show-toplevel)"; DEST="D:/Dev/perf-lab-built"; NEW="$DEST.new"; GATES=${1:-PROGRAMS,LIGHT,HULLWARM,FLIGHTREC}
+W="$(git rev-parse --show-toplevel)"; DEST="${LAB_DEST:-D:/Dev/perf-lab-built}"; NEW="$DEST.new"; GATES=${1:-PROGRAMS,LIGHT,HULLWARM,FLIGHTREC}
 BUILT='^ M flyDiy/(dev\.html|index\.html|sw\.js|version\.json|tools/flight_core\.js)$'
 echo "== start $(date +%H:%M) branch $(git branch --show-current) $(git log --oneline -1 | cut -c1-9)"
 DIRTY=$(git status --porcelain | grep -v '^??' | grep -Ev "$BUILT")

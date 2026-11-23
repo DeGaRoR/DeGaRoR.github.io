@@ -31,6 +31,10 @@
     bg: L && L.lateBg ? pick(L.bg, ['revealed', 'running', 'done', 'xrayMs', 'ms', 'xrayLinks', 'scuffLinks', 'twins', 'noTwin', 'err']) : undefined,
     lateSkipped: (L && L.lateSkipped) || undefined,
     ground: L && L.groundFirst ? pick(L.ground, ['at', 'n', 'same', 'keys', 'keysCompile', 'err']) : undefined,   // (?groundfirst=1: the labels' times, the materials handed over)
+    // (23 Nov) ?boot=garagefirst: the world loaded behind the garage - ms from its start to ready, the garage's reveal (ms of the
+    // page), each step [id, ms, ran|same|error, start ms, programs added, live|screen], the longest build slice behind the live garage
+    gf: L && L.gf ? Object.assign(pick(L.gfS, ['running', 'done', 'fast', 'ms', 'step', 'why', 'err', 'joinMs', 'joinStep', 'worstSlice', 'worstLab', 'slices', 'restMs', 'busyMs']) || {},
+      { revealAt: Math.round(L.gfS.revealAt || 0), log: L.gfS.log }) : undefined,
     pave: L && L.paveFirst ? pick(L.pave, ['handed', 'at', 'readyAt', 'sig', 'sigCompile', 'err']) : undefined,   // (?pavefirst=1: handed at / ready at (ms of the page), the light set at both keys)
     afterReveal: (() => { const T = g('__LT'); if (!T || !T.reveal) return undefined;
       const a = T.tasks.filter(t => t[0] >= T.reveal), a30 = a.filter(t => t[0] < T.reveal + 30000), sum = l => l.reduce((s, t) => s + t[1], 0), mx = l => l.reduce((m, t) => Math.max(m, t[1]), 0);
