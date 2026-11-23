@@ -722,6 +722,18 @@ const GATES = [
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
   { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 1200 },   // G2228: measured ALONE 13 Oct 1 078 s (the Cub 404 s: boot 89 + 13 rows ~20 s; the metal 674 s: boot 108 + 13 rows ~36 s) - no slow row, the old 480 was stale
+  // PERF-SLIDERS (23 Nov): GATE INSTANT's check where the Cub and the metal Cessna cannot see - a twin with its engines and
+  // its retracting gear on the wing (the DC-3-alike: its wing span's release left the engines' layer one build behind)
+  // and a hull with a pylon engine (the Super Petrel); five rows each (_instant_rel_check.js). Measured ALONE: see HANDOVER
+  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', wall: 1200 },
+  // PERF-SLIDERS: A DERIVED READ GIVES THE AEROPLANE THE RAW READ GAVE (CAGE_CHAIN.derived: the dash's gear selector asks
+  // "do the mains stand off the centreline", the crew layer no longer re-runs on every tick of the gear's station) - per
+  // aeroplane and derived row, three walks from the same aeroplane (ON, OFF, OFF: the two OFF name the noise), the scene's
+  // fingerprint and the resolved spec; core: the DC-3-alike and the Super Petrel, full: every aeroplane a player can open
+  { id: 'DERIVED', file: '_derived_check.js', tier: 'core', wall: 2400 },
+  // PERF-SLIDERS: the dash's gear selector placed by the cheap search (_panel_gen.js placeGear: the plate's outline asked
+  // once a column) stands where the plain search put it - 2 000 random dashes, the old function kept in the check
+  { id: 'PANELGEAR', file: '_panel_gear_check.js', tier: 'core', wall: 120 },
   // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)

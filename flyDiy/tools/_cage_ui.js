@@ -2533,7 +2533,9 @@ function* buildSteps() {
   // G1451: a drag's release that keeps the sheet runs what the drag reached
   if (RELEASE || CG_ONLY) {
     const why = releaseWhy(built);
-    const rplan = !why ? budgetPlan(CH.plan(P, true, built.sheet), false) : null;   // (PERF-SLIDERS: the layers a lite drag owes)
+    // (PERF-SLIDERS: WHOLE_SEQ - the release's own edges fire on the layers the drag's previews ran, _cage_chain.js plan;
+    // budgetPlan - the layers a lite drag owes)
+    const rplan = !why ? budgetPlan(CH.plan(P, true, built.sheet, WHOLE_SEQ), false) : null;
     // PHONE-EDIT-PERF: a floatplane's float layer reads the CG, which no record holds - it runs on every release
     if (rplan && +P.gearFloats > 0) CH.layers.forEach((l, i) => { if (l.name === 'float' && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'cg'; } });
     // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too

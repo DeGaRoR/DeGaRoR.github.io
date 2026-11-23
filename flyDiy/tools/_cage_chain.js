@@ -220,11 +220,20 @@
   // plan(P): which layers a drag tick runs. null when no plan can be made (never on, a bad order, a layer never run)
   // G1451: plan(P, true, mesh) is a RELEASE's plan (mesh: the sheet the release's layers stand on) - the drag's plan, and every layer a preview left stale, and the release's
   // own edges (REL_FEEDS, which may point at an EARLIER layer: the pass repeats until nothing more is added)
-  C.plan = (P, release, mesh) => {
+  // PERF-SLIDERS (23 Nov 2026): plan(P, true, mesh, since) - THE RELEASE'S OWN EDGES FIRE ON WHAT RAN IN THE DRAG. A preview
+  // runs the wing at the hand's last value, so the release's plan finds the wing's reads as they stand and does not run
+  // it - and wing > eng (REL_FEEDS) never fired: the DC-3's wing span ended with the wing engines' layer as the build
+  // before the drag left it (its weathering sources 14.5 cm off the plain build's, another resolved spec; GATE INSTANT on
+  // builds/candidates/dc3_2026-10.json). Until 2 Nov a moved sit sent such a release whole (PHONE-EDIT-PERF took that
+  // away for the phone). `since` is the chain's run counter after the last whole build (_cage_ui.js WHOLE_SEQ): a layer
+  // that ran after it ran in a preview, and its release edges fire as if it ran in the release.
+  C.plan = (P, release, mesh, since) => {
     if (!C.on || !C.ok || !L.length || L.length !== ORDER.length) return null;
     if (release && C.dirty) return null;                  // a chain that threw: no basis for a skip
     let run, why;
     const fed = new Set();
+    if (release && since != null) for (const Ly of L) if (Ly.seq > since && !ALWAYS.has(Ly.name))
+      for (const n of REL_FEEDS[Ly.name] || []) { const w = REL_WHEN[Ly.name + '>' + n]; if (!w || w(P)) fed.add(n); }
     for (let pass = 0; pass < 4; pass++) {
       const n0 = fed.size;
       run = L.map(() => false); why = L.map(() => '');
