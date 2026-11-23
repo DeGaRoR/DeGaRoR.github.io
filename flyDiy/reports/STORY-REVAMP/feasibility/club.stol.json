@@ -48,10 +48,10 @@
      ],
      "landing": {
       "run": 82,
-      "sink": 1.15,
+      "sink": 1.14,
       "V": 15.3,
       "offCentre": 0.1,
-      "pastAim": 14,
+      "pastAim": 13,
       "k": 1,
       "three": false,
       "onStrip": true,
@@ -69,6 +69,6 @@
  "key": "98e5096d686a",
  "where": "contract",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 1529
+ "sim": "L40K",
+ "wallS": 1536
 }

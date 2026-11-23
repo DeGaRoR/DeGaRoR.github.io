@@ -59,7 +59,7 @@
      ],
      "landing": {
       "run": 85,
-      "sink": 0.7,
+      "sink": 0.71,
       "V": 16.3,
       "offCentre": 0.1,
       "pastAim": 3,
@@ -80,10 +80,10 @@
      "said": [
       "terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 25 m",
       "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 78 m (planned 73)",
-      "taxi-in: taxiing in to the stand, 439 m"
+      "taxi-in: taxiing in to the stand, 440 m"
      ],
      "landing": {
-      "run": 185,
+      "run": 184,
       "sink": 0.69,
       "V": 17.3,
       "offCentre": 0.3,
@@ -92,7 +92,7 @@
       "three": true,
       "onStrip": true,
       "tdIn": 557,
-      "stopLeft": 1583
+      "stopLeft": 1584
      }
     }
    ]
@@ -103,6 +103,6 @@
  "key": "1cf9ed47bbb7",
  "where": "hangar:1",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 462
+ "sim": "L40K",
+ "wallS": 1823
 }

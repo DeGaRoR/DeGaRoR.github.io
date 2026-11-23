@@ -3,7 +3,7 @@
  "kind": "challenge",
  "verdict": "feasible",
  "plane": "Piper Cub",
- "timeS": 489,
+ "timeS": 488,
  "why": "",
  "tried": [
   "Piper Cub:feasible"
@@ -12,7 +12,7 @@
   {
    "from": "HOME",
    "to": "w2",
-   "t": 489,
+   "t": 488,
    "how": "stopped",
    "at": "w2",
    "stop": [
@@ -25,7 +25,7 @@
    "pax": 0,
    "faults": [],
    "events": [
-    "stol:sp=95.5"
+    "stol:sp=95.7"
    ]
   }
  ],
@@ -38,7 +38,7 @@
     {
      "from": "HOME",
      "to": "w2",
-     "t": 489,
+     "t": 488,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
@@ -48,7 +48,7 @@
      ],
      "landing": {
       "run": 88,
-      "sink": 0.84,
+      "sink": 0.86,
       "V": 15.8,
       "offCentre": 0.3,
       "pastAim": 24,
@@ -69,6 +69,6 @@
  "key": "3b6fa1c5c97a",
  "where": "contract",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 1541
+ "sim": "L40K",
+ "wallS": 1542
 }

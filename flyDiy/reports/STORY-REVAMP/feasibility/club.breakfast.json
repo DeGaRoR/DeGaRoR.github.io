@@ -3,7 +3,7 @@
  "kind": "contract",
  "verdict": "feasible",
  "plane": "Jodel D112",
- "timeS": 960,
+ "timeS": 962,
  "why": "",
  "tried": [
   "Piper Cub:infeasible",
@@ -13,7 +13,7 @@
   {
    "from": "HOME",
    "to": "tw_ski",
-   "t": 960,
+   "t": 962,
    "how": "stopped",
    "at": "tw_ski",
    "stop": [
@@ -32,19 +32,19 @@
   {
    "plane": "Piper Cub",
    "verdict": "infeasible",
-   "why": "crashed: the damage ended the flight: a wing member broke",
+   "why": "crashed: the damage ended the flight: the airframe crushed (2.1 kJ of plastic work)",
    "legs": [
     {
      "from": "HOME",
      "to": "tw_ski",
-     "t": 1398,
+     "t": 1397,
      "how": "crashed",
      "kg": 0,
      "pax": 0,
      "said": [
       "wings-level: the rudder eased off: the aileron on its stop against 10 deg of bank (13 deg of sideslip)",
-      "capsized: on its back in ROLLOUT at 11.3 m/s (bank -90 deg) - after \"gave-up\"",
-      "out-of-energy: the engine seized at t=1396 s — engines stopped"
+      "capsized: on its back in ROLLOUT at 11.9 m/s (bank -90 deg) - after \"gave-up\"",
+      "out-of-energy: the engine seized at t=1395 s — engines stopped"
      ],
      "stop": "the aeroplane is wrecked: nothing is delivered"
     }
@@ -58,26 +58,26 @@
     {
      "from": "HOME",
      "to": "tw_ski",
-     "t": 960,
+     "t": 962,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
-      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 368 m (planned 366)",
-      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 549 m (planned 366)",
-      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 724 m (planned 722)"
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 370 m (planned 368)",
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 369 m (planned 368)",
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 369 m (planned 368)"
      ],
      "landing": {
-      "run": 83,
-      "sink": 0.51,
-      "V": 16.1,
-      "offCentre": 1.2,
-      "pastAim": 153,
+      "run": 89,
+      "sink": 0.97,
+      "V": 16.4,
+      "offCentre": 1.3,
+      "pastAim": 152,
       "k": 1,
       "three": true,
       "onStrip": true,
-      "tdIn": 170,
-      "stopLeft": 27
+      "tdIn": 169,
+      "stopLeft": 22
      }
     }
    ]
@@ -91,6 +91,6 @@
  "key": "a6d18532684a",
  "where": "club:1",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 1705
+ "sim": "L40K",
+ "wallS": 1595
 }

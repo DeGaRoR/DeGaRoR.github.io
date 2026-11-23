@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 57 not flown; 26 stale. Time flown: -.
+Summary (91 missions): 8 an aircraft order (not a flight); 9 feasible; 1 no official plane can fly it (the player builds one); 54 not flown; 19 stale. Time flown: 139 min 00 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -14,13 +14,13 @@ Summary (91 missions): 8 an aircraft order (not a flight); 57 not flown; 26 stal
 | field.hike | contract | stale | - | - | - |  |
 | field.ridge | contract | stale | - | - | - |  |
 | field.cannery | contract | not flown | - | - | - |  |
-| hangar.01 | hangar:1 | stale | - | - | - |  |
-| hangar.02 | hangar:1 | not flown | - | - | - |  |
-| hangar.03 | hangar:2 | not flown | - | - | - |  |
+| hangar.01 | hangar:1 | feasible | Piper Cub | 16 min 43 s | HOME > w3 560; w3 > HOME 443 |  |
+| hangar.02 | hangar:1 | feasible | Piper Cub | 19 min 52 s | HOME > w5 555; w5 > HOME 637 |  |
+| hangar.03 | hangar:2 | feasible | Piper Cub | 18 min 13 s | HOME > w3 573; w3 > HOME 520 |  |
 | hangar.04 | hangar:2 | not flown | - | - | - |  |
 | hangar.05 | hangar:3 | stale | - | - | - |  |
-| heritage.01 | heritage:1 | stale | - | - | - |  |
-| heritage.02 | heritage:2 | not flown | - | - | - |  |
+| heritage.01 | heritage:1 | feasible | STOL Cub | 15 min 31 s | HOME > nv_strip 931 |  |
+| heritage.02 | heritage:2 | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 300 kg aboard, the cabin takes 90 kg; jodel: Jodel: 300 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 300 kg aboard, the cabin takes 280 kg; c172f: Cessna  |
 | minedock.n1 | contract | not flown | - | - | - |  |
 | minedock.b1 | contract | order | - | - | - |  |
 | minedock.b2 | contract | order | - | - | - |  |
@@ -92,9 +92,9 @@ Summary (91 missions): 8 an aircraft order (not a flight); 57 not flown; 26 stal
 | community.09 | community:6 | not flown | - | - | - |  |
 | community.10 | community:7 | not flown | - | - | - |  |
 | community.11 | community:8 | not flown | - | - | - |  |
-| club.stol | contract | stale | - | - | - |  |
-| club.spot | contract | stale | - | - | - |  |
-| club.pylons | contract | stale | - | - | - |  |
-| club.regular | contract | stale | - | - | - |  |
+| club.stol | contract | feasible | Piper Cub | 8 min 09 s | HOME > xw_rough 489 [stol:ld=197.6] |  |
+| club.spot | contract | feasible | Piper Cub | 8 min 08 s | HOME > w2 488 [stol:sp=95.7] |  |
+| club.pylons | contract | feasible | Piper Cub | 18 min 16 s | HOME > HOME 1096 [hit:g1 hit:g2 hit:g3 hit:g4] |  |
+| club.regular | contract | feasible | Piper Cub | 18 min 06 s | HOME > HOME 1086 [hit:r1 hit:r2] |  |
 | club.tour | club:2 | stale | - | - | - |  |
-| club.breakfast | club:1 | stale | - | - | - |  |
+| club.breakfast | club:1 | feasible | Jodel D112 | 16 min 02 s | HOME > tw_ski 962 |  |
