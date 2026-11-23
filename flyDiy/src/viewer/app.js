@@ -257,6 +257,7 @@
   const GFN = (k, d) => { try { const m = new RegExp('[?&]' + k + '=(\\d+(?:\\.\\d+)?)(&|$)').exec(location.search || ''); return m ? +m[1] : d; } catch (e) { return d; } };
   const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
       inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
+    coverK: GFN('coverbudget', 0), coverSet: null,   // (?coverbudget=K: see labCoverBudget)
     noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
     groundFirst: LABQ('groundfirst=1'), ground: { at: {}, n: 0, keys: [], keysCompile: null, same: null, err: null }, paveFirst: LABQ('pavefirst=1'), pave: { handed: false, at: 0, readyAt: 0, sig: null, sigCompile: null, err: null },
     lateBg: LABQ('latelinks=bg'), bg: { armed: false, revealed: false, revealAt: 0, running: false, done: false, xrayRun: false, startedAt: 0, xrayMs: 0, ms: 0, xrayLinks: 0, scuffLinks: 0, twins: 0, noTwin: 0, err: null } };
@@ -16618,6 +16619,26 @@
     for (const s of TRIP_STEPS) if (s.part === part && tripNeed(s, ran).need) { ran.add(s.id); run.push(s); }
     return run;
   }
+  // PERF-LEAD LAB (?coverbudget=K, a percentage; OFF by default, 23 Nov; rows 8, 9 and 13): THE GROUND COVER'S WORK A FRAME.
+  // Its four layers (cover, grass, lawn, rocks) plant on 4 + 3 + 2 + 2 ms a frame and rebuild 2-4 blocks a frame with no
+  // clock on them: 12-15 ms a frame low down, the third cost over the 30 fps budget in the journey's log (7.8 s over 50 ms
+  // in 8 minutes, 23 Nov). With the switch each layer plants on K % of its milliseconds and rebuilds ONE block a frame.
+  // The same picture, LATER: what it costs is how long ground near the eye stands unplanted - the layers' own STAT.dirty
+  // and queues say it, and the user sees it in a flight before any default moves.
+  function labCoverBudget() {
+    const K = LAB.coverK; if (!(K > 0) || LAB.coverSet || typeof window === 'undefined' || !window.TREE_FILL) return;
+    const out = {};
+    for (const nm of ['cover', 'grass', 'lawn', 'rockLayer']) {
+      try { const L = typeof TREE_FILL[nm] === 'function' ? TREE_FILL[nm]() : null; if (!L || !L.get || !L.set) continue;
+        const g = L.get(), o = {};
+        if (g.budgetMs > 0) o.budgetMs = Math.max(0.25, g.budgetMs * K / 100);
+        if (g.preBudgetMs > 0) o.preBudgetMs = Math.max(0.25, g.preBudgetMs * K / 100);
+        if (g.blockBudget > 1 && K < 100) o.blockBudget = 1;
+        L.set(o); out[nm] = { ms: [g.budgetMs, o.budgetMs], blocks: [g.blockBudget, o.blockBudget || g.blockBudget] };
+      } catch (e) { out[nm] = String(e && e.message); }
+    }
+    if (Object.keys(out).length) LAB.coverSet = out;
+  }
   // ================= PERF-LEAD LAB: GARAGE FIRST (?boot=garagefirst; OFF by default, 23 Nov 2026) =================
   // The world's steps, in the boot's own order, then the aeroplane's programs in the world's light. NOT in the list: the
   // roll-out shot's shadow warm ('shedWarm': it draws in the shed) and the world's warm draws (the 'frames' step's second
@@ -20335,6 +20356,7 @@
     return { D, s, tgt, az: tgt + s * 0.45, el: 0.16, dist: D * 1.7 };
   }
   function flRevealStart() {
+    labCoverBudget();                    // (?coverbudget=K, the lab's: the cover layers' work a frame, set once)
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
     if (window.GFX && window.GFX.hw) window.GFX.hw.reveal();   // G1995: the step-down's measuring starts from the hand-over
