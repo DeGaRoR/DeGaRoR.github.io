@@ -16198,7 +16198,7 @@
     let i = 0, paid = 0, ms = 0;
     const tick = () => {
       const t0 = performance.now();
-      while (i < progs.length && performance.now() - t0 < (budget || 30)) {
+      while (i < progs.length && performance.now() - t0 < (budget || Math.min(30, gfSliceMs()))) {
         const p = progs[i++], t1 = performance.now();
         if (p.isReady && !p.isReady()) continue;   // (still linking: programsReady's, not ours - its frame waits as before)
         try { p.getUniforms(); } catch (e) {}
@@ -16372,8 +16372,9 @@
         const t0 = performance.now();
         const keep = inGarage ? camera.position.clone() : null;
         if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
-        SL.until = t0 + 40; window.FLYDIY_SLICE = SL;
-        try { while (performance.now() - t0 < 40 && n < 1500) { WF.worldUpdate(cg); n++; } }
+        const SLms = gfSliceMs();   // (40 ms, or the garage's budget behind a live garage-first run)
+        SL.until = t0 + SLms; window.FLYDIY_SLICE = SL;
+        try { while (performance.now() - t0 < SLms && n < 1500) { WF.worldUpdate(cg); n++; } }
         catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
         finally { window.FLYDIY_SLICE = null; if (keep) camera.position.copy(keep); }
         geoFlush();   // G1230
@@ -16483,7 +16484,7 @@
       let built = 0;
       return new Promise(res => {
         const tick = () => {
-          let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
+          let r; try { r = WF.premisesPrewarm(cg, { budgetMs: gfSliceMs() }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
           built += r.built || 0;
           geoFlush();   // G1230
           BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
@@ -16518,7 +16519,7 @@
       return new Promise(res => {
         let ticks = 0;
         const tick = () => {
-          let r; try { r = WF.prewarm(cg, { budgetMs: 40, reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          let r; try { r = WF.prewarm(cg, { budgetMs: gfSliceMs(), reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
           geoFlush();   // G1230
           const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
           BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
@@ -16863,7 +16864,7 @@
     return new Promise(res => {
       const tick = () => {
         const t0 = performance.now();
-        while (i < list.length && performance.now() - t0 < 30) { try { renderer.initTexture(list[i]); } catch (e) {} i++; }
+        while (i < list.length && performance.now() - t0 < Math.min(30, gfSliceMs())) { try { renderer.initTexture(list[i]); } catch (e) {} i++; }
         BOOT.phase(id, label + ' ' + i + ' / ' + list.length, list.length ? i / list.length : 1);
         if (i >= list.length) res(); else setTimeout(tick, 0);
       };
@@ -22816,7 +22817,7 @@
           try {
             if (fogless) litScene.fog = null;
             renderer.setRenderTarget(target, 0);
-            while (i < reps.length && performance.now() - t0 < 30) {
+            while (i < reps.length && performance.now() - t0 < Math.min(30, gfSliceMs())) {
               const room = PACE_N ? PACE_N - linkingNow() : Infinity; if (room <= 0) break;   // BOOT-PROGRAMS: the driver full
               const grp = new THREE.Group(), n = Math.min(G, reps.length - i, room), t1 = performance.now();
               for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
@@ -22975,7 +22976,7 @@
           sc.add(grp);
           // a group of stand-ins a draw (the render walks the whole scene once: the group grows while that is the cost),
           // until the slice's 30 ms are spent (a first draw is ~16 ms on the box it was cut for)
-          while (i < reps.length && performance.now() - t0 < 30) {
+          while (i < reps.length && performance.now() - t0 < Math.min(30, gfSliceMs())) {
             const n = Math.min(G, reps.length - i), narrowed = new Map(), t1 = performance.now();
             for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; try { grp.add(one(o, m, narrowed)); } catch (e) {} }
             i += n;
