@@ -16580,7 +16580,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage && gfLive()) return null;
+        .then(() => { if (inGarage && gfLive()) return hviewBoot();   // (the view out of the door comes in when the world is ready: its faces are drawn off screen, one a task)
           if (inGarage) return Promise.resolve(worldWarmDraw()).then(shadowWarm).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot());
           return shadowWarm().then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }); }));   // (REVEAL-HITCH: the stand's grass; W6: the shadow pass's first draws, every program's first use; G1998e: the clouds' march; G3630: the view out of the door)
     } },
