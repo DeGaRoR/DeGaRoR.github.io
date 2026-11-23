@@ -27,9 +27,13 @@ Row 11 (music during loading): PASS (109 s audible, also behind a garage-first l
 
 ## 2. What is offered to the trains
 
-- `claude/ready/perf-lead-1`: the draw guard holds the whole frame for the ground's family only (default; `?holdframe=all`
-  is the old way); the `still` event; the table's rows 13-15 and the counting rule; every switch of section 3, off; the
-  tools of section 5; GATE GARAGEFIRST.
+- `claude/ready/perf-lead-1` (da944dd68, build 3d3bd56f9fb0, ten gates): the draw guard holds the whole frame for the
+  ground's family only (default; `?holdframe=all` is the old way) and holds none for a material whose program exists;
+  the `still` event; the table's rows 13-15 and the counting rule; every switch of section 3, off; the tools of
+  section 5; GATE GARAGEFIRST. It carries the Deform Coordinator's crash prelink and rest fix, PERF-TRACE 7,
+  PERF-WORLDBUILD's switches, AUDIO-ROBUST 1 and MOUNTAIN-VEG's lily pads (VISIBLE: the pads are drawn again).
+- `claude/ready/perf-lead-2` (from d0bf3a3e5, build c20556c5712b, ten gates): garage first's 1.4 s garage freeze removed
+  (section 4.1), the world's vertex buffers handed up in slices behind the garage (`?gfbuf=0` is the old way).
 - `claude/ready/deform-crash-prelink` (+ `-lab`) and `claude/ready/deform-wreck-rest` (the Deform Coordinator): nothing is
   linked at a crash; a wreck at rest costs nothing.
 - `claude/ready/perf-trace-7` (+ `-8`), `claude/ready/perf-worldbuild-2`, `claude/ready/perf-sliders-release-1`
@@ -40,7 +44,7 @@ Row 11 (music during loading): PASS (109 s audible, also behind a garage-first l
 | Switch | What it does | Measured |
 |---|---|---|
 | `?boot=garagefirst` | The boot runs none of the world's steps; they run behind the live garage on a budget; Go joins the load where it stands | garage on screen 31 s quiet (22-35 s with the fast set on a busy box) against 119-127; the world ready 98-123 s later; Go 2.6 s, no screen |
-| `?gfrest=N` `?gfbusy=N` `?gfdelay=N` `?gfwarm=0` | garage first's budget (ms a task at rest / while input moves), its start delay, the world's first draws left to Go | defaults 12 / 3 / 1500 / warm on |
+| `?gfrest=N` `?gfbusy=N` `?gfdelay=N` `?gfwarm=0` `?gfbuf=0` | garage first's budget (ms a task at rest / while input moves), its start delay, the world's first draws left to Go, the world's buffers left to Go's first frame | defaults 12 / 3 / 1500 / warm on / buffers on. The budget barely matters (6, 12, 25 ms measured alike): the freezes are single calls that do not yield |
 | `?latelinks=bg` | the scuff's and the see-through view's links after the reveal | the garage 10-18 s sooner; Go 6 s after the reveal costs a 6.6 s screen |
 | `?pavefirst=1` `?groundfirst=1` | the heavy ground programs handed to the driver as soon as they exist (the world build's own stand-ins) | with pace=32, stripw, settle=near: 85-88 s against 120 (three runs) |
 | `?pace=N` | programs linking at once (8 by default) | 32: the garage's own links faster; the pavement's link slower when it competes |
@@ -53,12 +57,25 @@ Row 11 (music during loading): PASS (109 s audible, also behind a garage-first l
 
 ## 4. Half done, and the next steps in order
 
-1. GARAGE FIRST AS THE DEFAULT. It works end to end (first run 23 Nov 06:06, no error in eight loads). Before it is the
-   default: (a) the user's word after flying it; (b) the garage must not freeze while the world loads - today a handful of
-   slices of 100-400 ms remain (the town kit's host build, the island ground's albedo, the far terrain's quadrants: named by
-   function with `profile_window.py`); (c) the parked aeroplanes' captures go through the editor the player is using
-   (never seen to matter with the based planes on hold, never proved); (d) the roll-out shot's shadow warm and, under
-   `?gfwarm=0`, the world's first draws still run at Go.
+1. GARAGE FIRST AS THE DEFAULT. It works end to end (first run 23 Nov 06:06, no error in some twenty loads). Before it
+   is the default: (a) the user's word after flying it; (b) THE GARAGE MUST NOT FREEZE WHILE THE WORLD LOADS (the user,
+   23 Nov). `python tools/perf/gf_garage.py <row.json>` is the measure: the garage's tasks of 50 ms+ by step and label.
+   On perf-lead-1, quiet box: 62 tasks, 19 over 100 ms, worst 1.42 s, 9 % of the time. What they were, by size:
+   - 1.42 s + 0.27 + 0.23 + 0.22 s: A GARAGE FRAME WAITING ON A LINK. A compile behind the live garage for another state
+     than the frame's (the craft step's, for the roll-out shot: the shed's shadow map on) leaves each material's
+     `currentProgram` on the program it asked for; three re-keys a lit material at the next frame, nothing re-keys one
+     without lights (the sky's two domes, the outdoors' tree cards), so the frame drew programs still linking. Fixed in
+     perf-lead-2: `compileSliced` puts back the program the frames were drawing.
+   - 0.62 + 0.19 + 0.21 s right after the world step: the world's first textures and buffers in one frame (304 texture
+     calls, 1 157 MP; 522 buffers, 244 MB), then a readback (`readRenderTargetPixelsAsync`, `render_world.js sheetStat`).
+     OPEN, PERF-WORLDBUILD's side.
+   - 0.27 + 0.32 + 0.26 s in the settle and first-light steps: single `worldUpdate` calls that do not yield
+     (`27_premises.js` plane / roadDist / rasterTileDecode / inPoly, `scenery_life.js` freeForMast, `29_obstacles.js`
+     hull, `cover_ring.js` buildCell). OPEN: they ignore `FLYDIY_SLICE.until`.
+   - the world build's own slices over 100 ms (trees 305 = the town kit's decode, a far-terrain quadrant 141, the ring
+     130, the built links 117, patch fields 109): PERF-WORLDBUILD's section.
+   (c) the parked aeroplanes' captures go through the editor the player is using (never seen to matter with the based
+   planes on hold, never proved); (d) under `?gfwarm=0` the world's first draws still run at Go.
 2. THE WORLD IN 60 s BEHIND THE GARAGE. It is bound by the driver's link of the pavement's program (32 s alone, 57-103 s
    when 8-32 others link beside it). Next: the heavy programs first with the others held back until they are in (an
    ordered lane in the pacer), and the pavement's program handed before the world's first step. Then its shader text.
@@ -70,7 +87,10 @@ Row 11 (music during loading): PASS (109 s audible, also behind a garage-first l
 5. 30 FPS AT 5K (row 13). The GPU alone takes the frame: the mirror and far-terrain switches are the measured gain and
    wait for the user's eye; then the cover ring's budget (`?coverbudget`), then the render scale that holds the budget
    (`aa_resolve.js` autoScale: whether it is on at the user's settings was never checked).
-6. THE CRASH'S FRAME RATE: the Deform Coordinator's rest fix (brkCage never rested: 43-51 ms a frame on a still wreck).
+6. THE CRASH (rows 14, 15): met once on the box on perf-lead-1. Three pieces: the guard's default (`ground`), the
+   Deform Coordinator's crash prelink (59 programs, 13 s of link in the background pass: the load pays it, behind the
+   screen) and the rest fix (brkCage never rested: 43-51 ms a frame on a still wreck, all of it in poseModel). Repeat it
+   on every train (`window_train_check.sh`): one run is not a law.
 7. THE SLIDERS: cheaper wing and gear ticks (PERF-SLIDERS' section).
 
 ## 5. How to measure (the tools)
