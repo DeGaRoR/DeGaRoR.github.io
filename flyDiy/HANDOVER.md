@@ -319264,3 +319264,17 @@ rows 14 and 15 met twice more on the merged tree (worst frame 133-150 ms, no pag
 This ready CONTAINS, merged: perf-lead-1, claude/ready/perf-worldbuild-3's code (369ad0ec9), deform-wreck-clear f49705343, perf-trace-8 e3c2e449e,
 perf-sliders-release-1 87aeb19fb. GATES on the tree: PROGRAMS, LIGHT, HULLWARM, FLIGHTREC, GARAGEFIRST, BACKGUARD, COMMITHYGIENE, COVER, COMPSTEPS,
 DMGSKINGPU, DMGPAGEW pass.
+
+## PERF-LEAD 3 - GARAGE FIRST IS THE DEFAULT (23 Nov 2026 21:05, claude/ready/perf-lead-3 on perf-lead-2 + claude/ready/perf-worldbuild-4)
+The user, 23 Nov 21:05, asked "garage first as the default in the last perf train?": "Make it default".
+- A REAL PAGE BOOTS GARAGE FIRST (GF_DEFAULT: a renderer that can compile ahead): the garage on screen in 30-40 s, the world's steps behind it on a
+  budget, Go joins the load where it stands. ?boot=loadfirst is the one loading screen as it was (the world before the garage: 114-129 s). The node
+  harness (no compileAsync) keeps the old boot. A page rig that reads the world right after the boot must wait for FLYDIY_LAB.gfS.done, click Go,
+  or ask ?boot=loadfirst. GATE GARAGEFIRST 1a RE-PINNED with this reason (it asked that only the switch turn it on); 1k added.
+- The clouds' first draw is inside the boot (the recheck step): at the boot's `done` its 1.5 s wait landed on the garage's first frame.
+MEASURED (headed, 5120x1440): quiet 20:00 on the switch - garage 38.5 s, world ready 90 s after, Go then 0.3 s, Go at 5 s an 84 s screen; the garage
+meanwhile 14 tasks over 100 ms, worst 0.65 s. As the default, 21:14 on a BUSY box: the plain address opens the garage (40 s), the clouds' wait is
+under the loading screen (1.4 s, 1.7 s before the screen goes), no freeze at the reveal; Go before the world is ready joins the load.
+NOT DONE: the world build's six switches (stripw, patchw, roadw, nearfirst, compsteps, settle=near) are still switches - the default page builds
+the world the slow way behind the garage until claude/ready/perf-worldbuild-5 flips them under the live host. THE FALLBACK is one line:
+GF_DEFAULT false. VISIBLE: the game opens in the garage; the side sheds appear a moment after the world.
