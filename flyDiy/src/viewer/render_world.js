@@ -584,9 +584,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // 167 MB a second time in the first seconds of the flight. The wheels never read a mesh (world.terrainH), so a coarse strip
   // changes no take-off; what differs for those seconds is the drawn surface between its 6 m rows.
   // FLYDIY_STRIPW_HOLD (a gate's): every strip but the stand's is stood coarse and landed after, whenever its answer came.
-  const STRIPW = { on: typeof location !== 'undefined' && /[?&](?:stripw|nearfirst)=1(?:&|$)/.test(location.search || ''), jobs: new Map(), seq: 0, asked: 0, used: 0, inline: 0, missed: 0,
+  // PERF-WORLDBUILD (23 Nov 2026, the user to PERF-LEAD 21:05 on garage first: "Make it default"): A WORLD-BUILD SWITCH'S WORD.
+  // The URL first (?name=1 on, ?name=0 off); then a host's (window.FLYDIY_WORLD_DEFAULTS = { name: true|false }); then, for the
+  // switches whose output is the page's own bytes by a gate (stripw: STRIPWORKER; patchw, roadw: PATCHWORKER; compsteps:
+  // COMPSTEPS), ON WHEN A HOST'S BUDGET IS ARMED (window.FLYDIY_WORLD_BUDGET: the world built behind a live garage) - a page
+  // with no host (the one loading screen, node, a gate) keeps them off, as they were. The two switches with a VISIBLE state
+  // (nearfirst: a coarse strip for a moment; settle=near: stand-in cards for longer past 1.5 km) stay off until asked: the
+  // user sees them in game before they are a default - a host turns them on with FLYDIY_WORLD_DEFAULTS when that is said.
+  const wbSwitch = (name, underHost) => { const q = typeof location !== 'undefined' ? (location.search || '') : ''; if (new RegExp('[?&]' + name + '=1(?:&|$)').test(q)) return true; if (new RegExp('[?&]' + name + '=0(?:&|$)').test(q)) return false; const D = typeof window !== 'undefined' ? window.FLYDIY_WORLD_DEFAULTS : null; if (D && D[name] !== undefined) return !!D[name]; return !!(underHost && typeof window !== 'undefined' && window.FLYDIY_WORLD_BUDGET); };
+  const STRIPW = { on: wbSwitch('stripw', true) || wbSwitch('nearfirst', false), jobs: new Map(), seq: 0, asked: 0, used: 0, inline: 0, missed: 0,
     workerMs: 0, waitMs: 0, patience: 120000, why: null,
-    near: typeof location !== 'undefined' && /[?&]nearfirst=1(?:&|$)/.test(location.search || ''), at: null, late: new Map(), coarse: 0, landed: 0, lost: 0, reasked: 0, landing: false, land: null, pumpT: 0, landMs: 0, landMax: 0, t0: 0, lastLandS: 0 };
+    near: wbSwitch('nearfirst', false), at: null, late: new Map(), coarse: 0, landed: 0, lost: 0, reasked: 0, landing: false, land: null, pumpT: 0, landMs: 0, landMax: 0, t0: 0, lastLandS: 0 };
   if (typeof window !== 'undefined') window.FLYDIY_STRIPW = STRIPW;
   const stripwHost = () => (typeof window !== 'undefined' && window.HOUSE_WORKER && window.HOUSE_WORKER.ok() ? window.HOUSE_WORKER : null);
   // a pavement strip's builder options, as standStrip resolves them (null: not a pavement strip). `data` is numbers only -
@@ -7895,7 +7903,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   yield 'props';
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
-  const COMPSTEPS = typeof location !== 'undefined' && /[?&]compsteps=1(?:&|$)/.test(location.search || '');   // (PERF-WORLDBUILD: the composition in steps, below)
+  const COMPSTEPS = wbSwitch('compsteps', true);   // (PERF-WORLDBUILD: the composition in steps, below)
   // G1340: the premises lamps' level by the day (0..1: on below a 2 deg sun) and the host's compile of the pool's other
   // count (app.js lampsPrep: the lit programs keyed and linked in the background before the pool arms / disarms)
   const lampsOn = day => Math.max(0, Math.min(1, (2 - day.sunEl) / 4));
