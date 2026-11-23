@@ -4,35 +4,147 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "not flown": 42,
+  "feasible": 29,
+  "not flown": 37,
   "stale": 11,
-  "feasible": 24,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
   "infeasible": 4
  },
- "flownS": 39862,
+ "flownS": 45227,
  "rows": [
   {
    "id": "field.01",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 966,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 533,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 432,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "field.02",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 975,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 546,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 40,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 430,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 40,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "field.n1",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1028,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 537,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 30,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 490,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 30,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "field.round",
@@ -831,8 +943,44 @@
    "id": "home.07",
    "where": "home:3",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 1203,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 472,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "w1",
+     "t": 731,
+     "how": "stopped",
+     "at": "w1",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "home.08",
@@ -880,8 +1028,45 @@
    "id": "home.14",
    "where": "home:7",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 1193,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 480,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 200,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "w1",
+     "t": 713,
+     "how": "stopped",
+     "at": "w1",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 200,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "community.01",

@@ -82,8 +82,8 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 ### The feasibility state
 
 <!-- feas-state -->
-ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 24 FEASIBLE, 6 red or waiting for a plane the player builds, 53 not flown yet on this sim (11 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
-The feasible ones, by the aeroplane that flew them: 15 Piper Cub, 4 light metal Cessna with the STOL kit (test build), 3 STOL Cub, 1 PC-6 Turbo Porter, 1 Jodel D112.
+ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 29 FEASIBLE, 6 red or waiting for a plane the player builds, 48 not flown yet on this sim (11 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
+The feasible ones, by the aeroplane that flew them: 18 Piper Cub, 6 light metal Cessna with the STOL kit (test build), 3 STOL Cub, 1 PC-6 Turbo Porter, 1 Jodel D112.
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
 - home.06: no official plane can carry it (450 kg into the 383 m Cabin Strip): a STOL hauler the player builds - a named class, not flown

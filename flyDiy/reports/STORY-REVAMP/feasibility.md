@@ -3,13 +3,13 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 24 feasible; 4 infeasible; 2 no official plane can fly it (the player builds one); 42 not flown; 11 stale. Time flown: 664 min 22 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 29 feasible; 4 infeasible; 2 no official plane can fly it (the player builds one); 37 not flown; 11 stale. Time flown: 753 min 47 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
-| field.01 | contract | not flown | - | - | - |  |
-| field.02 | contract | not flown | - | - | - |  |
-| field.n1 | contract | not flown | - | - | - |  |
+| field.01 | contract | feasible | Piper Cub | 16 min 06 s | HOME > w3 533; w3 > HOME 432 |  |
+| field.02 | contract | feasible | Piper Cub | 16 min 15 s | HOME > w3 546; w3 > HOME 430 |  |
+| field.n1 | contract | feasible | Piper Cub | 17 min 08 s | HOME > w3 537; w3 > HOME 490 |  |
 | field.round | contract | not flown | - | - | - |  |
 | field.hike | contract | stale | - | - | - |  |
 | field.ridge | contract | stale | - | - | - |  |
@@ -73,14 +73,14 @@ Summary (91 missions): 8 an aircraft order (not a flight); 24 feasible; 4 infeas
 | home.04 | home:2 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 15 min 29 s | HOME > w1 929 |  |
 | home.05 | home:2 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 14 min 50 s | HOME > w1 890 |  |
 | home.06 | home:3 | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 450 kg aboard, the cabin takes 90 kg; jodel: Jodel: 450 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 450 kg aboard, the cabin takes 280 kg; c172f: Cessna  |
-| home.07 | home:3 | not flown | - | - | - |  |
+| home.07 | home:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 20 min 03 s | HOME > w3 472; w3 > w1 731 |  |
 | home.08 | home:4 | stale | - | - | - |  |
 | home.09 | home:4 | not flown | - | - | - |  |
 | home.10 | home:5 | not flown | - | - | - |  |
 | home.11 | home:5 | not flown | - | - | - |  |
 | home.12 | home:6 | not flown | - | - | - |  |
 | home.13 | home:7 | not flown | - | - | - |  |
-| home.14 | home:7 | not flown | - | - | - |  |
+| home.14 | home:7 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 19 min 53 s | HOME > w3 480; w3 > w1 713 |  |
 | community.01 | community:1 | feasible | Piper Cub | 33 min 10 s | HOME > w6 1990 |  |
 | community.02 | community:2 | feasible | Piper Cub | 34 min 26 s | HOME > w3 571; w3 > w7 1495 |  |
 | community.03 | community:2 | feasible | Piper Cub | 28 min 54 s | HOME > w7 1734 |  |
