@@ -920,10 +920,15 @@
   // hangar's canvas-made maps (DERELICT_GEN: the cladding, the slab, the stains, the boards) all at once, the first frame it
   // enters the view. initTexture uploads each one here instead, under the loading screen (the world's build) or in the
   // garage's quiet (a document change); a texture once uploaded is not uploaded again
+  // PERF-WORLDBUILD (23 Nov 2026): UNDER A HOST'S BUDGET (shedTexSliced, set by worldBuilt for its own call) THE SAME TEXTURES
+  // GO UP A TICK AT A TIME - handed in one go right after the world's last slice they were most of a 622 ms task of the
+  // live garage (304 texture calls, 23 Nov). One a tick at least, more while the host's budget has time left; a texture
+  // not up yet when its shed is first drawn uploads there, as it did before this warm.
+  let shedTexSliced = false;
   function shedTexWarm() {
     if (!WF || !renderer || typeof renderer.initTexture !== 'function') return 0;
-    const seen = new Set(); let n = 0;
-    const warm = t => { if (t && t.isTexture && !seen.has(t)) { seen.add(t); try { renderer.initTexture(t); n++; } catch (e) {} } };
+    const seen = new Set(); let n = 0; const later = shedTexSliced ? [] : null;
+    const warm = t => { if (t && t.isTexture && !seen.has(t)) { seen.add(t); if (later) { later.push(t); return; } try { renderer.initTexture(t); n++; } catch (e) {} } };
     try {
       scene.traverse(o => {
         if (!o.name || o.name.indexOf('shed:') !== 0) return;
@@ -933,12 +938,19 @@
         });
       });
     } catch (e) { console.warn('flyDiy: the side sheds\' textures -', e && e.message); }
+    if (later && later.length) { let i = 0;
+      const tick = () => { const B = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; let k = 0;
+        while (i < later.length && (k === 0 || (B && typeof B.left === 'function' && B.left() > 0))) { try { renderer.initTexture(later[i]); } catch (e) {} i++; k++; }
+        if (i < later.length) setTimeout(tick, 0); };
+      setTimeout(tick, 0); }
     return n;
   }
   function worldBuilt(wf) {
     WF = wf;
     // G2310 (PREM-S3): the side hangars held stand at their plots from the world's first frame (none in the sandbox)
+    shedTexSliced = typeof window !== 'undefined' && !!window.FLYDIY_WORLD_BUDGET;   // (PERF-WORLDBUILD: a host's budget - the sheds' textures a tick at a time)
     try { if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
+    shedTexSliced = false;
     if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
@@ -1064,6 +1076,11 @@
         if (r.done) {
           window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null;
           worldBuilt(r.value);
+          // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the flush is capped a call - assets.js - so what is left goes up
+          //  a tick at a time from here; a flush that uploads nothing ends it)
+          if (window.FLYDIY_WORLD_BUDGET && typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && GPU_ONLY_GEO.pending) {
+            const drain = () => { if (!(GPU_ONLY_GEO.pending() > 0)) return; let nf = 0; try { nf = GPU_ONLY_GEO.flush(renderer); } catch (e) { nf = 0; } if (nf > 0) setTimeout(drain, 0); };
+            setTimeout(drain, 0); }
           if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
           window.__WORLD_SLICES = { n, worst: Math.round(worst), ms: Math.round(performance.now() - t00) };
           res(); return;

@@ -1005,6 +1005,7 @@ function make(THREE, scene, world, rec0, opts) {
     return [{ name: 'premises-patch', key: M.customProgramCacheKey(), material: M, mesh: patchWarmMesh }];
   }
   function* buildPatchSteps(part) {
+    const patchDue = () => { const Bd = part || typeof window === 'undefined' ? null : window.FLYDIY_WORLD_BUDGET; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };   // (PERF-WORLDBUILD: the roll-out's build under a host's budget)
     const b = extentWorld();
     const A = part ? part.A : activeChunks(b, GEO.split ? geoLater : null);
     let list = [...A.act].sort();
@@ -1059,17 +1060,17 @@ function make(THREE, scene, world, rec0, opts) {
         PATCHF = null;
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       } } finally { PATCHF = null; }
-      if (part || (c & 7) === 7) yield 'patch ground';   // (G2063: a chunk a slice in flight)
+      if (part || (c & 7) === 7 || patchDue()) yield 'patch ground';   // (G2063: a chunk a slice in flight; PERF-WORLDBUILD: a chunk a check under a host's budget - eight were 87-109 ms)
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
     let NRM = new Float32Array(list.length * per * 3);
-    for (let c = 0; c < list.length; c++) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+    for (let c = 0; c < list.length; c++) { if (c && !(c & 15) && patchDue()) yield 'patch ground'; for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
       const at = (ii, jj) => Y0[c * per + Math.max(0, Math.min(n, jj)) * (n + 1) + Math.max(0, Math.min(n, ii))];
       const i0 = Math.max(0, i - 1), i1 = Math.min(n, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(n, j + 1);
       const gx = (at(i1, j) - at(i0, j)) / ((i1 - i0) * RES), gz = (at(i, j1) - at(i, j0)) / ((j1 - j0) * RES);
       const l = Math.hypot(gx, 1, gz), v = (c * per + j * (n + 1) + i) * 3;
       NRM[v] = -gx / l; NRM[v + 1] = 1 / l; NRM[v + 2] = -gz / l;
-    }
+    } }
     // ---- the blocks
     const blocks = new Map();
     const chunkIdx = new Map(list.map((k, c) => [k, c]));   // (G2115: a chunk's neighbour, for the skirts between them)
