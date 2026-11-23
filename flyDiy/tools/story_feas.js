@@ -13,7 +13,7 @@
 //   node tools/story_feas.js --check     every mission of the pack: a current row and feasible, or one of the named
 //                             classes (an aircraft order; a delivery no official plane can fly); prints what is missing.
 //                             Exit 1 while a mission is not flown, stale, broken or infeasible outside those classes
-//   options: --rows=<dir> (default reports/STORY-REVAMP/feasibility)  --quiet
+//   options: --rows=<dir> (default reports/STORY-REVAMP/feasibility)  --tries=3 (aeroplanes tried)  --tmax=3600 (a leg, sim s)  --quiet
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), cp = require('child_process'), crypto = require('crypto');
 const T = __dirname, ROOT = path.join(T, '..');
@@ -23,7 +23,7 @@ const has = k => argv.includes('--' + k);
 const BUILDS = 'tools/fixtures/storyfeas/cessna172_stol_kit.json,tools/fixtures/storyfeas/cessna172r_stol_kit.json';   // two test builds: the light metal Cessna (the retired list:40) and the Cessna 172 (list:50), each with the garage's STOL kit
 // THE SIM A ROW WAS FLOWN ON. A row's key is its mission's record; the aeroplanes and the pilot change under it at a train.
 // Bumped BY HAND when master is merged in (the pilot, the career's designs): every row flown before is stale and flown again
-const SIM = 'L40J';
+const SIM = 'L40K';   // (23 Nov: L40K builds the Cub, the Jodel and the Cessna 172 differently - their defs and shakedowns differ from L40J's)
 const ALSO = '57,58';   // builds/lists/plane_lists.json: the PC-6 Turbo Porter, the PC-6 on Wiplines (the wip list)
 const ROWS = path.resolve(ROOT, opt('rows', 'reports/STORY-REVAMP/feasibility'));
 const PACK = path.join(ROOT, 'src', 'missions', 'story.json');
@@ -71,7 +71,7 @@ async function fly() {
     const m = todo[next++];
     if (!m) return res(false);
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy-storyfeas-out-')), t0 = Date.now();
-    const args = [path.join(T, 'mission_feas.js'), '--only=' + m.id, '--rerun', '--packs=' + packs, '--out=' + out, '--quiet', '--tries=' + opt('tries', '3')];
+    const args = [path.join(T, 'mission_feas.js'), '--only=' + m.id, '--rerun', '--packs=' + packs, '--out=' + out, '--quiet', '--tries=' + opt('tries', '3'), '--tmax=' + opt('tmax', '3600')];   // (--tmax: a leg's limit in sim seconds - a red mission costs up to tries x legs x tmax)
     // (the user 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK ... the
     // players will not be limited to existing planes, they will modify them, and that's the point") EVERY mission is flown
     // with the wider pool: the career's designs first, then every official plane and the PC-6 (ALSO), the shortest take-off first
