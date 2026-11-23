@@ -4762,6 +4762,21 @@
     model.grp.matrix.premultiply(SINK_M.fromArray(groundSinkMatrix(SINK_V, cg[0], cg[1], cg[2], SINK_A)));
   }
   let PC6Q = null;                           // PC6-OLEO: the mechanism rig's scratch quaternions and vectors
+  // ROW 8 / 13 / 14 (PERF-LEAD 23 Nov: after the Cub's nose-down impact the frames ran at 5 a second for 13 s, the
+  // recorder's 'scene' slot +115-142 ms each): THE BREAK PATH'S OWN CLOCK - the four damage calls of poseModel and two
+  // steps inside brkCage, summed and their worst kept; a ring of the last 900 frames that did damage work (t, gen,
+  // scuff, cage, cut, members, wreck, ms) to say what costs and whether it stops at rest. FLYDIY_DMG_PROF() / (true): reset
+  const DPROF = { n: 0, sum: new Float64Array(6), max: new Float64Array(6), ring: [], keys: ['gen', 'scuff', 'cage', 'cut', 'members', 'wreck'], cur: new Float64Array(6) };
+  if (typeof window !== 'undefined') window.FLYDIY_DMG_PROF = reset => {
+    const o = { frames: DPROF.n, keys: DPROF.keys, sumMs: Array.from(DPROF.sum, v => +v.toFixed(1)), maxMs: Array.from(DPROF.max, v => +v.toFixed(1)), ring: DPROF.ring.slice() };
+    if (reset) { DPROF.n = 0; DPROF.sum.fill(0); DPROF.max.fill(0); DPROF.ring.length = 0; }
+    return o; };
+  function dprofEnd() {
+    const c = DPROF.cur; let tot = 0; for (let i = 0; i < 6; i++) tot += (i === 3 || i === 4) ? 0 : c[i];   // (cut / members are inside cage)
+    if (tot > 0.05) { DPROF.n++; for (let i = 0; i < 6; i++) { DPROF.sum[i] += c[i]; if (c[i] > DPROF.max[i]) DPROF.max[i] = c[i]; }
+      DPROF.ring.push([+(sim ? sim.t : 0).toFixed(2), +c[0].toFixed(1), +c[1].toFixed(1), +c[2].toFixed(1), +c[3].toFixed(1), +c[4].toFixed(1), +c[5].toFixed(1)]);
+      if (DPROF.ring.length > 900) DPROF.ring.shift(); }
+    c.fill(0); }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4918,7 +4933,7 @@
       const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       genNodeBody(sim, model.nodeBody, model.oNode);
       // G1851 (DMG-D4a): over a break the skin's records (skin_break.js) pose it; nothing broken, nothing of it runs
-      const BK = brkGen(gain);
+      const tG = performance.now(); const BK = brkGen(gain); DPROF.cur[0] += performance.now() - tG;
       // THE SKIN IS POSED WHEN IT HAS MOVED (PERF 2026-09-23). Everything below is in the BODY frame -
       // the nodes against their rest, the control deflections, the gain - and it was redone, and every
       // skin buffer re-uploaded (54 of them, 2.8 MB a frame on the Cub-alike), on every frame: paused, at
@@ -5517,9 +5532,15 @@
       }
     }
     { const oB = [O[0] + oR[0], O[1] + oR[1], oR[2]];
+      const tP = performance.now();
       scuffFrame(oB);                              // G2004 (DMG-SCUFF): its own event test (two compares; null with the layer off)
-      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still); }   // G1851
-    wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
+      const tQ = performance.now(); DPROF.cur[1] += tQ - tP;
+      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still);   // G1851
+      DPROF.cur[2] += performance.now() - tQ; }
+    { const tW = performance.now();
+      wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
+      DPROF.cur[5] += performance.now() - tW; }
+    dprofEnd();
   }
   // G1851 / G1852 (DMG-D4a): THE SKIN OVER A BREAK (src/viewer/skin_break.js; DEFORM-AND-BREAK §2.5, §5.1, §8.4). Both
   // skins read the one damage state (dmgNow: the broken list and DMG-D1b's pieces, inline or from the worker on change).
@@ -5871,10 +5892,10 @@
   };
   // (train 41, A0: THE SHEET - a strip drawn metres across the runway at rest, on both paths: which record, which class)
   // G4102 (CUT-THROUGH): the cut copies on the page - records with copies, copies, their meshes, any corner not finite
-  window.FLYDIY_CUT_STATS = () => { let recs = 0, copies = 0, meshes = 0, bad = 0, clipped = 0;
-    for (const R of BRK.recs) { if (!R.cut2) continue; recs++; copies += R.cut2.nv / 3; for (let o = 0; o < R.cut2.nv; o++) if (R.cut2.s[o]) clipped++;
+  window.FLYDIY_CUT_STATS = () => { let recs = 0, copies = 0, meshes = 0, bad = 0, clipped = 0, built = 0, refills = 0;
+    for (const R of BRK.recs) { if (R.cutDraw) { built += R.cutDraw.built || 0; refills += R.cutDraw.refills || 0; } if (!R.cut2) continue; recs++; copies += R.cut2.nv / 3; for (let o = 0; o < R.cut2.nv; o++) if (R.cut2.s[o]) clipped++;
       const T = R.cutDraw; if (T && T.geo) { meshes += T.meshes.length; const a = T.geo.attributes.position.array; for (let i = 0; i < a.length; i++) if (!Number.isFinite(a[i])) { bad++; break; } } }
-    return { recs, copies, clipped: clipped / 3, meshes, bad }; };
+    return { recs, copies, clipped: clipped / 3, meshes, bad, built, refills }; };   // (built / refills: ROW 14's in-place cut geometry)
   window.FLYDIY_SKIN_LONGEST = () => {
     const K = model && model.brk; if (!K || !BRK.X || !K.NF || !sim) return null;
     const recs = [];
@@ -6076,34 +6097,57 @@
     const T = R.cutDraw; if (!T) return;
     for (const t of T.meshes) if (t.parent) t.parent.remove(t);
     if (T.geo) T.geo.dispose();
-    T.meshes = []; T.geo = null; T.v = -1;
+    T.meshes = []; T.geo = null; T.v = -1; T.cap = 0; T.src = null; T.nBa = null;
   }
+  // (ROW 14, 23 Nov - PERF-LEAD's log of the Cub's nose-down in the player's loop: from the impact on, 5-13 MB of NEW
+  // buffers in 50-375 buffers every frame, 'geo' +43 in one, and the scene slot 45-145 ms a frame for 3.5 s.) A record's cut
+  // copies were thrown away and built again whole at every one of its events - a new geometry, every attribute a new GL
+  // buffer, new twin meshes. Now the geometry is kept and REFILLED in place while it fits (a capacity half again the
+  // first count; the draw range says how much is drawn) and the twins are kept on it; only a record that outgrows it
+  // builds again. The uploads: the refilled part only (addUpdateRange)
   function brkCutBuild(R, T, C2) {
-    brkCutFree(R);
-    const src = R.geo, nv = C2.nv, g = new THREE.BufferGeometry(), ver = new Map();
-    for (const name in src.attributes) {
-      const a = src.attributes[name]; if (!a || a.isInterleavedBufferAttribute || !a.array) continue;
-      const it = a.itemSize, arr = name === 'position' ? new Float32Array(nv * it) : new a.array.constructor(nv * it);
+    const src = R.geo, nv = C2.nv, names = [];
+    for (const name in src.attributes) { const a = src.attributes[name]; if (a && !a.isInterleavedBufferAttribute && a.array) names.push(name); }
+    const groupsSrc = src.groups || [], multi = groupsSrc.length > 1;
+    let g = T.geo;
+    const fits = !!g && T.src === src && T.cap >= nv && !!g.index === multi && names.every(nm => g.attributes[nm] && g.attributes[nm].itemSize === src.attributes[nm].itemSize);
+    if (!fits) {
+      brkCutFree(R);
+      const cap = Math.ceil(nv * 1.5) + 48;
+      g = new THREE.BufferGeometry();
+      for (const name of names) { const a = src.attributes[name], it = a.itemSize;
+        g.setAttribute(name, new THREE.BufferAttribute(name === 'position' ? new Float32Array(cap * it) : new a.array.constructor(cap * it), it, a.normalized)); }
+      g.setAttribute('aCut', new THREE.BufferAttribute(new Float32Array(cap * 2), 2)); g.setAttribute('aCutP', new THREE.BufferAttribute(new Float32Array(cap * 3), 3));
+      if (multi) g.setIndex(new THREE.BufferAttribute(new Uint32Array(cap), 1));
+      for (const nm in g.attributes) g.attributes[nm].setUsage(THREE.DynamicDrawUsage);
+      T.geo = g; T.cap = cap; T.src = src; T.w = new Float64Array(cap * 3); T.nBa = null; T.built = (T.built || 0) + 1;
+    } else T.refills = (T.refills || 0) + 1;
+    const ver = new Map(), upd = (b, n) => { if (b.clearUpdateRanges) { b.clearUpdateRanges(); b.addUpdateRange(0, n); } b.needsUpdate = true; };
+    for (const name of names) {
+      const a = src.attributes[name], b = g.attributes[name], it = a.itemSize, arr = b.array;
       for (let o = 0; o < nv; o++) { const v = C2.src[o]; for (let k = 0; k < it; k++) arr[o * it + k] = a.array[v * it + k]; }
-      g.setAttribute(name, new THREE.BufferAttribute(arr, it, a.normalized)); ver.set(name, a.version);
+      upd(b, nv * it); ver.set(name, a.version);
     }
-    const cut = new Float32Array(nv * 2), cp = new Float32Array(nv * 3);
+    const cut = g.attributes.aCut.array, cp = g.attributes.aCutP.array;
     for (let o = 0; o < nv; o++) { cut[o * 2] = C2.d[o]; cut[o * 2 + 1] = C2.s[o]; cp[o * 3] = C2.base[o * 3]; cp[o * 3 + 1] = C2.base[o * 3 + 1]; cp[o * 3 + 2] = C2.base[o * 3 + 2]; }
-    g.setAttribute('aCut', new THREE.BufferAttribute(cut, 2)); g.setAttribute('aCutP', new THREE.BufferAttribute(cp, 3));
+    upd(g.attributes.aCut, nv * 2); upd(g.attributes.aCutP, nv * 3);
     // (a multi-material geometry: the copies ordered by their source triangle's group, one group each)
-    const groupsSrc = src.groups || [];
-    if (groupsSrc.length > 1) {
+    g.clearGroups();
+    if (multi) {
       const nT = nv / 3, gi = new Int32Array(nT);
       for (let j = 0; j < nT; j++) { const s3 = C2.tri[j] * 3; let q = 0; for (; q < groupsSrc.length; q++) if (s3 >= groupsSrc[q].start && s3 < groupsSrc[q].start + groupsSrc[q].count) break; gi[j] = q < groupsSrc.length ? groupsSrc[q].materialIndex : 0; }
-      const ord = Array.from({ length: nT }, (_, j) => j).sort((x, y) => gi[x] - gi[y]), idx = new Uint32Array(nv);
+      const ord = Array.from({ length: nT }, (_, j) => j).sort((x, y) => gi[x] - gi[y]), idx = g.index.array;
       ord.forEach((j, k) => { idx[k * 3] = j * 3; idx[k * 3 + 1] = j * 3 + 1; idx[k * 3 + 2] = j * 3 + 2; });
-      g.setIndex(new THREE.BufferAttribute(idx, 1));
+      upd(g.index, nv);
       for (let k = 0; k < nT;) { const mi = gi[ord[k]]; let e = k; while (e < nT && gi[ord[e]] === mi) e++; g.addGroup(k * 3, (e - k) * 3, mi); k = e; }
     }
-    T.geo = g; T.v = C2.v; T.ver = ver; T.w = new Float64Array(nv * 3);
+    g.setDrawRange(0, nv);
+    T.v = C2.v; T.ver = ver; T.nv = nv;
     T.n = g.attributes.normal ? g.attributes.normal.array : null; T.nB = null;
-    if (T.n && R.nB) { T.nB = new Float32Array(nv * 3); for (let o = 0; o < nv; o++) { const v = C2.src[o]; T.nB[o * 3] = R.nB[v * 3]; T.nB[o * 3 + 1] = R.nB[v * 3 + 1]; T.nB[o * 3 + 2] = R.nB[v * 3 + 2]; } }
+    if (T.n && R.nB) { if (!T.nBa) T.nBa = new Float32Array(T.cap * 3); T.nB = T.nBa;
+      for (let o = 0; o < nv; o++) { const v = C2.src[o]; T.nB[o * 3] = R.nB[v * 3]; T.nB[o * 3 + 1] = R.nB[v * 3 + 1]; T.nB[o * 3 + 2] = R.nB[v * 3 + 2]; } }
     if (!T.nB) T.n = null;
+    if (fits && T.meshes.length) return;   // (the twins already ride this geometry)
     const hosts = []; model.grp.traverse(m => { if (m.isMesh && !m.userData.cutTwin && R.geos && R.geos.indexOf(m.geometry) >= 0) hosts.push(m); });
     for (const m of hosts) { const t = new THREE.Mesh(g, brkCutMat(m.material)); t.userData.cutTwin = true; t.castShadow = false;
       t.receiveShadow = m.receiveShadow; t.frustumCulled = false; t.renderOrder = m.renderOrder; t.name = (m.name || '') + ':cut'; m.add(t); T.meshes.push(t); }
@@ -6114,11 +6158,12 @@
     if (T.v !== C2.v || !T.geo) brkCutBuild(R, T, C2);
     else for (const [name, v0] of T.ver) { const a = R.geo.attributes[name]; if (!a || a.version === v0 || name === 'position' || name === 'normal') continue;   // (the scuff's record moved: gathered again)
       const b = T.geo.attributes[name], it = a.itemSize; for (let o = 0; o < C2.nv; o++) { const v = C2.src[o]; for (let k = 0; k < it; k++) b.array[o * it + k] = a.array[v * it + k]; }
-      b.needsUpdate = true; T.ver.set(name, a.version); }
+      if (b.clearUpdateRanges) { b.clearUpdateRanges(); b.addUpdateRange(0, C2.nv * it); } b.needsUpdate = true; T.ver.set(name, a.version); }
     if (!T.meshes.length) return;
     const pa = T.geo.attributes.position;
     SKIN_BREAK.poseCage(C2, K.rest, sim.p, C2.base, pa.array, K.NF, K.down, off, { Mi: X.Mi, B: X.B, cg: X.cg, o: X.o, w: T.w, n: T.n, nB: T.nB });
-    pa.needsUpdate = true; if (T.n) T.geo.attributes.normal.needsUpdate = true;
+    if (pa.clearUpdateRanges) { pa.clearUpdateRanges(); pa.addUpdateRange(0, C2.nv * 3); } pa.needsUpdate = true;
+    if (T.n) { const na = T.geo.attributes.normal; if (na.clearUpdateRanges) { na.clearUpdateRanges(); na.addUpdateRange(0, C2.nv * 3); } na.needsUpdate = true; }
   }
   function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
@@ -6234,7 +6279,7 @@
     if (!inhOn) for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
     const t2 = performance.now();
     SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
-    if (LOOK.pools && LOOK.slots) DMG_MEMBERS.frame(LOOK.pools, sim.p, K.NF.q, cg);   // G3770
+    if (LOOK.pools && LOOK.slots) { const tM = performance.now(); DMG_MEMBERS.frame(LOOK.pools, sim.p, K.NF.q, cg); DPROF.cur[4] += performance.now() - tM; }   // G3770
     const t3 = performance.now();
     const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
     BRK.X = X;
@@ -6258,7 +6303,7 @@
         X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
         SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
       }
-      if (R.cut2 || (R.cutDraw && R.cutDraw.geo)) brkCutDraw(R, off, X, K);   // G4102: the cut copies beside it
+      if (R.cut2 || (R.cutDraw && R.cutDraw.geo)) { const tC = performance.now(); brkCutDraw(R, off, X, K); DPROF.cur[3] += performance.now() - tC; }   // G4102: the cut copies beside it
       // (G1869: the tear checked at most every TEAR_EVERY s of sim time - a check is every live triangle's three edges;
       // G1818: on the GPU's riding, on its places' world positions - skin_break.js tearPlaces. Train 41: AT THE CPU'S
       // CADENCE - the frame the tear is due asks the places pass (that frame's positions); the read lands a frame or two
@@ -7184,6 +7229,79 @@
         .then(() => warmDrawSliced(scene, tgt, null, mine.concat(KEPT), inW));
     } catch (e) { job = Promise.reject(e); }
     return shaderProgress(job.then(done, e => { done(); console.warn('scuff prelink:', e && e.message); }), 'world', 60000);
+  }
+  // ROW 14 (the user, 22 Nov: "less than 250 ms freeze on crash, and no sky blue screen"; "a crash could cause up to 10
+  // seconds of full freeze"): THE CRASH'S OWN PROGRAMS, linked and first drawn HERE under the screen, right after the
+  // scuff's (scuffPrelink) - a skin-family program waits 1-2 s in the driver at its first link, cold (PERF-TRACE, 22 Nov).
+  // With the scuff block AWAKE while they compile, as scuffPrelink's: their keys follow the awake source.
+  //   1 the cut copies (G4102 brkCutMat: a twin per wrapped skin material, its key the source's + '|cut4102', made at a
+  //     record's first cut event - one link per distinct skin material in the impact's first frames)
+  //   2 the member pools (dmg_members.js 'dmglook:pool': parked hidden and compiled with the world, but their key is
+  //     'dmglook:2:' + the SOURCE's - the awake one only from the first damage on)
+  //   3 SKIN_GPU's riding program (raw GL, linked on the driver's threads; started here, not at the first break)
+  //   4 the wreck's wires (wreckWires: a gear leg's material on a PLAIN mesh - a skinned leg's non-skinned variant)
+  //   5 the ground scar's decals (ground_scar.js 'scar:decal' / 'scar:live': parked with the world; again here, known keys link nothing)
+  //   6 the wreck's wing structure (wsWreck, made at the first wing break) and its cut twins
+  // Each by stand-in (PROG_WARM.standIn: the object by prototype, never shown for a call) or a plain mesh made for it,
+  // compiled as scuffPrelink's (compileSliced: the craft dressed in the world, its lights key them) and first-drawn
+  // (warmDrawSliced). FLYDIY_CRASH_PRELINK = false: off (the A/B).
+  if (typeof window !== 'undefined') window.FLYDIY_CRASH_PRE = () => (model && model.crashPre ? Object.assign({}, model.crashPre, { job: undefined }) : null);
+  function crashPrelink(inW) {
+    if (window.FLYDIY_CRASH_PRELINK === false || !model || model.gen || !craft || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
+    // ONCE A MODEL (PERF-LEAD 23 Nov, the user's row 3: world loading 60 s with its background work, ideally in the garage):
+    // the loading's 'spec' (craftStart: craftEarly) runs it in the background; the craft step's second compileCraftLinks,
+    // under the roll-out's screen, finds it done and pays nothing. Its cost: model.crashPre (FLYDIY_CRASH_PRE())
+    if (model.crashPre) return model.crashPre.job || null;
+    const t0 = performance.now(), prog0 = renderer.info && renderer.info.programs ? renderer.info.programs.length : null;
+    try { if (window.SKIN_GPU && window.FLYDIY_SKINGPU !== false && renderer) SKIN_GPU.prepare(renderer); } catch (e) {}   // 3
+    const at = model.scuff, W = at && at.W, S = typeof SKIN_SCUFF !== 'undefined' ? SKIN_SCUFF : null;
+    const tgt = aa && aa.target ? aa.target() : null, CG = new THREE.Group(), only = [], seen = new Set();
+    const add = (o, m) => { if (!m) return; const k = o.uuid + '|' + m.uuid; if (seen.has(k)) return; seen.add(k); const s = PROG_WARM.standIn(o, m); CG.add(s); only.push(s); };
+    const plain = (g, m, nm) => { if (!m || !g) return; const k = 'P|' + g.uuid + '|' + m.uuid; if (seen.has(k)) return; seen.add(k);
+      const p = new THREE.Mesh(g, m); p.name = nm; p.frustumCulled = false; CG.add(p); only.push(p); };
+    const mats = o => (Array.isArray(o.material) ? o.material : [o.material]).filter(Boolean);
+    if (W && S) { W.pre++; S.wakeSet(W); }
+    try {
+      craft.traverse(o => {
+        if (!o.isMesh || !o.geometry || (o.userData && o.userData.cutTwin)) return;
+        if (o.name === 'dmglook:pool') { for (const m of mats(o)) add(o, m); return; }                                  // 2
+        if (o.isSkinnedMesh) for (const m of mats(o)) plain(o.geometry, m, 'crashPrelink:wire');                         // 4
+      });
+      // 1 THE CUT TWINS: every material the model's meshes draw with (brkCutBuild's hosts are model.grp meshes whose geometry a
+      // record holds - the skin, the liner, the glass, the body groups: PERF-LEAD's registry, 23 Nov 00:10, 16 programs
+      // after the impact, nearly all '+ cutaway', made one by one over six seconds as the records came); a twin is a PLAIN
+      // mesh on the host's material copy (new THREE.Mesh(g, brkCutMat(..))) even on a skinned host
+      if (model.grp && typeof brkCutMat === 'function') model.grp.traverse(o => {
+        if (!o.isMesh || !o.geometry || (o.userData && o.userData.cutTwin) || o.name === 'dmglook:pool') return;
+        for (const m of mats(o)) plain(o.geometry, brkCutMat(m), 'crashPrelink:cut');
+      });
+      scene.traverse(o => {   // (the pools and the decals parked in the world, not under the craft)
+        if (!o.isMesh || !o.geometry) return;
+        if (o.name === 'dmglook:pool' || o.name === 'scar:decal' || o.name === 'scar:live') for (const m of mats(o)) add(o, m);                       // 2, 5
+      });
+    } catch (e) { console.warn('crash prelink (gather):', e && e.message); }
+    // 6 THE WRECK'S WING STRUCTURE (wsWreck: WING_STRUCT.group made at the first wing break, added to model.grp - its own
+    // material and, as a record's host, its cut twin both linked at the crash: PERF-LEAD's screen run 23 Nov 00:50, the
+    // guard held 'wingStruct:0L/MeshPhysicalMaterial' 35 frames, 3.1 s). Made here once (its materials are wing_struct.js's
+    // shared library, the same keys), compiled, its geometry disposed when the job ends
+    let WSG = null;
+    try {
+      if (window.WING_STRUCT && window.FLYDIY_WINGSTRUCT !== false && model.wsRigs === undefined && def && def.parts && def.parts.wf) {
+        WSG = WING_STRUCT.group(THREE, def, { map: p => [p[0], p[1], p[2]], lod: 1, name: 'wingStructPrelink' });
+        for (const m of WSG.children) for (const mt of mats(m)) { plain(m.geometry, mt, 'crashPrelink:ws'); if (typeof brkCutMat === 'function') plain(m.geometry, brkCutMat(mt), 'crashPrelink:wscut'); }
+      }
+    } catch (e) { console.warn('crash prelink (wing structure):', e && e.message); }
+    const done = () => { if (W && S) { W.pre--; S.wakeSet(W); } if (WSG) { try { WING_STRUCT.dispose(WSG); } catch (e) {} WSG = null; } };
+    if (!CG.children.length) { done(); model.crashPre = { n: 0, done: true }; return null; }
+    let job;
+    try {
+      job = compileSliced(CG, tgt, scene, false, inW)
+        .then(() => warmDrawSliced(scene, tgt, null, only, inW));
+    } catch (e) { job = Promise.reject(e); }
+    const CP = model.crashPre = { n: CG.children.length, gatherMs: +(performance.now() - t0).toFixed(1), prog0, at: inGarage ? 'garage' : 'world', t0 };
+    CP.job = shaderProgress(job.then(done, e => { done(); console.warn('crash prelink:', e && e.message); })
+      .then(() => { CP.wallMs = Math.round(performance.now() - t0); CP.programs = prog0 != null && renderer.info.programs ? renderer.info.programs.length - prog0 : null; CP.done = true; }), 'world', 60000);
+    return CP.job;
   }
   // THE RECORDS: the break path's own (brkCageRec - the same record a break would make, off the break list until one
   // comes), only for groups something draws with a pair; ms: the time they may take (Infinity: all of them). The pose
@@ -15911,7 +16029,7 @@
     const progs = () => (renderer.info && renderer.info.programs ? renderer.info.programs.length : 0), n0 = progs();
     B.xrayRun = true;
     Promise.resolve().then(() => compileXrayVariants())
-      .then(() => { B.xrayRun = false; B.xrayMs = Math.round(performance.now() - B.startedAt); B.xrayLinks = progs() - n0; return lateBgScuff(); })
+      .then(() => { B.xrayRun = false; B.xrayMs = Math.round(performance.now() - B.startedAt); B.xrayLinks = progs() - n0; return Promise.resolve(lateBgScuff()).then(() => crashPrelink(craftInWorldNow)); })   // (ROW 14: the crash's programs after the scuff's, here too)
       .then(() => { B.ms = Math.round(performance.now() - B.startedAt); B.scuffLinks = progs() - n0 - B.xrayLinks; B.done = true; B.running = false; },
             e => { B.xrayRun = false; B.running = false; B.err = String(e && e.message); console.warn('late links (background):', e && e.message); });
   }
@@ -15948,7 +16066,8 @@
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
       // (?latelinks=1: not at all - a measure; ?latelinks=bg: not under the boot's screen but behind the garage - lateBgArm)
       .then(() => { if (LAB.lateLinks) { LAB.lateSkipped++; return true; } if (LAB.lateBg && !lateBgRevealed()) { LAB.lateSkipped++; lateBgArm(); return true; } return false; })
-      .then(late => late ? null : Promise.resolve().then(() => scuffPrelink(inW)))
+      .then(late => late ? null : Promise.resolve().then(() => scuffPrelink(inW))
+        .then(() => crashPrelink(inW)))   // ROW 14: the crash's own programs, after the scuff's (their keys follow its awake source)
       .then(() => compileCraftShed());
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
