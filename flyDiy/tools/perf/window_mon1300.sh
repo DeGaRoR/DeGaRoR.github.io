@@ -9,7 +9,7 @@
 #   A. garage first with Go after 150 s (rows/gf-1300-a.txt): everything on, today's order beside it, the prototype
 #      alone, a returning player twice
 #   B. Go pressed at once (rows/gf-1300-b.txt)
-#   D. THE CRASH on the screen (rows 14, 15): as the build is, and with ?holdframe=ground
+#   D. THE CRASH on the screen (rows 14, 15): ?holdframe=all (the old default) and ?holdframe=ground
 #   E. AUDIO-ROBUST's two runs (row 11): old against new, and a garage-first load recorded
 #   C. the journey's first 8 minutes with the flight switches + ?coverbudget=50, the screen recorded (rows 8, 9, 13, 15)
 #   F. the budget's two ends and the warm draws left to Go (rows/gf-1300-c.txt), in what is left
@@ -58,8 +58,9 @@ if [ "${GFOK:-0}" -gt 0 ] && [ $(left) -ge 8 ]; then say "part B: Go 5 s after t
 else say "part B SKIPPED: $(left) min left, or no garage-first row loaded"; fi
 
 # D. the crash on the screen: as the build is (Deform's prelink in it, if merged), then with the guard's floor
-for cq in asbuilt hold; do
-  if [ $(left) -ge 6 ]; then Q="recring=131072"; [ $cq = hold ] && Q="$Q&holdframe=ground"
+#    (both named in the address, so the rows read the same on a build before or after the default moved to 'ground', 23 Nov)
+for cq in all ground; do
+  if [ $(left) -ge 6 ]; then Q="recring=131072&holdframe=$cq"
     fly crash_$cq crash_cub_nosedown_magenta "$Q" 6 "nose down"
   else say "part D ($cq) SKIPPED: $(left) min left"; fi
 done

@@ -22592,13 +22592,20 @@
     ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity, firstUse: LAB.firstUse }) : null;
   // (the guard holds only behind the AA target: the scene pass draws there and a held frame is not resolved - aa.hold -
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
-  { // PERF-LEAD LAB (?holdframe=ground | 0; OFF by default, 23 Nov, rows 14 and 15): which held draws may hold the WHOLE frame.
+  { // PERF-LEAD (?holdframe=ground | all | 0; rows 14 and 15): which held draws may hold the WHOLE frame.
     // Today any held draw does (the canvas then shows no frame: the screen's recording of the Cub's crash is 9 s of the
     // page's blue while the cut copies link). ground: only the ground family's (a hole in the ground is the sky's colour);
     // 0: none - the held object alone is missing until its program is ready.
-    const HQ = (typeof location !== 'undefined' && (/[?&]holdframe=(0|ground)(&|$)/.exec(location.search || '') || [])[1]) || null;
-    if (drawGuard && aa && aa.hold && HQ !== '0') aa.hold(() => (HQ === 'ground' ? drawGuard.heldGround : drawGuard.heldNow) > 0);
-    if (typeof window !== 'undefined') window.FLYDIY_HOLDFRAME = HQ || 'all'; }
+    // THE DEFAULT SINCE 23 Nov IS 'ground' (was 'all'; ?holdframe=all is the way back). Measured on the screen, the Cub put
+    // nose-down into the ground from 50 m: 'all' showed the PAGE for 6.3-9.2 s at every crash (five recorded crashes, the
+    // game's own 'still' event 6 868 ms) while the frame times read 200 ms; 'ground' in four crashes held no frame, showed
+    // no page, the worst frame 217-250 ms. The user watched both: "the draw guard code is rubbish, it does worse than just
+    // freezing a frame, and here it even hid some interesting things to look at" / "last test much, much better". What it
+    // costs, said by the damage's owner: a cut copy not yet linked is not drawn - the tear a row of triangles wider with a
+    // clean edge, a piece of debris late - for the 2-3 s its program takes; the links block 26-56 ms a frame meanwhile.
+    const HQ = (typeof location !== 'undefined' && (/[?&]holdframe=(0|ground|all)(&|$)/.exec(location.search || '') || [])[1]) || 'ground';
+    if (drawGuard && aa && aa.hold && HQ !== '0') aa.hold(() => (HQ === 'all' ? drawGuard.heldNow : drawGuard.heldGround) > 0);
+    if (typeof window !== 'undefined') window.FLYDIY_HOLDFRAME = HQ; }
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;
