@@ -136,12 +136,52 @@
         day: D ? { cloudCover: D.cloudCover, cloudType: D.cloudType, upper: D.cloudUpper ? D.cloudUpper.length : 0 } : null,
         aa: AA && AA.report ? (r => ({ tier: r.tier, able: r.able, samples: r.samples, target: T ? T.width + 'x' + T.height : null }))(AA.report()) : null }); } catch (e) {} }
     function revealSky() { sky('reveal'); setTimeout(() => sky('reveal+10s'), 10000); }
-    function reveal(how) { const t = clock(); if (t - lastReveal < 2000) return; lastReveal = t; revealAt = t; event('reveal', t, null, how || 'the flight'); revealSky(); }
+    function reveal(how) { const t = clock(); if (t - lastReveal < 2000) return; lastReveal = t; revealAt = t; event('reveal', t, null, how || 'the flight'); revealSky(); if (rec.traffic) rec.traffic.reset(); }
     // G1340 THE SHADER WATCHDOG: the programs three made since the last frame closed (name + what changed in its key against
     // the last program of that name: three's key is comma-joined, '#i:a>b' per differing field) and the link waits since;
     // a frame whose shader time (its slot, or the waits held since the last frame - a wait outside the open frame counts)
     // passes WATCH_MS is an event 'shaderslow' naming them (the user's 79 s frames had a 54 ms slot and 79 s of waits)
     const WATCH_MS = 50, NP = { list: [], more: 0, waitMs: 0, last: new Map() };
+    // PERF-TRACE (22 Nov): WHAT THE RENDER SLOT CARRIED. The 18 Nov journey's ledger gave half of the world's freeze time
+    // to `render` and nothing said why. New data for the GPU is the usual reason a draw is slow once. So, per frame:
+    // the texture and buffer CREATION calls are timed and sized (wrapGL: texImage / texSubImage / compressedTex* /
+    // texStorage in megapixels and compressed KB, bufferData in KB, generateMipmap), bufferSubData - the per-frame
+    // updates - is only COUNTED and sized (no clock on it), and three's own counts of geometries and textures are read
+    // at the frame's end. A frame (or the time before it) that spent 1 ms or more creating GPU data, or updated 1 MB or
+    // more, is an event 'gpuup': ms, { at: 'loop' | 'out', tex: [calls, ms, megapixels, compressed KB], buf: [calls, ms,
+    // KB], sub: [calls, KB], mip: [calls, ms], geo: new geometries, texNew: new textures }. The GL is asked nothing.
+    // tools/freeze_ledger.js reads it with the programs FIRST USED in the frame ('proguse': its ms is the first use's
+    // whole cost) and the streamers' deliveries (any module's FLIGHT_REC.event('deliver', ms, { s: 'cover', n, what })).
+    const UP = { ms: 0, n: 0, texN: 0, texMs: 0, texPx: 0, cmpB: 0, bufN: 0, bufMs: 0, bufB: 0, subN: 0, subB: 0, mipN: 0, mipMs: 0, geo: -1, tex: -1 };
+    // THE STEADY TRAFFIC IS A TOTAL, NOT AN EVENT (the 07:00 captures, 22 Nov: in flight the game updates ~4 MB of buffers
+    // and makes ~70 texture and ~54 buffer calls EVERY frame - the event fired on 4 929 of 5 788 frames). The run's totals
+    // go to the header (`gpuData`); the event is for a frame that spent 1 ms or more CREATING GPU data.
+    const UPT = new Float64Array(10);   // frames, tex calls, tex ms, megapixels, compressed bytes, buffer calls, buffer ms, buffer bytes, update calls, update bytes
+    const r1e = x => Math.round(x * 10) / 10;
+    function upFlush(t, where) {
+      let dg = 0, dx = 0;
+      const M = rec.renderer && rec.renderer.info && rec.renderer.info.memory;
+      if (M) { if (UP.geo >= 0) { dg = M.geometries - UP.geo; dx = M.textures - UP.tex; } UP.geo = M.geometries; UP.tex = M.textures; }
+      if (UP.n === 0 && UP.subN === 0) return;
+      UPT[0]++; UPT[1] += UP.texN; UPT[2] += UP.texMs; UPT[3] += UP.texPx / 1e6; UPT[4] += UP.cmpB; UPT[5] += UP.bufN; UPT[6] += UP.bufMs; UPT[7] += UP.bufB; UPT[8] += UP.subN; UPT[9] += UP.subB;
+      if (UP.ms >= 1) event('gpuup', t, UP.ms, { at: where, tex: [UP.texN, r1e(UP.texMs), r1e(UP.texPx / 1e6), Math.round(UP.cmpB / 1024)], buf: [UP.bufN, r1e(UP.bufMs), Math.round(UP.bufB / 1024)],
+        sub: [UP.subN, Math.round(UP.subB / 1024)], mip: [UP.mipN, r1e(UP.mipMs)], geo: dg, texNew: dx });
+      UP.ms = 0; UP.n = 0; UP.texN = 0; UP.texMs = 0; UP.texPx = 0; UP.cmpB = 0; UP.bufN = 0; UP.bufMs = 0; UP.bufB = 0; UP.subN = 0; UP.subB = 0; UP.mipN = 0; UP.mipMs = 0;
+    }
+    // PERF-TRACE (PERF-LEAD, 22 Nov): WHICH PREMISES A PREMISES FREEZE BUILT. render_premises keeps the builds over 60 ms
+    // (streamState.slow: [id, ms], the last 60) and its dearest frame (streamState.worst: [ms, items, post-work ms, next
+    // metres]). A frame whose premises slot took 60 ms or more copies the builds added since the last look into an event
+    // 'premslow'; the saved log carries both lists whole. Read, never written; nothing on a frame under 60 ms of premises.
+    let premTail = null;
+    function premSlow(t, ms, quiet) {
+      try {
+        const P = W.WORLD && W.WORLD.premises, ST = P && P.streamState, L = ST && ST.slow;
+        if (!L || !L.length) return;
+        let i = L.length - 1; while (i >= 0 && L[i] !== premTail) i--;
+        const add = L.slice(i + 1); premTail = L[L.length - 1];
+        if (!quiet && add.length) event('premslow', t, ms, { built: add.slice(-10), worst: ST.worst || null });
+      } catch (e) {}
+    }
     function newProgram(p) {
       const name = (p && p.name) || '', key = String((p && p.cacheKey) || ''), prev = NP.last.get(name);
       let why = 'first of its name';
@@ -166,6 +206,16 @@
     // events: [t, kind, ms, detail]; the rare path, so plain arrays (capped)
     const EV_CAP = opt.eventCap || 40000;
     let events = [], evDropped = 0, evSaved = 0;
+    const LAPS = new Float64Array(224); let lapK = 0;   // PERF-TRACE: the frame's laps (lapNote)
+    const LAPN = (() => { const m = /[?&]reclaps=(\d+)(?:&|$)/.exec(q), n = m ? +m[1] : 256; return n >= 1 && n <= 65536 ? n : 256; })();
+    const LAPW = 2 + 7 * 14, LAPCAP = LAPN < 256 ? 16384 : 2048, LAPR = new Float64Array(LAPCAP * LAPW); let lapRn = 0;   // the census' ring: [work, n, the laps' numbers]
+    const LAPLCAP = 2048, LAPL = new Float64Array(LAPLCAP * LAPW); let lapLn = 0;   // ... and the LONG frames' (work of 50 ms or more: the last 2 048 of them)
+    // the census as the log's table, oldest first: { every, frames, rows: [[work, slot, t, GPU ms, GPU calls, updated KB, draw calls, triangles, slot, ...]] }
+    function lapRows(A, cap, all) { const n = Math.min(all, cap), rows = [];
+      for (let j = all - n; j < all; j++) { const o = (j % cap) * LAPW, k = A[o + 1], a = new Array(k + 1); a[0] = Math.round(A[o] * 100) / 100;
+        for (let i = 0; i < k; i++) { const c = i % 7, v = A[o + 2 + i]; a[i + 1] = c === 1 || c === 2 ? Math.round(v * 100) / 100 : c === 4 ? Math.round(v / 1024) : v; } rows.push(a); }
+      return rows; }
+    function lapsTable() { return { every: LAPN, frames: lapRn, rows: lapRows(LAPR, LAPCAP, lapRn), longFrames: lapLn, long: lapRows(LAPL, LAPLCAP, lapLn) }; }
     // the page's hidden moments (a tab away), on this recorder's clock: a gap spanning one is not a frame, not a freeze
     if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) V[HIDDEN] = clock(); });
     const rec = {
@@ -203,10 +253,26 @@
       V[TOWN] += ms; V[TOWNN] += n;
       if (kb === kb) V[TOWNKB] = V[TOWNKB] === V[TOWNKB] ? V[TOWNKB] + kb : kb;
     }
+    // PERF-TRACE (PERF-LEAD, 22 Nov: "what happened INSIDE the mirror slot?"): WHEN EACH LAP ENDED. The row keeps a slot's
+    // total, not its place in the frame, so an event of a long frame (a program's first use, a link) could not be put in
+    // the mirror's pass or the main render's. Every lap now also stores seven numbers in a typed array kept for the frame
+    // (the slot, the time, the GPU-data counters so far - creation ms, creation calls, updated bytes - and the draw calls
+    // and triangles so far): nothing allocated. A frame's laps are a row, [its work, then slot, t, GPU ms, GPU calls,
+    // updated KB, draw calls, triangles for each lap] (the first lap with slot -1 = the frame's start).
+    // NO EVENT: two rings of typed numbers allocated once, written in place, read at the save as the log's `laps`
+    // table - `long`: every frame whose work reached 50 ms (LAPL: the last 2 048 of them, 1.6 MB); `rows`: one frame in 256
+    // WHATEVER ITS LENGTH, the steady census of what each pass draws - the mirror's capture against the main render (LAPR:
+    // 2 048 frames, 1.6 MB; ?reclaps=N keeps one frame in N, 1 = every frame, and under 256 that ring is 16 384 frames,
+    // 13 MB). (GATE FLIGHTREC, 22 Nov: handed on as an event, a long frame's laps were an array a frame - 8.9 bytes a
+    // frame in the gate's count against its 4, where every frame is long. A truthful red: the frame's path allocates
+    // nothing again, long frame or not.)
+    // tools/slot_frames.js reads it; a log without it is read by the slots' order, which is an estimate and says so.
+    function lapNote(s, t) { if (lapK <= LAPS.length - 7) { LAPS[lapK++] = s; LAPS[lapK++] = t; LAPS[lapK++] = UP.ms; LAPS[lapK++] = UP.texN + UP.bufN + UP.mipN; LAPS[lapK++] = UP.subB; LAPS[lapK++] = calls; LAPS[lapK++] = tris; } }
     function lap(s) {
       if (!open) return;
       const t = clock();
       acc[s] += (t - V[LAST]) - V[NESTED]; V[NESTED] = 0; V[LAST] = t;
+      lapNote(s, t);
       if (samp) V[SAMP] += clock() - t;
     }
     // a rendered frame starts: ts is rAF's timestamp (the PACE frame's), pc the PACE frame (steps owed)
@@ -218,6 +284,8 @@
       samp = fi % 17 === 3; if (samp) { V[SAMP] = 0; V[SAMP_GL] = 0; }
       for (let i = 0; i < NS; i++) acc[i] = 0;
       owed = pc && typeof pc.steps === 'number' ? pc.steps : 0;
+      if (UP.n !== 0) upFlush(t, 'out');             // (GPU data made between the frames: a timer's, a compile step's)
+      lapK = 0; lapNote(-1, t);
       const tsN = typeof ts === 'number' ? ts : t;
       const j = (fi & (N - 1)) * NC;
       ringT[fi & (N - 1)] = tsN;
@@ -243,6 +311,8 @@
       for (let i = 0; i < NS; i++) { ringF[j + C_SLOT0 + i] = acc[i]; sum += acc[i]; }
       const work = t - V[T0];
       ringF[j + C.work] = work;
+      if ((fi + 1) % LAPN === 0 && lapK > 7) { const o = (lapRn++ % LAPCAP) * LAPW, k = Math.min(lapK, LAPW - 2); LAPR[o] = work; LAPR[o + 1] = k; for (let i = 0; i < k; i++) LAPR[o + 2 + i] = LAPS[i]; }
+      if (work >= 50 && lapK > 7) { const o = (lapLn++ % LAPLCAP) * LAPW, k = Math.min(lapK, LAPW - 2); LAPL[o] = work; LAPL[o + 1] = k; for (let i = 0; i < k; i++) LAPL[o + 2 + i] = LAPS[i]; }
       ringF[j + C.other] += work - sum;              // rounding and anything between the laps: the split sums to the work
       ringF[j + C.owed] = owed; ringF[j + C.taken] = taken;
       ringF[j + C.gpu] = NaN;
@@ -255,6 +325,8 @@
       { const sh = Math.max(acc[S.shader], NP.waitMs);   // G1340: the watchdog
         if (sh > WATCH_MS) event('shaderslow', t, sh, NP.list.join(' | ') + (NP.more ? ' | +' + NP.more + ' more' : '') || '(no new program: waits on programs made earlier)');
         NP.list.length = 0; NP.more = 0; NP.waitMs = 0; }
+      if (acc[S.prem] >= 60) premSlow(t, acc[S.prem], false); else if ((fi & 63) === 16) premSlow(t, 0, true);   // (the tail kept in step, quietly)
+      if (UP.n !== 0 || UP.subN !== 0 || (fi & 15) === 0) upFlush(t, 'loop');   // PERF-TRACE: the frame's GPU data (three's counts re-read every 16th frame)
       if (!rendered) fl |= F.noRender;
       if (rec.gpu.foreignF >= fi - 1) fl |= F.gpuForeign;
       const P = probeOut;
@@ -288,6 +360,7 @@
       ringF[j + C.cap] = cap;
       if ((fi & 63) === 0) heapSample(t);
       ringF[j + C.heap] = V[HEAP];
+      if (rec.traffic) rec.traffic.frameEnd(fi);
       fi++;
       if ((fi & (CHUNK - 1)) === 16 && fi > CHUNK) chunkDone((fi >> Math.log2(CHUNK)) - 1);   // a chunk full (16 frames on, for the GPU's late results)
       const d = clock() - t;
@@ -397,11 +470,17 @@
                    rec.flight = probe.flight || null; rec.spec = probe.spec || null; }   // G3322: the flight's description, the build's spec
       if (!renderer || rec.renderer) return api;
       rec.renderer = renderer;
+      // PERF-TRACE: the uploads' diagnostic (?recup=1, program_id.js section 3): whose buffers and textures are marked for the GPU each frame
+      try { rec.traffic = (W.PROGRAMS && W.PROGRAMS.traffic && W.PROGRAMS.trafficOn && W.THREE) ? W.PROGRAMS.traffic(W.THREE, () => fi) : null; } catch (e) { rec.traffic = null; }
       try {
         const orig = renderer.render;
         if (typeof orig === 'function' && renderer.info && renderer.info.render) {
           renderer.render = function (scene, camera) {
-            const r = orig.call(this, scene, camera);
+            // PERF-TRACE: the program registry (program_id.js) - a render that MADE programs (late ones) is asked whose they are
+            const PID = rec.pid;
+            let r;
+            if (PID) { PID.inRender++; try { r = orig.call(this, scene, camera); } finally { PID.inRender--; } PID.rendered(scene); }
+            else r = orig.call(this, scene, camera);
             if (open) { const I = renderer.info.render; calls += I.calls; tris += I.triangles; }
             return r;
           };
@@ -409,13 +488,13 @@
       } catch (e) {}
       try {   // G1340: every program three makes, for the watchdog
         const A = renderer.info && renderer.info.programs;
-        if (A && !A.__frw) { A.__frw = 1; const push = A.push; A.push = function (p) { try { newProgram(p); } catch (e) {} return push.apply(this, arguments); }; }
+        if (A && !A.__frw) { A.__frw = 1; const push = A.push; A.push = function (p) { try { newProgram(p); if (rec.pid) rec.pid.created(p); } catch (e) {} return push.apply(this, arguments); }; }
       } catch (e) {}
       try {
         const sm = renderer.shadowMap;
         if (sm && typeof sm.render === 'function') {
           const origS = sm.render;
-          sm.render = function (a, b, c) { push(S.shadow); try { return origS.call(this, a, b, c); } finally { pop(); } };
+          sm.render = function (a, b, c) { const PID = rec.pid; push(S.shadow); if (PID) PID.inShadow++; try { return origS.call(this, a, b, c); } finally { if (PID) PID.inShadow--; pop(); } };
         }
       } catch (e) {}
       try {
@@ -438,20 +517,58 @@
       } catch (e) { rec.gpuInfo = null; }
       // the shader links: the call, and the page held while three first asks for the link's status
       const link = gl.linkProgram, infoLog = gl.getProgramInfoLog, param = gl.getProgramParameter;
+      // PERF-TRACE (22 Nov): PROGRAM IDENTITY. program_id.js keeps one row a link - this link's number -> three's program ->
+      // its material's declared owner, and the bracket of its readiness as THREE'S OWN poll saw it (COMPLETION_STATUS_KHR
+      // through the wrapper below: no GL call is added). null under ?progid=0, and where the file is not loaded (a gate)
+      let PID = null;
+      try { PID = rec.pid = (W.PROGRAMS && W.PROGRAMS.hook && rec.renderer) ? W.PROGRAMS.hook(rec.renderer, gl, clock, event) : null; } catch (e) { PID = rec.pid = null; }
+      const DONE = 0x91B1;                             // KHR_parallel_shader_compile COMPLETION_STATUS_KHR (three's isReady)
       let linkN = 0;
       const waiting = new WeakSet();
       gl.linkProgram = function (p) {
         const t = clock(); push(S.shader);
-        try { return link.call(gl, p); } finally { pop(); const d = clock() - t; linkN++; waiting.add(p); event('link', t, d, linkN); }
+        try { return link.call(gl, p); } finally { pop(); const d = clock() - t; linkN++; waiting.add(p); event('link', t, d, linkN); if (PID) PID.linked(p, linkN, t, d); }
       };
       const held = (fn, p, a) => {
         if (!waiting.has(p)) return fn.call(gl, p, a);
         waiting.delete(p);
         const t = clock(); push(S.shader);
-        try { return fn.call(gl, p, a); } finally { pop(); const d = clock() - t; NP.waitMs += d; if (d > 1) event('linkwait', t, d, null); }
+        try { return fn.call(gl, p, a); } finally { pop(); const d = clock() - t; NP.waitMs += d; const n = PID ? PID.waited(p, t, d) : null; if (d > 1) event('linkwait', t, d, n); }
       };
       gl.getProgramInfoLog = function (p) { return held(infoLog, p); };
-      gl.getProgramParameter = function (p, pn) { return pn === gl.LINK_STATUS ? held(param, p, pn) : param.call(gl, p, pn); };
+      const LS = gl.LINK_STATUS;
+      gl.getProgramParameter = function (p, pn) {
+        if (pn === LS) return held(param, p, pn);
+        const r = param.call(gl, p, pn);
+        if (pn === DONE && PID) PID.polled(p, r, clock());   // three asked whether the link is done: its answer, and when
+        return r;
+      };
+      // PERF-TRACE: the creation calls of textures and buffers, timed and sized (see UP). `arguments` is passed through
+      // whole: these calls are overloaded by their argument COUNT, and they are rare (a frame that makes no new GPU data
+      // calls none). bufferSubData - every frame's updates - gets no clock: a count and its bytes, on the two forms three calls
+      const dim = o => (o && o.width && o.height) ? o.width * o.height : 0, blen = o => (o && o.byteLength) || 0;
+      const SIZE = { texImage2D: a => (a.length >= 9 ? a[3] * a[4] : dim(a[5])), texSubImage2D: a => (a.length >= 9 ? a[4] * a[5] : dim(a[6])), texImage3D: a => a[3] * a[4] * a[5],
+        texSubImage3D: a => a[5] * a[6] * a[7], texStorage2D: a => a[3] * a[4], texStorage3D: a => a[3] * a[4] * a[5] };
+      // (?recup=1: each upload is also handed to the registry's GL-level table with the object it was read FROM - the pixels'
+      //  array, the image - which is how an upload three does not manage, the skin's raw GL, gets a row. One null test a call otherwise.)
+      const SRCI = { texImage2D: a => (a.length >= 9 ? 8 : 5), texSubImage2D: a => (a.length >= 9 ? 8 : 6), texImage3D: () => 9, texSubImage3D: () => 10 };
+      const upTex = name => { const f = gl[name], sz = SIZE[name], si = SRCI[name], cmp = /^compressed/.test(name); if (typeof f !== 'function') return;
+        gl[name] = function () { const t = clock(); try { return f.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.texN++; UP.texMs += d; let by = 0;
+          if (cmp) { by = blen(arguments[arguments.length - 1]) || blen(arguments[arguments.length - 3]); UP.cmpB += by; } else { const px = sz ? sz(arguments) : 0; if (px === px) { UP.texPx += px; by = px * 4; } }
+          if (rec.traffic) rec.traffic.gl('tex', si ? arguments[si(arguments)] : null, by, name); } }; };
+      try {
+        for (const n of ['texImage2D', 'texSubImage2D', 'texImage3D', 'texSubImage3D', 'compressedTexImage2D', 'compressedTexSubImage2D', 'compressedTexImage3D', 'compressedTexSubImage3D', 'texStorage2D', 'texStorage3D']) upTex(n);
+        const bd = gl.bufferData, gm = gl.generateMipmap, bs = gl.bufferSubData;
+        if (typeof bd === 'function') gl.bufferData = function (a, b) { const t = clock(); try { return bd.apply(gl, arguments); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.bufN++; UP.bufMs += d; const by = typeof b === 'number' ? b : blen(b); UP.bufB += by; if (rec.traffic) rec.traffic.gl('buf', typeof b === 'number' ? null : b, by, 'bufferData'); } };
+        if (typeof gm === 'function') gl.generateMipmap = function (a) { const t = clock(); try { return gm.call(gl, a); } finally { const d = clock() - t; UP.ms += d; UP.n++; UP.mipN++; UP.mipMs += d; } };
+        if (typeof bs === 'function') gl.bufferSubData = function (a, b, c, d, e) {
+          UP.subN++;
+          const by = arguments.length > 3 && e ? e * ((c && c.BYTES_PER_ELEMENT) || 1) : blen(c); UP.subB += by;
+          if (rec.traffic) rec.traffic.gl('buf', c, by, 'bufferSubData');
+          if (arguments.length > 3) return bs.call(gl, a, b, c, d, e);
+          return bs.call(gl, a, b, c);
+        };
+      } catch (e) {}
       // the GPU timer: ours, and a watch on everyone else's
       let ext = null;
       try { if (!NOGPU && !opt.noGpu) ext = gl.getExtension('EXT_disjoint_timer_query_webgl2'); } catch (e) {}
@@ -510,6 +627,12 @@
           endUsMean: selfN ? +(V[SELF_US] / selfN).toFixed(2) : null, endUsMax: +V[SELF_MAX].toFixed(1), frames: selfN },
         gpuTimer: rec.gpu.ext ? { ok: rec.gpu.ok, disjoint: rec.gpu.bad, foreignFrames: rec.gpu.foreign,
           requested: rec.gpu.req, coverage: rec.gpu.req ? +(rec.gpu.ok / rec.gpu.req).toFixed(3) : null, subsystemFrames: rec.gpu.subF, rogue: rec.gpu.rogue, nested: rec.gpu.nest } : null,
+        programs: rec.pid ? rec.pid.summary() : null,   // PERF-TRACE: the program registry's count (owned / unowned / seen ready / drawn) and its own cost
+        // PERF-TRACE: the GPU data of the whole run - the frames (and gaps) that made or updated any, and the totals
+        gpuData: { frames: UPT[0], texCalls: UPT[1], texMs: Math.round(UPT[2]), megapixels: Math.round(UPT[3]), compressedMB: Math.round(UPT[4] / 1048576), bufferCalls: UPT[5], bufferMs: Math.round(UPT[6]),
+          bufferMB: Math.round(UPT[7] / 1048576), updateCalls: UPT[8], updateMB: Math.round(UPT[9] / 1048576) },
+        seen: typeof VIS !== 'undefined' ? { start: VIS.start, now: seenNow(), hidden: VIS.hidden, blurs: VIS.blur } : null,   // PERF-TRACE: the page's visibility and focus
+        workers: typeof WK !== 'undefined' && WK.on ? wkRows(false) : null,   // PERF-TRACE: every Worker made, by name, with its traffic's totals (the buckets are the log's `workers`)
       };
       const R = rec.renderer;
       if (R && R.domElement) H.canvas = { w: R.domElement.width, h: R.domElement.height, cssW: R.domElement.clientWidth, cssH: R.domElement.clientHeight, pixelRatio: R.getPixelRatio ? R.getPixelRatio() : null };
@@ -550,7 +673,18 @@
       const parts = ['{"header":', JSON.stringify(header()), ',"frames":{'];
       parts.push('"n":' + (fi - a) + ',"first":' + a + ',');
       rowsJSON(a, fi, parts);
-      parts.push('},"events":' + JSON.stringify(events) + '}');
+      // PERF-TRACE: the programs' table (program_id.js: owner, fingerprint, sizes, #defines, the readiness bracket) - asked
+      // FIRST: it closes the rows still waiting for their owner, which are events
+      let progs = null; try { progs = rec.pid ? rec.pid.table(true) : null; } catch (e) {}
+      let upl = null; try { upl = rec.traffic && W.PROGRAMS && W.PROGRAMS.uploads ? W.PROGRAMS.uploads() : null; } catch (e) {}
+      let prem = null; try { const ST = W.WORLD && W.WORLD.premises && W.WORLD.premises.streamState; if (ST) prem = { slow: ST.slow || null, worst: ST.worst || null }; } catch (e) {}
+      // ... and THE NETWORK, as the browser timed it (resource timing: [name, start ms, end ms, KB, kind]) - the loading
+      // timeline's lane (tools/load_timeline.js), on this log's own clock. Read here, at the save; nothing during the frames
+      let resrc = null; try { resrc = perf.getEntriesByType ? perf.getEntriesByType('resource').map(r => [String(r.name).replace(/^https?:\/\/[^/]+\//, '').replace(/\?.*$/, '').slice(-90),
+        Math.round(r.startTime), Math.round(r.responseEnd), Math.round((r.transferSize || r.encodedBodySize || 0) / 1024), r.initiatorType || '']) : null; } catch (e) {}
+      let wks = null; try { wks = typeof WK !== 'undefined' && WK.on ? wkRows(true) : null; } catch (e) {}   // PERF-TRACE: the workers' traffic in 250 ms buckets
+      parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + ',"uploads":' + JSON.stringify(upl) +
+        ',"workers":' + JSON.stringify(wks) + ',"laps":' + JSON.stringify(lapsTable()) + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)
@@ -603,15 +737,88 @@
   if (W.document && W.document.addEventListener) {
     W.document.addEventListener('visibilitychange', () => {
       const h = !!W.document.hidden;
+      if (h) VIS.hidden++;
       REC.event('vis', null, null, h ? 'hidden' : 'visible');
       if (h && STORE) STORE.flush(true);
     });
   }
 
+  // PERF-TRACE (22 Nov; PERF-LEAD): WAS THE PAGE SEEN? A hidden or unfocused page is throttled by the browser and its
+  // frames mean nothing. The page's visibility and focus at this script, and now (the header's `seen`), with how often
+  // it was hidden and lost the focus in between ('vis' and 'focus' events say when).
+  const seenNow = () => { try { const d = W.document; return d ? { state: d.visibilityState || null, focus: typeof d.hasFocus === 'function' ? !!d.hasFocus() : null } : null; } catch (e) { return null; } };
+  const VIS = { start: seenNow(), hidden: 0, blur: 0 };
+
+  // PERF-TRACE (22 Nov): THE WORKERS. A loading step that waits on a worker (the houses, the rocks, the flown ground's
+  // bake, the flight's physics) left nothing in the log, and the timeline read "not proven" for 20 s of a cold load.
+  // Every Worker the page makes is counted from here:
+  //   who      the standard `name` option of its constructor (new Worker(url, { name: 'town / houses / builder' }): it
+  //            is the worker's self.name and the thread's name in DevTools). A site without one reads UNNAMED, and GATE
+  //            PROGRAMS part 9 lists it.
+  //   when     made, ended (terminate()), first message sent, last reply
+  //   traffic  per 250 ms bucket: messages sent, replies received, the MAIN THREAD's ms inside the reply's handler,
+  //            the requests still out at the bucket's end (sent minus received, floored at 0: a worker that answers
+  //            twice, or never, makes this a hint and not a count)
+  //   'wkmsg'  an event for a reply whose handler held the main thread for 16 ms or more (the freeze ledger's cause)
+  // What the worker computed in between is NOT measured: its thread is not ours to read. A step that ends with a
+  // worker's reply "ended with <name>'s reply", and no more is claimed.
+  // THE COST: one clock read and a bucket update per message sent; two clock reads, a bucket update and one wrapper
+  // call per reply. No message is copied, read or delayed. ?recwk=0 leaves the page's Worker untouched (this
+  // instrument's own A/B), and so does ?rec=0.
+  const WKB = 250, WK_CAP = 16384 * 5, WK = { list: [], on: false };
+  const wkBump = (r, col, v, t) => {
+    const b = Math.floor(t / WKB), io = r.io; let i = io.length - 5;
+    if (i < 0 || io[i] !== b) { if (io.length >= WK_CAP) { r.cut = true; return; } io.push(b, 0, 0, 0, 0); i = io.length - 5; }
+    io[i + col] += v; io[i + 4] = r.open;
+  };
+  const wk1 = x => (x == null ? null : Math.round(x * 10) / 10);
+  const wkRows = full => WK.list.map(r => {
+    const o = { n: r.n, name: r.name, t: wk1(r.t), end: wk1(r.end), sent: r.out, received: r.in, handlerMs: wk1(r.hMs), handlerMaxMs: wk1(r.hMax), open: r.open, maxOpen: r.maxOpen,
+      firstSent: wk1(r.firstOut), lastReply: wk1(r.lastIn), cut: r.cut };
+    if (full) { o.bucketMs = WKB; o.io = r.io.map((v, i) => (i % 5 === 3 ? wk1(v) : v)); }   // [bucket, sent, received, handler ms, still out] x n
+    return o; });
+  try {
+    if (!OFF && typeof W.Worker === 'function' && !/[?&]recwk=0(?:&|$)/.test(q)) {
+      const Native = W.Worker, NP = Native.prototype;
+      const onD = (() => { try { for (let p = NP; p; p = Object.getPrototypeOf(p)) { const d = Object.getOwnPropertyDescriptor(p, 'onmessage'); if (d) return d.set && d.get ? d : null; } } catch (e) {} return null; })();
+      const Wrapped = function Worker(url, opts) {
+        const w = opts === undefined ? new Native(url) : new Native(url, opts);
+        try {
+          const r = { n: WK.list.length + 1, name: (opts && typeof opts === 'object' && opts.name) ? String(opts.name).slice(0, 80) : 'UNNAMED', t: now(), end: null,
+            out: 0, in: 0, hMs: 0, hMax: 0, open: 0, maxOpen: 0, firstOut: null, lastIn: null, cut: false, io: [] };
+          WK.list.push(r);
+          REC.event('wk', r.t, null, r.n + ' ' + r.name);
+          const post = w.postMessage, term = w.terminate;
+          if (typeof post === 'function') w.postMessage = function () {
+            const t = now(); r.out++; r.open++; if (r.open > r.maxOpen) r.maxOpen = r.open; if (r.firstOut === null) r.firstOut = t; wkBump(r, 1, 1, t);
+            return post.apply(w, arguments); };
+          if (typeof term === 'function') w.terminate = function () {
+            if (r.end === null) { r.end = now(); REC.event('wkend', r.end, null, r.n + ' ' + r.name); }
+            return term.apply(w, arguments); };
+          // the replies, counted by a listener of our own (the first one registered: it runs before the site's handler)
+          if (typeof w.addEventListener === 'function') w.addEventListener('message', () => { const t = now(); r.in++; if (r.open > 0) r.open--; r.lastIn = t; wkBump(r, 2, 1, t); });
+          // ... and the site's own handler, timed (every site sets .onmessage; a site that listens otherwise is counted, not timed)
+          if (onD) { let raw = null;
+            Object.defineProperty(w, 'onmessage', { configurable: true, enumerable: true, get: () => raw,
+              set: fn => { raw = fn; onD.set.call(w, typeof fn !== 'function' ? fn : function () {
+                const t0 = now();
+                try { return fn.apply(this, arguments); }
+                finally { const t1 = now(), ms = t1 - t0; r.hMs += ms; if (ms > r.hMax) r.hMax = ms; wkBump(r, 3, ms, t1); if (ms >= 16) REC.event('wkmsg', t0, ms, r.name); } }); } }); }
+        } catch (e) {}
+        return w;
+      };
+      Wrapped.prototype = NP; W.Worker = Wrapped; WK.on = true;
+    }
+  } catch (e) {}
   // =================================================================================================================
   // THE PAGE'S RECORDER: one, from this script on
   // =================================================================================================================
-  const REC = make();
+  // PERF-TRACE (22 Nov; PERF-LEAD): A LONGER RING FOR ONE RUN. ?recring=131072 (or 262144; a power of two, nothing else is
+  // taken) keeps that many frames instead of 65 536: a 27-minute scripted journey at 60 fps is 97 000 frames, and its
+  // take-off was gone from the log. A frame's record is 216 bytes (52 columns of 4 + its time): 14 MB by default, 28 MB
+  // at 131 072, 57 MB at 262 144, allocated once at this line; the saved log grows with it. The default is unchanged.
+  const RING = (() => { const m = /[?&]recring=(\d+)(?:&|$)/.exec(q), n = m ? +m[1] : 0; return n === 131072 || n === 262144 ? n : 0; })();
+  const REC = make(RING ? { frames: RING } : undefined);
   // the loop's view of it: every hook is a no-op until app.js attaches (and for ever under ?rec=0)
   const NOOP = () => {};
   const API = {
@@ -673,7 +880,11 @@
       + (errs <= 3 && e && e.error && e.error.stack ? ' | ' + String(e.error.stack).split('\n').slice(1, 7).map(s => s.trim().replace(/https?:\/\/[^ )]*\//g, '')).join(' < ').slice(0, 600) : '')); });
     W.addEventListener('unhandledrejection', e => { if (++errs <= 200) ev('err', null, null, 'rejection: ' + String(e && e.reason && (e.reason.message || e.reason)).slice(0, 200)); });
     W.addEventListener('pagehide', () => { ev('pagehide', null, null, null); if (STORE) STORE.flush(true); });
+    W.addEventListener('blur', () => { VIS.blur++; ev('focus', null, null, 'blur'); });
+    W.addEventListener('focus', () => { ev('focus', null, null, 'focus'); });
   }
+  // PERF-TRACE: the browser keeps 250 resource timings by default and a load fetches more: room for all of them (the log's `resources`)
+  try { if (!OFF && perf.setResourceTimingBufferSize) perf.setResourceTimingBufferSize(4000); } catch (e) {}
   ev('script', null, null, 'flight_recorder.js');
   // the server's build (version.json, uncached) for the header, beside the page's own FLYDIY_BUILD
   let REC_VERSION = null;

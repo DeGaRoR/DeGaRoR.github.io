@@ -1,0 +1,35 @@
+{
+ "id": "home.08",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "Cessna 172 floats (career)",
+ "timeS": 550,
+ "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+ "tried": [
+  "Cessna 172 floats (career):infeasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "cb_sea",
+   "t": 550,
+   "how": "crashed",
+   "at": null,
+   "stop": [],
+   "kg": 150,
+   "pax": 0,
+   "faults": [
+    "crash",
+    "yield",
+    "break"
+   ],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "e84f8afb87b9",
+ "where": "home:4",
+ "pool": "validated",
+ "wallS": 673
+}

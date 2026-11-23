@@ -84,7 +84,7 @@ function lintRefs(REFS, PLANES, exists) {
     const at = 'PLANES.' + k;
     if (!REFS[P.ref]) bad.push(at + ': ref ' + P.ref + ' is no REFS row');
     if (P.supersededBy && !PLANES[P.supersededBy]) bad.push(at + ': supersededBy ' + P.supersededBy + ' is no PLANES row');
-    if (P.file && !exists(P.file, P.branch)) bad.push(at + ': ' + P.file + ' not found' + (P.branch ? ' on ' + P.branch : ''));
+    if (P.file && !P.dropped && !exists(P.file, P.branch)) bad.push(at + ': ' + P.file + ' not found' + (P.branch ? ' on ' + P.branch : ''));
     if (!P.file && !P.card) bad.push(at + ': neither a file nor a card');
   }
   return { bad, legacy };

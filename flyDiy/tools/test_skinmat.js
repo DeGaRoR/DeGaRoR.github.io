@@ -1206,7 +1206,7 @@ if (process.argv.includes('--selftest')) {
         'markings: the bake can paint from the bare export (no meta: the far model wears F-PGAR, not the registration)');
   // THE OVERLAY DRAWS OVER EVERYTHING AND STAYS IN FLIGHT (G2750): transparent from birth (an opaque line sorts before
   // every transparent pavement whatever its renderOrder), in the see-through band when x-rayed, reset in the shed
-  check(/new THREE\.LineBasicMaterial\(\{ vertexColors: true, transparent: true \}\)/.test(APP) && /size: 0\.06, transparent: true \}\)/.test(APP),
+  check(/new THREE\.LineBasicMaterial\(\{(?: userData: \{ progOwner: '[^']*' \},)? vertexColors: true, transparent: true \}\)/.test(APP) && /size: 0\.06, transparent: true \}\)/.test(APP),
         'overlay: the frame lines are opaque again — the runway (transparent, drawn after) paints over the x-ray');
   check(/lines\.renderOrder = overlay \? AERO_CLEAR \+ 998 : 998; pts\.renderOrder = overlay \? AERO_CLEAR \+ 999 : 999;/.test(APP),
         'overlay: the x-rayed frame is not above the craft\'s see-through band (the glass, the clouds\' composite)');
@@ -2099,6 +2099,12 @@ function kitGate() {
   check(/rot: \(\+D\.wregRot \|\| 0\) \+ AERO_WREG_TURN/.test(wregPush) && /const AERO_WREG_TURN = Math\.PI;/.test(SRC),
     'wing reg: the letters lost their half turn - their tops face the trailing edge again (the user 16 Nov: ' +
     '"It looked wrong")');
+  // REG-TURN-MIRROR (the user 21 Nov): the turn takes the face's own mirror sign, in the shader and in quickshot's port
+  const QS = fs.readFileSync(path.join(__dirname, 'quickshot.js'), 'utf8');
+  check(/float dsg = mix\(mix\(mir, smir, step\(0\.5, mode\)\), pmir, step\(1\.5, mode\)\);\s*\n\s*float cr = cos\(uDecC\[di\]\.x\), sr = sin\(uDecC\[di\]\.x\) \* dsg;/.test(SRC) &&
+        /const sr = d\.sr \* sg;/.test(QS),
+    'a turned registration: the far flank / the underside must turn the other way (the face\'s mirror sign), else the two ' +
+    'faces lean opposite ways in space (the user 21 Nov: "they drift in orientation")');
 
   // 9 — THE CACHE COVERS THE WHOLE RECIPE. A page is redrawn only when its
   //     signature changes; a field the draw reads and the signature omits is a

@@ -21,6 +21,10 @@
   'use strict';
   const SHEET_URL = 'src/cars/car_conquer.json';
   const TOWN = { id: 'mk_hall', site: 'mk_hall' };   // Cedar Harbour: its Town Hall's site (the map's label)
+  // CAR (13 Nov; the user's must-land list: "a few CAR-ONLY destinations"): the record's named sites a car drives to -
+  // the town's diner, store and dock, the hilltop coffee, the cannery (vehicle_island.js h.sites: kept when a road passes
+  // within 80 m); with the town and the aerodromes on land. The runway ends are the tow's (not in the To list)
+  const CAR_SITES = ['mk_cafe_als', 'mk_store_acc', 'mk_mp_west', 'mk_coffee', 'mk_mw_cannery'];
   const DM = window.DRIVE_MODE = {
     on: false, paused: false, name: "Conquer '89 pickup", chaseDist: 10, to: null, from: null, ms: 0,
   };
@@ -81,9 +85,145 @@
   //      stock Conquer '89 pickup unless the caller hands one - ctx.sheet (a car sheet: tools/car_sheet.js's, the shell's
   //      format - src/cars/car_*.json) or ctx.sheetUrl, and ctx.mesh (its drawing, THREE.Object3D in the sheet's body frame;
   //      ctx.meshMatrix, ctx.wheels, ctx.name optional). A new car drops the old one's rig; the same car keeps it ----
+  // THE STOCK CAR IS THE VAN (the user, 15 Nov: "the van is the default, with the dark blue livery"; A0: "the van is the
+  // default and the tow car ... the Conquer pickup stays selectable"): with no car handed (the drive, the line tow, the
+  // trailer tow), the garage-built Field Wagon in its Retro livery drives - its sheet src/cars/car_utility.json
+  // (tools/car_sheet.js, measured off this very build) and its body CAPTURED by parked.js (PARKED.capture: the garage
+  // editor's round trip, the build's own livery block, kept in its record for the session) and fitted into the sheet's
+  // frame by its box: the long axis along +x, the front the end whose top is lower (the bonnet, not the roof), the
+  // front bumper on the sheet's box front, the tyres' bottom on y = 0, centred across; rotations only (never a mirror:
+  // the plate and the lettering read). Its drawn wheels stay part of the body (the garage car's MVP: they do not spin).
+  // ctx.stock 'pickup' (or no PARKED / no editor - node, a gate) drives the Conquer as before.
+  const VAN = { sheetUrl: 'src/cars/car_utility.json', build: 'builds/vehicles/utility_retro_2026-11.json', key: 'car:utility_retro_2026-11', name: 'Field Wagon (TOW 3)' };
+  let vanSrc = null;                       // { sheet, rec } once captured; false once refused (the pickup then)
+  async function stockVan() {
+    if (vanSrc !== null) return vanSrc || null;
+    const P = window.PARKED;
+    if (!P || typeof P.capture !== 'function' || typeof P.build !== 'function' || !THREE_) return null;
+    try {
+      const [sh, env] = await Promise.all([VAN.sheetUrl, VAN.build].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u + ': ' + r.status); return r.json(); })));
+      const spec = env && env.spec ? env.spec : env;
+      const rec = P.capture(VAN.key, spec);
+      if (!rec) throw new Error('the capture refused (no editor on this page)');
+      vanSrc = { sheet: sh, rec };
+    } catch (e) { console.warn('drive: the stock van is not available - the pickup drives:', e && e.message); vanSrc = false; }
+    return vanSrc || null;
+  }
+  // the captured body, a fresh holder per car (the drive owns what it is given), in the sheet's frame
+  function vanMesh(src) {
+    const T = THREE_, P = window.PARKED, rec = src.rec, inner = new T.Group(); inner.name = 'drive:van';
+    // THE WHEELS APART (16 Nov, the user: "make the wheels spin"): parked.js merges a record's buckets per material, so a
+    // drawn wheel would be welded into the body. The record's WHEEL PARTS (the join gives each of a car's four wheels its
+    // own, about its own axle) are left out of the body - a copy of the record under its own key (its own cut and bake) -
+    // and each is drawn on its own (PARKED.levelMeshes) in the frame build() stands the body in (the stance's pitch and
+    // lift, the nose turned to +x), the tyres on CAGE_WHEELTEX's material, the rest plain in the record's colour
+    const isW = q => /^mains|^tw$/.test(q.kind || '') && q.pivot && !q.stretch;
+    const wParts = (rec.vis && rec.vis.parts || []).filter(isW);
+    const st = rec.stance || (rec.stance = P.stance(rec.vis));
+    if (wParts.length && !src.body) {
+      const vis = Object.assign({}, rec.vis, { parts: rec.vis.parts.filter(q => !isW(q)) });
+      let tris = 0; for (const k in vis.groups) tris += vis.groups[k].idx.length / 3; for (const q of vis.parts) for (const k in q.groups) tris += q.groups[k].idx.length / 3;
+      src.body = { key: rec.key + ':body', spec: rec.spec, vis, block: rec.block, atlas: rec.atlas, panel: rec.panel, t: rec.t, far: null, tris, stance: st, geos: rec.geos };
+    }
+    P.build(T, src.body || rec, inner);
+    const parts = [];
+    if (src.body) {
+      const mats = rec.vis.mats, pool = src.wheelMats || (src.wheelMats = {});
+      const matFor = k => { if (pool[k]) return pool[k]; const m = mats[k] || {};
+        const tm = m.tyreTex && window.CAGE_WHEELTEX ? window.CAGE_WHEELTEX.material(m.tyreTex) : null;
+        return pool[k] = tm || new T.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car wheels / plain fallback' }, color: m.color !== undefined ? m.color : 0x333333, metalness: m.metal !== undefined ? m.metal : 0.4, roughness: m.rough !== undefined ? m.rough : 0.5 }); };
+      matFor.tint = m0 => m0;
+      for (const q of wParts) {
+        const lv = P.levelMeshes(T, { vis: { groups: {}, parts: [q], mats }, geos: rec.geos || (rec.geos = new Map()) }, matFor, false);
+        const fr = new T.Group(); fr.rotation.z = st.pitch; fr.position.y = st.lift; fr.add(lv);
+        const flip = new T.Group(); flip.rotation.y = Math.PI; flip.add(fr); inner.add(flip);
+        const list = []; lv.traverse(o => { if (o.isMesh) list.push(o); }); parts.push(list);
+      }
+    }
+    inner.updateMatrixWorld(true);
+    // the vertices' extent, sampled (the LOD's near rung only: the same shape at every rung)
+    const v = new T.Vector3(), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity], pts = [];
+    inner.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      for (let a = o; a && a !== inner; a = a.parent) if (a.isLOD) { if (a.levels && a.levels[0] && !isAncestor(a.levels[0].object, o)) return; break; }
+      const A = o.geometry.attributes.position, step = Math.max(1, Math.floor(A.count / 4000));
+      for (let i = 0; i < A.count; i += step) { v.fromBufferAttribute(A, i).applyMatrix4(o.matrixWorld);
+        lo[0] = Math.min(lo[0], v.x); lo[1] = Math.min(lo[1], v.y); lo[2] = Math.min(lo[2], v.z);
+        hi[0] = Math.max(hi[0], v.x); hi[1] = Math.max(hi[1], v.y); hi[2] = Math.max(hi[2], v.z); pts.push(v.x, v.y, v.z); }
+    });
+    const ax = (hi[2] - lo[2]) > (hi[0] - lo[0]) ? 2 : 0, lat = 2 - ax;
+    // the front: the end whose top (within 0.4 m of it) is lower
+    let topLo = -Infinity, topHi = -Infinity;
+    for (let i = 0; i < pts.length; i += 3) { const a = pts[i + ax], y = pts[i + 1];
+      if (a < lo[ax] + 0.4) topLo = Math.max(topLo, y); if (a > hi[ax] - 0.4) topHi = Math.max(topHi, y); }
+    const fwdPlus = topHi < topLo;          // the front at the axis's + end
+    // the rotation about y taking the front onto +x: +z -> +x is +90 deg, -z -> -90, +x 0, -x 180
+    const yaw = ax === 2 ? (fwdPlus ? Math.PI / 2 : -Math.PI / 2) : (fwdPlus ? 0 : Math.PI);
+    const front = fwdPlus ? hi[ax] : lo[ax], mid = (lo[lat] + hi[lat]) / 2;
+    const rot = new T.Group(); rot.rotation.y = yaw; rot.add(inner);
+    // move the body so its front is at the origin, its middle on the centreline and its tyres on the ground (before the yaw)
+    inner.position.set(ax === 0 ? -front : -mid, -lo[1], ax === 2 ? -front : -mid);
+    const holder = new T.Group(); holder.name = 'drive:stockVan';
+    holder.position.x = src.sheet.box && src.sheet.box.hi ? src.sheet.box.hi[0] : 0;
+    holder.add(rot);
+    // THE WHEELS SPIN (16 Nov, the user: "make the wheels spin"): the record's wheel parts (the join gives each of a car's
+    // four wheels its own part about its own axle - _cage_join.js's nearest-contact rule) are drawn by parked.js at their
+    // pivots; they leave the body and become the rig's wheels, each about its hub in the sheet's frame (its axle on z:
+    // the rig spins it about z and steers it about y), matched to the sheet's nearest wheel
+    holder.updateMatrixWorld(true);
+    // LEVEL ON THE HUBS: parked.js stood the record as an aeroplane (its resting pitch off the mains and a third wheel) -
+    // the van came out ~1.8 deg nose-up (the front hubs 10 cm over the sheet's). Turned about z so the front and rear
+    // hubs lie as the sheet's do, then lifted so the rear hubs sit at the sheet's rear axle height
+    if (parts.length >= 2 && src.sheet.wheels) {
+      const hubOf = list => { const v = new T.Vector3(); list[0].getWorldPosition(v); return v; };
+      const avg = (L, f) => L.reduce((a, q) => a + f(q), 0) / L.length;
+      let H = parts.map(hubOf); const xMax = Math.max(...H.map(h => h.x)), xMin = Math.min(...H.map(h => h.x));
+      const SW = Object.values(src.sheet.wheels).map(w => w.centre), sMax = Math.max(...SW.map(c => c[0])), sMin = Math.min(...SW.map(c => c[0]));
+      const SF = SW.filter(c => c[0] > sMax - 0.3), SR = SW.filter(c => c[0] < sMin + 0.3);
+      const want = Math.atan2(avg(SF, c => c[1]) - avg(SR, c => c[1]), avg(SF, c => c[0]) - avg(SR, c => c[0]));
+      const F = H.filter(h => h.x > xMax - 0.3), R = H.filter(h => h.x < xMin + 0.3);
+      const have = Math.atan2(avg(F, h => h.y) - avg(R, h => h.y), avg(F, h => h.x) - avg(R, h => h.x));
+      holder.rotation.z = want - have; holder.updateMatrixWorld(true);
+      H = parts.map(hubOf); const R2 = H.filter(h => h.x < Math.min(...H.map(q => q.x)) + 0.3);
+      holder.position.y += avg(SR, c => c[1]) - avg(R2, h => h.y); holder.updateMatrixWorld(true);
+    }
+    // (the holder has no parent yet: its WORLD frame is the sheet's - the rig hangs the holder in the sheet's frame as is)
+    const wheels = {}, inv = new T.Matrix4(), hubW = new T.Vector3(), hubs = [];
+    const ids = Object.keys(src.sheet.wheels || {});
+    for (const list of parts) {
+      list[0].getWorldPosition(hubW); const hub = hubW.clone().applyMatrix4(inv); hubs.push([hub.x, hub.y, hub.z].map(v => +v.toFixed(2)));
+      let best = null, bd = 0.6;                     // (a wheel's hub within 0.6 m of a sheet wheel's centre)
+      for (const id of ids) { const c = src.sheet.wheels[id].centre; const d = Math.hypot(c[0] - hub.x, c[1] - hub.y, c[2] - hub.z); if (d < bd) { bd = d; best = id; } }
+      if (!best || wheels[best]) continue;
+      const w = new T.Group(); w.name = 'drive:vanWheel' + best;
+      for (const o of list) {
+        const M = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld), pos = new T.Vector3(), q = new T.Quaternion(), sc = new T.Vector3();
+        M.decompose(pos, q, sc);
+        o.parent.remove(o); o.position.set(0, 0, 0); o.quaternion.copy(q); o.scale.copy(sc); o.updateMatrix();
+        w.add(o);
+      }
+      wheels[best] = w;
+    }
+    DM.vanInfo = { parts: parts.length, hubs, matched: Object.keys(wheels) };   // (the page rigs' probe)
+    return { mesh: holder, wheels: Object.keys(wheels).length === ids.length ? wheels : null, nWheels: Object.keys(wheels).length };
+  }
+  function isAncestor(a, o) { for (let q = o; q; q = q.parent) if (q === a) return true; return false; }
   async function useCar(ctx) {
     let sh = ctx.sheet || null;
     if (!sh && ctx.sheetUrl) { const r = await fetch(ctx.sheetUrl); if (!r.ok) throw new Error('the car sheet ' + ctx.sheetUrl + ': ' + r.status); sh = await r.json(); }
+    // no car handed: THE VAN (its sheet + its captured body); the pickup when asked for, or when the van cannot be had
+    if (!sh && ctx.stock !== 'pickup') {
+      const V = await stockVan();
+      if (V) {
+        if (sheet === V.sheet && carCtx && carCtx.van) return;   // the van already: its def and rig stand
+        if (rig && rig.g.parent) rig.g.parent.remove(rig.g);
+        const vm = vanMesh(V);
+        if (!vm.wheels) console.warn('drive: the van\'s wheels found ' + vm.nWheels + ' of 4 - they stay in the body (no spin)');
+        rig = null; sheet = V.sheet; carCtx = { mesh: vm.mesh, meshMatrix: null, wheels: vm.wheels, van: true }; def = vehicleDef(sheet, sheet.tune);
+        DM.name = ctx.name || VAN.name;
+        return;
+      }
+    }
     if (!sh) { if (!stockSheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); stockSheet = await r.json(); } sh = stockSheet; }
     const next = sh === stockSheet ? null : { mesh: ctx.mesh || null, meshMatrix: ctx.meshMatrix || null, wheels: ctx.wheels || null };
     if (sh === sheet && (next ? !!carCtx && carCtx.mesh === next.mesh : !carCtx)) return;   // the same car: its def and rig stand
@@ -102,7 +242,8 @@
     if (LG.world === world && LG.G) return LG.G;
     const H = typeof siteOf === 'function' ? siteOf('HOME') : null, st = H && H.stand;
     const I = vehIslandFromWorld(world, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null,
-      town: { id: TOWN.id, site: TOWN.site, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town' }, from: st ? [st.x, st.z] : null });
+      town: { id: TOWN.id, site: TOWN.site, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town' }, from: st ? [st.x, st.z] : null,
+      sites: CAR_SITES, landOnly: true });
     if (!I) throw new Error('no roads in this world (the premises carry the road graph)');
     LG.world = world; LG.G = vehRoadGraph(I.spec);
     return LG.G;
@@ -130,7 +271,8 @@
     const t0 = performance.now();
     const at = ctx.at || [0, 0, 0];
     const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null,
-      town: { id: TOWN.id, site: TOWN.site, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town' }, from: [at[0], at[2]] });
+      town: { id: TOWN.id, site: TOWN.site, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town' }, from: [at[0], at[2]],
+      sites: CAR_SITES, landOnly: true });
     if (!I) throw new Error('no roads in this world (the premises carry the road graph)');
     rep = I.report;
     G = vehRoadGraph(I.spec);
@@ -140,10 +282,12 @@
     car = makeVehicle(def, world_);
     if (!rig) rig = buildRig(); if (!rig.g.parent) scene_.add(rig.g);
     DM.on = true; DM.paused = false;
-    const to0 = ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : start.id);
+    // (CAR, 13 Nov: with no To asked and no town at this budget the car waits at its start for the player's pick - it
+    // drove to its own stand, round the block, before)
+    const to0 = ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : null);
     place(start, to0);
-    DM.setDest(to0);
-    DM.loop = ctx.loop && to0 !== start.id ? { back: start.id } : null;   // (the start chooser's LOOP: out to `to`, then back here)
+    if (to0) DM.setDest(to0);
+    DM.loop = ctx.loop && to0 && to0 !== start.id ? { back: start.id } : null;   // (the start chooser's LOOP: out to `to`, then back here)
     return true;
   };
   // (the car stands facing the way its route leaves: a trip sets off without a U-turn - vehFaceToward)
@@ -177,9 +321,9 @@
     // (a place the car cannot reach from where it stands - a closed steep stretch, a network of its own - greyed, saying so)
     let reach = null;
     try { const p = car.refPoint(), Lc = vehGraphLocate(G, p[0], p[2], car.heading()), D1 = vehDijkstra(G, Lc.ahead, null), D2 = vehDijkstra(G, Lc.behind, null); reach = n => D1.dist[n] < Infinity || D2.dist[n] < Infinity; } catch (e) {}
-    // (a car's list: the fields' stands, the town, the car's own places - not the runway ends: those are the tow's and
-    //  the trailer's, which pick their own end; the user, 13 Nov: "the list of reachable destinations differs for a car")
-    const L = Object.values(G.places).filter(p => p.kind === 'stop' && p.what !== 'runway').sort((a, b) => a.name.localeCompare(b.name))
+    // (a car's list: the fields' stands, the town, the car's own places - the runway ends only while a tow is on: those are
+    //  the tow's and the trailer's; the user, 13 Nov: "the list of reachable destinations differs for a car")
+    const L = Object.values(G.places).filter(p => p.kind === 'stop' && (p.what !== 'runway' || (DM.tow && DM.tow.active))).sort((a, b) => a.name.localeCompare(b.name))
       .map(p => (!reach || reach(p.node) ? { id: p.id, label: p.name, ok: true } : { id: p.id, label: p.name + ' - no drivable road there', ok: false }));
     if (!G.places[TOWN.id] && window.FLYDIY_TOWN && !window.FLYDIY_TOWN.all)
       L.push({ id: TOWN.id, label: ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town') + ' - not built at this graphics budget', ok: false });
@@ -201,6 +345,9 @@
     poseRig();
   };
   DM.target = () => { const c = car.toWorld(def.cg); return [c[0], c[1] + 0.6, c[2]]; };
+  // (CAR, 13 Nov: a probe for the page rigs - the rig's meshes, its place in the world, the camera's target)
+  DM.rigInfo = () => { if (!rig) return null; let n = 0; rig.g.traverse(o => { if (o.isMesh) n++; }); const e = rig.g.matrix.elements;
+    return { meshes: n, wheels: rig.wheels.length, inScene: !!rig.g.parent, at: [e[12], e[13], e[14]].map(v => +v.toFixed(2)), target: DM.target().map(v => +v.toFixed(2)), cg: def && def.cg, garageCar: !!carCtx }; };
   DM.tailAxis = () => { const f = car.axes().fwd; return [-f[0], -f[1], -f[2]]; };
   DM.upAxis = () => [0, 1, 0];
 
@@ -222,10 +369,10 @@
     if (ph === 'MANOEUVRE' && M) return { phase: 'U-TURN', line: 'U-turn (' + M.plan.family + '): move ' + (D.manI + 1) + ' of ' + M.paths.length + (M.paths[D.manI] && M.paths[D.manI].dir < 0 ? ', reversing' : ', forward') + ' - then ' + to, left: null };
     if (ph === 'ARRIVED') return { phase: 'ARRIVED', line: 'arrived at ' + to + ' - pick a new To to drive on', left: 0 };
     if (ph === 'STUCK') return { phase: 'STUCK', line: 'stuck: not moving for 20 s on the throttle - Restart, or a new To', left: null };
-    const lg = D && D.log.length ? D.log[D.log.length - 1].msg : 'parked';
+    const lg = D && D.log.length ? D.log[D.log.length - 1].msg : 'parked at ' + placeName(DM.from) + ' - pick a destination (the To)';
     return { phase: 'PARKED', line: lg, left: null };
   };
-  DM.trip = () => placeName(DM.from) + ' → ' + placeName(DM.to);
+  DM.trip = () => placeName(DM.from) + ' → ' + (DM.to ? placeName(DM.to) : 'pick a To');
 
   // ---- THE HUD CARD: the flight's own cells, three of them re-labelled; the rest hidden while driving ----
   const KEEP = ['ias', 'alt', 'vs'];
@@ -315,7 +462,7 @@
     TW.line = makeTowLine(sim, car1, { L0: TW.L0, hook, groundAt: (x, z) => world_.terrainH(x, z) });
     if (!rig) { rig = buildRig(); } if (!rig.g.parent) scene_.add(rig.g);
     const T = THREE_, gm = new T.BufferGeometry(); gm.setAttribute('position', new T.BufferAttribute(new Float32Array(25 * 3), 3));
-    TW.rope = new T.Line(gm, new T.LineBasicMaterial({ color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
+    TW.rope = new T.Line(gm, new T.LineBasicMaterial({ userData: { progOwner: 'vehicles / tow car / rope line' }, color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
     // (15 Nov: the rope's end - the Tost ring pair in the CG release's jaw, the rope spliced to it: tow.js towRingRig; a page
     //  with an older tow.js draws the rope from the hook as before)
     if (typeof towRingRig === 'function') { TW.rings = towRingRig(T); scene_.add(TW.rings.group); }

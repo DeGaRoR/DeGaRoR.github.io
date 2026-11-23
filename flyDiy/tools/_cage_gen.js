@@ -564,6 +564,13 @@ function cageResolve(S) {
   // afterbody line (the planing run's: a straight buttock releases the water cleanly), the gunwale a straight line. Four rings; the
   // hull's V goes on each (cageHullVee), so the water's table reads the same body (cageHullLines)
   if (!MIR && ROD && HTAP) {
+    // THE DECK IS ONE SURFACE (SEAPLANES 22 Nov, the user on the Super Petrel: "the shading issue is 2 bands, delimited by
+    // 4 lines ... I would like not to see them anymore"): the taper's map runs the painted longeron rails through it
+    // (CAGE_MAT.taper: a ceilingLoop strip each side of the deck, a waistband at the gunwale, a floorLoop under), right on
+    // a pod-and-boom's lattice taper - on a hull's buoyant afterbody they were two bands of another section across a deck
+    // that turns less than 2 deg at their edges, each edge a seam in the drawing and the paint. The hull's taper bay is
+    // all 'taper' (CAGE_PILLAR's uniform map; not a pillar: its name is not the pillar family's).
+    const HT_MAT = CAGE_PILLAR('taper');
     const yAx = z => ROD.y + Math.tan(ROD.incl || 0) * (zRodAx - z);
     const e = taperD, Wk1 = e.Wk != null ? e.Wk : e.Ww, yc1 = 0.5 * (e.roofY + e.keelY);
     const hT = 0.5 * (e.roofY - e.keelY), rCol = HT_COLLAR * ROD.r;
@@ -597,7 +604,7 @@ function cageResolve(S) {
         const wd = v => wT + (v - wT) * g;
         add(fullRing(u === US[0] ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
           Ww: wd(e.Ww), Wr: wd(e.Wr), Wk: wd(Wk1), roofY: roof, keelY: keel, ceilY: fr(e.ceilY), floorY: fr(e.floorY),
-          waistY: e.waistY != null ? fr(e.waistY) : undefined }), { mat: CAGE_MAT.taper });
+          waistY: e.waistY != null ? fr(e.waistY) : undefined }), { mat: HT_MAT });
       }
     }
     if (!own) for (const u of US) {
@@ -608,11 +615,11 @@ function cageResolve(S) {
       add(fullRing(u === US[0] ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
         Ww: sc(e.Ww), Wr: sc(e.Wr), Wk: sc(Wk1), roofY: yc + sc(hT), keelY: yc - sc(hT),
         ceilY: yc + sc(e.ceilY - yc1), floorY: yc + sc(e.floorY - yc1),
-        waistY: e.waistY != null ? yc + sc(e.waistY - yc1) : undefined }), { mat: CAGE_MAT.taper });
+        waistY: e.waistY != null ? yc + sc(e.waistY - yc1) : undefined }), { mat: HT_MAT });
     }
     // (HULL-B40: the buoyant taper's end is skin, not a rib - no pillar band, no crease: buildCage2's fam)
-    add(fullRing('pilTaperA', zTaperP, taperD), { mat: CAGE_MAT.taper });
-    add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
+    add(fullRing('pilTaperA', zTaperP, taperD), { mat: HT_MAT });
+    add(fullRing('pilTaperB', zTaperA, taperD), { mat: HT_MAT });
     // the taper bay's own rings, aft -> fore (t from the cabin's aft pillar, 0, to the taper's, 1)
     const c = pilPaxADh(), Wk0 = c.Wk != null ? c.Wk : c.Ww;
     const lp = (a0, a1, f) => a1 + (a0 - a1) * f;
@@ -658,7 +665,7 @@ function cageResolve(S) {
         roofY: lp(c.roofY, e.roofY, fr), ceilY: lp(c.ceilY, e.ceilY, fr), floorY: lp(c.floorY, e.floorY, fk),
         keelY: keelT,
         waistY: (c.waistY != null || e.waistY != null) ? lp(c.waistY != null ? c.waistY : S.waistY, e.waistY != null ? e.waistY : S.waistY, fk) : undefined }),
-        { mat: CAGE_MAT.taper });
+        { mat: HT_MAT });
     }
   }
   // THE AERO AFT, CUT 2 (2026-09-04, the user: "reuse the topology of the
@@ -1193,6 +1200,42 @@ function cageResolve(S) {
   }
   }
   frameZ(false);
+  // PILLAR-FOLLOW (the user 15 Nov, the C172 refit: "the pillars stay straight whatever, even though they're part of a
+  // curved profile ... an option so they too follow nicely the curvature, so they don't generate steps in a profile"):
+  // a pillar is a ring pair of one frame section, so the band between them runs flat whatever the bays either side do
+  // and the profile steps at every pillar. On: the section is held at the pillar's CENTRE station and each of its two
+  // rings takes its place on the straight run from that centre to the ring beyond it on its own side - x and y of every
+  // level move, z stays (the frames' fore/aft above is kept). A neighbour across another pillar, a non-full ring or a
+  // ring outside the run leaves that side as built. Off / absent: nothing here runs (fit identity).
+  if (S.pillarFollow && !MIR) {
+    const zOf = r => (r.lv.waist || r.lv.roof).z;
+    const snap = rings.map(r => ({ name: r.name, kind: r.kind, lv: JSON.parse(JSON.stringify(r.lv)) }));
+    const setXY = (r, src) => {
+      for (const k in r.lv) {
+        const l = r.lv[k], s = src.lv[k];
+        if (!s) continue;
+        l.x = s.x; l.y = s.y;
+        if (l.yC != null && s.yC != null) l.yC = s.yC;
+      }
+    };
+    for (let i = 0; i + 1 < rings.length; i++) {
+      const bay = bays[i];
+      if (!bay || !isPillarMat(bay.mat)) continue;
+      const A = snap[i], B = snap[i + 1];
+      if (A.kind !== 'full' || B.kind !== 'full') continue;
+      const C = lerpRing(A, B, 0.5, 'pilC'), c = 0.5 * (zOf(A) + zOf(B));
+      const side = (ri, ni, bi) => {
+        if (ni < 0 || ni >= rings.length || !bays[bi] || isPillarMat(bays[bi].mat)) return;
+        const N = snap[ni];
+        if (N.kind !== 'full') return;
+        const t = (zOf(snap[ri]) - c) / (zOf(N) - c);
+        if (!(t > 0 && t < 1)) return;
+        setXY(rings[ri], lerpRing(C, N, t, rings[ri].name));
+      };
+      side(i, i - 1, i - 1);
+      side(i + 1, i + 2, i + 1);
+    }
+  }
   openBays();
 
   // (the G16 bubble-canopy repositioning experiment lived here — DELETED
@@ -2130,8 +2173,11 @@ function buildCage2(S, step) {
   };
   // mirrored pod: seq[0] is pilCabB — its aft side is covered by the
   // reflected half, never a cap
+  // (SEAPLANES 22 Nov: a hull's tail cut is the transom of the one-section afterbody - 'taper' whole, not the level
+  // pairs' bands, which drew three seams across it)
   if (!MIR)
-    emitCap(ids[0], seq[0], capMat(S.config && S.config.rearAperture),
+    emitCap(ids[0], seq[0], +S.hullTailCut > 0 && !(S.config && S.config.rearAperture) ? () => 'taper'
+              : capMat(S.config && S.config.rearAperture),
             !!(S.config && S.config.rearAperture));
 
   // ---- THE ROD (G26) ------------------------------------------------------
@@ -2811,7 +2857,11 @@ function buildCage2(S, step) {
     });
   }
   if (E && !MIR) tagLoop(ids[0], seq[0],               // tail cap edge:
-    (S.config && S.config.aeroAft && CW.noseCap != null) ? CW.noseCap : CW.cap);  // a cone domes
+    (S.config && S.config.aeroAft && CW.noseCap != null) ? CW.noseCap
+    // a hull's TAIL CUT is a cut: the transom's rim stays sharp whatever the cap crease (SEAPLANES 21 Nov - crCap 0 rounded
+    // the Super Petrel's transom into its subdivided rows; the row itself also creases the rod's caps, which the join
+    // measures, so the cut takes its own sharpness)
+    : +S.hullTailCut > 0 ? Math.max(3, CW.cap || 0) : CW.cap);  // a cone domes
 
   // ---- MIRRORED POD (user design, G18 S2) ---------------------------------
   // The aft half is the front half REFLECTED about the cabin-pillar
@@ -3997,16 +4047,40 @@ function cageCut(m, S) {
       // DASH-BAND (proto 17 Nov, the Virus: "why is the dashboard itself not rendering?"): a base that bows high at its sides
       // (the Virus's straight glass) leaves 2 edges in the lowest fifth, a 3-point line the dash refuses (it needs 5) - the
       // band widens to two fifths only then; every base the fifth already found (the Cessnas') is untouched
-      for (const cap of [yCap, y0 + (y1 - y0) * 0.4]) {
-        m.wsBase.length = 0;
+      // DASH-FIX (22 Nov, GATE DASH on the refitted 172): a base that bows UP in its MIDDLE (the 172 refit: 0.33 at the
+      // sides, 0.465 inboard) leaves the middle above the fifth - the fifth found 10 edges in TWO pieces, one a side, and
+      // the dash was built off one side's piece (a cheek, no middle). The band is now taken where the base is ONE chain
+      // across the glass (the fifth, then two fifths, then three); a band that gives no single chain falls back to the
+      // first that gives 4 edges, as before. Every base the fifth already found whole (the Cessnas before the refit) is
+      // untouched
+      const bandOf = cap => {
+        const e2 = [];
         for (const [k, b] of own2) {
           if (b !== 3) continue;
           const [a, c] = k.split('_').map(Number), p = V[a], q = V[c];
           const run = Math.hypot(p[0] - q[0], p[2] - q[2]);
-          if (Math.abs(p[1] - q[1]) < run * 0.5 && Math.max(p[1], q[1]) <= cap) m.wsBase.push([a, c]);
+          if (Math.abs(p[1] - q[1]) < run * 0.5 && Math.max(p[1], q[1]) <= cap) e2.push([a, c]);
         }
-        if (m.wsBase.length >= 4) break;
+        return e2;
+      };
+      const oneChain = e2 => {                   // the edges form one open chain: every vertex degree <= 2, two ends, connected
+        const deg = new Map(), adj = new Map();
+        for (const [a, c] of e2) { for (const [u, w] of [[a, c], [c, a]]) { deg.set(u, (deg.get(u) || 0) + 1); if (!adj.has(u)) adj.set(u, []); adj.get(u).push(w); } }
+        let ends = 0; for (const d of deg.values()) { if (d > 2) return false; if (d === 1) ends++; }
+        if (ends !== 2) return false;
+        const st = [...deg.keys()][0], seen = new Set([st]), todo = [st];
+        while (todo.length) for (const w of adj.get(todo.pop())) if (!seen.has(w)) { seen.add(w); todo.push(w); }
+        return seen.size === deg.size;
+      };
+      const caps = [yCap, y0 + (y1 - y0) * 0.4, y0 + (y1 - y0) * 0.6];
+      let pick = null, first4 = null;
+      for (const cap of caps) {
+        const e2 = bandOf(cap);
+        if (e2.length >= 4 && !first4) first4 = e2;
+        if (e2.length >= 4 && oneChain(e2)) { pick = e2; break; }
       }
+      m.wsBase.length = 0;
+      for (const e of (pick || first4 || bandOf(caps[1]))) m.wsBase.push(e);
     }
   }
   const groups = (kind, filt) => {
@@ -4605,6 +4679,68 @@ function cageInterior(m, S) {
   // Returns 'drawn' (the wall is drawn here), 'plain' (the plain panel is to be drawn, tagged) or null (the section
   // could not be closed: the plain panel, untagged). A one-cycle band (the C172's arch over its rear window: no wall
   // to rebuild, the study's MEASURE.md) is left alone.
+  // THE SECTION WALL (a hull's aft bulkhead, SEAPLANES 21-22 Nov - the Super Petrel's open band, see below): the plate
+  // on the fuselage's own section at the band's cabin-side plane. The section is every skin face crossing that plane
+  // (the interior's own parts left out); from its middle, 96 rays each take the INNERMOST wall they meet (the lining
+  // over the skin, the pillar's face over the arch), pulled in by INS - the ring the plain panel would take, closed
+  // round the hull below the deck. Front and back sheets fanned from the middle, the rim between them, 5 mm apart, all
+  // 'bulkhead'. Returns false (the ladder draws) off a hull, or when the section is not closed round the middle.
+  // ITS STATION (bulkZ, the same row): 0 is where the plain panel stands, 10 mm behind the band's cabin-side face; +1
+  // the band's aft-most station (the plate's front 1 mm behind it: the whole cabin forward of the wall) - the band's
+  // depth, not the cabin-side pillar's: a reclined seat leans its headrest into the band (the Super Petrel's reaches
+  // 4 cm past the 0 station); -1 the cabin-side face.
+  function bulkSection(band, bz, INS) {
+    if (!S.hull) return false;
+    let zLo = Infinity, zHi = -Infinity;
+    for (const fi of band) for (const vi of F[fi].v) { zLo = Math.min(zLo, V[vi][2]); zHi = Math.max(zHi, V[vi][2]); }
+    let zc = 0, nc = 0;                                    // the cabin-side face: the band's forward half
+    for (const fi of band) for (const vi of F[fi].v) if (V[vi][2] >= (zLo + zHi) / 2) { zc += V[vi][2]; nc++; }
+    if (!nc) return false;
+    const z0 = zc / nc - 0.010, zAft = zLo - 0.0025 - 0.001, zFwd = zc / nc - 0.0025 - 0.001;
+    const zP = bz >= 0 ? z0 + bz * (zAft - z0) : z0 - bz * (zFwd - z0);
+    const SKIP = /^(bulkhead|bulkTrim|baggage|dash|dashFace|joint|shoulder|firewall|fireProof|fireSeal|windshield|pilotWindow|pasengerWindow|drawnPane|reveal|canopy|glass|tube|seat)/;
+    const seg = [];
+    for (const f of F) {
+      if (!f || !f.v || f.v.length < 3 || SKIP.test(f.m || '')) continue;
+      const pts = [];
+      for (let i = 0; i < f.v.length; i++) {
+        const a = V[f.v[i]], b = V[f.v[(i + 1) % f.v.length]];
+        if ((a[2] - zP) * (b[2] - zP) > 0 || a[2] === b[2]) continue;
+        const t = (zP - a[2]) / (b[2] - a[2]);
+        pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      }
+      if (pts.length >= 2) seg.push([pts[0], pts[1]]);
+    }
+    if (seg.length < 8) return false;
+    let cx = 0, cy = 0;
+    for (const s2 of seg) { cx += s2[0][0] + s2[1][0]; cy += s2[0][1] + s2[1][1]; }
+    cx /= 2 * seg.length; cy /= 2 * seg.length;
+    const NR = 96, ring2 = [];
+    for (let k = 0; k < NR; k++) {
+      const a = 2 * Math.PI * k / NR, dx = Math.cos(a), dy = Math.sin(a);
+      let best = Infinity;
+      for (const [p, q] of seg) {
+        const ex = q[0] - p[0], ey = q[1] - p[1], den = dx * ey - dy * ex;
+        if (Math.abs(den) < 1e-12) continue;
+        const t = ((p[0] - cx) * ey - (p[1] - cy) * ex) / den, u = ((p[0] - cx) * dy - (p[1] - cy) * dx) / den;
+        if (t > 1e-6 && u >= -1e-9 && u <= 1 + 1e-9 && t < best) best = t;
+      }
+      if (!isFinite(best)) return false;                  // open: a ray left the aeroplane
+      const r = Math.max(0, best - INS);
+      ring2.push([cx + dx * r, cy + dy * r]);
+    }
+    const BTH = 0.005;
+    const at = (p, dz) => V.push([p[0], p[1], zP + dz]) - 1;
+    const cF = at([cx, cy], BTH / 2), cB = at([cx, cy], -BTH / 2);
+    const rF = ring2.map(p => at(p, BTH / 2)), rB = ring2.map(p => at(p, -BTH / 2));
+    for (let k = 0; k < NR; k++) {
+      const k1 = (k + 1) % NR;
+      add.push({ v: [cF, rF[k], rF[k1]], m: 'bulkhead' });           // the cabin face (looks forward)
+      add.push({ v: [cB, rB[k1], rB[k]], m: 'bulkhead' });           // the aft face
+      add.push({ v: [rF[k], rB[k], rB[k1], rF[k1]], m: 'bulkhead' }); // the rim
+    }
+    return true;
+  }
   function bulkWall(BH, ring, bPos, bcx, INS, SETB, nCyc) {
     if (nCyc < 2) return null;
     const ps = BH.ps || 1;
@@ -4953,9 +5089,15 @@ function cageInterior(m, S) {
   if (I.bulk) (() => {
     // group pillarPassenger faces into bands; the aft-most band is the
     // pilPaxA station (pax mid pillars share the material)
+    // BULK-AT (the user 15 Nov, the C172 refit: "an option for bringing the aft bulkhead from the passengers aft pillar
+    // to the taper aft pillar, that would be more accurate here"): bulkAt 1 builds the same wall from the TAPER's aft
+    // pillar (pilTaperA, the pillarTaper band) - the baggage bay then runs through the taper section. No taper pillar
+    // (no taper, a rod's truss): the passengers' aft pillar, as before. Absent / 0: every build as it was, to the bit.
+    const atTaper = +I.bulkAt > 0 && F.some(f => f.m === 'pillarTaper' && f.v.length === 4);
+    const BMAT = atTaper ? 'pillarTaper' : 'pillarPassenger';
     const idx = [];
     F.forEach((f, i) => {
-      if (f.m === 'pillarPassenger' && f.v.length === 4) idx.push(i);
+      if (f.m === BMAT && f.v.length === 4) idx.push(i);
     });
     if (!idx.length) return;
     const byIdx = new Map(idx.map((fi, k) => [fi, k]));
@@ -5004,6 +5146,25 @@ function cageInterior(m, S) {
            v = nxt.get(v)) { cyc.push(v); seen.add(v); }
       cycles.push(cyc);
     }
+    // (SEAPLANES 23 Nov) A BAND OF MIXED WINDING: on a hull the afterbody's outward walk (cageAftOutward) turns the band's
+    // inside-out faces one by one, so its boundary edges no longer run head to tail and the walk above runs off a dead end
+    // (an undefined vertex: the Super Petrel's build threw here). Then the same boundary is walked by adjacency, its
+    // direction ignored - every band the walk above closes keeps its cycles exactly.
+    if (cycles.some(c => c.some(v => !V[v]))) {
+      const adj = new Map(), link = (a, b) => (adj.get(a) || adj.set(a, []).get(a)).push(b);
+      for (const [, [a, b]] of dir) { link(a, b); link(b, a); }
+      cycles.length = 0; const used = new Set();
+      for (const s0 of adj.keys()) {
+        if (used.has(s0)) continue;
+        const cyc = [s0]; used.add(s0);
+        for (let prev = s0, v = adj.get(s0)[0]; v != null && v !== s0 && cyc.length <= adj.size; ) {
+          cyc.push(v); used.add(v);
+          const nx = (adj.get(v) || []).find(w => w !== prev && (!used.has(w) || w === s0));
+          prev = v; v = nx;
+        }
+        cycles.push(cyc);
+      }
+    }
     if (!cycles.length) return;
     cycles.sort((a, b) =>
       b.reduce((s, v) => s + V[v][2], 0) / b.length -
@@ -5032,13 +5193,21 @@ function cageInterior(m, S) {
     // cycle it is built from does not exist. `room` is the half-pillar less
     // the panel's own thickness (BTH, 5 mm, declared below where it is used)
     // and the 10 mm base setback, so the slider's ends stay INSIDE the band.
-    const PW = Math.max(0, I.paxPillarW || 0);
+    const PW = Math.max(0, (atTaper ? I.taperPillarW : I.paxPillarW) || 0);   // (BULK-AT: the bounding pillar's own width)
     const bz = Math.max(-1, Math.min(1, +I.bulkZ || 0));
     const room = Math.max(0, PW * 0.5 - 0.005 - 0.010);
     const SETB = 0.010 + bz * room;
     // LINER-BACK: without pillars the plate's rim met the lining (cloth 6 mm, ply 14 mm) at 8 mm; the lining is now the
     // skin's back face, so the rim comes to 2.5 mm off the skin (with pillars: inside the posts, as before)
     const INS = I.pillars && cons !== 'tube' ? (I.shellT || 0.035) + 0.008 : 0.0025;
+    // AN OPEN BAND (SEAPLANES 21 Nov, the user on the Super Petrel: "the aft bulkhead does not draw properly"): the
+    // ladder below needs the band to be a RING round the fuselage (its cabin-side cycle the wall's outline). Over a hull
+    // the pillar band is only the arch above the deck - the hull below is skin of its own - and its boundary walk breaks
+    // into cycles of the arch's pieces (the Super Petrel at level 2: five of 71 vertices), the "cabin side" one a half
+    // arch: the ladder filled a sliver of one side (x 0.03..0.59 m). On a HULL the wall is the fuselage's own section at
+    // the band's cabin-side plane instead (the user, 22 Nov: "that's really the aft bulkhead, why need a new row?" - no
+    // row: every hull's aft bulkhead): the innermost skin at every angle round its middle, the same inset, the same plate.
+    if (bulkSection(band, bz, INS)) return;
     let bcx = 0, bcy = 0;
     for (const v of ring) { bcx += V[v][0]; bcy += V[v][1]; }
     bcx /= ring.length; bcy /= ring.length;
@@ -7417,15 +7586,38 @@ function cageInterior(m, S) {
         link.get(a).push(b); link.get(b).push(a);
       }
     }
-    let start = -1;
-    for (const [v, ns] of link) if (ns.length === 1) { start = v; break; }
-    if (start < 0) return;
-    const line = [start];
-    const seen = new Set([start]);
-    for (let v = start; ;) {
-      const nx = (link.get(v) || []).find(n => !seen.has(n));
-      if (nx == null) break;
-      line.push(nx); seen.add(nx); v = nx;
+    // DASH-CHAIN (the user 21 Nov: "the dashboard of the velis electro does not show"): the base can come in PIECES - the
+    // Electric trainer's is a 9-point chain across the glass and two 2-point stubs at the waist, cut off by an edge the
+    // band leaves out - and the walk took the first loose end the map met, a stub: under 5 points, no dash. Every chain
+    // is walked and the LONGEST is the base (a base in one piece, every other build's, is the same line as before)
+    const walk = start => {
+      const ln = [start], sn = new Set([start]);
+      for (let v = start; ;) {
+        const nx = (link.get(v) || []).find(n => !sn.has(n));
+        if (nx == null) break;
+        ln.push(nx); sn.add(nx); v = nx;
+      }
+      return ln;
+    };
+    const chains = [], took = new Set();
+    for (const [v, ns] of link) if (ns.length === 1 && !took.has(v)) { const ln = walk(v); ln.forEach(q => took.add(q)); chains.push(ln); }
+    chains.sort((a, b) => b.length - a.length);
+    let line = chains[0] || null;
+    if (!line) return;
+    // ...and a stub whose end lies within 8 cm of the line's end is the same base across the missing edge: joined, so
+    // the dash runs the glass's whole width (the trainer's stubs: 4.7 cm off)
+    for (let more = true; more && chains.length > 1;) {
+      more = false;
+      for (let ci = 1; ci < chains.length; ci++) {
+        const c = chains[ci];
+        if (!c) continue;
+        const d = (i, j) => Math.hypot(V[i][0] - V[j][0], V[i][1] - V[j][1], V[i][2] - V[j][2]);
+        const L0 = line[0], L1 = line[line.length - 1], c0 = c[0], c1 = c[c.length - 1];
+        const opts = [[d(L1, c0), () => line.concat(c)], [d(L1, c1), () => line.concat(c.slice().reverse())],
+                      [d(L0, c1), () => c.concat(line)], [d(L0, c0), () => c.slice().reverse().concat(line)]];
+        opts.sort((a, b) => a[0] - b[0]);
+        if (opts[0][0] < 0.08) { line = opts[0][1](); chains[ci] = null; more = true; }
+      }
     }
     if (line.length < 5) return;
     const base = line.map(vi => V[vi].slice());
@@ -8053,6 +8245,68 @@ function cageInterior(m, S) {
       for (const f of F) if (SIDEG.has(f.m)) for (const vi of f.v) zA = Math.min(zA, V[vi][2]);
       if (!(zA < 1e8)) zA = zCab0;
     }
+    // THE PADDED HEADLINER (CAR-3, 13 Nov; the user: "a real liner engulfs the pillar structure, and adds 5-10 cm of
+    // depth ... model the roof liner, because this one does nothing"): hdlDepth > 0 - the cabin's ceiling skin (its
+    // inward normal at least 0.8 down, between zA and the windscreen) extruded INTO the cabin as a closed slab hdlDepth
+    // deep, starting on the shell's inner face (the composite's skin liner, skinT), in the headliner's material - the
+    // roof's hoops and the pillars' heads inside it, its edge a padded step down to the wall trim. Absent / 0 = the
+    // recoloured skin liner, as before
+    if (I.hdl && I.hdlD > 0) {
+      const GLH = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows', 'joint', 'doorSeal']);
+      const t0 = I.pillars ? (I.skinT > 0 ? I.skinT : (I.shellT || 0.035) * 0.35) : 0;
+      const sel = [], hoop = [];
+      F.forEach((f, i) => {
+        if (f.v.length !== 4 || GLH.has(f.m) || f.paneEdge || f.capFace || f.doorKey) return;
+        const p = f.v.map(k => V[k]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]], w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
+        const cz = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4, cy = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4;
+        // the skin's outward normal points UP on the roof: the cabin sees it from below
+        if (cz < zA || cz >= zNose0 || cy < S.bandY) return;
+        if (ny / (Math.hypot(nx, ny, nz) || 1) >= 0.8) sel.push(i);
+        else if (f.m === 'ceilingLoop' || PM.has(f.m)) hoop.push([i, cy]);
+      });
+      // the roof hoops' own steps (their sides, near the crown) join the slab: it runs on over each hoop as a padded rib
+      // instead of breaking at it - the break left a black slit over every hoop. Below that, THE PILLARS (the user: "a
+      // real liner engulfs the pillar structure ... I want to stop seeing the bare metal pillars"): the hoops' descent
+      // and the pillar bands from the sill up, a moulded trim (the upper wall trim's material) min(hdlDepth, 5 cm) deep
+      let crown = -1e9; for (const i of sel) for (const k of F[i].v) crown = Math.max(crown, V[k][1]);
+      // (13 Nov, the user: "at the bottom of the back windows there is some black stuff"): an upward ledge on the rear
+      // wall at the sill line passed as ceiling, and its slab hung hdlDepth under it with its aft side IN the skin's
+      // plane (the brown headliner fighting the paint under the rear windows). The ceiling is the roof: within 30 cm
+      // of its crown
+      // (VAN-TOW-2, 23 Nov: these three fixes are the van's - a car's thin shell, t0 0 - and kept to cars: on master's C172 they
+      //  moved GATE KNIFE's pinned sheet; an aeroplane's liner is as master draws it)
+      const CAR = !!I.car;
+      if (CAR) for (let j = sel.length - 1; j >= 0; j--) {
+        const cy = F[sel[j]].v.reduce((a, k) => a + V[k][1], 0) / F[sel[j]].v.length;
+        if (cy < crown - 0.3 / (S.FS || 1)) sel.splice(j, 1);
+      }
+      const pil = [];
+      for (const [i, cy] of hoop) {
+        if (cy > crown - 0.12) { sel.push(i); continue; }
+        // (13 Nov, the user: "there are protruding things at the back"): the rear corner's pillar faces (within 15 cm
+        // of the cabin's aft end) fold round the door frame; inset 5 cm they came out through the skin - left bare
+        const czF = F[i].v.reduce((a, k) => a + V[k][2], 0) / 4;
+        if (CAR && czF < zA + 0.15 / (S.FS || 1)) continue;
+        pil.push(i);
+      }
+      // (13 Nov, the user: "there are protruding things at the back"): the liner closes each piece with an OUTER sheet
+      // facing out, LIN_EPS (1.5 mm) under its base - with no shell thickness (t0 0, the van) that is 1.5 mm under the
+      // painted skin, and from outside the brown sheet and the skin fought for the depth buffer: jagged dark shards on
+      // the rear corners. The base sits a centimetre under the skin instead (the trim's own back, never seen)
+      const tB = CAR ? Math.max(t0, 0.01) : t0;
+      if (pil.length) { const n1 = add.length;
+        liner(pil, tB + Math.min(I.hdlD, 0.05), () => 'cabWall', tB);
+        for (let k = n1; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'cabWall') { f.v = f.v.slice().reverse(); f.back = 1; } } }
+      if (sel.length) {
+        const n0 = add.length;
+        liner(sel, tB + I.hdlD, () => 'headliner', tB);
+        // the slab's UNDERSIDE drawn as the skin liner's copies are (LINER-BACK): the skin's winding, flagged back - the
+        // headliner's lit path (a front-facing underside took the interior's shade unlit: a black ceiling)
+        for (let k = n0; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'headliner') { f.v = f.v.slice().reverse(); f.back = 1; } }
+      }
+    }
     for (const f of add) {
       if (!f.lin || !LINM.has(f.m) || f.v.length !== 4) continue;
       const p = f.v.map(i => V[i]);
@@ -8548,20 +8802,45 @@ function cageSubdivide(m) {
 // own to look away from the fuselage's axis at its station; the body forward of it, the caps and the inner parts keep
 // the walk's winding. Drawing only: the physics fingerprint through the load door is unchanged (see the commit).
 const CAGE_AFT_SKIN = new Set(['taper', 'taperPanel', 'body', 'waistband', 'floorLoop', 'pillarTaper', 'pillarTail']);
-function cageAftOutward(m) {
+const CAGE_AFT_PILLARS = new Set(['pillarPassenger', 'pillarCabin']);   // (a hull's fold: see cageAftOutward)
+function cageAftOutward(m, S) {
   let zHi = -1e9, zLo = 1e9;
   for (const f of m.F) if (f.m === 'taper') for (const vi of f.v) { const z = m.V[vi][2]; if (z > zHi) zHi = z; if (z < zLo) zLo = z; }
   if (!(zHi > zLo)) return;                                  // no taper: nothing to do
+  // THE TRANSOM LOOKS AFT (SEAPLANES 21 Nov, the user on the Super Petrel: "2 bands with shading issues at its back, and
+  // the aft bulkhead does not draw properly"): the float's tail cut (hullTailCut) ends the hull on a flat cap, and the
+  // walk wound every one of its faces looking FORWARD (192 of 192 at level 2) - the skin shader read the transom as the
+  // cabin's inside (a back face: the cabin darkening), and the liner, extruded along a cap's own winding, stood 25 mm
+  // OUT of it, folding through the transom in two strips. The faces flat on the taper's aft-most station (fore-aft
+  // normals) turn to look aft; the walk below skips caps, as it should for every other build. Only with a tail cut.
+  if (S && +S.hullTailCut > 0) for (const f of m.F) {
+    if (f.v.length < 3 || f.capFace || /^(composite|plywood|cloth|toele|boomTube)/.test(f.m || '')) continue;
+    const p = f.v.map(i => m.V[i]), L = p.length;
+    if (p.reduce((t, q) => t + q[2], 0) / L > zLo + 0.03) continue;   // not on the aft-most station (3 cm: a rounded cap)
+    const n = [0, 0, 0];                                     // Newell's normal
+    for (let k = 0; k < L; k++) { const q = p[k], r = p[(k + 1) % L];
+      n[0] += (q[1] - r[1]) * (q[2] + r[2]); n[1] += (q[2] - r[2]) * (q[0] + r[0]); n[2] += (q[0] - r[0]) * (q[1] + r[1]); }
+    if (Math.abs(n[2]) < 0.9 * Math.hypot(n[0], n[1], n[2])) continue;   // not a fore-aft face
+    if (n[2] > 0) f.v.reverse();                             // looking forward (+z): turn it aft
+  }
   const stY = new Map(), stK = z => Math.round(z * 10);
   for (const f of m.F) for (const vi of f.v) {
     const p = m.V[vi], k = stK(p[2]), r = stY.get(k) || [1e9, -1e9];
     stY.set(k, [Math.min(r[0], p[1]), Math.max(r[1], p[1])]);
   }
+  // THE FOLD RUNS ON INTO THE CABIN'S AFT PILLAR ON A HULL (SEAPLANES 23 Nov, the user on the Super Petrel: "the remaining
+  // dark bands on the petrel too please ... we need a single body for the aft part"): on a boat hull's buoyant taper the
+  // inside-out stretch does not stop at the taper's front - the Petrel's port side kept 114 skin faces at level 2 (the
+  // cabin's aft pillar band, its deck and wall down to the waist, z 1.10-1.33 m against the taper's front at 1.13 m)
+  // facing in, a dark band with a winding break at each edge, the starboard twin clean. On a hull the walk reaches half
+  // a unit (~0.37 m) forward of the taper's front and turns the cabin's pillar bands' outer faces too; any other build
+  // walks as before.
+  const hullFold = !!(S && S.hull), zFwd = hullFold ? zHi + 0.5 : zHi;
   for (const f of m.F) {
-    if (f.v.length < 3 || f.capFace || !CAGE_AFT_SKIN.has(f.m)) continue;
+    if (f.v.length < 3 || f.capFace || !(CAGE_AFT_SKIN.has(f.m) || (hullFold && CAGE_AFT_PILLARS.has(f.m)))) continue;
     const p = f.v.map(i => m.V[i]), L = p.length;
     const c = [0, 1, 2].map(a => p.reduce((t, q) => t + q[a], 0) / L);
-    if (c[2] > zHi + 1e-6 || c[2] < zLo - 1e-6) continue;   // forward of the taper (or past it): the walk's
+    if (c[2] > zFwd + 1e-6 || c[2] < zLo - 1e-6) continue;   // forward of the taper (or past it): the walk's
     const u = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
     const w = [p[L - 1][0] - p[1][0], p[L - 1][1] - p[1][1], p[L - 1][2] - p[1][2]];
     const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
@@ -9600,12 +9879,15 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
 const CAGE_DEFAULT_ABSENT = { rodOn: 1, spinOn: 1,   // (CAR-1: the rod's tube and the spinner's cone, drawn - absent at 1, as every build before them)
-  canClear: 0, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  canClear: 0, certCat: 0, dashHood: 0, wgBrake: 0, wgBrakeAt: 0.30, wgBrakeLen: 0.16, wgBrakeH: 0.20, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
+  wgBrake: 0, wgBrakeAt: 0.30, wgBrakeLen: 0.16, wgBrakeH: 0.20,   // (AIRBRAKES: none; a Standard Class's box when on)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
   s1Ul: 0,                           // (WEIGHT STUDY L6: no ultralight monowheel)
   towHook: 0,                        // (no tow hook)
+  certCat: 0,                        // (the normal category, +3.8 g)
+  dashHood: 0,                       // (no instrument hood: the flat board)
   rodHub: 0,                         // (the hub's rear socket: the rod on the aft bulkhead, as ever)
   hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle: the cabin carries the wing, as ever; GEN_HANG's mast)
   bpCabPyAt: 0.40, bpCabPyLen: 0.55, // (the hub's pylon on the chord: HULL-B78's own)
@@ -9792,6 +10074,10 @@ function cageSpec(P) {
         // BUBBLE-WINDOWS: the blister's height, absent unless set (an unset row leaves the window as it was)
         if (+Pw[pre + 'Bulge'] > 0) w.bulge = +Pw[pre + 'Bulge'];
         if (quad) Object.assign(w, cageQuadWindow(Pw, pre, i));
+        // WIN-TOP (16 Nov, the 172's rear windows, the user: "project the aft ones (in the taper section) from the top"):
+        // the row drawn in PLAN - its station along the body, its width along the body, its height ACROSS it, its
+        // height row (Y) the window's lateral centre - and cut straight down onto the roof. Absent: from the side
+        if (+Pw[pre + 'Proj'] > 0 && !quad) w.proj = 'top';
         // (12 Nov) a fifth corner takes its own radius (R5; absent / < 0: the row's)
         if (quad && w.q && w.q.length === 5) {
           const v5 = Pw[pre + 'R5'];
@@ -9847,6 +10133,7 @@ function cageSpec(P) {
           for (let j = 0; j < i; j++) {
             if (S.windows[i].refused) break;            // WINDOWS-FREE: a quad refused for its shape
             if (S.windows[j].refused) continue;
+            if ((S.windows[i].proj || '') !== (S.windows[j].proj || '')) continue;   // WIN-TOP: a plan outline and a side one are not in one view
             if (!sep(polys[i], polys[j])) {
               S.windows[i].refused = 'overlaps row ' + S.windows[j].row + ' window ' + (S.windows[j].i + 1);
               break;
@@ -10004,6 +10291,8 @@ function cageSpec(P) {
   S.aft.floorYB = ap(fr(T.aft.floorYB, T.waistY, T.aft.keelYB),
                      P.waistY, P.aftKeelY);
   S.aft.keelYA = S.aft.keelYB + aLean.keel;
+  // BOOM-CORNER (15 Nov): the boom frame's bottom corner moved off its template seat (absent = as it always was)
+  if (+P.aftFloorDy) S.aft.floorYB += +P.aftFloorDy;
   S.aft.floorYA = S.aft.floorYB + aLean.floor;
 
   S.tail.len = P.tailLen;
@@ -10261,6 +10550,9 @@ function cageSpec(P) {
                  // the aft bulkhead's own station, and the pillar that bounds
                  // it — the panel needs BOTH, and the width is resolved above
                  bulkZ: P.bulkZ || 0, paxPillarW: S.paxPillarW,
+                 // BULK-AT (15 Nov): the wall at the taper's aft pillar instead (absent: 0), and that pillar's width
+                 // (the taper pillar is pillarW wide, paxPillarW when pillarW is unset - the generator's tpW)
+                 bulkAt: +P.bulkAt > 0 ? 1 : 0, taperPillarW: S.pillarW > 0 ? S.pillarW : S.paxPillarW,
                  skinT: skinTv,
                  cons: consG,
                  // the SECTION MODEL: one technique per {boom|pax|
@@ -10276,6 +10568,8 @@ function cageSpec(P) {
                  shellT: Math.max(0.005, P.shellT || 0.035),
                  // CABIN-INTERIOR (T1/T2): the headliner / the upper wall trim - keys only when on (absent rows)
                  ...(+P.hdlOn ? { hdl: 1 } : {}), ...(+P.wallTrimOn ? { wall: 1 } : {}),
+                 ...(+P.hdlOn && +P.hdlDepth > 0 ? { hdlD: +P.hdlDepth } : {}),   // CAR-3: the padded headliner's depth
+                 ...(+P.isCar ? { car: 1 } : {}),   // VAN-TOW-2: a car's liner (cageInterior: the van's 13 Nov fixes; absent on an aeroplane)
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease,
@@ -11470,6 +11764,17 @@ function cageRearRelief(m, S) {
   if (add.length) m.F = F.concat(add);
   return m;
 }
+// one drawn window cut on one flank: from the side (as always), or - WIN-TOP (16 Nov) - laid in plan and cut straight
+// down (the knife's frame: n0 up, t1 along the body, t2 across; the faces under the cabin's waist are not the roof's)
+function cageKnifeWin(KG, s, w, side) {
+  if (w.proj !== 'top') return KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal' });
+  // the row's "top" is OUTBOARD on both flanks: the port pane is the starboard one mirrored across the centreline
+  // (v -> -v, re-wound counter-clockwise), so a pane rounded on its outer side stays rounded outboard on both
+  let outline = KG.knifeOutline(Object.assign({}, w, { z: 0, y: 0 }));
+  if (side < 0) outline = outline.map(p => [p[0], -p[1]]).reverse();
+  return KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal', outline, yMin: 0,
+                             frame: { n0: [0, 1, 0], c0: [side * w.y, 0, w.z], t1: [0, 0, 1], t2: [1, 0, 0] } });
+}
 function cageSheetKept(spec, step, L) {
   const memo = {};
   const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
@@ -11479,7 +11784,8 @@ function cageSheetKept(spec, step, L) {
     let s = m;
     for (let i = 0; i < L; i++) s = cageSubdivide(s);
     if (L > 0) s = cageRefitArc(s);
-    cageAftOutward(s);                         // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward)
+    cageAftOutward(s, S);                      // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward); (23 Nov)
+                                               // with the spec, as cageSheet's: the editor's kept path turned no transom
     const drawn = KG && S.windows && S.windows.length;
     // THE PILOT'S GLASS AS A PANEL (12 Nov, FIT-PROCEDURE; the user: "make it a full panel where the window part is
     // actually just a panel and we cut through"): S.glaze.pilotPanel turns the cockpit's glazed band into skin, as
@@ -11497,8 +11803,7 @@ function cageSheetKept(spec, step, L) {
       s.N = KG.knifeNormals(s);
       for (const w of S.windows) {
         if (w.refused) continue;
-        for (const side of [1, -1])
-          s = KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal' });
+        for (const side of [1, -1]) s = cageKnifeWin(KG, s, w, side);
       }
     }
     if (KG && S.rearWin) s = cageRearCut(s, S, KG);
@@ -11524,7 +11829,7 @@ function cageSheet(P, opts) {
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
   if (eye && L > 0) s = cageEyeLevel(s, spec, eye);
   if (L > 0) s = cageRefitArc(s);
-  cageAftOutward(s);                           // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward)
+  cageAftOutward(s, spec);                     // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward)
   // DRAWN WINDOWS (G245): with any drawn, the pax glass BAND is skin again —
   // before the sill and the cut see it, so neither extends nor separates a
   // window that no longer exists. The knife itself runs after cageCut: a
@@ -11557,9 +11862,7 @@ function cageSheet(P, opts) {
       s.N = KG.knifeNormals(s);
       for (const w of spec.windows) {
         if (w.refused) continue;                    // T2.2: an overlapping window is never cut
-        for (const side of [1, -1])
-          s = KG.knifeCut(s, w, { side, depth: w.depth,
-                                  paneMat: 'drawnPane', wallMat: 'reveal' });
+        for (const side of [1, -1]) s = cageKnifeWin(KG, s, w, side);
       }
       // G316: the drawn panes explode as parts — one part per pane (the
       // knife's copies are per window, a pane's polygons share them and

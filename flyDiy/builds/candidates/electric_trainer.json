@@ -373,7 +373,7 @@
    "accAccess": 1,
    "accInstr": 1,
    "accAerials": 1,
-   "accHandling": 1,
+   "accHandling": 0,
    "accDetail": 1,
    "stOn": 1,
    "stCut": 1,
@@ -3209,6 +3209,12 @@
     "who": "session",
     "step": "fit",
     "line": "PHYSICS-AUDIT (user 21 Nov: the propeller imposes the limit rpm): a climb-pitch propeller - POH-128, the fixed propeller meets its 2300 rpm limit at 93 KCAS at maximum continuous power, below the speed its power would give {\"prop.pitch\":\"climb\"}"
+   },
+   {
+    "date": "2026-11-22T19:50",
+    "who": "session",
+    "step": "fit",
+    "line": "PHYSICS-AUDIT cards: no boarding steps or grab handles - the parent has none {\"accHandling\":0}"
    }
   ]
  }

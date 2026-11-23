@@ -1435,6 +1435,12 @@ function makeSim(def, world) {
     // (G4103: and holds no tether - its tether lives in the floor pass, which never walks it: a gear member's tether
     // stayed live past any length, joining a fallen leg to the wreck it lay 40 m from - the 17 Nov nose-down stills)
     else if (b.tt === 1) { b.tt = 0; DMG.tether--; }
+    // G4104: A CRACKED LAMINATE HOLDS BY ITS FIBRES - its own crack (in tension, or a bend's core / fold), not a joint letting
+    // go, a part cut away or the gear: a tether from its length at the crack, walked by the floor pass (no floor: Lf 0)
+    if (TETH && !b.kink && !inGear && !b.seam && (!how || how === 'core' || how === 'fold') && tetherKind(b) === 3) {   // (not a joint: a bonded fitting that lets go is no laminate - nothing bridges it)
+      const L = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
+      b.Lt = L; b.Lb = L; b.Lf = 0; b.tt = 1; DMG.tether++; FLR[nFlr++] = bi; nPost = nFlr + nTieL;
+    }
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     // (GEAR-FALLS: a wire snapping is damage, not a crash - structural's 'a bracing wire snapped'; the leg stands)
     if (gearWire[bi]) { if (how !== 'group') DMG.wires++; }
@@ -1531,7 +1537,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b)) { b.Lt = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b) && !(b.seam && tetherKind(b) === 3)) { b.Lt = L; b.Lb = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
@@ -2520,6 +2526,43 @@ function makeSim(def, world) {
                  // per vessel, in the order the spec lists them: litres now
                  vessels: (ENERGY.vessels || []).map(v => ({ bay: v.bay,
                    litres0: v.litres || 0, litres: v.litres || 0 })) };
+  // WATER TANKS (GEN_RULES.water, the user 15 Nov: a release, a water shower): THE DUMP VALVE. The frame records the
+  // water's kilos on its nodes (`mWater`, as `mFuel`); with the valve open (ctl.dump - the cockpit's, carried to the
+  // worker as every ctl field is) they drain, every tank by the same fraction, at the outlets' Torricelli rate
+  // (params.water.rateLs: every tank's own hole, summed). WDEF[i] is what has left node i: every door that rewrites a
+  // node's mass from its base - the burn, the load (setFreight) - takes it off, so a burn after a dump does not put
+  // the water back; reset fills the tanks again. No water: WDEF null and not one line below reads differently.
+  const WAT = P_.water || null;
+  const WAT_IDX = [], WAT0 = [];
+  if (WAT) for (let i = 0; i < n; i++) if (def.nodes[i].mWater > 0) { WAT_IDX.push(i); WAT0.push(def.nodes[i].mWater); }
+  const WDEF = WAT_IDX.length ? new Float64Array(n) : null;
+  const water = { kg0: WDEF !== null ? WAT.kg0 : 0, kg: WDEF !== null ? WAT.kg0 : 0, frac: 1, open: false, flowKgS: 0,
+                  rateLs: WAT ? WAT.rateLs : 0, kgL: (WAT && WAT.kgL) || 1,
+                  tanks: WAT ? WAT.tanks.length : 0, outlets: WAT ? WAT.outlets : [] };
+  if (WDEF !== null) ctl.dump = 0;          // (the valve's key: only a build with water carries it - input.js writes it then)
+  // AIRBRAKES (GEN_RULES.airbrake): the blue handle, 0 in .. 1 full out - a key only a build with brakes carries
+  const ABK = P_.airbrake || null;
+  if (ABK) ctl.airbrake = 0;
+  // a node's mass from its base (the def's, or the burn's while the tanks are drawn down), its load on top, its water off
+  const massBase = i => {
+    const k = FUEL_K[i];
+    const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
+    return FRX && FRX[i] !== 0 ? Math.max(0.5, base + FRX[i]) : base;
+  };
+  function waterFrame(dt) {
+    water.open = !!ctl.dump;
+    water.flowKgS = 0;
+    if (!water.open || !(water.kg > 0) || !(water.kg0 > 0)) { out.waterKg = water.kg; out.waterFlow = 0; return; }
+    const dkg = Math.min(water.kg, water.rateLs * water.kgL * dt);   // (rateLs: the tanks' summed outlets, 61_gen_frame)
+    const f2 = Math.max(0, water.frac - dkg / water.kg0);
+    water.frac = f2; water.kg = water.kg0 * f2; water.flowKgS = dkg / Math.max(1e-9, dt);
+    for (let k = 0; k < WAT_IDX.length; k++) {
+      const i = WAT_IDX[k];
+      WDEF[i] = WAT0[k] * (1 - f2);
+      setNodeMass(i, Math.max(0.5, massBase(i) - WDEF[i]));
+    }
+    out.waterKg = water.kg; out.waterFlow = water.flowKgS;
+  }
   // the load factor and the rates: finite differences over one frame,
   // filtered (a node-beam sim's raw acceleration is the truss ringing)
   let vPrev = null, hdgPrev = null;
@@ -2553,6 +2596,7 @@ function makeSim(def, world) {
     fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
     out.starved = false; out.energyFrac = 1; out.submerged = false;
     for (const vs of fuel.vessels) vs.litres = vs.litres0;
+    if (WDEF !== null) { WDEF.fill(0); water.kg = water.kg0; water.frac = 1; water.flowKgS = 0; water.open = false; ctl.dump = 0; out.waterKg = water.kg; out.waterFlow = 0; }   // (WATER: the tanks as filled, the valve shut)
     vPrev = null; hdgPrev = null;
     out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0;
     VG.vMax = 0; VG.node = -1; VG.peak = 0; VG.fault = null;   // G1801
@@ -2653,7 +2697,9 @@ function makeSim(def, world) {
     fuel.kg = fuel.kg0 * f2; fuel.litres = fuel.litres0 * f2;
     for (const vs of fuel.vessels) vs.litres = vs.litres0 * f2;
     for (let k = 0; k < FUEL_IDX.length; k++)
-      setNodeMass(FUEL_IDX[k], FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2);   // (G2400: a load on a tank's node stays aboard)
+      setNodeMass(FUEL_IDX[k], WDEF === null
+        ? (FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2)   // (G2400: a load on a tank's node stays aboard)
+        : Math.max(0.5, (FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2) - WDEF[FUEL_IDX[k]]));   // (WATER: what the valve let go stays gone)
     if (f2 <= 0) { for (const e of eng) e.running = false; starve(); }   // tanks dry
   }
   function starve() {
@@ -3002,6 +3048,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = ctl.brakeD = 0;
+    if ('airbrake' in ctl) ctl.airbrake = 0;   // (AIRBRAKES: the handle in)
     ctl.twLock = 1;                                  // G3800: the tailwheel lock in (a lockable wheel: straight)
     ctl.wr = null;                                   // G2480: the water rudders back to the rule
     if (GR) { ctl.gear = 1; GR.pos = 1; GR.lift = 0; GR.emerg = false; GR.moving = 0; GR.cda = P_.fusCdA.slice(); if (WB) WB.lift = null;
@@ -3638,6 +3685,8 @@ function makeSim(def, world) {
         if (st.dr && ctl.flap > 0) { dCl += st.dr.dCl * ctl.flap; dCd += st.dr.dCd * ctl.flap; dAS += (st.dr.dAs || 0) * ctl.flap; }
         [Cl, Cd] = polar(al, P, sig, dCl, dCd, dAS);
       }
+      // AIRBRAKES: on the strips a brake spans, the lift it spoils and the plate's drag, at the handle (GEN_RULES.airbrake)
+      if (st.ab !== undefined && ctl.airbrake > 0 && ABK) { const e = ctl.airbrake * st.ab; Cl *= 1 - ABK.spoil * e; Cd += ABK.cd * e; }
       // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)
       let q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1);
       const iv = 1 / Math.sqrt(V2);
@@ -4044,6 +4093,7 @@ function makeSim(def, world) {
       // (a tank's node: what the burn last wrote, or the def's own number while the tanks are as built - reset's)
       const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
       m[i] = b !== 0 ? Math.max(0.5, base + b) : base;
+      if (WDEF !== null && WDEF[i] > 0) m[i] = Math.max(0.5, m[i] - WDEF[i]);   // (WATER: the dumped kilos stay gone)
       rigGround(i, m[i]);
       if (m[i] !== mOld[i]) chg[i] = 1;
     }
@@ -4176,7 +4226,7 @@ function makeSim(def, world) {
   function tetherKind(b) {
     const R = b.mat ? GEN_CRASH[b.mat] : null;
     if (!R || !(b.Lr > 0)) return 0;
-    return R.etu > 0 ? 1 : b.mat === 'wood' ? 2 : 0;
+    return R.etu > 0 ? 1 : b.mat === 'wood' ? 2 : (b.mat === 'carbon' || b.mat === 'glass') ? 3 : 0;   // (G4104: 3 a laminate's fibres)
   }
   // its pull: kB (L - Lt) to its cap - a fold opening (L under its rest length) at rFold x its crush force, then the
   // creased wall's share of its strength - plastic past the cap (Lt follows: the stored energy at most F^2 / 2 kB); torn
@@ -4189,7 +4239,7 @@ function makeSim(def, world) {
     // tether holds the splinters together, it is no strength: the Jodel's certificate read BROKE AT 9.54 g with 104 of
     // its wing's members broken from 6.01 g while the crushed caps were counted kept, GATE DMGCERT 17 Nov)
     const k = tetherKind(b), fu = b.fu < Infinity ? b.fu : 0;
-    return k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;
+    return k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (G4104: a laminate's fibres hold its pieces but, as crushed wood, keep no joint's strength - DMGCOMPOSITE's certificate read BROKE AT 6.14 g past its 6.13 band with them kept)
   }
   // after a pass: a torn tether's joint has now lost the rest of that member - its group judged again (G1894's third)
   function tetherGroups() {
@@ -4198,7 +4248,7 @@ function makeSim(def, world) {
       const b = beams[bi], g = grpOf[bi];
       if (g < 0 || grpDone[g] || gearGrp[g]) continue;
       const fu = b.fu < Infinity ? b.fu : 0, k = tetherKind(b);
-      grpLost[g] += k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (wood was counted lost whole at its kink: tetherKeep)
+      grpLost[g] += k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (wood and laminate counted lost whole at their crack: tetherKeep)   // (wood was counted lost whole at its kink: tetherKeep)
       const G0 = DGR[g].t0; let cap = 0;
       for (let q = 0; q < G0.length; q++) { const f2 = beams[G0[q]].fu; cap += f2 < Infinity ? f2 : 0; }
       if (cap > 0 && grpLost[g] < GEN_DMG_GROUP.rel * cap * (1 - 1e-9)) continue;
@@ -4211,9 +4261,9 @@ function makeSim(def, world) {
   }
   function tetherPull(b, a3, b3, dx, dy, dz, L) {
     const T = GEN_DMG_TETHER, k = tetherKind(b), R = GEN_CRASH[b.mat];
-    if (L > b.Lr * (1 + (k === 1 ? T.eDuct * R.etu : 0))) { b.tt = 0; DMG.tetherT++; tetherTorn = 1; return; }
+    if (k === 3 ? L > b.Lb * (1 + T.eComp) : L > b.Lr * (1 + (k === 1 ? T.eDuct * R.etu : 0))) { b.tt = 0; DMG.tetherT++; tetherTorn = 1; return; }
     const fu = b.fu < Infinity ? b.fu : 0;
-    const Fm = k === 2 ? T.rWood * fu : L < b.Lr && b.Ff > 0 ? T.rFold * b.Ff : T.rDuct * fu;
+    const Fm = k === 3 ? T.rComp * fu : k === 2 ? T.rWood * fu : L < b.Lr && b.Ff > 0 ? T.rFold * b.Ff : T.rDuct * fu;
     let F = b.kB * (L - b.Lt);
     if (F > Fm) { F = Fm; b.Lt = L - Fm / b.kB; }
     // (and the member's own damper, as its floor's: a folded tube's wall rubs - a piece hung on its tether comes to rest)
@@ -4817,6 +4867,7 @@ function makeSim(def, world) {
       if (subHook !== null) subHook(s, dt);
     }
     if (softLive) out.softF /= sub;                  // SNOW-MUD FINISH: softF summed over the substeps -> the frame's mean drag (N)
+    if (WDEF !== null) waterFrame(dtFrame);         // WATER TANKS: the dump valve, once a frame
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
@@ -4996,7 +5047,9 @@ function makeSim(def, world) {
           vPrev && vPrev.slice(), hdgPrev, totalM, coneOn, coneLive, coneS2, hbLive, hbH, hbX0, hbX1, hbZ0, hbZ1, wetArm,
           _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z],
       // G2400: the load aboard rides the snapshot (its masses are in `m` above; the list says what they are on top of)
-      X: FRX ? FRX.slice() : null, L: FRL ? FRL.map(a => a.slice()) : null };
+      X: FRX ? FRX.slice() : null, L: FRL ? FRL.map(a => a.slice()) : null,
+      // WATER TANKS: what has left each node, and the tanks' state (the masses themselves are in `m` above)
+      W: WDEF !== null ? [WDEF.slice(), water.kg, water.frac, water.open] : null };
   }
   function unsnap(Sn) {
     if (!Sn || Sn.nodes !== def.nodes || Sn.beams !== def.beams || Sn.n !== n || Sn.nb !== nb || !whole()) return false;
@@ -5004,6 +5057,7 @@ function makeSim(def, world) {
     [p, v, f, m, r, rC, KGn, CGn, KTn, CTn, gcx, gcy, gcz, Gam, GamPrev, vi, AIC, sA, sB, sZA, sZB, cpt, Ez, Dz, Wg, pG, pS, pDz, pEDz, bHalf, _tk, _pr]
       .forEach((a, k) => a.set(Sn.A[k]));
     FRX = Sn.X ? Float64Array.from(Sn.X) : null; FRL = Sn.L ? Sn.L.map(a => a.slice()) : null;   // G2400
+    if (WDEF !== null && Sn.W) { WDEF.set(Sn.W[0]); water.kg = Sn.W[1]; water.frac = Sn.W[2]; water.open = Sn.W[3]; }   // WATER TANKS
     const O = Sn.O, B = O[7];
     [xAft, yUp, zRt, t1, t2, sD, sC].forEach((a, k) => snapPut(a, O[k]));
     // (a field written only where it differs: a whole aeroplane's members hold their reset's values but the strain, and
@@ -5038,6 +5092,8 @@ function makeSim(def, world) {
            setFreight, freight: () => (FRL ? FRL.map(a => a.slice()) : null),
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY, get wetBody() { return WB; },
+           // WATER TANKS: the dump's state (kg, frac, open, flowKgS) and its outlets (node weights + the drop), null with none
+           water: WDEF !== null ? water : null,
            // G2090 (WATER-LOOK): the wet body's contacts for the page's spray / wake / bubbles (32_hydro.js wetFx; reading
            // clears the slam peaks it hands over); null while no wet body was ever built
            wetFx: dst => (WB && HYDRO.wetFx ? HYDRO.wetFx(WB, dst) : null),

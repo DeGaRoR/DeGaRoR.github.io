@@ -119,11 +119,15 @@ function genFicheDestroy(def0, opts) {
                 destroy: true, ult: 3 * U, rampS: 4 * 3 };
   const rig = makeLoadTest(sim, def, cfg);
   if (!rig.state.ok) return { ok: false, why: rig.state.why };
-  let base = null, atBreak = null, frames = 0;
+  // ONE-CESSNA (18 Nov, GATE PHYSPAGES): the shape is taken when a part LETS GO (brokeAt); a wing that breaks members
+  // and keeps every part (the refitted 172: 18 members kink at 7.40 g, nothing detaches - BROKE UP, no group) is drawn
+  // at its FIRST BREAK instead (breakAt). An aeroplane that loses a part is drawn exactly as before
+  let base = null, atBreak = null, atKink = null, frames = 0;
   while (!rig.state.done && frames < 60 * 120) {
     const ph = rig.state.phase; rig.step(1 / 60); frames++;
     if (ph === 'settle' && rig.state.phase !== 'settle') base = genFicheSnap(sim);
     if (!atBreak && rig.state.brokeAt != null) atBreak = genFicheSnap(sim);
+    if (!atKink && rig.state.breakAt != null) atKink = genFicheSnap(sim);
   }
   const st = rig.state, D = sim.damage();
   const yielded = [], broken = [];
@@ -133,7 +137,7 @@ function genFicheDestroy(def0, opts) {
            firstBreak: D.firstBreak ? { beam: D.firstBreak.beam, how: D.firstBreak.how, seam: D.firstBreak.seam, cls: D.firstBreak.cls } : null,
            firstYield: D.firstYield && typeof D.firstYield === 'object' ? { beam: D.firstYield.beam, cls: D.firstYield.cls } : null,
            groups: (D.groups || []).map(G => ({ key: G.key, seam: G.seam })), broken, yielded,
-           shape: atBreak && base ? genFicheShape(sim, def, base, atBreak) : null, frames };
+           shape: (atBreak || atKink) && base ? genFicheShape(sim, def, base, atBreak || atKink) : null, frames };
 }
 
 // THE DRAG: the rows, the gear's terms, each one's km/h

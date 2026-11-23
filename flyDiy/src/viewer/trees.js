@@ -799,7 +799,7 @@
         alphaTest: cutout ? 0.01 : 0, alphaToCoverage: !!cutout,
         transparent: false, roughness: 1, metalness: 0,
       };
-      let mat = MATLIB.shared(THREE, cutout ? 'cut' : 'std', params, scope);
+      let mat = MATLIB.shared(THREE, cutout ? 'cut' : 'std', params, scope, 'forest / tree library / leaves and bark');
       if (!mat.userData.uLeaf) { hookLeaf(mat, !!cutout, T, cut, found.col.kind || 'tree'); mat.name = d.mat; }
       parts.push({ geo: g, mat: mat, cutout: !!cutout });
     }

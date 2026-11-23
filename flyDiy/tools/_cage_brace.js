@@ -95,7 +95,7 @@ const BRACE_ITEMS = [
 // ---- materials (the no-editor fallback; the livery overrides) -------------
 const COL = { strut: 0xe6e2d8, wire: 0x9aa0a6 };
 const flat = (c, extra) => new THREE.MeshStandardMaterial(Object.assign(
-  { color: c, roughness: 0.32, metalness: 0.12 }, extra || {}));
+  { userData: { progOwner: 'aircraft / braces / strut and wire fallback' }, color: c, roughness: 0.32, metalness: 0.12 }, extra || {}));
 
 let group = null;
 const dispose = g => {

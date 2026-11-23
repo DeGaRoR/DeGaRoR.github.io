@@ -10,7 +10,7 @@
 // non-convex quads with a clear message), the sheet must stay watertight. Old files load byte-identical." Rows:
 //   1 FOLLOW    a row switched to 'quad' with no corner placed IS its rectangle (topK, skew and the four radii
 //               included): the outlines match to a sample step, and the cut is watertight
-//   2 CORNERS   the test quad (the Cub's rear window, tools/fixtures/cub_quadwin_2026-10.json) cut into the Cub's own
+//   2 CORNERS   the test quad (the Cub's rear window, tools/fixtures/test_copies/cub_quadwin_2026-10.json) cut into the Cub's own
 //               sheet: one closed loop a flank, watertight, and each corner lands where it was put - read off the
 //               CUT LOOP (the knife's own on-skin outline), in the side view: a sharp corner within 2.5 mm of its
 //               point, a rounded one at the arc's distance from it (r (1/sin(theta/2) - 1)) within 2.5 mm, and no
@@ -101,7 +101,7 @@ function run() {
   }
 
   // ---- 2 CORNERS, on the Cub ----------------------------------------------------------------------------------
-  const fix = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'cub_quadwin_2026-10.json'), 'utf8'));
+  const fix = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'test_copies', 'cub_quadwin_2026-10.json'), 'utf8'));
   const cub = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), 'utf8'));
   const Pq = Object.assign({}, G.cageFromSpec(fix.spec || fix), SKIN_ONLY);
   // the old window's reference: the Cub without the drawn rear window its file took (CUB-WINDOW, the user 4 Nov)

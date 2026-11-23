@@ -1675,7 +1675,7 @@
     const inWorker = () => new Promise((res, rej) => {
       if (!W.Worker || !W.OffscreenCanvas || !W.createImageBitmap || !W.fetch || !/^https?:/.test(job.url)) return rej(new Error('no worker'));
       // (the worker is left idle, never terminated: terminating it makes the page wait for its canvas's teardown)
-      const u = W.URL.createObjectURL(new W.Blob([edgeWorkerSrc()], { type: 'text/javascript' })), wk = new W.Worker(u), end = () => { wk.onmessage = wk.onerror = null; W.URL.revokeObjectURL(u); };
+      const u = W.URL.createObjectURL(new W.Blob([edgeWorkerSrc()], { type: 'text/javascript' })), wk = new W.Worker(u, { name: 'ui / map / paper edge' }), end = () => { wk.onmessage = wk.onerror = null; W.URL.revokeObjectURL(u); };
       wk.onmessage = e => { end(); if (e.data && e.data.E && e.data.bmp) res({ E: e.data.E, bmp: e.data.bmp, via: 'worker', msOff: e.data.ms }); else rej(new Error((e.data && e.data.err) || 'the worker failed')); };
       wk.onerror = e => { end(); rej(new Error((e && e.message) || 'the worker failed')); };
       wk.postMessage(job);

@@ -420,7 +420,7 @@ PAGE.post = ctx => {
     const sad = new THREE.Group();
     sad.name = 'edSaddle_stab';
     sad.scale.setScalar(1 / FS);
-    const m = bag.mesh(sad, DRAW.saddleMat ? DRAW.saddleMat() : new THREE.MeshLambertMaterial({ color: 0x8a9099 }));
+    const m = bag.mesh(sad, DRAW.saddleMat ? DRAW.saddleMat() : new THREE.MeshLambertMaterial({ userData: { progOwner: 'aircraft / stabiliser / saddle fallback' }, color: 0x8a9099 }));
     if (m) m.userData.edHw = 1;
     group.add(sad);
   }

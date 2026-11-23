@@ -102,7 +102,7 @@ function material(aspect, kind, ui) {
   }
   if (!S.mat) {
     S.cw = CW = cwFor(S.kind);
-    S.mat = new THREE3.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.18, metalness: 0,
+    S.mat = new THREE3.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / gps screen' }, color: 0x1a1d22, roughness: 0.18, metalness: 0,
       emissive: new THREE3.Color(0xffffff), emissiveIntensity: 0, side: THREE3.FrontSide });  // pre-ok: 0 here, the glow below carries P
     S.mat.userData.aeroskin = 1;          // never the grey understudy
     S.mat.userData.panelSet = S.i ? 'gps2' : 'gps';   // the join's bucket key (G2815: the second display's own)

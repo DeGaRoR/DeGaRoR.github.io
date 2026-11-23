@@ -83,7 +83,7 @@ const TRL_WX = {
          grime: [0.070, 0.060, 0.048, 0.92], rust: [0.200, 0.075, 0.030, 0.95], zinc: [0.42, 0.43, 0.42, 0.92] },   // (AERO_WX_COL; zinc: the white rust)
   // per material [dirt gain, corrosion 0 none / 1 zinc / 2 iron, silvering, saturation]
   mat: { galv: [1, 1, 0, 1], galvDk: [1.1, 1, 0, 1], wheel: [0.9, 2, 0, 1], drum: [1, 2, 0, 1], rubber: [0.8, 0, 0, 1], chock: [0.7, 0, 0, 1],
-         plank: [0.8, 0, 0.6, 0.5], timber: [0.8, 0, 0.6, 0.5], alu: [0.6, 0, 0, 1], black: [0.7, 0, 0, 1], chrome: [0.35, 0, 0, 1],
+         plank: [0.8, 0, 0.3, 0.7], timber: [0.8, 0, 0.3, 0.7], alu: [0.6, 0, 0, 1], black: [0.7, 0, 0, 1], chrome: [0.35, 0, 0, 1],
          white: [0.5, 0, 0, 1], red: [0.3, 0, 0, 1], amber: [0.3, 0, 0, 1], strap: [0.6, 0, 0, 1], carpet: [0.8, 0, 0, 1] },
 };
 const TRL_WX_VS_HEAD = '\nvarying vec3 vTrlP;\nvarying vec3 vTrlN;\n';
@@ -470,7 +470,7 @@ function buildTrailerModel(THREE, Tr, o) {
   const seg = o.lod === 'low' ? 0.5 : 1;
   const S = n => Math.max(3, Math.round(n * seg));
   // ---- materials ----
-  const std = (c, m, r, extra) => new T.MeshStandardMaterial(Object.assign({ color: c, metalness: m, roughness: r }, extra || {}));
+  const std = (c, m, r, extra) => new T.MeshStandardMaterial(Object.assign({ userData: { progOwner: 'vehicles / trailer / finish' }, color: c, metalness: m, roughness: r }, extra || {}));
   const M = o.materials || {
     galv: std(0xaeb3b8, 0.72, 0.40),          // hot-dip galvanised: a matt silver
     galvDk: std(0x8f959b, 0.70, 0.52),        // the axles, the arms, the brackets (duller, older zinc)
@@ -1014,7 +1014,7 @@ function buildTrailerModel(THREE, Tr, o) {
 // THE CAR'S HALF: the tow bar's ball mount for the pickup's receiver (50 mm square shank, the drop plate, the 50 mm ball
 // and its neck). Its origin is the ball's centre, +x forward (into the receiver); the car's rig carries it at the ball.
 function buildTowHitch(THREE) {
-  const T = THREE, gal = new T.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.7, roughness: 0.45 }), chrome = new T.MeshStandardMaterial({ color: 0xe9ebee, metalness: 1, roughness: 0.16 });
+  const T = THREE, gal = new T.MeshStandardMaterial({ userData: { progOwner: 'vehicles / tow hitch / galvanised steel' }, color: 0x9aa0a6, metalness: 0.7, roughness: 0.45 }), chrome = new T.MeshStandardMaterial({ userData: { progOwner: 'vehicles / tow hitch / chrome ball' }, color: 0xe9ebee, metalness: 1, roughness: 0.16 });
   const g = new T.Group(); g.name = 'car:hitch';
   const sh = new T.BoxGeometry(0.32, 0.05, 0.05); sh.translate(0.2, 0.08, 0); g.add(new T.Mesh(sh, gal));
   const pl = new T.BoxGeometry(0.06, 0.11, 0.07); pl.translate(0.03, 0.045, 0); g.add(new T.Mesh(pl, gal));

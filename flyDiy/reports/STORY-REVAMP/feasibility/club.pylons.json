@@ -1,0 +1,45 @@
+{
+ "id": "club.pylons",
+ "kind": "challenge",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 942,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 942,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@0",
+    "sub:1@0",
+    "sub:2@0",
+    "sub:3@0",
+    "timer",
+    "sub:4@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": [
+    "hit:g1",
+    "hit:g2",
+    "hit:g3",
+    "hit:g4"
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "ab736ee294c4",
+ "where": "contract",
+ "pool": "validated",
+ "wallS": 532
+}

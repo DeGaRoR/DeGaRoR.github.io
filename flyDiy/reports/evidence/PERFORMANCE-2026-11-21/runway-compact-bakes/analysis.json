@@ -1,0 +1,977 @@
+{
+  "updated": "2026-11-21T20:53:10.315Z",
+  "runs": [
+    {
+      "id": "control",
+      "valid": true,
+      "complete": true,
+      "seconds": 124.07380000001191,
+      "build": "47a1bd547eb4",
+      "peakC": 86,
+      "startUTC": "2026-11-21T14:06:31.950Z",
+      "startC": 41,
+      "glChecks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nullQueries": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "focusIntervention": null,
+      "memory": {
+        "fields": {
+          "enabled": false,
+          "reference": false
+        },
+        "ways": {
+          "enabled": false,
+          "reference": false
+        },
+        "descriptors": {
+          "enabled": false,
+          "reference": false
+        },
+        "textures": 768,
+        "heap": {
+          "used": 3448665877,
+          "total": 3499254597
+        }
+      },
+      "finalMemory": {
+        "fields": {
+          "enabled": false,
+          "reference": false
+        },
+        "ways": {
+          "enabled": false,
+          "reference": false
+        },
+        "descriptors": {
+          "enabled": false,
+          "reference": false
+        },
+        "textures": 907,
+        "heap": {
+          "used": 4121451873,
+          "total": 4285868177
+        }
+      },
+      "steps": [
+        {
+          "name": "board",
+          "ok": true,
+          "frames": null,
+          "wallS": 0,
+          "glError": 0
+        },
+        {
+          "name": "start-up",
+          "ok": true,
+          "frames": {
+            "n": 1568,
+            "p50": 33.3,
+            "p90": 33.5,
+            "p99": 83.4,
+            "max": 1150.6,
+            "deliveredFps": 27.3,
+            "over50": 57,
+            "over100": 10,
+            "freeze250": 5,
+            "over1000": 2
+          },
+          "wallS": 57.6,
+          "glError": 0
+        },
+        {
+          "name": "dry taxi chase",
+          "ok": true,
+          "frames": {
+            "n": 334,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 50.2,
+            "max": 100.2,
+            "deliveredFps": 27.6,
+            "over50": 34,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 18.4,
+          "glError": 0
+        },
+        {
+          "name": "dry taxi cockpit",
+          "ok": true,
+          "frames": {
+            "n": 354,
+            "p50": 33.3,
+            "p90": 33.4,
+            "p99": 50,
+            "max": 300.1,
+            "deliveredFps": 29.2,
+            "over50": 3,
+            "over100": 1,
+            "freeze250": 1,
+            "over1000": 0
+          },
+          "wallS": 12.2,
+          "glError": 0
+        },
+        {
+          "name": "taxi to the hold",
+          "ok": true,
+          "frames": {
+            "n": 4225,
+            "p50": 33.4,
+            "p90": 49.9,
+            "p99": 50.1,
+            "max": 99.9,
+            "deliveredFps": 28.7,
+            "over50": 162,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 147.1,
+          "glError": 0
+        },
+        {
+          "name": "take-off",
+          "ok": true,
+          "frames": {
+            "n": 715,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 66.7,
+            "max": 83.5,
+            "deliveredFps": 25.8,
+            "over50": 82,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 27.8,
+          "glError": 0
+        },
+        {
+          "name": "climb to 150 m",
+          "ok": true,
+          "frames": {
+            "n": 1265,
+            "p50": 33.4,
+            "p90": 49.9,
+            "p99": 50.1,
+            "max": 66.9,
+            "deliveredFps": 28.9,
+            "over50": 49,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 43.8,
+          "glError": 0
+        },
+        {
+          "name": "dry airborne chase",
+          "ok": true,
+          "frames": {
+            "n": 357,
+            "p50": 49.8,
+            "p90": 50.1,
+            "p99": 83.4,
+            "max": 116.6,
+            "deliveredFps": 23.6,
+            "over50": 64,
+            "over100": 2,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 15.2,
+          "glError": 0
+        },
+        {
+          "name": "dry airborne cockpit",
+          "ok": true,
+          "frames": {
+            "n": 452,
+            "p50": 33.3,
+            "p90": 33.4,
+            "p99": 33.5,
+            "max": 50.1,
+            "deliveredFps": 30,
+            "over50": 1,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 15.1,
+          "glError": 0
+        }
+      ],
+      "boot": [
+        {
+          "k": "boot.js",
+          "t": 0
+        },
+        {
+          "k": "run",
+          "t": 6049,
+          "set": "garage",
+          "steps": 24
+        },
+        {
+          "k": "step",
+          "t": 6065,
+          "id": "treeBins",
+          "ms": 2,
+          "programs": 0
+        },
+        {
+          "k": "step",
+          "t": 6090,
+          "id": "aircraft",
+          "ms": 855,
+          "programs": 0
+        },
+        {
+          "k": "step",
+          "t": 6955,
+          "id": "garage",
+          "ms": 689,
+          "programs": 2
+        },
+        {
+          "k": "step",
+          "t": 7837,
+          "id": "editor",
+          "ms": 89,
+          "programs": 2
+        },
+        {
+          "k": "step",
+          "t": 7978,
+          "id": "seed",
+          "ms": 1124,
+          "programs": 2
+        },
+        {
+          "k": "step",
+          "t": 9197,
+          "id": "world",
+          "ms": 32350,
+          "programs": 13
+        },
+        {
+          "k": "step",
+          "t": 42404,
+          "id": "town",
+          "ms": 2321,
+          "programs": 36
+        },
+        {
+          "k": "step",
+          "t": 44731,
+          "id": "parking",
+          "ms": 208,
+          "programs": 36
+        },
+        {
+          "k": "step",
+          "t": 44944,
+          "id": "trees",
+          "ms": 0,
+          "programs": 36
+        },
+        {
+          "k": "step",
+          "t": 44950,
+          "id": "ring",
+          "ms": 4471,
+          "programs": 87
+        },
+        {
+          "k": "step",
+          "t": 49427,
+          "id": "settle",
+          "ms": 13540,
+          "programs": 116
+        },
+        {
+          "k": "step",
+          "t": 62971,
+          "id": "parked",
+          "ms": 0,
+          "programs": 116
+        },
+        {
+          "k": "step",
+          "t": 62977,
+          "id": "snapshot",
+          "ms": 1058,
+          "programs": 129
+        },
+        {
+          "k": "step",
+          "t": 64040,
+          "id": "bake",
+          "ms": 0,
+          "programs": 129
+        },
+        {
+          "k": "step",
+          "t": 64060,
+          "id": "spec",
+          "ms": 312,
+          "programs": 131
+        },
+        {
+          "k": "step",
+          "t": 64403,
+          "id": "restore",
+          "ms": 5,
+          "programs": 133
+        },
+        {
+          "k": "step",
+          "t": 64417,
+          "id": "images",
+          "ms": 102,
+          "programs": 133
+        },
+        {
+          "k": "step",
+          "t": 64536,
+          "id": "upload",
+          "ms": 1823,
+          "programs": 145
+        },
+        {
+          "k": "step",
+          "t": 66363,
+          "id": "worldCompile",
+          "ms": 41755,
+          "programs": 500
+        },
+        {
+          "k": "step",
+          "t": 108123,
+          "id": "compile",
+          "ms": 4853,
+          "programs": 537
+        },
+        {
+          "k": "step",
+          "t": 112981,
+          "id": "firstFrame",
+          "ms": 3060,
+          "programs": 550
+        },
+        {
+          "k": "step",
+          "t": 116047,
+          "id": "frames",
+          "ms": 6626,
+          "programs": 556
+        },
+        {
+          "k": "step",
+          "t": 122684,
+          "id": "craft",
+          "ms": 239,
+          "programs": 559
+        },
+        {
+          "k": "step",
+          "t": 122961,
+          "id": "recheck",
+          "ms": 22,
+          "programs": 559
+        },
+        {
+          "k": "ready",
+          "t": 123094
+        },
+        {
+          "k": "gone",
+          "t": 123094
+        }
+      ],
+      "errors": null
+    },
+    {
+      "id": "candidate",
+      "valid": true,
+      "complete": true,
+      "seconds": 227.92330000001192,
+      "build": "47a1bd547eb4",
+      "peakC": 89,
+      "startUTC": "2026-11-21T20:34:18.276Z",
+      "startC": 56,
+      "glChecks": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "nullQueries": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "focusIntervention": {
+        "visibility": "visible",
+        "focus": true,
+        "now": 299478.59999999404,
+        "boot": "gone"
+      },
+      "memory": {
+        "fields": {
+          "enabled": true,
+          "reference": false,
+          "fields": 11,
+          "bakeMs": 756.7999999821186,
+          "bytes": 67108864,
+          "step": 0.25,
+          "bits": 8,
+          "approximation": "Bilinearly filtered quarter-metre unit relief/curvature fields, quantized to declared signed ranges; image acceptance required"
+        },
+        "ways": {
+          "enabled": true,
+          "reference": false,
+          "fields": 11,
+          "texels": 115428,
+          "bytes": 1048576,
+          "bakeMs": 12.500000029802322,
+          "step": 0.125,
+          "approximation": "Half-float longitudinal curve samples at 0.125m; transverse track shape stays analytic. Visual acceptance pending."
+        },
+        "descriptors": {
+          "enabled": true,
+          "reference": false,
+          "fields": 11,
+          "bytes": 131072,
+          "bakeMs": 1.0999999642372131,
+          "texels": 4850,
+          "approximation": "Float32 static descriptors; shader keeps analytic outlines and wet response. GPU parity pending."
+        },
+        "textures": 734,
+        "heap": {
+          "used": 3269913402,
+          "total": 3312321754
+        }
+      },
+      "finalMemory": {
+        "fields": {
+          "enabled": true,
+          "reference": false,
+          "fields": 11,
+          "bakeMs": 756.7999999821186,
+          "bytes": 67108864,
+          "step": 0.25,
+          "bits": 8,
+          "approximation": "Bilinearly filtered quarter-metre unit relief/curvature fields, quantized to declared signed ranges; image acceptance required"
+        },
+        "ways": {
+          "enabled": true,
+          "reference": false,
+          "fields": 11,
+          "texels": 115428,
+          "bytes": 1048576,
+          "bakeMs": 12.500000029802322,
+          "step": 0.125,
+          "approximation": "Half-float longitudinal curve samples at 0.125m; transverse track shape stays analytic. Visual acceptance pending."
+        },
+        "descriptors": {
+          "enabled": true,
+          "reference": false,
+          "fields": 11,
+          "bytes": 131072,
+          "bakeMs": 1.0999999642372131,
+          "texels": 4850,
+          "approximation": "Float32 static descriptors; shader keeps analytic outlines and wet response. GPU parity pending."
+        },
+        "textures": 876,
+        "heap": {
+          "used": 4390590738,
+          "total": 4578025078
+        }
+      },
+      "steps": [
+        {
+          "name": "board",
+          "ok": true,
+          "frames": null,
+          "wallS": 0,
+          "glError": 0
+        },
+        {
+          "name": "start-up",
+          "ok": true,
+          "frames": {
+            "n": 1419,
+            "p50": 33.4,
+            "p90": 33.5,
+            "p99": 83.4,
+            "max": 867.1,
+            "deliveredFps": 27.2,
+            "over50": 75,
+            "over100": 10,
+            "freeze250": 4,
+            "over1000": 0
+          },
+          "wallS": 52.3,
+          "glError": 0
+        },
+        {
+          "name": "dry taxi chase",
+          "ok": true,
+          "frames": {
+            "n": 335,
+            "p50": 33.4,
+            "p90": 50,
+            "p99": 66.7,
+            "max": 100.1,
+            "deliveredFps": 27.6,
+            "over50": 26,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 18.4,
+          "glError": 0
+        },
+        {
+          "name": "dry taxi cockpit",
+          "ok": true,
+          "frames": {
+            "n": 344,
+            "p50": 33.3,
+            "p90": 33.4,
+            "p99": 66.7,
+            "max": 383.5,
+            "deliveredFps": 28.5,
+            "over50": 6,
+            "over100": 1,
+            "freeze250": 1,
+            "over1000": 0
+          },
+          "wallS": 12.1,
+          "glError": 0
+        },
+        {
+          "name": "taxi to the hold",
+          "ok": true,
+          "frames": {
+            "n": 4215,
+            "p50": 33.4,
+            "p90": 49.9,
+            "p99": 66.6,
+            "max": 100,
+            "deliveredFps": 28.6,
+            "over50": 161,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 147.3,
+          "glError": 0
+        },
+        {
+          "name": "take-off",
+          "ok": true,
+          "frames": {
+            "n": 694,
+            "p50": 33.4,
+            "p90": 50.1,
+            "p99": 66.8,
+            "max": 83.4,
+            "deliveredFps": 25.2,
+            "over50": 102,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 27.6,
+          "glError": 0
+        },
+        {
+          "name": "climb to 150 m",
+          "ok": true,
+          "frames": {
+            "n": 1254,
+            "p50": 33.4,
+            "p90": 50,
+            "p99": 66.6,
+            "max": 100.1,
+            "deliveredFps": 28.7,
+            "over50": 57,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 43.8,
+          "glError": 0
+        },
+        {
+          "name": "dry airborne chase",
+          "ok": true,
+          "frames": {
+            "n": 357,
+            "p50": 33.5,
+            "p90": 50.1,
+            "p99": 83.4,
+            "max": 116.7,
+            "deliveredFps": 23.7,
+            "over50": 72,
+            "over100": 1,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 15.1,
+          "glError": 0
+        },
+        {
+          "name": "dry airborne cockpit",
+          "ok": true,
+          "frames": {
+            "n": 450,
+            "p50": 33.3,
+            "p90": 33.4,
+            "p99": 50,
+            "max": 66.7,
+            "deliveredFps": 29.8,
+            "over50": 3,
+            "over100": 0,
+            "freeze250": 0,
+            "over1000": 0
+          },
+          "wallS": 15.2,
+          "glError": 0
+        }
+      ],
+      "boot": [
+        {
+          "k": "boot.js",
+          "t": 0
+        },
+        {
+          "k": "run",
+          "t": 15528,
+          "set": "garage",
+          "steps": 24
+        },
+        {
+          "k": "step",
+          "t": 15547,
+          "id": "treeBins",
+          "ms": 5,
+          "programs": 0
+        },
+        {
+          "k": "step",
+          "t": 15555,
+          "id": "aircraft",
+          "ms": 2227,
+          "programs": 0
+        },
+        {
+          "k": "step",
+          "t": 18223,
+          "id": "garage",
+          "ms": 302,
+          "programs": 2
+        },
+        {
+          "k": "step",
+          "t": 19213,
+          "id": "editor",
+          "ms": 175,
+          "programs": 2
+        },
+        {
+          "k": "step",
+          "t": 20224,
+          "id": "seed",
+          "ms": 3917,
+          "programs": 2
+        },
+        {
+          "k": "step",
+          "t": 24226,
+          "id": "world",
+          "ms": 117755,
+          "programs": 13
+        },
+        {
+          "k": "step",
+          "t": 142748,
+          "id": "town",
+          "ms": 2705,
+          "programs": 36
+        },
+        {
+          "k": "step",
+          "t": 145469,
+          "id": "parking",
+          "ms": 342,
+          "programs": 40
+        },
+        {
+          "k": "step",
+          "t": 145816,
+          "id": "trees",
+          "ms": 0,
+          "programs": 40
+        },
+        {
+          "k": "step",
+          "t": 145822,
+          "id": "ring",
+          "ms": 2417,
+          "programs": 58
+        },
+        {
+          "k": "step",
+          "t": 148244,
+          "id": "settle",
+          "ms": 17890,
+          "programs": 116
+        },
+        {
+          "k": "step",
+          "t": 166140,
+          "id": "parked",
+          "ms": 0,
+          "programs": 116
+        },
+        {
+          "k": "step",
+          "t": 166145,
+          "id": "snapshot",
+          "ms": 1513,
+          "programs": 131
+        },
+        {
+          "k": "step",
+          "t": 167671,
+          "id": "bake",
+          "ms": 0,
+          "programs": 131
+        },
+        {
+          "k": "step",
+          "t": 167677,
+          "id": "spec",
+          "ms": 402,
+          "programs": 132
+        },
+        {
+          "k": "step",
+          "t": 168096,
+          "id": "restore",
+          "ms": 7,
+          "programs": 132
+        },
+        {
+          "k": "step",
+          "t": 168112,
+          "id": "images",
+          "ms": 117,
+          "programs": 132
+        },
+        {
+          "k": "step",
+          "t": 168251,
+          "id": "upload",
+          "ms": 2826,
+          "programs": 159
+        },
+        {
+          "k": "step",
+          "t": 171082,
+          "id": "worldCompile",
+          "ms": 35321,
+          "programs": 407
+        },
+        {
+          "k": "step",
+          "t": 206407,
+          "id": "compile",
+          "ms": 6894,
+          "programs": 461
+        },
+        {
+          "k": "step",
+          "t": 213307,
+          "id": "firstFrame",
+          "ms": 6197,
+          "programs": 472
+        },
+        {
+          "k": "step",
+          "t": 220203,
+          "id": "frames",
+          "ms": 6108,
+          "programs": 480
+        },
+        {
+          "k": "step",
+          "t": 226322,
+          "id": "craft",
+          "ms": 257,
+          "programs": 483
+        },
+        {
+          "k": "step",
+          "t": 226583,
+          "id": "recheck",
+          "ms": 17,
+          "programs": 483
+        },
+        {
+          "k": "ready",
+          "t": 226680
+        },
+        {
+          "k": "gone",
+          "t": 226680
+        }
+      ],
+      "errors": null
+    }
+  ],
+  "visual": {
+    "scope": "Controlled actual rough-runway material row on identical synthetic patch geometry, fixed lighting/camera; dry and wet with forced puddle capacity0.9 equally in both methods; sRGB target. Not full-world screenshots, FPS or physical relief geometry acceptance.",
+    "cache": {
+      "enabled": true,
+      "reference": false,
+      "fields": 11,
+      "bakeMs": 756.7999999821186,
+      "bytes": 67108864,
+      "step": 0.25,
+      "bits": 8,
+      "approximation": "Bilinearly filtered quarter-metre unit relief/curvature fields, quantized to declared signed ranges; image acceptance required"
+    },
+    "staticCache": {
+      "enabled": true,
+      "reference": false,
+      "fields": 11,
+      "bytes": 131072,
+      "bakeMs": 1.0999999642372131,
+      "texels": 4850,
+      "approximation": "Float32 static descriptors; shader keeps analytic outlines and wet response. GPU parity pending."
+    },
+    "wayCache": {
+      "enabled": true,
+      "reference": false,
+      "fields": 11,
+      "texels": 115428,
+      "bytes": 1048576,
+      "bakeMs": 12.500000029802322,
+      "step": 0.125,
+      "approximation": "Half-float longitudinal curve samples at 0.125m; transverse track shape stays analytic. Visual acceptance pending."
+    },
+    "forcedPuddleCapacity": 0.9,
+    "gpu": {
+      "reference": [
+        8.440608,
+        8.486912,
+        8.465408,
+        8.36096,
+        8.38656,
+        8.4992
+      ],
+      "cached": [
+        6.662144,
+        6.550528,
+        6.564864,
+        6.601728,
+        6.554624,
+        6.6048
+      ]
+    },
+    "glError": 0,
+    "row": 240,
+    "micro": [
+      48527,
+      0.23100000619888306,
+      0.136,
+      0,
+      0.012574091710301341,
+      3,
+      0.36,
+      1.24,
+      0.09600000000000002,
+      0.064,
+      2,
+      0.55
+    ],
+    "cases": [
+      {
+        "wet": 0,
+        "coveredPixels": 262144,
+        "meanReference": 47.048441569010414,
+        "meanByteError": 0.03916168212890625,
+        "p99ByteError": 1,
+        "maxByteError": 3,
+        "negativeControlMean": 3.4255905151367188,
+        "images": {
+          "reference": "compact-0-reference.png",
+          "cached": "compact-0-cached.png",
+          "noCues": "compact-0-noCues.png"
+        }
+      },
+      {
+        "wet": 0.8,
+        "coveredPixels": 262144,
+        "meanReference": 42.11443964640299,
+        "meanByteError": 0.038045247395833336,
+        "p99ByteError": 1,
+        "maxByteError": 8,
+        "negativeControlMean": 2.876389821370443,
+        "images": {
+          "reference": "compact-0.8-reference.png",
+          "cached": "compact-0.8-cached.png",
+          "noCues": "compact-0.8-noCues.png"
+        }
+      }
+    ]
+  },
+  "visualError": null,
+  "decision": "Keep compact runway bakes OFF in delivered build. Compiler gains do not establish an integrated loading win. Preserve the slow candidate observation; its focus intervention and long interval from the reference prevent a clean causal comparison. No further optimization experiments in this wrap-up."
+}

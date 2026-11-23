@@ -1,0 +1,78 @@
+{
+  "title": "Simplified surface damage: integrated loading and controlled rendering",
+  "started": "2026-11-21T04:19:46.268Z",
+  "common": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1",
+  "cases": [
+    {
+      "id": "control",
+      "label": "Approved mist B, original scuff",
+      "change": "",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_mesh_page.js",
+      "started": "2026-11-21T04:20:32.481Z",
+      "startC": 28,
+      "finished": "2026-11-21T04:23:30.414Z",
+      "exitCode": 0
+    },
+    {
+      "id": "lite",
+      "label": "Simplified scuff, two states",
+      "change": "scuffopt=lite",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=lite",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_surface_page.js",
+      "started": "2026-11-21T04:24:21.611Z",
+      "startC": 36,
+      "finished": "2026-11-21T04:27:47.143Z",
+      "exitCode": 0
+    },
+    {
+      "id": "liteone",
+      "label": "Simplified scuff, shared surface state",
+      "change": "scuffopt=liteone",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=liteone",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_mesh_page.js",
+      "started": "2026-11-21T04:28:38.589Z",
+      "startC": 37,
+      "finished": "2026-11-21T04:31:20.320Z",
+      "exitCode": 0
+    },
+    {
+      "id": "control-close",
+      "label": "Repeated original-scuff reference",
+      "change": "",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_mesh_page.js",
+      "started": "2026-11-21T04:32:06.975Z",
+      "startC": 38,
+      "finished": "2026-11-21T04:34:51.024Z",
+      "exitCode": 0
+    },
+    {
+      "id": "liteone-repeat",
+      "label": "Shared surface state — repeat after closing reference",
+      "change": "scuffopt=liteone",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=liteone",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_mesh_page.js",
+      "started": "2026-11-21T04:36:03.082Z",
+      "startC": 37,
+      "finished": "2026-11-21T04:38:43.472Z",
+      "exitCode": 0
+    }
+  ],
+  "startMaxC": 38,
+  "coolingDeadlineMs": 180000,
+  "reportTool": "flyDiy/tools/perf/scuff_lite_report.js",
+  "protocol": "Fresh visible Chrome profiles, saved Cub/full hangar,5120x1271/DPR1. Legacy diagnostic-clock startup measurements; native-player mist/FPS circuit reported separately. Mist B, all seven scenery systems and original full runway geometry/cues retained. Accepted advanced-cliff/runtime-aircraft-bake cuts only. Experimental caches off. Original-scuff controls bracket lite candidates;20s garage soak; no world departure in loading cases. Controlled damage/deposit images and GPU patches follow cold timing and are excluded from loading. Window crack body unchanged; shared-state candidate applies only to opaque surfaces. Driver cache not erased.",
+  "followup": "Closing original-scuff reference128.126s versus opening141.954s shows drift. Repeat shared-state candidate after the closing reference; do not claim15.947s causal saving from opening pair.",
+  "finished": "2026-11-21T04:38:45.496Z"
+}

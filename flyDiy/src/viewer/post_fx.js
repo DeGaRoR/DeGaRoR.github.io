@@ -301,7 +301,7 @@ const POST_FX = (() => {
     // and run on a draw to the canvas or to a display (XR) target; the sky-glare rule (no curve of our
     // own) holds either way - the chunks ARE the renderer's
     if (!('tEyeK' in uniforms)) uniforms.tEyeK = EYE_U;   // (EYE-GPU: one uniform object, aa_resolve's - every curve reads the same factor)
-    return new THREE.ShaderMaterial(Object.assign({ uniforms, vertexShader: VERT, fragmentShader: frag, depthTest: false, depthWrite: false,
+    return new THREE.ShaderMaterial(Object.assign({ userData: { progOwner: 'post / fx chain / pass' }, uniforms, vertexShader: VERT, fragmentShader: frag, depthTest: false, depthWrite: false,
       toneMapped: linear, defines: linear ? { PFX_LINEAR: 1 } : {} }, extra || {}));
   }
   function target(w, h, half, display) {
@@ -352,6 +352,12 @@ const POST_FX = (() => {
     M.catCopy = mat(CAT_COPY, { tSrc: { value: null }, uTexel: { value: V2() } });
     M.catDecide = mat(CAT_DECIDE, { tA: { value: null }, tB: { value: null }, tC: { value: null }, uLod: { value: 6 }, uSpike: { value: CAT.spike }, uSky: { value: CAT.sky } });
     M.catRead = mat(CAT_READ, { tA: { value: null }, tB: { value: null }, tC: { value: null }, uLod: { value: 6 }, uH: { value: CAT.H } });
+    // PERF-TRACE (program_id.js): each pass says whose its program is (mat() gives the chain's name; here the pass's own)
+    { const OWN = { thr: 'post / bloom / threshold', down: 'post / bloom / downsample', up: 'post / bloom / upsample', upOut: 'post / bloom / upsample (final)', add: 'post / bloom / add',
+        look: 'post / look / grade', raysMask: 'post / sun rays / mask', raysBlur: 'post / sun rays / blur', ao: 'post / ambient occlusion / estimate', aoBlur: 'post / ambient occlusion / blur',
+        aoApply: 'post / ambient occlusion / apply', eye: 'post / eye adaptation / mean', eyeAdapt: 'post / eye adaptation / adapt', catCopy: 'post / frame catcher / copy',
+        catDecide: 'post / frame catcher / decide', catRead: 'post / frame catcher / read' };
+      for (const k in M) if (M[k] && M[k].isMaterial) M[k].userData.progOwner = OWN[k] || ('post / fx chain / ' + k); }
     for (let k = 0; k < CAT.RING; k++) T['cat' + k] = catTarget();
     T.catQ = target(1, 1, false, false); T.catR = target(CAT.W, CAT.H + 1, false, false);
     cat.ringSeq.fill(-1);

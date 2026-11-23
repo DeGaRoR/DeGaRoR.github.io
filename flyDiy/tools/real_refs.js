@@ -43,6 +43,31 @@ const KT = 1.852, MPH = 1.609344, FPM = 0.00508, FT = 0.3048, LB = 0.45359237;
 // THE REAL AEROPLANES
 // ---------------------------------------------------------------------------------------------------------------------
 const REFS = {
+  // ROLLADEN-SCHNEIDER LS4 (the Standard Class sailplane, 1980; the LS4-a / -b's 2 x 85 L of water and 525 kg; the
+  // user 16 Nov: "add the LS4 to the candidate lists proudly"). Wikipedia (the LS4's own specifications): 15 m, 10.5 m2,
+  // AR 21.4, 238 kg empty, 472 kg max (the LS4; 525 the LS4-b's flight manual), best glide 40.5 at 100 km/h, min sink
+  // 0.61 m/s at 75 km/h, stall 68 km/h, VNE 270, 140 L of water (the LS4-a +15 L a wing). An unpowered aeroplane: no
+  // climb, no take-off run, no top speed. The L/D row WAITS FOR THE DRAG STUDY (ours ~19: the body's drag build-up).
+  ls4: {
+    name: 'Rolladen-Schneider LS4 (LS4-b)', mtow: 525, empty: 238, fuelL: 0, S: 10.5,
+    src: 'Wikipedia (Rolladen-Schneider LS4): 15 m, 10.5 m2, 238 kg empty, 472 kg (LS4) / 525 kg (LS4-b, the flight manual), L/D 40.5 at 100 km/h, min sink 0.61 m/s at 75 km/h, stall 68 km/h, VNE 270 km/h, 140 L water (+15 L a wing on the LS4-a)',
+    // THE TRAIL (LS4 READY, 16 Nov): the article re-read here on 2026-11-16 - span 15 m, 10.5 m2, empty 238 kg, max take-off
+    // 472 kg, 140 L of water, stall 68 km/h, L/D 40.5 at 100 km/h, sink 0.61 m/s at 75 km/h, as the rows say. The article
+    // does NOT give 525 kg (its only "525" is the empty weight in pounds): the LS4-b's 525 kg is the LS4 session's reading
+    // of the flight manual, not seen here - kept as the type's gross (mtow, no row), named thin until a source is read
+    variant: 'Rolladen-Schneider LS4-b (Standard Class, 15 m, engineless; the build: the LS4-alike card, a light 15 m glider in its outline)',
+    sources: {
+      wiki:   { what: 'Wikipedia "Rolladen-Schneider LS4", Specifications (citing the Sailplane Directory and the LS-Flugzeugbau site): 15 m, 10.5 m2, empty 238 kg, max take-off 472 kg, 140 L water, stall 68 km/h, VNE 270 km/h, L/D 40.5 at 100 km/h, min sink 0.61 m/s at 75 km/h',
+                quality: 'encyclopedia', read: '2026-11-16', url: 'https://en.wikipedia.org/wiki/Rolladen-Schneider_LS4' },
+      manual: { what: 'the LS4-b flight manual as the LS4 session cited it (a77779c15): max take-off 525 kg. Not read in REAL-FIGURES; the encyclopedia gives 472 kg for the LS4',
+                quality: 'thin', read: '2026-11-16', noUrl: 'cited on the Archaeopteryx / LS4 branch without a link or a copy' },
+    },
+    poh: { vr: 1.10, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0.3, note: 'a sailplane: no flaps (the airbrakes on the approach), launched by winch or aerotow - no engine' },
+    rows: {
+      empty: { v: 238, tol: 0.05, src: '238 kg (Wikipedia)', from: 'wiki' },
+      Vs1:   { v: 68, tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 68 km/h (Wikipedia; the weight unstated)', from: 'wiki' },
+      LD:    { v: 40.5, tol: 0.10, kg: 'unknown', src: 'best glide 40.5 at 100 km/h (Wikipedia) - WAITING FOR THE DRAG STUDY', from: 'wiki' },
+    } },
   // PIPER J-3C-65 CUB. The 1940s Piper sheet does not state the weight its figures were flown at; the usual reading is
   // gross (1220 lb), but a club J-3 is mostly flown solo from the rear seat. The surface is unstated: a grass type.
   cub: {
@@ -453,6 +478,9 @@ const GEO = {
   stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], heightAs: 'level', S: [27.6, 27.7] },
               specs: { engine: 'Continental R-670 / W-670', hp: 220, nE: 1, blades: 2, empty: [876, 878], mtow: [1195, 1232], fuelL: 174, seats: 2 },
               src: 'PT-17 (search extracts above); fuel 46 US gal (THIN)' },
+  ls4:      { dims: { span: 15.0, length: [6.66, 6.83], height: [1.26, 1.43], S: 10.5 },
+              specs: { engine: 'none (an engineless sailplane: winch or aerotow)', nE: 0, empty: 238, mtow: 525, fuelL: 0, seats: 1 },
+              src: 'Wikipedia "Rolladen-Schneider LS4" (read 2026-11-16): span 15 m, 10.5 m2, length 6.83 m and height 1.26 m (the LS4), the LS4-b\'s fuselage 6.66 m and fin raised to 1.43 m - the ranges hold both; mtow the LS4-b\'s 525 kg (thin, REFS.ls4.sources.manual)' },
   archaeo:  { dims: { span: 13.6, S: 12.8 },
               specs: { engine: 'electric pusher (the Electeryx\'s ~10.5 kW)', hp: 14, nE: 1, empty: 54, mtow: 191, fuelL: 0, seats: 1 },
               src: 'Wikipedia (span 13.6 m, 12.8 m2, AR 14.5; futureDesigns/archaeopteryx/STUDY.md section 1); the motor 10.5 kW (Wikipedia, via the study)' },
@@ -502,7 +530,7 @@ const PLANES = {
   cub160:   { listRow: 48, supersededBy: 'cub', next: true, label: 'Piper Cub, J-3 chord 1.60 m (candidate; the shipped Cub has 1.70)', short: 'Piper Cub', file: 'builds/candidates/cub_chord160.json', ref: 'cub' },
   jodelg:   { listRow: null, label: 'Jodel D112: the D.112 wing, length and 60 L tank (candidate)', short: 'Jodel D112', file: 'builds/candidates/jodel_geo.json', ref: 'd112' },
   jodel:    { supersededBy: 'jodelg', label: 'Jodel D112 (official)', file: 'builds/jodel_2026-09-20_corrected.json', ref: 'd112', official: true },
-  cessna:   { dropped: 'the user 8 Nov: the corrected 172 is the Cessna; B-CESS is dismissed', label: 'Metal Cessna B-CESS (official)', file: 'builds/cessna172_2026-09-20.json', ref: 'c172r', official: true,
+  cessna:   { dropped: 'the user 8 Nov: the corrected 172 is the Cessna; B-CESS is dismissed', label: 'Metal Cessna B-CESS (official)', file: 'builds/cessna172r_2026-11-08.json', ref: 'c172r', official: true,
               engineNote: 'the build flies an O-540 235 hp (the type: IO-360 160 hp) on an 18.4 m2 wing (16.2): power-bound rows are not like for like', cgSweep: true },
   cessnaF:  { dropped: 'the user 8 Nov: dismissed; a Cessna on Wipline 2350 floats is to be rebuilt from the corrected 172', label: 'Metal Cessna on floats (official)', file: 'builds/cessna172_floats_2026-11.json', ref: 'c172f', official: true, water: true,
               engineNote: 'O-540 235 hp against the 160-180 hp the references cover' },
@@ -510,7 +538,7 @@ const PLANES = {
               engineNote: 'O-320 150 hp against Wipaire\'s 160 hp; EDO-style seaplane floats against Wipline amphibians' },
   pa18f:    { listRow: 25, label: 'PA-18 on floats (official)', short: 'PA-18 on floats', file: 'builds/pa18_floats_2026-10-23.json', ref: 'pa18f', official: true, water: true,
               engineNote: 'O-320 150 hp against Wipaire\'s 160 hp; EDO-style seaplane floats against Wipline amphibians' },
-  petrel:   { label: 'Super Petrel V4.1 (claude/hull-types, 7 Nov)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', water: true, land: true, supersededBy: 'petrelL',
+  petrel:   { label: 'Super Petrel V4.1 (claude/hull-types, 7 Nov)', file: 'tools/fixtures/test_copies/superpetrel_V4_1.json', ref: 'petrel', water: true, land: true, supersededBy: 'petrelL',
               branch: 'claude/hull-types', note: 'not on master: run from a worktree of claude/hull-types (its core, its rows)' },
   chinook:  { supersededBy: 'chinookm', label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   // REAL-FIGURES-2 (2026-11-08): the planes with a clear real parent
@@ -528,24 +556,27 @@ const PLANES = {
   stearman: { listRow: 9, label: 'Stearman-alike (candidate)', file: 'builds/candidates/stearman_2026-10.json', ref: 'stearman', group: 'biplane' },
   tigermoth:{ supersededBy: 'tigermothm', label: 'Tiger Moth-alike (candidate)', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
   camel:    { supersededBy: 'camelm', label: 'Camel-alike (candidate)', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
-  birdman:  { dropped: 'the user 8 Nov: not needed (it is the Chinook as first built)', label: 'Birdman (candidate: the Chinook as found)', file: 'builds/candidates/birdman.json', ref: 'chinook', group: 'ultralight',
+  // THE LS4-ALIKE (the Archaeopteryx branch, 16 Nov): the card's build against the LS4-b
+  ls4:      { listRow: 97, label: 'LS4-alike (candidate)', file: 'builds/candidates/ls4_2026-11.json', ref: 'ls4', group: 'glider',
+              note: 'engineless, 170 L of water, airbrakes, CS-22 strength: 230 kg empty against 238; its glide waits for the drag study' },
+  birdman:  { dropped: 'the user 8 Nov: not needed (it is the Chinook as first built)', label: 'Birdman (candidate: the Chinook as found)', file: 'tools/fixtures/test_copies/build_v10_birdman_2026-09-18.json', ref: 'chinook', group: 'ultralight',
               note: 'the user\'s birdman.json before the 21 Sep corrections (the official Chinook is its corrected file)' },
   skymaster:{ dropped: 'the user 8 Nov: not wanted in the set', label: 'Skymaster-alike (archetype card)', card: 'skymaster', ref: 'skymaster', group: 'archetype',
               note: 'an engine-configuration archetype, never hand-authored to the type: a light check' },
   // PETREL-LS (10 Nov): the V4.2, fitted round by round to the maker's three LS drawings (reports/evidence/PETREL-LS-2026-11-10)
-  archaeo:  { listRow: null, label: 'Ruppert Archaeopteryx, HB-WXA (the Archaeopteryx study, 10 Nov; an electric pusher)', short: 'Archaeopteryx', file: 'builds/archaeopteryx_2026-11-10.json', ref: 'archaeo', group: 'ultralight' },
+  archaeo:  { listRow: 85, label: 'Ruppert Archaeopteryx, HB-WXA (the Archaeopteryx study, 10 Nov; an electric pusher)', short: 'Archaeopteryx', file: 'builds/archaeopteryx_2026-11-10.json', ref: 'archaeo', group: 'ultralight' },
   petrel42: { listRow: 41, label: 'Super Petrel V4.2 (fitted to the maker\'s LS drawings, 10 Nov)', short: 'Super Petrel', file: 'builds/candidates/superpetrel_V4_2.json', ref: 'petrel', water: true, land: true, group: 'seaplane' },
-  petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true, supersededBy: 'petrel42',
+  petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'tools/fixtures/test_copies/superpetrel_V4_1.json', ref: 'petrel', land: true, supersededBy: 'petrel42',
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },
-  c172rf:   { listRow: null, dropped: true, test: true, label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
+  c172rf:   { listRow: null, dropped: true, test: true, label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'tools/fixtures/test_copies/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
               note: 'HYDRO-TRIM\'s stock 172R on the catalogue-exact Wipline 2350s with the STC 82 x 43 prop: the floats Cessna that exists today, until FLAGSHIP\'s rebuild lands' },
   carboncubss: { listRow: 47, label: 'Carbon Cub SS (CC340, built to the type)', short: 'Carbon Cub SS', file: 'builds/candidates/carbon_cub_ss.json', ref: 'carboncub',
               note: 'REAL-FIGURES-3, the user 9 Nov: the CC340 built from the engine dials (the O-320 chassis on the CC340 stroke, 340 in3, 2700 rpm, the new tune 1.09 and build 0.88 dials: 180 hp, 120 kg), a 2-blade carbon 2.03 m, VGs only (no slot, droop or drooped tips), the new STOL flap (plain, to 50 deg), a Super Cub-sized tail, 29 in tundras, 91 L in the wing roots, one 7 in glass PFD/MFD with round ASI / ALT / VSI (builds/candidates/carbon_cub_ss.edits.json)' },
   // (the user, 9 Nov: the STOL Cub is a Cub with a kit, not a Carbon Cub - kept, measured, no longer compared: the Carbon
   // Cub SS is the aeroplane that IS a real one)
-  stolcub:  { supersededBy: 'carboncubss', label: 'STOL Cub (official)', short: 'STOL Cub', file: 'tools/fixtures/stol_cub_showcase.json', ref: 'carboncub', official: true,
+  stolcub:  { supersededBy: 'carboncubss', label: 'STOL Cub (official)', short: 'STOL Cub', file: 'builds/candidates/stol_cub_showcase.json', ref: 'carboncub', official: true,
               engineNote: 'a Rotax 915 iS (141 hp turbo) where the Carbon Cub SS has the CC340 180 hp (the Carbon Cub UL\'s 916 iS is the Rotax analogue, unpublished)' },
-  c172x:    { supersededBy: 'c172v2', label: 'Cessna 172 corrected (internal)', short: 'Cessna 172 corrected', file: 'builds/cessna172_2026-09-20_corrected.json', ref: 'c172r',
+  c172x:    { supersededBy: 'c172v2', label: 'Cessna 172 corrected (internal)', short: 'Cessna 172 corrected', file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', ref: 'c172r',
               note: 'the 20 Sep corrected 172 (IO-360 dials, 16.5 m2): the like-for-like 172R comparison the official B-CESS cannot be' },
   // CESSNA-FINAL (FLAGSHIP, 8 Nov): the corrected 172 + seven build rows - the lowered aft roof, 212 L at the wing root,
   // the DRAWN stab to the 172R's 3.40 m / 3.30 m2 (stSpan 1.19 -> 1.264: the join measures the drawing, spec.tail does not
@@ -591,20 +622,20 @@ const HISTORY = [
     flown: { TO: 287, climb: 1.6, LDG: 87, cruise: '124 at thr 0.82' }, balance: 'CG 34 %, SM 2 % (G445.7-8: 29 %, 7 %)' },
   { key: 'jodel', name: 'Jodel D.112 (accuracy sheet)', date: '2026-09-21', build: 'builds/jodel_2026-09-20_corrected.json', alive: 'yes', src: 'reports/ACCURACY-SHEET-2026-09-21.html',
     then: { empty: 341, S: 13.8, Vs1: 72, V75: 134, Vmax: 159, roc: 2.0, LD: 9.0, T0: 1039, TO: 183 }, flown: { TO: 262, climb: 1.4, LDG: 243 }, balance: 'CG 27 %, NP 31 %' },
-  { key: 'c172x', name: 'Cessna 172, the user\'s build corrected (IO-360 dials, 159 hp)', date: '2026-09-20', build: 'builds/cessna172_2026-09-20_corrected.json', alive: 'yes - internal ("retired, kept for the gates")',
+  { key: 'c172x', name: 'Cessna 172, the user\'s build corrected (IO-360 dials, 159 hp)', date: '2026-09-20', build: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', alive: 'yes - internal ("retired, kept for the gates")',
     src: 'reports/C172-STUDY-2026-09-20.md §1.1', ref: '172R at MTOW 1111 kg',
     then: { empty: 664, S: 16.5, Vs1: 93, V75: 193, Vmax: 220, roc: 3.3, LD: 11.1, CdS: 0.56, TO: 301, TO50: 410 },
     flown: { TO: 428, climb: 2.5, LDG: 227, cruise: '180 at thr 0.83' } },
-  { key: 'cessna', name: 'Cessna 172, the user\'s build AS FOUND (= the official B-CESS file), on the io360 row', date: '2026-09-20', build: 'builds/cessna172_2026-09-20.json (engine swapped to io360_mccauley for the run)', alive: 'yes - the official Metal Cessna (on its own O-540)',
+  { key: 'cessna', name: 'Cessna 172, the user\'s build AS FOUND (= the official B-CESS file), on the io360 row', date: '2026-09-20', build: 'builds/cessna172r_2026-11-08.json (engine swapped to io360_mccauley for the run)', alive: 'yes - the official Metal Cessna (on its own O-540)',
     src: 'reports/C172-STUDY-2026-09-20.md §1.1', ref: '172R at MTOW 1111 kg',
     then: { empty: 632, S: 18.4, Vs1: 89, V75: 194, Vmax: 219, roc: 4.0, LD: 10.4, CdS: 0.65, TO: 215, TO50: 305 },
     flown: { TO: 266, climb: 3.2, LDG: 384, cruise: '173 at thr 0.73' }, note: 'as saved (O-540 235 hp): ROC 6.8 (shakedown), TO 150 (shakedown)' },
-  { key: 'c172x', name: 'Cessna 172R (accuracy sheet: the corrected build)', date: '2026-09-21', build: 'builds/cessna172_2026-09-20_corrected.json', alive: 'yes', src: 'reports/ACCURACY-SHEET-2026-09-21.html',
+  { key: 'c172x', name: 'Cessna 172R (accuracy sheet: the corrected build)', date: '2026-09-21', build: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', alive: 'yes', src: 'reports/ACCURACY-SHEET-2026-09-21.html',
     then: { empty: 641, S: 16.5, Vs1: 93, V75: 194, Vmax: 221, roc: 3.3, LD: 11.2, T0: 2198, TO: 264, TO50: 370 }, flown: { TO: 308, climb: 2.5, LDG: 206 }, balance: 'CG 35 %, NP 56 %' },
   { key: 'chinook', name: 'Chinook Plus 2, the user\'s birdman corrected', date: '2026-09-21', build: 'builds/chinook_2026-09-21_corrected.json', alive: 'yes - official, out of the battery',
     src: 'reports/CHINOOK-STUDY-2026-09-21.md §1 (at MTOW) + ACCURACY-SHEET (at the sheet\'s 340 kg)',
     then: { empty: 219, S: 13.1, Vs1: 58, V75: 125, Vmax: 140, roc: 5.0, LD: 7.7, T0: 1324, TO: 52 }, flown: { TO: 101, climb: 2.5, LDG: 74 } },
-  { key: 'c172f', name: 'Cessna 172R on Wipline 2350 (STC prop, 1157 kg) - water', date: '2026-10-20', build: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', alive: 'yes (GATE HYDROTRIM\'s)',
+  { key: 'c172f', name: 'Cessna 172R on Wipline 2350 (STC prop, 1157 kg) - water', date: '2026-10-20', build: 'tools/fixtures/test_copies/c172r_wipline2350_stcprop_2026-10-20.json', alive: 'yes (GATE HYDROTRIM\'s)',
     src: 'HANDOVER G3440-G3443 (HYDRO-TRIM), hydro_trim_table.js', then: { TOWs: 30.7, TOW: 442 }, note: 'POH technique; the rig technique 38.8 s / 687 m; the game\'s pilot (float Cessna, cessnaFloatsWOrks) lifts at 22.3 s' },
   { key: 'pa18f', name: 'PA-18 on floats - water', date: '2026-11-03', build: 'builds/pa18_floats_2026-10-23.json (753 kg)', alive: 'yes - official',
     src: 'reports/evidence/FLOATS-CLASSIC/water_runs_node.txt', then: { TOWs: 22.6, TOW: 235 }, note: 'the game\'s pilot, EDO-classic and Wipline styles alike (235 / 236 m); no reference was set then' },

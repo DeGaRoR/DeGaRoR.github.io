@@ -279,7 +279,7 @@ const isPiston = p => p.arch !== 'electric' && p.arch !== 'turbine';
 // key is in NO default dict, so applyEngPreset never writes them and no saved build, preset or join gains a key; the
 // mesh reads an absent key as the drawing before the row existed. These are the values their sliders SHOW while absent
 // (the cage's `absent` row option, the bench page's own state). A key is written only when a page changes it.
-const LATENT = { stackOut: 1, stackLen: 1, stackFlat: 0, stackR: 1, stackDrop: 0, stackSplit: 0 };
+const LATENT = { stackOut: 1, stackLen: 1, stackFlat: 0, stackR: 1, stackDrop: 0, stackSplit: 0, cylK: 1.85 };
 const ENG_GROUPS = [
   // THE TURBOPROP (2026-09-05, TURBOPROP §3): its own keys, so no row is
   // rendered twice; NO aim row — a PT6's two stacks are left and right by
@@ -404,6 +404,10 @@ const ENG_GROUPS = [
   ['cylinder dress', [
     ['finN',     'barrel fins', 4, 18, 1],
     ['finR',     'fin dia /b',  1.1, 1.7, 0.01],
+    // CYL-REACH (16 Nov, the 172, the user: "modify the geometry of the engine a tad"): how far a cylinder stands out
+    // beyond its stroke, x the bore (the drawing and the garage envelope; mass, power and the CG do not read it) -
+    // the generic 1.85 draws an IO-360 0.98 m across, the real one is 0.85 m (latent: absent = 1.85, as drawn before)
+    ['cylK',     'cylinder reach /b', 1.2, 2.2, 0.01],
     ['headFins', 'head fins',   0, 10, 1],
     ['rockerW',  'rocker w /b', 0.6, 1.2, 0.01],
     ['rockerH',  'rocker h /b', 0.4, 0.9, 0.01],

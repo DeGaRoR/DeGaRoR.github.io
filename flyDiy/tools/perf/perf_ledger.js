@@ -46,7 +46,7 @@ const pick = flag('all') ? TRAINS.map(t => t[0]) : (opt('trains', null) ? opt('t
 const SEL = TRAINS.filter(t => pick.includes(t[0]));
 for (const l of pick) if (!TRAINS.some(t => t[0] === l)) { console.error('perf_ledger: unknown train ' + l); process.exit(2); }
 // --runs cub:chase,metal:cockpit - a subset (PERF-PRESTUDY's +22 s question: the Cub chase alone); --reps n measured runs a visit
-const RUNS = [['cub', 'builds/cub_2026-09-20_corrected.json'], ['metal', 'bugReports/cessnaMetal (1).json']]
+const RUNS = [['cub', 'builds/cub_2026-09-20_corrected.json'], ['metal', 'builds/cessna172r_2026-11-08.json']]
   .flatMap(([b, f]) => ['chase', 'cockpit'].map(c => ({ b, f, c })))
   .filter(R => !opt('runs', null) || opt('runs').split(',').includes(R.b + ':' + R.c));
 const REPS = Math.max(1, +opt('reps', 1) || 1);

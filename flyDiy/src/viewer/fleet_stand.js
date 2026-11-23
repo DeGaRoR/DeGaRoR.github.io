@@ -32,7 +32,11 @@
   const ST = { grp: null, key: null, holders: [], plan: null, limit: null, ctx: null,
                stats: { stands: 0, placed: 0, kept: 0, miss: 0, held: 0, waitMs: 0 } };
   try { const q = /[?&]fleetn=(\d+)(?:&|$)/.exec((W.location && W.location.search) || ''); if (q) ST.limit = +q[1]; } catch (e) {}
-  const on = () => !!(W.PARKED && typeof W.PARKED.fleetOn === 'function' && W.PARKED.fleetOn());
+  const on0 = () => !!(W.PARKED && typeof W.PARKED.fleetOn === 'function' && W.PARKED.fleetOn());
+  // PERF-SIMPLIFY (the user 22 Nov: the based planes on hold, "We can still load the client cub"): a context's `only` (the
+  // story's client Cub) stands those slots alone, from the offline props (parked.js's static trio: decoded, never baked here)
+  const onlyOf = c => (c && Array.isArray(c.only) ? c.only : null);
+  const on = c => on0() || !!(onlyOf(c) && onlyOf(c).length && W.PARKED && W.PARKED.staticTrio);
   const capNow = () => (W.PARKED && typeof W.PARKED.fleetCap === 'function' ? W.PARKED.fleetCap() : 6);
 
   // THE ROWS (pure): the airframes tied down outside at an aerodrome, by slot name - the one flown among them (it keeps
@@ -88,10 +92,11 @@
   }
   const islandOf = world => (world && world.island && world.island.id) || null;
   const keyOf = (P, island) => (island || '-') + '|' + P.stand.map(p => p.slot + '@' + p.spot).join(',');
-  const planOf = c => plan(c.doc, c.flown, W.FLEET_SPOTS_PACK, islandOf(c.world), ST.limit, c.from || null, c.cap != null ? c.cap : capNow());
+  const narrow = c => { const o = onlyOf(c); if (!o || !c.doc || !c.doc.fleet) return c.doc; const f = {}; for (const n of o) if (c.doc.fleet[n]) f[n] = c.doc.fleet[n]; return Object.assign({}, c.doc, { fleet: f }); };
+  const planOf = c => plan(narrow(c), c.flown, W.FLEET_SPOTS_PACK, islandOf(c.world), ST.limit, c.from || null, c.cap != null ? c.cap : capNow());
   // the 'parking' step's key: what would stand (nothing with the flag off - the step's key is then what it was)
   function key(c) {
-    if (!on() || !c) return '';
+    if (!on(c) || !c) return '';
     return keyOf(planOf(c), islandOf(c.world));
   }
   // THE QUEUE'S BOUND: is `key` in the drawn set as it is now? (no context handed: yes - the gates' headless module)
@@ -117,7 +122,7 @@
   // stand the set: c = { THREE, scene, world, doc, flown, from, cap } -> a promise once every prop decoded (or refused),
   // at most `waitMs` (the roll-out screen never waits on a stuck store)
   function stand(c) {
-    if (!on() || !c || !c.scene || !c.world || !W.PARKED || !W.PARKED.place) { clear(); return Promise.resolve(null); }
+    if (!on(c) || !c || !c.scene || !c.world || !W.PARKED || !W.PARKED.place) { clear(); return Promise.resolve(null); }
     const isl = islandOf(c.world);
     const P = ST.plan = planOf(c);
     ST.stats.miss = P.miss.length; ST.stats.held = P.held.length;
