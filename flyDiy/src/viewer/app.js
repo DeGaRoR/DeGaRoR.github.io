@@ -981,6 +981,24 @@
     try { if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.apply) SHADOW_NEAR.apply(); } catch (e) {}
     compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, fn => craftLightsGuess(fn)).catch(e => { B.err = String(e && e.message); });
   }
+  // ...AND BY THE WORLD BUILD'S OWN STAND-INS (PERF-WORLDBUILD 7c9ffa308, 23 Nov; under the same ?groundfirst=1): at the yield
+  // 'ground programs' the build lists the island ground's three (ring, fine, outer) and at 'premises made' the premises
+  // patch's - each the DRAWN material on one bare triangle, never in the scene, its key the drawn one (their gate holds
+  // it). Handed to the driver there, they link while the rest of the world is built; the meshes scanned above are the
+  // fallback of a build without the list. LAB.ground.warm: [name, key, ms of the page at the hand-over]
+  function groundWarmHand(lab) {
+    const B = LAB.ground, f = lab === 'ground programs' ? scene.userData.groundWarm : scene.userData.patchWarm;
+    if (typeof f !== 'function' || typeof renderer.compileAsync !== 'function') return;
+    let list = []; try { list = f() || []; } catch (e) { B.err = 'warm list: ' + String(e && e.message); return; }
+    const g = new THREE.Group(); B.warm = B.warm || [];
+    for (const e of list) { if (!e || !e.mesh || !e.material || GROUND_HANDED.has(e.material)) continue;
+      GROUND_HANDED.add(e.material); g.add(e.mesh); B.n++; B.warm.push([e.name, String(e.key || '').slice(0, 60), Math.round(performance.now())]);
+      const k = groundKeyOf(e.material); if (B.keys.indexOf(k) < 0) B.keys.push(k); }
+    if (!g.children.length) return;
+    B.at[lab] = Math.round(performance.now());
+    try { if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.apply) SHADOW_NEAR.apply(); } catch (e) {}
+    compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, fn => craftLightsGuess(fn)).catch(e => { B.err = String(e && e.message); });
+  }
   function buildWorldSliced() {
     if (WF) return;
     if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
@@ -998,6 +1016,7 @@
         const t0 = performance.now(); let r = null, lab = '';
         const SL = gfSliceMs(); LAB.gfS.deadline = t0 + SL;   // (?boot=garagefirst: the slice is the garage's budget; 40 ms under a screen, as before)
         try { do { r = g.next(); n++; if (!r.done) { lab = r.value; if (lab === 'pavement program' && LAB.paveFirst) paveFirstHand();
+          else if (LAB.groundFirst && (lab === 'ground programs' || lab === 'premises made')) groundWarmHand(lab);
           else if (LAB.groundFirst && (lab === 'ring lod' || lab === 'far terrain' || lab === 'water')) groundFirstHand(lab); } } while (!r.done && !window.FLYDIY_WORLD_WAIT && performance.now() - t0 < SL); }
         catch (e) { console.error('world build:', e); window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null; res(); return; }
         worst = Math.max(worst, performance.now() - t0);

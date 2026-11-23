@@ -30,7 +30,7 @@
     // many of 100 ms+, over how many seconds, and the first 30 s alone; the far terrain's slots; the mirror's captures / kept
     bg: L && L.lateBg ? pick(L.bg, ['revealed', 'running', 'done', 'xrayMs', 'ms', 'xrayLinks', 'scuffLinks', 'twins', 'noTwin', 'err']) : undefined,
     lateSkipped: (L && L.lateSkipped) || undefined,
-    ground: L && L.groundFirst ? pick(L.ground, ['at', 'n', 'same', 'keys', 'keysCompile', 'err']) : undefined,   // (?groundfirst=1: the labels' times, the materials handed over)
+    ground: L && L.groundFirst ? pick(L.ground, ['at', 'n', 'same', 'keys', 'keysCompile', 'warm', 'err']) : undefined,   // (?groundfirst=1: the labels' times, the materials handed over)
     // (23 Nov) ?boot=garagefirst: the world loaded behind the garage - ms from its start to ready, the garage's reveal (ms of the
     // page), each step [id, ms, ran|same|error, start ms, programs added, live|screen], the longest build slice behind the live garage
     gf: L && L.gf ? Object.assign(pick(L.gfS, ['running', 'done', 'fast', 'ms', 'step', 'why', 'err', 'joinMs', 'joinStep', 'worstSlice', 'worstLab', 'slices', 'restMs', 'busyMs', 'warm', 'warmDrawn', 'warmMs', 'warmErr', 'long']) || {},
