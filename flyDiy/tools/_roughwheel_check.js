@@ -18,8 +18,12 @@
 //    wheel keeps over the stone grows with the wheel (0.22 < 0.30 < tundra 0.36).
 // B. THE STRIP'S BIGGEST STONE (20 cm) at 0.4 power: every wheel crosses, the share kept grows with the wheel, and the
 //    tundra's jolt (the CG's peak vertical acceleration over the stone) is under the 0.15 m wheel's.
-// C. THE OLD LAW FAILS A (the self-test): the same run with roughAt off - the 0.15 m wheel rolls over the 15 cm stone and
-//    keeps all its speed.
+// C. THE OLD LAW FAILS A (the self-test): the same run with roughAt off - the 0.15 m wheel rolls over the 15 cm stone.
+//    (RE-PINNED 23 Nov, MASTER-GREEN: the row also said "and keeps all its speed" (> 97 %). Since TOW-LAUNCH's ground
+//    normal (train L40g, the merge of tow-launch-l40f-2 dc742075c: "the ground pushes along its normal", GATE SLOPE) the
+//    point read's stone is a slope as well and costs every wheel about a quarter of its speed - 71 % to 74 %, the wheel
+//    size making no difference, the same on L40h, L40J and here. What the self-test proves is unchanged: without the cams
+//    the 0.15 m wheel ROLLS OVER the stone that stops it with them, so A is not inert.)
 // D. AT A 10 m/s TAXI over a row of 15 cm stones: the tundra's jolt and its gear's peak strain are under the 0.15 m wheel's.
 // E. ABSENT AS BEFORE: on flat ground with roughAt on the roll is the same bits as with it off (the cams' mean of a flat road
 //    is the road); and on the strip's own field (STRIP_MICRO chaos 0.8, seed 9: roughness, lumps, holes, stones) every wheel
@@ -123,7 +127,7 @@ for (let k = 0; k < 4; k++) yes(S20[k].over != null, 'B the ' + WHEELS[k].nm + '
 for (let k = 0; k + 1 < 4; k++) yes(S20[k + 1].keep > S20[k].keep, 'B over the ' + cm(0.27) + ' stone the ' + WHEELS[k + 1].nm + ' keeps more than the ' + WHEELS[k].nm, cell(S20[k + 1]) + ' vs ' + cell(S20[k]));
 yes(S20[3].jolt < S20[0].jolt, 'B the tundra\'s jolt over the ' + cm(0.27) + ' stone is under the 0.15 m wheel\'s', S20[3].jolt.toFixed(1) + ' vs ' + S20[0].jolt.toFixed(1));
 // C
-yes(O15[0].over != null && O15[0].keep > 0.97, 'C the old point read: the 0.15 m wheel rolled over the ' + cm(0.2) + ' stone at full speed (the self-test: the old law fails A)', cell(O15[0]));
+yes(O15[0].over != null, 'C the old point read: the 0.15 m wheel rolled over the ' + cm(0.2) + ' stone (the self-test: the old law fails A)', cell(O15[0]));
 // D
 const TR = WHEELS.map(w => taxi(w, true, 'row'));
 console.log('  a 10 m/s taxi over a row of ' + cm(0.2) + ' stones: the CG\'s peak vertical acceleration and the gear\'s peak strain');
