@@ -54,11 +54,11 @@ const B = require(path.join(ROOT, 'src', 'viewer', 'bench.js'));
 const BUILDS = {
   cub: { file: 'builds/cub_2026-09-20_corrected.json', gear: 'taildragger' },
   jodel: { file: 'builds/jodel_2026-09-20_corrected.json', gear: 'taildragger' },
-  c172: { file: 'builds/cessna172_2026-09-20_corrected.json', gear: 'tricycle' },
+  c172: { file: 'builds/cessna172r_2026-11-08.json', gear: 'tricycle' },
   floats: { file: 'bugReports/cessnaFloatsWOrks.json', gear: 'floats' },
   twinf: { file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', gear: 'floats',
            patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },
-  metal: { file: 'bugReports/cessnaMetal (1).json', gear: 'tricycle' },
+  metal: { file: 'builds/cessna172r_2026-11-08.json', gear: 'tricycle' },
 };
 const SELF_KEYS = ['cub', 'c172', 'floats'];
 const clone = o => JSON.parse(JSON.stringify(o));

@@ -4,7 +4,7 @@
 // the Conquer's ball, its loads back to the car as car.extF; the bunks push up only, the latch opens when the wing
 // carries the weight - the glider study's probe_trailer, made a module) and src/vehicle/trailer_model.js (the trailer
 // drawn). The floatplane is the Twin-582 floatplane archetype; the flying boat the classic-V hull with a pylon O-540 off
-// the Cessna-on-floats build (tools/fixtures/trailer_hull_classic_pylon.json: `node tools/hull_matrix.js
+// the Cessna-on-floats build (tools/fixtures/test_copies/trailer_hull_classic_pylon.json: `node tools/hull_matrix.js
 // --one=classic:pylon --fitonly --save=...`, the hull fit's cycle), each flown by trailer.js's hands (the page's player
 // flies himself).
 //   FIT     the floatplane on its trailer at rest: a pad under each float's keel fore and aft, the cradle's attitude,
@@ -43,7 +43,7 @@ const P0 = G.places['rwy:HOME:0'], P1 = G.places['rwy:HOME:1'];
 const dl = Math.hypot(P1.x - P0.x, P1.z - P0.z), dx = (P1.x - P0.x) / dl, dz = (P1.z - P0.z) / dl, hdg = Math.atan2(dz, dx);
 const A = DS.ARCHETYPES.find(x => x.key === 'floatplane');
 const DEF = { floats: C.buildGen(DS.designBake(A.sel, A.over)),
-              hull: C.buildGen(C.genMigrateSpec(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'trailer_hull_classic_pylon.json'), 'utf8')).spec)) };
+              hull: C.buildGen(C.genMigrateSpec(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'test_copies', 'trailer_hull_classic_pylon.json'), 'utf8')).spec)) };
 
 // the rig at runway 13's end: the car 14 m in, the aeroplane settled on its keels behind it, then seated on the trailer
 function rig(which, o) {

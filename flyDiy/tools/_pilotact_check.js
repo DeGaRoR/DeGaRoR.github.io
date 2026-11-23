@@ -4,7 +4,7 @@
 // final, landing), aileron and rudder, against absolute limits
 // (pilot_matrix.js ACT_LIMIT). Three aeroplanes off HOME's stand: the stock
 // build, the C172 archetype and the user's aluminium C172 build from the
-// Jolene playtest (tools/fixtures/build_v10_cessnaMetal_2026-09-26.json).
+// Jolene playtest (bugReports/cessnaMetal (1).json).
 // Before G630 the downwind's rudder square wave (a target heading nobody
 // refreshed in PATH mode, differentiated across +-pi) read ~25/min against
 // a limit of 12, and the ground's aileron chatter ~80-240/min; see the G630

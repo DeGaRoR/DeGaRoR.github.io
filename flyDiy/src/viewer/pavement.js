@@ -372,7 +372,7 @@ const PAVEMENT = (() => {
   // game's premises) - the analytic world's strips keep their constant lift and their rows - and on a strip, or a road or a
   // polygon the caller marks (o.refine: render_premises, the aerodromes' own - within REFINE_NEAR of a runway); every
   // pavement refined cost 355 k triangles over Jolene's village roads and harbour aprons, for no wheel
-  const REFINE = { tol: 0.005, min: 0.75, roadV: false, poly: true, reuseHeight: typeof location !== 'undefined' && /[?&]pavereuse=1(?:&|$)/.test(location.search || '') };   // roadV stays off; height reuse is an opt-in experiment.
+  const REFINE = { tol: 0.005, min: 0.75, roadV: false, poly: true, reuseHeight: !(typeof location !== 'undefined' && /[?&]pavereuse=0(?:&|$)/.test(location.search || '')) };   // roadV stays off; (PERF-WORLDBUILD, 22 Nov) the height reuse is the DEFAULT - the heights the refinement read are the ones the vertices are written with; ?pavereuse=0 reads them again, as before (GATE PAVEXACT: the island byte for byte either way)
   // refineAxis(A, B, H, inside): A, B the two axes' stations (sorted); H(a, b) the ground at a on A's axis, b on B's;
   // inside(a, b) the point is paved. -> A with stations inserted
   // (DIRT-STRIP: `min` > 0 - a bush strip's bumps (26b_strip_micro) - the finest spacing, REFINE.min otherwise)

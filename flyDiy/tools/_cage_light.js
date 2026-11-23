@@ -185,6 +185,8 @@ const items = [
   ['the wing bay', [
     ['li_plane', 'tip lights on which wing', 0, 1, 1, ['first', 'second'],
      { when: P => +P.lightOn && !!+P.w2On }],
+    // CESSNA-REFIT (16 Nov): the bay in both wings or in one (absent 0: both, as every build before it)
+    ['li_baySide', 'cut in', 0, 2, 1, ['both wings', 'one: the port (left) wing', 'one: the starboard (right) wing']],
     ['li_bayFrac', 'station (semispan)', 0.10, 0.80, 0.01],
     // THE RANGE HAS TO REACH THE NEXT ROW. The cut snaps to the loft's own
     // spanwise rows, which on this wing are 0.735 m apart — so a slider that
@@ -1035,6 +1037,8 @@ function sites(scene, group, P) {
     if (pR || pL) {
       if (pR) out.wingLampR = pR;
       if (pL) out.wingLampL = pL;
+      // ONE BAY (li_baySide 2, the starboard bay alone; the R bay is the PORT one, +x): the landing lamp - the R bay's - goes in it, and no taxi lamp
+      if (!pR && pL && Math.round(+P.li_baySide || 0) === 2) { out.wingLampR = pL; delete out.wingLampL; }
     } else {
       // NO BAY, NO LAMP (G304, the fitment study P2). The fallback put a
       // proud housing 10 mm BEHIND the leading edge, inside the D-nose —
@@ -1944,7 +1948,7 @@ PAGE.post = (ctx) => {
   if (S.beacon && fit('beacon')) lamp('beacon', S.beacon);
   if (S.beacon2 && fit('beacon')) lamp('beacon', S.beacon2);         // G267: the other fin's
   if (S.wingLampR) {
-    if (fit('taxi')) lamp('taxi', S.wingLampL);
+    if (fit('taxi') && S.wingLampL) lamp('taxi', S.wingLampL);   // (one bay, li_baySide: no second lamp)
     if (fit('land')) lamp('land', S.wingLampR);
   }
   // ---- INSIDE -------------------------------------------------------------

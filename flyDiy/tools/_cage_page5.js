@@ -81,6 +81,8 @@ const winRowMore = (n) => {
     rad('R1', 'fwd top'), rad('R2', 'aft top'), rad('R3', 'aft bottom'), rad('R4', 'fwd bottom'),
     [pre + 'Depth', 'reveal depth',    0.0, 0.03, 0.001, Object.assign({ when: on, dim: 'len' }, ab('Depth'))],
     [pre + 'Bulge', 'bubble',          0.0, 0.2, 0.005, { when: on, absent: 0, dim: 'len' }],
+    // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+    [pre + 'Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => on(P) && Math.round(+P[pre + 'Shape']) !== 2, absent: 0 }],
   ], {}];
 };
 // AFT-BULKHEAD (3 Nov): the aft wall's rows show with the panel on; the wall's own rows give way to the sling, which
@@ -354,6 +356,10 @@ window.CAGE_PAGE = {
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', follow: 'boom.waistY' }],
         ['aftKeelY',     'bottom height',   -1.40, 0.60, 0.005,
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len' }],
+        // BOOM-CORNER (the user, 15 Nov, the 172: the boom's bottom rounds differently from the cabin's): the boom frame's
+        // bottom corner (its floor level) moved off the template's fraction, so its corner can match the cabin's. Absent = 0
+        ['aftFloorDy',   'bottom corner height', -0.80, 0.80, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', absent: 0 }],
         ['frBoomTopW',   'top half-width',   0.00, 1.20, 0.005,
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn) && !(+P.topRound >= 1), dim: 'len', follow: 'boom.topW' }],
         ['frBoomWaistW', 'waist half-width', 0.00, 1.20, 0.005,
@@ -518,6 +524,10 @@ window.CAGE_PAGE = {
         // 0 where it has always sat, +1 the aft face.
         ['bulkZ',     'bulkhead station', -1, 1, 0.05,
          { when: P => +P.intOn && +P.intBulk }],
+        // BULK-AT (the user 15 Nov, the C172 refit): the wall on the passengers' aft pillar (as always) or on the
+        // taper's aft pillar - the baggage bay through the taper section. Absent at 0: no build changes
+        ['bulkAt',    'bulkhead at',      0, 1, 1, ["the passengers' aft pillar", "the taper's aft pillar"],
+         { when: P => +P.intOn && +P.intBulk, absent: 0 }],
         // AFT-BULKHEAD (the user 3 Nov: "focus on the aft bulkhead ... design interesting aft bulkheads"): the aft
         // wall's own rows (_cage_gen.js bulkWall; the lamp is _cage_light.js's). NOT IN THE DEFAULTS TABLE (G3570):
         // a build that never sets one saves no key and draws the plain panel as before
@@ -1105,6 +1115,8 @@ window.CAGE_PAGE = {
         ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['paxWinBulge', 'bubble',          0.0, 0.2, 0.005, { when: P => +P.paxWinN > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['paxWinProj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.paxWinN > 0 && Math.round(+P.paxWinShape) !== 2, absent: 0 }],
       ], 'open'],
       ['row 2', [
         ['win2N',     'windows',         0, 4, 1,
@@ -1135,6 +1147,8 @@ window.CAGE_PAGE = {
         ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['win2Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win2N > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['win2Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.win2N > 0 && Math.round(+P.win2Shape) !== 2, absent: 0 }],
       ], {}],
       ['row 3', [
         ['win3N',     'windows',         0, 4, 1,
@@ -1165,6 +1179,8 @@ window.CAGE_PAGE = {
         ['win3Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win3N > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['win3Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win3N > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['win3Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.win3N > 0 && Math.round(+P.win3Shape) !== 2, absent: 0 }],
       ], {}],
       winRowMore(4), winRowMore(5), winRowMore(6),
     ]],
@@ -1450,6 +1466,10 @@ window.CAGE_PAGE = {
       ['pillarW',   'pillar width',    0.00, 0.30, 0.005],
       ['cabPillarW','cabin pillar',    0.02, 0.30, 0.005],
       ['paxPillarW','pax pillar',      0.02, 0.30, 0.005],
+      // PILLAR-FOLLOW (the user 15 Nov, the C172 refit: "the pillars stay straight whatever, even though they're part
+      // of a curved profile ... an option so they too follow nicely the curvature, so they don't generate steps"):
+      // each pillar's section held at its centre, its two rings on the runs to their neighbours. Absent at 0
+      ['pillarFollow', 'pillars follow the profile', 0, 1, 1, ['straight (as built)', 'follow the profile'], { absent: 0 }],
       ['apilW',     'A-pillar w ×',    0.20, 3.00, 0.01],
       ['apilPerp',  'A-pillar perp',   0, 1, 0.05],
       ['pfW',       'front pillar ×',  0.30, 3.00, 0.01],
