@@ -88,7 +88,7 @@ async function child(side, out) {
       for (const k of ['aerodromes', 'runways']) { try { full[k] = JSON.parse(plain(O[k])); } catch (e) { full[k] = null; } } }
     fs.writeFileSync(out.replace(/\.json$/, '.rec.json'), JSON.stringify(full)); }
   const aero = w.aerodromes.map(a => [a.id, a.kind || '', !!a.premises, +a.x, +a.z, +a.len, +a.wid, +a.hdg]);
-  fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, labels: [...SKYL], flag: W.FLYDIY_COMPSTEPS || null, census, uploads: UP, rec, aero: { n: aero.length, sha: sha(JSON.stringify(aero)) },
+  fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, labels: [...SKYL], sw: (() => { const g = o => (o ? { on: !!o.on, asked: o.asked | 0, used: o.used | 0, near: !!o.near } : null); return { stripw: g(W.FLYDIY_STRIPW), patchw: g(W.FLYDIY_PATCHW), roadw: g(W.FLYDIY_ROADW) }; })(), flag: W.FLYDIY_COMPSTEPS || null, census, uploads: UP, rec, aero: { n: aero.length, sha: sha(JSON.stringify(aero)) },
     zoneMemo: O && O.zoneMemo || null, swapped: !!(O0 && O && O !== O0), held: HELD, steps: STEPS, inlineMs,
     warns: P.errors.concat(P.logs || []).filter(e => /compsteps|premises: the swap|world build:/i.test(String(e))) }));
   process.exit(0);
@@ -106,6 +106,13 @@ async function child(side, out) {
   const A = R.inline, B = R.steps;
   console.log('GATE COMPSTEPS - build ' + B.build + '; inline ' + JSON.stringify(A.flag) + ', steps ' + JSON.stringify(B.flag) + (process.env.COMPSTEPS_QUERY ? ' - THE STEPS SIDE ALSO WITH ' + process.env.COMPSTEPS_QUERY + ' (COMPSTEPS_QUERY: a set of switches against the default world)' : '')
     + (process.env.COMPSTEPS_BUDGET !== undefined ? ' - UNDER A HOST BUDGET THAT ALWAYS ANSWERS ' + process.env.COMPSTEPS_BUDGET + ' ms (COMPSTEPS_BUDGET; the labels seen: ' + [...new Set(B.labels || [])].join(', ') + ')' : ''));
+  // ---- 0. the workers' switches (23 Nov: on by default under a host's budget, off without a host - render_world wbSwitch)
+  { const f = S => ['stripw', 'patchw', 'roadw'].map(k => k + ' ' + (S && S[k] ? (S[k].on ? 'on ' + S[k].used + '/' + S[k].asked : 'off') : '-')).join(', ');
+    console.log('0. the workers\' switches: inline ' + f(A.sw) + ' | steps ' + f(B.sw) + (B.sw && B.sw.stripw && B.sw.stripw.near ? ' (near first)' : ''));
+    for (const k of ['stripw', 'patchw', 'roadw']) if (A.sw && A.sw[k] && A.sw[k].on) bad.push('the inline child (no host, no switch) has ' + k + ' on: a page without a host must keep it off');
+    if (process.env.COMPSTEPS_BUDGET !== undefined && !process.env.COMPSTEPS_QUERY) {
+      for (const k of ['stripw', 'patchw', 'roadw']) if (!(B.sw && B.sw[k] && B.sw[k].on && B.sw[k].used > 0)) bad.push('under a host\'s budget ' + k + ' is not on and used by default (' + JSON.stringify(B.sw && B.sw[k]) + ')');
+      if (B.sw && B.sw.stripw && B.sw.stripw.near) bad.push('near first is on by default under a host\'s budget: it has a visible state and stays a switch'); } }
   // ---- 1. who composed how
   if (!(A.flag && A.flag.on === false && A.flag.used === false)) bad.push('the inline child composed in steps (' + JSON.stringify(A.flag) + ')');
   if (!(B.flag && B.flag.on === true && B.flag.used === true)) bad.push('the steps child did not compose in steps (' + JSON.stringify(B.flag) + ')');

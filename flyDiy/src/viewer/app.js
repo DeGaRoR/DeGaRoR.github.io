@@ -16712,7 +16712,9 @@
     // reach), the cover's rings, the rocks, the stand cards, the far-town merges, the obstacles, the life - and the forest's
     // FAR queue (1.5 - 9 km, the fill's 4 ms a frame) goes on arriving in flight, as it already does past the 1 500-update
     // cap. A VISIBLE choice (stand-in cards for longer past 1.5 km): shown to the user before it is ever a default
-    const SETTLE_NEAR = !!WF.settleStat && typeof location !== 'undefined' && /[?&]settle=near(?:&|$)/.test(location.search || '');
+    // (23 Nov: ...or a host's word - window.FLYDIY_WORLD_DEFAULTS = { settle: 'near' } - and ?settle=0 turns it off; still OFF by default)
+    const SETTLE_NEAR = !!WF.settleStat && (() => { const q = typeof location !== 'undefined' ? (location.search || '') : ''; if (/[?&]settle=near(?:&|$)/.test(q)) return true; if (/[?&]settle=0(?:&|$)/.test(q)) return false;
+      const D = typeof window !== 'undefined' ? window.FLYDIY_WORLD_DEFAULTS : null; return !!(D && D.settle === 'near'); })();
     const nearOwed = () => { const s = WF.settleStat(cg, RING_REACH); let n = 0; for (const k in s) if (k !== 'fill' && k !== 'geo' && !/Far$/.test(k)) n += s[k] > 0 ? s[k] : 0; return n; };   // (a ...Far count is work that lands after the reveal by design)
     const idle = () => (!ST || !(ST.near > 0)) && !(WF.ringStat && WF.ringStat() && WF.ringStat().busy);
     // G1075 (LOAD-SETTLE): THE SLICE'S CLOCK, HONOURED INSIDE THE CALL. The 40 ms slice was only checked between two

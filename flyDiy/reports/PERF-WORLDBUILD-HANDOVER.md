@@ -2,8 +2,8 @@
 
 Branch `claude/perf-worldbuild-next`. Landed ref for L40M: `claude/ready/perf-worldbuild-2` = 43f58e871 (off
 `claude/perf-codex` 4421e5416, on `claude/ready/perf-worldbuild-1`). After it, on the branch: round three = 72d9aa4db
-(gated), round four = b49b8a4cd, round five = 369ad0ec9 (`claude/ready/perf-worldbuild-3` = a226782a7 carries both), round six = the commit that carries this
-file (gated in node, NO browser row yet). The canonical entry is HANDOVER.md "PERF-WORLDBUILD 2"; this file is the working picture for
+(gated), round four = b49b8a4cd, round five = 369ad0ec9 (`claude/ready/perf-worldbuild-3` = a226782a7 carries both), round six = 55fcb24fb
+(`claude/ready/perf-worldbuild-4`; its browser row is below). The canonical entry is HANDOVER.md "PERF-WORLDBUILD 2"; this file is the working picture for
 whoever takes the world build next.
 
 The mission: no main-thread task over 50 ms while the world is built, no visible change. The architecture PERF-LEAD chose
@@ -12,8 +12,12 @@ frame. The user's word on it (23 Nov, 12:45): the garage must not freeze - no ta
 
 ## 1. What landed, and under which switch
 
-Everything is OFF by default. A page with no switch and no host budget builds the world it built before, in the steps it
-had (the loading screen's text and bar are the build's yields, so a new yield on the default path would move them).
+WITH NO HOST everything is off: a page with no switch and no host budget (`?boot=loadfirst`, node, every gate) builds the
+world it built before, in the steps it had (the loading screen's text and bar are the build's yields, so a new yield on
+that path would move them). UNDER THE GARAGE-FIRST HOST (the default boot since the user's word of 23 Nov 21:05), since
+`claude/ready/perf-worldbuild-5`: stripw, patchw, roadw and compsteps are ON by default (each off with `?name=0`); nearfirst
+and settle=near are on by the host's word (`window.FLYDIY_WORLD_DEFAULTS = { nearfirst: true, settle: 'near' }`, the
+user 22:10: "turn them on by default ... we can turn them off easily afterwards"; off with `?nearfirst=0`, `?settle=0`).
 
 | Switch | What it does | Gate |
 |---|---|---|
@@ -57,7 +61,13 @@ Round six (under the budget): when the generator ends and BEFORE worldBuilt hand
 buildWorldSliced drains the waiting geometry (24 MB a tick) and initTextures every texture the scene's materials hold
 (worldPreUpload: the boot's 'upload' list, a texture a tick at least, 6 ms a tick); the side sheds, made inside
 worldBuilt, are hidden while their textures go up one a tick, then shown - in garage first they appear a moment after
-the world: THE ONE VISIBLE EFFECT of these rounds, only under the host, and the user has not seen it yet.
+the world: THE ONE VISIBLE EFFECT of these rounds, only under the host (PERF-LEAD tells the user).
+
+Round six in the browser (PERF-LEAD, 19:57, a quiet box, the evening build 79648c6c155f): after the world step the
+freeze is gone - one task of 87 ms between the steps (622 + 207 quiet, 902 + 566 busy before). OPEN: one task of 648 ms
+INSIDE the world step under no label (texture calls 432 ms, bufferData 118 ms; a 750 ms gap between frames) - see
+section 5, step 0. Totals: 55 tasks of 50 ms+ behind the garage, 14 over 100 ms, the worst 648 (61 / 16 / 1 419 at
+16:00; 104 tasks and a worst of 3 456 ms on the morning's builds). The world step 26.9 s, ready at 90.3 s: no cost seen.
 
 ## 2. The world build's steps, as they stand
 
@@ -91,8 +101,8 @@ step), 11:49 and 14:19 on builds that carry a9fa841d6 (the ready). Rows on round
 | The material map's raster | ~0 with the worker | 'lots' 903 | - | WORKER (`?patchw=1`) |
 | Trams, traffic, animals | 69 | - | 'houses' 78-102 | one task |
 | The town's host (decode, mirrors, geometry, batch, far cells) | 390 (390) | 'trees' 306 | 'trees' 305-386 | SLICE (round three): townkit.js hostSteps / townSteps |
-| Geometry uploads after a slice (GPU_ONLY_GEO.flush) | not seen in node | - | two unlabelled slices 290 + 203 (my reading); 522 buffers, 244 MB in the task after the build | Round four's cap alone made it WORSE at the first draw (17:42); round six drains it BEFORE the world is handed over. Browser-only proof, none yet |
-| The side sheds' textures (worldBuilt, shedTexWarm) | not seen in node | - | most of a 622 ms task right after the world step (304 texture calls) | Round four's "one a tick" lost the race with the frame (17:42); round six uploads the scene's textures before the hand-over and hides the sheds until theirs are up. Browser-only proof, none yet |
+| Geometry uploads after a slice (GPU_ONLY_GEO.flush) | not seen in node | - | two unlabelled slices 290 + 203 (my reading); 522 buffers, 244 MB in the task after the build | Round four's cap alone made it WORSE at the first draw (17:42); round six drains it BEFORE the world is handed over: the after-world freeze is gone (19:57) |
+| The side sheds' textures (worldBuilt, shedTexWarm) | not seen in node | - | most of a 622 ms task right after the world step (304 texture calls) | Round four's "one a tick" lost the race with the frame (17:42); round six uploads the scene's textures before the hand-over and hides the sheds until theirs are up: 87 ms after the world step (19:57); one 648 ms task of the hand-over itself is open |
 
 Not the build's generator, named by PERF-LEAD's 14:19 profile and NOT cut:
 - The tree impostor sheets' readbacks (render_world.js sheetCheckAsync: three's readRenderTargetPixelsAsync 164 + 279 ms,
@@ -169,6 +179,12 @@ LAKEBED lift the drawn lakes' closure; LOOKS quotes the fields texture's line): 
 
 ## 5. Next, in order
 
+0. THE HAND-OVER'S ONE LONG TASK (648 ms, 19:57: texture calls 432 ms, bufferData 118 ms, inside the world step under no
+   label). Cut `GF_READY.cpuprofile.json` (evidence/perf-check-evening-gf-2026-11-23) at 66.4 s to see which it is: a
+   tick of app.js worldPreUpload holding one very large texture (a texture array - the splat's sets, the houses', the
+   impostors' - is ONE initTexture and cannot be split from outside: it needs its layers uploaded a tick each, in the
+   module that owns it), or worldBuilt's own body (GFX.onWorld applying the saved graphics, setPlayerSheds building the
+   sheds). Estimate: an hour to name, half a day to cut, with a browser row.
 1. THE IMPOSTOR SHEETS' READBACKS (section 2, "not cut"): 164 + 279 ms on the garage's frames right after the world
    step. A small copy to read back instead of the whole sheet. Estimate: half a day, with a browser row to prove it (a
    GPU path: node cannot see it).
