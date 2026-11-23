@@ -143,9 +143,13 @@ function planeDef(file) {
 // (Writing cabin.occupied into the FILE does nothing: the load door's page chain rebuilds the cabin from the design - the
 // first version of this did that and flew every "filled" plane with its pilot alone, 23 Nov.) The default (no fill) is the
 // build as saved - GATE MISSIONFEAS's rows
-function planeDefFilled(file, pax) {
+// EXACT (23 Nov, home.13 and lumber.04 read: "aboard 140 kg / 1 pax, the job is 280 kg / 0 pax"): a build saved with a
+// passenger aboard flew a CARGO job with that seat taken, and the loading card had half the room. With `exact` the
+// cabin is seated as the job asks both ways - the pilot alone for freight - as a player loads it.
+function planeDefFilled(file, pax, exact) {
   const base = planeDef(file), seats = base.spec.seats | 0, want = Math.min(seats, 1 + Math.max(0, pax | 0));
-  if (!base.spec.cabin || want <= (base.spec.occupants != null ? base.spec.occupants : 1)) return base;
+  const occ = base.spec.occupants != null ? base.spec.occupants : 1;
+  if (!base.spec.cabin || (exact ? want === occ : want <= occ)) return base;
   const k = file + '#' + want;
   if (DEFS[k]) return DEFS[k];
   const cs = JSON.parse(JSON.stringify(base.spec));
@@ -526,9 +530,9 @@ function flyOne(ctx, cur, to, o) {
 function flyMission(env, rec, plane, opts) {
   const o = opts || {};
   const { W } = env;
-  const P = o.fill ? planeDefFilled(plane.file, o.fill) : planeDef(plane.file);
+  const P = o.seat != null ? planeDefFilled(plane.file, o.seat, true) : o.fill ? planeDefFilled(plane.file, o.fill) : planeDef(plane.file);
   const out = { plane: plane.name, design: plane.design, file: plane.file, legs: [], timeS: 0, stops: [], notes: [] };
-  if (P.filled) out.notes.push('the seats filled as the job asks: ' + plane.name + ' flown with ' + P.filled + ' aboard (the garage\'s seat-fill)');
+  if (P.filled) out.notes.push('the seats as the job asks: ' + plane.name + ' flown with ' + P.filled + ' aboard (the garage\'s seat door)');
   let { doc, why, effects } = careerWith(rec, plane.design);
   if (why) { out.verdict = 'broken'; out.why = why; return out; }
   out.effects = effects;
@@ -764,7 +768,7 @@ function judgeMission(env, packRow, m, opts) {
                                              flights: book.slice() });
       return C.acceptVerdict(crit, ev);
     };
-    const A = flyMission(env, rec, plane, { log: o.log, tMax: o.tMax, maxFlights: o.maxFlights, verdictOf, fill: o.official ? paxAsk : 0 });
+    const A = flyMission(env, rec, plane, { log: o.log, tMax: o.tMax, maxFlights: o.maxFlights, verdictOf, seat: o.official ? paxAsk : null });
     R.attempts.push(A);
     finalize({ attempts: [A] });
     if (A.verdict === 'feasible' || A.verdict === 'broken') break;
