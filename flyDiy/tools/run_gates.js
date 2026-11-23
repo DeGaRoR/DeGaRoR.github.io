@@ -726,7 +726,8 @@ const GATES = [
   // its retracting gear on the wing (the DC-3-alike: its wing span's release left the engines' layer one build behind)
   // a hull with a pylon engine (the Super Petrel) and the Cub; six rows each, the main gear's station along the fuselage
   // among them (a row that turns the sit: the Cub's tank, the limbs) - _instant_rel_check.js. Measured ALONE: see HANDOVER
-  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', wall: 1500 },
+  // (A0, 23 Nov: 1 405 s alone was the battery's longest chunk - one aeroplane a shard: the DC-3 ~7 min, the Petrel ~13, the Cub ~4)
+  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', shards: 3, wall: 900 },
   // PERF-SLIDERS: A DERIVED READ GIVES THE AEROPLANE THE RAW READ GAVE (CAGE_CHAIN.derived: the dash's gear selector asks
   // "do the mains stand off the centreline", the crew layer no longer re-runs on every tick of the gear's station) - per
   // aeroplane and derived row, three walks from the same aeroplane (ON, OFF, OFF: the two OFF name the noise), the scene's
