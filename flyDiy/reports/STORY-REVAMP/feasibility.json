@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 36,
-  "not flown": 34,
+  "feasible": 37,
   "no official plane can fly it (the player builds one)": 2,
+  "not flown": 33,
   "an aircraft order (not a flight)": 8,
   "stale": 6,
   "infeasible": 5
  },
- "flownS": 57548,
+ "flownS": 58800,
  "rows": [
   {
    "id": "field.01",
@@ -279,8 +279,44 @@
    "id": "field.cannery",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 1252,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 553,
+     "how": "stopped",
+     "at": "w5",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 699,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "hangar.01",

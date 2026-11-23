@@ -565,7 +565,13 @@
     "provider": "field",
     "gain": 0.5
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 1252,
+    "sig": "682a1234"
+   }
   },
   {
    "id": "hangar.01",
