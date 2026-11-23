@@ -235,9 +235,9 @@ const SEC = {
 let MATS = null;
 function mats() {
   if (MATS) return MATS;
-  MATS = { _plain: new THREE.MeshStandardMaterial({ color: 0x9aa4b0,
+  MATS = { _plain: new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / tail / plain fallback' }, color: 0x9aa4b0,
     metalness: 0.25, roughness: 0.55, side: THREE.DoubleSide }) };
-  for (const k in SEC) MATS[k] = new THREE.MeshStandardMaterial({
+  for (const k in SEC) MATS[k] = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / tail / section colour fallback' },
     color: SEC[k], metalness: 0.25, roughness: 0.55, side: THREE.DoubleSide });
   return MATS;
 }
@@ -497,7 +497,7 @@ function finWire(m, color) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position',
     new THREE.BufferAttribute(new Float32Array(pos), 3));
-  return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+  return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / tail / cage wire' },
     color, transparent: true, opacity: 0.85 }));
 }
 
@@ -525,7 +525,7 @@ function finQuadWire(m, bySection) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position',
       new THREE.BufferAttribute(new Float32Array(pos), 3));
-    g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+    g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / tail / surface wireframe' },
       color: SEC[k] !== undefined ? SEC[k] : 0x9aa4b0 })));
   }
   return g;
@@ -554,7 +554,7 @@ function saddleMat() {
     const m = A.aeroHardMat(THREE, 'hinge', 'metal', 0x8a9099, {});
     if (m) return m;
   }
-  if (!saddleFallback) saddleFallback = new THREE.MeshLambertMaterial({ color: 0x8a9099 });
+  if (!saddleFallback) saddleFallback = new THREE.MeshLambertMaterial({ userData: { progOwner: 'aircraft / tail / rod saddle fallback' }, color: 0x8a9099 });
   return saddleFallback;
 }
 

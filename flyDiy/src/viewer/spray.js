@@ -107,7 +107,7 @@
     aP.setUsage(THREE.DynamicDrawUsage); aV.setUsage(THREE.DynamicDrawUsage); aA.setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('iPos', aP); g.setAttribute('iVel', aV); g.setAttribute('iA', aA);
     g.instanceCount = n;
-    const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
+    const mat = new THREE.ShaderMaterial({ userData: { progOwner: 'fx / water spray / droplets' }, vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
       uniforms: { uStretch: { value: 0.03 }, uMinNdc: { value: 0.0019 }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) }, uOpacity: { value: 1 } } });
     mat.toneMapped = true;
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 4;
@@ -229,7 +229,7 @@
     const aP = new THREE.BufferAttribute(pos, 3), aN = new THREE.BufferAttribute(nrm, 3), aQ = new THREE.BufferAttribute(q, 3);
     aP.setUsage(THREE.DynamicDrawUsage); aN.setUsage(THREE.DynamicDrawUsage); aQ.setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('position', aP); g.setAttribute('normal', aN); g.setAttribute('aQ', aQ); g.setAttribute('aL', new THREE.BufferAttribute(lay, 1));
-    const mat = new THREE.ShaderMaterial({ vertexShader: SHEET_VERT, fragmentShader: SHEET_FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
+    const mat = new THREE.ShaderMaterial({ userData: { progOwner: 'fx / water spray / sheets' }, vertexShader: SHEET_VERT, fragmentShader: SHEET_FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
       uniforms: { uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) }, uOpacity: { value: 1 }, uTime: { value: 0 } } });
     mat.toneMapped = true;
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 3;

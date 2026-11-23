@@ -2236,7 +2236,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     TAB.tex.needsUpdate = true; TAB.uploads++;
   }
   // the pavement's material object, the one site that makes it (the old path's per-part ones and the table's one)
-  const pavMat = THREE => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false, side: THREE.FrontSide });
+  const pavMat = THREE => new THREE.MeshStandardMaterial({ userData: { progOwner: 'pavement / runways and aprons / surface' }, color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false, side: THREE.FrontSide });
   // THE ONE MATERIAL: the shared library's arrays, the rows, the debug switch - nothing per strip
   function tableMat(THREE) {
     if (TAB.mat) return TAB.mat;
@@ -2365,8 +2365,8 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   }
   function ptMaterial(THREE) {
     const mode = PT.mode;
-    if (mode === 't3') return new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false });
-    if (mode === 't3u') return new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false });
+    if (mode === 't3') return new THREE.MeshStandardMaterial({ userData: { progOwner: 'pavement / runways and aprons / surface (tier 3, lit)' }, color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false });
+    if (mode === 't3u') return new THREE.MeshBasicMaterial({ userData: { progOwner: 'pavement / runways and aprons / surface (tier 3, unlit)' }, color: 0xffffff, transparent: true, depthWrite: false });
     const G = ptGround(); if (!G) return null;
     const M = G.clone(), inner = G.onBeforeCompile, key = G.customProgramCacheKey;
     M.transparent = true; M.depthWrite = false;

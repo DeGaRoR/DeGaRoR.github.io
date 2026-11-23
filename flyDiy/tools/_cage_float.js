@@ -497,9 +497,9 @@ window.CAGE_TIPFLOAT_DRAW = ctx => {
   scene.add(tipGroup);
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   const skinM = (SM && SM('float', { cons: 'alloy', surf: 0, fieldM: 1, tint0: 0xd8d2c2 }))
-    || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05 });
+    || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / floats / tip float skin fallback' }, color: 0xd8d2c2, roughness: 0.55, metalness: 0.05 });
   const deckM = (SM && SM('floatDeck', { surf: 0, fieldM: 1, tint0: 0x2e3135 }))
-    || new THREE.MeshStandardMaterial({ color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
+    || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / floats / tip float deck fallback' }, color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
   const strutM = (SM && SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad })) || GG.gearMat('steel');
   const out = [];
   for (const [sd, Wn] of [[-1, wf.L], [1, wf.R]]) {
@@ -757,7 +757,7 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
     const ceil = C3([0, top2 + 0.02, 0])[1];
     const r = KG.knifeWellsGeo(THREE, hullMesh.geometry, [{ units: [tag], mode: 'box', outline, ceil }], null, null);
     if (r.skin) { hullMesh.geometry.dispose(); hullMesh.geometry = r.skin; }
-    if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
+    if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / floats / wheel well' }, color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
   }
   rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], measured: { keelClearance: +(ykS - yg).toFixed(3) }, fitWhy };
   // AMPH-FLOATS (GEAR-LEVER 13 Nov): THE WHEELS FOR THE PHYSICS, in the float's own frame BEFORE the rigging's incidence
@@ -794,7 +794,7 @@ function drawTub(scene, P) {
   g.setIndex(idx); g.computeVertexNormals();
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   const mat = (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xc9ced3 }))
-    || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
+    || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / hull / tub afterbody fallback' }, color: 0xc9ced3, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
   if (mat && 'side' in mat) mat.side = THREE.DoubleSide;
   tubGroup = new THREE.Group(); tubGroup.name = 'cageLayer:float';
   const m = new THREE.Mesh(g, mat); m.name = 'edHullTub'; m.castShadow = true; m.receiveShadow = true;
@@ -846,7 +846,7 @@ function drawStrakes(scene, mesh, P) {
     return best;
   };
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
-  const mat = (SM && SM('fuselage', { surf: 0, fieldM: 1 })) || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5 });
+  const mat = (SM && SM('fuselage', { surf: 0, fieldM: 1 })) || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / hull / strakes fallback' }, color: 0xc9ced3, roughness: 0.5 });
   if ('side' in mat) mat.side = THREE.DoubleSide;
   strakeGroup = new THREE.Group(); strakeGroup.name = 'cageLayer:float';
   const NS = 40, sink = 0.003 / FS;
@@ -902,7 +902,7 @@ function drawSponsons(scene, P) {
   const near = TB.sta.reduce((a, s) => Math.abs(s.x - xsS) < Math.abs(a.x - xsS) ? s : a, TB.sta[0]);
   const yK = TB.yStep * FS + yRel, zSt = TB.zStep * FS - xsS - 0.10 * Pt.L;   // (the frame's xT, the cage's z forward)
   const SM = window.CAGE_SECMAT;
-  const skinM = (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xd8d2c2 })) || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55 });
+  const skinM = (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xd8d2c2 })) || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / hull / sponson skin fallback' }, color: 0xd8d2c2, roughness: 0.55 });
   sponGroup = new THREE.Group(); sponGroup.name = 'cageLayer:float';
   const o = FG.build(Pt, { HY, detail: 0, rudder: 0, paddle: 0, xAft: Pt.xAft });
   for (const sd of [-1, 1]) {
@@ -936,7 +936,7 @@ function drawStubs(scene, P) {
   const yLow0 = TB.yStep * FS + yRel, zMid = TB.zStep * FS - xsS;
   const SM = window.CAGE_SECMAT;
   const mat = (SM && SM('fuselage', { surf: 0, fieldM: 1 })) || (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xc9ced3 }))
-    || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5 });
+    || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / hull / stub sponson fallback' }, color: 0xc9ced3, roughness: 0.5 });
   if ('side' in mat) mat.side = THREE.DoubleSide;
   sponGroup = new THREE.Group(); sponGroup.name = 'cageLayer:float';
   // HULL-B27 (the user: "proper sponsons, with love into the model"): THE STUB, MODELLED. The section is the stub's
@@ -1063,13 +1063,13 @@ PAGE.post = ctx => {
   // the same two materials a Wipline's hull asks for, one section swapped - no new program, no new draw
   const HSEC = edo ? 'floatBare' : 'float', HTINT = edo ? 0xa9afb4 : 0xd8d2c2;
   const hullM = () => (SM && SM(HSEC, { cons: 'alloy', surf: 0, fieldM: 1, tint0: HTINT }))
-    || new THREE.MeshStandardMaterial({ color: HTINT, roughness: edo ? 0.62 : 0.55, metalness: 0.05 });
+    || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / floats / hull fallback' }, color: HTINT, roughness: edo ? 0.62 : 0.55, metalness: 0.05 });
   const hullSkinM = () => (SM && SM(HSEC, { cons: 'alloy', struct: 1, surf: 1, fieldM: 1, tint0: HTINT }))
     || hullM();
   const boardM = () => (SM && SM('floatBoard', { surf: 0, fieldM: 1, tint0: 0x8a6a45 }))
-    || new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.8, metalness: 0.0 });
+    || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / floats / walk board fallback' }, color: 0x8a6a45, roughness: 0.8, metalness: 0.0 });
   const deckM = () => (SM && SM('floatDeck', { surf: 0, fieldM: 1, tint0: 0x2e3135 }))
-    || new THREE.MeshStandardMaterial({ color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
+    || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / floats / deck fallback' }, color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
   const strutM = () => (SM && SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad }))
     || GG.gearMat('steel');
   const wireM = () => GG.gearMat('steel');
@@ -1343,7 +1343,7 @@ PAGE.post = ctx => {
     window.CAGE_GEAR.pitch = 0; window.CAGE_GEAR.gy = gLow;
     scene.traverse(o => { if (o.parent && o.parent.name === 'cageLayer:gear' && o.type === 'GridHelper') { o.rotation.x = 0; o.position.set(0, gLow, 0); } });
     if (+P.gearSit && !scene.children.some(o => o.name === 'cageLayer:gear' && o.children.some(c => c.type === 'GridHelper'))) {
-      const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33);
+      const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33); grid.material.userData.progOwner = 'editor / workbench / floor grid';
       grid.position.set(0, gLow, 0);
       group.add(grid);
     }

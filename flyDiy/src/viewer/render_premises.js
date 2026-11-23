@@ -443,7 +443,7 @@ function make(THREE, scene, world, rec0, opts) {
   let W = bounds.x1 - bounds.x0, H = bounds.z1 - bounds.z0;
 
   // ---- the ground, with the overlay and the wear -----------------------------
-  const groundMat = MATLIB.make(THREE, 'std', { color: o.grass ? 0xffffff : 0x87906f, roughness: 0.97, metalness: 0 });
+  const groundMat = MATLIB.make(THREE, 'std', { color: o.grass ? 0xffffff : 0x87906f, roughness: 0.97, metalness: 0 }, 'terrain / premises ground / chunks');
   if (o.grass) { groundMat.map = o.grass.map || null; groundMat.normalMap = o.grass.normalMap || null; }
   // THE MATERIAL MAP (v8): the material polygons composited in priority order into four SLOTS (the
   // map's four channels, one PBR set each - a premises wears up to four sets); the ground shader
@@ -853,8 +853,9 @@ function make(THREE, scene, world, rec0, opts) {
     const matOwn = (k, tier) => {
       if (!tier && patchMatOwn[k]) return patchMatOwn[k];
       if (tier && patchMatTier[k]) return patchMatTier[k];
-      const base = (k ? o.patchMat2 : o.patchMat) || o.patchMat || new THREE.MeshLambertMaterial({ color: 0x74853c });
+      const base = (k ? o.patchMat2 : o.patchMat) || o.patchMat || new THREE.MeshLambertMaterial({ userData: { progOwner: 'terrain / premises patch / fallback ground' }, color: 0x74853c });
       const M = base.clone(), inner = base.onBeforeCompile;
+      M.userData.progOwner = 'terrain / premises patch / ground';
       // the material polygons ride in on top - unless the host says this ground has no units left for them
       // (patchInject2 false: the far terrain's material is 12 samplers and the polygons' map + four sets are
       // five more - 17 > MAX_TEXTURE_IMAGE_UNITS 16 fails the link and the chunks draw BLACK; G424's census)
@@ -1382,7 +1383,7 @@ function make(THREE, scene, world, rec0, opts) {
       yield* mergePavSteps(part);
       return;
     }
-    if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    if (!roadMat) roadMat = new THREE.MeshLambertMaterial({ userData: { progOwner: 'town / roads / ribbon' }, color: 0xffffff, vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     for (const rd of O.roads) {
       if (rd.ribbon === false || !want(rd)) continue;   // a taxiway under its own material polygon (G434)
       const pr = PG.polyRoad(rd.pts, rd.w), n = Math.max(2, Math.ceil(pr.length / 3));
@@ -1478,7 +1479,7 @@ function make(THREE, scene, world, rec0, opts) {
     // page carries it; the editor's own sheet otherwise
     const WSH = (typeof WATER !== 'undefined' && THREE.MeshPhysicalMaterial) ? WATER : null;
     water = new THREE.Mesh(WSH ? WSH.tag(THREE, g2, 3, false) : g2,
-      WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({ color: 0x1f3a48, roughness: 0.32, metalness: 0, transparent: true, opacity: 0.86 }));
+      WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / premises water / editor sheet' }, color: 0x1f3a48, roughness: 0.32, metalness: 0, transparent: true, opacity: 0.86 }));
     water.position.set((bounds.x0 + bounds.x1) / 2, wy, (bounds.z0 + bounds.z1) / 2);
     water.receiveShadow = true; water.name = 'water';
     G.water.add(water);
@@ -1550,7 +1551,7 @@ function make(THREE, scene, world, rec0, opts) {
     const closed = !!entry.poly;
     const geo = new THREE.BufferGeometry(), arr = groundLoop(pts, closed, LIFT);
     geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-    const mat = new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity: sel ? 1 : 0.8, depthTest: false });
+    const mat = new THREE.LineBasicMaterial({ userData: { progOwner: 'town / premises editor / outline' }, color: colour, transparent: true, opacity: sel ? 1 : 0.8, depthTest: false });
     const line = new THREE.Line(geo, mat);
     line.renderOrder = 8; line.name = layer + ':' + entry.id; line.userData.premId = entry.id; line.userData.wb = xzBox(arr);
     return line;
@@ -1565,7 +1566,7 @@ function make(THREE, scene, world, rec0, opts) {
     const col = SOUND_COL[e.on === false ? 'off' : 'on'], sel = e.id === selectedId;
     const add = (key, arr, op) => {
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: sel ? Math.min(1, op + 0.25) : op, depthTest: false }));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ userData: { progOwner: 'town / premises editor / sound marks' }, color: col, transparent: true, opacity: sel ? Math.min(1, op + 0.25) : op, depthTest: false }));
       line.renderOrder = 8; line.name = 'sounds:' + e.id + key; line.userData.premId = e.id;
       G.outlines.add(line); LINES.set(e.id + key, { line, layer: 'sounds', entry: e, mark: true });
     };
@@ -1652,7 +1653,7 @@ function make(THREE, scene, world, rec0, opts) {
     const rSel = selectedId ? O.runways.find(r => r.id === selectedId) : null;
     if (rSel) {
       const F = O.frame;
-      const loop = (poly, col, op, lift, what) => { const pts = poly.map(q => F.toWorld(q[0], q[1])); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + lift), 3)); const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthTest: false })); line.renderOrder = 8; line.name = 'runway:' + rSel.id + ':' + what; line.userData.premId = rSel.id; return line; };
+      const loop = (poly, col, op, lift, what) => { const pts = poly.map(q => F.toWorld(q[0], q[1])); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + lift), 3)); const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ userData: { progOwner: 'town / premises editor / runway selection' }, color: col, transparent: true, opacity: op, depthTest: false })); line.renderOrder = 8; line.name = 'runway:' + rSel.id + ':' + what; line.userData.premId = rSel.id; return line; };
       const box = loop(PG.runwayBox(rSel, 0), 0xffffff, 0.9, 0.06, 'box'), sh = loop(PG.runwayBox(rSel, PG.runwayShoulder(rSel)), 0xffb03a, 0.8, 0.04, 'shoulder');
       G.outlines.add(box); LINES.set(rSel.id + ':box', { line: box, layer: 'runways', entry: rSel });
       G.outlines.add(sh); LINES.set(rSel.id + ':shoulder', { line: sh, layer: 'runways', entry: rSel });
@@ -1674,7 +1675,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (o.editing && o.editing()) for (const it of O.records.items) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(it.foot.map(q => O.frame.toWorld(q[0], q[1])), true, LIFT * 0.8), 3));
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4fc7d0, transparent: true, opacity: it.site === selectedId ? 0.95 : 0.5, depthTest: false }));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ userData: { progOwner: 'town / premises editor / item feet' }, color: 0x4fc7d0, transparent: true, opacity: it.site === selectedId ? 0.95 : 0.5, depthTest: false }));
       line.renderOrder = 8; line.name = 'item:' + it.id; line.userData.site = it.site;
       G.plots.add(line);
     }
@@ -1682,7 +1683,7 @@ function make(THREE, scene, world, rec0, opts) {
       const a = O.frame.toWorld(L.geom.from[0], L.geom.from[2]), b = O.frame.toWorld(L.geom.to[0], L.geom.to[2]);
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([a[0], L.geom.from[1], a[1], b[0], L.geom.to[1], b[1]]), 3));
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: L.ok ? 0xffd060 : 0xff5a5a, transparent: true, opacity: 0.9, depthTest: false }));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ userData: { progOwner: 'town / premises editor / link lines' }, color: L.ok ? 0xffd060 : 0xff5a5a, transparent: true, opacity: 0.9, depthTest: false }));
       line.renderOrder = 8; line.name = 'link:' + L.link.id;
       G.plots.add(line);
     }
@@ -1695,7 +1696,7 @@ function make(THREE, scene, world, rec0, opts) {
       const pts = p.poly.map(q => F.toWorld(q[0], q[1])), arr = groundLoop(pts, true, LIFT * 0.6);
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: p.side === 'water' ? 0x4fc7d0 : 0x8fd0a0, transparent: true, opacity: 0.45, depthTest: false }));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ userData: { progOwner: 'town / premises editor / plot lines' }, color: p.side === 'water' ? 0x4fc7d0 : 0x8fd0a0, transparent: true, opacity: 0.45, depthTest: false }));
       line.renderOrder = 7; line.name = 'plot:' + p.id; line.userData.plotKey = k; line.userData.wb = xzBox(arr);
       G.plots.add(line); PLL.set(k, { line, sig });
     }
@@ -1771,7 +1772,7 @@ function make(THREE, scene, world, rec0, opts) {
           const t = new THREE.Texture(S.diff); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
           const tile = S.tile || 4; t.repeat.set(Math.max(1, Math.round(A.len / tile)), Math.max(1, Math.round(A.wid / tile)));
           if (S.diff.complete && S.diff.naturalWidth) t.needsUpdate = true; else S.diff.addEventListener('load', () => { t.needsUpdate = true; }, { once: true });
-          const gm = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+          const gm = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / premises runway / surface look' }, map: t, roughness: 0.92, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
           gm.receiveShadow = true; gm.renderOrder = 5; gm.name = 'runway:' + r.id + ':look'; gm.userData.premId = r.id; gm.userData.ownMap = true;
           G.runways.add(gm);
         }
@@ -1782,8 +1783,8 @@ function make(THREE, scene, world, rec0, opts) {
         const cv = document.createElement('canvas'); cv.width = RW; cv.height = RH;
         SITE.sitePaintStrip(cv.getContext('2d'), R, RW, RH, true);
         const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-        mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-      } else mat = new THREE.MeshStandardMaterial({ color: 0x9a9a8c, transparent: true, opacity: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+        mat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / premises runway / painted markings' }, map: tex, transparent: true, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      } else mat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / premises runway / plain ribbon' }, color: 0x9a9a8c, transparent: true, opacity: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
       const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; m.renderOrder = 6; m.name = 'runway:' + r.id; m.userData.premId = r.id; m.userData.ownMap = true;
       G.runways.add(m);
       // the pattern the pilot reads, drawn by the game's own builder when it is here
@@ -1876,7 +1877,7 @@ function make(THREE, scene, world, rec0, opts) {
       const cabs = [0, 1].map(() => (CB ? { pivot: CB.PIVOT, ropeUp: CB.ROPE_UP } : null));
       let run = null;
       try { run = TR.make(L.geom, cabs, { sag: 0.012, v: +L.link.speed > 0 ? +L.link.speed : 6.0 }); } catch (e) { console.warn('premises tram', id, e && e.message); continue; }   // GTRAM: the link's `speed`, the village's 6 m/s without one
-      const ropeMat = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, roughness: 0.6, metalness: 0.7 });
+      const ropeMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / trams / rope' }, color: 0x2a2c2e, roughness: 0.6, metalness: 0.7 });
       L.geom.ropes.forEach((rp, k) => {
         const Ln = run.lines[rp.line === undefined ? (k >> 1) : rp.line];
         const rc = TR.ropeCurve(rp.a, rp.b, 0.012, Ln.rope.t0, Ln.rope.t1);
@@ -1986,7 +1987,7 @@ function make(THREE, scene, world, rec0, opts) {
       }
       const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
       PRINT.mat = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.75, depthWrite: false,   // (the user 26 Oct: "you can make the shadows darker")  // pre-ok: the car prints' black (0 x P = 0)
-        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }, 'town / car prints / ground shadow');
       PRINT.mat.name = 'premises:carprint';
       // HOW HIGH (the user 26 Oct: "undo your lifts now, to the minimum where it remains visible"): a car stands on heightAt,
       // the drawn ground over it - the roads' ribbons 0.07 up between their 3 m samples, the paved lots 0.08, the patch and the
@@ -2284,7 +2285,7 @@ function make(THREE, scene, world, rec0, opts) {
   function lodMat(rung) {
     const k = rung === 'hard' ? 'matHard' : 'mat';
     if (HLOD[k]) return HLOD[k];
-    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+    const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / far lod / merged vertex colour' }, vertexColors: true, roughness: 1, metalness: 0 });
     if (rung === 'hard') return (HLOD[k] = m);
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, LOD_U);
@@ -3168,7 +3169,7 @@ function make(THREE, scene, world, rec0, opts) {
     const tx = (img, srgb) => { if (!img) return null; const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace;
       if (img.complete && img.naturalWidth) t.needsUpdate = true; else img.addEventListener('load', () => { t.needsUpdate = true; }); return t; };
     m = MATLIB.make(THREE, 'std', { color: 0xffffff, roughness: 0.98, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-                                     map: S ? tx(S.diff, true) : null, normalMap: S ? tx(S.nor, false) : null });
+                                     map: S ? tx(S.diff, true) : null, normalMap: S ? tx(S.nor, false) : null }, 'town / city lots / ground');
     m.name = 'city:lot:' + tex; m.userData.lotTile = S && S.tile ? S.tile : 2;
     CITY_GROUND.set(tex, m);
     return m;
@@ -3393,16 +3394,16 @@ function make(THREE, scene, world, rec0, opts) {
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
-  const discMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });  // pre-ok: the premises editor's disc (edit mode, not light)
-  const discMatMid = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false });  // pre-ok: the premises editor's disc (edit mode, not light)
+  const discMat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'town / premises editor / handle disc' }, color: 0xffb03a, transparent: true, opacity: 0.9, depthTest: false });  // pre-ok: the premises editor's disc (edit mode, not light)
+  const discMatMid = new THREE.MeshBasicMaterial({ userData: { progOwner: 'town / premises editor / handle disc' }, color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false });  // pre-ok: the premises editor's disc (edit mode, not light)
   // G2890 (SCENERY-ED-1): the CORNER picked (clicked) - white, Del removes it; a spline road's HANDLES - cyan, on a stem
-  const discMatSel = MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 1, depthTest: false });  // pre-ok: the premises editor's disc (edit mode, not light)
-  const discMatTan = MATLIB.make(THREE, 'basic', { color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false });  // pre-ok: the premises editor's handle (edit mode)
-  const stemMat = MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false });
+  const discMatSel = MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 1, depthTest: false }, 'town / premises editor / handle disc');  // pre-ok: the premises editor's disc (edit mode, not light)
+  const discMatTan = MATLIB.make(THREE, 'basic', { color: 0x5fd4e8, transparent: true, opacity: 0.95, depthTest: false }, 'town / premises editor / spline handle');  // pre-ok: the premises editor's handle (edit mode)
+  const stemMat = MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.8, depthTest: false }, 'town / premises editor / spline handle stem');
   // G2950 (ROAD-GRAPH): a road's waypoint that is a JUNCTION - green (its roads meet there, a drag carries them all, Alt
   // detaches); a CONNECTION POINT (the junctions layer's `conn`) - magenta; the snap target under the hand - a white ring
-  const discMatJct = MATLIB.make(THREE, 'basic', { color: 0x5ee07a, transparent: true, opacity: 0.95, depthTest: false });  // pre-ok: the premises editor's junction disc (edit mode)
-  const discMatConn = MATLIB.make(THREE, 'basic', { color: 0xe07ad8, transparent: true, opacity: 0.95, depthTest: false });  // pre-ok: the premises editor's connection disc (edit mode)
+  const discMatJct = MATLIB.make(THREE, 'basic', { color: 0x5ee07a, transparent: true, opacity: 0.95, depthTest: false }, 'town / premises editor / junction disc');  // pre-ok: the premises editor's junction disc (edit mode)
+  const discMatConn = MATLIB.make(THREE, 'basic', { color: 0xe07ad8, transparent: true, opacity: 0.95, depthTest: false }, 'town / premises editor / connection disc');  // pre-ok: the premises editor's connection disc (edit mode)
   const discFor = (e, i) => {
     if (i === selCorner) return discMatSel;
     const id = e && e.pts && Array.isArray(e.nodes) ? e.nodes[i] : null;
@@ -3416,7 +3417,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!lp) return;
     const w = O.frame.toWorld(lp[0], lp[1]), r = Math.max(1.5, +lp[2] || 3);
     const g = new THREE.RingGeometry(r * 0.8, r, 32); g.rotateX(-Math.PI / 2);
-    snapRing = new THREE.Mesh(g, MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false }));  // pre-ok: the premises editor's snap ring (edit mode)
+    snapRing = new THREE.Mesh(g, MATLIB.make(THREE, 'basic', { color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false }, 'town / premises editor / snap ring'));  // pre-ok: the premises editor's snap ring (edit mode)
     snapRing.position.set(w[0], heightAt(w[0], w[1]) + LIFT + 0.08, w[1]); snapRing.renderOrder = 10; snapRing.name = 'snapHint';
     G.ghost.add(snapRing);
   }
@@ -3502,7 +3503,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (A && SITE.sitePattern) {
         try {
           const pat = SITE.sitePattern(A, f.entry.site || null);
-          for (const hid of pat.stops || []) { const nd = pat.nodes.find(n => n.id === hid); if (!nd) continue; const m = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0xe6c35c, transparent: true, opacity: 0.95, depthTest: false })); m.position.set(nd.x, heightAt(nd.x, nd.z) + LIFT + 0.08, nd.z); m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'hold:' + hid, mid: false }; G.handles.add(m); HANDLES.push(m); }  // pre-ok: the premises editor's disc (edit mode, not light)
+          for (const hid of pat.stops || []) { const nd = pat.nodes.find(n => n.id === hid); if (!nd) continue; const m = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ userData: { progOwner: 'town / premises editor / hold bar disc' }, color: 0xe6c35c, transparent: true, opacity: 0.95, depthTest: false })); m.position.set(nd.x, heightAt(nd.x, nd.z) + LIFT + 0.08, nd.z); m.renderOrder = 9; m.userData.handle = { id: selectedId, key: 'hold:' + hid, mid: false }; G.handles.add(m); HANDLES.push(m); }  // pre-ok: the premises editor's disc (edit mode, not light)
         } catch (e) {}
       }
       return;
@@ -3680,7 +3681,7 @@ function make(THREE, scene, world, rec0, opts) {
     const geo = new THREE.BufferGeometry();
     if (pts.length === 1) { const p = pts[0], h = heightAt(p[0], p[1]); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([p[0], h, p[1], p[0], h + 6, p[1]]), 3)); }
     else geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, closed, LIFT + 0.1), 3));
-    const mat = new THREE.LineBasicMaterial({ color: ok === false ? 0xff5a5a : ok === 'warn' ? 0xe8c15a : 0x6fd08c, transparent: true, opacity: 0.85, depthTest: false });
+    const mat = new THREE.LineBasicMaterial({ userData: { progOwner: 'town / premises editor / ghost outline' }, color: ok === false ? 0xff5a5a : ok === 'warn' ? 0xe8c15a : 0x6fd08c, transparent: true, opacity: 0.85, depthTest: false });
     ghostObj = new THREE.Line(geo, mat); ghostObj.renderOrder = 10;
     G.ghost.add(ghostObj);
     return ghostObj;
@@ -3704,7 +3705,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (sp.r > 0) {
       const pts = []; for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; pts.push([sp.x + Math.cos(a) * sp.r, sp.z + Math.sin(a) * sp.r]); }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, true, LIFT + 0.1), 3));
-      ghostRing = new THREE.Line(geo, MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false })); ghostRing.renderOrder = 10;
+      ghostRing = new THREE.Line(geo, MATLIB.make(THREE, 'line', { color: 0x5fd4e8, transparent: true, opacity: 0.85, depthTest: false }, 'town / premises editor / scatter ring')); ghostRing.renderOrder = 10;
       G.ghost.add(ghostRing);
     }
     return ghostM;
@@ -4002,9 +4003,9 @@ function make(THREE, scene, world, rec0, opts) {
     const S = texSets().cracked; if (!S || !S.diff) return null;
     if (!SLAB_MAT) {
       const tex = (img, srgb) => { const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; const ok = () => { t.needsUpdate = true; if (o.onBuilt) o.onBuilt(0, 0); }; if (img.complete && img.naturalWidth) t.needsUpdate = true; else img.addEventListener('load', ok); return t; };
-      SLAB_MAT = new THREE.MeshStandardMaterial({ color: 0xb4b0a8, roughness: 0.95, metalness: 0, map: tex(S.diff, true), normalMap: S.nor ? tex(S.nor, false) : null, roughnessMap: S.rough ? tex(S.rough, false) : null,
+      SLAB_MAT = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / lots / concrete slab' }, color: 0xb4b0a8, roughness: 0.95, metalness: 0, map: tex(S.diff, true), normalMap: S.nor ? tex(S.nor, false) : null, roughnessMap: S.rough ? tex(S.rough, false) : null,
                                                   polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
-      BAY_MAT = new THREE.MeshStandardMaterial({ color: 0xe8e6de, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
+      BAY_MAT = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / lots / bay lines' }, color: 0xe8e6de, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
     }
     const tile = S.tile || 2.8, poly = lot.poly;
     // the polygon is a rectangle in the plot's frame: a grid along its own two edges
@@ -4689,11 +4690,11 @@ function make(THREE, scene, world, rec0, opts) {
   let townHanded = null;          // TOWN-1: the forest's fill (TREE_FILL) while it draws the record trees
   const stubGeo = new THREE.ConeGeometry(2.2, 9, 7); stubGeo.translate(0, 6.5, 0);
   const stubTrunk = new THREE.CylinderGeometry(0.25, 0.35, 2.4, 6); stubTrunk.translate(0, 1.2, 0);
-  const stubMat = new THREE.MeshStandardMaterial({ color: 0x2f6b3a, roughness: 0.95 }), trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3524, roughness: 0.95 });
+  const stubMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / premises trees / stub crown' }, color: 0x2f6b3a, roughness: 0.95 }), trunkMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / premises trees / stub trunk' }, color: 0x4a3524, roughness: 0.95 });
   function treeDepth(mat) {
     let d = TREE_DEPTH.get(mat);
     if (d) return d;
-    d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: mat.map, alphaTest: Math.max(0.3, mat.userData && mat.userData.uCut ? mat.userData.uCut.value : 0.5), side: THREE.DoubleSide });
+    d = new THREE.MeshDepthMaterial({ userData: { progOwner: 'town / premises trees / shadow depth' }, depthPacking: THREE.RGBADepthPacking, map: mat.map, alphaTest: Math.max(0.3, mat.userData && mat.userData.uCut ? mat.userData.uCut.value : 0.5), side: THREE.DoubleSide });
     TREE_DEPTH.set(mat, d);
     return d;
   }

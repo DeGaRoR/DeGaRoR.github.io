@@ -940,7 +940,7 @@ ${STAR_FIELD_GLSL}
     G.rtSky = new THREE.WebGLRenderTarget(192, 108, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
     G.rtSky.texture.wrapS = THREE.RepeatWrapping; G.rtSky.texture.wrapT = THREE.ClampToEdgeWrapping;
     G.atmU = atmUniforms();
-    G.skyMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon }, G.atmU),
+    G.skyMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / atmosphere / sky-view LUT' }, uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon }, G.atmU),
       vertexShader: QUAD_VERT, fragmentShader: SKYVIEW_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
     G.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), G.skyMat); G.quad.frustumCulled = false;
     G.scene = new THREE.Scene(); G.scene.add(G.quad);
@@ -948,7 +948,7 @@ ${STAR_FIELD_GLSL}
     // the aerial-perspective atlas and its pass
     G.rtAP = new THREE.WebGLRenderTarget(AP_N * AP_W, AP_ATLAS_H, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
     G.rtAP.texture.wrapS = THREE.ClampToEdgeWrapping; G.rtAP.texture.wrapT = THREE.ClampToEdgeWrapping;
-    G.apMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uDmax: { value: AP_DMAX } }, G.atmU),
+    G.apMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / atmosphere / aerial-perspective LUT' }, uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uDmax: { value: AP_DMAX } }, G.atmU),
       vertexShader: QUAD_VERT, fragmentShader: AP_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
     apUniforms.uApAtlas.value = G.rtAP.texture;
     G.enabled = true;
@@ -1076,7 +1076,7 @@ ${STAR_FIELD_GLSL}
     const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
     tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
     // into the atlas's own columns, the way the clouds' tile goes in: a scissored quad, no clear
-    const mat = new THREE.ShaderMaterial({ uniforms: { uSrc: { value: tex } },
+    const mat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / atmosphere / LUT tile copy' }, uniforms: { uSrc: { value: tex } },
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
       depthTest: false, depthWrite: false });
@@ -1102,7 +1102,7 @@ ${STAR_FIELD_GLSL}
     const mat = MATLIB.make(THREE, 'shader', { uniforms: tex ? { uSrc: { value: tex } } : {},
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: proceduralFragment || 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
-      depthTest: false, depthWrite: false });
+      depthTest: false, depthWrite: false }, 'sky / atmosphere / aerial-perspective tile copy');
     const prevRT = renderer.getRenderTarget(), ac = renderer.autoClear, pm = G.quad.material;
     const vp = new THREE.Vector4(), sc = new THREE.Vector4(); renderer.getViewport(vp); renderer.getScissor(sc);
     const st = renderer.getScissorTest();
@@ -1230,7 +1230,7 @@ ${STAR_FIELD_GLSL}
   // the dome material: one program serves the screen and the reflection probe
   function domeMat(extra, frameYaw) {
     if (!G.enabled) return null;
-    const m = new THREE.ShaderMaterial(Object.assign({
+    const m = new THREE.ShaderMaterial(Object.assign({ userData: { progOwner: 'sky / atmosphere / dome' },
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
                   uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uStarM: U.starM, uStarMag: U.starMag, uStarA: U.starA, uStarPts: U.starPts, uSkyA: U.skyA, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
                   uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
@@ -1273,7 +1273,7 @@ ${STAR_FIELD_GLSL}
       fadeScene = new THREE.Scene(); fadeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
       // (made in the material library, the one place a material is made - AS4a, GATE ASSETS)
       fadeMat = MATLIB.make(THREE, 'shader', { uniforms: { tA: { value: null }, tB: { value: null }, uK: { value: 0 } }, vertexShader: FADE_VERT, fragmentShader: FADE_FRAG,
-        depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+        depthTest: false, depthWrite: false, toneMapped: false, fog: false }, 'sky / atmosphere / LUT cross-fade');
       const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fadeMat); q.frustumCulled = false; fadeScene.add(q);
     }
     fadeMat.uniforms.tA.value = a.texture; fadeMat.uniforms.tB.value = b.texture; fadeMat.uniforms.uK.value = k;
@@ -1302,7 +1302,7 @@ ${STAR_FIELD_GLSL}
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
     es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0)));
-    const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });  // pre-ok: its colour x P at every bake (o.pre)
+    const capMat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'sky / atmosphere / light probe cap' }, color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });  // pre-ok: its colour x P at every bake (o.pre)
     const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45);
     const gb = o.gb != null ? o.gb : 1;      // the occlusion every ambient-from-below carries (LIGHT_RIG.groundBounce)
     const capNow = () => { if (!o.cap) return cap0; const c = o.cap(); return cap0.setRGB(c[0], c[1], c[2]); };

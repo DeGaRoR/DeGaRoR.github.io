@@ -173,7 +173,7 @@ function propOf(m, THREE) {
     return grp.clone();
   }
   // stand-ins (the generator not in): plain shapes in the obstacle orange
-  const mat = D.standMat || (D.standMat = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0xe0652a), roughness: 0.7 }, 'mslive'));   // (MATLIB's: GATE ASSETS; lit, no P)
+  const mat = D.standMat || (D.standMat = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0xe0652a), roughness: 0.7 }, 'mslive', 'missions / live markers / stand-in shape'));   // (MATLIB's: GATE ASSETS; lit, no P)
   if (m.kind === 'gate') { const h = (m.alt && m.alt.max) || 25; const g = new THREE.CylinderGeometry(0.4, 2.2, h, 12); g.translate(0, h / 2, 0); grp.add(new THREE.Mesh(g, mat)); }
   else if (m.kind === 'ring') grp.add(new THREE.Mesh(new THREE.TorusGeometry(m.r || 8, 1.2, 10, 40), mat));
   else if (m.kind === 'pt') { const g = new THREE.CylinderGeometry(0.15, 0.15, 12, 6); g.translate(0, 6, 0); grp.add(new THREE.Mesh(g, mat)); }
@@ -190,7 +190,7 @@ function place(m, THREE) {
     const [a, b] = m.posts, top = (m.alt && num(m.alt.max)) ? m.alt.max : 60;
     const ya = m.alt && m.alt.ref === 'msl' ? top : gy(a[0], a[1]) + top, yb = m.alt && m.alt.ref === 'msl' ? top : gy(b[0], b[1]) + top;
     const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a[0], ya, a[1]), new THREE.Vector3(b[0], yb, b[1])]);
-    const line = new THREE.Line(lg, D.lineMat || (D.lineMat = holdP(MATLIB.make(THREE, 'line', { color: new THREE.Color(0xf4efe6), transparent: true, opacity: 0.45, depthWrite: false }))));   // an unlit colour, held x P (holdP)
+    const line = new THREE.Line(lg, D.lineMat || (D.lineMat = holdP(MATLIB.make(THREE, 'line', { color: new THREE.Color(0xf4efe6), transparent: true, opacity: 0.45, depthWrite: false }, 'missions / live markers / gate band line'))));   // an unlit colour, held x P (holdP)
     out.push(line);
   } else if (m.kind === 'ring') {
     const o = propOf(m, THREE); if (o) { o.position.set(m.x, num(m.y) ? m.y : gy(m.x, m.z) + 60, m.z); if (num(m.dir)) o.rotation.y = -m.dir * Math.PI / 180; out.push(o); }
@@ -216,7 +216,7 @@ function mount(scene, o) {
     D.group.add(g); D.byKey.set(R.id + '|' + m.key, { g, m });
   }
   // THE BEACON: one tall translucent column, moved onto the next objective (its centre between a gate's posts)
-  D.beaconMat = holdP(MATLIB.make(THREE, 'basic', { color: new THREE.Color(0xffd27a), transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));  // pre-ok: its colour held x P (holdP); its own (the pulse writes its opacity)
+  D.beaconMat = holdP(MATLIB.make(THREE, 'basic', { color: new THREE.Color(0xffd27a), transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }, 'missions / live markers / objective beacon'));  // pre-ok: its colour held x P (holdP); its own (the pulse writes its opacity)
   const bg = new THREE.CylinderGeometry(1, 1, 1, 24, 1, true); bg.translate(0, 0.5, 0);
   D.beacon = new THREE.Mesh(bg, D.beaconMat); D.beacon.name = 'missionBeacon'; D.beacon.renderOrder = 5; D.beacon.frustumCulled = false;
   D.group.add(D.beacon);

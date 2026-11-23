@@ -91,7 +91,7 @@ var HANGAR_VIEW = (() => {
           if (uLin > 0.5) { c = pow(c, vec3(2.2)); c = uK * c / max(vec3(1.0) - c, vec3(1.0 / 255.0)); }
           gl_FragColor = vec4(c, 1.0);
         }`,
-      depthTest: false, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false });
+      depthTest: false, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false }, 'garage / outdoor view / panorama');
     // the near mesh: a sphere whose rows crowd the horizon (e = 90 deg x s (0.25 + 0.75 s^2), s uniform in [-1, 1])
     const sphere = (cols, rows, dense) => {
       const p = [], idx = [];
@@ -124,7 +124,7 @@ var HANGAR_VIEW = (() => {
     const blitMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { uniforms: { uT: { value: null }, uLin: { value: 0 } }, vertexShader: QUAD_VERT,
       fragmentShader: 'uniform sampler2D uT; uniform float uLin; varying vec2 vUv; void main() { vec3 c = max(texture2D(uT, vUv).rgb, vec3(0.0));' +
         ' if (uLin > 0.5) c = pow(c / (vec3(1.0) + c), vec3(1.0 / 2.2)); gl_FragColor = vec4(c, clamp(texture2D(uT, vUv).a, 0.0, 1.0)); }',
-      depthTest: false, depthWrite: false, toneMapped: false });
+      depthTest: false, depthWrite: false, toneMapped: false }, 'garage / outdoor view / capture blit');
     // the depth buffer to metres along the ray: reversed float ([0, 1], near at 1: w = f n / ((f - n) d + n)) or the
     // logarithmic buffer (d = log2(1 + w) / log2(far + 1)); the face's 90 degrees take w to the distance
     const distMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { uniforms: { uD: { value: null }, uDZ: { value: new THREE.Vector3(RZ ? 1 : 0, S.near, S.far) } }, vertexShader: QUAD_VERT,
@@ -135,7 +135,7 @@ var HANGAR_VIEW = (() => {
           vec2 q = vUv * 2.0 - 1.0;
           gl_FragColor = vec4(min(w * sqrt(1.0 + dot(q, q)), f), 0.0, 0.0, 1.0);
         }`,
-      depthTest: false, depthWrite: false, toneMapped: false });
+      depthTest: false, depthWrite: false, toneMapped: false }, 'garage / outdoor view / depth to metres');
     let cap = null, capLin = null, capCam = null, skyScene = null;   // capLin: the target's mode, kept here - three's RenderTarget has no userData (r186)
     const atlases = (N, n) => ({
       col: new THREE.WebGLRenderTarget(3 * N, 2 * N, { type: THREE.UnsignedByteType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false }),
