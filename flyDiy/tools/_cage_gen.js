@@ -7479,69 +7479,70 @@ function cageInterior(m, S) {
       }
       // ---- optional flat cover panels on the truss ----
       if (S.taper.panels) {
-        const TR = 0.015;                  // sit on the tube surfaces
-        const panel = pts => {
-          const cen = [0, 0, 0];
-          for (const p of pts) for (let i = 0; i < 3; i++)
-            cen[i] += p[i] / pts.length;
-          // sheet normal from the diagonals, oriented away from the
-          // rod axis so the panel lies OUTSIDE the tubes
-          const d1 = [pts[2][0] - pts[0][0], pts[2][1] - pts[0][1],
-                      pts[2][2] - pts[0][2]];
-          const d2 = [pts[3][0] - pts[1][0], pts[3][1] - pts[1][1],
-                      pts[3][2] - pts[1][2]];
-          let n2 = [d1[1] * d2[2] - d1[2] * d2[1],
-                    d1[2] * d2[0] - d1[0] * d2[2],
-                    d1[0] * d2[1] - d1[1] * d2[0]];
-          const nl = Math.hypot(n2[0], n2[1], n2[2]) || 1;
-          n2 = [n2[0] / nl, n2[1] / nl, n2[2] / nl];
-          const away = [cen[0], cen[1] - yAxR(cen[2]), 0];
-          // TAPER-PANELS (the user 21 Nov, the Chinook: "one is constantly shaded ... none of them joins really properly
-          // with its structure"): the normal was turned outward but the WINDING was not - the -x sides and the belly
-          // showed their back face outside, which the cabin's shading darkens whatever the sun. The winding turns with it
-          if (n2[0] * away[0] + n2[1] * away[1] < 0) {
-            n2 = [-n2[0], -n2[1], -n2[2]];
-            pts = [pts[0], pts[3], pts[2], pts[1]];
-          }
-          const th = 0.004;
-          // ...and the edge sits ON its tubes: a fixed inset of a tube's radius toward the centre, not 6 % of the panel
-          // (4 cm of gap at each tube on the user's 0.65 m taper)
-          const INSET = 0.012;
-          const at = (p, s) => {
-            const dc = Math.hypot(cen[0] - p[0], cen[1] - p[1], cen[2] - p[2]) || 1;
-            const kIn = Math.min(0.06, INSET / dc);
-            const p2 = [p[0] + (cen[0] - p[0]) * kIn,
-                        p[1] + (cen[1] - p[1]) * kIn,
-                        p[2] + (cen[2] - p[2]) * kIn];
-            return [p2[0] + n2[0] * (TR + s), p2[1] + n2[1] * (TR + s),
-                    p2[2] + n2[2] * (TR + s)];
-          };
-          // 'taperPanel' — PART OF THE FUSELAGE (user ruling): fades
-          // with the fuselage alpha, culls with the skin, and the
-          // fin's deck sweep may root a dorsal on it
-          const fa = pts.map(p => at(p, th));
-          const fbk = pts.map(p => at(p, 0));
-          q4(fa[0], fa[1], fa[2], fa[3], 'taperPanel');
-          q4(fbk[3], fbk[2], fbk[1], fbk[0], 'taperPanel');
-          for (let k = 0; k < 4; k++) {
-            const j = (k + 1) % 4;
-            q4(fa[k], fbk[k], fbk[j], fa[j], 'taperPanel');
-          }
-        };
+        // TAPER-SHELL (the user 23 Nov, the Chinook: "we need a single body for the aft part"): THE COVER IS ONE SHELL, not
+        // six boxes. Every corner (the bulkhead's three nodes a side, the roof's middle, the collar's points and the crown)
+        // is ONE vertex shared by every panel that meets it, lifted off its tubes along the AVERAGE of those panels' outward
+        // normals - so the skin is continuous and its shading runs across the joins; the outer skin is wound outward (the
+        // cabin shader darkens a back face whatever the sun), the inner reversed, and walls close only the shell's open
+        // edges (at the bulkhead and at the collar). It sits on its tubes: no pull toward each panel's centre.
+        const TR = 0.015, th = 0.004;      // the tube's radius under it; the sheet's thickness
         const A = NS[1], B = NS['-1'];
-        if (A.t && A.w) panel([A.t, A.w, cp(1.571, 1), cp(0.785, 1)]);
-        if (A.w && A.b) panel([A.w, A.b, cp(2.356, 1), cp(1.571, 1)]);
-        if (B.t && B.w) panel([B.t, B.w, cp(1.571, -1), cp(0.785, -1)]);
-        if (B.w && B.b) panel([B.w, B.b, cp(2.356, -1), cp(1.571, -1)]);
-        // TAPER-PANELS: THE TOP IN TWO HALVES MEETING AT THE CROWN - the top tubes (the ceiling corners and the roof's
-        // middle to the rod's crown) rise above a flat top laid to the collar's 45 deg points and came through it
-        // (the user's "square shaded different in the middle"); each half now carries its tubes on its own face
+        const quads = [];
+        const crown = cp(0, 1);
+        if (A.t && A.w) quads.push([A.t, A.w, cp(1.571, 1), cp(0.785, 1)]);
+        if (A.w && A.b) quads.push([A.w, A.b, cp(2.356, 1), cp(1.571, 1)]);
+        if (B.t && B.w) quads.push([B.t, B.w, cp(1.571, -1), cp(0.785, -1)]);
+        if (B.w && B.b) quads.push([B.w, B.b, cp(2.356, -1), cp(1.571, -1)]);
+        // the top in two halves meeting at the crown: the top tubes (the ceiling corners and the roof's middle to the
+        // rod's crown) rise above a flat top laid to the collar's 45 deg points (TAPER-PANELS, 21 Nov)
         if (A.t && B.t) {
-          const crown = cp(0, 1), topMid = [(A.t[0] + B.t[0]) / 2, (A.t[1] + B.t[1]) / 2 + 0.03, (A.t[2] + B.t[2]) / 2];
-          panel([topMid, A.t, cp(0.785, 1), crown]);
-          panel([B.t, topMid, crown, cp(0.785, -1)]);
+          const topMid = [(A.t[0] + B.t[0]) / 2, (A.t[1] + B.t[1]) / 2 + 0.03, (A.t[2] + B.t[2]) / 2];
+          quads.push([topMid, A.t, cp(0.785, 1), crown]);
+          quads.push([B.t, topMid, crown, cp(0.785, -1)]);
         }
-        if (A.b && B.b) panel([B.b, A.b, cp(2.356, 1), cp(2.356, -1)]);
+        if (A.b && B.b) quads.push([B.b, A.b, cp(2.356, 1), cp(2.356, -1)]);
+        const keyOf = p => p.map(x => Math.round(x * 1e5)).join(',');
+        const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+        // each quad wound OUTWARD (away from the rod's axis through its own centre)
+        const faces = quads.map(pts => {
+          const cen = [0, 1, 2].map(k => (pts[0][k] + pts[1][k] + pts[2][k] + pts[3][k]) / 4);
+          const d1 = [0, 1, 2].map(k => pts[2][k] - pts[0][k]), d2 = [0, 1, 2].map(k => pts[3][k] - pts[1][k]);
+          let n2 = norm([d1[1] * d2[2] - d1[2] * d2[1], d1[2] * d2[0] - d1[0] * d2[2], d1[0] * d2[1] - d1[1] * d2[0]]);
+          const away = [cen[0], cen[1] - yAxR(cen[2])];
+          if (n2[0] * away[0] + n2[1] * away[1] < 0) { n2 = n2.map(x => -x); pts = [pts[0], pts[3], pts[2], pts[1]]; }
+          return { pts, keys: pts.map(keyOf), n: n2 };
+        });
+        // the shared corners: one outer and one inner vertex each, along the mean of their panels' normals
+        const corner = new Map();
+        for (const f of faces) f.pts.forEach((p, i) => {
+          const k = f.keys[i];
+          if (!corner.has(k)) corner.set(k, { p, n: [0, 0, 0] });
+          const c = corner.get(k); for (let j = 0; j < 3; j++) c.n[j] += f.n[j];
+        });
+        for (const c of corner.values()) {
+          const n = norm(c.n);
+          c.o = V.push([c.p[0] + n[0] * (TR + th), c.p[1] + n[1] * (TR + th), c.p[2] + n[2] * (TR + th)]) - 1;
+          c.i = V.push([c.p[0] + n[0] * TR, c.p[1] + n[1] * TR, c.p[2] + n[2] * TR]) - 1;
+        }
+        // 'taperPanel' - PART OF THE FUSELAGE (user ruling): fades with the fuselage alpha, culls with the skin, and the
+        // fin's deck sweep may root a dorsal on it
+        const qi = v => add.push({ v, m: 'taperPanel', fit: 1 });
+        const edgeUse = new Map();
+        for (const f of faces) for (let e = 0; e < 4; e++) {
+          const a = f.keys[e], b2 = f.keys[(e + 1) % 4], k = a < b2 ? a + '|' + b2 : b2 + '|' + a;
+          edgeUse.set(k, (edgeUse.get(k) || 0) + 1);
+        }
+        for (const f of faces) {
+          const C = f.keys.map(k => corner.get(k));
+          qi([C[0].o, C[1].o, C[2].o, C[3].o]);                 // the outer skin, outward
+          qi([C[3].i, C[2].i, C[1].i, C[0].i]);                 // the inner, reversed
+          for (let e = 0; e < 4; e++) {                          // walls on the shell's OPEN edges only
+            const a = f.keys[e], b2 = f.keys[(e + 1) % 4], k = a < b2 ? a + '|' + b2 : b2 + '|' + a;
+            if (edgeUse.get(k) !== 1) continue;
+            const ca = corner.get(a), cb = corner.get(b2);
+            qi([ca.o, ca.i, cb.i, cb.o]);
+          }
+        }
       }
     })();
   })();
