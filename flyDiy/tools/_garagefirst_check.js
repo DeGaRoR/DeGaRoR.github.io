@@ -15,8 +15,8 @@ const ok = (c, what, more) => { console.log((c ? '  ok   ' : '  FAIL ') + what +
 // ---- 1. the page without the switch ----
 // (RE-PINNED 23 Nov 2026 21:05, the user after the day's rows: "Make it default". The check asked that ONLY the switch turn it
 //  on; it now asks the default's exact rule: a real page - a renderer that can compile ahead - unless ?boot=loadfirst)
-ok(/const GF_DEFAULT = typeof location !== 'undefined' && !!renderer && typeof renderer\.compileAsync === 'function' && !LABQ\('boot=loadfirst'\);/.test(src)
-  && /gf: LABQ\('boot=garagefirst'\) \|\| GF_DEFAULT,/.test(src), '1a garage first is the default on a real page; ?boot=loadfirst is the one loading screen as it was; the node harness keeps the old boot');
+ok(src.includes("const GF_DEFAULT = typeof location !== 'undefined' && typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '') && !!renderer && typeof renderer.compileAsync === 'function' && !LABQ('boot=loadfirst');")
+  && /gf: LABQ\('boot=garagefirst'\) \|\| GF_DEFAULT,/.test(src), '1a garage first is the default on a real page; ?boot=loadfirst is the one loading screen as it was; the node page (flydiy-node) keeps the old boot');
 ok(/if \(GF_BOOT && LAB\.gfS\.cloudEarly\) \{ const t0 = performance\.now\(\); cloudsWarm\(\); try \{ renderer\.getContext\(\)\.finish\(\); \} catch \(e\) \{\}/.test(src),
   '1k the clouds\' first draw is inside the boot (the recheck step), the page waiting for the GPU there - not behind the garage');
 ok(/const GF_BOOT = LAB\.gf && !GARAGE_ONLY;/.test(src), '1b the boot asks one constant (GF_BOOT), false without the switch');

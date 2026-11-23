@@ -256,9 +256,9 @@
   // screen names the steps left, which then run at full speed). gfS is the rig's read (FLYDIY_LAB.gfS).
   const GFN = (k, d) => { try { const m = new RegExp('[?&]' + k + '=(\\d+(?:\\.\\d+)?)(&|$)').exec(location.search || ''); return m ? +m[1] : d; } catch (e) { return d; } };
   // THE DEFAULT SINCE 23 Nov 2026 (the user, 21:05, after the day's rows: "Make it default"): a real page boots garage first;
-  // ?boot=loadfirst is the one loading screen as it was (the world before the garage). A page without a real renderer (the node
+  // ?boot=loadfirst is the one loading screen as it was (the world before the garage). The node page (tools/_page_node.js: its user agent says flydiy-node) and a page without a real renderer (the node
   // harness: no compileAsync) keeps the old boot - its steps are synchronous and nothing would run the world behind
-  const GF_DEFAULT = typeof location !== 'undefined' && !!renderer && typeof renderer.compileAsync === 'function' && !LABQ('boot=loadfirst');
+  const GF_DEFAULT = typeof location !== 'undefined' && typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '') && !!renderer && typeof renderer.compileAsync === 'function' && !LABQ('boot=loadfirst');
   const LAB = { gf: LABQ('boot=garagefirst') || GF_DEFAULT, gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), cloudEarly: !LABQ('gfcloud=late'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
       inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
     coverK: GFN('coverbudget', 0), coverSet: null,   // (?coverbudget=K: see labCoverBudget)
