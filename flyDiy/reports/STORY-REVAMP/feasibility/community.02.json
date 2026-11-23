@@ -40,10 +40,69 @@
    "events": []
   }
  ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 571,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 103 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 22.9 m/s until clear"
+     ],
+     "landing": {
+      "run": 83,
+      "sink": 1.04,
+      "V": 16.4,
+      "offCentre": 0.1,
+      "pastAim": 15,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 80,
+      "stopLeft": 380
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w7",
+     "t": 1495,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "go-around: unstabilised approach at 75 m: high 9 m on the slope (attempt 2)",
+      "committed-unstable: unstabilised (high 9 m on the slope) but committed - landing it",
+      "slip: high on the final (15 m over the slope at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 234,
+      "sink": 0.43,
+      "V": 18.5,
+      "offCentre": -4.2,
+      "pastAim": 273,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 460,
+      "stopLeft": 326
+     }
+    }
+   ]
+  }
+ ],
  "notes": [],
  "untested": false,
  "key": "99aacaeedaea",
  "where": "community:2",
- "pool": "validated",
- "wallS": 1665
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 780
 }

@@ -2,17 +2,17 @@
  "id": "community.01",
  "kind": "contract",
  "verdict": "feasible",
- "plane": "Cessna 172 (career)",
- "timeS": 931,
+ "plane": "Piper Cub",
+ "timeS": 2045,
  "why": "",
  "tried": [
-  "Cessna 172 (career):feasible"
+  "Piper Cub:feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w6",
-   "t": 931,
+   "t": 2045,
    "how": "stopped",
    "at": "w6",
    "stop": [
@@ -26,12 +26,47 @@
    "events": []
   }
  ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w6",
+     "t": 2045,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "committed-unstable: unstabilised (high 8 m on the slope) but committed - landing it",
+      "gave-up: still in ROLLOUT at t=1937 s — out of patience, not out of sky",
+      "off-the-strip: touched 148 m in, stopped 169 m past the end of 312 m (0 m off the centreline)"
+     ],
+     "landing": {
+      "run": 333,
+      "sink": 0.93,
+      "V": 18.2,
+      "offCentre": -1.9,
+      "pastAim": 129,
+      "k": 0,
+      "three": false,
+      "onStrip": false,
+      "tdIn": 148,
+      "stopLeft": -169
+     }
+    }
+   ]
+  }
+ ],
  "notes": [
-  "the stop counts the build's occupants: Piper Cub flies with 1 aboard (1 passenger(s) asked); Jodel D112 flies with 1 aboard (1 passenger(s) asked)"
+  "the seats filled as the job asks: Piper Cub flown with 2 aboard (the garage's seat-fill)"
  ],
  "untested": false,
  "key": "576af83b325a",
  "where": "community:1",
- "pool": "validated",
- "wallS": 1975
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 1115
 }

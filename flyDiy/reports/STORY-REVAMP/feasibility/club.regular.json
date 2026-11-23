@@ -1,300 +1,81 @@
 {
  "id": "club.regular",
  "kind": "challenge",
- "verdict": "infeasible",
- "plane": "Cessna 172 (career)",
- "timeS": 1716,
- "why": "no progress: pass r1: not flown yet",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1086,
+ "why": "",
  "tried": [
-  "Piper Cub:infeasible",
-  "Jodel D112:infeasible",
-  "Cessna 172 (career):infeasible"
+  "Piper Cub:feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "HOME",
-   "t": 859,
+   "t": 1086,
    "how": "stopped",
    "at": "HOME",
-   "stop": [],
+   "stop": [
+    "sub:0@0",
+    "sub:1@0",
+    "timer",
+    "sub:2@0",
+    "stage@0",
+    "done"
+   ],
    "kg": 0,
    "pax": 0,
    "faults": [],
-   "events": []
-  },
-  {
-   "from": "HOME",
-   "to": "HOME",
-   "t": 857,
-   "how": "stopped",
-   "at": "HOME",
-   "stop": [],
-   "kg": 0,
-   "pax": 0,
-   "faults": [],
-   "events": []
+   "events": [
+    "hit:r1",
+    "hit:r2"
+   ]
   }
  ],
  "attempts": [
   {
    "plane": "Piper Cub",
-   "verdict": "infeasible",
-   "why": "no progress: run: 332.2 s off 120 s, 25 or less for a medal",
+   "verdict": "feasible",
+   "why": "",
    "legs": [
     {
      "from": "HOME",
      "to": "HOME",
-     "t": 1239,
+     "t": 1086,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
       "route-done: the drawn route flown - on to the destination",
       "route-arrival: arriving at Jolene AFB 13/31",
-      "taxi-in: taxiing in to the stand, 457 m"
+      "taxi-in: taxiing in to the stand, 450 m"
      ],
      "near": {
       "r1": {
-       "d": 25.5,
-       "agl": 123.9,
-       "msl": 162.2,
-       "t": 346.9
+       "d": 1.3,
+       "agl": 99.7,
+       "msl": 137.4,
+       "t": 480.6
       },
       "r2": {
        "d": 1.2,
-       "agl": 191.1,
-       "msl": 214.9,
-       "t": 463.8
+       "agl": 102.7,
+       "msl": 126.5,
+       "t": 597.7
       }
      },
      "landing": {
-      "run": 166,
-      "sink": 0.98,
-      "V": 17,
+      "run": 179,
+      "sink": 0.87,
+      "V": 17.1,
       "offCentre": 0.3,
-      "pastAim": 44,
+      "pastAim": 39,
       "k": 0,
       "three": false,
       "onStrip": true,
-      "tdIn": 558,
-      "stopLeft": 1601
-     },
-     "stop": "run: 330.4 s off 120 s, 25 or less for a medal"
-    },
-    {
-     "from": "HOME",
-     "to": "HOME",
-     "t": 1241,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "route-done: the drawn route flown - on to the destination",
-      "route-arrival: arriving at Jolene AFB 13/31",
-      "taxi-in: taxiing in to the stand, 455 m"
-     ],
-     "near": {
-      "r1": {
-       "d": 28.3,
-       "agl": 123.6,
-       "msl": 162,
-       "t": 348.9
-      },
-      "r2": {
-       "d": 1.2,
-       "agl": 191,
-       "msl": 214.8,
-       "t": 466
-      }
-     },
-     "landing": {
-      "run": 175,
-      "sink": 0.79,
-      "V": 17,
-      "offCentre": 0.3,
-      "pastAim": 37,
-      "k": 0,
-      "three": false,
-      "onStrip": true,
-      "tdIn": 551,
-      "stopLeft": 1599
-     },
-     "stop": "run: 332.2 s off 120 s, 25 or less for a medal"
-    }
-   ]
-  },
-  {
-   "plane": "Jodel D112",
-   "verdict": "infeasible",
-   "why": "no progress: pass r1: not flown yet",
-   "legs": [
-    {
-     "from": "HOME",
-     "to": "HOME",
-     "t": 1215,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "route-done: the drawn route flown - on to the destination",
-      "route-arrival: arriving at Jolene AFB 13/31",
-      "taxi-in: taxiing in to the stand, 367 m"
-     ],
-     "near": {
-      "r1": {
-       "d": 216.6,
-       "agl": 125.8,
-       "msl": 163.1,
-       "t": 361
-      },
-      "r2": {
-       "d": 4.7,
-       "agl": 192,
-       "msl": 215.5,
-       "t": 685.5
-      }
-     },
-     "landing": {
-      "run": 278,
-      "sink": 1.37,
-      "V": 19.4,
-      "offCentre": -0.1,
-      "pastAim": 23,
-      "k": 0,
-      "three": true,
-      "onStrip": true,
-      "tdIn": 536,
-      "stopLeft": 1511
-     },
-     "stop": "pass r1: not flown yet"
-    },
-    {
-     "from": "HOME",
-     "to": "HOME",
-     "t": 1215,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "route-done: the drawn route flown - on to the destination",
-      "route-arrival: arriving at Jolene AFB 13/31",
-      "taxi-in: taxiing in to the stand, 367 m"
-     ],
-     "near": {
-      "r1": {
-       "d": 212.8,
-       "agl": 125.6,
-       "msl": 162.9,
-       "t": 362.5
-      },
-      "r2": {
-       "d": 4.2,
-       "agl": 192,
-       "msl": 215.5,
-       "t": 687.4
-      }
-     },
-     "landing": {
-      "run": 274,
-      "sink": 1.24,
-      "V": 19.4,
-      "offCentre": -0.3,
-      "pastAim": 27,
-      "k": 0,
-      "three": true,
-      "onStrip": true,
-      "tdIn": 540,
-      "stopLeft": 1511
-     },
-     "stop": "pass r1: not flown yet"
-    }
-   ]
-  },
-  {
-   "plane": "Cessna 172 (career)",
-   "verdict": "infeasible",
-   "why": "no progress: pass r1: not flown yet",
-   "legs": [
-    {
-     "from": "HOME",
-     "to": "HOME",
-     "t": 859,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "route-arrival: arriving at Jolene AFB 13/31",
-      "vref-raised: the elevator cannot hold 28.9 m/s at this power — flying the approach faster",
-      "taxi-in: taxiing in to the stand, 580 m"
-     ],
-     "near": {
-      "r1": {
-       "d": 305.8,
-       "agl": 117.7,
-       "msl": 155.5,
-       "t": 261
-      },
-      "r2": {
-       "d": 2,
-       "agl": 98.5,
-       "msl": 122.3,
-       "t": 364.2
-      }
-     },
-     "landing": {
-      "run": 672,
-      "sink": 0.42,
-      "V": 29.9,
-      "offCentre": 0,
-      "pastAim": 80,
-      "k": 0,
-      "three": false,
-      "onStrip": true,
-      "tdIn": 594,
-      "stopLeft": 1059
-     },
-     "stop": "pass r1: not flown yet"
-    },
-    {
-     "from": "HOME",
-     "to": "HOME",
-     "t": 857,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "route-arrival: arriving at Jolene AFB 13/31",
-      "vref-raised: the elevator cannot hold 28.9 m/s at this power — flying the approach faster",
-      "taxi-in: taxiing in to the stand, 572 m"
-     ],
-     "near": {
-      "r1": {
-       "d": 312.2,
-       "agl": 113.2,
-       "msl": 150.8,
-       "t": 260.3
-      },
-      "r2": {
-       "d": 1.9,
-       "agl": 98.5,
-       "msl": 122.3,
-       "t": 363.6
-      }
-     },
-     "landing": {
-      "run": 665,
-      "sink": 0.41,
-      "V": 30,
-      "offCentre": 0.1,
-      "pastAim": 79,
-      "k": 0,
-      "three": false,
-      "onStrip": true,
-      "tdIn": 593,
-      "stopLeft": 1067
-     },
-     "stop": "pass r1: not flown yet"
+      "tdIn": 552,
+      "stopLeft": 1594
+     }
     }
    ]
   }
@@ -303,6 +84,7 @@
  "untested": false,
  "key": "400eecfea2d6",
  "where": "contract",
- "pool": "official+57,58+test builds",
- "wallS": 3168
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 1819
 }

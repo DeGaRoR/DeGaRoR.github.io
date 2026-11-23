@@ -2,17 +2,17 @@
  "id": "hangar.05",
  "kind": "contract",
  "verdict": "feasible",
- "plane": "Cessna 172 (career)",
- "timeS": 1286,
+ "plane": "Cessna 172",
+ "timeS": 1273,
  "why": "",
  "tried": [
-  "Cessna 172 (career):feasible"
+  "Cessna 172:feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 558,
+   "t": 545,
    "how": "stopped",
    "at": "w3",
    "stop": [
@@ -26,7 +26,7 @@
   {
    "from": "w3",
    "to": "HOME",
-   "t": 727,
+   "t": 728,
    "how": "stopped",
    "at": "HOME",
    "stop": [
@@ -41,10 +41,68 @@
    "events": []
   }
  ],
+ "attempts": [
+  {
+   "plane": "Cessna 172",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 545,
+     "how": "stopped",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 34.5 m/s until clear"
+     ],
+     "landing": {
+      "run": 189,
+      "sink": 1.02,
+      "V": 24.2,
+      "offCentre": 3.5,
+      "pastAim": 14,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 79,
+      "stopLeft": 276
+     }
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 728,
+     "how": "stopped",
+     "kg": 120,
+     "pax": 0,
+     "said": [
+      "committed-takeoff: past the point of stopping at V=21.9 with 243 m left — Vr in 89 m, continuing",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 34.5 m/s until clear",
+      "taxi-in: taxiing in to the stand, 367 m"
+     ],
+     "landing": {
+      "run": 260,
+      "sink": 1.14,
+      "V": 23.9,
+      "offCentre": 1,
+      "pastAim": 40,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 554,
+      "stopLeft": 1511
+     }
+    }
+   ]
+  }
+ ],
  "notes": [],
  "untested": false,
  "key": "94659d61ad98",
  "where": "hangar:3",
- "pool": "validated",
- "wallS": 1457
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 1560
 }

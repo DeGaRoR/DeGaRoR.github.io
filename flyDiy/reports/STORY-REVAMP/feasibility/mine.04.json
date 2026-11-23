@@ -6,8 +6,7 @@
  "timeS": 1326,
  "why": "",
  "tried": [
-  "Cessna 172 (career):infeasible",
-  "Cessna 172 with the STOL kit and a larger elevator (test build):infeasible",
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible",
   "PC-6 Turbo Porter:feasible"
  ],
  "legs": [
@@ -31,49 +30,7 @@
  ],
  "attempts": [
   {
-   "plane": "Cessna 172 (career)",
-   "verdict": "infeasible",
-   "why": "no progress: already loaded [declined]",
-   "legs": [
-    {
-     "from": "HOME",
-     "to": "mn_strip",
-     "t": 0,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 271 m landing run - not going there"
-     ]
-    },
-    {
-     "from": "HOME",
-     "to": "mn_strip",
-     "t": 0,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 271 m landing run - not going there"
-     ],
-     "stop": "already loaded"
-    },
-    {
-     "from": "HOME",
-     "to": "mn_strip",
-     "t": 0,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 271 m landing run - not going there"
-     ],
-     "stop": "already loaded"
-    }
-   ]
-  },
-  {
-   "plane": "Cessna 172 with the STOL kit and a larger elevator (test build)",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
    "verdict": "infeasible",
    "why": "no progress: already loaded [declined]",
    "legs": [
@@ -128,12 +85,12 @@
      "pax": 0,
      "said": [
       "strip-short: 250 m of strip for a 246 m landing run — landing short-field, no margin",
-      "go-around: floating on the short field with 232 m left, 232 m to stop (attempt 2)",
+      "go-around: floating on the short field with 233 m left, 233 m to stop (attempt 2)",
       "strip-short: 250 m of strip for a 246 m landing run — landing short-field, no margin"
      ],
      "landing": {
       "run": 158,
-      "sink": 1.08,
+      "sink": 1.04,
       "V": 24.6,
       "offCentre": 0.1,
       "pastAim": 47,
@@ -141,20 +98,20 @@
       "three": true,
       "onStrip": true,
       "tdIn": 37,
-      "stopLeft": 56
+      "stopLeft": 55
      }
     }
    ]
   }
  ],
  "notes": [
-  "the seats filled as the job asks: Cessna 172 (career) flown with 3 aboard (the garage's seat-fill)",
-  "the seats filled as the job asks: Cessna 172 with the STOL kit and a larger elevator (test build) flown with 3 aboard (the garage's seat-fill)",
+  "the seats filled as the job asks: light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) flown with 3 aboard (the garage's seat-fill)",
   "the seats filled as the job asks: PC-6 Turbo Porter flown with 3 aboard (the garage's seat-fill)"
  ],
  "untested": false,
  "key": "05afbea57dd8",
  "where": "mine:4",
  "pool": "official+57,58+test builds, the seats filled",
- "wallS": 1083
+ "sim": "L40J",
+ "wallS": 1072
 }

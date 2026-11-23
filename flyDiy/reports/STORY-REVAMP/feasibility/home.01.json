@@ -26,10 +26,45 @@
    "events": []
   }
  ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 1184,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "protocol-overridden: the left-hand circuit declared at w1 is flown right-hand — the terrain on that side",
+      "slip: high on energy on the short final (+8.3 m at idle) — slipping it down",
+      "slope: stopped on a 4.3 % grade — rolling 170 m on to the level part"
+     ],
+     "landing": {
+      "run": 78,
+      "sink": 1.08,
+      "V": 16.3,
+      "offCentre": 0.4,
+      "pastAim": 9,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 32,
+      "stopLeft": 273
+     }
+    }
+   ]
+  }
+ ],
  "notes": [],
  "untested": false,
  "key": "6e8ccae575fc",
  "where": "home:1",
- "pool": "validated",
- "wallS": 1802
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 552
 }

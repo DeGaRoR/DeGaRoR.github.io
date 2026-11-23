@@ -3,7 +3,7 @@
  "kind": "challenge",
  "verdict": "feasible",
  "plane": "Piper Cub",
- "timeS": 488,
+ "timeS": 489,
  "why": "",
  "tried": [
   "Piper Cub:feasible"
@@ -12,7 +12,7 @@
   {
    "from": "HOME",
    "to": "w2",
-   "t": 488,
+   "t": 489,
    "how": "stopped",
    "at": "w2",
    "stop": [
@@ -25,7 +25,40 @@
    "pax": 0,
    "faults": [],
    "events": [
-    "stol:sp=95.3"
+    "stol:sp=95.5"
+   ]
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w2",
+     "t": 489,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 106 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear"
+     ],
+     "landing": {
+      "run": 88,
+      "sink": 0.84,
+      "V": 15.8,
+      "offCentre": 0.3,
+      "pastAim": 24,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 396,
+      "stopLeft": 1274
+     }
+    }
    ]
   }
  ],
@@ -35,6 +68,7 @@
  "untested": false,
  "key": "3b6fa1c5c97a",
  "where": "contract",
- "pool": "validated",
- "wallS": 350
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 1541
 }

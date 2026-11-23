@@ -26,10 +26,46 @@
    "events": []
   }
  ],
- "notes": [],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 419,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 29.9 m/s until clear",
+      "vref-raised: the elevator cannot hold 31.9 m/s at this power — flying the approach faster"
+     ],
+     "landing": {
+      "run": 369,
+      "sink": 0.47,
+      "V": 35.5,
+      "offCentre": -1.7,
+      "pastAim": 132,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 439,
+      "stopLeft": 692
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
  "untested": false,
  "key": "00f3ea098a96",
  "where": "lumber:1",
- "pool": "validated",
- "wallS": 481
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 391
 }
