@@ -54,8 +54,12 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 - THE POOL (the user, 23 Nov: "you can really try any of the official planes ... maybe you can even build a quick one"):
   the validated designs first, then every official plane, the two PC-6 of the wip list, and two test builds in
   `tools/fixtures/storyfeas/` (a Cessna with the STOL kit, on the retired light airframe and on today's).
-- IN A CLOUD CONTAINER: a tracked background task is killed at two hours (finished rows are kept, the flights in the
-  air are lost), so fly `--max=14` at a time; do not rebuild the tree while flights run; commit the rows after each batch.
+- IN A CLOUD CONTAINER: a tracked background task is killed at two hours WITH its flights (finished rows are kept), and
+  a detached process dies when the turn ends (the container sleeps). What works: the run detached in its own session
+  (`setsid nohup`), and a tracked task that only waits on it (`while pgrep -f <the run>; do sleep 60; done`), started
+  again each time it is cut. Do not rebuild the tree while flights run (each mission is a new process on
+  `tools/flight_core.js`); a flight has no wall-clock limit, so the run can be paused (SIGSTOP / SIGCONT) for a gate
+  that must run alone. A mission that ends red costs up to three aeroplanes of an hour of flight each.
 
 ### What is left
 
@@ -72,7 +76,7 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 ### The feasibility state
 
 <!-- feas-state -->
-On L40J's sim (this branch), of the pack's 91 missions outside the tutorial: 19 FEASIBLE, 1 red as flown (home.08), 63 not flown yet on this sim, 8 aircraft orders (not flights). The table: `reports/STORY-REVAMP/feasibility.md`; each row: `reports/STORY-REVAMP/feasibility/<id>.json`.
+On L40J's sim (this branch), of the pack's 91 missions outside the tutorial: 23 FEASIBLE, 1 red as flown (home.08), 59 not flown yet on this sim, 8 aircraft orders (not flights). The table: `reports/STORY-REVAMP/feasibility.md`; each row: `reports/STORY-REVAMP/feasibility/<id>.json`.
 The reds, by cause: home.08 = Cabin Lake's landing direction (item 2 above).
 <!-- /feas-state -->
 

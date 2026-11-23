@@ -4,13 +4,13 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "not flown": 59,
-  "feasible": 21,
+  "not flown": 58,
+  "feasible": 23,
   "an aircraft order (not a flight)": 8,
-  "stale": 2,
+  "stale": 1,
   "infeasible": 1
  },
- "flownS": 28979,
+ "flownS": 32709,
  "rows": [
   {
    "id": "field.01",
@@ -302,8 +302,58 @@
    "id": "mine.03",
    "where": "mine:3",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 2770,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 993,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "sub:0@0"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mn_strip",
+     "to": "w3",
+     "t": 1050,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:1@0"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "mn_strip",
+     "t": 727,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "sub:1@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "mine.04",
@@ -1331,8 +1381,31 @@
    "id": "club.breakfast",
    "where": "club:1",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Jodel D112",
+   "timeS": 960,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 960,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   }
  ]
 }

@@ -1,28 +1,30 @@
 {
  "id": "club.breakfast",
  "kind": "contract",
- "verdict": "infeasible",
- "plane": "STOL Cub",
- "timeS": 3600,
- "why": "the flight did not end (3600 s)",
+ "verdict": "feasible",
+ "plane": "Jodel D112",
+ "timeS": 960,
+ "why": "",
  "tried": [
   "Piper Cub:infeasible",
-  "Jodel D112:infeasible",
-  "STOL Cub:infeasible"
+  "Jodel D112:feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "tw_ski",
-   "t": 3600,
-   "how": "timeout",
-   "at": null,
-   "stop": [],
+   "t": 960,
+   "how": "stopped",
+   "at": "tw_ski",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
    "kg": 0,
    "pax": 0,
-   "faults": [
-    "timeout"
-   ],
+   "faults": [],
    "events": []
   }
  ],
@@ -50,8 +52,8 @@
   },
   {
    "plane": "Jodel D112",
-   "verdict": "infeasible",
-   "why": "crashed: the damage ended the flight: a fus member broke",
+   "verdict": "feasible",
+   "why": "",
    "legs": [
     {
      "from": "HOME",
@@ -76,56 +78,19 @@
       "onStrip": true,
       "tdIn": 170,
       "stopLeft": 27
-     },
-     "stop": "the flight took 16 min, 14 allowed"
-    },
-    {
-     "from": "tw_ski",
-     "to": "HOME",
-     "t": 476,
-     "how": "crashed",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "capsized: on its back in FINAL at 25.1 m/s (bank -91 deg)",
-      "go-around: unstabilised approach at 38 m: fast 30.8 m/s for 24.0 (attempt 1)",
-      "out-of-energy: the engine seized at t=474 s, 1 m up — an emergency: gliding straight ahead for a forced landing"
-     ],
-     "stop": "the aeroplane is wrecked: nothing is delivered"
-    }
-   ]
-  },
-  {
-   "plane": "STOL Cub",
-   "verdict": "infeasible",
-   "why": "the flight did not end (3600 s)",
-   "legs": [
-    {
-     "from": "HOME",
-     "to": "tw_ski",
-     "t": 3600,
-     "how": "timeout",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "go-around: unstabilised approach at 59 m: high 11 m on the slope (attempt 2)",
-      "committed-unstable: unstabilised (high 11 m on the slope) but committed - landing it",
-      "gave-up: still in FINAL at t=1222 s — out of patience, not out of sky"
-     ],
-     "stop": "stopped off an aerodrome: nothing is delivered"
+     }
     }
    ]
   }
  ],
  "notes": [
   "the seats filled as the job asks: Piper Cub flown with 2 aboard (the garage's seat-fill)",
-  "the seats filled as the job asks: Jodel D112 flown with 2 aboard (the garage's seat-fill)",
-  "the seats filled as the job asks: STOL Cub flown with 2 aboard (the garage's seat-fill)"
+  "the seats filled as the job asks: Jodel D112 flown with 2 aboard (the garage's seat-fill)"
  ],
  "untested": false,
- "key": "74bc0e5fa59f",
+ "key": "a6d18532684a",
  "where": "club:1",
  "pool": "official+57,58+test builds, the seats filled",
  "sim": "L40J",
- "wallS": 5145
+ "wallS": 1705
 }

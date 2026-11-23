@@ -1,0 +1,147 @@
+{
+ "id": "mine.03",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 2770,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mn_strip",
+   "t": 993,
+   "how": "stopped",
+   "at": "mn_strip",
+   "stop": [
+    "sub:0@0"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "mn_strip",
+   "to": "w3",
+   "t": 1050,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "picked:1@0"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "mn_strip",
+   "t": 727,
+   "how": "stopped",
+   "at": "mn_strip",
+   "stop": [
+    "sub:1@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 993,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 105 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 22.5 m/s until clear"
+     ],
+     "landing": {
+      "run": 83,
+      "sink": 1.02,
+      "V": 16.1,
+      "offCentre": 0.5,
+      "pastAim": 54,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 69,
+      "stopLeft": 98
+     }
+    },
+    {
+     "from": "mn_strip",
+     "to": "w3",
+     "t": 1050,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot",
+      "committed-takeoff: past the point of stopping at V=13.5 with 159 m left — Vr in 34 m, continuing",
+      "no-straight-in: the ground before Fishing Village Strip holds the straight-in 252 m over the circuit at the final's start - joining the circ"
+     ],
+     "landing": {
+      "run": 83,
+      "sink": 1.02,
+      "V": 16,
+      "offCentre": 0.1,
+      "pastAim": 2,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 67,
+      "stopLeft": 392
+     }
+    },
+    {
+     "from": "w3",
+     "to": "mn_strip",
+     "t": 727,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 22.4 m/s until clear",
+      "terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 25 m",
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 75 m (planned 73)"
+     ],
+     "landing": {
+      "run": 90,
+      "sink": 1.08,
+      "V": 16.2,
+      "offCentre": 0.2,
+      "pastAim": 41,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 56,
+      "stopLeft": 104
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "0511c03671e6",
+ "where": "mine:3",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 982
+}

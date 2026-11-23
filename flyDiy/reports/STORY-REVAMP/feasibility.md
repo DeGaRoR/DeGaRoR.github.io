@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 21 feasible; 1 infeasible; 59 not flown; 2 stale. Time flown: 482 min 59 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 23 feasible; 1 infeasible; 58 not flown; 1 stale. Time flown: 545 min 09 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -26,7 +26,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 21 feasible; 1 infeas
 | minedock.b2 | contract | order | - | - | - |  |
 | minedock.01 | mine:1 | not flown | - | - | - |  |
 | minedock.02 | mine:2 | not flown | - | - | - |  |
-| mine.03 | mine:3 | not flown | - | - | - |  |
+| mine.03 | mine:3 | feasible | Piper Cub | 46 min 10 s | HOME > mn_strip 993; mn_strip > w3 1050; w3 > mn_strip 727 |  |
 | mine.04 | mine:4 | feasible | PC-6 Turbo Porter | 22 min 06 s | HOME > mn_strip 1326 |  |
 | mine.tour | contract | not flown | - | - | - |  |
 | minedock.05 | harbour:1 | not flown | - | - | - |  |
@@ -97,4 +97,4 @@ Summary (91 missions): 8 an aircraft order (not a flight); 21 feasible; 1 infeas
 | club.pylons | contract | feasible | Piper Cub | 18 min 16 s | HOME > HOME 1096 [hit:g1 hit:g2 hit:g3 hit:g4] |  |
 | club.regular | contract | feasible | Piper Cub | 18 min 06 s | HOME > HOME 1086 [hit:r1 hit:r2] |  |
 | club.tour | club:2 | feasible | Piper Cub | 35 min 39 s | HOME > w3 855 [hit:a1 hit:a2]; w3 > w5 532 [hit:b1 hit:b2]; w5 > HOME 752 [hit:c1 hit:c2] |  |
-| club.breakfast | club:1 | stale | - | - | - |  |
+| club.breakfast | club:1 | feasible | Jodel D112 | 16 min 00 s | HOME > tw_ski 960 |  |
