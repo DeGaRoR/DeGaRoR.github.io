@@ -2424,7 +2424,32 @@ function* buildSteps() {
     // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
     const crewL = CH.layers.find(l => l.name === 'crew');
     const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
-    if (rplan && !crewMoved) {
+    // PERF-SLIDERS (23 Nov 2026): ...OR THE WING THAT MOVED IN THE DRAG CARRIES THE ENGINES. A preview runs the wing at the hand's
+    // last value, so the release's plan finds the wing's reads as they stand and runs neither it nor its release edge to the
+    // engine layer (CAGE_CHAIN REL_FEEDS wing > eng, cowl): the DC-3's wing span ended with its nacelle engines one build
+    // behind (587 objects and the resolved spec off the plain build's, the weathering's engine sources 14.5 cm out; GATE
+    // INSTANT's check on master's own files, 23 Nov). Running the engine and the cowl alone in the release is not the plain
+    // build either (tried: the wing places a wing-mounted unit once more over the wing it publishes, CAGE_WING_EARLY, and
+    // the nacelles' wells are cut from the gear's legs - 372 objects off). So: the whole build, as a moved sit sent every
+    // such release until PHONE-EDIT-PERF (2 Nov). Only where the engine stands ON the wing (the mounts _cage_eng.js hands
+    // to the wing's early readers); a nose or pusher engine keeps the plan (GATE INSTANT's rows on the Cub and the metal
+    // Cessna). GATE INSTANTREL holds it (the DC-3-alike, the Super Petrel).
+    const wingL = CH.layers.find(l => l.name === 'wing'), eM = Math.round(+P.engMount || 0);
+    const wingMoved = !!(rplan && wingL && wingL.seq > WHOLE_SEQ && ([2, 3, 5, 6, 7].includes(eM) || (eM === 1 && +P.hangOn)) &&
+      !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
+    // PERF-SLIDERS (23 Nov 2026): ...OR THE SIT TURNED UNDER A CREW THAT IS KEPT. The crew is posed under the mount as the last
+    // draw stood it (the sit follows the gear), and its limbs are aimed along the WORLD's axes (_cage_crew.js solveGripJob:
+    // the elbows' and the knees' poles), so its pose - and what stands on it: the tank's clearance of the pilot's body -
+    // belongs to the sit it was built under. A drag that turns the sit and keeps the crew (the main gear's station along
+    // the fuselage, a leg's drop, a wheel's size) ended on another aeroplane than the plain build's: THE CUB after an s1Z
+    // drag still showed its fuel tank (five meshes) where the plain build draws none, its limbs a hair off; the DC-3's
+    // elbows 0.3 mm off (GATE INSTANT's check on master's own files, 23 Nov; the resolved spec the same both ways). Until
+    // 2 Nov a moved sit sent every release whole; PHONE-EDIT-PERF kept the plan for it (the floats' CG step, the gear).
+    // Kept here for a sit that only MOVED (a float's step: the poles do not care where the aeroplane stands) - a sit that
+    // TURNED (the mount's rotation, to 1e-6) sends the release whole. GATE INSTANTREL's s1Z rows hold it.
+    const rotOf = k => { const e = String(k).split(','); return e.length === 16 ? [0, 1, 2, 4, 5, 6, 8, 9, 10].map(i => (+e[i]).toFixed(6)).join(',') : String(k); };
+    const sitTurned = !!(rplan && CRAFT_KEY != null && rotOf(craftKey()) !== rotOf(CRAFT_KEY) && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
+    if (rplan && !crewMoved && !wingMoved && !sitTurned) {
       // PHONE-EDIT-PERF: THE CRAFT FRAME FROM WHERE THE LAST DRAW PUT THE MOUNT - what a whole build measures before its layers
       // (G1301; G1443's deformed drag measures it the same way after its draw). The layers that publish in it (the
       // weathering's sources: applyWeather, every release) then publish in this one
@@ -2440,7 +2465,7 @@ function* buildSteps() {
       }
       GE.path = 'release plan'; yield* releaseSteps(built, rplan); eyeAfterBuild(); return;
     }
-    RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
+    RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : wingMoved ? 'the wing moved under its engines' : sitTurned ? 'the sit turned under the crew' : (why || 'no plan') };
     GE.why = RELEASE_INFO.last.whole;
   }
   LAST_SHEET = built;
