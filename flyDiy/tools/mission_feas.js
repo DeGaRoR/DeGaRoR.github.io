@@ -25,7 +25,10 @@ const ROOT = path.join(__dirname, '..');
 const OUT = path.resolve(ROOT, opt('out', 'reports/MISSION-FEASIBILITY'));
 const SHD = require('./_shard.js');
 // --builds=<file,...>: test builds that stand on no list (mission_feas_lib widePool), by their file under the repo
-const TEST_BUILDS = { 'tools/fixtures/storyfeas/cessna172_stol_kit.json': 'Cessna 172 with the STOL kit and a larger elevator (test build)' };
+const TEST_BUILDS = {
+  'tools/fixtures/storyfeas/cessna172_stol_kit.json': 'light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)',
+  'tools/fixtures/storyfeas/cessna172r_stol_kit.json': 'Cessna 172 (list:50) with the STOL kit (test build)',
+};
 
 function rowsOf(F, packsDir) {
   const packs = F.readPacks(packsDir);

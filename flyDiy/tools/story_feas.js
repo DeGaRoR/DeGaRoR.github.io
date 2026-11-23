@@ -20,7 +20,10 @@ const T = __dirname, ROOT = path.join(T, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const has = k => argv.includes('--' + k);
-const BUILDS = 'tools/fixtures/storyfeas/cessna172_stol_kit.json';   // the career's Cessna with the garage's STOL kit (a test build)
+const BUILDS = 'tools/fixtures/storyfeas/cessna172_stol_kit.json,tools/fixtures/storyfeas/cessna172r_stol_kit.json';   // two test builds: the light metal Cessna (the retired list:40) and the Cessna 172 (list:50), each with the garage's STOL kit
+// THE SIM A ROW WAS FLOWN ON. A row's key is its mission's record; the aeroplanes and the pilot change under it at a train.
+// Bumped BY HAND when master is merged in (the pilot, the career's designs): every row flown before is stale and flown again
+const SIM = 'L40J';
 const ALSO = '57,58';   // builds/lists/plane_lists.json: the PC-6 Turbo Porter, the PC-6 on Wiplines (the wip list)
 const ROWS = path.resolve(ROOT, opt('rows', 'reports/STORY-REVAMP/feasibility'));
 const PACK = path.join(ROOT, 'src', 'missions', 'story.json');
@@ -49,7 +52,7 @@ const rowOf = id => { try { return JSON.parse(fs.readFileSync(rowFile(id), 'utf8
 // a row is CURRENT when it is this mission's record flown - and, when it is not feasible, flown with the pool of today (a
 // "no" from the career's designs alone is not a "no" from every official plane, the PC-6 and the test builds)
 const POOL = m => m.order ? 'validated' : 'official+' + opt('also', ALSO) + '+test builds, the seats filled';
-const current = m => { const r = rowOf(m.id); return r && r.key === m.key && (r.verdict === 'feasible' || r.pool === POOL(m)) ? r : null; };
+const current = m => { const r = rowOf(m.id); return r && r.key === m.key && r.sim === SIM && (r.verdict === 'feasible' || r.pool === POOL(m)) ? r : null; };
 
 async function fly() {
   const { list } = load();
@@ -79,7 +82,7 @@ async function fly() {
       let R = null;
       try { R = JSON.parse(fs.readFileSync(path.join(out, 'reruns', 'rerun_' + m.id + '.json'), 'utf8')).rows.find(x => x.id === m.id); } catch (e) { R = null; }
       const row = R ? slim(R) : { id: m.id, verdict: 'broken', why: 'the rig ended with no row (exit ' + code + '): ' + err.slice(-300) };
-      Object.assign(row, { key: m.key, where: m.where, pool: POOL(m), wallS: Math.round((Date.now() - t0) / 1000) });
+      Object.assign(row, { key: m.key, where: m.where, pool: POOL(m), sim: SIM, wallS: Math.round((Date.now() - t0) / 1000) });
       fs.writeFileSync(rowFile(m.id), JSON.stringify(row, null, 1) + '\n');
       done++;
       console.log('  ' + String(done).padStart(3) + '/' + todo.length + ' ' + row.verdict.toUpperCase().padEnd(10) + ' ' + m.id.padEnd(15) + ' ' + (row.plane || '-').padEnd(24) + ' ' + String(row.timeS || 0).padStart(5) + ' s flown, ' + row.wallS + ' s wall' + (row.verdict === 'feasible' ? '' : '  ' + (row.why || '').slice(0, 160)));
