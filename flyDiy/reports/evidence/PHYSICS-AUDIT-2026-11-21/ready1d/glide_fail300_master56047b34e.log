@@ -1,0 +1,77 @@
+   0  CLIMB     -          agl  300                    hdg  41  V 50.0  vy -0.12  L/D now 405.1  E - Em -  flap 0.00  thr -  height 281/297 ; airspeed 50/33
+   2  CLIMB     -          agl  308                    hdg  43  V 51.5  vy -0.32  L/D now 158.8  E - Em -  flap 0.00  thr -  height 279/297 ; airspeed 51/33
+   4  CLIMB     -          agl  320                    hdg  52  V 51.8  vy 3.29  L/D now 516.5  E - Em -  flap 0.00  thr -  height 281/297 ; airspeed 51/33
+   6  CLIMB     -          agl  331                    hdg  63  V 49.4  vy 5.66  L/D now 490.8  E - Em -  flap 0.00  thr -  height 291/297 ; airspeed 49/33
+   7  ENROUTE   -          agl  338                    hdg  68  V 47.2  vy 2.67  L/D now 471.0  E - Em -  flap 0.00  thr -  height 297/297 ; airspeed 46/33
+   8  ENROUTE   -          agl  340                    hdg  70  V 47.5  vy 0.45  L/D now 474.7  E - Em -  flap 0.00  thr -  to the turn 13374/0 ; height 310/309 ; off track 748/50
+  10  ENROUTE   -          agl  341                    hdg  75  V 49.0  vy -0.32  L/D now 153.5  E - Em -  flap 0.00  thr -  to the turn 13308/0 ; height 309/309 ; off track 677/50
+  12  GLIDE     -          agl  341  s -689 c -1118    hdg  70  V 47.3  vy -1.09  L/D now 43.2  E 10.8 Em 12.0  flap 0.00  thr -  height over the aim 313/121 ; airspeed 47/30
+  14  GLIDE     -          agl  338  s -618 c -1058    hdg  66  V 46.3  vy -2.40  L/D now 19.2  E 11.7 Em 13.0  flap 0.00  thr -  height over the aim 308/104 ; airspeed 46/30
+  16  GLIDE     -          agl  334  s -550 c -997     hdg  67  V 45.1  vy -1.59  L/D now 28.4  E 11.3 Em 12.5  flap 0.00  thr -  height over the aim 305/100 ; airspeed 44/30
+  18  GLIDE     -          agl  332  s -481 c -941     hdg  71  V 43.8  vy -1.32  L/D now 33.3  E 10.9 Em 12.1  flap 0.00  thr -  height over the aim 302/96 ; airspeed 43/30
+  20  GLIDE     -          agl  329  s -410 c -891     hdg  75  V 42.5  vy -1.22  L/D now 34.8  E 10.5 Em 11.7  flap 0.00  thr -  height over the aim 299/93 ; airspeed 42/30
+  22  GLIDE     -          agl  327  s -339 c -847     hdg  77  V 41.2  vy -1.18  L/D now 35.0  E 10.3 Em 11.4  flap 0.00  thr -  height over the aim 297/88 ; airspeed 41/30
+  24  GLIDE     -          agl  324  s -268 c -807     hdg  79  V 40.0  vy -1.17  L/D now 34.3  E 10.1 Em 11.2  flap 0.00  thr -  height over the aim 295/83 ; airspeed 39/30
+  26  GLIDE     -          agl  322  s -199 c -770     hdg  80  V 38.9  vy -1.36  L/D now 28.5  E 10.0 Em 11.1  flap 0.00  thr -  height over the aim 292/79 ; airspeed 38/30
+  28  GLIDE     -          agl  319  s -131 c -734     hdg  81  V 37.9  vy -1.58  L/D now 23.9  E 9.9 Em 10.9  flap 0.00  thr -  height over the aim 289/75 ; airspeed 37/30
+  30  GLIDE     -          agl  316  s -65 c -700      hdg  80  V 37.0  vy -1.76  L/D now 21.0  E 9.8 Em 10.9  flap 0.00  thr -  height over the aim 286/71 ; airspeed 36/30
+  32  GLIDE     -          agl  312  s -1 c -664       hdg  78  V 36.2  vy -1.90  L/D now 19.0  E 9.7 Em 10.8  flap 0.00  thr -  height over the aim 282/67 ; airspeed 36/30
+  34  GLIDE     burn       agl  308  s 61 c -628       hdg  76  V 35.5  vy -2.01  L/D now 17.6  E 9.7 Em 10.8  flap 0.00  thr -  height over the aim 278/63 ; airspeed 35/30
+  36  GLIDE     burn       agl  302  s 119 c -588      hdg  70  V 34.9  vy -2.35  L/D now 14.8  E 9.6 Em 10.7  flap 0.00  thr -  height over the aim 274/60 ; airspeed 34/30
+  38  GLIDE     downwind   agl  296  s 171 c -542      hdg  63  V 34.6  vy -2.63  L/D now 13.1  E 9.5 Em 10.5  flap 0.00  thr -  height over the aim 269/58 ; airspeed 34/30
+  40  GLIDE     downwind   agl  288  s 215 c -490      hdg  52  V 34.3  vy -3.17  L/D now 10.8  E 9.3 Em 10.3  flap 0.00  thr -  height over the aim 263/55 ; airspeed 34/30
+  42  GLIDE     downwind   agl  280  s 244 c -428      hdg  36  V 34.2  vy -3.24  L/D now 10.5  E 9.1 Em 10.1  flap 0.00  thr -  height over the aim 257/52 ; airspeed 34/30
+  44  GLIDE     downwind   agl  272  s 255 c -362      hdg  19  V 34.0  vy -3.21  L/D now 10.5  E 8.9 Em 9.9  flap 0.00  thr -  height over the aim 250/47 ; airspeed 34/30
+  46  GLIDE     downwind   agl  265  s 246 c -295      hdg   2  V 33.7  vy -3.21  L/D now 10.5  E 8.8 Em 9.8  flap 0.00  thr -  height over the aim 244/41 ; airspeed 33/30
+  48  GLIDE     downwind   agl  259  s 218 c -234      hdg 345  V 33.5  vy -3.26  L/D now 10.2  E 8.7 Em 9.7  flap 0.00  thr -  height over the aim 237/34 ; airspeed 33/30
+  50  GLIDE     downwind   agl  252  s 174 c -185      hdg 328  V 33.4  vy -3.38  L/D now 9.8  E 8.6 Em 9.5  flap 0.00  thr -  height over the aim 231/27 ; airspeed 33/30
+  52  GLIDE     downwind   agl  245  s 118 c -151      hdg 311  V 33.4  vy -3.46  L/D now 9.6  E 8.5 Em 9.4  flap 0.00  thr -  height over the aim 224/20 ; airspeed 33/30
+  54  GLIDE     downwind   agl  238  s 53 c -135       hdg 294  V 33.3  vy -3.28  L/D now 10.1  E 8.5 Em 9.4  flap 0.00  thr -  height over the aim 217/20 ; airspeed 33/30
+  56  GLIDE     downwind   agl  232  s -13 c -135      hdg 282  V 33.1  vy -2.90  L/D now 11.4  E 8.7 Em 9.6  flap 0.00  thr -  height over the aim 211/20 ; airspeed 33/30
+  58  GLIDE     downwind   agl  227  s -77 c -146      hdg 275  V 32.9  vy -2.80  L/D now 11.7  E 8.9 Em 9.9  flap 0.00  thr -  height over the aim 205/20 ; airspeed 33/30
+  60  GLIDE     downwind   agl  222  s -140 c -164     hdg 270  V 32.8  vy -2.83  L/D now 11.5  E 9.1 Em 10.1  flap 0.00  thr -  height over the aim 200/24 ; airspeed 32/30
+  62  GLIDE     downwind   agl  217  s -201 c -186     hdg 267  V 32.7  vy -2.90  L/D now 11.2  E 9.2 Em 10.2  flap 0.00  thr -  height over the aim 194/30 ; airspeed 32/30
+  64  GLIDE     downwind   agl  212  s -262 c -211     hdg 265  V 32.6  vy -2.93  L/D now 11.1  E 9.3 Em 10.3  flap 0.00  thr -  height over the aim 188/36 ; airspeed 32/30
+  66  GLIDE     downwind   agl  207  s -321 c -238     hdg 264  V 32.5  vy -2.95  L/D now 11.0  E 9.4 Em 10.4  flap 0.00  thr -  height over the aim 182/43 ; airspeed 32/30
+  68  GLIDE     downwind   agl  201  s -380 c -264     hdg 264  V 32.5  vy -2.97  L/D now 10.9  E 9.4 Em 10.5  flap 0.00  thr -  height over the aim 176/49 ; airspeed 32/30
+  70  GLIDE     downwind   agl  196  s -440 c -289     hdg 266  V 32.5  vy -3.00  L/D now 10.8  E 9.5 Em 10.5  flap 0.00  thr -  height over the aim 170/56 ; airspeed 32/30
+  72  GLIDE     downwind   agl  191  s -500 c -312     hdg 270  V 32.5  vy -3.03  L/D now 10.7  E 9.5 Em 10.6  flap 0.00  thr -  height over the aim 164/62 ; airspeed 32/30
+  74  GLIDE     downwind   agl  186  s -562 c -330     hdg 273  V 32.5  vy -3.03  L/D now 10.7  E 9.5 Em 10.6  flap 0.00  thr -  height over the aim 158/69 ; airspeed 32/30
+  76  GLIDE     downwind   agl  180  s -625 c -344     hdg 277  V 32.5  vy -3.03  L/D now 10.7  E 9.5 Em 10.6  flap 0.00  thr -  height over the aim 152/75 ; airspeed 32/30
+  78  GLIDE     base       agl  174  s -689 c -354     hdg 281  V 32.5  vy -3.01  L/D now 10.7  E 9.6 Em 10.6  flap 0.00  thr -  height over the aim 146/81 ; airspeed 32/30
+  80  GLIDE     base       agl  169  s -754 c -359     hdg 288  V 32.5  vy -3.31  L/D now 9.8  E 9.5 Em 10.6  flap 0.00  thr -  height over the aim 140/88 ; airspeed 32/30
+  82  GLIDE     base       agl  161  s -818 c -352     hdg 302  V 32.7  vy -3.87  L/D now 8.4  E 9.2 Em 10.2  flap 0.00  thr -  height over the aim 133/97 ; airspeed 32/30
+  84  GLIDE     base       agl  153  s -878 c -327     hdg 319  V 32.9  vy -3.76  L/D now 8.7  E 9.0 Em 10.0  flap 0.00  thr -  height over the aim 125/105 ; airspeed 33/30
+  86  GLIDE     base       agl  146  s -928 c -285     hdg 337  V 33.0  vy -3.65  L/D now 9.0  E 8.8 Em 9.8  flap 0.00  thr -  height over the aim 117/110 ; airspeed 33/30
+  88  GLIDE     final      agl  138  s -962 c -229     hdg 355  V 33.0  vy -3.72  L/D now 8.8  E 8.7 Em 9.7  flap 0.00  thr -  height over the aim 110/114 ; airspeed 33/31
+  90  GLIDE     final      agl  129  s -979 c -166     hdg  12  V 33.3  vy -3.87  L/D now 8.5  E 8.6 Em 9.5  flap 0.00  thr -  height over the aim 102/117 ; airspeed 33/31
+  92  GLIDE     final      agl  119  s -976 c -100     hdg  29  V 33.4  vy -3.69  L/D now 9.0  E 8.5 Em 9.5  flap 0.00  thr -  height over the aim 95/115 ; airspeed 33/31
+  94  GLIDE     final      agl  110  s -953 c -38      hdg  47  V 33.4  vy -3.61  L/D now 9.2  E 8.5 Em 9.5  flap 0.00  thr -  height over the aim 88/112 ; airspeed 33/31
+  96  GLIDE     final      agl  102  s -913 c 15       hdg  64  V 33.4  vy -3.57  L/D now 9.3  E 8.5 Em 9.5  flap 0.00  thr -  height over the aim 80/108 ; airspeed 33/31
+  98  GLIDE     final      agl   95  s -859 c 54       hdg  80  V 33.4  vy -3.24  L/D now 10.3  E 8.6 Em 9.5  flap 0.00  thr -  height over the aim 74/101 ; airspeed 33/31
+ 100  GLIDE     final      agl   88  s -798 c 79       hdg  91  V 33.2  vy -2.96  L/D now 11.2  E 8.8 Em 9.8  flap 0.00  thr -  height over the aim 67/92 ; airspeed 33/31
+ 102  GLIDE     final      agl   64  s -734 c 93       hdg  99  V 33.1  vy -2.90  L/D now 11.4  E 9.0 Em 10.0  flap 0.00  thr -  height over the aim 62/83 ; airspeed 33/31
+ 104  GLIDE     final      agl   52  s -668 c 100      hdg 105  V 33.0  vy -2.90  L/D now 11.3  E 9.1 Em 10.1  flap 0.00  thr -  height over the aim 56/74 ; airspeed 33/31
+ 106  GLIDE     final      agl   46  s -603 c 101      hdg 110  V 32.9  vy -2.93  L/D now 11.2  E 9.3 Em 10.3  flap 0.00  thr -  height over the aim 50/66 ; airspeed 33/31
+ 108  GLIDE     final      agl   44  s -537 c 96       hdg 114  V 32.8  vy -2.98  L/D now 11.0  E 9.3 Em 10.4  flap 0.00  thr -  height over the aim 44/59 ; airspeed 33/31
+ 110  GLIDE     final      agl   35  s -473 c 87       hdg 119  V 32.8  vy -3.00  L/D now 10.9  E 9.4 Em 10.4  flap 0.00  thr -  height over the aim 38/52 ; airspeed 33/31
+ 112  GLIDE     final      agl   30  s -409 c 72       hdg 123  V 32.8  vy -2.99  L/D now 10.9  E 9.5 Em 10.5  flap 0.00  thr -  height over the aim 32/44 ; airspeed 33/31
+ 114  GLIDE     final      agl   25  s -346 c 54       hdg 125  V 32.7  vy -2.97  L/D now 11.0  E 9.5 Em 10.6  flap 0.00  thr -  height over the aim 26/37 ; airspeed 33/31
+ 116  GLIDE     final      agl   35  s -284 c 34       hdg 127  V 32.7  vy -2.97  L/D now 11.0  E 9.6 Em 10.6  flap 0.00  thr -  height over the aim 20/30 ; airspeed 33/31
+ 118  GLIDE     final      agl   26  s -223 c 14       hdg 125  V 32.4  vy -2.13  L/D now 15.2  E 9.7 Em 10.8  flap 0.27  thr -  height over the aim 15/23 ; airspeed 32/31
+ 120  GLIDE     final      agl   33  s -162 c -2       hdg 120  V 30.7  vy -0.76  L/D now 40.4  E 9.9 Em 11.0  flap 0.67  thr -  height over the aim 12/20 ; airspeed 31/31
+ 122  GLIDE     final      agl   27  s -104 c -12      hdg 115  V 27.9  vy -0.16  L/D now 169.5  E 9.3 Em 10.3  flap 1.00  thr -  height over the aim 11/20 ; airspeed 28/31
+ 124  FLARE     final      agl   12  s -62 c -15       hdg 111  V 25.9  vy -0.95  L/D now 27.3  E 8.5 Em 9.5  flap 1.00  thr -  height over the aim 10/20 ; airspeed 26/31
+ 124  FLARE     final      agl   10  s -51 c -16       hdg 109  V 25.4  vy -1.39  L/D now 18.3  E 8.5 Em 9.5  flap 1.00  thr -  wheels down 0/1 ; runway left 361/0
+ 126  FLARE     final      agl    7  s -2 c -15        hdg 105  V 23.5  vy -1.19  L/D now 19.7  E 8.5 Em 9.5  flap 1.00  thr -  wheels down 0/1 ; runway left 312/0
+ 128  FLARE     final      agl    4  s 43 c -12        hdg 102  V 21.5  vy -1.87  L/D now 11.5  E 8.5 Em 9.5  flap 1.00  thr -  wheels down 0/1 ; runway left 267/0
+ 129  ROLLOUT   final      agl    1  s 66 c -9         hdg 102  V 21.0  vy -2.66  L/D now 7.8  E 8.5 Em 9.5  flap 1.00  thr -  wheels down 1/1 ; runway left 244/0
+ 130  ROLLOUT   final      agl    1  s 84 c -7         hdg  99  V 19.8  vy -0.43  L/D now 46.1  E 8.5 Em 9.5  flap 0.82  thr -  ground speed 20/0
+ 132  ROLLOUT   final      agl    1  s 121 c -0        hdg 101  V 17.7  vy -0.47  L/D now 37.5  E 8.5 Em 9.5  flap 0.42  thr -  ground speed 18/0
+ 134  ROLLOUT   final      agl    1  s 153 c 1         hdg 110  V 14.0  vy 0.05  L/D now 139.7  E 8.5 Em 9.5  flap 0.02  thr -  ground speed 14/0
+ 136  ROLLOUT   final      agl    1  s 176 c -0        hdg 108  V 9.1  vy -0.15  L/D now 59.0  E 8.5 Em 9.5  flap 0.00  thr -  ground speed 9/0
+ 138  ROLLOUT   final      agl    1  s 189 c 0         hdg 109  V 3.4  vy -0.01  L/D now 34.4  E 8.5 Em 9.5  flap 0.00  thr -  ground speed 3/0
+ 140  ROLLOUT   final      agl    1  s 192 c 0         hdg 108  V 0.5  vy 0.00  L/D now 5.1  E 8.5 Em 9.5  flap 0.00  thr -  ground speed 1/0
+ 140  STOPPED   final      agl    1  s 192 c 0         hdg 108  V 0.4  vy -0.00  L/D now 3.7  E 8.5 Em 9.5  flap 0.00  thr -  ground speed 0/0
+geo {"len":310,"hdg":-2.827433388230814,"ux":0.9510565162951536,"uz":0.30901699437494734}
+{"outcome":"forced-landing","landing":{"run":126,"sink":2.7,"V":21,"offCentre":9.3,"pastAim":47,"k":0,"three":false,"onStrip":true,"tdIn":66,"stopLeft":118},"glider":{"field":"Cannery Runway","way":"heading 108 deg","side":"right","W":420,"E":8.5,"Em":9.5,"stages":[{"t":33.4,"stage":"burn","h":279},{"t":37.1,"stage":"downwind","h":271},{"t":77.8,"stage":"base","h":147},{"t":87.3,"stage":"final","h":113}]},"verdicts":["strip-short","no-straight-in","glider-divert","out-of-energy","glider-circuit","glider-circuit","glider-circuit","glider-circuit"]}

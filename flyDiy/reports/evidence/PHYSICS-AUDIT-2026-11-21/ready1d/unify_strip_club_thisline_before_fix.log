@@ -1,0 +1,40 @@
+RL t=383.5 FLARE nose 4.7 Vg 17.3 thr 0.73 brk 0.00 bD 0.00 dr -0.35 de 0.30 s -69 c 0.3
+RL t=383.7 ROLLOUT nose 5.2 Vg 16.7 thr 0.00 brk 0.00 bD 0.00 dr -0.30 de 0.35 s -66 c 0.3
+RL t=383.9 ROLLOUT nose 6.4 Vg 16.2 thr 0.00 brk 0.00 bD 0.00 dr -0.50 de 0.35 s -63 c 0.1
+RL t=384.1 ROLLOUT nose 7.8 Vg 15.8 thr 0.00 brk 0.01 bD 0.00 dr -0.64 de 0.35 s -60 c -0.1
+RL t=384.3 ROLLOUT nose 8.7 Vg 15.3 thr 0.00 brk 0.00 bD 0.00 dr -0.70 de 0.35 s -56 c -0.3
+RL t=384.5 ROLLOUT nose 9.4 Vg 14.8 thr 0.00 brk 0.00 bD 0.00 dr -0.91 de 0.35 s -53 c -0.6
+RL t=384.7 ROLLOUT nose 10.7 Vg 14.4 thr 0.00 brk 0.01 bD 0.00 dr -0.91 de 0.35 s -51 c -1.0
+RL t=384.9 ROLLOUT nose 11.5 Vg 13.9 thr 0.00 brk 0.06 bD 0.00 dr -0.89 de 0.35 s -48 c -1.4
+RL t=385.1 ROLLOUT nose 12.1 Vg 13.4 thr 0.00 brk 0.00 bD 0.00 dr -0.93 de 0.35 s -45 c -1.9
+RL t=385.3 ROLLOUT nose 12.2 Vg 12.9 thr 0.00 brk 0.00 bD 0.00 dr -0.95 de 0.35 s -42 c -2.4
+RL t=385.5 ROLLOUT nose 11.1 Vg 12.6 thr 0.00 brk 0.00 bD 0.00 dr -0.95 de 0.35 s -40 c -2.9
+RL t=385.7 ROLLOUT nose 11.0 Vg 12.3 thr 0.00 brk 0.00 bD 0.00 dr -0.95 de 0.35 s -38 c -3.4
+RL t=385.9 ROLLOUT nose 10.6 Vg 12.0 thr 0.00 brk 0.00 bD 0.00 dr -0.95 de 0.35 s -35 c -3.9
+RL t=386.1 ROLLOUT nose 10.0 Vg 11.6 thr 0.00 brk 0.00 bD 0.00 dr -0.95 de 0.35 s -33 c -4.4
+RL t=386.3 ROLLOUT nose 6.9 Vg 11.1 thr 0.00 brk 0.04 bD 0.00 dr -0.80 de 0.35 s -31 c -4.9
+RL t=386.5 ROLLOUT nose 1.6 Vg 10.7 thr 0.00 brk 0.00 bD 0.00 dr -0.95 de 0.35 s -28 c -5.2
+RL t=386.7 ROLLOUT nose 4.4 Vg 10.2 thr 0.00 brk 0.04 bD 0.00 dr -0.80 de 0.35 s -26 c -5.4
+RL t=386.9 ROLLOUT nose 11.8 Vg 9.8 thr 0.00 brk 0.08 bD 0.00 dr -0.60 de 0.35 s -24 c -5.3
+RL t=387.1 ROLLOUT nose 19.1 Vg 9.3 thr 0.00 brk 0.13 bD 0.00 dr -0.39 de 0.35 s -22 c -5.1
+RL t=387.3 ROLLOUT nose 26.3 Vg 8.8 thr 0.00 brk 0.18 bD 0.00 dr -0.19 de 0.35 s -21 c -4.5
+RL t=387.5 ROLLOUT nose 33.0 Vg 8.3 thr 0.00 brk 0.23 bD 0.00 dr 0.01 de 0.35 s -19 c -3.8
+RL t=387.7 ROLLOUT nose 38.7 Vg 7.7 thr 0.00 brk 0.28 bD 0.00 dr 0.21 de 0.35 s -18 c -3.0
+RL t=387.9 ROLLOUT nose 43.9 Vg 7.2 thr 0.00 brk 0.32 bD 0.00 dr 0.42 de 0.35 s -17 c -2.1
+RL t=388.1 ROLLOUT nose 48.2 Vg 6.7 thr 0.00 brk 0.37 bD 0.00 dr 0.51 de 0.35 s -16 c -1.1
+RL t=388.3 ROLLOUT nose 51.8 Vg 6.1 thr 0.00 brk 0.42 bD 0.00 dr 0.50 de 0.35 s -15 c -0.2
+RL t=388.5 ROLLOUT nose 54.7 Vg 5.4 thr 0.00 brk 0.47 bD 0.00 dr 0.48 de 0.35 s -14 c 0.7
+{"from":"HOME","to":"tw_ski","t":390.83,"ok":false,"outcome":"completed","landedOn":"tw_ski","groundLoop":73,"offStrip":130,"nan":false,"declined":null,"heldOff":null,"track":null}
+faults [{"k":"off-strip","note":"the landing roll left tw_ski's box","t":385.6},{"k":"ground-loop","note":"the nose 30.2 deg off the landing roll on tw_ski at 8.5 m/s","t":387.4}]
+phases ["HOLD","ROLL","LIFTOFF","CLIMB","INBOUND","FINAL","FLARE","ROLLOUT","STOPPED"]
+verdicts ["vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear","off-the-strip: touched 71 m in, stopped -151 m past the end of 280 m (5 m off the centreline)"]
+warnings []
+dep {"turned":0,"uturn":false,"latMax":0,"rollS":109.1,"rollFromEnd":109.1,"toDist":123.8,"taxiT":2}
+arr {"final":{"d":1400.3,"h":728.3},"apprClear":{"c":11.2,"d":41.3,"what":"ground"},"td":{"s":-69.1,"c":0.3},"landing":{"run":58,"sink":-0.82,"V":13.7,"offCentre":0.3,"pastAim":54,"k":1,"three":true,"onStrip":false,"tdIn":71,"stopLeft":151},"stopS":-11.3}
+fuel {"litres":43.2,"burnt":1.8}
+damage {"yields":0,"breaks":0,"dented":false,"crashed":false,"gPeak":1.4,"propAt":null}
+trackI [0,196]
+appr {"technique":"short","Vref":17.3,"Vbase":17.3,"gust":0.2,"aimIn":17,"flap":0.7,"len":280,"surface":0,"runNeed":111,"gs":0.11,"reqGs":0.105,"gsWhy":"obstacle","obst":{"d":25,"h":2.6},"held":{"Vtd":17.3,"tail":4.5,"need":135,"needShort":113,"room":198,"grade":0.068}}
+landing {"run":58,"sink":-0.82,"V":13.7,"offCentre":0.3,"pastAim":54,"k":1,"three":true,"onStrip":false,"tdIn":71,"stopLeft":151}
+phases DEPART@0 HOLD@0 ROLL@2 LIFTOFF@14 CLIMB@23 INBOUND@116 FINAL@323 FLARE@379 ROLLOUT@384 STOPPED@391
+verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear | off-the-strip: touched 71 m in, stopped -151 m past the end of 280 m (5 m off the centreline)

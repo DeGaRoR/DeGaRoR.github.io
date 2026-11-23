@@ -1,0 +1,17 @@
+TR t=100 vs 0.03 vsUp 3.64 vsDn -4.29 vsCmd -0.24 thr 1.00 V 52.0 h 205 hAsk 204 leg 0
+TR t=105 vs 0.27 vsUp 3.64 vsDn -4.29 vsCmd -0.71 thr 0.77 V 53.7 h 205 hAsk 202 leg 0
+TR t=110 vs -0.80 vsUp 3.64 vsDn -4.29 vsCmd -0.82 thr 0.68 V 53.9 h 203 hAsk 199 leg 0
+TR t=115 vs -0.65 vsUp 3.64 vsDn -4.29 vsCmd -0.68 thr 0.68 V 54.0 h 200 hAsk 196 leg 0
+TR t=120 vs -0.57 vsUp 3.64 vsDn -4.29 vsCmd -0.58 thr 0.69 V 54.0 h 197 hAsk 194 leg 0
+TR t=125 vs -0.79 vsUp 3.64 vsDn -4.29 vsCmd -0.56 thr 0.68 V 54.0 h 194 hAsk 192 leg 0
+VSBAD t=128.8 mean vs 4.14 vsUp 3.64 vsDn -4.29 vsCmd 3.12 thr 1.00 V 53.7 h 201 hAsk 216 leg 1 flap 0.00
+VSBAD t=128.9 mean vs 4.17 vsUp 3.64 vsDn -4.29 vsCmd 3.03 thr 1.00 V 53.7 h 201 hAsk 216 leg 1 flap 0.00
+VSBAD t=129.0 mean vs 4.19 vsUp 3.64 vsDn -4.29 vsCmd 2.94 thr 1.00 V 53.6 h 201 hAsk 216 leg 1 flap 0.00
+VSBAD t=129.0 mean vs 4.20 vsUp 3.64 vsDn -4.29 vsCmd 2.85 thr 1.00 V 53.6 h 202 hAsk 216 leg 1 flap 0.00
+VSBAD t=129.1 mean vs 4.19 vsUp 3.64 vsDn -4.29 vsCmd 2.76 thr 1.00 V 53.6 h 202 hAsk 216 leg 1 flap 0.00
+VSBAD t=129.2 mean vs 4.17 vsUp 3.64 vsDn -4.29 vsCmd 2.68 thr 1.00 V 53.6 h 202 hAsk 216 leg 1 flap 0.00
+VSBAD t=129.3 mean vs 4.14 vsUp 3.64 vsDn -4.29 vsCmd 2.59 thr 1.00 V 53.6 h 203 hAsk 216 leg 1 flap 0.00
+TR t=130 vs 2.87 vsUp 3.64 vsDn -4.29 vsCmd 1.96 thr 1.00 V 53.5 h 205 hAsk 215 leg 1
+TR t=135 vs 0.17 vsUp 3.64 vsDn -4.29 vsCmd 0.02 thr 0.76 V 54.0 h 210 hAsk 210 leg 1
+TR t=140 vs -0.32 vsUp 3.64 vsDn -4.29 vsCmd -0.19 thr 0.72 V 54.1 h 209 hAsk 208 leg 1
+TR t=145 vs 0.11 vsUp 3.64 vsDn -4.29 vsCmd 0.09 thr 0.76 V 54.1 h 208 hAsk 209 leg 1
