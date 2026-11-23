@@ -1,0 +1,14 @@
+# GARAGE FIRST, ROUND 1 (Monday 23 Nov 13:00) - PART A, run with LM_AFTER=150: Go is pressed 150 s after the garage shows,
+# so the world has the time to load behind it. Read per row: "load" = the garage's reveal (row 2); eval gf.ms = the world
+# ready behind it (row 3); gf.long = the world build's slices over 50 ms by label and afterReveal = the garage's long tasks
+# meanwhile (rows 1 and 7); rollout = Go -> flying (row 3b: a screen there means something was left for Go).
+#   GF_PLAIN  the prototype alone (the 06:06 smoke's set-up, on the merged build)
+#   GF_ALL    + the world build in steps and workers (compsteps, stripw, patchw, roadw, near first) and the settle near
+#   GF_ALLW   the same profile again, twice: a returning player
+#   BASE_13   the same build, today's order (no switch): the number garage first is read against
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+GF_ALL    ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
+BASE_13   ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+GF_PLAIN  ; D:/Dev/perf-lab-built ; boot=garagefirst ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
+GF_ALLW_1 ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
+GF_ALLW_2 ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
