@@ -60,7 +60,7 @@ else say "part B SKIPPED: $(left) min left, or no garage-first row loaded"; fi
 # D. the crash on the screen: as the build is (Deform's prelink in it, if merged), then with the guard's floor
 #    (both named in the address, so the rows read the same on a build before or after the default moved to 'ground', 23 Nov)
 for cq in all ground; do
-  if [ $(left) -ge 6 ]; then Q="recring=131072&holdframe=$cq"
+  if [ $(left) -ge 6 ]; then Q="recring=131072&recscene=1&holdframe=$cq"   # (recscene=1: the scene slot split - pose / contact / damage / camera / meshes / water - one frame in 31: PERF-TRACE 23 Nov, the 13 fps after a crash is JS in that slot)
     fly crash_$cq crash_cub_nosedown_magenta "$Q" 6 "nose down"
   else say "part D ($cq) SKIPPED: $(left) min left"; fi
 done
