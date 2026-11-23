@@ -1,4 +1,7 @@
-# PHYSICS-AUDIT: READY 1 (the built plan, steps 0-6; ref `claude/ready/physics-audit-1`, on master 9349a62c1, L40H)
+# PHYSICS-AUDIT: READY 1b (the built plan, steps 0-6; ref `claude/ready/physics-audit-1b`, on master 9349a62c1, L40H)
+
+**1b = 1 (`4a1989294`) plus this note brought up to date (Mon 23 Nov, 05:00 CET). No other file differs.** A pushed
+ready never moves (A0's rule): the next letter is the merge with L40J / L40K's master.
 
 The user, 21 Nov: "We'll do all steps, so what matters is the final result ... I'm OK with the plan and you may
 proceed." A0, 22 Nov (L40L): the built plan only; the fuselage-drag work is a later ref (physics-audit-2).
@@ -49,9 +52,17 @@ CARDS, PLANELISTS, SNAPSHOTS, COMMITHYGIENE pass; PHYSPAGES red on one named che
 **Run on the same source earlier** (22 Nov, tree 835da79f9: this tree plus the study's files): 109 of the core tier's
 367 gates, listed in the report's section 7 "Gates", each red read against master by check name.
 
-**The whole core tier in chunks of 30** (the landing gates first: TAKEOFF, GLIDE, ROUTE, APSMOOTH, PILOTACT, the PILOT
-set, REALBAND, STOL) is started on this tree as it is pushed; each chunk's log is committed and pushed to
-`claude/physics-audit` as it ends, and this section is completed from them. Until then this ref is NOT fully gated.
+**The whole core tier in chunks of 30** (the landing gates first), on tree `4a1989294`; each chunk's log is committed
+to `claude/physics-audit` as it ends (`reports/evidence/PHYSICS-AUDIT-2026-11-21/ready1/chunk_NN.log`).
+
+- **Chunk 1 of 13, ended and pushed** (TAKEOFF, GLIDE, ROUTE, APSMOOTH, PILOTACT, PILOT, PILOTCANFLY, PILOTS, REALBAND, STOL,
+  the four new gates, RPM, SOFTGROUND, PROCURE, BENCH, PHYSPAGES, PLANEFICHE, CARDDRAG, DRAG, HONEST, COOL, ENERGY, CARDS,
+  REALREFS, BUILD, BUILT, COMMITHYGIENE): **25 pass, 5 red** - GLIDE, BENCH, PHYSPAGES (the named reds below), REALREFS and
+  APSMOOTH (master's own, read on master: below).
+- **Chunks 2-13: NOT DONE when this was written.** The cloud container restarted twice in the night (00:25 and 04:31 CET)
+  and killed the runner mid-chunk each time; it now resumes in parts of six gates and is running chunk 2. **This ref is
+  not fully gated**: 13 gates on the exact tree before the push, chunk 1's 30, and the 109 run on the same source on
+  22 Nov. The full verdict is the train's battery.
 
 ## Reds, NEW against master (by check name) and left
 
@@ -64,9 +75,31 @@ set, REALBAND, STOL) is started on this tree as it is pushed; each chunk's log i
 | TOW "LAUNCH": the car's corners off the runway | 0 samples → 21 (the launch itself within 1 %) | the tow's owner |
 | PHYSPAGES "twin: DESTROY no shape or nothing broken" | passes → red since step 4 (the twin floatplane's destroy run) | the damage layer's owner; cause not proven (a rig switch on the idle drag changed nothing) |
 
-Master's own reds met on the way (the same check name fails on master): GROUNDQUERY, FLIGHTREC, GEN "cruise is quiet in
+Master's own reds met on the way (the same check name fails on master): REALREFS ("PLANES.c172v2f: ... not found on
+claude/cessna-final"), APSMOOTH (the same four: jodel level HOME,HOME; c172, rufus and mosquito level HOME,w3 - read on
+master alone, 23 Nov; one figure is looser here: the c172's altitude on that leg peaks at 59 m where master's peaks at
+8 m, the same family as PROFILE's row above), GROUNDQUERY, FLIGHTREC, GEN "cruise is quiet in
 wind", RADIALDIV, TAXICLEAR, ALTIPORT, SLOPE, TAILWHEEL, MONOWHEEL, DESTTO, GLIDE "CIRCUIT archaeopteryx", UNIFY "STRIP the
 user's Cub", WINGROWS, JOINPARITY, SAVE, PARTS, DESIGN, CANDIDATES, ASSETS, LIVERYSET.
+
+## The DC-3's mass and its floats (A0, 23 Nov: SEAPLANES' bisect to f1cb81f9e)
+
+`builds/candidates/dc3_2026-10.json`, empty weight by the ledger: 6482 kg before the real-canon merge, 7937 kg after
+(+1455) and on this ref (the plan moves no mass). By row: furnishing 320 → 1202, gear 273 → 794, fuselage +39, tail
++10, electrics +4 - **not the harness**. Crossed over: the new card on the old tree reads 7390 (+870: its airliner
+seats and full trim - the card's own change in that merge), the old card on the new tree 6648 (+150: the gear's mass
+law); the rest is the new card's gear rows under that law. The book is 7630-7650 kg: the card was 15 % light and is
+4 % heavy now (57 kg over its band). It reached its parent's weight; the 4 % sits in the gear group (794 kg, about
+7 % of gross where the type's is 5-6 %) and the furnishing - a card item, not fixed here.
+
+On floats it was the THRUST that failed it, and step 6 answers: `node tools/_floatsclassic_check.js --only=water` on
+this tree passes - "DC-3 on EDO 78-28000: 12520 kg, reserve 2.12, keel draft 0.770 m; the hydroplane run lifts off -
+36.8 s, 36.6 m/s, 660 m" (the governed R-1830s: static thrust 13.1 → 17.9 kN).
+
+## Not a model row: the Ruckus Back-Country
+
+`ruckusbc` is scored against the Solo 103's sheet (no Back-Country figures are sourced; `real_refs` says so): a 64 hp
+card against a 37 hp book. Its four "outside" rows are that, on master as here.
 
 ## Not run
 
