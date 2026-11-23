@@ -1088,6 +1088,12 @@
      "who": "pete",
      "text": "ct.minedock.01.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2364,
+    "sig": "18d901f7"
    }
   },
   {

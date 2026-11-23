@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 38,
+  "feasible": 39,
   "no official plane can fly it (the player builds one)": 2,
-  "not flown": 31,
+  "not flown": 30,
   "an aircraft order (not a flight)": 8,
   "infeasible": 7,
   "stale": 5
  },
- "flownS": 62014,
+ "flownS": 64378,
  "rows": [
   {
    "id": "field.01",
@@ -636,8 +636,46 @@
    "id": "minedock.01",
    "where": "mine:1",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 2364,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1745,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 619,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "minedock.02",
