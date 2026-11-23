@@ -289,5 +289,33 @@ if (process.argv.includes('--drawn')) {
   }
 }
 
+// ---- 6. THE THREE-POINT STANCE (TRICYCLE-STANCE, 23 Nov: the refit 172's tail post on the ground at every spawn) -------
+// sim.stance() (30_solver.js: the game's placement step after reset) stands a build on its three wheels before the first
+// step. Its small root was the tailwheel's alone: a nosewheel lies forward, the root came out ~3 rad, the 34 deg guard
+// refused it, and no tricycle was ever stood - the refit 172 fell level onto its nosewheel, rocked back and struck its
+// tail post (15 J, DMGSCAR / DMGSCUFF / DMGWRECK). Asserted on a tricycle (the metal Cessna) and a taildragger (the Cub),
+// parked (brakes on) on flat ground: stance turns the airframe (not refused); the stance HOLDS - two seconds later the
+// third wheel stands where it stood against the mains (2 cm, the tyres' settle; the rock it replaced was 12 cm on the 172); nothing but a
+// wheel ever comes within 10 cm of the ground (the tail post came to -2.5 cm); the lowest contact where reset left it.
+{
+  const TL = require('./_treecrash_lib.js');
+  for (const [k, label] of [['metal', 'the metal Cessna (tricycle)'], ['cub', 'the Cub (taildragger)']]) {
+    const def = TL.defOf(k), sim = C.makeSim(def, null), M = def.refs.mains, tw = def.refs.tw, r = i => def.nodes[i].r || 0;
+    sim.reset(0);
+    const low = () => { let m = Infinity; for (let i = 0; i < sim.n; i++) m = Math.min(m, sim.p[i * 3 + 1] - r(i)); return m; };
+    const lean = () => (sim.p[tw * 3 + 1] - r(tw)) - M.reduce((a, i) => a + sim.p[i * 3 + 1] - r(i), 0) / M.length;
+    const m0 = low(), th = sim.stance ? sim.stance() : 0, m1 = low(), l0 = lean();
+    const wheels = new Set(M.concat([tw])); let airLow = Infinity;
+    sim.ctl.brake = 1;
+    for (let f = 0; f < 120; f++) { sim.step(1 / 60); let gy = Infinity; for (const i of wheels) gy = Math.min(gy, sim.p[i * 3 + 1] - r(i));
+      for (let i = 0; i < sim.n; i++) if (!wheels.has(i) && !def.nodes[i].gear) airLow = Math.min(airLow, sim.p[i * 3 + 1] - r(i) - gy); }
+    const l1 = lean();
+    ok(Math.abs(th) > 1e-4 && Math.abs(th) < 0.6, label + ': stance turns the airframe onto its three wheels (not refused)', (th * 180 / Math.PI).toFixed(2) + ' deg');
+    ok(Math.abs(l1 - l0) < 0.02, label + ': the stance holds - parked 2 s, the third wheel where it stood against the mains', ((l1 - l0) * 1000).toFixed(1) + ' mm');
+    ok(airLow > 0.10, label + ': nothing but a wheel within 10 cm of the ground', (airLow * 100).toFixed(1) + ' cm the lowest');
+    ok(m1 <= m0 + 0.002, label + ': the lowest contact no higher than reset left it (no drop at the first step)', ((m1 - m0) * 1000).toFixed(1) + ' mm');
+  }
+}
+
 console.log('GATE CONTACT: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
