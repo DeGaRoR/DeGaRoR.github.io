@@ -23,6 +23,10 @@
 //           lift         { "by": m } the aeroplane raised (or lowered) in place, its speeds kept - the pilot finds itself that
 //                        much higher where it was (DESCENT, 15 Nov: "high on final"; the in-game twin is the player handing
 //                        the autopilot back high). Read the step after it, not this one
+//           page         { "js": "<an expression>" } evaluated on the page (the page runner; the node runner skips it, as the
+//                        other page steps) - a rig's set-up the game has no button for: ROW 14's crash scripts put a trunk
+//                        in the aeroplane's path (world.treeHits, forwarded to the worker as the game's own trunks). Its
+//                        answer is said in the log. DEFORM, 22 Nov
 //           (absent)     nothing new: the step watches the flight go on
 //   until   (all must hold, read every step; a step with no until passes at once)
 //           phase        a phase or a list of phases (43's: TAXI, HOLD, LINEUP, ROLL, LIFTOFF, CLIMB, ENROUTE, DOWNWIND,
@@ -409,7 +413,7 @@ async function runPage(S, opt) {
       else if (st.do === 'leg') { const r = await setSel('selDest', st.to); const ok = await rig.ev('window.FLIGHT_PROBE.nextLeg()'); say('  leg to ' + st.to + ': ' + r + (ok ? '' : ' (no Fly on)'));
         s = await rig.J(ST); t0 = s ? s.t : 0; }   // (a leg is a new pilot: its clock restarts at 0, the step's with it)
       else if (st.do === 'lift') await rig.ev(`window.FLIGHT_PROBE.place({ by: [0, ${+st.by}, 0] })`);
-      else if (st.do === 'page') say('  page: ' + String(await rig.ev(st.js)).slice(0, 4000));
+      else if (st.do === 'page') { let r; try { r = await rig.ev(st.js); } catch (e) { r = 'threw: ' + (e && e.message); } say('  page: ' + (typeof r === 'string' ? r : JSON.stringify(r))); }
       else if (st.do === 'board') { if (!s) failed = { step: si, name: st.name, why: { what: 'not ready to board: no sim / pilot on the page' } }; }
       if(o.refreshState)s=await rig.J(ST);   // opt-in ending snapshots; keep an in-progress comparison's protocol fixed
       const U = st.until || null, al = new Set(st.allow || []), cap = st.capS || 0;
