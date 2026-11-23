@@ -16670,12 +16670,16 @@
     const G = LAB.gfS; if (G.running || G.done) return;
     if (!inGarage) { G.done = true; G.why = 'not in the garage'; return; }
     G.running = true; G.t0 = performance.now();
+    // AUDIO-ROBUST's "loading behind" (ready audio-robust-1; absent before it is merged): the music treats the busy page as
+    // a loading screen - it keeps playing, no restart - while the world builds behind the garage, and is told when it is in
+    const behind = on => { try { if (window.AUDIO && typeof AUDIO.loadingBehind === 'function') { AUDIO.loadingBehind(on); G.audioBehind = on; } } catch (e) {} };
+    behind(true);
     const t = G.trip = tripOpen('gfworld'), ids = GF_IDS.filter(id => TRIP_BY[id]);
     // PERF-WORLDBUILD's builders ask this between their own yield points (agreed 23 Nov): <= 0 = yield now
     window.FLYDIY_WORLD_BUDGET = { left: () => G.deadline - performance.now() };
     let i = 0;
     const end = () => {
-      G.running = false; G.done = true; G.step = null; G.ms = Math.round(performance.now() - G.t0); tripClose(t);
+      G.running = false; G.done = true; G.step = null; G.ms = Math.round(performance.now() - G.t0); tripClose(t); behind(false);
       try { delete window.FLYDIY_WORLD_BUDGET; } catch (e) { window.FLYDIY_WORLD_BUDGET = null; }
       try { if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } } catch (e) { console.warn('garage first: the parked flush -', e && e.message); }
       for (const id of Object.keys(G.waits)) gfMark(id);
