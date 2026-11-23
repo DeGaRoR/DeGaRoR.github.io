@@ -435,8 +435,14 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     const cage = app.slice(app.indexOf('function brkCage('), app.indexOf('// ---- G1826') > 0 ? app.indexOf('// ---- G1826') : app.indexOf('// ---- G1860-G1863'));
     const guard = /function brkCage\([^)]*\) \{\s*const D = brkState\(\);\s*if \(!D \|\| model\.gen\) return;/.test(app);
     const gpuCalls = (app.match(/brkGpu\(K\);/g) || []).length, inCage = cage.indexOf('const GP = brkGpu(K);') > 0;
+    // (ROW 14, 23 Nov - the user: "less than 250 ms freeze on crash, and no sky blue screen": the program is linked at the
+    // roll-out by crashPrelink (once a model, under the load, SKIN_GPU's own switch respected, called only from
+    // compileCraftLinks) as well as at the first break - a second prepare() finds it made; nothing else links it)
     const prep = (app.match(/SKIN_GPU\.prepare\(/g) || []).length, prepIn = /function brkGpu\(K\) \{[\s\S]{0,400}SKIN_GPU\.prepare\(renderer\);/.test(app);
-    yes(guard && gpuCalls === 1 && inCage && prep === 1 && prepIn, 'app.js: the GPU riding (brkGpu) is reached once, inside brkCage past the damage state\'s guard (nothing broken: it returns first); its program is linked only there (at the first break)');
+    const cpFn = app.slice(app.indexOf('function crashPrelink(inW) {'), app.indexOf('function crashPrelink(inW) {') + 1500);
+    const prepPre = app.indexOf('function crashPrelink(inW) {') > 0 && /window\.FLYDIY_SKINGPU !== false && renderer\) SKIN_GPU\.prepare\(renderer\)/.test(cpFn)
+      && (app.match(/crashPrelink\(inW\)/g) || []).length === 2;   // (its definition and the one call in compileCraftLinks)
+    yes(guard && gpuCalls === 1 && inCage && prep === 2 && prepIn && prepPre, 'app.js: the GPU riding (brkGpu) is reached once, inside brkCage past the damage state\'s guard (nothing broken: it returns first); its program is linked there (at the first break) and by the roll-out\'s crash prelink (row 14: once a model, the switch respected) - nowhere else');
     const code = t => t.split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');   // (the comments say why; the code is checked)
     const g18 = app.slice(app.indexOf('// ---- G1818 (DMG-SKINGPU): THE RIDING ON THE GPU'), app.indexOf('const brkCageOn = () =>'));
     const touch = /onBeforeCompile|customProgramCacheKey|\.material\b|needsUpdate\s*=\s*true[^;]*material|defines/;
