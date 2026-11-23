@@ -146,8 +146,38 @@
   });
   // ---- the build's side --------------------------------------------------------------------------------------
   // run(ctx, P, plan): the chain over ctx with P recorded (when on); `plan` from C.plan or null (every layer)
+  // PERF-SLIDERS (23 Nov 2026): THE AIRFRAME OF A SHEET, ONCE. GEAR_GEN.cageAirframe(mesh, scale) - the skin's faces
+  // bucketed by station, what every leg, strut, pad, float and nacelle is measured against - is asked for by the cowl
+  // (up to five times), the wing (three), the gear, the floats and the access plates, each time from the SAME sheet, and
+  // each time built again: ~3 ms a call on the Chinook, a dozen calls a whole build, one to three in every tick of a
+  // wing or a gear row (the garage at 5120: a quarter of the Chinook's 26 ms wing tick was the struts re-deriving a
+  // fuselage that had not moved). Here the answer is kept per sheet object and scale, under a STAMP of what the function
+  // reads (every vertex, every face's corners, material and cut offset), so a sheet edited in place is measured again;
+  // the airframe object is read-only to its callers (its one memo, __exact, is a function of it alone). Off: ?afmemo=0,
+  // CAGE_CHAIN.afMemo.on = false, or RELEASE_FAST_OFF (GATE INSTANT's long way builds without it).
+  const AF_OF = new WeakMap(), MAT_H = new Map();
+  C.afMemo = { on: !/(^|[?&])afmemo=0(&|$)/.test((typeof location !== 'undefined' && location.search) || ''), hits: 0, built: 0 };
+  const matH = m => { if (typeof m !== 'string') return +m || 0; let h = MAT_H.get(m); if (h === undefined) { h = 7; for (let i = 0; i < m.length; i++) h = (h * 31 + m.charCodeAt(i)) % 1000003; MAT_H.set(m, h); } return h; };
+  const afStamp = mesh => { const V = mesh.V, F = mesh.F; let a = 0, b = 0;
+    for (let i = 0; i < V.length; i++) { const p = V[i]; a += (p[0] + p[1] * 3.1 + p[2] * 7.3) * ((i % 13) + 1); }
+    for (let i = 0; i < F.length; i++) { const f = F[i]; if (!f || !f.v) { b += 0.5; continue; }
+      const v = f.v; let s = v.length * 31 + matH(f.m); for (let j = 0; j < v.length; j++) s += v[j] * (j + 2);
+      if (f.cutOff) s += f.cutOff[0] * 1.7 + f.cutOff[1] * 2.9 + f.cutOff[2] * 5.3;
+      b += s * ((i % 11) + 1); }
+    return V.length + ':' + F.length + ':' + a + ':' + b; };
+  const afWrap = () => { const GG = window.GEAR_GEN; if (!GG || typeof GG.cageAirframe !== 'function' || GG.cageAirframe.__memo) return;
+    const f0 = GG.cageAirframe;
+    const f = function (mesh, scale) {
+      if (!C.afMemo.on || window.RELEASE_FAST_OFF || !mesh || !mesh.V || !mesh.F || typeof mesh !== 'object') return f0(mesh, scale);
+      const k = scale || 1, st = afStamp(mesh);
+      let m = AF_OF.get(mesh); if (!m) AF_OF.set(mesh, m = new Map());
+      const e = m.get(k);
+      if (e && e.st === st) { C.afMemo.hits++; return e.AF; }
+      const AF = f0(mesh, scale); m.set(k, { st, AF }); C.afMemo.built++; return AF; };
+    f.__memo = true; GG.cageAirframe = f; };
   C.run = (ctx, P, plan) => {
     const UI = window.CAGE_UI;
+    afWrap();
     if (!C.on || !P) { PAGE.post && PAGE.post(ctx); return; }
     const view = viewOf(P);
     const hadUI = !!(UI && UI.P === P);
