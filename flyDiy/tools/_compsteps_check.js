@@ -50,7 +50,7 @@ async function child(side, out) {
           else if (label === AFTER) STEPS.push(['the renderer (make)', +d.toFixed(2)]);
           else if (label === 'premises' || label === 'premises: the generators') { if (inlineMs === null || d > inlineMs) inlineMs = +d.toFixed(1); }
           if (!r.done && r.value !== undefined) label = r.value;
-          if (!r.done && /^(sky|ground|island ground|far terrain|water|roads): /.test(String(r.value))) SKYL.add(String(r.value));   // (the labels only a host's budget asks for)
+          if (!r.done && /^(sky|ground|island ground|far terrain|water|roads|houses|ring): /.test(String(r.value))) SKYL.add(String(r.value));   // (the labels only a host's budget asks for)
           // between two of the composition's steps: the premises of BEFORE stand, whole
           if (!r.done && OURS.test(String(r.value)) && world && world.premises) {
             const ov = world.premises.overlay; if (!O0) O0 = ov; HELD.looks++;
@@ -66,7 +66,7 @@ async function child(side, out) {
   await P.until(() => W.BOOT && W.BOOT.state === 'gone', 3600000);
   // ---- the families' digests (as GATE PATCHWORKER)
   const census = {}, seen = new Set();
-  const fam = o => { const n = o.name || ''; if (o.userData && o.userData.farTerrain) return 'far terrain'; const m = /^(premises:patch|pavement|road|pave|rail|poles)/.exec(n); return m ? m[1] : null; };
+  const fam = o => { const n = o.name || ''; if (o.userData && o.userData.farTerrain) return 'far terrain'; const m = /^(premises:patch|pavement|road|pave|rail|poles|townkit|town:far)/.exec(n); return m ? m[1] : null; };   // (townkit, town:far: the town's batch and its far cells - the host in steps)
   W.WORLD.scene.traverse(o => { if (!(o.isMesh || o.isLine || o.isPoints) || !o.geometry || seen.has(o.geometry)) return; const f = fam(o); if (!f) return; seen.add(o.geometry);
     const g = o.geometry, e = census[f] || (census[f] = { meshes: 0, verts: 0, tris: 0, parts: [] }); e.meshes++;
     const h = crypto.createHash('sha256'); h.update(o.name || '');

@@ -1949,7 +1949,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const FIELDS = ['#8a9a4e', '#c0aa61', '#b0a05e', '#96764f', '#6d8036',
                       '#9aa855', '#a8ab52', '#7e8f42'];
       const CS = 190;
-      for (let fz = z0; fz < z1; fz += CS) for (let fx = x0; fx < x1; fx += CS) {
+      // (PERF-WORLDBUILD, 23 Nov 2026: a row of fields a check under a host's budget - the outer bake's fields were one task)
+      for (let fz = z0; fz < z1; fz += CS) { if (HOSTB && fz > z0 && hostDue()) yield 'ground fields'; for (let fx = x0; fx < x1; fx += CS) {
         const cx = fx + CS / 2, cz = fz + CS / 2;
         const low = lowAt(cx, cz);
         if (low < 0.25) continue;
@@ -1985,7 +1986,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         g.strokeStyle = '#55672f'; g.lineWidth = 1.3;
         g.strokeRect(-W2/2, -D2/2, W2, D2);
         g.restore();
-      }
+      } }
       g.globalAlpha = 1;
       if (opts.grain) yield 'ground grain';
       if (opts.grain) { // fine speckle so the ground has texture down low
@@ -2022,8 +2023,36 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     //     (9830..10180, -9220..-8890), level 2.67 m, on the route from the field.
     // This copy of the field is the one the RENDERER reads: a texel inside a lake whose composed ground stands 5 cm over
     // the lake's level is set outside (-16 m). The physics' field (world.island.lake, the hydrology's) is not touched.
+    // PERF-WORLDBUILD (23 Nov 2026): UNDER A HOST'S BUDGET THE SAME FIELD IS MADE IN STEPS FIRST (the closure below was a
+    // 196 ms task behind a live garage at 5K): the closure's own statements with a yield between two lakes and every 256
+    // texels of the fill's test ('ground: the lakes'), and the closure hands the result on. The closure's text stays as it
+    // is but for that one line (GATE LOOKS and GATE LAKEBED lift it and run it). The fields' texture carries the field in
+    // its alpha: GATE COMPSTEPS under COMPSTEPS_BUDGET compares that texture's bytes with the default world's.
+    let lakeRPre = null;
+    if (HOSTB && ISLA && ISLA.lake && ISLA.lakes) lakeRPre = yield* (function* () {
+      // (a texel's lake is not recorded: it is judged against the HIGHEST level of every lake whose box covers it - a
+      // higher neighbour's water inside a lower lake's box is its own, not a fill)
+      const G = ISLA.grid, L8 = ISLA.lake.slice(), top = new Map(); let n = 0;
+      const boxOf = L => [Math.max(0, Math.floor((L.x0 - G.x0) / G.cell) - 2), Math.min(G.w - 1, Math.ceil((L.x1 - G.x0) / G.cell) + 2),
+                          Math.max(0, Math.floor((L.z0 - G.z0) / G.cell) - 2), Math.min(G.h - 1, Math.ceil((L.z1 - G.z0) / G.cell) + 2)];
+      for (const L of ISLA.lakes) { if (hostDue()) yield 'ground: the lakes'; const [i0, i1, j0, j1] = boxOf(L);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * G.w + i; if (L8[k] <= 128) continue; const t = top.get(k); if (t === undefined || L.level > t) top.set(k, L.level); } }
+      // ONLY WHERE THE PREMISES RAISED IT: the composed ground over the level AND over the island's own ground (the base
+      // world's). 46 natural lakes have field texels whose raw DEM stands 0.8-3 m over their level (4 282 texels on
+      // Jolene) - drawn as they always were; this is the premises' fill, not a re-judgement of the island's lakes
+      const B = world.premises && world.premises.base && world.premises.base.terrainH ? world.premises.base : null;
+      let nq = 0;
+      if (B) for (const [k, lv] of top) {
+        if (!(++nq & 255) && hostDue()) yield 'ground: the lakes';
+        const i = k % G.w, j = (k - i) / G.w, x = G.x0 + (i + 0.5) * G.cell, z = G.z0 + (j + 0.5) * G.cell, h = world.terrainH(x, z);
+        if (h >= lv + 0.05 && h > B.terrainH(x, z) + 0.02) { L8[k] = 124; n++; }
+      }
+      if (n) console.log('lakes: ' + n + ' field texels the composed ground fills, not drawn as water');
+      return L8;
+    })();
     const lakeR = (() => {
       if (!ISLA || !ISLA.lake || !ISLA.lakes) return ISLA ? ISLA.lake : null;
+      if (typeof lakeRPre !== 'undefined' && lakeRPre) return lakeRPre;   // (made in steps above, under a host's budget)
       // (a texel's lake is not recorded: it is judged against the HIGHEST level of every lake whose box covers it - a
       // higher neighbour's water inside a lower lake's box is its own, not a fill)
       const G = ISLA.grid, L8 = ISLA.lake.slice(), top = new Map(); let n = 0;
@@ -2174,7 +2203,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const dataTex = (d) => { const t = new THREE.DataTexture(d, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
         t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; };
       // (a null b channel is 255; the packB's b is zeros, as it was: new Uint8Array(n) then, a flag now - no 12 MB array)
-      const pk4 = (r, g, b, a) => { const make = () => { const d = new Uint8Array(n * 4); for (let k = 0, j = 0; k < n; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b === 0 ? 0 : b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; } return d; };
+      // (PERF-WORLDBUILD, 23 Nov 2026: pk4Fill is the loop, a range at a time; pk4Pre holds bytes a host's budget had made in
+      //  steps - the texture's FIRST make takes them, a later make (a lost context) fills its own, as before)
+      const pk4Fill = (d, r, g, b, a, k0, k1) => { for (let k = k0, j = k0 * 4; k < k1; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b === 0 ? 0 : b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; } };
+      let pk4Pre = null;
+      const pk4 = (r, g, b, a) => { const make = () => { if (pk4Pre) { const p = pk4Pre; pk4Pre = null; return p; } const d = new Uint8Array(n * 4); pk4Fill(d, r, g, b, a, 0, n); return d; };
         return gpuOnly(dataTex(make()), make); };
       // G1251 B IN TWO CHANNELS (QUICK-BYTES): only (ndvi, terrain type) were ever read - .r and .g, which an RG8
       // texture returns unchanged - so B is RG8: 2 bytes a texel, not 4 (23.14 MiB on the 3095x3920 grid). A row is
@@ -2243,7 +2276,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // (splat_ground oneCodeSteps: its run passes a block of rows a step), their texture, the uploads one a step, the water's
       // fields, the sets. The same work in the same order (the uniforms in two assigns, their order kept); nothing between two parts reads what the next makes. With no
       // host budget: one step, as it was.
-      if (HOSTB) yield 'island ground: the fields';
+      if (HOSTB) { yield 'island ground: the fields';
+        const d = new Uint8Array(n * 4); for (let k0 = 0; k0 < n; k0 += 1048576) { if (k0 && hostDue()) yield 'island ground: the fields'; pk4Fill(d, ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR, k0, Math.min(n, k0 + 1048576)); }
+        pk4Pre = d; }
       Object.assign(gU, {
         uGTint: { value: tintTex },
         uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) } });   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
@@ -2594,16 +2629,18 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
 
     yield 'ring';
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
+    if (HOSTB) yield 'ring: its plane';
     geo.rotateX(-Math.PI / 2);
+    if (HOSTB) yield 'ring heights';
     const posA = geo.attributes.position;
     // G995 (A5-LOAD): 513^2 heights, a yield every 16 rows (the raster reads made this one 2 s task of the world step)
     const gB = world.terrainHBuild || world.terrainH;   // (G1406: the build read - the ring's 9 km reach crosses Metlakatla)
     for (let i = 0; i < posA.count; i++) {
-      if (i && !(i % (513 * 16))) yield 'ring heights';
+      if (i && (HOSTB ? !(i & 63) && hostDue() : !(i % (513 * 16)))) yield 'ring heights';   // (PERF-WORLDBUILD: led by the host's budget, 64 vertices a check)
       posA.setY(i, gB(posA.getX(i), posA.getZ(i)));
     }
     if (islandUV) { const uvA = geo.attributes.uv;
-      for (let i = 0; i < posA.count; i++) { const t = islandUV(posA.getX(i), posA.getZ(i)); uvA.setXY(i, t[0], t[1]); } }
+      for (let i = 0; i < posA.count; i++) { if (HOSTB && i && !(i & 4095) && hostDue()) yield 'ring heights'; const t = islandUV(posA.getX(i), posA.getZ(i)); uvA.setXY(i, t[0], t[1]); } }
     yield 'ring normals';
     geo.computeVertexNormals();
     groundGeos.push(geo);
@@ -3419,7 +3456,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // PERF-WORLDBUILD (23 Nov 2026): THE FIRST CUT A QUADRANT A STEP under a host's budget (it was one task - every quadrant's
       // patches, 358 ms behind a live garage at 5K): the cut once, then the resink's own way (nMax 1), nearest first as the
       // forced update sorts them - the same quadrants from the same patches (GATE COMPSTEPS under COMPSTEPS_BUDGET: the digest)
-      if (HOSTB) { FARLOD.update(true, 1); while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain: a quadrant'; FARLOD.update(false, 1); } }
+      // (...and finer, 23 Nov: a quadrant with its patches was still 191 ms - so the node errors' measure above ends its own
+      //  slice, the cut is made alone (nMax 0: no quadrant built; the sweep keeps what the stale quadrants want), every
+      //  wanted patch is made a step, and a quadrant's step only assembles them)
+      if (HOSTB) { yield 'far terrain: the cut'; FARLOD.update(true, 0);
+        for (const Q of [...FARLOD.quads.values()]) for (const nd of (Q.want || [])) if (!FARLOD.cache.has(nd.fid)) { if (hostDue()) yield 'far terrain: a patch'; patchOf(nd); }
+        while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain: a quadrant'; FARLOD.update(false, 1); } }
       else FARLOD.update(true);
       farLod = FARLOD;
       console.log('island far terrain: ' + FARLOD.quads.size + ' meshes, ' + FARLOD.stats.nodes + ' patches, ' + (FARLOD.stats.tris / 1e6).toFixed(2) + ' M tris at the first cut (the eye at ' + camera.position.toArray().map(v => v | 0).join(',') + ')');
