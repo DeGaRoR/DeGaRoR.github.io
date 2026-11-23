@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5f7045e039e589fd
+// body-sha256: e9b33eb505e76e2a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -32043,7 +32043,14 @@ function makePilot(sim, def, world, opts) {
           const G = gcirc, F = G.F, sN = alongOf(F, cg), cN = leftOf(F, cg);
           const aim = wp(F, G.sAim, 0), h = cg[1] - groundH(aim[0], aim[1]);
           const Vap = Math.max(ap.VAppr || 0, A.VAppr || 0, 1.25 * ((A.VRot || 18) / 0.99));
-          const Rt = (Math.max(V, 15) ** 2) / (9.81 * Math.tan(0.45));
+          // THE TURN ONTO THE FINAL IS BANKED AS THE DOWNWIND'S DISTANCE ASKS (PHYSICS-AUDIT 1d, 23 Nov 2026; GATE GLIDE
+          // FAIL300). Half a circle at 26 deg is two radii wide - 460 m for the C172-alike at 33 m/s. Its downwind at Cannery
+          // was 330 m out: it swung 113 m through the centreline, flew 480 m more than the plan counted and, with the dead
+          // propeller's drag (step 4: 8.2:1 flown where it was 9.5), had no height left to pay for it - 110 m short. The
+          // base and the final are now turned at the bank whose half circle fits the downwind's distance (G.bk, set where
+          // the base is turned: 26 deg as before when two radii fit, 40 deg at the most), and the way left is counted on it.
+          const bkT = (gcirc.stage === 'base' || gcirc.stage === 'final') && gcirc.bk > 0.45 ? gcirc.bk : 0.45;
+          const Rt = (Math.max(V, 15) ** 2) / (9.81 * Math.tan(bkT));
           // (the glide ratio the circuit is judged on is the one FLOWN: the sheet's best is a still-air polar, and a card
           //  without one fell back on 12 - the motorglider, flatter than that, came over the fence 160 m high and landed
           //  2.2 km in. Measured over 6 s - the ground speed over the sink - and 0.9 of it with 20 m over: a margin for the turns
@@ -32092,8 +32099,13 @@ function makePilot(sim, def, world, opts) {
           }
           if (G.stage === 'downwind') {
             trk = wp(F, sN - 500, cD);   // (the downwind line, 500 m ahead - the pursuit holds W out)
-            const dLeft = Math.abs(cN) + Math.max(0, G.sAim - sN) + Rt;
-            if ((sN < G.sAim - 150 && h <= need(dLeft) + 15) || sN < G.sAim - 1500) { G.sB = sN; next('base'); }
+            // (two radii fit: the square corner's way, as before. They do not: the half circle |cN| wide at the bank that
+            //  flies it - or the widest it can be flown at 40 deg - and the 2 s the roll into it takes)
+            const tight = Math.abs(cN) < 2 * Rt;
+            const bkB = tight ? clamp(Math.atan(2 * Math.max(V, 15) ** 2 / (9.81 * Math.max(1, Math.abs(cN)))), 0.45, 0.70) : 0.45;
+            const RtB = (Math.max(V, 15) ** 2) / (9.81 * Math.tan(bkB));
+            const dLeft = tight ? Math.max(0, G.sAim - sN) + Math.PI * RtB + Math.abs(Math.abs(cN) - 2 * RtB) + 2 * V : Math.abs(cN) + Math.max(0, G.sAim - sN) + Rt;
+            if ((sN < G.sAim - 150 && h <= need(dLeft) + 15) || sN < G.sAim - 1500) { G.sB = sN; G.bk = bkB; next('base'); }
           }
           if (G.stage === 'base') {
             trk = wp(F, G.sB + 0.3 * Rt, 0);
@@ -32124,8 +32136,8 @@ function makePilot(sim, def, world, opts) {
             //  the flare met it and it touched at 3.7 m/s)
             flap = (fLDG > 0 && h > Math.max(0, dAim - floatD) / (0.6 * G.E) + 5) ? fLDG : 0;
           }
-          if (trk) engage('TRK', 'TECS', 'TECS', Object.assign(tec, { trk, ias, bank: 0.45 }));
-          else engage('HDG', 'TECS', 'TECS', Object.assign(tec, { hdg, ias, bank: 0.45 }));
+          if (trk) engage('TRK', 'TECS', 'TECS', Object.assign(tec, { trk, ias, bank: bkT }));
+          else engage('HDG', 'TECS', 'TECS', Object.assign(tec, { hdg, ias, bank: bkT }));
           flapTgt = flap;
           pubN = 'GLIDER ' + G.stage.toUpperCase(); pubX = aim[0]; pubZ = aim[1];
           ap.report.glider = { field: G.name, way: G.way, side: G.side > 0 ? 'left' : 'right', W: Math.round(G.W), E: +G.E.toFixed(1), Em: +G.Em.toFixed(1), stages: G.log };
@@ -40029,7 +40041,13 @@ const GEN_RULES = {
   // the clean lift); a Standard Class's pair at 1.2 m each, 0.2 c high takes the glide from ~40 to ~8 (the LS4 manual's
   // approach with full brakes, as recalled ~7-9). kgPerM / pricePerM a side, per metre of box (the cassette, two plates'
   // linkage, the springs, the cover strips: ~1.4 kg a metre)
-  airbrake: { spoil: 0.6, cdPlate: 1.2, kgPerM: 1.4, pricePerM: 900, z: [0.12, 0.92], h: [0.05, 0.35] },
+  // cdPlate 1.2 -> 2.0 (PHYSICS-AUDIT 1d, 23 Nov 2026; GATE SAILPLANE B). At 1.2 the LS4-alike's pair added 245-250 N
+  // at 28 m/s: under 10:1 only while its clean glide was 19.5 (a clean drag of 247 N). The plan's span efficiency
+  // (step 1) put the clean glide at 24.5 (197 N; the book's is ~38 there) and the same plates left it at 10.9 - further
+  // from the 7-9 above, not nearer. 1.2 is a plate in the free stream; this one stands on the wing's upper surface at
+  // mid chord, where the air runs ~1.25 x the flight speed at a glide's lift (1.5-1.6 x the pressure), and its wake
+  // takes the pressure recovery of the section behind it. INFERRED 2.0: 8.2:1 at 28 m/s, 9.2 at 25, 6.5 at 33.
+  airbrake: { spoil: 0.6, cdPlate: 2.0, kgPerM: 1.4, pricePerM: 900, z: [0.12, 0.92], h: [0.05, 0.35] },
   // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
   // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
   // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release

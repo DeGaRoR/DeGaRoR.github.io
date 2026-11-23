@@ -4322,7 +4322,13 @@ const GEN_RULES = {
   // the clean lift); a Standard Class's pair at 1.2 m each, 0.2 c high takes the glide from ~40 to ~8 (the LS4 manual's
   // approach with full brakes, as recalled ~7-9). kgPerM / pricePerM a side, per metre of box (the cassette, two plates'
   // linkage, the springs, the cover strips: ~1.4 kg a metre)
-  airbrake: { spoil: 0.6, cdPlate: 1.2, kgPerM: 1.4, pricePerM: 900, z: [0.12, 0.92], h: [0.05, 0.35] },
+  // cdPlate 1.2 -> 2.0 (PHYSICS-AUDIT 1d, 23 Nov 2026; GATE SAILPLANE B). At 1.2 the LS4-alike's pair added 245-250 N
+  // at 28 m/s: under 10:1 only while its clean glide was 19.5 (a clean drag of 247 N). The plan's span efficiency
+  // (step 1) put the clean glide at 24.5 (197 N; the book's is ~38 there) and the same plates left it at 10.9 - further
+  // from the 7-9 above, not nearer. 1.2 is a plate in the free stream; this one stands on the wing's upper surface at
+  // mid chord, where the air runs ~1.25 x the flight speed at a glide's lift (1.5-1.6 x the pressure), and its wake
+  // takes the pressure recovery of the section behind it. INFERRED 2.0: 8.2:1 at 28 m/s, 9.2 at 25, 6.5 at 33.
+  airbrake: { spoil: 0.6, cdPlate: 2.0, kgPerM: 1.4, pricePerM: 900, z: [0.12, 0.92], h: [0.05, 0.35] },
   // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
   // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
   // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release
