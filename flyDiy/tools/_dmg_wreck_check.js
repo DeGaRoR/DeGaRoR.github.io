@@ -64,6 +64,7 @@ function go(k, c, damage) {
   if (c.kind === 'trunk') {
     const elev = 300, { W, TH, strip } = L.flatWorld(elev), sim = C.makeSim(def, W);
     sim.reset(0);
+    if (!o.agl && sim.stance) sim.stance();       // (STANCE-AS-GAME, A0 23 Nov: on its wheels, stood as the game stands it)
     C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev + (o.agl || 0) }));
     const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
     if (!o.agl) for (let f = 0; f < 120; f++) sim.step(1 / 60);
