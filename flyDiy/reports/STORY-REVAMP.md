@@ -111,8 +111,8 @@ ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, eac
 The feasible ones, by the aeroplane that flew them: 22 Piper Cub, 7 STOL Cub, 6 light metal Cessna with the STOL kit (test build), 4 Cessna 172 floats (career), 4 PC-6 Turbo Porter, 1 Jodel D112.
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
-- lumber.02, resort.04: NOT READ YET
-- lumber.04: 250 kg on water: no float plane of the pool carries it (a float hauler the player builds)
+- lumber.02, lumber.04: water cargo over about 95 kg: the float Cessna's loading card takes 90 to 98 kg with the pilot alone, the Twin busher 15 kg, and the PC-6 on Wiplines (wip list), started at HOME as an amphibian, does not line up there - a float hauler the player builds, or that PC-6's taxi
+- resort.04: NOT READ YET
 - home.06: no official plane can carry it (450 kg into the 383 m Cabin Strip): a STOL hauler the player builds - a named class, not flown
 - home.13: 280 kg to the Cabin Strip: the capability rule says the Cessna's cabin takes 280 kg, its loading card takes 140 kg of it (flown with the pilot alone); the PC-6's card takes none - the rule against the card, or a hauler the player builds
 - community.09, community.10, community.11: heavy cargo (300 kg and more): the Cessna's cabin takes 280 kg, and the loading cards of the PC-6 and the DC-3-alike take none - a hauler the player builds, or those two cards
