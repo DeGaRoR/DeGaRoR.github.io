@@ -3262,7 +3262,7 @@ function applySpec(spec, what, steps) {
   // and unconditional for the same reason: a file with no `energy` describes
   // the default tank, not "whatever the last aeroplane carried".
   if (window.CAGE_ENERGY && window.CAGE_ENERGY.fromSpec)
-    try { window.CAGE_ENERGY.fromSpec(spec && spec.energy); }
+    try { window.CAGE_ENERGY.fromSpec(spec && spec.energy, undefined, spec ? (spec.water || null) : null); }   // (WATER TANKS: theirs too)
     catch (e) { console.error('energy from spec:', e); }
   // THE BELLY POD COMES WITH THE AEROPLANE (G2675): a spec with no pod has none
   if (window.CAGE_POD && window.CAGE_POD.fromSpec)

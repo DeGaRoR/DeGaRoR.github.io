@@ -1,0 +1,94 @@
+{
+ "_what": "CAR-3 livery overlay (the user, 12 Nov: the mountain van reference, 'colors which are a little happier'): rejoin as builds/edits/utility_2026-11.edits.json,builds/edits/utility_2026-11.mountain.json",
+ "meta": {
+  "name": "Field Wagon Alpine",
+  "reg": "TOW 2"
+ },
+ "paint": {
+  "job": "full",
+  "sweep": 0,
+  "base": 16447212,
+  "trim": 2060152,
+  "gloss": 0.5,
+  "regX": 0.3
+ },
+ "finish": {
+  "sections": {
+   "body": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "ceilingLoop": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "floorLoop": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "pillarCabin": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "pillarFront": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "pillarPassenger": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "pillarTail": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "pillarTaper": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "pillarWindow": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "taper": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "waistband": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "cowlSkin": {
+    "metal": 0.45,
+    "rough": 0.3
+   },
+   "gearLeg": {
+    "tint": 3817284
+   }
+  },
+  "decals": {
+   "regOutOn": 0,
+   "regH": 0.09,
+   "regL": 0.35,
+   "regC": -0.35,
+   "regCol": 2060152,
+   "m1On": 1,
+   "m1Pat": 14,
+   "m1A": 2062976,
+   "m1B": 4176041,
+   "m1D": 10937296,
+   "m1P": 5,
+   "m1Q": 0.85,
+   "m1R": 3,
+   "m1S": 0.35,
+   "m1Tgt": 0,
+   "m1Mode": 1,
+   "m1L": -2.0,
+   "m1C": -0.32,
+   "m1W": 5.4,
+   "m1H": 0.9,
+   "m1Metal": 1
+  },
+  "wear": 0.2
+ }
+}

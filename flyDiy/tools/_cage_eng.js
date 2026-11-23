@@ -1137,7 +1137,9 @@ function drawPylonMount(group, f, P, GK, aft, C) {
 if (typeof window !== 'undefined') window.CAGE_PYLON = { caster: pylonCaster, hug: pylonHug, NS: PYLON_NS };
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
 // MONOWHEEL: THE HUGGING BODY for another layer - the gear layer's faired skid is this blade hung under the keel
-window.CAGE_PYLON = { pylonCaster, pylonHug, pylonOutline, drawPylonBlade };
+// (both keepers on one object: master's caster / hug / NS - the Wilga gear's fitted root reads CAGE_PYLON.caster - and this
+// branch's pylon tools, the tip skid's and the hub's; an assignment here had dropped the first set, 15 Nov, L40c WILGAGEAR)
+window.CAGE_PYLON = Object.assign(window.CAGE_PYLON || {}, { pylonCaster, pylonHug, pylonOutline, drawPylonBlade });
 function pylonMeshes(group, fair, jb, blendTop) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   // (PETREL-LS: the fairing's own livery section, 'pylon' - following the engine mount's when unset, as matOf did)

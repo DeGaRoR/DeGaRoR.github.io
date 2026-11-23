@@ -1,8 +1,8 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-18T09:56:52.338Z",
+ "at": "2026-11-22T03:04:10.072Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "4867c7719614e6cb9066a91f2e3acfcebdb01616",
+ "chainSig": "1206b8be6ee10b275c0bd3ec7d179f3d6ff8ca9a",
  "builds": {
   "cub": {
    "file": "builds/cub_2026-09-20_corrected.json",
@@ -10,7 +10,7 @@
     "n": 97,
     "nb": 404,
     "mass": 477.2991557172329,
-    "build": "27dc4f53250f"
+    "build": "23ed96589acd"
    },
    "spec": {
     "cage": {
@@ -242,6 +242,9 @@
      "frCabTopZ": 0,
      "frCabWaistZ": 0,
      "frCabBotZ": 0,
+     "frLeanCap": 0,
+     "boomRound": 0,
+     "boomRoundAt": 0.5,
      "frPaxTopY": null,
      "frPaxWaistY": null,
      "frPaxBotY": null,
@@ -431,6 +434,7 @@
      "finProject": 1,
      "finCut": 2,
      "finVentralOn": 1,
+     "finVentralLand": 0,
      "finVentralH": 0.4,
      "finVentralC": 0.6,
      "finVentralZ": 0.08,
@@ -847,6 +851,9 @@
      "cw_faceRise": 0.006,
      "cw_deckSweep": 0.1,
      "cw_keelSweep": 0.85,
+     "cw_keelLevel": 0,
+     "cw_deckLevel": 0,
+     "cw_deckFall": 0,
      "cw_waistSweep": 0,
      "cw_lidMode": 1,
      "cw_lidR": 0.191,
@@ -1191,7 +1198,7 @@
      },
      "seatsX": [
       0.6202989600000002,
-      2.00283456
+      2.03253456
      ],
      "seats": 2,
      "occupied": [
@@ -1491,49 +1498,49 @@
     "finish": {
      "sections": {
       "body": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "waistband": {
-       "tint": 2500134
+       "tint": 328965
       },
       "ceilingLoop": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "pillarFront": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "pillarCabin": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "floorLoop": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "gearLeg": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "pillarWindow": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "dummy2": {
-       "tint": 6083612
+       "tint": 1812483
       },
       "pillarPassenger": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "pillarTail": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "joint": {
-       "tint": 7368816
+       "tint": 2697513
       },
       "wingTip": {
        "tint": 0
       },
       "finRud": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "spinner": {
-       "tint": 3684408
+       "tint": 657930
       }
      },
      "weather": {
@@ -1541,11 +1548,11 @@
       "flight": 0.15
      },
      "decals": {
-      "regH": 0.2,
-      "regL": 3.66,
-      "regC": 0.012,
+      "regH": 0.15,
+      "regL": 3.2,
+      "regC": 0.15,
       "regCol": 1315860,
-      "regW": 1.1577380952380953,
+      "regW": 0.7384997049967448,
       "m1Pat": 3,
       "m1A": 1315860,
       "m1B": 16765568,
@@ -1592,8 +1599,8 @@
          0.915,
          0.878,
          0.83,
-         0.691,
-         0.685
+         0.681,
+         0.663
         ]
        },
        "finish": null,
@@ -1633,7 +1640,7 @@
     "n": 115,
     "nb": 502,
     "mass": 469.73153516465726,
-    "build": "27dc4f53250f"
+    "build": "23ed96589acd"
    },
    "spec": {
     "cage": {
@@ -1865,6 +1872,9 @@
      "frCabTopZ": 0,
      "frCabWaistZ": 0,
      "frCabBotZ": 0,
+     "frLeanCap": 0,
+     "boomRound": 0,
+     "boomRoundAt": 0.5,
      "frPaxTopY": null,
      "frPaxWaistY": null,
      "frPaxBotY": null,
@@ -2054,6 +2064,7 @@
      "finProject": 1,
      "finCut": 1,
      "finVentralOn": 1,
+     "finVentralLand": 0,
      "finVentralH": 0.4,
      "finVentralC": 0.6,
      "finVentralZ": 0.08,
@@ -2470,6 +2481,9 @@
      "cw_faceRise": 0.014,
      "cw_deckSweep": 0.05,
      "cw_keelSweep": 0.19,
+     "cw_keelLevel": 0,
+     "cw_deckLevel": 0,
+     "cw_deckFall": 0,
      "cw_waistSweep": 0.79,
      "cw_lidMode": 1,
      "cw_lidR": 0.191,
@@ -3109,58 +3123,58 @@
     "finish": {
      "sections": {
       "body": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "waistband": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "ceilingLoop": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "pillarFront": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "pillarCabin": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "floorLoop": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "gearLeg": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "pillarWindow": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "dummy2": {
-       "tint": 14065948
+       "tint": 11229955
       },
       "pillarPassenger": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "pillarTail": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "joint": {
-       "tint": 7368816
+       "tint": 2697513
       },
       "wingTip": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "finRud": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "spinner": {
-       "tint": 8134444
+       "tint": 3343110
       },
       "pillarTaper": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "taper": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "wingSkin": {
-       "tint": 15854296
+       "tint": 14733999
       }
      },
      "weather": {
@@ -3172,7 +3186,7 @@
       "regL": 2.5,
       "regC": 0.3,
       "regCol": 8134444,
-      "regW": 1.6207056561638329,
+      "regW": 0.9382888559194713,
       "m1On": 1,
       "m1Pat": 2,
       "m1A": 8134444,
@@ -6508,8 +6522,8 @@
    "page": {
     "n": 184,
     "nb": 845,
-    "mass": 581.0007799429092,
-    "build": "958b690c7e6f"
+    "mass": 584.188366022455,
+    "build": "23ed96589acd"
    },
    "spec": {
     "cage": {
@@ -6780,6 +6794,9 @@
      "frCabTopZ": 0,
      "frCabWaistZ": 0,
      "frCabBotZ": 0,
+     "frLeanCap": 0,
+     "boomRound": 0,
+     "boomRoundAt": 0.5,
      "frPaxTopY": null,
      "frPaxWaistY": null,
      "frPaxBotY": null,
@@ -6969,6 +6986,7 @@
      "finProject": 1,
      "finCut": 2,
      "finVentralOn": 1,
+     "finVentralLand": 0,
      "finVentralH": 0.4,
      "finVentralC": 0.6,
      "finVentralZ": 0.08,
@@ -7411,6 +7429,9 @@
      "cw_faceRise": 0,
      "cw_deckSweep": 0,
      "cw_keelSweep": 0,
+     "cw_keelLevel": 0,
+     "cw_deckLevel": 0,
+     "cw_deckFall": 0,
      "cw_waistSweep": 0,
      "cw_lidMode": 1,
      "cw_lidR": 0.17,
@@ -7884,8 +7905,8 @@
      "seatY": 0.1,
      "seatPitch": 0.86,
      "seatsX": [
-      0.42409999999999964,
-      0.42409999999999964
+      0.5180999999999997,
+      0.5180999999999997
      ],
      "seats": 2,
      "occupied": [
@@ -8285,11 +8306,11 @@
      "sections": {
       "float": {
        "fin": "composite",
-       "tint": 14870507,
+       "tint": 12766420,
        "metal": 1
       },
       "spat": {
-       "tint": 13734731,
+       "tint": 10701330,
        "metal": 1
       }
      },
@@ -8298,7 +8319,7 @@
       "regL": 3.6,
       "regC": 0.14,
       "regCol": 0,
-      "regW": 0.8103528280819164,
+      "regW": 0.6465394183951365,
       "m1On": 1,
       "m1Pat": 1,
       "m1A": 2902577,
@@ -8510,7 +8531,7 @@
     "n": 117,
     "nb": 492,
     "mass": 1061.8008166483912,
-    "build": "49f244ddbe10"
+    "build": "23ed96589acd"
    },
    "spec": {
     "cage": {
@@ -8742,6 +8763,9 @@
      "frCabTopZ": 0,
      "frCabWaistZ": 0,
      "frCabBotZ": 0,
+     "frLeanCap": 0,
+     "boomRound": 0,
+     "boomRoundAt": 0.5,
      "frPaxTopY": 0.9002,
      "frPaxWaistY": null,
      "frPaxBotY": -0.4296,
@@ -8832,10 +8856,11 @@
      "hgFamily": 0,
      "hgCount": 0,
      "hgOut": 0.06,
+     "hgOutSt": 0.075,
      "hgHorn": 1,
      "hgHornAt": 0,
      "hgHornLen": 0.085,
-     "hgSize": 1,
+     "hgSize": 0.9,
      "hgFair": 0,
      "hgLink": 1,
      "hgDetail": 1,
@@ -8931,6 +8956,7 @@
      "finProject": 1,
      "finCut": 2,
      "finVentralOn": 1,
+     "finVentralLand": 0,
      "finVentralH": 0.4,
      "finVentralC": 0.6,
      "finVentralZ": 0.08,
@@ -9573,7 +9599,7 @@
      "acc_inspTail_sL": 0,
      "acc_inspTail_lv": 0,
      "acc_inspBelly_sL": 0,
-     "acc_inspBelly_lv": 0,
+     "acc_inspBelly_lv": -0.3,
      "acc_inspAileron_sL": 0,
      "acc_inspAileron_lv": 0,
      "acc_fuelCapWing2_sL": 0,
@@ -10032,7 +10058,7 @@
       "regRot": -0.068,
       "regCol": 0,
       "regMetal": 1,
-      "regW": 1.170334541428257,
+      "regW": 1.1703341287962148,
       "regFace": "jost",
       "m1On": 1,
       "m1Pat": 2,

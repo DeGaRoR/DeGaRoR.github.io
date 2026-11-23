@@ -448,3 +448,21 @@ side wall's sill as the silhouette's top): the search found the pod's numbers, t
 take the cabin from a card whose ARCHITECTURE is right (here the Chinook's, its very low waistline, the pax bay off)
 and let the user shape it. Where a drawing does not show a part well (the aft bulkhead: mid-chord, the user), ask.
 The result: `builds/archaeopteryx_2026-11-10.json` and the card; `quickshot.js` gained `qr` (three-quarter from behind).
+
+## 13. The cockpit, checked with the pilot in it (16 Nov 2026, the LS4)
+
+Once the hull fits, seat the pilot and check the cockpit with `tools/crew_cut/` (its README has the details). Run
+`tools/crew_cut/check.sh <build> <out-dir> <name> ['<rows JSON>']`. It draws the load chain's own scene, pilot
+included, as a cut with the near half of the hull removed. It lists what pokes through the skin and where the pilot's
+body clashes with the dash and panel, and it gives the head height and the reach misses. Iterate on the seat, pedal,
+stick and dash rows through the JSON argument, then write the winning rows to the card and its builds.
+
+For a sailplane, judge against a cockpit photo:
+- the head sits at the back of the canopy;
+- the instrument pod reaches back over the knees (`dashBack`, now up to 1.00);
+- the legs are extended to the pedals;
+- the stick is between the knees, its pivot inside the belly;
+- the airbrake handle is in the left hand.
+
+`tools/crew_cut/bodycg.js` measures where the drawn pilot's mass sits. The join's seat station (`seatsAt[].cgFwd`,
+SEAT-CG) was fitted to it.

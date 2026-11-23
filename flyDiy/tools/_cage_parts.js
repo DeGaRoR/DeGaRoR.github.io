@@ -208,7 +208,7 @@ const CAGE_PARTS = [
   { key: 'design', name: 'Design & construction', parent: null, layer: 'cage',
     groups: [
       ['construction', ['intCons']],
-      ['configuration', ['boomStyle', 'mirror', 'canopy']],
+      ['configuration', ['boomStyle', 'mirror', 'canopy', 'canClear', 'certCat']],
       ['wing', ['wgPos', 'wgBrace', 'w2On']],
       ['what it has', ['wingOn', 'gearOn', 'crewOn']],
     ] },
@@ -680,7 +680,7 @@ const CAGE_PARTS = [
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
                     'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis', 'wgTipBow', 'wgTipDroop', 'wgTipFull',
-                    'wgTipSkid', 'wgTipSkidH']],
+                    'wgTipSkid', 'wgTipSkidH', 'wgBrake', 'wgBrakeAt', 'wgBrakeLen', 'wgBrakeH']],
       // wgPos -> `design`
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
@@ -1006,10 +1006,10 @@ const CAGE_PARTS = [
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
       ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillY', 'cw_gillL', 'cw_gillUp', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
       ['grille & radiator cap', ['cw_grilleOn', 'cw_grilleN', 'cw_grilleBar', 'cw_grilleSet', 'cw_grilleHBar', 'cw_grilleRows', 'cw_grilleNum', 'cw_grilleNumH', 'cw_capOn', 'cw_capR', 'cw_capBack',
-                                 'cw_lampOn', 'cw_lampR', 'cw_lampGap', 'cw_lampY', 'cw_lampBack', 'cw_lampIn']],   // CAR-1
+                                 'cw_lampOn', 'cw_lampR', 'cw_lampGap', 'cw_lampY', 'cw_lampBack', 'cw_lampIn', 'cw_blinkOn', 'cw_blinkY']],   // CAR-1
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
-                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
+                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_keelLevel', 'cw_deckLevel', 'cw_deckFall', 'cw_deckShoulder', 'cw_deckRound',   // (KEEL/DECK-LEVEL, DECK-FALL: the 172's lines, 16 Nov)
                      'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap', 'cw_lidRW', 'cw_lidRTop', 'cw_lidRBot']],
       ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
                   'cw_taperH', 'cw_lidRise']],
@@ -1111,12 +1111,16 @@ const CAGE_PARTS = [
   // part's rows show with it on. What a car only is lives here; what a plane can use too (rear windows, the outside
   // relief, wingless booms, the tyres and rims) stays with its own part
   { key: 'car', name: 'Car', parent: null, layer: 'gear',
+    // (13 Nov: the mud guards and the step wear the body's skin as their own section - clicking one selects the Car)
+    sections: ['fenderSkin'],
     groups: [
       ['this build is a car', ['isCar']],
-      ['drive', ['carDrive', 'carChassisKg']],
+      ['drive', ['carDrive', 'carChassisKg', 'carBeamR']],
       ['wheel arches', ['archOn', 'archGap']],
+      ['lamps', ['carTail', 'carTailAt', 'carPlate', 'carTowSign', 'carBeacon', 'carWipers']],
+      ['mud guards and step', ['carFender', 'carFenderGap', 'carStep', 'carStepY']],
       ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],
-      ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],
+      ['spare wheel', ['spareOn', 'spareAt', 'spareZ', 'spareSide', 'spareX', 'spareY', 'spareK', 'spareStrap']],
     ] },
 
   { key: 'mains', name: 'Main gear', parent: 'gear', layer: 'gear',
@@ -1222,7 +1226,7 @@ const CAGE_PARTS = [
       // the radii, one per station — the wheel's own size, filed with the wheel
       ['size', ['s1R', 's2R']],
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
-      ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold']],
+      ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold', 'whTex', 'whTexPat', 'whTexDirt']],
       ['boom wheels outboard', ['twBoomOut']],   // CAR-4
       ['fairing build', ['fairCons']],
     ] },
@@ -1246,14 +1250,14 @@ const CAGE_PARTS = [
       ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
                    'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
-      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
+      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'paxGap', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
     when: P => +P.crewOn,
     sections: ['cabFloor'],                 // G2795: the floor's boards (its rows are here)
     groups: [
-      ['pitch & roll', ['ctlRuns', 'ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
+      ['pitch & roll', ['ctlRuns', 'ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank', 'steerD', 'steerRake', 'steerReach']],
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
       ['rudder', ['ctlPed', 'pedalZ', 'pedalH', 'pedalSpread', 'pedalAngle']],
       ['console', ['consoleOn']],
@@ -1272,7 +1276,7 @@ const CAGE_PARTS = [
     place: { on: 'intDash', fore: 'dashBack', len: 'dashDepth',
              high: 'dashLip', at: 'off the windscreen base' },
     groups: [
-      ['dashboard', ['intDash', 'instPod', 'dashBack', 'dashLip', 'dashDepth',
+      ['dashboard', ['intDash', 'instPod', 'dashHood', 'dashBack', 'dashLip', 'dashDepth',
                      'dashCrown', 'dashStyle', 'dashLegs']],
       ['crease', ['dashCrease'], EXPERT],
     ] },

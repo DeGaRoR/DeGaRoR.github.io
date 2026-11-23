@@ -662,13 +662,22 @@
   // src/missions/<id>.json (fetched by index.html's career loader: window.FLYDIY_PACK_TEXT) over the contract tables,
   // ?pack=draft the mission editor's draft (flydiy.missionEditor.draft, the same origin) - once, before the first offers
   // (73b_missions.js missionPackUse: a pack that does not validate changes nothing, said in the console)
+  // THE SWITCH-OVER (STORY-REVAMP, 22 Nov; the user 13 Nov: "the switch-over to the mission system"): A PLAYER'S CAREER
+  // READS THE STORY PACK with no flag - the career loader names it (window.FLYDIY_PACK_ID, build.js CAREER_PACK_DEFAULT:
+  // a career of the welcome menu, never the dev career ?career=1 that the gates' fixtures ride) and fetches it; its
+  // text is kept (flydiy.pack.<id>) so a career starts on its own pack with no network. The career adopts it once
+  // (73b careerPackAdopt, playerLoad below).
   const CAREER_PACK = (() => {
     if (!CAREER_DEV || typeof missionPackUse !== 'function') return null;
     let id = null; try { id = (/[?&]pack=([\w.-]+)/.exec(window.location.search || '') || [])[1] || null; } catch (e) { id = null; }
+    if (!id && !CAREER_DEVFLAG) try { id = window.FLYDIY_PACK_ID || null; } catch (e) { id = null; }
     if (!id) return null;
     let txt = null;
     try { txt = id === 'draft' ? window.localStorage.getItem('flydiy.missionEditor.draft') : (window.FLYDIY_PACK_TEXT || null); } catch (e) { txt = null; }
-    if (!txt) { console.warn('flyDiy (missions): ?pack=' + id + ' - no pack text (not fetched, or no editor draft)'); return { id, ok: false }; }
+    if (id !== 'draft') try { if (txt) window.localStorage.setItem('flydiy.pack.' + id, txt); else txt = window.localStorage.getItem('flydiy.pack.' + id) || null; } catch (e) {}
+    // (the editor keeps its draft as { file, pack }: the pack is what the game reads - before this the draft was never a pack)
+    else try { const j = JSON.parse(txt); if (j && j.pack && !j.what) txt = JSON.stringify(j.pack); } catch (e) {}
+    if (!txt) { console.warn('flyDiy (missions): pack ' + id + ' - no pack text (not fetched, none kept, or no editor draft)'); return { id, ok: false }; }
     try {
       const r = missionPackUse(JSON.parse(txt));
       if (r.ok) console.info('flyDiy (missions): pack ' + id + ' in use - ' + r.n + ' missions' + (r.held.length ? ', ' + r.held.length + ' held (' + r.held.slice(0, 3).map(h => h.id + ': ' + h.why).join('; ') + ')' : ''));
@@ -682,9 +691,25 @@
     const P = (CAREER_PACK && CAREER_PACK.projects || []).find(p => p.id === e.project), name = (P && P.name) || e.project;
     if (e.k === 'works') return name + ': the works started - ready in ' + Math.round((e.ready - (+now || 0)) / 86400) + ' days' + (e.cost ? ' (' + Math.round(e.cost).toLocaleString('en-GB') + ' paid)' : '');
     if (e.k === 'step') return name + ': a step done';
-    if (e.k === 'projectDone') return name + ': done' + (e.abilities && e.abilities.length ? ' - the hangar gains: ' + e.abilities.join(', ') : '');
+    if (e.k === 'projectDone') return name + ': done';
+    // (STORY-REVAMP) what a step or a project gives: the machinery (a kit's name, the machine shop's segment)
+    if (e.k === 'gives') { const m = /^(tech|kit):(.+)$/.exec(e.what || '');
+      const w = m && m[1] === 'kit' && typeof HANGAR_KITS !== 'undefined' && HANGAR_KITS[m[2]] ? 'the ' + HANGAR_KITS[m[2]].name.toLowerCase() : m && m[1] === 'tech' && typeof techName === 'function' && techName(+m[2]) ? 'the machine shop: ' + techName(+m[2]) : null;
+      return w ? 'Given: ' + w : null; }
     return null;
   }
+  // (STORY-REVAMP) THE PROJECTS MEET THE CLOCK: a step's missions done start its works, works ready finish the step - its
+  // world stage noted for the next composition (stageNote), its machinery given. At a flight's end, at the load and
+  // when the clock is saved on the ground with works due (a wait). -> the events' lines (the caller shows them or not)
+  function projectsNow(d) {
+    if (!d || !d.career || !CAREER_PACK || !CAREER_PACK.ok || !CAREER_PACK.projects || !CAREER_PACK.projects.length) return { doc: d, lines: [] };
+    if (!CAREER_DEV) return { doc: d, lines: [] }; const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now), lines = [];
+    for (const e of pj.events) { const L = projectLine(e, now); if (L) lines.push(L); }
+    // (at the load the stages' queue does not exist yet - it is made further down: the note is owed, paid there)
+    if (pj.events.some(e => e.k === 'unlock')) try { stageNote(pj.doc); } catch (e) { projStageOwed = true; }
+    return { doc: pj.events.length ? pj.doc : d, lines };
+  }
+  let projStageOwed = false;
   // G3380 (STORY-INTRO): the opening's arm - set by a NEW career's story start (playerLoad), once; Continue never sets it
   let stIntroArm = false;
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
@@ -727,6 +752,14 @@
       const r = CAREER_DEV ? (skip ? storySkip(player, args) : storyNewCareer(player, args)) : { ok: false, why: 'not a career' };
       if (r.ok) { player = r.doc; stIntroArm = !skip; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
     } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
+    // THE SWITCH-OVER (STORY-REVAMP): the career ADOPTS the pack in use, once (73b careerPackAdopt: the hangars' starting
+    // kits, an accepted mission the pack no longer holds dropped), then its projects meet the clock (works that came
+    // ready while away)
+    if (CAREER_DEV && STORY_PAGE && CAREER_PACK && CAREER_PACK.ok && typeof careerPackAdopt === 'function') try {
+      const a = CAREER_DEV ? careerPackAdopt(player, CAREER_PACK) : { doc: player, notes: [] };
+      if (a.doc !== player) { player = a.doc; for (const n of a.notes) console.info('flyDiy (missions): ' + n); }
+      player = projectsNow(player).doc;
+    } catch (e) { console.warn('flyDiy (missions): the career did not adopt its pack -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
     // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
@@ -771,6 +804,9 @@
     DAY_CLOCK.career({
       get: () => (CAREER_DEV ? careerDay(playerLoad()) : null),
       put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day;
+        // (STORY-REVAMP) a wait on the ground past a project's works: the step is done now (never in flight: the flight's end ticks)
+        try { if (inGarage && CAREER_PACK && CAREER_PACK.ok && player.career.projects) { const nowS = dayAbs(player.career.day);
+          if (Object.keys(player.career.projects).some(k => { const W = player.career.projects[k].works; return W && W.ready <= nowS; })) player = projectsNow(player).doc; } } catch (e) {}
         // G2665 (NIGHT-OPS): the sky it saw rides beside the day (an overcast hides the moon from the next offers)
         try { const cv = CAREER_DEV && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') player.career.cover = Math.round(cv * 100) / 100; } catch (e) {}   // WEATHER-FIXES F7: the effective cover
         playerSave(); } },
@@ -1584,7 +1620,7 @@
       }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome, aprons: hoAprons(),   // HANGAR-OUTDOORS: the world's aprons (the premises' paved surface polygons) for the room's wide apron
-          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
+          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shedOmit(shed), workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
       hviewAttach();   // G3630 (HANGAR-VIEW): the world's view out of the door, if one of this room stands
       hangarScene.background = hangar.background;
@@ -1687,6 +1723,14 @@
   // the live sky and clouds; ?hview=1 keeps the capture as an opt-in for tests only
   // HANGAR-OUTDOORS (the user 17 Nov via A0): the room's outdoors take the world's aprons (the island record's paved surface
   // polygons, world metres) and, once the world's trees are baked, its impostor sheets as tree cards (hangar.treesFrom)
+  // GARAGE-FIXES (21 Nov): the props / recipes a shed leaves out - its own record's AND its plot's offer today (BASE_OFFERS), so
+  // a plot's newer omit (the Shed's wings, the user 21 Nov) reaches a shed bought before it, with no save migration
+  function shedOmit(shed) {
+    const out = new Set(shed && Array.isArray(shed.omit) ? shed.omit : []);
+    try { const id = roomId(), base = shed && typeof shed.base === 'string' ? shed.base : 'HOME', P = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[base] ? BASE_OFFERS[base].plots[id] : null;
+      if (P && Array.isArray(P.omit) && P.shells && P.shells.includes(shed.shell)) for (const k of P.omit) out.add(k); } catch (e) {}
+    return out.size ? [...out] : undefined;
+  }
   function hoAprons() {
     try { const L = world && world.premises && world.premises.rec && world.premises.rec.layers;
       return ((L && L.surface) || []).filter(e => e && (e.apron || e.surface === 5) && Array.isArray(e.poly) && e.poly.length > 2).map(e => e.poly); } catch (e) { return []; }
@@ -3242,6 +3286,16 @@
       // A BAKED PIECE'S OWN MATERIAL (session 4d): the key from the hardware
       // kit keeps its textures — the props registry rebuilds the very
       // material the editor drew it with
+      // WHEEL-TEX (CAR-3): a textured tyre or rim - its maps redrawn by the very factory the garage drew it with
+      // CAR-TEX (16 Nov): the plate's and the tow sign's faces, redrawn by the factory the garage drew them with
+      if (data.cage && m.carTex && window.CAGE_CARTEX) {
+        const cm = window.CAGE_CARTEX.material(m.carTex);
+        if (cm) return matCache[mn] = cm;
+      }
+      if (data.cage && m.tyreTex && window.CAGE_WHEELTEX) {
+        const tm = window.CAGE_WHEELTEX.material(m.tyreTex);
+        if (tm) return matCache[mn] = tm;
+      }
       if (data.cage && m.propMat && typeof propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');
@@ -7901,8 +7955,14 @@
     // run down the lane, the circuit, the landing back onto it
     // G1375: the lane the route names (any water aerodrome: Jolene has two), the old SEA when it names land
     const wet = typeof stripSurface === 'function' ? (a => a && stripSurface(a).cls === 'water') : (a => a && a.kind === 'water');
-    if (sim.hydro && (wet(from) || gearNow === 'floats')) {
-      const sea = wet(from) ? from : (world.aerodromes.find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
+    // WATER-START (SEAPLANES 22 Nov, in game: the Petrel - a hull on a retractable tricycle, an AMPHIBIAN to stripGear -
+    // launched with "Start from: On the water" stood on HOME's asphalt apron): the roll-out's own choice, ON THE WATER, puts
+    // any floating build (an amphibian too) on the water lane, as it says ("the base's water lane"); floats always did
+    if (sim.hydro && (wet(from) || gearNow === 'floats' || (START_WATER && gearNow === 'amphibian'))) {
+      // (WATER-START: an amphibian put on the water by the player's choice takes the NEAREST water lane to its field; floats as before)
+      const near = (START_WATER && gearNow === 'amphibian' && !wet(from) && Array.isArray(from.spawn)) ? world.aerodromes.filter(wet).filter(a => Array.isArray(a.spawn))
+        .sort((p, q) => Math.hypot(p.spawn[0] - from.spawn[0], p.spawn[1] - from.spawn[1]) - Math.hypot(q.spawn[0] - from.spawn[0], q.spawn[1] - from.spawn[1]))[0] : null;
+      const sea = wet(from) ? from : (near || world.aerodromes.find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
       placeAtAerodrome(sim, sea);
       patternVisFor(sea, null);
       ap.setRoute(sea, did === 'CIRCUIT' || to === from ? sea : to);
@@ -8577,6 +8637,77 @@
     for (let j = 0; j < Math.round(n / 5); j++) { const a = Math.random() * 6.2832, rr = 1.2 * Math.random();
       sprayEmit(D, 1, x + Math.cos(a) * rr, h + 0.15, z + Math.sin(a) * rr, Math.cos(a) * 0.8 * Math.min(2, vy), 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy)); }
     return n; }, get fx() { return waterFx; } };
+  // ---- WATER TANKS: THE SHOWER (the user, 15 Nov: "they will have a release mechanism, and a particle animation when it
+  // releases (water shower). There will be a release point, by default a simple downwards opening") -------------------
+  // The solver drains the tanks while the valve is open (ctl.dump, the 'water dump' key) and says how fast
+  // (out.waterFlow, kg/s - carried whole by the physics worker's snapshot); the outlets are the frame's (sim.water.outlets:
+  // node weights and the drop under the skin). Here, once a frame, each outlet throws droplets - the aeroplane's own
+  // velocity plus the jet out of the hole (Torricelli's ~2.2 m/s down) and a little spread - in proportion to the flow;
+  // in the air they slow toward the air they are in (the wind too) and fall, a curtain trailing behind and down, with a
+  // faint mist hanging in it; a droplet dies on the ground or the water. spray.js's sprites (the floats' look): one pool,
+  // made the first time water leaves, in the world scene; nothing flowing and nothing alive: hidden, nothing integrated.
+  const DUMP_N = 1200, DUMP_DROP = { life: [1.1, 2.0], size: [0.006, 0.016], drag: 1.5 }, DUMP_MIST = { life: [1.2, 2.2], size: [0.22, 0.42], drag: 2.4, grow: 1.4, gravity: 0.12 };
+  let dumpFx = null;
+  function dumpFxGet() {
+    if (dumpFx || !window.SPRAY || !THREE.InstancedBufferGeometry) return dumpFx;
+    const pool = SPRAY.make(THREE, DUMP_N); pool.mesh.visible = false; scene.add(pool.mesh);
+    dumpFx = { pool, p: new Float32Array(DUMP_N * 3), v: new Float32Array(DUMP_N * 3), age: new Float32Array(DUMP_N).fill(9),
+               life: new Float32Array(DUMP_N).fill(1), size: new Float32Array(DUMP_N), seed: new Float32Array(DUMP_N),
+               kind: new Uint8Array(DUMP_N), next: 0, live: 0, acc: 0 };
+    return dumpFx;
+  }
+  function dumpEmit(F, kind, x, y, z, vx, vy, vz) {
+    const q = F.next, K = kind === 2 ? DUMP_MIST : DUMP_DROP;
+    F.next = (F.next + 1) % DUMP_N;
+    F.p[q * 3] = x; F.p[q * 3 + 1] = y; F.p[q * 3 + 2] = z; F.v[q * 3] = vx; F.v[q * 3 + 1] = vy; F.v[q * 3 + 2] = vz;
+    F.age[q] = 0; F.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
+    F.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); F.seed[q] = Math.random(); F.kind[q] = kind; F.live++;
+  }
+  function syncDumpFx(dt) {
+    const W = sim && sim.water, flow = sim && sim.out ? +sim.out.waterFlow || 0 : 0;
+    if ((!W || !(flow > 0)) && !(dumpFx && dumpFx.live)) { if (dumpFx && dumpFx.pool.mesh.visible) dumpFx.pool.mesh.visible = false; return; }
+    const F = dumpFxGet(); if (!F || !(dt > 0)) return;
+    const G = 9.81, P = sim.p;
+    if (W && flow > 0 && W.outlets && W.outlets.length) {
+      const vc = sim.cgVel ? sim.cgVel() : [0, 0, 0];
+      F.acc += 240 * Math.min(3, flow / 1.6) * dt;            // ~240 droplets a second for one tank's full jet
+      while (F.acc >= 1) {
+        F.acc -= 1;
+        const o = W.outlets[(Math.random() * W.outlets.length) | 0];
+        let x = 0, y = 0, z = 0, ws = 0;
+        for (const [i, w] of o.pts) { x += w * P[i * 3]; y += w * P[i * 3 + 1]; z += w * P[i * 3 + 2]; ws += w; }
+        if (!(ws > 0)) continue;
+        x /= ws; y = y / ws - (o.dy || 0.03); z /= ws;
+        const sx = (Math.random() - 0.5) * 0.8, sz = (Math.random() - 0.5) * 0.8;
+        dumpEmit(F, Math.random() < 0.12 ? 2 : 0, x + sx * 0.03, y, z + sz * 0.03, vc[0] + sx, vc[1] - 2.2 - Math.random() * 0.6, vc[2] + sz);
+      }
+    }
+    const S = F.pool, wv = LKW(), ax = wv ? wv[0] : 0, az = wv ? wv[1] : 0;
+    const floor = (x, z) => { const t = world.terrainH ? world.terrainH(x, z) : 0, h = world.waterH ? world.waterH(x, z) : -1e9;
+                              return Math.max(Number.isFinite(t) ? t : -1e9, Number.isFinite(h) ? h : -1e9); };
+    let live = 0;
+    for (let q = 0; q < DUMP_N; q++) {
+      if (F.age[q] >= F.life[q]) { S.hide(q); continue; }
+      live++;
+      const K = F.kind[q] === 2 ? DUMP_MIST : DUMP_DROP;
+      F.age[q] += dt;
+      const dr = Math.max(0, 1 - K.drag * dt);
+      F.v[q * 3] = ax + (F.v[q * 3] - ax) * dr;
+      F.v[q * 3 + 2] = az + (F.v[q * 3 + 2] - az) * dr;
+      F.v[q * 3 + 1] = F.v[q * 3 + 1] * (F.kind[q] === 2 ? dr : 1) - G * (K.gravity != null ? K.gravity : 1) * dt;
+      F.p[q * 3] += F.v[q * 3] * dt; F.p[q * 3 + 1] += F.v[q * 3 + 1] * dt; F.p[q * 3 + 2] += F.v[q * 3 + 2] * dt;
+      if (F.p[q * 3 + 1] < floor(F.p[q * 3], F.p[q * 3 + 2])) { F.age[q] = F.life[q]; S.hide(q); continue; }
+      const a01 = F.age[q] / F.life[q];
+      S.set(q, [F.p[q * 3], F.p[q * 3 + 1], F.p[q * 3 + 2]], [F.v[q * 3], F.v[q * 3 + 1], F.v[q * 3 + 2]], a01,
+            F.size[q] * (1 + ((K.grow || 1) - 1) * a01), F.seed[q], F.kind[q]);
+    }
+    F.live = live;
+    S.mesh.visible = live > 0;
+    S.commit();
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity);
+      skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity); S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
+  }
+  if (typeof window !== 'undefined') window.DUMP_FX = { get fx() { return dumpFx; }, sync: dt => syncDumpFx(dt) };
   // ---- DIRT-DUST (2026-11-09): THE DUST A DRY STRIP THROWS - dust.js's system fed the aeroplane's own numbers --------------
   // The user (9 Nov): "when it's really dry, there are huge puffs of dirt clouds ... at every take-off and landing ... they
   // tend to stay a long time ... and diffuse slowly". dust.js holds the laws (the sources, the puffs, the draw); here, once a
@@ -9907,10 +10038,31 @@
     if (skiHandSeen !== null && h !== skiHandSeen) sim.ctl.ski = h === null ? null : h;
     skiHandSeen = h;
   }
+  // WATER TANKS: THE DUMP KEY WHOEVER FLIES. The valve is the pilot's whatever the autopilot does with the stick (a
+  // dump is a utility, not a flight control): under the AP the hand is not written (INP.write), so the key's state is
+  // written through sim.ctl when it CHANGES (the worker's ctl patch under ?simw=1) - a reset that shuts the valve is then
+  // not re-opened by a stale hand. A build without water has no dump key and nothing runs.
+  let dumpHandSeen = null;
+  function dumpKeyUnderAP() {
+    if (manual || !INP || typeof INP.dump !== 'function' || !sim.ctl || !('dump' in sim.ctl)) { dumpHandSeen = null; return; }
+    const h = INP.dump();
+    if (dumpHandSeen !== null && h !== dumpHandSeen) sim.ctl.dump = h;
+    dumpHandSeen = h;
+  }
+  // AIRBRAKES: the handle the same way - the pilot's, whoever flies (written when it changes)
+  let abHandSeen = null;
+  function airbrakeKeyUnderAP() {
+    if (manual || !INP || typeof INP.airbrake !== 'function' || !sim.ctl || !('airbrake' in sim.ctl)) { abHandSeen = null; return; }
+    const h = INP.airbrake();
+    if (abHandSeen !== null && h !== abHandSeen) sim.ctl.airbrake = h;
+    abHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
     gearKeyUnderAP();
     skiKeyUnderAP();
+    dumpKeyUnderAP();
+    airbrakeKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -10530,7 +10682,7 @@
       if (out.moved && out.moved.kind === 'in' && out.moved.hangar && out.moved.hangar !== d.here && !out.room) { const g = playerGoTo(d, out.moved.hangar); if (g.ok) { d = g.doc; out.room = out.moved.hangar; } }
       // PROJECTS (13 Nov): the pack's projects meet the stop - a step's missions done start its works, works ready finish
       // the step and set its site's state, the last step grants its abilities (73b careerProjectsTick, the career's day)
-      if (CAREER_DEV && d.career && CAREER_PACK && CAREER_PACK.projects && CAREER_PACK.projects.length) { const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now); d = pj.doc; if (out.career) for (const e of pj.events) { const L = projectLine(e, now); if (L) out.career.lines.push({ k: 'project', ok: true, text: L }); } }
+      { const pj = projectsNow(d); d = pj.doc; if (out.career) for (const L of pj.lines) out.career.lines.push({ k: 'project', ok: true, text: L }); }
       if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
@@ -10734,6 +10886,7 @@
   const STAGE_Q = (CAREER_DEV && typeof stageHost === 'function' && WB.STAGE && WB.STAGE.view) ? stageHost({ tracks: WB.STAGE.tracks }) : null;
   let stageRevealNext = [];
   function stageNote(doc) { if (STAGE_Q && typeof stageTracksOf === 'function') try { STAGE_Q.note(stageTracksOf(doc), 'flight'); } catch (e) { console.warn('stages:', e && e.message); } }
+  if (projStageOwed) { projStageOwed = false; try { stageNote(playerLoad()); } catch (e) {} }   // (STORY-REVAMP: a project's stage that came due at the load)
   const stageWantKey = () => (STAGE_Q ? stageKey(STAGE_Q.pending || STAGE_Q.composed) : '');
   function stageCompose(phase) {
     if (!STAGE_Q) return null;
@@ -10811,7 +10964,8 @@
   function missionLiveWanted(d) {
     const C = d && d.career && d.career.contracts;
     if (!C || typeof careerContract !== 'function' || typeof contractSubsOf !== 'function') return false;
-    return (C.accepted || []).some(id => { const r = careerContract(d, id); return r && contractSubsOf(r).some(s => s && s.place && typeof s.place === 'object'); });
+    // (STORY-REVAMP, COMPETE) ...or a scored event (a STOL line, a course): a landing with a line has no place of its own
+    return (C.accepted || []).some(id => { const r = careerContract(d, id); return r && (contractSubsOf(r).some(s => s && s.place && typeof s.place === 'object') || (typeof missionScored === 'function' && missionScored(r))); });
   }
   function missionLiveArm() {
     const gen = ++MSL.gen;
@@ -10836,7 +10990,15 @@
   function missionLiveFrame(cg) {
     const ML = window.MISSION_LIVE, t = ap ? ap.t : 0;
     if (ML.due(t)) {
-      const ev = ML.tick(t, cg[0], cg[1], cg[2], cg[1] - surfH(cg[0], cg[2]));
+      // (STORY-REVAMP, COMPETE's seam 2) what a STOL line and a gate's attitude are judged on: the wheels on the ground,
+      // the ground speed, the heading / pitch / roll in 73c's convention (compass degrees; nose up +; right wing down +)
+      let more = null;
+      try {
+        const v = sim.cgVel(), [xA, yU] = sim.axes(), zLy = xA[2] * yU[0] - xA[0] * yU[2], R2D = 180 / Math.PI;   // (x aft, y up, z LEFT = x cross y)
+        more = { gnd: sim.wheelsOnGround() > 0, v: Math.hypot(v[0], v[2]), hdg: ((Math.atan2(-xA[0], xA[2]) * R2D) + 360) % 360,
+                 pitch: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * R2D, roll: Math.atan2(zLy, yU[1]) * R2D };
+      } catch (e) { more = null; }
+      const ev = ML.tick(t, cg[0], cg[1], cg[2], cg[1] - surfH(cg[0], cg[2]), more);
       if (ev) for (const e of ev) if (e.k === 'photo') try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now(), mission: e.id } })); } catch (x) {}
     }
     ML.frame(camera, performance.now());
@@ -17090,6 +17252,7 @@
       return;
     }
     if (inGarage && launchAsk()) return;   // TOW-LAUNCH: a float or hull build - on the water, or from the trailer
+    if (inGarage && carBuild()) { DRIVE.enter(); return; }   // CAR: a car rolls out to DRIVE (its own sheet and meshes)
     if (inGarage) {
       // ROLL OUT & FLY flies WHAT YOU DESIGNED (G47.1, user: "roll out
       // and fly still gives the old yellow plane"). Since G65 that is not a
@@ -17987,7 +18150,7 @@
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','abrk','abrkU','wtr','wtrU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
   // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
@@ -18065,6 +18228,20 @@
     for (const s of R.gear.children || []) s.className = 'gl' + (lamp ? ' ' + lamp : '');
     if (R.gearU) R.gearU.textContent = lab;
     if (RD.gear) RD.gear.classList.toggle('warn', (!locked && !up) || /landing$/.test(lab));
+  }
+  // AIRBRAKES AND WATER (the user 15 Nov): two cells beside the gear's, each only on a build that has the thing - the
+  // blue handle's travel (the solver's ctl.airbrake), and the water aboard with DUMPING while the valve runs
+  // (out.waterKg / out.waterFlow: the worker's snapshot carries out whole). Written only when they change
+  let hudAbOn = false, hudAbK = '', hudWtOn = false, hudWtK = '';
+  function hudBrakeWater() {
+    const c = sim && sim.ctl, o = sim && sim.out;
+    const abOn = !!(c && 'airbrake' in c), wtOn = !!(o && typeof o.waterKg === 'number');
+    if (abOn !== hudAbOn || wtOn !== hudWtOn) { hudAbOn = abOn; hudWtOn = wtOn; hudAbK = hudWtK = ''; flInstApply(); }
+    if (abOn && R.abrk) { const e = Math.round(100 * (+c.airbrake || 0)), k = String(e);
+      if (k !== hudAbK) { hudAbK = k; R.abrk.textContent = e + ' %'; if (R.abrkU) R.abrkU.textContent = e > 0 ? 'airbrakes OUT' : 'airbrakes in';
+        if (RD.abrk) RD.abrk.classList.toggle('warn', e > 0); } }
+    if (wtOn && R.wtr) { const kg = Math.round(o.waterKg || 0), run = (o.waterFlow || 0) > 0, k = kg + '|' + run;
+      if (k !== hudWtK) { hudWtK = k; R.wtr.textContent = kg + ' kg'; if (R.wtrU) R.wtrU.textContent = run ? 'water DUMPING' : 'water'; } }
   }
   // THE CONTROLS STRIP (CONTROLS-STRIP, the user 16 Nov: variant A of flydiy design 4AziskHN - "it is instructive to watch
   // what the autopilot does with the stick"). What the hands are doing, from sim.ctl as the solver takes it: the stick
@@ -18185,6 +18362,7 @@
     hudEnergy();
     hudWind();
     hudGear();
+    hudBrakeWater();                       // AIRBRAKES / WATER TANKS: their cells
     ctlStrip();                 // CONTROLS-STRIP: the hands, bottom centre (10 Hz, transforms only)
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
@@ -19337,6 +19515,9 @@
     if (on) { try { flyOpenSet(null); } catch (e) {} }
     if (typeof placeIndicators === 'function') placeIndicators();
     if (photoHook) try { photoHook(on); } catch (e) { console.warn('flyDiy: photo mode -', e && e.message); }   // G3742
+    // PHOTO-ONE (the user 21 Nov: "ensure all UI elements are hidden like the cursor and the back button"): with the photo bar
+    // up (its Done, and Esc) the faint back button is not on the screen
+    shotBack.hidden = !on || photoOn;
     // the canvas re-insets through its CSS transition; measure at both ends
     setTimeout(resize, 0); setTimeout(resize, 220);
   }
@@ -19855,7 +20036,7 @@
     if (p) p.classList.toggle('small', small);
     for (const d0 in RD) {
       if (!RD[d0]) continue;
-      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : small ? PFD_SMALL.indexOf(d0) < 0
+      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : d0 === 'abrk' ? !hudAbOn : d0 === 'wtr' ? !hudWtOn : small ? PFD_SMALL.indexOf(d0) < 0
                             : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' || d0 === 'wind' ||
                                 instOn[d0]);
     }
@@ -20319,6 +20500,9 @@
                     eP: new THREE.Vector3(), eF: new THREE.Vector3() };
   const HEAD_LEVEL_K = 0.10;                                 // the head's tenth toward level
   const HEAD_BOX = { fwd: 0.28, aft: 0.14, up: 0.10, dn: 0.08, side: 0.22 };
+  // PHOTO-ONE (the user 21 Nov: "more camera freedom in interior view for screenshots"): in photo mode the head leans a metre
+  // and more (the cabin's length, its width, standing up) - a framing, not a flight's head
+  const HEAD_BOX_PHOTO = { fwd: 1.4, aft: 1.6, up: 0.7, dn: 0.45, side: 0.9 };
   const HEAD_SPEED = 0.45;                                    // m/s, a head leaning
   const HEADCAM_KEYS = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF']);
   // in flight in the cockpit view, or in the shed's interior preset
@@ -20359,9 +20543,10 @@
     // the box: along the pilot's own axes (forward is -x on every build
     // the join has made, but it is measured, not assumed)
     const along = o.dot(headCam.f), across = o.dot(headCam.r);
-    const alongC = Math.max(-HEAD_BOX.aft, Math.min(HEAD_BOX.fwd, along));
-    const acrossC = Math.max(-HEAD_BOX.side, Math.min(HEAD_BOX.side, across));
-    const yC = Math.max(-HEAD_BOX.dn, Math.min(HEAD_BOX.up, o.y));
+    const HB = (typeof photoOn !== 'undefined' && photoOn && typeof HEAD_BOX_PHOTO !== 'undefined') ? HEAD_BOX_PHOTO : HEAD_BOX;   // (PHOTO-ONE; typeof: a gate's extract of the head has no photo mode)
+    const alongC = Math.max(-HB.aft, Math.min(HB.fwd, along));
+    const acrossC = Math.max(-HB.side, Math.min(HB.side, across));
+    const yC = Math.max(-HB.dn, Math.min(HB.up, o.y));
     o.copy(headCam.f).multiplyScalar(alongC).addScaledVector(headCam.r, acrossC);
     o.y = yC;
     // the look: yaw about the model's up, then pitch about the turned right
@@ -21290,8 +21475,11 @@
     // it), downloads it as flydiy-<date>-<time>.png and brings the interface back. Esc leaves without a picture; a drag
     // frames the shot (the camera's, as always)
     const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: the flight paused, the camera free, a shutter');
-    const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0');
-      return 'flydiy-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
+    // PHOTO-ONE (the user 21 Nov: "the automatic saving and naming"): the picture is named after the aeroplane and the moment
+    const photoPlane = () => { let n = ''; try { n = (def && def.spec && def.spec.meta && (def.spec.meta.name || def.spec.meta.reg)) || (def && def.spec && def.spec.name) || ''; } catch (e) {}
+      return String(n).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32); };
+    const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0'), pl = photoPlane();
+      return 'flydiy-' + (pl ? pl + '-' : '') + (inGarage ? 'shed-' : '') + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
     const photoSave = blob => { if (!blob) return; const a = document.createElement('a'), u = URL.createObjectURL(blob);
       a.href = u; a.download = photoName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
     const flash = mk('div', 'photoFlash');
@@ -21312,17 +21500,40 @@
       '<div class="phActs"><button type="button" id="photoDone">Done</button><button type="button" id="photoShutter" aria-label="Take the picture" title="Take the picture"><i></i></button></div>';
     document.body.appendChild(pBar);
     let photoWas = null;
+    // PHOTO-ONE (the user 21 Nov: "could we integrate the garage screenshot mode and the world screenshot mode? I miss the ability to
+    // set FOV and to have a shutter in the garage mode"): ONE photo mode, the shed's and the flight's - the same bar, the same
+    // shutter, the same named picture. In the shed its rows are the shed's camera: the field of view (the shed's own, given back
+    // at Done) and the two framings, the room (drag to turn, the wheel to come closer) and inside (the crew's eye: WASD to lean,
+    // drag to look - a metre and more of room in photo mode)
+    const phRow = (body, label) => { const r = document.createElement('div'); r.className = 'phRow'; const l = document.createElement('span'); l.textContent = label; r.appendChild(l); body.appendChild(r); return r; };
+    const photoBuildShed = body => {
+      const rf = phRow(body, 'Field of view'), sl = document.createElement('input'), out = document.createElement('b');
+      sl.type = 'range'; sl.min = '15'; sl.max = '90'; sl.step = '1'; sl.value = String(Math.round(camera.fov)); out.textContent = Math.round(camera.fov) + '\u00b0';
+      sl.oninput = () => { camera.fov = +sl.value; camera.updateProjectionMatrix(); out.textContent = sl.value + '\u00b0'; };
+      rf.appendChild(sl); rf.appendChild(out);
+      const rv = phRow(body, 'View');
+      const vb = (t, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.className = 'phPick' + (on ? ' on' : ''); b.onclick = () => { fn(); photoBuild(); }; rv.appendChild(b); };
+      vb('The room', !edEye, () => { if (edEye) { const f = camera.fov; garageCamera(); camera.fov = f; camera.updateProjectionMatrix(); } });
+      vb('Inside', !!edEye, () => { if (!edEye) { const f = camera.fov; enterInterior(); camera.fov = f; camera.updateProjectionMatrix(); } });
+      flNote(body, edEye ? 'Inside: WASD / ZQSD to lean (a metre and more in photo mode), R / F up and down, drag to look.' : 'The room: drag to turn round the aeroplane, the wheel to come closer.');
+    };
     const photoBuild = () => {
       const body = $('photoBody'), keep = body.scrollTop;
       while (body.firstChild) body.removeChild(body.firstChild);
-      FL_BUILD.camera(body);
-      if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
+      if (inGarage) photoBuildShed(body);
+      else {
+        FL_BUILD.camera(body);
+        if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
+        if (cam.mode === 'cockpit') flNote(body, 'Inside: WASD / ZQSD to lean (a metre and more in photo mode), drag to look.');
+      }
+      flNote(body, 'Space takes the picture; H hides this bar (and shows it again).');
       body.scrollTop = keep;
     };
     const photoBegin = () => {
-      if (photoOn || inGarage) return;
-      photoOn = true; photoWas = { mode: cam.mode, fov: cam.fov, held: running };
-      if (running) gmHold(true);
+      if (photoOn) return;
+      photoOn = true; photoWas = { mode: cam.mode, fov: cam.fov, held: running, shed: inGarage, shedFov: camera.fov };
+      if (running && !inGarage) gmHold(true);
+      shotBack.hidden = true; photoIdleArm();
       photoBuild(); pBar.hidden = false;
       if (window.FLYDIY_DRAG) window.FLYDIY_DRAG.register('#photoBar', 'photo', { handle: '.phHead' });
     };
@@ -21330,7 +21541,9 @@
       if (!photoOn) return;
       photoOn = false; pBar.hidden = true;
       const w = photoWas; photoWas = null;
-      if (w) {
+      pBar.classList.remove('phHide'); document.body.classList.remove('phIdle'); clearTimeout(photoIdleT);
+      if (w && w.shed) { if (inGarage) { camera.fov = garageFov; camera.updateProjectionMatrix(); } }   // (the shed's own field of view back)
+      else if (w) {
         if (cam.mode !== w.mode) flCamMode(w.mode);
         if (cam.fov !== w.fov) { cam.fov = w.fov; flSave('Cam', cam); flApplyFov(); }
         if (w.held && !running && !inGarage) gmHold(false);
@@ -21339,6 +21552,17 @@
     photoHook = on => { if (on) photoBegin(); else photoEnd(); };
     const hook0 = flPageHook; flPageHook = () => { if (hook0) hook0(); if (photoOn) photoBuild(); };   // (a pick rebuilds it, as the flyout)
     $('photoShutter').onclick = () => photoTake();
+    // PHOTO-ONE: Space takes the picture, H hides the bar (an OS capture sees the frame alone); the cursor leaves the screen after
+    // a second and a half without moving (the user: "all UI elements are hidden like the cursor")
+    let photoIdleT = 0;
+    function photoIdleArm() { document.body.classList.remove('phIdle'); clearTimeout(photoIdleT); if (photoOn) photoIdleT = setTimeout(() => { if (photoOn) document.body.classList.add('phIdle'); }, 1500); }
+    window.addEventListener('mousemove', () => { if (photoOn) photoIdleArm(); }, { passive: true });
+    window.addEventListener('keydown', e => {
+      if (!photoOn || e.ctrlKey || e.metaKey || e.altKey) return;
+      const tg = e.target && e.target.tagName; if (tg === 'INPUT' && e.target.type !== 'range' || tg === 'TEXTAREA' || tg === 'SELECT') return;
+      if (e.code === 'Space') { e.preventDefault(); e.stopPropagation(); photoTake(); }
+      else if (e.code === 'KeyH') { e.preventDefault(); e.stopPropagation(); pBar.classList.toggle('phHide'); }
+    }, true);
     $('photoDone').onclick = () => shotSet(false);
     bShot.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v10.6H3.5Z"/><circle cx="12" cy="13.2" r="3.4"/></svg>';
     bShot.onclick = () => { gmOpen(false); shotSet(true); };   // photo mode (photoHook): the bar has the shutter and Done
@@ -21523,7 +21747,7 @@
     // later (under load, after the roll-out screen has lifted) - it used to rebuild the aeroplane and
     // walk the flight back into the shed. Measured on Jolene headless: every roll-out ended in the
     // garage 5 s after it began. A late spec waits for the next visit to the garage.
-    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
+    apply(spec) { genSpec = spec; LAST_BAL = null; if (typeof carPreload === 'function') carPreload(); $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     ledger: () => (curKey === 'gen' && def && def.parts ? def.parts.ledger : null),   // G2806: the bill by section
     shake: () => shakeOf(),
@@ -22413,6 +22637,7 @@
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
+    if (!inGarage) syncDumpFx(running ? fdt : 0);                // WATER TANKS: the dump's shower (nothing flowing, nothing alive: nothing)
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
@@ -23413,18 +23638,25 @@
   // TOW-LAUNCH phase 3: THE GLIDER TOW - the car on the line ahead of an engineless aeroplane (drive_mode.js DM.tow*, tow.js).
   // towOn(): the tow's module while its car stands / runs, else null. towWanted(): the flight is a tow - the build has no
   // engine (def.params.nEngines 0: the engineless card), its card's motor is off (genSpec.motorOff), or ?tow=1 (the test)
-  function towOn() { const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.tow && D.tow.active ? D : null; }
+  // (WINCH: the winch launch's module answers first while its cable is laid out - winch_mode.js, the same tow hooks)
+  function towOn() {
+    const Wm = typeof window !== 'undefined' && window.WINCH_MODE; if (Wm && Wm.tow && Wm.tow.active) return Wm;
+    const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.tow && D.tow.active ? D : null;
+  }
   function towWanted() {
     if (curKey !== 'gen' || !def) return false;
     if (def.params && def.params.nEngines === 0) return true;
     if (genSpec && genSpec.motorOff === true) return true;
-    if (START.mode === 'cartow') return true;   // (the sandbox's start chooser: the car tow picked)
+    if (START.mode === 'cartow' || START.mode === 'winch') return true;   // (the sandbox's start chooser: the car tow or the winch picked)
     try { return /[?&]tow(=1|=on|&|$)/.test(location.search); } catch (e) { return false; }
   }
   // TOW-LAUNCH phase 4: THE LAUNCH TRAILER - a float or hull build carried down the runway on a trailer behind the car and
   // flown off it (drive_mode.js DM.trailerStart, trailer.js, trailer_model.js): the menu's "Launch from the trailer" (or
   // ?trailer=1) - an exception to the floats-start-on-water rule, the player's choice, until "Back to the water".
   // trailerWanted(): the build floats (its hydro carries a float or a hull) and the trailer is asked for
+  // WATER-START: the roll-out's choice ON THE WATER (launchAsk below) - an amphibian starts on the water lane, not its stand.
+  // A var (hoisted): applyRoute reads it before this line has run
+  var START_WATER = false;
   const TRAILER = { want: (() => { try { return /[?&]trailer(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })() };
   function trailerAble() { return curKey === 'gen' && !!def && !!(sim && sim.hydro && sim.hydro.floats && sim.hydro.floats.some(f => !f.rec.tip)); }
   function trailerWanted() { return TRAILER.want && trailerAble(); }
@@ -23443,7 +23675,7 @@
         '<button type="button" class="verb" data-k="trailer">From the trailer<span>behind the car on Jolene AFB 13/31</span></button>';
       el.addEventListener('click', e => {
         const b = e.target.closest('button[data-k]'); if (!b) return;
-        TRAILER.want = b.dataset.k === 'trailer'; TOWS.failed = null; el.hidden = true;
+        TRAILER.want = b.dataset.k === 'trailer'; START_WATER = b.dataset.k === 'water'; TOWS.failed = null; el.hidden = true;
         LASK.go = true; try { $('bGo').onclick(); } finally { LASK.go = false; }
       });
       document.addEventListener('keydown', e => { if (e.key === 'Escape' && LASK.el && !LASK.el.hidden) LASK.el.hidden = true; });
@@ -23502,6 +23734,17 @@
     if (TOWS.busy || TOWS.failed || !towWanted() || !window.FLYDIY_LAZY || !sim || sim.wheelsOnGround() === 0) return;
     TOWS.busy = true;
     if (skipAble()) skipToLineup();
+    // WINCH: the winch launch - lined up, the motor off, the winch and its cable laid out at the runway's far end
+    if (START.mode === 'winch') {
+      if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+      const byAp = launchArm();
+      setManual(true, 'tow');
+      window.FLYDIY_LAZY(['tow', 'winch', '_winch_gen', '_winch_weather', 'winch_mode'])
+        .then(() => window.WINCH_MODE.winchStart({ THREE, scene, world, sim, def, hands: byAp }))
+        .then(to => { TOWS.busy = false; console.info('flyDiy winch: on the cable, ' + to); })
+        .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the winch launch could not start -', TOWS.failed); });
+      return;
+    }
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
     const byAp = launchArm();
     setManual(true, 'tow');
@@ -23511,10 +23754,10 @@
       .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the tow could not start -', TOWS.failed); });
   }
   function towHud() {
-    const T = towOn(), tr = T ? T.tow.kind === 'trailer' : trailerWanted();
-    const w = T ? T.towWords() : (TOWS.failed && started && (towWanted() || trailerWanted()) ? 'no ' + (tr ? 'trailer' : 'tow') + ': ' + TOWS.failed : null), n = $('flNotice');
+    const T = towOn(), tr = T ? T.tow.kind === 'trailer' : trailerWanted(), wi = T ? T.tow.kind === 'winch' : START.mode === 'winch';
+    const w = T ? T.towWords() : (TOWS.failed && started && (towWanted() || trailerWanted()) ? 'no ' + (tr ? 'trailer' : wi ? 'winch' : 'tow') + ': ' + TOWS.failed : null), n = $('flNotice');
     if (!n) return;
-    if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
+    if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : wi ? 'winch launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
     else if (n.dataset.tow) { delete n.dataset.tow; $('flNoticeK').textContent = 'not certified'; n.hidden = true; flRender(); }
   }
   // ---- THE SANDBOX'S START CHOOSER (the user, 13 Nov via A0: in sandbox the garage's button is "Fly" (a plane) / "Drive" (a
@@ -23524,7 +23767,7 @@
   //   vehicle()              'plane' | 'car' (window.VEHICLE_KIND of the garage's build)
   //   powered()              a plane with an engine and its motor on
   //   starts()               Promise<[{ id, mode, label, sub, ok, why? }]> - mode 'field' | 'water' | 'trailer' (powered) |
-  //                          'push' | 'cartow' | 'winch' (unpowered; the winch not built yet) | 'place' (a car)
+  //                          'push' | 'cartow' | 'winch' (unpowered: winch_mode.js) | 'place' (a car)
   //   destinations(startId)  Promise<[{ id, label, ok, why? }]> - a plane: the aerodromes its gear may land on (and the
   //                          circuit); a car: 'random' (Surprise me: a reachable place picked at go()), 'LOOP' (out to one
   //                          and back here), then the places its roads reach from that start
@@ -23569,7 +23812,7 @@
       return [
         { id: 'cartow:HOME', mode: 'cartow', label: 'The car tow', sub: 'on a line behind the car down Jolene AFB 13/31, released at height', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
         { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
-        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'the cable and its drum on Jolene AFB 13/31', ok: false, why: 'not built yet' },
+        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'on the cable to the club winch at the far end of Jolene AFB 13/31, released at the top', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
       ];
     },
     async destinations(startId) {
@@ -23618,10 +23861,9 @@
           return DRIVE.enter(to === 'CIRCUIT' ? null : dest, { at: [P.x, P.y, P.z], car, loop });
         });
       }
-      if (mode === 'winch') return Promise.reject(new Error('the winch launch is not built yet'));
       const where = mode === 'field' || mode === 'water' ? id : mode === 'push' ? 'tw_ski' : 'HOME';
       if (!startAero(where)) return Promise.reject(new Error('no such field: ' + where));
-      START.mode = mode === 'push' || mode === 'cartow' ? mode : null; START.push = null;
+      START.mode = mode === 'push' || mode === 'cartow' || mode === 'winch' ? mode : null; START.push = null;
       TRAILER.want = mode === 'trailer'; TOWS.failed = null;
       if (START.spawnBack === undefined) START.spawnBack = spawnId;   // (this roll-out's start only: put back once it rolled out)
       spawnId = where !== baseAeroId() ? where : null;
@@ -23723,6 +23965,28 @@
   // and distance, hud(), drawMap(), flTrip(), planSet() (the To picker), gmHold() (Pause), fullReset() (Restart), the
   // view key. The menu's "Drive the pickup" / "Back to the aeroplane" row; ?drive=1 drives once the boot lifts.
   const DRIVE_Q = (() => { try { return /[?&]drive(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
+  // CAR (13 Nov; the user's must-land list: "put the car in the garage, roll out, pick a destination, drive there"): a
+  // garage build whose car switch is on (window.VEHICLE_KIND, garage.js) rolls out to DRIVE, not to fly - measured on the
+  // stand first (src/vehicle/car_sheet_core.js carFromGarage: its sheet, its tune, a rig of its own meshes), then rolled
+  // out, then handed to the drive mode as its vehicle (DRIVE_MODE.vehicleSource); any other build drives the pickup
+  function carBuild() { try { return curKey === 'gen' && !!genSpec && typeof window.VEHICLE_KIND === 'function' && window.VEHICLE_KIND(genSpec) === 'car'; } catch (e) { return false; } }
+  // the car's measure and its shell fetched as soon as a car stands in the garage (so a synchronous ask - the start
+  // chooser's FLYDIY_GARAGE_CAR - finds them loaded)
+  function carPreload() { try { if (window.FLYDIY_LAZY && typeof window.VEHICLE_KIND === 'function' && genSpec && window.VEHICLE_KIND(genSpec) === 'car') window.FLYDIY_LAZY(['vehicle', 'car_sheet_core']); } catch (e) {} }
+  // TOW-LAUNCH's start chooser (window.FLYDIY_START, its go() without a car) asks the garage for THE CAR ON THE STAND:
+  // { sheet (with its tune), mesh (the body, in the sheet's frame), wheels { <sheet wheel id>: Object3D about its hub },
+  // name } - carFromGarage's own pieces (a fresh rig each call: the drive owns what it is handed); null when the stand
+  // holds no car or its measure is not loaded yet
+  window.FLYDIY_GARAGE_CAR = () => {
+    if (!carBuild()) return null;
+    const C = window.CAR_SHEET; if (!C || typeof vehicleDef !== 'function') { carPreload(); return null; }
+    try {
+      const src = C.carFromGarage(window), def = vehicleDef(src.sheet, src.tune), rig = src.buildRig(THREE, def), wheels = {};
+      def.wheels.forEach((w, i) => { wheels[w.id] = rig.wheels[i]; rig.g.remove(rig.wheels[i]); });
+      const mesh = rig.g.children[0]; rig.g.remove(mesh);
+      return { sheet: Object.assign({}, src.sheet, { tune: src.tune }), mesh, wheels, name: src.name };
+    } catch (e) { console.warn('flyDiy: the car on the stand cannot drive -', e && e.message); return null; }
+  };
   const DRIVE = { busy: false,
     // o (FLYDIY_START, the sandbox's start chooser): { at: [x, y, z] the start (a place's), car: { sheet | sheetUrl, mesh,
     // meshMatrix, wheels, name } the garage's car (drive_mode useCar; absent: the stock pickup) } - returns the promise
@@ -23730,10 +23994,13 @@
       if (driveOn() || DRIVE.busy || !window.FLYDIY_LAZY) return Promise.reject(new Error(driveOn() ? 'already driving' : 'busy'));
       DRIVE.busy = true;
       let done = null, fail = null; const P = new Promise((a, b) => { done = a; fail = b; });
+      // (CAR: the car - the chooser's o.car, else, from the garage, THE CAR ON THE STAND measured before the roll-out
+      //  takes the garage away: FLYDIY_GARAGE_CAR; else the stock pickup)
+      let car = (o && o.car) || null;
       const go = () => {
         const cg = sim.cgPos(), at = o && o.at ? o.at : [cg[0], cg[1], cg[2]];
         window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'drive_mode'])
-          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, (o && o.car) || {}, o && o.loop ? { loop: true } : {})))
+          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, car || {}, o && o.loop ? { loop: true } : {})))
           .then(() => {
             DRIVE.busy = false; running = false; started = false;
             if (craft && craft.parent) craft.parent.remove(craft);
@@ -23746,6 +24013,12 @@
           })
           .catch(e => { DRIVE.busy = false; if (window.DRIVE_MODE && window.DRIVE_MODE.on) window.DRIVE_MODE.leave(); console.warn('flyDiy: the drive mode could not start -', e && e.message); fail(e); });
       };
+      if (inGarage && !car && carBuild()) {
+        window.FLYDIY_LAZY(['vehicle', 'car_sheet_core'])
+          .then(() => { car = window.FLYDIY_GARAGE_CAR(); if (!car) throw new Error('the car on the stand could not be measured'); DRIVE.car = car; rollOut(go); })
+          .catch(e => { DRIVE.busy = false; DRIVE.car = null; alert('This car cannot drive yet: ' + ((e && e.message) || e)); fail(e); });
+        return P;
+      }
       if (inGarage) rollOut(go); else go();
       return P;
     },
@@ -23762,7 +24035,8 @@
     menu() {
       if (!window.FLYDIY_MENU) return;
       const on = !!driveOn();
-      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive the pickup', when: () => !inGarage || on,
+      const nm = DRIVE.car && carBuild() ? DRIVE.car.name : 'the pickup';
+      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive ' + nm, when: () => !inGarage || on,
         act: () => { window.FLYDIY_MENU.close(); if (driveOn()) DRIVE.leave(); else DRIVE.enter(); }, before: 'contracts' });
     } };
   if (typeof window !== 'undefined') window.DRIVE = DRIVE;

@@ -71,6 +71,47 @@ function planePool() {
   }
   return out;
 }
+// THE WIDER POOL (STORY-REVAMP 22 Nov; opts.official, the CLI's --official): EVERY official plane, not only the career's
+// validated designs - "this is a game about building planes": a mission no validated design can fly may still be flown
+// by an aeroplane of the Official list the player can build or copy. Each extra row is measured here the way the
+// snapshots are (tools/snapshots.js: genShakedown for the design row, tools/_freight_site.js for the hold's card) and
+// stands in CONTRACT_DESIGNS / FREIGHT_CARDS under 'L<list n>' FOR THIS PROCESS ONLY (the game's tables are not written).
+// The validated designs come first, in their order: the smallest capable career design still flies a mission it can.
+let WIDE = null;
+function widePool() {
+  if (WIDE) return WIDE;
+  const base = planePool(), have = new Set(base.map(p => p.file)), out = base.slice();
+  let FSITE = null; try { FSITE = require(path.join(T, '_freight_site.js')); } catch (e) { FSITE = null; }
+  // measured once a core and a build file (minutes for the whole list: the hold is swept off the mesh): kept in the OS
+  // temp dir by content, as GATE CONTRACTS keeps its designs
+  const crypto = require('crypto'), os = require('os');
+  const coreSha = (fs.readFileSync(path.join(T, 'flight_core.js'), 'utf8').split('\n')[1] || '').slice(0, 200);
+  const measure = r => {
+    const h = crypto.createHash('sha256'); h.update(coreSha + '|' + r.file + '|'); h.update(fs.readFileSync(path.join(ROOT, r.file)));
+    const f = path.join(os.tmpdir(), 'flydiy-feas-wide-' + h.digest('hex').slice(0, 16) + '.json');
+    try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { /* measure */ }
+    // (the FULL shakedown: planeDef's is the flight's lean one - no envelope, no take-off run)
+    const P = planeDef(r.file), sp = P.spec, k = 'L' + r.n, s = C.genShakedown(C.buildGen(sp));
+    const D = { id: k, label: r.name, build: r.file, gear: C.stripGear(sp) === 'floats' || s.gearType === 'floats' ? 'floats' : 'wheels', seats: s.envelope.seats,
+                bagKg: (sp.cabin && sp.cabin.baggage) || 0, massKg: s.mass, emptyKg: s.empty, toM: s.TORun, cruiseKmh: s.VCruise * 3.6, rangeKm: s.rangeKm, spanM: s.span,
+                cost: s.cost, tankL: s.energyL, power: s.energyKind };
+    let card = null; try { card = FSITE ? FSITE.freightMeasureFile(r.file, D) : null; } catch (e) { card = null; }
+    const M = { D, card };
+    try { fs.writeFileSync(f, JSON.stringify(M)); } catch (e) { /* a read-only temp: measured every run */ }
+    return M;
+  };
+  for (const r of officialRows()) {
+    if (have.has(r.file)) continue;
+    try {
+      const M = measure(r), D = M.D, card = M.card, k = D.id;
+      if (![D.seats, D.massKg, D.emptyKg, D.toM, D.rangeKm].every(v => typeof v === 'number' && isFinite(v))) continue;
+      C.CONTRACT_DESIGNS[k] = D;
+      if (card) C.FREIGHT_CARDS[k] = card;
+      out.push({ design: k, file: r.file, name: r.name, reg: r.reg || null, list: r.list, n: r.n, card: card && card.hold ? card : null, wide: true });
+    } catch (e) { (widePool.skipped = widePool.skipped || []).push(r.name + ': ' + String(e && e.message || e).slice(0, 80)); }
+  }
+  return (WIDE = out);
+}
 // the official rows a BUILD order is judged against (every official file: the player's own design could be any of them)
 function officialRows() { return planeList().filter(r => OFFICIAL_LISTS.includes(r.list) && r.file && !r.rides && fs.existsSync(path.join(ROOT, r.file))); }
 
@@ -96,7 +137,15 @@ function spotsPack() {
 // install a pack the way GATE MISSIONS does (the boot's merge): its contracts over the providers, its words over the text
 const BASE_PROV = {};
 for (const p of Object.keys(C.CONTRACT_PROVIDERS)) BASE_PROV[p] = { arc: C.CONTRACT_PROVIDERS[p].arc, builds: C.CONTRACT_PROVIDERS[p].builds, night: C.CONTRACT_PROVIDERS[p].night };
+const BUILTIN = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'missions', 'builtin.json'), 'utf8'));
 function installPack(pack) {
+  // (STORY-REVAMP 22 Nov) THE PAGE'S OWN LOADER FIRST (73b missionPackUse, app.js CAREER_PACK): the pack's rules live
+  // (no drawn job, a mission no validated design flies offered), its own clients in the providers table. A pack that
+  // does not validate changes nothing there - the rig then installs it the old way so the static read can say what is
+  // broken in it (the built-in pack first: no rule or client of the pack before is left standing)
+  const U = typeof C.missionPackUse === 'function' ? C.missionPackUse(pack) : { ok: false };
+  if (U.ok) return { providers: C.CONTRACT_PROVIDERS, held: U.held, text: {} };
+  if (typeof C.missionPackUse === 'function') C.missionPackUse(BUILTIN);
   for (const p of Object.keys(BASE_PROV)) Object.assign(C.CONTRACT_PROVIDERS[p], BASE_PROV[p]);
   const I = C.missionPackInstall(pack);
   for (const p of Object.keys(I.providers)) if (C.CONTRACT_PROVIDERS[p]) for (const k of ['arc', 'builds', 'night']) C.CONTRACT_PROVIDERS[p][k] = I.providers[p][k];
@@ -167,6 +216,14 @@ function careerWith(rec, design) {
   for (const a of needsOf(rec)) addAfter(a);
   if (P && P.arc) { const i = P.arc.findIndex(r => r.id === rec.id); for (let k = 0; k < i; k++) addAfter(P.arc[k].id); }
   d.career.contracts.done = [...done].map(id => ({ id, t: 0 }));
+  // (STORY-REVAMP) a project step's mission is on the board while its project stands at that step, the projects it
+  // requires done (73b missionProjectNeeds, 74_ careerNeedsOk): the career as the steps before leave it
+  const N0 = rec.needs || {};
+  if (N0.project || (N0.projects || []).length) {
+    d.career.projects = d.career.projects || {};
+    if (N0.project) d.career.projects[N0.project.id] = { step: N0.project.step | 0 };
+    for (const q of N0.projects || []) d.career.projects[q] = { step: 99, done: true };
+  }
   if (P && d.career.providers[rec.provider]) d.career.providers[rec.provider].rep = Math.max(d.career.providers[rec.provider].rep || 0, (rec.needs && rec.needs.rep) || 0);
   d = C.careerNormalise(d); C.careerRefresh(d);
   const r = C.careerAccept(d, rec.id);
@@ -299,8 +356,14 @@ function flyOne(ctx, cur, to, o) {
         const d = Math.hypot(cg[0] - c[0], cg[2] - c[1]), N = (L.near = L.near || {});
         if (!N[ob.key] || d < N[ob.key].d) N[ob.key] = { d: r1(d), agl: r1(agl), msl: r1(cg[1]), t: r1(L.t) };
       }
-      const ev = C.missionTrackStep(T0, { t: sim.t != null ? sim.t : L.t, x: cg[0], z: cg[2], y: cg[1], agl });
+      // (STORY-REVAMP, COMPETE) the page's sample (app.js missionLiveFrame): + the wheels on the ground, the ground speed,
+      // the heading / pitch / roll - what a STOL line and a gate's attitude are judged on
+      const vv = sim.cgVel(), AX = sim.axes(), xA = AX[0], yU = AX[1], zLy = xA[2] * yU[0] - xA[0] * yU[2], R2D = 180 / Math.PI;
+      const ev = C.missionTrackStep(T0, { t: sim.t != null ? sim.t : L.t, x: cg[0], z: cg[2], y: cg[1], agl,
+        gnd: sim.wheelsOnGround() > 0, v: Math.hypot(vv[0], vv[2]), hdg: ((Math.atan2(-xA[0], xA[2]) * R2D) + 360) % 360,
+        pitch: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * R2D, roll: Math.atan2(zLy, yU[1]) * R2D });
       for (const e of ev) if (e.k === 'hit' || e.k === 'photo' || e.k === 'strike') (L.events = L.events || []).push({ k: e.k, key: e.key, t: r1(L.t) });
+        else if (e.k === 'stol') (L.events = L.events || []).push({ k: 'stol', key: e.id, kind: e.kind, m: e.m, foul: e.foul || null, t: r1(L.t) });
     }
     if (!airborne && cg[1] - W.terrainH(cg[0], cg[2]) > 15) airborne = true;
     const Dm = sim.damage ? sim.damage() : null;
@@ -406,9 +469,25 @@ function flyMission(env, rec, plane, opts) {
       load = L2;
     }
     // the mission's in-flight tracker (73c: the page makes one at departure for a contract with objectives)
-    const T0 = tgt.objs ? C.missionTrackNew(rec, doc.career.contracts.live[rec.id], { reach }) : null;
+    // (COMPETE) a leg with a STOL line open is tracked too, objectives or not (mission_live.js arm)
+    const TN = C.missionTrackNew(rec, doc.career.contracts.live[rec.id], { reach });
+    const T0 = tgt.objs || (TN.stol && TN.stol.length) ? TN : null;
     const route = (tgt.objs || tgt.survey) ? routeFor(W, tgt.objs || [], tgt.survey) : null;
+    // (STORY-REVAMP, COMPETE) A LANDING LINE NAMES THE WAY IT IS LANDED. 73c measures a touchdown only when it runs the line's
+    // `dir` (msrStolStep: within 90 deg) and every line of the stop must be measured - so the competitor lands THAT way,
+    // whatever the wind; the pilot left to itself takes the wind's end and the event is "not measured" (club.spot flown: the
+    // Cub and the Jodel both landed w2 from the far end). The harness plays the competitor: for this flight the field's
+    // record names the line's way (aero.landHdg, 43_pilot dirAt's one-way rule), and is put back after it
+    const lineWay = (TN.stol || []).find(S => S.kind !== 'takeoff' && typeof S.dir === 'number');
+    const fieldRec = lineWay ? W.aerodromes.find(q => q.id === tgt.to) : null, hdg0 = fieldRec ? fieldRec.landHdg : null;
+    if (fieldRec) {
+      const r = lineWay.dir * Math.PI / 180;
+      fieldRec.landHdg = Math.atan2(-Math.cos(r), Math.sin(r));
+      const said = 'the ' + lineWay.id + ' ' + lineWay.kind + ' line names the landing way (' + lineWay.dir + ' deg): flown that way, whatever the wind';
+      if (!out.notes.includes(said)) out.notes.push(said);
+    }
     const L = flyOne(ctx, cur, tgt.to, { first, route, tracker: T0, tMax: o.tMax });
+    if (fieldRec) fieldRec.landHdg = hdg0;
     first = false;
     L.why = tgt.why; L.load = { kg: load.kg, pax: load.pax, flags: load.flags, how: load.how };
     out.legs.push(L);
@@ -496,7 +575,7 @@ function judgeMission(env, packRow, m, opts) {
   R.static = S;
   if (S.broken.length) { R.verdict = 'broken'; R.why = S.broken.join('; '); return R; }
   const subs = C.contractSubsOf(rec);
-  const pool = planePool();
+  const pool = o.official ? widePool() : planePool();
   R.pool = pool.map(p => p.design);
   // on offer at all? (the career's own offer list, with everything before it done) - an order is judged on it first; a
   // job after the game's capability rule (its reason - the load, the gear, the strip - is the more specific one)
@@ -626,5 +705,5 @@ function mdTable(rows) {
   return out.join('\n');
 }
 
-module.exports = { C, TR, SH, SLOT, planePool, officialRows, planeDef, readPacks, spotsPack, installPack, staticCheck, careerDaySpec, careerWith,
+module.exports = { C, TR, SH, SLOT, planePool, widePool, officialRows, planeDef, readPacks, spotsPack, installPack, staticCheck, careerDaySpec, careerWith,
   nextTarget, routeFor, flyOne, flyMission, buildCandidates, judgeMission, finalize, makeEnv, mdTable, legLine, fmtT };

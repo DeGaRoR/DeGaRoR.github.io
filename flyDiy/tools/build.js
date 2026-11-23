@@ -450,11 +450,16 @@ const MANIFEST = {
          // page's half (drive_mode.js) - fetched when the player asks to drive (the menu's Drive row, ?drive=1), never before:
          // the aeroplane's core and the first load carry none of it
          ['src/cars', 'cars_car.js'], ['src/cars', 'cars_lods.js'],
-         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
+         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'car_sheet_core.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
          ['src/viewer', 'drive_mode.js'],
          // LIVERY-STICKERS (9 Nov): THE TWELVE ALASKA MARKS' GEOMETRY (tools/livery_marks_prep.js) - fetched by aeroskin.js
          // the first time a livery sticker is drawn (aeroVinylGeo), never by an aeroplane that wears none
          ['src/viewer', 'livery_marks.js'],
+         // WINCH (2026-11-13): THE WINCH LAUNCH - the line, the drum and its driver (src/vehicle/winch.js, GATE WINCH), the
+         // winch drawn (tools/_winch_gen.js) and weathered (tools/_winch_weather.js), the page's half (winch_mode.js) -
+         // fetched with tow.js when the start chooser's winch launch is picked, never before (before the mission pair:
+         // GATE MISSIONLIVE reads the list's end)
+         ['src/vehicle', 'winch.js'], ['tools', '_winch_gen.js'], ['tools', '_winch_weather.js'], ['src/viewer', 'winch_mode.js'],
          // MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - the tracker's page half and its drawing (mission_live.js) and the
          // mission props (tools/_mission_gen.js: the pylon, the balloon column, the ring, the flag, the tie-down spot; it
          // reads TOWER_GEN, inlined above) - fetched by app.js missionLiveArm at the first departure with an accepted
@@ -1148,6 +1153,18 @@ function buildViewer(core) {
   // sw.js's cache) is said in the console and the page boots as it would without the career code: CAREER_DEV false.
   // dev.html loads the same nine files by their own tags (data-career), promoted only under the same rule.
   const CAREER = writeCareerCore(core.careerBody);
+  const CAREER_PACK_DEFAULT = 'story';   // THE SWITCH-OVER (STORY-REVAMP): the pack a player's career reads (src/missions/<id>.json)
+  // THE PACK A CAREER PAGE READS, named and fetched (an expression: a promise of true) - ONE rule for index.html's career
+  // loader and dev.html: ?pack=<id> (dev: any pack; 'draft' = the mission editor's, fetched by nobody), else, for a PLAYER'S
+  // career (the welcome menu's: FLYDIY_MODE career, never the dev career ?career=1 that the gates' fixtures ride), the
+  // story pack. app.js CAREER_PACK installs it before the first offers (window.FLYDIY_PACK_ID / FLYDIY_PACK_TEXT)
+  const CAREER_PACK_LOAD = `(function () {
+        var pk = (/[?&]pack=([A-Za-z0-9_.-]+)/.exec(location.search || '') || [])[1];
+        if (!pk && window.FLYDIY_MODE === 'career' && !/[?&]career=1(&|$)/.test(location.search || '')) pk = ${JSON.stringify(CAREER_PACK_DEFAULT)};
+        window.FLYDIY_PACK_ID = pk || null;
+        if (pk && pk !== 'draft') return fetch('src/missions/' + pk + '.json').then(function (r) { return r.ok ? r.text() : null; }).then(function (p) { window.FLYDIY_PACK_TEXT = p; return true; }, function () { return true; });
+        return Promise.resolve(true);
+      })()`;
   const CAREER_WANT = `window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };`;
   const CAREER_LOADER = `<script>
 (function () {
@@ -1160,11 +1177,9 @@ function buildViewer(core) {
       window.FLYDIY_CAREER_TEXT = t;
       // MISSIONS-LIVE switch (dev): ?pack=<id> fetches src/missions/<id>.json beside the career core (app.js CAREER_PACK
       // installs it before the first offers; ?pack=draft reads the mission editor's draft there instead)
-      var pk = (/[?&]pack=([A-Za-z0-9_.-]+)/.exec(location.search || '') || [])[1];
-      if (pk && pk !== 'draft') return fetch('src/missions/' + pk + '.json').then(function (r) { return r.ok ? r.text() : null; }).then(function (p) { window.FLYDIY_PACK_TEXT = p; return true; }, function () { return true; });
-      // sw.js keeps it for the next (offline) career boot: the worker caches it on this word (and on its install)
+      // sw.js keeps the core for the next (offline) career boot: the worker caches it on this word (and on its install)
       try { if (navigator.serviceWorker) navigator.serviceWorker.ready.then(function (r) { if (r.active) r.active.postMessage({ flydiy: 'career-core', src: SRC }); }); } catch (e) {}
-      return true;
+      return ${CAREER_PACK_LOAD};
     }, function (e) { console.warn('flyDiy: the career core did not load (' + (e && e.message) + '); the page boots without the career'); return false; });
   });
   window.FLYDIY_BOOT = Promise.all([window.FLYDIY_BOOT, load]).then(function (a) { return a[0]; });
@@ -1362,7 +1377,14 @@ function buildViewer(core) {
 })();
 </script>
 ${ISLAND_LOADER}
-<script>${CAREER_WANT}</script>
+<script>${CAREER_WANT}
+// (STORY-REVAMP) the pack a career page reads, under index.html's own rule, before the career's modules are promoted
+(function () {
+  var mode = window.FLYDIY_WELCOME ? Promise.resolve(window.FLYDIY_WELCOME).then(null, function () {}) : Promise.resolve();
+  var load = mode.then(function () { return window.FLYDIY_CAREER_WANT() ? ${CAREER_PACK_LOAD} : true; });
+  window.FLYDIY_BOOT = Promise.all([window.FLYDIY_BOOT, load]).then(function (a) { return a[0]; });
+})();
+</script>
 <script>${ROUTE_WANT} window.FLYDIY_ROUTE_SRC = ${JSON.stringify('src/viewer/' + MANIFEST.routeDraw + '?v=' + sha(read(path.join(VIEW_DIR, MANIFEST.routeDraw))).slice(0, 8))};</script>
 `;
   const DEV_PROMOTE = `<script>

@@ -1,0 +1,40 @@
+{
+ "id": "club.stol",
+ "kind": "challenge",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 489,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "xw_rough",
+   "t": 489,
+   "how": "stopped",
+   "at": "xw_rough",
+   "stop": [
+    "sub:0@0",
+    "scores",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": [
+    "stol:ld=197.8"
+   ]
+  }
+ ],
+ "notes": [
+  "the ld landing line names the landing way (204 deg): flown that way, whatever the wind"
+ ],
+ "untested": false,
+ "key": "98e5096d686a",
+ "where": "contract",
+ "pool": "validated",
+ "wallS": 341
+}

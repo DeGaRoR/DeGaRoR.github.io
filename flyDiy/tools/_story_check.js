@@ -176,22 +176,26 @@ function run(M) {
        'the paint-only lock is held to the story mask at boot AND on every tick (a late editor.js still gets it)');
     { const K = M.BASE_OFFERS.w1.plots.w1.kits;
       ok(['wood', 'metal', 'wip', 'store', 'handling', 'comfort', 'curio', 'bench'].every(k => K.includes(k)) && !K.includes('office'),
-         'the cabin is the cozy messy workshop: wood + metal machines, the plane and wing in build, store, handling, comfort, curio (G3352)'); }
+         'the cabin is the cozy messy workshop: wood + metal machines, the plane in build (its wings out: the user 21 Nov), store, handling, comfort, curio (G3352)'); }
     // G3353 (the user 22 Oct: "get rid of the large router ... Keep only the 2 smaller ones"): the cabin keeps the pillar
     // drill and the thicknesser; the panel saw, the band saw and the surface planer are left out - and reported so
     { const P = M.BASE_OFFERS.w1.plots.w1, C = M.storyCabinShed('w1', 0).shed, MACH = ['panelsaw', 'bandsaw', 'jointer', 'thicknesser', 'drillpress'];
-      ok(JSON.stringify(P.omit) === '["panelsaw","bandsaw","jointer"]' && JSON.stringify(C.omit) === JSON.stringify(P.omit), 'the cabin plot leaves out the big machines, and the story cabin shed carries that list (G3353)');
+      // RE-PINNED 21 Nov (GARAGE-FIXES, the user: "Let's get rid of the wing in construction in the small hangar"): the list also names the
+      // two wing recipes (the wing hung on the doors, the wing on its stands)
+      ok(JSON.stringify(P.omit) === '["panelsaw","bandsaw","jointer","wipWingHang","wsWing"]' && JSON.stringify(C.omit) === JSON.stringify(P.omit), 'the cabin plot leaves out the big machines and the two wings, and the story cabin shed carries that list (G3353; 21 Nov)');
       const F = M.hangarFit(C.dims, C.kits, { shell: 'field', reg: M.PROP_REG, omit: C.omit }), got = F.placed.map(p => p.prop).filter(k => MACH.includes(k));
-      ok(JSON.stringify(got.slice().sort()) === '["drillpress","thicknesser"]' && F.unplaced.filter(u => u.reason === 'left out of this shed').length === 3,
-         'the cabin stands two machines, the drill and the thicknesser; the three left out are reported, not silent (' + got.join(', ') + ')');
-      ok(/layout: shed\.layout, omit: shed\.omit[,}]/.test(APP) && /omit: opts && opts\.omit \}\);/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8')),
+      const RS = F.recipes.map(r => r.recipe);
+      ok(JSON.stringify(got.slice().sort()) === '["drillpress","thicknesser"]' && F.unplaced.filter(u => u.reason === 'left out of this shed').length === 5 &&
+         !RS.includes('wipWingHang') && !RS.includes('wsWing') && RS.includes('wipBody'),
+         'the cabin stands two machines and the fuselage in build, no wing; the five left out are reported, not silent (' + got.join(', ') + ' | ' + RS.join(', ') + ')');
+      ok(/layout: shed\.layout, omit: shedOmit\(shed\)[,}]/.test(APP) && /function shedOmit\(shed\) \{/.test(APP) && /omit: opts && opts\.omit \}\);/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8')),
          'the page builds the room with the shed\'s omit list (app.js -> hangar.js -> hangarFit)'); }
     // G3354 (the user 22 Oct: "We need light in the cabin, right now it's a dark hole"): the cabin's work lamp
     { const P = M.BASE_OFFERS.w1.plots.w1, C = M.storyCabinShed('w1', 0).shed, HJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8');
       ok(P.workLamp && P.workLamp.cd > 0 && JSON.stringify(C.workLamp) === JSON.stringify(P.workLamp), 'the cabin plot hangs a work lamp, and the story cabin shed carries it (G3354)');
       ok(Array.isArray(P.lampXZ) && P.lampXZ.length === 5 && P.lampXZ.filter(p => Math.abs(p[1]) > 0.1 || Math.abs(p[0]) < 1).every(p => p[0] <= -2.5) && JSON.stringify(C.lampXZ) === JSON.stringify(P.lampXZ),
          'the cabin\'s five fittings: none over the ultralight\'s wing - the wing-line three hang ahead of the leading edge, and the story cabin shed carries the cross (G3354)');
-      ok(/omit: shed\.omit, workLamp: shed\.workLamp, lampXZ: shed\.lampXZ \}\)/.test(APP) && /if \(opts && opts\.workLamp && typeof opts\.workLamp === 'object'\)/.test(HJ) && /L\.castShadow = false;\s+L\.position\.y = 0\.12;/.test(HJ),
+      ok(/omit: shedOmit\(shed\), workLamp: shed\.workLamp, lampXZ: shed\.lampXZ \}\)/.test(APP) && /if \(opts && opts\.workLamp && typeof opts\.workLamp === 'object'\)/.test(HJ) && /L\.castShadow = false;\s+L\.position\.y = 0\.12;/.test(HJ),
          'the page hands the work lamp to the room, and the room hangs it with no shadow map (the five fittings\' budget)'); }
     // G3355 (the user 22 Oct: "the cabin flood switched on at the story start; no change to Rufus's file")
     { const BJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'bench.js'), 'utf8');

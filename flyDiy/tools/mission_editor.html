@@ -42,6 +42,7 @@ button, select, input, textarea { font: inherit; color: var(--ed-ink); }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn.pri { background: var(--ed-acc); color: var(--ed-acc-ink); border-color: var(--ed-acc); font-weight: 600; }
 .btn.sm { padding: 3px 9px; font-size: 12.5px; }
+a.btn { text-decoration: none; display: inline-block; }
 .btn.ghost { background: none; border-color: transparent; color: var(--ed-dim); }
 .btn.ghost:hover { color: var(--ed-ink); border-color: var(--ed-btn-bd); }
 .btn.danger:hover { border-color: var(--ed-bad); color: var(--ed-bad); }
@@ -166,14 +167,17 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 </head>
 <body>
 <header class="top">
+  <a class="btn ghost" id="bGame" href="../index.html" title="Leave the editor: back to the game's start menu (the browser keeps your draft)">← The game</a>
   <div class="brand">Mission Editor</div>
   <div class="file" id="fileLbl"></div>
   <span class="grow"></span>
-  <button class="btn" id="bBuiltin" title="Open src/missions/builtin.json (the game's contracts as missions)">Open built-in pack</button>
+  <button class="btn" id="bStory" title="Open src/missions/story.json: the pack a career plays (contracts, projects, the Aero Club)">Open story pack</button>
+  <button class="btn" id="bBuiltin" title="Open src/missions/builtin.json (the old contracts as missions)">Open built-in pack</button>
   <button class="btn" id="bOpen" type="button">Open file…</button><input id="fOpen" type="file" accept=".json,application/json" hidden>
   <button class="btn" id="bNew">New pack</button>
   <button class="btn ghost" id="bRetro" title="Rebuild the built-in pack from today's 72_contract_data.js (the retrofit)">Rebuild from game data</button>
-  <button class="btn pri" id="bSave">Save pack</button>
+  <button class="btn" id="bTry" title="Open the game in a new tab on a TEST career that plays this pack as it is here (your own careers are not touched)">▶ Try it in the game</button>
+  <button class="btn pri" id="bSave" title="Download the pack as a file: put it in src/missions/ to make it the game's">Save pack</button>
   <span class="checks" id="vcount"></span>
 </header>
 <div id="main">
@@ -213,6 +217,7 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 <script data-core="73b_missions.js" src="../src/core/73b_missions.js"></script>
 <script data-core="73c_mission_run.js" src="../src/core/73c_mission_run.js"></script>
 <script data-core="79_story.js" src="../src/core/79_story.js"></script>
+<script data-core="79b_tech.js" src="../src/core/79b_tech.js"></script>
 <!-- the island's 2-D map (map_bake.js) and the fleet's tie-down spots (fleet_spots.js --cook) -->
 <script src="../src/viewer/map_pack.js"></script>
 <script src="../src/viewer/fleet_spots_pack.js"></script>
@@ -243,6 +248,20 @@ const RULES_UI = {
   strike: ['If a gate post or ring is hit', { penalty: '+3 s on the lap (the air race rule)', fail: 'The mission fails', ignore: 'Nothing happens' }],
 };
 const SITE_STATE = { planned: 'Planned', building: 'Being built', built: 'Built' };
+// (STORY-REVAMP) the pack's own settings, in plain words
+const PACK_RULES_UI = {
+  jobs: ['Extra jobs drawn by the game', { generated: 'Yes: the game adds random jobs to the board', none: 'No: only the missions written here' },
+         'With "No", two players see exactly the same board.'],
+  shady: ['The "no questions asked" job', { true: 'Drawn by the game now and then', false: 'Never (write your own as a mission)' }, ''],
+  unflyable: ['A mission none of the stock aeroplanes can fly', { hold: 'Kept off the board', offer: 'Offered anyway: the player builds the aeroplane' },
+              'A heavy or awkward delivery is a reason to build something new.'],
+};
+const kitName = k => (typeof HANGAR_KITS !== 'undefined' && HANGAR_KITS[k] ? HANGAR_KITS[k].name : k);
+const segName = n => (typeof TECH_SEGS !== 'undefined' && TECH_SEGS[n] ? TECH_SEGS[n].name : 'segment ' + n);
+// what a step, a project or a mission can GIVE: [value, the words shown]
+const giftOpts = () => (typeof HANGAR_KITS !== 'undefined' ? Object.keys(HANGAR_KITS).filter(k => k !== 'park').map(k => ['kit:' + k, 'Machines: ' + kitName(k)]) : [])
+  .concat([2, 3].map(n => ['tech:' + n, 'Machine shop: ' + segName(n)]));
+const giftWords = g => { const m = /^(kit|tech):(.+)$/.exec(g); return m ? (m[1] === 'kit' ? 'Machines: ' + kitName(m[2]) : 'Machine shop: ' + segName(m[2])) : g; };
 const CRIT_LABEL = { seats: 'Seats', emptyKg: 'Empty weight', powertrain: 'Powertrain', tankL: 'Fuel tank', batteryKWh: 'Battery', spanM: 'Wingspan', costMax: 'Build cost',
   ultimateG: 'Ultimate load', xwindKt: 'Crosswind limit', hydro: 'Floats', tasKmh: 'Cruise speed', enduranceMin: 'Endurance', rangeKm: 'Range', takeoffAt: 'Takes off from',
   landAt: 'Lands at', climbMs: 'Climb rate', stallKmh: 'Stall speed', toDistM: 'Take-off run', ldgDistM: 'Landing run', fuelLph: 'Fuel burn', cargoL: 'Cargo volume',
@@ -348,13 +367,27 @@ function renderTree() {
       }
     });
   });
-  const loose = S.pack.missions.filter(m => !campOf(m.id));
-  if (loose.length) { t.append(el('div', { cls: 'tsec' }, 'Not in a campaign')); for (const m of loose) { t.append(missionNode(m, 0)); if (S.sel.id === m.id) legsTree(t, m, 1); } }
+  // (STORY-REVAMP) THE PROJECTS: ordered steps; a step's missions are on the board while the project stands at it
+  t.append(el('div', { cls: 'tsec' }, 'Projects'));
+  if (!projects().length) t.append(el('div', { cls: 'faint', style: { padding: '0 14px', fontSize: '12.5px' } }, 'none yet'));
+  projects().forEach((q, pi) => {
+    t.append(tnode({ label: q.name || q.id, meta: 'project · ' + q.steps.length + ' step' + (q.steps.length === 1 ? '' : 's') + ' · ' + provName(q.client), icon: '⚒', sel: { t: 'project', p: pi }, ind: 0, bad: whyOf('project ' + q.id).length || null }));
+    q.steps.forEach((st, si) => {
+      t.append(tnode({ label: 'Step ' + (si + 1) + ': ' + st.id, meta: st.missions.length + ' mission' + (st.missions.length === 1 ? '' : 's') + (st.works ? ' · works ' + st.works.days + ' d' : '') + (st.track ? ' · builds' : '') + ((st.gives || []).length ? ' · gives' : ''),
+        icon: String(si + 1), sel: { t: 'pstep', p: pi, s: si }, ind: 1 }));
+      for (const id of st.missions) { const m = mission(id);
+        if (!m) { t.append(el('div', { cls: 'tn', style: { paddingLeft: '58px' } }, el('span', { cls: 'bad' }, 'missing mission ' + id))); continue; }
+        t.append(missionNode(m, 2)); if (S.sel.id === id) legsTree(t, m, 3); }
+    });
+  });
+  const loose = S.pack.missions.filter(m => !placed(m.id));
+  if (loose.length) { t.append(el('div', { cls: 'tsec' }, 'Not placed anywhere')); for (const m of loose) { t.append(missionNode(m, 0)); if (S.sel.id === m.id) legsTree(t, m, 1); } }
   t.append(el('div', { cls: 'tsec' }, 'Construction sites'));
   if (!S.pack.sites.length) t.append(el('div', { cls: 'faint', style: { padding: '0 14px', fontSize: '12.5px' } }, 'none yet'));
   S.pack.sites.forEach((s, i) => t.append(tnode({ label: s.asset || s.id, meta: s.id + ' · ' + (SITE_STATE[s.state] || s.state), icon: '⚑', sel: { t: 'site', i }, ind: 0 })));
   t.append(el('div', { cls: 'tadd' },
     el('button', { cls: 'btn sm', on: { click: () => { S.pack.campaigns.push({ id: 'cmp' + (S.pack.campaigns.length + 1), title: '', order: 'any', chapters: [] }); S.sel = { t: 'campaign', c: S.pack.campaigns.length - 1 }; changed(); } } }, '+ Campaign'),
+    el('button', { cls: 'btn sm', on: { click: () => addProject() } }, '+ Project'),
     el('button', { cls: 'btn sm', on: { click: () => addMission(null) } }, '+ Mission'),
     el('button', { cls: 'btn sm', on: { click: () => { S.pack.sites.push({ id: 'site' + (S.pack.sites.length + 1), asset: '', at: { x: 0, z: 0, hdg: 0 }, state: 'planned' }); S.sel = { t: 'site', i: S.pack.sites.length - 1 }; changed(); } } }, '+ Site')));
 }
@@ -364,15 +397,21 @@ function legsTree(t, m, ind) {
     L.steps.forEach((s, si) => t.append(tnode({ label: stepSentence(s), meta: DO_LABEL[s.do] || s.do, icon: DO_ICON[s.do] || '•', sel: { t: 'step', id: m.id, l: li, s: si }, ind: ind + 1, tip: stepSentence(s) })));
   });
 }
-function addMission(chapter) {
+function addProject() {
+  let n = projects().length + 1, id; do id = 'project' + n++; while (projects().some(q => q.id === id));
+  projects().push(missionProjectNormalise({ id, name: 'A new project', client: Object.keys(provTable())[0], steps: [{ id: 'step1', missions: [] }] }));
+  S.sel = { t: 'project', p: projects().length - 1 }; changed();
+}
+function addMission(chapter, prov0) {
   let n = S.pack.missions.length + 1, id; do id = 'm' + n++; while (mission(id));
-  const prov = Object.keys(CONTRACT_PROVIDERS)[0];
-  const m = { id, provider: prov, kind: 'contract', title: 'ms.' + id + '.title', brief: 'ms.' + id + '.brief', client: peopleClientOf(prov),
+  const prov = prov0 || Object.keys(CONTRACT_PROVIDERS)[0];
+  const m = { id, provider: prov, kind: 'contract', title: 'ms.' + id + '.title', brief: 'ms.' + id + '.brief', client: (provTable()[prov] || {}).person || peopleClientOf(prov) || undefined,
               legs: [{ steps: [{ do: 'carry', from: { field: 'HOME' }, place: { field: 'w3' }, load: { kg: 20, pax: 0 } }] }],
               pay: { base: 1500 }, rep: { provider: prov, gain: 0.5 }, rules: Object.assign({}, MISSION_RULES_NEW) };
   setWords(m.title, 'A new mission'); setWords(m.brief, 'What the client asks.');
   S.pack.missions.push(m); if (chapter) chapter.missions.push(id);
   S.sel = { t: 'mission', id }; changed();
+  return id;
 }
 
 // ---- the form's parts ----------------------------------------------------------------------------------------------------
@@ -457,8 +496,16 @@ const say = (label, v, set, help) => {
           s.who ? textField(label + ' - words', s.text || '', k => set(Object.assign({}, s, { text: k })), { area: true }) : null];
 };
 const fieldOpts = () => Object.keys(CONTRACT_FIELDS).map(id => [id, CONTRACT_FIELDS[id].name]);
-const providerOpts = () => Object.keys(CONTRACT_PROVIDERS).map(p => [p, contractText(CONTRACT_PROVIDERS[p].name, null, T())]);
-const trackOpts = () => [].concat(...Object.keys(CONTRACT_TRACKS).map(t => Array.from({ length: CONTRACT_TRACKS[t].max }, (_, i) => [t + ':' + (i + 1), t + ' - stage ' + (i + 1)])));
+// the contractors: the game's + the clients this pack brings (STORY-REVAMP pack.clients)
+const provTable = () => missionProvidersWith(S.pack.clients);
+const provName = p => { const P = provTable()[p]; return P ? (contractText(P.name, null, T()) || p) : p || '?'; };
+const providerOpts = () => Object.keys(provTable()).map(p => [p, provName(p)]);
+const trackOpts = () => [].concat(...Object.keys(CONTRACT_TRACKS).map(t => Array.from({ length: CONTRACT_TRACKS[t].max }, (_, i) =>
+  [t + ':' + (i + 1), t + ' ' + (i + 1) + ' - ' + (contractText(CONTRACT_TRACKS[t].stages[i], null, T()) || 'stage ' + (i + 1))])));
+const projects = () => (S.pack.projects = S.pack.projects || []);
+const stepOf = id => { for (const q of projects()) for (const st of q.steps) if (st.missions.includes(id)) return { q, st }; return null; };
+const placed = id => !!campOf(id) || !!stepOf(id);
+const looseOpts = () => S.pack.missions.filter(m => !isTut(m) && !placed(m.id)).map(m => [m.id, (words(m.title) || m.id) + '  (' + m.id + ')']);
 function moveBtns(list, i, reselect) {
   const mv = d => { const j = i + d; if (j < 0 || j >= list.length) return; const [x] = list.splice(i, 1); list.splice(j, 0, x); reselect(j); changed(); };
   return [el('button', { cls: 'btn sm', title: 'move up', on: { click: () => mv(-1) } }, '↑ Up'), el('button', { cls: 'btn sm', title: 'move down', on: { click: () => mv(1) } }, '↓ Down')];
@@ -466,7 +513,8 @@ function moveBtns(list, i, reselect) {
 // ids as chips with a picker of the candidates
 function idChips(list, cands, set, ph) {
   const box = el('div', { cls: 'inl' });
-  for (const id of list) box.append(el('span', { cls: 'chip', style: { paddingLeft: '8px' } }, id, readOnly() ? null : el('button', { type: 'button', on: { click: () => { set(list.filter(x => x !== id)); changed(); } } }, '×')));
+  const lab = id => { const c = cands.find(x => (Array.isArray(x) ? x[0] : x) === id); return c && Array.isArray(c) && c[1] ? c[1] : id; };   // the candidate's words, not its id
+  for (const id of list) box.append(el('span', { cls: 'chip', style: { paddingLeft: '8px' }, title: id }, lab(id), readOnly() ? null : el('button', { type: 'button', on: { click: () => { set(list.filter(x => x !== id)); changed(); } } }, '×')));
   const rest = cands.filter(c => !list.includes(c[0] || c));
   if (!readOnly() && rest.length) box.append(sel('', rest, x => { if (x) set(list.concat([x])); }, { blank: ph || 'add…', w: 'auto' }));
   return box;
@@ -487,6 +535,29 @@ function renderForm() {
   if (s.t === 'pack') {
     f.append(el('h2', { cls: 'title' }, words(P.title) || 'The pack'), el('p', { cls: 'sub' }, 'A mission pack: campaigns made of chapters, chapters of missions, missions of legs, legs of steps. Save it and commit the file under src/missions/.'),
       sec('The pack', null, field('Name (id)', inp(P.id, x => P.id = x)), textField('Title', P.title, x => P.title = x), field('Format', el('span', { cls: 'dim' }, P.what + ' v' + P.v))));
+    // (STORY-REVAMP) the pack's own settings
+    const R = P.rules || {};
+    f.append(sec('How the job board is filled', 'Three choices for every career that plays this pack. Leave one "as the game does today" to say nothing.',
+      ...Object.keys(PACK_RULES_UI).map(k => { const [label, opts, help] = PACK_RULES_UI[k];
+        return field(label, sel(R[k] === undefined ? '' : String(R[k]), Object.keys(opts).map(v => [v, opts[v]]), x => { P.rules = Object.assign({}, P.rules || {});
+          if (x === '') delete P.rules[k]; else P.rules[k] = x === 'true' ? true : x === 'false' ? false : x; if (!Object.keys(P.rules).length) delete P.rules; }, { blank: 'As the game does today' }), help || null); })));
+    const CL = P.clients || [];
+    f.append(sec('Clients this pack brings', 'A contractor of its own, beside the game\'s five: it exists only while this pack is played.',
+      el('div', { cls: 'steps' }, CL.map((c, i) => el('div', { cls: 'st', on: { click: () => { S.sel = { t: 'client', i }; renderAll(); } } },
+        faceImg(c.person, 24, 'av'), el('span', { cls: 'grow' }, provName(c.id)), el('span', { cls: 'faint' }, c.id + ' · ' + S.pack.missions.filter(m => m.provider === c.id).length + ' missions')))),
+      el('div', { cls: 'bar' }, el('button', { cls: 'btn', on: { click: () => { P.clients = CL.slice(); let n = CL.length + 1, id; do id = 'client' + n++; while (provTable()[id]);
+        P.clients.push({ id, name: 'prov.' + id + '.name', desc: 'prov.' + id + '.desc', track: null, fields: [] });
+        setWords('prov.' + id + '.name', 'A new client'); setWords('prov.' + id + '.desc', 'Who they are, in a line.'); setWords('prov.' + id + '.short', 'Client');
+        S.sel = { t: 'client', i: P.clients.length - 1 }; changed(); } } }, '+ Client'))));
+    const ST = (P.start && P.start.sheds) || {}, kitsAll = typeof HANGAR_KITS !== 'undefined' ? Object.keys(HANGAR_KITS).filter(k => k !== 'park') : [];
+    const HANGARS = [['HOME', 'The main hangar (' + fieldName('HOME') + ')']].concat(Object.keys(CONTRACT_FIELDS).filter(id => /cabin/i.test(CONTRACT_FIELDS[id].name) && CONTRACT_FIELDS[id].surf !== 'water').map(id => [id, 'The cabin\'s shed (' + fieldName(id) + ')']));
+    f.append(sec('What a career starts without', 'Machines are never bought: a hangar starts without the workshops named here, and a project or a mission GIVES them later (see "It gives").',
+      ...HANGARS.map(([h, label]) => field(label, idChips((ST[h] || {}).without || [], kitsAll.map(k => [k, kitName(k)]), x => { P.start = { sheds: Object.assign({}, ST) };
+        if (x.length) P.start.sheds[h] = { without: x }; else delete P.start.sheds[h]; if (!Object.keys(P.start.sheds).length) delete P.start; }, 'starts without…')))));
+    f.append(sec('Projects', 'A project is a list of steps done in order. Each step has its missions; when they are flown (and its works are finished) the step is done, the world changes and the next step opens.',
+      el('div', { cls: 'steps' }, projects().map((q, i) => el('div', { cls: 'st', on: { click: () => { S.sel = { t: 'project', p: i }; renderAll(); } } },
+        el('span', { cls: 'n' }, '⚒'), el('span', { cls: 'grow' }, q.name || q.id), el('span', { cls: 'faint' }, q.steps.length + ' steps · ' + provName(q.client))))),
+      el('div', { cls: 'bar' }, el('button', { cls: 'btn', on: { click: () => addProject() } }, '+ Project'))));
     if (P.legacy) f.append(sec('Imported from the game', 'The game\'s authored contracts, read into missions.', el('div', {}, P.legacy.retrofitted.length + ' contracts imported'), el('div', { cls: 'dim' }, 'Left out: ' + (P.legacy.dropped.map(d => d.id + ' (' + d.why + ')').join(', ') || 'none'))));
     return;
   }
@@ -527,6 +598,9 @@ function renderForm() {
       el('div', { cls: 'bar' }, el('button', { cls: 'btn danger', on: { click: () => { P.sites.splice(s.i, 1); S.sel = { t: 'pack' }; changed(); } } }, 'Delete the site')));
     return;
   }
+  if (s.t === 'client') { clientForm(f, s.i); return; }
+  if (s.t === 'project') { projectForm(f, s.p); return; }
+  if (s.t === 'pstep') { pstepForm(f, s.p, s.s); return; }
   const m = mission(s.id);
   if (!m) return;
   if (isTut(m)) { tutorialForm(f, m); return; }
@@ -536,6 +610,72 @@ function renderForm() {
   f.append(adv(s.t === 'mission' ? m : s.t === 'leg' ? m.legs[s.l] : m.legs[s.l].steps[s.s], v => {
     if (s.t === 'mission') { for (const k of Object.keys(m)) delete m[k]; Object.assign(m, v); } else if (s.t === 'leg') m.legs[s.l] = v; else m.legs[s.l].steps[s.s] = v; }));
 }
+// ---- (STORY-REVAMP) A CLIENT THE PACK BRINGS ---------------------------------------------------------------------------
+function clientForm(f, i) {
+  const P = S.pack, c = P.clients[i];
+  if (!c) return;
+  const rename = x => { x = String(x || '').toLowerCase().replace(/[^a-z0-9]/g, ''); if (!x || x === c.id || provTable()[x]) return; const old = c.id;
+    for (const k of ['name', 'desc', 'short']) { const a = 'prov.' + old + '.' + k, b = 'prov.' + x + '.' + k; if (P.text[a]) { P.text[b] = P.text[a]; delete P.text[a]; } }
+    c.name = 'prov.' + x + '.name'; c.desc = 'prov.' + x + '.desc'; c.id = x;
+    for (const m of P.missions) { if (m.provider === old) m.provider = x; if (m.rep && m.rep.provider === old) m.rep.provider = x; }
+    for (const cp of P.campaigns) if (cp.provider === old) cp.provider = x; for (const q of projects()) if (q.client === old) q.client = x; };
+  f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }, { t: 'Client' }]), el('h2', { cls: 'title' }, provName(c.id)), el('p', { cls: 'sub' }, 'A contractor this pack brings: its tab on the map, its reputation, its missions.'));
+  f.append(sec('The client', null,
+    textField('Name', c.name, x => c.name = x), textField('Short name', 'prov.' + c.id + '.short', () => {}, { help: 'on the map\'s tab' }), textField('In a line', c.desc, x => c.desc = x, { area: true }),
+    field('Its face', peoplePick('clientFace', c.person, x => { if (x) c.person = x; else delete c.person; }, { single: true }), 'the portrait on its missions\' cards'),
+    field('Its airfields', idChips(c.fields || [], fieldOpts(), x => c.fields = x, 'add an airfield…'), 'the first is its home on the map'),
+    field('Its construction track', sel(c.track || '', Object.keys(CONTRACT_TRACKS), x => c.track = x || null, { blank: 'none' }), 'the world stages its projects build'),
+    field('Colour', (() => { const e = el('input', { type: 'color', cls: 'inp', style: { width: '64px', padding: '2px' } }); e.value = c.colour || '#888888'; e.addEventListener('change', () => { c.colour = e.value; changed(); }); return e; })(), 'its tab and its dots on the map'),
+    field('ID', inp(c.id, rename), 'a lowercase word; renaming moves its missions with it')),
+    el('div', { cls: 'bar' }, el('button', { cls: 'btn danger', on: { click: () => { const n = P.missions.filter(m => m.provider === c.id).length;
+      if (n) return status('this client still has ' + n + ' missions: give them another contractor first'); P.clients.splice(i, 1); if (!P.clients.length) delete P.clients; S.sel = { t: 'pack' }; changed(); } } }, 'Delete the client')));
+}
+// ---- (STORY-REVAMP) A PROJECT AND ITS STEPS -----------------------------------------------------------------------------
+function projectForm(f, pi) {
+  const q = projects()[pi];
+  if (!q) return;
+  f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }, { t: 'Project' }]), el('h2', { cls: 'title' }, q.name || q.id),
+    el('p', { cls: 'sub' }, 'Steps done in order. A step\'s missions are on the board only while the project stands at that step.'));
+  f.append(sec('The project', null,
+    field('Name', inp(q.name, x => q.name = x), 'shown on the arrival card when a step is done'),
+    field('Client', sel(q.client, providerOpts(), x => q.client = x), 'whose project it is'),
+    field('Opens after', idChips(q.requires.projects, projects().filter(x => x !== q).map(x => [x.id, x.name || x.id]), x => q.requires.projects = x, 'add a project…'), 'every one of these finished first; none = open from the start'),
+    field('ID', inp(q.id, x => { if (!x || projects().some(o => o.id === x)) return; const old = q.id; q.id = x;
+      for (const o of projects()) { o.requires.projects = o.requires.projects.map(y => y === old ? x : y); }
+      for (const m of S.pack.missions) if (m.needs && m.needs.projects) m.needs.projects = m.needs.projects.map(y => y === old ? x : y); }))));
+  f.append(sec('Its steps', 'In this order. Click a step to set its missions, its works and what it changes.',
+    el('div', { cls: 'steps' }, q.steps.map((st, si) => el('div', { cls: 'st', on: { click: () => { S.sel = { t: 'pstep', p: pi, s: si }; renderAll(); } } },
+      el('span', { cls: 'n' }, si + 1), el('span', { cls: 'grow' }, st.id + ' - ' + (st.missions.map(id => words((mission(id) || {}).title) || id).join(' · ') || 'no mission yet')),
+      el('span', { cls: 'faint' }, [st.works ? st.works.days + ' days of works' : '', st.track ? 'builds ' + st.track : '', (st.gives || []).length ? 'gives' : ''].filter(Boolean).join(' · '))))),
+    el('div', { cls: 'bar' }, el('button', { cls: 'btn', on: { click: () => { let n = q.steps.length + 1, id; do id = 'step' + n++; while (q.steps.some(x => x.id === id));
+      q.steps.push({ id, order: 'any', missions: [], works: null, site: null }); S.sel = { t: 'pstep', p: pi, s: q.steps.length - 1 }; changed(); } } }, '+ Step'))));
+  f.append(el('div', { cls: 'bar' }, moveBtns(projects(), pi, i => S.sel = { t: 'project', p: i }),
+    el('button', { cls: 'btn danger', on: { click: () => { if (!confirm('Delete the project ' + (q.name || q.id) + '? Its missions stay, not placed anywhere.')) return; projects().splice(pi, 1); S.sel = { t: 'pack' }; changed(); } } }, 'Delete the project')));
+}
+function pstepForm(f, pi, si) {
+  const q = projects()[pi], st = q && q.steps[si];
+  if (!st) return;
+  f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }, { t: q.name || q.id, sel: { t: 'project', p: pi } }, { t: 'Step ' + (si + 1) }]), el('h2', { cls: 'title' }, 'Step ' + (si + 1) + ' of ' + q.steps.length + ': ' + st.id),
+    el('p', { cls: 'sub' }, si ? 'On the board once step ' + si + ' is done.' : 'The first step: on the board as soon as the project opens.'));
+  f.append(sec('Its missions', 'All of them must be flown, in any order, for the step to move on.',
+    el('div', { cls: 'steps' }, st.missions.map((id, i) => { const m = mission(id);
+      return el('div', { cls: 'st', on: { click: () => { S.sel = { t: 'mission', id }; renderAll(); } } }, el('span', { cls: 'n' }, i + 1), el('span', { cls: 'grow' }, m ? words(m.title) || id : 'missing ' + id), el('span', { cls: 'faint' }, id),
+        el('button', { cls: 'btn sm ghost', title: 'take it out of this step (the mission stays in the pack)', on: { click: e => { e.stopPropagation(); st.missions = st.missions.filter(x => x !== id); changed(); } } }, '×')); })),
+    el('div', { cls: 'bar' }, el('button', { cls: 'btn', on: { click: () => { const id = addMission(null, q.client); st.missions.push(id); changed(); } } }, '+ New mission'),
+      sel('', looseOpts(), x => { if (x) st.missions.push(x); }, { blank: 'Add a mission not placed anywhere…', w: 'auto' }))));
+  f.append(sec('Then the works', 'After its missions, the building takes time on the career\'s calendar. The step is done when the works are.',
+    field('Days of works', el('div', { cls: 'inl' }, inp(st.works ? st.works.days : '', x => { st.works = x > 0 ? { days: +x, cost: st.works ? st.works.cost : 0 } : null; }, { type: 'number', small: true, ph: '0' }), el('span', { cls: 'lbl' }, 'days (empty = done at once)'))),
+    st.works ? field('The player pays', el('div', { cls: 'inl' }, inp(st.works.cost, x => { st.works.cost = +x || 0; }, { type: 'number' }), el('span', { cls: 'lbl' }, 'credits when the works start (0 = the client\'s money)'))) : null));
+  f.append(sec('What it changes', 'What the player sees and gets when this step is done.',
+    field('Where', sel(st.site ? st.site.id : '', fieldOpts(), x => { st.site = x ? { id: x, state: st.id } : null; }, { blank: 'nowhere in particular' }), 'the airfield this step is about'),
+    field('It builds', sel(st.track || '', trackOpts(), x => { if (x) st.track = x; else delete st.track; }, { blank: 'nothing in the world' }),
+      'a stage of the scenery: the sandbox shows the last stage, a career sees this one once the step is done. Stages of one track go up, step after step.'),
+    field('It gives', idChips(st.gives || [], giftOpts(), x => { if (x.length) st.gives = x; else delete st.gives; }, 'machines or a machine-shop segment…'),
+      'never bought: the machines stand in the hangars from then on'),
+    field('Step name (id)', inp(st.id, x => { if (x && !q.steps.some(o => o !== st && o.id === x)) { st.id = x; if (st.site) st.site.state = x; } }))));
+  f.append(el('div', { cls: 'bar' }, moveBtns(q.steps, si, i => S.sel = { t: 'pstep', p: pi, s: i }),
+    el('button', { cls: 'btn danger', on: { click: () => { q.steps.splice(si, 1); S.sel = { t: 'project', p: pi }; changed(); } } }, 'Delete the step')));
+}
 const containerIds = () => [].concat(...S.pack.campaigns.map(c => [[c.id, (words(c.title) || c.id) + ' (campaign)']].concat(c.chapters.map(h => [h.id, (words(h.title) || h.id) + ' (chapter)']))));
 function tutorialForm(f, m) {
   const t = missionTutorial().find(x => x.beat === m.tutorial) || {};
@@ -544,8 +684,8 @@ function tutorialForm(f, m) {
     el('p', {}, t.brief || ''), (t.tim || []).length ? el('ul', {}, (t.tim || []).map(x => el('li', {}, 'Tim: ' + x))) : null));
 }
 function missionForm(f, m) {
-  const ch = campOf(m.id);
-  f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }].concat(ch ? [{ t: words(ch.c.title) || ch.c.id, sel: { t: 'campaign', c: S.pack.campaigns.indexOf(ch.c) } }, { t: words(ch.h.title) || ch.h.id, sel: { t: 'chapter', c: S.pack.campaigns.indexOf(ch.c), h: ch.c.chapters.indexOf(ch.h) } }] : []).concat([{ t: 'Mission' }])),
+  const ch = campOf(m.id), ps = stepOf(m.id);
+  f.append(crumbs([{ t: 'Pack', sel: { t: 'pack' } }].concat(ps ? [{ t: ps.q.name || ps.q.id, sel: { t: 'project', p: projects().indexOf(ps.q) } }, { t: 'Step ' + (ps.q.steps.indexOf(ps.st) + 1), sel: { t: 'pstep', p: projects().indexOf(ps.q), s: ps.q.steps.indexOf(ps.st) } }] : []).concat(ch ? [{ t: words(ch.c.title) || ch.c.id, sel: { t: 'campaign', c: S.pack.campaigns.indexOf(ch.c) } }, { t: words(ch.h.title) || ch.h.id, sel: { t: 'chapter', c: S.pack.campaigns.indexOf(ch.c), h: ch.c.chapters.indexOf(ch.h) } }] : []).concat([{ t: 'Mission' }])),
     el('h2', { cls: 'title' }, words(m.title) || m.id), el('p', { cls: 'sub' }, (KIND_LABEL[m.kind] || m.kind) + ' for ' + (m.client ? personName(m.client) : 'nobody yet') + ' · ' + m.legs.length + ' leg' + (m.legs.length === 1 ? '' : 's')));
   const idIn = inp(m.id, x => { const old = m.id; if (!x || mission(x)) return; m.id = x; for (const c of S.pack.campaigns) for (const h of c.chapters) h.missions = h.missions.map(y => y === old ? x : y);
     for (const o of S.pack.missions) if (o.needs && o.needs.after) o.needs.after = o.needs.after.map(y => y === old ? x : y); S.sel = { t: 'mission', id: x }; });
@@ -563,6 +703,11 @@ function missionForm(f, m) {
   f.append(sec('When it is offered', null,
     field('After these missions', idChips(((m.needs || {}).after || []), S.pack.missions.filter(x => x !== m).map(x => [x.id, (words(x.title) || x.id)]), a => m.needs = Object.assign({}, m.needs || {}, { after: a }), 'add a mission…')),
     field('Reputation needed', inp((m.needs || {}).rep, x => { m.needs = Object.assign({}, m.needs || {}, { rep: +x || 0 }); }, { type: 'number', small: true })),
+    field('After these projects', idChips(((m.needs || {}).projects || []), projects().map(x => [x.id, x.name || x.id]), a => { m.needs = Object.assign({}, m.needs || {}); if (a.length) m.needs.projects = a; else delete m.needs.projects; }, 'add a project…'), 'on the board only once they are finished'),
+    ps ? field('In a project', el('span', { cls: 'dim' }, 'Step ' + (ps.q.steps.indexOf(ps.st) + 1) + ' of "' + (ps.q.name || ps.q.id) + '": offered while the project stands at that step, flown once.')) :
+    field('Comes back', el('div', { cls: 'inl' }, seg(m.repeat && m.repeat.every ? 'yes' : 'no', [['no', 'Flown once'], ['yes', 'Comes back']], x => { if (x === 'yes') m.repeat = { every: (m.repeat && m.repeat.every) || 2 }; else delete m.repeat; }),
+      m.repeat && m.repeat.every ? el('span', { cls: 'inl' }, el('span', { cls: 'lbl' }, 'after'), inp(m.repeat.every, x => { m.repeat = { every: Math.max(1, x | 0) }; }, { type: 'number', small: true }), el('span', { cls: 'lbl' }, 'other missions flown')) : null),
+      'the regular work of the board: with no drawn jobs, this is what a player can always do again'),
     field('Its legs are flown', orderCtl(m.order || 'seq', x => m.order = x === 'seq' ? undefined : x, 'legs'))));
   const R = m.rules || {};
   const B = (typeof GEN_OCC !== 'undefined' && GEN_OCC.bands) || [];
@@ -588,7 +733,9 @@ function missionForm(f, m) {
       field('On delivery', seg(m.delivery && !m.delivery.sold ? 'kept' : 'sold', [['sold', 'Sold to the client (blueprint saved)'], ['kept', 'Kept in the fleet']], x => m.delivery = x === 'kept' ? { sold: false, blueprint: true } : undefined)),
       field('Size (their shed)', sizeEditor(m)), field('Preferences', prefsEditor(m)), field('A happy client orders again', followUpEditor(m), 'one requirement changed next time')));
   }
-  f.append(sec('The completion line', 'Said when the mission is done.', ...say('Said by', (m.onDone || {}).say, v => { m.onDone = Object.assign({}, m.onDone || {}); if (v) m.onDone.say = v; else delete m.onDone.say; if (!Object.keys(m.onDone).length) delete m.onDone; })));
+  f.append(sec('The completion line', 'Said when the mission is done.', ...say('Said by', (m.onDone || {}).say, v => { m.onDone = Object.assign({}, m.onDone || {}); if (v) m.onDone.say = v; else delete m.onDone.say; if (!Object.keys(m.onDone).length) delete m.onDone; }),
+    field('It gives', idChips(((m.onDone || {}).gives || []), giftOpts(), x => { m.onDone = Object.assign({}, m.onDone || {}); if (x.length) m.onDone.gives = x; else delete m.onDone.gives; if (!Object.keys(m.onDone).length) delete m.onDone; }, 'machines or a machine-shop segment…'),
+      'never bought: given when this mission is done')));
   f.append(sec('Rally course', 'A hidden route: the checkpoints and their split times are worked out from it.',
     field('Route', el('span', {}, m.route ? m.route.name + ' · ' + m.route.pts.length + ' points' : el('span', { cls: 'faint' }, 'none'))),
     field('Reference speed', el('div', { cls: 'inl' }, inp((m.rally || {}).refKmh, x => m.rally = Object.assign({}, m.rally || {}, { refKmh: +x }), { type: 'number', ph: '150' }), el('span', { cls: 'lbl' }, 'km/h'))),
@@ -919,6 +1066,12 @@ function renderAll() { renderVal(); renderTree(); renderForm(); renderCard(); dr
 $('bSave').onclick = () => { const txt = JSON.stringify(S.pack, null, 1) + '\n'; const a = el('a', { href: URL.createObjectURL(new Blob([txt], { type: 'application/json' })), download: S.file || 'pack.json' }); document.body.append(a); a.click(); a.remove(); status('saved'); };
 $('bOpen').onclick = () => $('fOpen').click();
 $('fOpen').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(t => { try { setPack(JSON.parse(t), f.name); } catch (er) { status('not a pack: ' + er.message); } }); };
+$('bStory').onclick = () => fetch('../src/missions/story.json').then(r => r.json()).then(p => setPack(p, 'story.json'), e => status('could not fetch the story pack (serve flyDiy/ over http): ' + e.message));
+// TRY IT: the game on its TEST career (?career=1, never a player's own) with this draft as its pack (app.js CAREER_PACK ?pack=draft)
+$('bTry').onclick = () => { if (WHY.length && !confirm('The pack has ' + WHY.length + ' problem(s) (see Checks): the game will refuse it and play its own missions. Open anyway?')) return;
+  store.set(JSON.stringify({ file: S.file, pack: S.pack }));
+  if (store.get() == null) return status('the browser keeps no draft here (a private window?): the game cannot read the pack');
+  window.open('../index.html?career=1&pack=draft', '_blank'); status('opened the game on the test career with this pack'); };
 $('bBuiltin').onclick = () => fetch('../src/missions/builtin.json').then(r => r.json()).then(p => setPack(p, 'builtin.json'), e => status('could not fetch the built-in pack (serve flyDiy/ over http): ' + e.message));
 $('bNew').onclick = () => { if (confirm('Start an empty pack? (the current one stays only if saved)')) setPack(emptyPack(), 'pack.json'); };
 $('bRetro').onclick = () => { if (confirm('Rebuild the built-in pack from today\'s 72_contract_data.js? (the retrofit)')) setPack(missionPackFromContracts(), 'builtin.json'); };
