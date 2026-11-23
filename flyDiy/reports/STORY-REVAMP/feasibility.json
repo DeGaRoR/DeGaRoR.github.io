@@ -11,7 +11,7 @@
   "infeasible": 7,
   "stale": 5
  },
- "flownS": 65704,
+ "flownS": 68509,
  "rows": [
   {
    "id": "field.01",
@@ -586,7 +586,41 @@
    "id": "minedock.b1",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 2805,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "SEA",
+     "t": 405,
+     "how": "stopped",
+     "at": "SEA",
+     "stop": [
+      "pending"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "SEA",
+     "to": "SEA",
+     "t": 2400,
+     "how": "timeout",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "timeout"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "validated",
    "cls": "order"
   },
   {
