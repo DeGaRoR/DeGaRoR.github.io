@@ -3741,7 +3741,7 @@ const WHEELTEX = (() => {
     const m = (typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', kind === 'tyre'
       ? { color: 0xffffff, map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0 }
       : { color: new THREE.Color('#' + (a || 'c8ccd0')), map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0.35 },
-      kind === 'tyre' ? 'aircraft / landing gear / tyre texture' : 'aircraft / landing gear / rim texture');   // (PERF-TRACE: the owner, MATLIB's 4th argument)
+      'aircraft / landing gear / tyre and rim texture');   // (PERF-TRACE: the owner, MATLIB's 4th argument)
     m.normalScale.set(kind === 'tyre' ? 1.4 : 0.6, kind === 'tyre' ? 1.4 : 0.6);
     m.userData.tyreTex = key; m.userData.aeroskin = 1;
     pool.set(key, m); return m;

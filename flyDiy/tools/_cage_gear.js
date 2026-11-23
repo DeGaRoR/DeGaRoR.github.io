@@ -2612,7 +2612,7 @@ function rearDoorHardware(group, P, mesh) {
 const CAR_LENS = {};
 function carLensMat(col, em) {
   const k = col + '|' + em; if (CAR_LENS[k]) return CAR_LENS[k];
-  const m = new THREE.MeshStandardMaterial({ color: col, emissive: em, emissiveIntensity: 1, roughness: 0.22, metalness: 0.05 });
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'car / tail lamps / lens' }, color: col, emissive: em, emissiveIntensity: 1, roughness: 0.22, metalness: 0.05 });
   m.userData.aeroskin = 1;                                   // a lens is never the grey understudy
   return (CAR_LENS[k] = m);
 }
@@ -2848,8 +2848,8 @@ const CARTEX = (() => {
     if (!draw) return null;
     const map = new THREE.CanvasTexture(draw(q, false)), bump = new THREE.CanvasTexture(draw(q, true));
     if (THREE.SRGBColorSpace) map.colorSpace = THREE.SRGBColorSpace;
-    const m = q.k === 'plate' ? new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.5, metalness: 0.35, roughness: 0.42 })
-                              : new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.2, metalness: 0.2, roughness: 0.45 });
+    const m = q.k === 'plate' ? new THREE.MeshStandardMaterial({ userData: { progOwner: 'car / tow kit / number plate' }, map, bumpMap: bump, bumpScale: 1.5, metalness: 0.35, roughness: 0.42 })
+                              : new THREE.MeshStandardMaterial({ userData: { progOwner: 'car / tow kit / sign board' }, map, bumpMap: bump, bumpScale: 1.2, metalness: 0.2, roughness: 0.45 });
     m.userData.propMat = q.k === 'plate' ? 'carPlate' : 'carTowSign';   // (its own bucket in the join)
     m.userData.carTex = key;                                            // (the game's rebuild key)
     m.userData.aeroskin = 1;                                            // (the garage's understudy greys every lit material not so marked)
@@ -2890,7 +2890,7 @@ function plateBuild(group, P, AF, mesh) {
   // the plate lamp: a chrome hood over the plate's top edge, its lens down
   const hood = add(new THREE.CylinderGeometry(0.035, 0.035, 0.09, 16, 1, false, 0, Math.PI), chrome, 0, H / 2 + 0.022, 0.03);
   hood.rotation.z = Math.PI / 2; hood.rotation.y = Math.PI / 2;
-  const lensM = new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0x332a18, roughness: 0.3 }); lensM.userData.aeroskin = 1;
+  const lensM = new THREE.MeshStandardMaterial({ userData: { progOwner: 'car / tow kit / plate lamp lens' }, color: 0xfff6e0, emissive: 0x332a18, roughness: 0.3 }); lensM.userData.aeroskin = 1;
   add(new THREE.BoxGeometry(0.07, 0.006, 0.03), lensM, 0, H / 2 + 0.006, 0.03);
   group.add(root);
 }
@@ -2910,7 +2910,7 @@ function towKitBuild(group, P, AF, mesh) {
   const ws = []; for (const f of mesh.F) if (f && f.m === 'windshield' && f.v) for (const i of f.v) ws.push(Vf(f, i));
   const root = new THREE.Group(); root.name = 'edTowKit';
   const dark = GG.gearMat('dark'), chrome = GG.gearMat('chrome');
-  const rubber = new THREE.MeshStandardMaterial({ color: 0x141517, metalness: 0.1, roughness: 0.8 }); rubber.userData.aeroskin = 1;
+  const rubber = new THREE.MeshStandardMaterial({ userData: { progOwner: 'car / beacons / rubber base' }, color: 0x141517, metalness: 0.1, roughness: 0.8 }); rubber.userData.aeroskin = 1;
   const mk = (geo, mat, par) => { const m = new THREE.Mesh(geo, mat); m.name = 'edTowKit'; (par || root).add(m); return m; };
   let G = null;
   if (ws.length >= 3) {
@@ -2961,7 +2961,7 @@ function towKitBuild(group, P, AF, mesh) {
     const yTop = Math.max(...ring.map(p => p[1])), half = Math.max(...ring.map(p => p[0]));
     const xb = Math.min(half - 0.18, Math.max(0.3, half * 0.62));
     const yAt = x => { let y = -Infinity; for (let i = 1; i < ring.length; i++) { const a = ring[i - 1], b = ring[i]; if ((a[0] - x) * (b[0] - x) <= 0 && a[0] !== b[0]) y = Math.max(y, a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])); } return isFinite(y) ? y : yTop; };
-    const lens = new THREE.MeshStandardMaterial({ color: 0xffa21a, emissive: 0xff7a00, emissiveIntensity: 0.55, metalness: 0, roughness: 0.18, transparent: true, opacity: 0.88 });
+    const lens = new THREE.MeshStandardMaterial({ userData: { progOwner: 'car / beacons / amber lens' }, color: 0xffa21a, emissive: 0xff7a00, emissiveIntensity: 0.55, metalness: 0, roughness: 0.18, transparent: true, opacity: 0.88 });
     lens.userData.aeroskin = 1;
     for (const sx of [-1, 1]) { const b = new THREE.Group(); b.name = 'edTowKit'; b.position.set(sx * xb, yAt(xb) - 0.004, zz); root.add(b);
       mk(new THREE.CylinderGeometry(0.075, 0.082, 0.035, 24), dark, b).position.y = 0.0175;          // the base
@@ -3011,8 +3011,8 @@ function fenderBuild(group, P, AF, units) {
   // its paint, finish, wear and markings - the twin booms' recipe; a bench without the livery UI gets a plain paint
   let paint = null;
   try { if (window.CAGE_SECMAT) paint = window.CAGE_SECMAT('fenderSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
-  if (!paint) paint = new THREE.MeshStandardMaterial({ color: 0xd9d4c6, metalness: 0.3, roughness: 0.35, side: THREE.DoubleSide });
-  const tread = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, metalness: 0.2, roughness: 0.75, side: THREE.DoubleSide });
+  if (!paint) paint = new THREE.MeshStandardMaterial({ userData: { progOwner: 'car / fenders / bench paint' }, color: 0xd9d4c6, metalness: 0.3, roughness: 0.35, side: THREE.DoubleSide });
+  const tread = new THREE.MeshStandardMaterial({ userData: { progOwner: 'car / fenders / step tread' }, color: 0x1c1d1f, metalness: 0.2, roughness: 0.75, side: THREE.DoubleSide });
   const dark = GG.gearMat('dark');
   const root = new THREE.Group(); root.name = 'edFenders';
   const zs = units.map(u => u.axle[2]), zF = Math.max(...zs), zR = Math.min(...zs);
