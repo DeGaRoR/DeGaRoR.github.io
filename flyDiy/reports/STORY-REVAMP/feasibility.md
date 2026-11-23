@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 41 feasible; 7 infeasible; 2 no official plane can fly it (the player builds one); 28 not flown; 5 stale. Time flown: 1148 min 57 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 42 feasible; 7 infeasible; 2 no official plane can fly it (the player builds one); 27 not flown; 5 stale. Time flown: 1183 min 57 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -21,7 +21,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 41 feasible; 7 infeas
 | hangar.05 | hangar:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 18 min 55 s | HOME > w3 472; w3 > HOME 664 |  |
 | heritage.01 | heritage:1 | feasible | STOL Cub | 15 min 31 s | HOME > nv_strip 931 |  |
 | heritage.02 | heritage:2 | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 300 kg aboard, the cabin takes 90 kg; jodel: Jodel: 300 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 300 kg aboard, the cabin takes 280 kg; c172f: Cessna  |
-| minedock.n1 | contract | not flown | - | - | - |  |
+| minedock.n1 | contract | feasible | STOL Cub | 35 min 00 s | HOME > mn_strip 969; mn_strip > HOME 1131 |  |
 | minedock.b1 | contract | order | Cessna 172 floats (career) | 46 min 45 s | SEA > SEA 405; SEA > SEA 2400 |  |
 | minedock.b2 | contract | order | Piper Cub | 21 min 45 s | HOME > mn_strip 966; mn_strip > mn_strip 339 |  |
 | minedock.01 | mine:1 | feasible | Piper Cub | 39 min 24 s | HOME > HOME 1745; HOME > HOME 619 |  |

@@ -921,6 +921,12 @@
      "who": "pete",
      "text": "ct.minedock.n1.done"
     }
+   },
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 2100,
+    "sig": "271d9c89"
    }
   },
   {
