@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 30,
+  "feasible": 31,
   "not flown": 36,
-  "stale": 10,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
+  "stale": 9,
   "infeasible": 5
  },
- "flownS": 47434,
+ "flownS": 48692,
  "rows": [
   {
    "id": "field.01",
@@ -186,8 +186,44 @@
    "id": "field.ridge",
    "where": "contract",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 1258,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 564,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 694,
+     "how": "stopped",
+     "at": "w4",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "field.cannery",
