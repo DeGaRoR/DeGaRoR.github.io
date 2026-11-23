@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 10 feasible; 1 no official plane can fly it (the player builds one); 54 not flown; 18 stale. Time flown: 157 min 55 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 11 feasible; 1 no official plane can fly it (the player builds one); 53 not flown; 18 stale. Time flown: 178 min 48 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -17,7 +17,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 10 feasible; 1 no off
 | hangar.01 | hangar:1 | feasible | Piper Cub | 16 min 43 s | HOME > w3 560; w3 > HOME 443 |  |
 | hangar.02 | hangar:1 | feasible | Piper Cub | 19 min 52 s | HOME > w5 555; w5 > HOME 637 |  |
 | hangar.03 | hangar:2 | feasible | Piper Cub | 18 min 13 s | HOME > w3 573; w3 > HOME 520 |  |
-| hangar.04 | hangar:2 | not flown | - | - | - |  |
+| hangar.04 | hangar:2 | feasible | STOL Cub | 20 min 53 s | HOME > w5 554; w5 > HOME 699 |  |
 | hangar.05 | hangar:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 18 min 55 s | HOME > w3 472; w3 > HOME 664 |  |
 | heritage.01 | heritage:1 | feasible | STOL Cub | 15 min 31 s | HOME > nv_strip 931 |  |
 | heritage.02 | heritage:2 | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 300 kg aboard, the cabin takes 90 kg; jodel: Jodel: 300 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 300 kg aboard, the cabin takes 280 kg; c172f: Cessna  |
