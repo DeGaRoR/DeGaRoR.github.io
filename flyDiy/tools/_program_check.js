@@ -225,8 +225,13 @@ function warmThenFrame(useOld) {
     const at = app.indexOf('  function probeCompileDress(fn) {'), end = app.indexOf('  // G584: THE GENERATORS ARE KEPT.', at);
     const craft = { visible: true }, edSit = { visible: true }, refSit = { visible: false }, bpSit = { visible: true };
     const hangar = { shafts: { visible: true } }, camera = { layers: { mask: 1073741825 } };
-    const state = { craft, edSit, refSit, bpSit, hangar, camera, craftInProbe: false };
-    const dress = at >= 0 && end > at ? vm.runInNewContext('(' + app.slice(at, end) + ')', state) : null;
+    const state = { craft, edSit, refSit, bpSit, hangar, camera, craftInProbe: false, hangarScene: null };
+    // (PERF-TRACE 22 Nov: perf-codex's dress calls probeLightPadding - the light-count padding, off unless ?probepad=1 -
+    //  and this context had no such function: the gate threw before its verdict. The REAL helper is run with it, from
+    //  the same source: with the padding off it must change nothing, which is what the fields below hold it to)
+    const padAt = app.indexOf('  const probePadPool = '), pad = padAt >= 0 && padAt < at ? app.slice(padAt, at) : '';
+    ok(/function probeLightPadding\(subjects\)/.test(pad), '4 probeLightPadding is found beside probeCompileDress (the dress calls it)');
+    const dress = at >= 0 && end > at ? vm.runInNewContext(pad + ';(' + app.slice(at, end) + ')', state) : null;
     let exact = false, threw = false;
     if (dress) try { dress(() => { exact = camera.layers.mask === 1 && !hangar.shafts.visible && !craft.visible && !edSit.visible && !refSit.visible && !bpSit.visible; throw new Error('test restoration'); }); } catch (e) { threw = e.message === 'test restoration'; }
     const restored = craft.visible && edSit.visible && !refSit.visible && bpSit.visible && hangar.shafts.visible && camera.layers.mask === 1073741825;

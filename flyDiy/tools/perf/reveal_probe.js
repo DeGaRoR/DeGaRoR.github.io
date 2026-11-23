@@ -12,7 +12,7 @@ const fs = require('fs'), path = require('path'), inspector = require('inspector
 const ROOT = path.join(__dirname, '..', '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json' };
 const BUILD = opt('build', 'metal'), AFTER = +opt('after', 90), TOP = +opt('top', 6), JSON_OUT = opt('json', null);
 const sess = new inspector.Session(); sess.connect();
 const post = (m, p) => new Promise((res, rej) => sess.post(m, p || {}, (e, r) => (e ? rej(e) : res(r))));

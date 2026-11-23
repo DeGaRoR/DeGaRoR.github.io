@@ -20,7 +20,7 @@
 //    0.45 x 2.4 m on the C172 and the PC-6), at the same main's load, at 15 m/s: its sliding (GROUND_SKI_MU: cold powder's 0.12
 //    is most of it) and its plough (groundSinkPlate) resist less than half the tyre's compaction + bulldozing, and less than
 //    80 % of the build's STATIC thrust's share for that main - it gets going. (The tyre's side is B's, flown: held.)
-// D. FLOWN ON SKIS (when SKIS' PC-6 on skis is in the tree: tools/fixtures/skis/pc6_skis.json, a build with def.refs.skis or
+// D. FLOWN ON SKIS (when SKIS' PC-6 on skis is in the tree: tools/fixtures/test_copies/pc6_skis.json, a build with def.refs.skis or
 //    def.parts.ski): the no-pilot run on powder gets off. Without the fixture the row says PENDING and asserts nothing.
 'use strict';
 const fs = require('fs'), path = require('path'), cp = require('child_process');
@@ -115,7 +115,7 @@ Promise.all(Object.keys(PLANES).map(k => new Promise(res => {
   for (const k in PLANES) { const r = by[k];
     console.log('  ' + PLANES[k].name.padEnd(24) + [9, 10].map(c => { const L = r.law[c]; return (c === 9 ? 'powder ' : 'wet ') + 'tyre ' + Math.round(L.tyre) + ' (' + (L.tz * 100).toFixed(0) + ' cm) / ski ' + Math.round(L.ski) + ' (' + (L.sz * 100).toFixed(0) + ' cm)'; }).join('   ') + '   thrust ' + Math.round(r.thrustShare)); }
   const pc = by.pc6;
-  console.log('  FLOWN ON SKIS (the PC-6, SKIS\' fixture): ' + (pc.sSki ? st(pc.sSki) + (pc.sSki.ski ? '' : ' (the fixture built WITHOUT skis)') : pc.skiErr ? 'ERROR ' + pc.skiErr : 'PENDING - tools/fixtures/skis/pc6_skis.json lands with SKIS'));
+  console.log('  FLOWN ON SKIS (the PC-6, SKIS\' fixture): ' + (pc.sSki ? st(pc.sSki) + (pc.sSki.ski ? '' : ' (the fixture built WITHOUT skis)') : pc.skiErr ? 'ERROR ' + pc.skiErr : 'PENDING - tools/fixtures/test_copies/pc6_skis.json lands with SKIS'));
   // A
   for (const k in PLANES) { const r = by[k], nm = PLANES[k].name;
     yes(r.grass.outcome === 'completed', 'A ' + nm + ' flies off grass', r.grass.outcome);

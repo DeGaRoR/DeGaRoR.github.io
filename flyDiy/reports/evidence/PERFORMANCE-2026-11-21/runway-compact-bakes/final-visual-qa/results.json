@@ -1,0 +1,69 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "file": "loading-measurement-history-preview.html",
+      "width": 1024,
+      "initial": {
+        "width": 992,
+        "scrollWidth": 992,
+        "options": 11,
+        "errors": [],
+        "invalid": false,
+        "hiddenLeak": false
+      },
+      "changed": {
+        "value": "manual",
+        "errors": []
+      }
+    },
+    {
+      "file": "loading-measurement-history-preview.html",
+      "width": 320,
+      "initial": {
+        "width": 288,
+        "scrollWidth": 288,
+        "options": 11,
+        "errors": [],
+        "invalid": false,
+        "hiddenLeak": false
+      },
+      "changed": {
+        "value": "manual",
+        "errors": []
+      }
+    },
+    {
+      "file": "garage-waterfall-current-preview.html",
+      "width": 1024,
+      "initial": {
+        "width": 977,
+        "scrollWidth": 978,
+        "options": 14,
+        "errors": [],
+        "invalid": false,
+        "hiddenLeak": false
+      },
+      "changed": {
+        "value": "compact-candidate",
+        "errors": []
+      }
+    },
+    {
+      "file": "garage-waterfall-current-preview.html",
+      "width": 320,
+      "initial": {
+        "width": 273,
+        "scrollWidth": 274,
+        "options": 14,
+        "errors": [],
+        "invalid": false,
+        "hiddenLeak": false
+      },
+      "changed": {
+        "value": "compact-candidate",
+        "errors": []
+      }
+    }
+  ]
+}

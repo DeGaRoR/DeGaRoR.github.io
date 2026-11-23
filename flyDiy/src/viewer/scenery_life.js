@@ -1080,6 +1080,8 @@ function make(THREE, host) {
   function set(c) {
     const was = JSON.stringify(cfg);
     cfg = Object.assign({}, DEF, c || {});
+    // Cost diagnostic: both parked scenery cars and procedural road traffic.
+    if (typeof location !== 'undefined' && /[?&]cars=0(?:&|$)/.test(location.search)) { cfg.cars = 0; cfg.traffic = 0; }
     stats.on = !!cfg.on;
     root.visible = !!cfg.on;
     if (JSON.stringify(cfg) === was) return;

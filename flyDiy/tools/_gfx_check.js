@@ -678,7 +678,9 @@ const modes = async () => {
   // the same G528 test) and the two records that only report the browser (flight_recorder.js, diag.js). A new one fails here
   // G2203 (game integration over train 38): gfx_settings.js 2 = the G528 rig test + HW-COVERAGE's localhost skip of the runtime
   // step-down (G1995, train 38: offWhy's host test, landed after WELCOME-MODES' base)
-  const KNOWN = { 'src/viewer/app.js': 1, 'src/viewer/update_now.js': 1, 'src/viewer/gfx_settings.js': 2, 'src/viewer/flight_recorder.js': 1, 'src/viewer/diag.js': 2 };
+  // PERF-BENCH (17 Nov, L40h): perf_bench.js 1 = the benchmark's device RECORD (navigator.userAgent in its trace, like the flight
+  // recorder's) - it reports the machine, it never branches on it; not a widening for anything else
+  const KNOWN = { 'src/viewer/app.js': 1, 'src/viewer/update_now.js': 1, 'src/viewer/gfx_settings.js': 2, 'src/viewer/flight_recorder.js': 1, 'src/viewer/diag.js': 2, 'src/viewer/perf_bench.js': 1 };
   const DEV = /navigator\.userAgent|userAgentData|location\.hostname|location\.host\b|pointer:\s*coarse|innerWidth\s*</g;
   const extra = [];
   for (const f of files) { const r = path.relative(path.join(__dirname, '..'), f).split(path.sep).join('/'); if (r === 'src/viewer/welcome.js' || r === 'tools/build.js') continue;

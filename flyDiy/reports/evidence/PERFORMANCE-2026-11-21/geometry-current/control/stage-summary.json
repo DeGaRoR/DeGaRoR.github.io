@@ -1,0 +1,41 @@
+{
+  "build": "fdee1a3aa420",
+  "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8",
+  "clock": {
+    "mode": 30,
+    "cap": 30,
+    "legacy": false,
+    "steps": 1,
+    "dt": 0.016666666666666666,
+    "stats": {
+      "down": 0,
+      "up": 0,
+      "trialsFailed": 0,
+      "guarded": 0,
+      "cut": 0,
+      "stalls": 0
+    },
+    "holdUpS": 0,
+    "dilation": 1,
+    "stepMs": 0,
+    "otherMs": 0,
+    "droppedS": 0,
+    "workMs": 0,
+    "rateFps": 0,
+    "trials": 0,
+    "simw": false
+  },
+  "terrainMemo": {
+    "hits": 8649259,
+    "misses": 22112290,
+    "wearReads": 597674,
+    "cachedWearHits": 0,
+    "legacy": false,
+    "wearBase": false,
+    "slots": 16384
+  },
+  "stageOnly": true,
+  "scope": "Sampled CPU profile with scope wrappers; inclusive stacks overlap and diagnostic timings are not delivered load measurements.",
+  "profileTotalSeconds": 70.51,
+  "selectedGeometrySeconds": 43.4
+}

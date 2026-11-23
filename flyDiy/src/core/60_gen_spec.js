@@ -6037,6 +6037,9 @@ function clampSpec(spec) {
   // had) and its jury strut ('wing' | 'cabin'; absent = none). Anything else, null included (the join STATES a row back
   // at its default as null, so the garage's merge can take it off), is deleted: absent is the old bytes
   if (S.bracing.section !== 'tube') delete S.bracing.section;
+  // STRUT-FOOT (16 Nov, the 172): the lift strut's foot at its own station, metres aft of the firewall (absent: its ring)
+  if (S.bracing.strutFoot != null && Number.isFinite(+S.bracing.strutFoot) && +S.bracing.strutFoot > 0)
+    S.bracing.strutFoot = genClamp(+S.bracing.strutFoot, 0.05, 8); else delete S.bracing.strutFoot;
   if (S.bracing.jury !== 'wing' && S.bracing.jury !== 'cabin') delete S.bracing.jury;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;

@@ -39,7 +39,7 @@ const CONTRACT_FIELDS = {
   mk_sea:   { id: 'mk_sea',   name: GAME_NAMES.fields.mk_sea,          x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
   mn_strip: { id: 'mn_strip', name: GAME_NAMES.fields.mn_strip,        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
   nv_strip: { id: 'nv_strip', name: GAME_NAMES.fields.nv_strip,        x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
-  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 282,   z: -7751,  len: 280,  surf: 'grass', alti: true, lit: true },
+  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
   // (G3014, the user 12 Oct: 'add them' - their rev 26 strips 10 and 11, contracts may land there)
   w5:       { id: 'w5',       name: GAME_NAMES.fields.w5,        x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: GAME_NAMES.fields.w6,        x: -4172, z: -22110, len: 312,  surf: 'dirt', lit: true },
@@ -53,8 +53,6 @@ const CONTRACT_FIELDS = {
   // (OBSERVATORY-SITE 13 Nov: the observatory's altiport on Mount Ardent, 210 m landed uphill to 1 039 m - in no provider's
   //  fields yet: the Game coordinator joins it to the jobs; OBSERVATORY-2 15 Nov: SNOW-MUD's powder - surf 'snow', skis)
   mt_strip: { id: 'mt_strip', name: GAME_NAMES.fields.mt_strip,      x: 9317,  z: -5962,  len: 210,  surf: 'snow', alti: true, lit: true },
-  // (AFB-0220, 13 Nov: 02/20 divided - the bumpy firm-mud lane east of the old concrete band; contracts may land there - STOL work)
-  xw_rough: { id: 'xw_rough', name: GAME_NAMES.fields.xw_rough,  x: 634,   z: -167,   len: 1000, surf: 'mud', lit: true },   // (firm mud, the user 13 Nov)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -72,7 +70,7 @@ const CONTRACT_FIELDS = {
 //   tankL      the vessel's litres (energyL); power the energy kind (fuel | electric)
 // What a design CAN DO is judged from these alone (contractCanDo, 73_): the load against the cabin, the loaded
 // take-off distance against both strips, the gear against both surfaces, the range against the leg.
-// SNAPSHOTS-OF a85b2a27a8b67736 (tools/snapshots.js: CONTRACT_DESIGNS, FREIGHT_CARDS and PROCURE eff measured off these build files)
+// SNAPSHOTS-OF c94df0ffe8e2b71b (tools/snapshots.js: CONTRACT_DESIGNS, FREIGHT_CARDS and PROCURE eff measured off these build files)
 const CONTRACT_DESIGNS = {
   cub:    { id: 'cub',    label: 'Cub',             build: 'builds/cub_2026-09-20_corrected.json',
             gear: 'wheels', seats: 2, bagKg: 10, massKg: 476, emptyKg: 354, toM: 156,
@@ -80,9 +78,9 @@ const CONTRACT_DESIGNS = {
   jodel:  { id: 'jodel',  label: 'Jodel',           build: 'builds/jodel_2026-09-20_corrected.json',
             gear: 'wheels', seats: 2, bagKg: 10, massKg: 464, emptyKg: 341, toM: 206,
             cruiseKmh: 127, rangeKm: 421, spanM: 8.3, cost: 45895, tankL: 47.7, power: 'fuel' },
-  c172:   { id: 'c172',   label: 'metal Cessna',    build: 'bugReports/cessnaMetal (1).json',
-            gear: 'wheels', seats: 4, bagKg: 40, massKg: 881, emptyKg: 663, toM: 144,
-            cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 137583, tankL: 26.5, power: 'fuel' },
+  c172:   { id: 'c172',   label: 'Cessna 172',      build: 'builds/cessna172r_2026-11-08.json',
+            gear: 'wheels', seats: 4, bagKg: 40, massKg: 1006, emptyKg: 653, toM: 357,
+            cruiseKmh: 186, rangeKm: 1194, spanM: 11, cost: 120195, tankL: 224.7, power: 'fuel' },
   c172f:  { id: 'c172f',  label: 'Cessna floats',   build: 'bugReports/cessnaFloatsWOrks.json',
             gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 800, toM: 243,
             cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 202874, tankL: 26.5, power: 'fuel' },

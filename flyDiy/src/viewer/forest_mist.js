@@ -28,13 +28,34 @@ var FMIST = (function () {
   'use strict';
   let flag = '';
   try { flag = new URLSearchParams(location.search).get('fmist') || ''; } catch (e) {}
+  const automatic = !flag;
+  const methodForClouds = mode => mode === 'off' ? 'c' : 'a';
+  function preferredMethod() {
+    try {
+      const q = new URLSearchParams(location.search), gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null');
+      const W = typeof window !== 'undefined' ? window : {};
+      const override = q.get('gfx') || (W.PROFILE && W.PROFILE.get && W.PROFILE.get('preset')) || (W.WELCOME && W.WELCOME.pick);
+      const soft = q.get('soft') !== '0' && (q.get('soft') === '1' || !!(W.WELCOME && W.WELCOME.SOFT));
+      const preset = override || (gp && (gp.build || gp.preset)) || (soft ? 'potato' : 'gamer');
+      const clouds = !override && gp && gp.clouds || (['laptop', 'potato', 'retro'].includes(preset) ? 'off' : 'half');
+      return methodForClouds(clouds);
+    } catch (e) { return 'a'; }
+  }
   // THE GRAPHICS ROW (gfx_settings.js `fmist`): stored for the start, because the veil's code is compiled into the mist
   // when the shaders are made; a ?fmist= rig wins over it
   // ON BY DEFAULT (the user, 10 Nov ~20:55: "otherwise I don't see it; if it looks bad at least I can do something"): nothing
   // stored is on; only the row's stored 'off' ('0') leaves the veil out
-  if (!flag) { try { if (typeof localStorage !== 'undefined') { const v = localStorage.getItem('flydiy.fmist'); if (v === '1' || v === null) flag = 'c'; } } catch (e) {} }
+  // User approved the cloud-pass A/B appearance on21 Nov. Cloudless presets
+  // retain their existing surface veil; explicit diagnostic flags still win.
+  if (!flag) { try { if (typeof localStorage !== 'undefined') { const v = localStorage.getItem('flydiy.fmist'); if (v === '1' || v === null) flag = preferredMethod(); } } catch (e) {} }
   const ON = /^[abc]+$/.test(flag);
   const A = ON && flag.indexOf('a') >= 0, B = ON && flag.indexOf('b') >= 0, C = ON && flag.indexOf('c') >= 0;
+  // Compiler experiment: one density call site, identical ordered surface/eye samples.
+  // Uniform loop bounds prevent duplicating the entire density graph at each static tap.
+  let compactLoop = false;
+  try { compactLoop = new URLSearchParams(location.search).get('fmistloop') === '1'; } catch (e) {}
+  let noiseAtlas = false;
+  try { noiseAtlas = new URLSearchParams(location.search).get('fmistcache') === '1'; } catch (e) {}
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
@@ -174,7 +195,18 @@ var FMIST = (function () {
     st.map = { N: m.N, x0: m.x0, z0: m.z0, inv: m.inv, poolMean: m.poolMean, wispMean: m.wispMean };
     st.bakeMs = m.ms;
     AT.blit(renderer, m.px, m.N, S.X, AT.AP.TILE_Y);
-    AT.blit(renderer, m.px2, m.N, S.X + S.N, AT.AP.TILE_Y);   // the contours' direction, the next 512 columns
+    if (noiseAtlas && S.elong <= 1 && S.N === 512) {
+      // The selected round-wisp recipe does not sample the contour tile. Reuse that
+      // existing allocation and sampler for four wrapped hash corners per lattice cell.
+      const t = performance.now();
+      AT.blit(renderer, null, m.N, S.X + S.N, AT.AP.TILE_Y, `
+        varying vec2 vUv;
+        float fmH(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+        void main() { vec2 i=floor(vUv*512.0),j=mod(i+1.0,512.0);
+          gl_FragColor=vec4(fmH(i),fmH(vec2(j.x,i.y)),fmH(vec2(i.x,j.y)),fmH(j)); }
+      `);
+      st.noiseBakeMs = performance.now() - t;
+    } else AT.blit(renderer, m.px2, m.N, S.X + S.N, AT.AP.TILE_Y);
     if (B) cardsBuild(m, scene);
     console.log('forest mist: map ' + m.N + '^2 in ' + m.ms.toFixed(0) + ' ms (pool mean ' + m.poolMean.toFixed(3) + ', wisp mean ' + m.wispMean.toFixed(3) + ')');
     return st.map;
@@ -346,7 +378,7 @@ var FMIST = (function () {
   // `octaves` stays as the dial for a rig that wants the old coupling (0 = the user's ruling).
   const rhoOf = I => S.rho != null ? S.rho : S.rhoMax * Math.pow(2, -S.octaves * (1 - Math.min(1, Math.max(0, I))));
   const level = I => I >= 0.75 ? 'heavy' : I >= 0.4 ? 'mist' : I >= 0.1 ? 'wisps' : 'none';
-  const stats = () => ({ level: level(Math.max(st.k[0], st.k[1], st.k[2])), rho: +rhoOf(Math.max(st.k[0], st.k[1], st.k[2])).toFixed(5), on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
+  const stats = () => ({ level: level(Math.max(st.k[0], st.k[1], st.k[2])), rho: +rhoOf(Math.max(st.k[0], st.k[1], st.k[2])).toFixed(5), on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), noiseAtlas: noiseAtlas && S.elong <= 1 && S.N === 512, noiseBakeMs: st.noiseBakeMs || 0, k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
   // THE GLSL, shared by the veil (atmo.js MIST_GLSL) and the march (clouds.js): fmDens(p) per metre.
   // uMist[7] = (pool k, wisp k, oro k, cloud base m) | [8] = (drift x, z, rho, on) | [9] = (map x0, z0, 1/size, 1/period)
   // | [10] = (surface taps, eye taps, surface metres, eye metres) | [11] = (the veil's nearest distance: the march's reach under ?fmist=ac, the forward lobe's gain, 0, 0)
@@ -360,8 +392,9 @@ var FMIST = (function () {
     float fmVN(vec2 p) {
       p = mod(p, 512.0);
       vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-      vec2 j = mod(i + 1.0, 512.0);
-      return mix(mix(fmH(i), fmH(vec2(j.x, i.y)), f.x), mix(fmH(vec2(i.x, j.y)), fmH(j), f.x), f.y);
+${noiseAtlas && S.elong <= 1 && S.N === 512 ? `      vec4 h=texelFetch(uApAtlas,ivec2(${S.X + S.N}+int(i.x),${TILE_Y}+int(i.y)),0);
+      return mix(mix(h.x,h.y,f.x),mix(h.z,h.w,f.x),f.y);` : `      vec2 j = mod(i + 1.0, 512.0);
+      return mix(mix(fmH(i), fmH(vec2(j.x, i.y)), f.x), mix(fmH(vec2(i.x, j.y)), fmH(j), f.x), f.y);`}
     }
     vec4 fmDir(vec2 xz) {
       vec2 uv = clamp((xz - uMist[9].xy) * uMist[9].z, 0.0, 1.0);
@@ -449,11 +482,19 @@ ${S.elong > 1 ? `      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy)
       if (uMist[8].w < 0.5 || D > 25000.0 || D < uMist[11].x) return 0.0;
       gFmFar = smoothstep(${S.farLo.toFixed(1)}, ${S.farHi.toFixed(1)}, D);
       float od = 0.0, Ls = min(D, uMist[10].z), ns = max(1.0, uMist[10].x), dts = Ls / ns;
-      for (int i = 0; i < 8; i++) { if (float(i) >= uMist[10].x) break; od += fmDens(o + d * (D - (float(i) + 0.5) * dts)) * dts; }
+${compactLoop ? `      int surfN = int(ceil(clamp(uMist[10].x, 0.0, 8.0)));
+      int eyeN = D > Ls && uMist[10].y > 0.5 ? int(ceil(clamp(uMist[10].y, 0.0, 4.0))) : 0;
+      float Le = min(D - Ls, uMist[10].w), dte = Le / max(1.0, uMist[10].y);
+      int tapN = surfN + eyeN;
+      for (int i = 0; i < tapN; i++) {
+        bool surfaceTap = i < surfN;
+        float t = surfaceTap ? D - (float(i) + 0.5) * dts : (float(i - surfN) + 0.5) * dte;
+        od += fmDens(o + d * t) * (surfaceTap ? dts : dte);
+      }` : `      for (int i = 0; i < 8; i++) { if (float(i) >= uMist[10].x) break; od += fmDens(o + d * (D - (float(i) + 0.5) * dts)) * dts; }
       if (D > Ls && uMist[10].y > 0.5) {
         float Le = min(D - Ls, uMist[10].w), dte = Le / max(1.0, uMist[10].y);
         for (int i = 0; i < 4; i++) { if (float(i) >= uMist[10].y) break; od += fmDens(o + d * ((float(i) + 0.5) * dte)) * dte; }
-      }
+      }`}
       // THE CEILING (the user, 10 Nov, on the high and far sheets: "it almost looks like snow from far away ... a big
       // blanket of very small, very thick fog that almost looks like wool"): a ray grazing the pool's flat layer from the
       // air ran its whole last 450 m inside it - two thirds opaque. A pocket here is a VEIL: whatever the angle it
@@ -461,6 +502,6 @@ ${S.elong > 1 ? `      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy)
       // hard cap flattened exactly the cores that gave the run11 pick its definition.
       return od / (1.0 + od / ${S.odCap.toFixed(2)});
     }`;
-  return { ON, A, B, C, S, use, densCPU, rhoOf, level, bakeMap, strengths, bake, update, stats, GLSL };
+  return { ON, A, B, C, automatic, methodForClouds, S, use, densCPU, rhoOf, level, bakeMap, strengths, bake, update, stats, GLSL };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = FMIST;
