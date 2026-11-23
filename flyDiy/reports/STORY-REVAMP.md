@@ -112,7 +112,7 @@ The feasible ones, by the aeroplane that flew them: 20 Piper Cub, 6 light metal 
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
 - home.06: no official plane can carry it (450 kg into the 383 m Cabin Strip): a STOL hauler the player builds - a named class, not flown
-- home.13: NOT READ YET
+- home.13: 280 kg, the Cessna's cabin limit: flown before the seating correction (a passenger seat taken, 140 kg aboard) - being flown again with the pilot alone
 - community.09, community.10, community.11: heavy cargo (300 kg and more): the Cessna's cabin takes 280 kg, and the loading cards of the PC-6 and the DC-3-alike take none - a hauler the player builds, or those two cards
 - club.tour: the stop at w5 (Cannery Runway, 310 m, a 10 m obstacle 25 m from its end): the test pilot lands off the strip or cannot line up to leave - the listed pilot / field gap (on L40J the Cub flew the whole tour; on L40K the Cub and the Jodel land off the end, the STOL Cub lands and cannot taxi out)
 AS FLOWN ON L40J (23 Nov, before the train changed the Cub, the Jodel and the Cessna): 26 flown, 24 feasible, 2 red - home.08 (Cabin Lake's landing direction) and lumber.04 (250 kg on water: no float plane of the pool carries it).
