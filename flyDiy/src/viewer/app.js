@@ -255,7 +255,7 @@
   // while the pointer or a key moves: ?gfrest=N, ?gfbusy=N). Go joins the load where it stands (gfJoin: the roll-out's
   // screen names the steps left, which then run at full speed). gfS is the rig's read (FLYDIY_LAB.gfS).
   const GFN = (k, d) => { try { const m = new RegExp('[?&]' + k + '=(\\d+(?:\\.\\d+)?)(&|$)').exec(location.search || ''); return m ? +m[1] : d; } catch (e) { return d; } };
-  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
+  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), cloudEarly: !LABQ('gfcloud=late'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
       inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
     coverK: GFN('coverbudget', 0), coverSet: null,   // (?coverbudget=K: see labCoverBudget)
     noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
@@ -1768,36 +1768,24 @@
     });
     // whole: on screen, and the room's probe re-shot (it sees the view through the door: the floor and the aeroplane take the
     // world's colours) - the clock's sliced bake, a step a frame
-    if (r && r.done) { hviewKey = hviewWant || hviewKeyNow(node); hviewFor = hangarRoom; hviewWant = null;
-      if (!hviewAttachHold) { hviewAttach(); try { bakeHangarEnvSliced(); } catch (e) {} } }   // (held: hviewBoot attaches, behind a live garage)
+    if (r && r.done) { hviewKey = hviewWant || hviewKeyNow(node); hviewFor = hangarRoom; hviewWant = null; hviewAttach(); try { bakeHangarEnvSliced(); } catch (e) {} }
     return !!(r && r.done);
   }
   // THE BOOT'S: the six faces a task each (each a few world draws - under the screen, never one long task), then the
   // view's two programs linked before the shed is revealed (no link at the reveal: HWCOV's garage-link rule)
-  // (?boot=garagefirst, the garage ON SCREEN - the 16:00 rows, 23 Nov: the view's attach shows the room's LIVE sky, and
-  //  outdoorsShow re-keys the clouds' dome (needsUpdate): the first frame after it built and linked the dome's program for the
-  //  frame's target - 35 KB, 1.4 s with the picture standing, in every run. Behind a live garage the two domes are compiled
-  //  for that target and their links waited for BEFORE the view is attached; under the boot's screen, as before)
-  let hviewAttachHold = false;
   function hviewBoot() {
     if (!inGarage || hviewOff() || typeof HANGAR_VIEW === 'undefined' || !WF || !getHangar()) return Promise.resolve(null);
     hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0; hviewBooting = true;
-    const live = gfLive(); hviewAttachHold = live;
     return new Promise(res0 => {
-      const res = v => { hviewBooting = false; hviewAttachHold = false; res0(v); };
+      const res = v => { hviewBooting = false; res0(v); };
       const tick = () => {
         let done = false;
         try { done = hviewCapture([hviewFace]); } catch (e) { console.warn('hangar view:', e && e.message); hviewWant = null; return res(null); }
         if (!hview || (!done && ++hviewFace >= 6)) { hviewWant = null; return res(null); }
         if (!done) { setTimeout(tick, 0); return; }
         hviewFace = 0;
-        const T = aa && aa.target ? aa.target() : null;
-        Promise.resolve(typeof compileSliced === 'function' ? compileSliced(hview.group, T, hangarScene) : null)
-          .then(() => { if (!live || typeof compileSliced !== 'function') return null;
-            const sky = hangar && hangar.skyLiveMeshes ? hangar.skyLiveMeshes() : [];
-            return sky.reduce((p, o) => p.then(() => compileSliced(o, T, hangarScene)), Promise.resolve()).then(() => programsReady(15000)).then(() => { LAB.gfS.skyPre = sky.length; }); })
-          .catch(() => {})
-          .then(() => { if (live) { hviewAttachHold = false; hviewAttach(); try { bakeHangarEnvSliced(); } catch (e) {} } res(hview.stats()); });
+        Promise.resolve(typeof compileSliced === 'function' ? compileSliced(hview.group, aa && aa.target ? aa.target() : null, hangarScene) : null)
+          .catch(() => {}).then(() => res(hview.stats()));
       };
       tick();
     });
@@ -16802,7 +16790,7 @@
         //  own target, a slice a task (worldViewWarmDraw, the settings screen's), then the shadow pass's; the six whole views
         //  from the stand would land on the canvas. ?gfwarm=0: none here, Go's world phase runs this step once more for them)
         .then(() => { if (inGarage && gfLive()) { const t0 = performance.now();
-            return (LAB.gfS.warm ? worldViewWarmDraw(craftInWorldNow).then(n => { LAB.gfS.warmDrawn = n; return shadowWarm(); }).then(() => LAB.gfS.bufWarm ? worldBuffersWarm() : null).then(() => { cloudsWarm(); LAB.gfS.warmMs = Math.round(performance.now() - t0); })
+            return (LAB.gfS.warm ? worldViewWarmDraw(craftInWorldNow).then(n => { LAB.gfS.warmDrawn = n; return shadowWarm(); }).then(() => LAB.gfS.bufWarm ? worldBuffersWarm() : null).then(() => { LAB.gfS.cloudLate = Math.round(performance.now()); cloudsWarm(); LAB.gfS.warmMs = Math.round(performance.now() - t0); })
               .catch(e => { LAB.gfS.warmErr = String(e && e.message); }) : Promise.resolve()).then(() => hviewBoot()); }
           if (inGarage) return Promise.resolve(worldWarmDraw()).then(shadowWarm).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot());
           return shadowWarm().then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }); }));   // (REVEAL-HITCH: the stand's grass; W6: the shadow pass's first draws, every program's first use; G1998e: the clouds' march; G3630: the view out of the door)
@@ -16870,6 +16858,12 @@
   // armed as the boot's screen is done with: the run starts gfS.delayMs after the garage is on screen
   function gfArm() {
     const G = LAB.gfS; if (G.armed) return; G.armed = true;
+    // THE CLOUDS' FIRST DRAW, STILL UNDER THE GARAGE'S OWN LOADING SCREEN (the evening row, 23 Nov: the garage's last 1.4 s
+    // freeze, in every run at the end of first light, was cloudsWarm - the march's two-output variant is built on the GPU
+    // process's main thread at its first draw (CLOUDS.warmDraw's note) and every frame waits for it. Behind a live garage
+    // that is the garage's picture standing still; here it is the loading screen, about 1.5 s longer - A NAMED LOAD COST of
+    // ?boot=garagefirst. ?gfcloud=late: where it was)
+    if (G.cloudEarly) { const t0 = performance.now(); cloudsWarm(); G.cloudAt = [Math.round(t0), Math.round(performance.now() - t0), !!window.FLYDIY_CLOUD_WARM]; }
     try { for (const k of ['pointerdown', 'pointermove', 'wheel', 'keydown']) window.addEventListener(k, () => { G.inputAt = performance.now(); }, { capture: true, passive: true }); } catch (e) {}
     const wait = () => {
       if (G.done || G.running) return;
