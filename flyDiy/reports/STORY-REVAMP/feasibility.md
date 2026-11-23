@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 31 feasible; 5 infeasible; 2 no official plane can fly it (the player builds one); 36 not flown; 9 stale. Time flown: 811 min 32 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 32 feasible; 5 infeasible; 2 no official plane can fly it (the player builds one); 36 not flown; 8 stale. Time flown: 857 min 34 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -26,7 +26,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 31 feasible; 5 infeas
 | minedock.b2 | contract | order | - | - | - |  |
 | minedock.01 | mine:1 | not flown | - | - | - |  |
 | minedock.02 | mine:2 | not flown | - | - | - |  |
-| mine.03 | mine:3 | stale | - | - | - |  |
+| mine.03 | mine:3 | feasible | Piper Cub | 46 min 02 s | HOME > mn_strip 994; mn_strip > w3 1048; w3 > mn_strip 720 |  |
 | mine.04 | mine:4 | stale | - | - | - |  |
 | mine.tour | contract | not flown | - | - | - |  |
 | minedock.05 | harbour:1 | not flown | - | - | - |  |
