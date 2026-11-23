@@ -593,6 +593,8 @@ const GATES = [
   // task - the overlay's records, the world's aerodromes and every family built from them, byte for byte; the standing
   // premises in force until the swap. Two page processes in node, ~4 min.
   { id: 'COMPSTEPS', file: '_compsteps_check.js', tier: 'core', wall: 300 },
+  // PERF-LEAD (23 Nov): ?boot=garagefirst - the page without it boots as before; the background run's own logic on fakes
+  { id: 'GARAGEFIRST', file: '_garagefirst_check.js', tier: 'core' },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
