@@ -48,7 +48,7 @@
 // ============================================================
 var CLOUDS = (function () {
   'use strict';
-  const S = { overcast: 1, ovcRho: 0.35,   // ovcRho (RAIN 13): a full deck's mean density for its diffuse light (tau = sigma x ovcRho x thickness)
+  const S = { overcast: 1, ovcRho: 0.1,   // ovcRho (RAIN 13): a full deck's mean density for its diffuse light (tau = sigma x ovcRho x thickness); 0.1 (was 0.35): THE USER 23 Nov, "the lighter grey option definitely, maybe even less than this"
                 // THE OVERCAST (17 Nov): a deck at cover >= 0.85 - a solid base, darker under its thickness (0 = as before)
     rainExt: 1, rainLight: 0.6, rainKm: 30, rainSteps: 6,   // RAIN step 1c (16 Nov): the shafts' density (x the 07d law), the sky light in them, their reach (km), the steps (lean 4)
     mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
@@ -145,7 +145,7 @@ var CLOUDS = (function () {
     uniform vec4 uShape;            // detail strength, curl, the overcast's strength (17 Nov), 0
     // THE OVERCAST (17 Nov; the user: "the cloud coverage is not there" - a storm's cb 98 % drew a wispy, pale-blue base that read as
     // cirrus over a blue sky): how overcast deck li is, 0 below cover 0.85 (fair and broken skies untouched), x the dial
-    float ovcOf(int li) { return smoothstep(0.85, 1.0, uDriftA[li].z) * uShape.z; }
+    float ovcOf(int li) { return smoothstep(0.70, 0.90, uDriftA[li].z) * uShape.z; }   // (RAIN 15, 23 Nov: from 70 % cover - an ordinary 86 % stratus day kept the clear sky's blue deck under 0.85 - 1.0)
     // THE NOISE'S LEVELS (LOOK-1 2a, the study's C4): both 3D textures carry mips, and a ray has no useful derivatives, so every read names its
     // level. The main march sets these from the pixel's footprint; the shadow, the sky fit and the probes stay at level 0, as they were
     float gLodB = 0.0, gLodD = 0.0;
@@ -361,7 +361,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
           // ~1 / (1 + 0.75 tau (1 - g)) of what falls on its top (the two-stream result; g 0.85 for droplets), and the many scatterings
           // mix the hues: neutral. So on a full deck (ovcOf) the sky light term is that diffuse light: the sun and the sky on the top
           // (uSunCol x the sun's height / pi + uAmbTop), through the cloud ABOVE the sample (tau x (1 - h): brighter toward the top),
-          // grey. tau = sigma x the column's mean density (S.ovcRho, 0.35) x the deck's thickness: a 300 m stratus passes ~half, a 4 km
+          // grey. tau = sigma x the column's mean density (S.ovcRho, 0.1 since the user's look) x the deck's thickness: a 300 m stratus passes 0.79, a 4 km
           // storm ~7 %. A fair or broken sky (ovcOf 0) is exactly as it was. No new program: two lines in the march.
           float ovG = ovcOf(li);
           vec3 ambL = mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z));
