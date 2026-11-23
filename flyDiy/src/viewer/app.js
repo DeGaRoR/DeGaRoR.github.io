@@ -1768,24 +1768,36 @@
     });
     // whole: on screen, and the room's probe re-shot (it sees the view through the door: the floor and the aeroplane take the
     // world's colours) - the clock's sliced bake, a step a frame
-    if (r && r.done) { hviewKey = hviewWant || hviewKeyNow(node); hviewFor = hangarRoom; hviewWant = null; hviewAttach(); try { bakeHangarEnvSliced(); } catch (e) {} }
+    if (r && r.done) { hviewKey = hviewWant || hviewKeyNow(node); hviewFor = hangarRoom; hviewWant = null;
+      if (!hviewAttachHold) { hviewAttach(); try { bakeHangarEnvSliced(); } catch (e) {} } }   // (held: hviewBoot attaches, behind a live garage)
     return !!(r && r.done);
   }
   // THE BOOT'S: the six faces a task each (each a few world draws - under the screen, never one long task), then the
   // view's two programs linked before the shed is revealed (no link at the reveal: HWCOV's garage-link rule)
+  // (?boot=garagefirst, the garage ON SCREEN - the 16:00 rows, 23 Nov: the view's attach shows the room's LIVE sky, and
+  //  outdoorsShow re-keys the clouds' dome (needsUpdate): the first frame after it built and linked the dome's program for the
+  //  frame's target - 35 KB, 1.4 s with the picture standing, in every run. Behind a live garage the two domes are compiled
+  //  for that target and their links waited for BEFORE the view is attached; under the boot's screen, as before)
+  let hviewAttachHold = false;
   function hviewBoot() {
     if (!inGarage || hviewOff() || typeof HANGAR_VIEW === 'undefined' || !WF || !getHangar()) return Promise.resolve(null);
     hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0; hviewBooting = true;
+    const live = gfLive(); hviewAttachHold = live;
     return new Promise(res0 => {
-      const res = v => { hviewBooting = false; res0(v); };
+      const res = v => { hviewBooting = false; hviewAttachHold = false; res0(v); };
       const tick = () => {
         let done = false;
         try { done = hviewCapture([hviewFace]); } catch (e) { console.warn('hangar view:', e && e.message); hviewWant = null; return res(null); }
         if (!hview || (!done && ++hviewFace >= 6)) { hviewWant = null; return res(null); }
         if (!done) { setTimeout(tick, 0); return; }
         hviewFace = 0;
-        Promise.resolve(typeof compileSliced === 'function' ? compileSliced(hview.group, aa && aa.target ? aa.target() : null, hangarScene) : null)
-          .catch(() => {}).then(() => res(hview.stats()));
+        const T = aa && aa.target ? aa.target() : null;
+        Promise.resolve(typeof compileSliced === 'function' ? compileSliced(hview.group, T, hangarScene) : null)
+          .then(() => { if (!live || typeof compileSliced !== 'function') return null;
+            const sky = hangar && hangar.skyLiveMeshes ? hangar.skyLiveMeshes() : [];
+            return sky.reduce((p, o) => p.then(() => compileSliced(o, T, hangarScene)), Promise.resolve()).then(() => programsReady(15000)).then(() => { LAB.gfS.skyPre = sky.length; }); })
+          .catch(() => {})
+          .then(() => { if (live) { hviewAttachHold = false; hviewAttach(); try { bakeHangarEnvSliced(); } catch (e) {} } res(hview.stats()); });
       };
       tick();
     });

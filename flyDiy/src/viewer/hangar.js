@@ -4700,6 +4700,8 @@ return {
     return true;
   },
   treesPlanned: () => (HO_TREES ? HO_TREES.list.length : 0),
+  // (?boot=garagefirst: the live sky's two domes, for a link ahead of outdoorsShow(false, true) - it re-keys the clouds' material)
+  skyLiveMeshes: () => [skyMesh, cloudMesh].filter(Boolean),
   outdoorsShow: (on, keepSky) => {
     viewOut = on === false; skyLive = viewOut && !!keepSky;
     for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut;

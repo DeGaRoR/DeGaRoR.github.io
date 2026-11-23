@@ -20,10 +20,13 @@ def read(path):
     if not g: print('%s: not a garage-first row (no gf in its eval)' % path); return None
     # every long task is in the row's flight log (the recorder's 'longtask' events: [start on the page's clock, 'longtask', ms]);
     # the row's own list keeps the eight longest only
-    tasks = []
+    tasks = []; gaps = []
     try:
         fl = json.load(io.open(path[:-5] + '.flightlog.json', encoding='utf-8'))
         tasks = [(e[0], e[2]) for e in fl.get('events', []) if e[1] == 'longtask' and e[2]]
+        # (16:00, 23 Nov: a picture can stand still with NO long task - the GPU's side busy on a link; the recorder's
+        #  'freeze' events are the gaps between two frames: [the gap's end, 'freeze', ms])
+        gaps = [(e[0] - e[2], e[2]) for e in fl.get('events', []) if e[1] == 'freeze' and e[2]]
     except Exception:
         tasks = [(t['t'], t['d']) for t in (d.get('longTasks') or [])]
         print('(%s: no flight log beside the row - only its eight longest tasks are read)' % path)
@@ -31,7 +34,7 @@ def read(path):
     steps = [(r[0], t0 + r[3], t0 + r[3] + r[1], r[5] if len(r) > 5 else 'live') for r in (g.get('log') or [])]
     end = max([s[2] for s in steps] + [t0])
     sl = [(l, s, s + m) for l, s, m in (g.get('sl') or [])]
-    return dict(tag=d.get('tag') or path, tasks=tasks, reveal=reveal, t0=t0, steps=steps, end=end, sl=sl, g=g, garage=(d.get('bootGone') or 0) / 1000.0)
+    return dict(tag=d.get('tag') or path, gaps=gaps, tasks=tasks, reveal=reveal, t0=t0, steps=steps, end=end, sl=sl, g=g, garage=(d.get('bootGone') or 0) / 1000.0)
 
 def main():
     rows = [r for r in (read(p) for p in sys.argv[1:]) if r]
@@ -58,6 +61,8 @@ def main():
         n50 = len(seen); n100 = sum(1 for _, d in seen if d > 100); worst = max([d for _, d in seen] + [0]); total = sum(d for _, d in seen)
         print('== %s: the garage shown at %.1f s; the world loading behind it for %.1f s%s' % (R['tag'], R['garage'], secs, '' if live_end >= R['end'] - 1 else ' (then Go: the rest under its screen)'))
         print('   THE GARAGE MEANWHILE: %d tasks of 50 ms or more, %d over 100 ms, the worst %d ms, %.1f s in them (%.0f %% of the time)   [bar: none over 100 ms; the sliders\' row: none over 50]' % (n50, n100, worst, total / 1000.0, 100.0 * total / max(1.0, live_end - R['reveal'])))
+        gp = sorted([(t, d) for t, d in R['gaps'] if R['reveal'] <= t < live_end and d >= 250], key=lambda x: -x[1])
+        print('   THE PICTURE STANDING STILL (a gap between two frames of 250 ms or more, long task or not): %d%s' % (len(gp), (' - ' + ', '.join('%d ms at %.1f s' % (d, t / 1000.0) for t, d in gp[:6])) if gp else ''))
         print('   %-52s %5s %6s %7s %8s' % ('by the step it fell in', '>=50', '>100', 'worst', 'ms in all'))
         for k, b in sorted(buckets.items(), key=lambda kv: (-kv[1][1], -kv[1][2])):
             print('   %-52s %5d %6d %7d %8d' % (k[:52], b[0], b[1], b[2], b[3]))
