@@ -25,7 +25,7 @@ const argv = process.argv.slice(2);
 const now = () => Number(process.hrtime.bigint()) / 1e6;
 const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
 // the composition's own labels (27_premises.js composeSteps, 20_world.js setPremisesSteps)
-const OURS = /^premises: (the runways|the roads|the shelves|the overlay|the placement|a site|the links|the built links|plots|the parks|the wood|a wood|the records|the swap)$/;
+const OURS = /^premises: (the runways|the roads|the shelves|the overlay|the placement|a site|the links|the built links|a station|plots|the parks|the wood|a wood|the records|the swap)$/;
 const AFTER = 'premises: the renderer';   // (render_world.js: yielded after the swap - make()'s own body runs under it)
 
 async function child(side, out) {

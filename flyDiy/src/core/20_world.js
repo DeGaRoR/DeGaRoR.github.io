@@ -452,6 +452,11 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   // layer composes on the stage 0-4 ground, so the strips the generator
   // sites keep their grading under it.
   let PM = null, PMrec = null;
+  // (PERF-WORLDBUILD, 23 Nov: > 0 WHILE A STEP OF THE STEPPED COMPOSITION RUNS - setPremisesSteps. The one-task setPremises
+  //  drops the standing premises BEFORE it composes, so the composer's reads of the base world's water see none: waterAt's
+  //  "ground the premises declare dry" rule is off for it. The stepped form keeps them standing for every other reader and
+  //  veils them for the composer's own steps: the same water, the same placement - GATE COMPSTEPS, the items' waterY.)
+  let PMveil = 0;
   // the base world's water (what the premises compose against): the hydrology's alone on the analytic
   // world (Skarvik's plots are sown on it - byte for byte); on an island THE SEA TOO (G434.1: the
   // composer read -Infinity over the whole coast, a harbour zone's water level came from a pond up the
@@ -554,7 +559,10 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function* setPremisesSteps(rec0, extra) {
     if (!rec0 || typeof PREMISES_GEN === 'undefined' || !PREMISES_GEN.composeSteps) return setPremises(rec0, extra);
     const a = premisesArgs(rec0, extra);
-    const PMn = yield* PREMISES_GEN.composeSteps(a.rec, baseWorld, a.o);
+    // (a step at a time, the standing premises veiled for the step alone - PMveil above; never across a yield)
+    const g = PREMISES_GEN.composeSteps(a.rec, baseWorld, a.o, true); let r;
+    for (;;) { PMveil++; try { r = g.next(); } finally { PMveil--; } if (r.done) break; yield r.value; }
+    const PMn = r.value;
     yield 'premises: the swap';
     premisesDrop(); PM = PMn;
     return premisesTake(a.rec);
@@ -938,7 +946,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
       // nosed into it and rejected the take-off (GEAR-WATER's wheel in the water). Only a cover-water cell asks.
       if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) {
         // (a pavement's edge and its first 10 m too - the strip's shoulder, where a wheel that runs off the edge rolls)
-        if (PM) { const ps = PM.surfaceAt(x, z); if ((ps >= 0 && ps !== SURFACE.WATER) || (PM.pavedAt && PM.pavedAt(x, z, 10))) return -Infinity; }
+        if (PM && !PMveil) { const ps = PM.surfaceAt(x, z); if ((ps >= 0 && ps !== SURFACE.WATER) || (PM.pavedAt && PM.pavedAt(x, z, 10))) return -Infinity; }
         return t + 0.3;
       }
       return -Infinity;

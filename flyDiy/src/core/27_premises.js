@@ -2195,7 +2195,7 @@ LINK_SOLVERS.cable = { needs: 'built', band: { minDeg: 15, maxDeg: 45 },
     if (!isFinite(top.P.lineDeg)) top.P.lineDeg = seed0;
     const vil = { base, top, T: { h: ctx.T } };
     let tram;
-    try { tram = VG.tramLine(vil, r => ctx.build(r)); } catch (e) { return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': ' + (e && e.message)] }; }
+    try { tram = VG.tramLine(vil, r => ctx.build(r)); } catch (e) { if (e && e.stepMiss) throw e; return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': ' + (e && e.message)] }; }
     const issues = [];
     const deg = tram && tram.angle !== undefined ? (Math.abs(tram.angle) > 3.2 ? tram.angle : tram.angle * 180 / Math.PI) : NaN;
     if (!(deg >= this.band.minDeg && deg <= this.band.maxDeg)) issues.push('cable ' + link.id + ': the line is ' + (isFinite(deg) ? deg.toFixed(0) + ' deg' : 'unsolved') + ', outside ' + this.band.minDeg + '..' + this.band.maxDeg);
@@ -2222,6 +2222,33 @@ function solveLinks(rec, items, phase, ctx) {
     out.push(Object.assign({ link: L, A, B }, sol));
   }
   return out;
+}
+// PERF-WORLDBUILD (23 Nov 2026): THE BUILT LINKS, A BUILD A STEP. The cable's solver builds each station three times
+// (its line angle converging) inside one call: 0.5 s in one step of the stepped composition. Here the SAME solve is run
+// with a builder that answers only what is already built and stops the solve at the first build it lacks (stepMiss);
+// that one is built in a step of its own - by the caller's builder, on a copy of the parameters as the solver had them -
+// every item's parameters and build put back as they stood, and the solve run again from the start: the same calls with
+// the same parameters in the same order (a build is a pure function of its generator and parameters: render_premises'
+// memo holds it), so the same answer as solveLinks. With no builder: solveLinks, as it is.
+function* solveLinksSteps(rec, items, phase, ctx) {
+  if (!ctx || typeof ctx.build !== 'function') return solveLinks(rec, items, phase, ctx);
+  const snap = items.map(it => ({ it, P: it.P ? Object.keys(it.P).map(k => [k, it.P[k]]) : null, had: Object.prototype.hasOwnProperty.call(it, 'built'), built: it.built }));
+  const back = () => { for (const q of snap) { const it = q.it;
+    if (q.P && it.P) { const keep = new Set(q.P.map(e => e[0])); for (const k of Object.keys(it.P)) if (!keep.has(k)) delete it.P[k]; for (const [k, v] of q.P) it.P[k] = v; }
+    if (q.had) it.built = q.built; else delete it.built; } };
+  const have = new Map(), MISS = { stepMiss: true, r: null, k: null };
+  const ask = r => { const k = r.gen + '|' + JSON.stringify(r.P); if (have.has(k)) return have.get(k);
+    MISS.k = k; MISS.r = Object.assign({}, r, { P: Object.assign({}, r.P) }); throw MISS; };
+  const ctx2 = Object.assign({}, ctx, { build: ask });
+  for (let n = 0; n < 4096; n++) {
+    try { return solveLinks(rec, items, phase, ctx2); }
+    catch (e) { if (e !== MISS) throw e; }
+    back();
+    yield 'premises: a station';
+    have.set(MISS.k, ctx.build(MISS.r));
+    yield 'premises: the built links';
+  }
+  return solveLinks(rec, items, phase, ctx);   // (never: a solve that asks for ever-new builds - solved in one go, as before)
 }
 
 // ---------------------------------------------------------------------------
@@ -2881,8 +2908,8 @@ function areaLabel(a) {
 // each zone's sowing, each forest zone) and RETURNS the overlay; nothing is shared with the caller before that return.
 // compose() drains it in one go: the same statements in the same order, the same overlay. A host that can spread the
 // work (20_world premises.setSteps, the world build under ?compsteps=1) runs it a slice at a time.
-function compose(rec0, world, opts) { const g = composeSteps(rec0, world, opts); for (;;) { const r = g.next(); if (r.done) return r.value; } }
-function* composeSteps(rec0, world, opts) {
+function compose(rec0, world, opts) { const g = composeSteps(rec0, world, opts, false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+function* composeSteps(rec0, world, opts, stepped) {   // (stepped: a host runs it a step a call - the built links then a build a step; compose() solves them in one call, as it always did)
   const o = opts || {};
   const boundedRoads = o.boundedRoads !== false;
   // PERF-WORLDBUILD (22 Nov 2026): THE POLYGON BOUND IS THE DEFAULT. Codex's exact short-cut of 20 Nov (dEdgeOf: a paved polygon
@@ -4370,7 +4397,8 @@ function* composeSteps(rec0, world, opts) {
     yield 'premises: the built links';
     // phase B: the links that need the BUILT stations - only when the caller hands a builder (the
     // renderer does; the gate does under its stub); tramLine builds the pair itself, three passes
-    const linksB = solveLinks(rec, O.records.items, 'built', { globals: o.globals || (typeof window !== 'undefined' ? window : {}), build: o.build || null, T: O.localH });
+    const linksOpt = { globals: o.globals || (typeof window !== 'undefined' ? window : {}), build: o.build || null, T: O.localH };
+    const linksB = stepped !== false ? yield* solveLinksSteps(rec, O.records.items, 'built', linksOpt) : solveLinks(rec, O.records.items, 'built', linksOpt);
     for (const L of linksB) O.records.links.push(L);
     for (const L of O.records.links) for (const i of L.issues || []) O.records.issues.push(i);
     for (const z of rec.layers.zones) {
