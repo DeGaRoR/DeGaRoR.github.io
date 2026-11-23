@@ -10,7 +10,7 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
-## Status for A0 (Mon 23 Nov, sixth note, 20:45 UTC) - story-9
+## Status for A0 (Mon 23 Nov, sixth note, 20:20 UTC) - story-9 c4d67392e
 
 - **`claude/ready/story-9`** = story-8 + (1) THE VALIDATED-WITH FLAG on the missions and its display in the mission
   editor (the user asked for it this evening), (2) the cargo seating correction of the harness, (3) the rows flown on
