@@ -443,7 +443,13 @@
     "every": 3
    },
    "goods": "goods.mail",
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 2126,
+    "sig": "389d5d8d"
+   }
   },
   {
    "id": "field.hike",

@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 35,
-  "not flown": 35,
+  "feasible": 36,
+  "not flown": 34,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
   "stale": 6,
   "infeasible": 5
  },
- "flownS": 55422,
+ "flownS": 57548,
  "rows": [
   {
    "id": "field.01",
@@ -150,8 +150,58 @@
    "id": "field.round",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 2126,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 581,
+     "how": "stopped",
+     "at": "w5",
+     "stop": [
+      "sub:0@0"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 869,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "picked:1@0"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 676,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "sub:1@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "field.hike",
