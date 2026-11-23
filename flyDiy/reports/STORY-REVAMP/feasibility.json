@@ -11,7 +11,7 @@
   "infeasible": 7,
   "stale": 5
  },
- "flownS": 71037,
+ "flownS": 71690,
  "rows": [
   {
    "id": "field.01",
@@ -1089,7 +1089,29 @@
    "id": "resort.b2",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "Jodel D112",
+   "timeS": 653,
+   "why": "crashed: the damage ended the flight: a tail member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 653,
+     "how": "crashed",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "crash",
+      "break",
+      "prop-strike"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "validated",
    "cls": "order"
   },
   {
