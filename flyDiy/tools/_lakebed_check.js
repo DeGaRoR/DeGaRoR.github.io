@@ -47,7 +47,11 @@ console.log('GATE LAKEBED');
     // (MASTER-GREEN 22 Nov: ROCK-STUDY d98560831, train L40f - the user: "go for faithful V1 implementation" - narrowed the
     // ring's discard to the plain ground, `&& vRM.w < 1.5`: the rock's relief wears the ground's material and is kept inside
     // the disc. Still two discards, still the fine disc's two; the row reads the line as it is now)
-    ok(disc === 2 && hook.includes("if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard;") && hook.includes("if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;"),
+    // (MASTER-GREEN 23 Nov, on L40J: PERF-CODEX's shared ground program writes the SAME two discards a second time, behind a
+    // uniform instead of a compile-time side - `if (uGroundDiscSide < 0.0) { <the ring's> } else <the tile's>`. Four textual
+    // discards, two forms of the fine disc's two: the row holds the shared form whole, the per-side form, and the count)
+    const SHARED = "if (uGroundDiscSide < 0.0) { if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard; } else if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;";
+    ok(disc === 4 && hook.includes(SHARED) && hook.includes("side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard;\\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\\n' : ''"),
       '1 the hook\'s only discards are the fine disc\'s (the near ring inside it, a fine tile outside it)', disc + ' discard(s)');
   }
   ok(!/OuterDry|outer-dry|\|dry/.test(RW), '1 the far terrain is one material (the lake-free twin and its quadrant split are gone)');
