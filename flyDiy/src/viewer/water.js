@@ -1165,9 +1165,15 @@ const WATER = (() => {
     //   lean (?mirlean=1): a lake's / a bay's capture above leanAgl m leaves the cover ring and the grass out, as the sea ring's does
     pace: false, paceK: 0.005, paceMax: 4, paceN: 0, kept: 0, lean: false, leanAgl: 150, leaned: 0,
     starsK: 10, starPx: 0.75 };   // STAR-LOVE: the stars in the mirror's sky - x their level in the sky (10 x the dome's STAR_LVL 0.03 = 0.3 of the old field's light: the user's 'quite lower'), their discs' radius in capture pixels
-  if (typeof location !== 'undefined' && location.search) { const qp = /[?&]mirpace=([0-9.]+)(?:&|$)/.exec(location.search);
-    if (qp && +qp[1] > 0) { MIR.pace = true; if (+qp[1] !== 1) MIR.paceK = +qp[1] / 100; }
-    MIR.lean = /[?&]mirlean=1(?:&|$)/.test(location.search); }
+  // ON BY DEFAULT ON A REAL PAGE since 23 Nov 2026 (the user, 22:10: "turn on all switches leading to good results, we can turn
+  // them off easily afterwards, when I'll have a look"): ?mirpace=0 and ?mirlean=0 turn each off. With ?farslots they took the
+  // journey from 55 to 72 % of seconds at 29+ frames and the graphics card from 33 to 24 ms a frame (22-23 Nov, two runs).
+  // VISIBLE, not yet looked at by the user: a reflection kept a little longer; no cover ring in a lake's reflection from high up.
+  // The node page (flydiy-node) keeps both off: its pins stand
+  { const S = typeof location !== 'undefined' ? (location.search || '') : '', real = typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '');
+    const qp = /[?&]mirpace=([0-9.]+)(?:&|$)/.exec(S);
+    if (qp ? +qp[1] > 0 : real) { MIR.pace = true; if (qp && +qp[1] !== 1) MIR.paceK = +qp[1] / 100; }
+    MIR.lean = /[?&]mirlean=1(?:&|$)/.test(S) || (real && !/[?&]mirlean=0(?:&|$)/.test(S)); }
   // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};

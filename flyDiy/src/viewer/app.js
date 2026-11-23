@@ -17073,6 +17073,9 @@
     const t = G.trip = tripOpen('gfworld'), ids = GF_IDS.filter(id => TRIP_BY[id]);
     // PERF-WORLDBUILD's builders ask this between their own yield points (agreed 23 Nov): <= 0 = yield now
     window.FLYDIY_WORLD_BUDGET = { left: () => G.deadline - performance.now() };
+    // (the user, 23 Nov 22:10: "turn them on by default" - the strips stood coarse for a moment and the settle on the near set,
+    //  PERF-WORLDBUILD's two switches with a visible state: on under the live host, ?nearfirst=0 and ?settle=0 turn each off)
+    if (!window.FLYDIY_WORLD_DEFAULTS) window.FLYDIY_WORLD_DEFAULTS = { nearfirst: true, settle: 'near' };
     let i = 0;
     const end = () => {
       G.running = false; G.done = true; G.step = null; G.ms = Math.round(performance.now() - G.t0); tripClose(t); behind(false);
@@ -22887,6 +22890,18 @@
   // PERF-LEAD LAB (?boot=garagefirst): the boot runs NONE of the world's steps (the list below, as the phone's garage boot
   // leaves them out); they run behind the garage once its screen is gone (gfArm, at the boot's done)
   const GF_BOOT = LAB.gf && !GARAGE_ONLY;
+  // BEHIND A LIVE GARAGE EVERY COMPILE PUTS BACK THE PROGRAM THE GARAGE'S FRAMES WERE DRAWING (compileSliced's rule of 23 Nov,
+  // for the callers that do not go through it: the town's and the ring's prewarm, the depth variants - the garage's frame still
+  // waited 0.2-0.3 s on a link in those steps at 20:00). three's compileAsync calls this.compile, so it is covered
+  if (LAB.gf && typeof renderer.compile === 'function' && renderer.properties && !renderer.__gfKeep) { renderer.__gfKeep = true;
+    const c0 = renderer.compile.bind(renderer);
+    renderer.compile = function (obj, cam, tgt) {
+      if (!gfLive() || !obj || !obj.traverse) return c0(obj, cam, tgt);
+      const keep = [];
+      try { obj.traverse(o => { if (!o.material) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { const pp = m && renderer.properties.get(m); if (pp && pp.currentProgram) keep.push([pp, pp.currentProgram]); } }); } catch (e) {}
+      const r = c0(obj, cam, tgt);
+      for (const [pp, was] of keep) if (pp.currentProgram !== was) { pp.currentProgram = was; pp.uniformsList = null; LAB.gfS.kept = (LAB.gfS.kept || 0) + 1; }
+      return r; }; }
   const bootStep = (id, label, w, fn) => bootSteps.push({ id, label, w, fn });
   // THE WORLD SCENE IS NOT BUILT HERE ANY MORE (LOADING S3, the user's ruling):
   // the garage does not show it, so it is built under the ROLL-OUT screen the

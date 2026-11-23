@@ -3315,7 +3315,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // a node coming takes a free one or the row's end, a hole left over takes the last live node, and only those slots are
       // written (bufferSubData from the patch cache, on COPY_WRITE_BUFFER: three's own bindings are not touched). The index is
       // each slot's template + its base, written once a slot. A row that is full grows by half, its live part copied ON the GPU.
-      const FSLOT = (() => { if (typeof location === 'undefined' || !/[?&]farslots=1(?:&|$)/.test(location.search || '') || !THREE.GLBufferAttribute) return null;
+      // (ON BY DEFAULT ON A REAL PAGE since 23 Nov 2026, the user's word - "turn on all switches leading to good results": ?farslots=0
+      //  is the old way; the node page (flydiy-node) keeps it off. No picture changes: big uploads 28 -> 0 in the journey)
+      const FSLOT = (() => { if (typeof location === 'undefined' || !THREE.GLBufferAttribute) return null;
+        { const S = location.search || '', real = typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '');
+          if (!(/[?&]farslots=1(?:&|$)/.test(S) || (real && !/[?&]farslots=0(?:&|$)/.test(S)))) return null; }
         const gl = renderer && renderer.getContext ? renderer.getContext() : null;
         return gl && gl.copyBufferSubData && gl.COPY_WRITE_BUFFER ? gl : null; })();
       FARLOD.slots = FSLOT ? { on: true, sentKB: 0, grows: 0, moved: 0, writes: 0 } : { on: false };
