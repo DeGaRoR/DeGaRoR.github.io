@@ -61,10 +61,13 @@ with an off switch for its proof:
 - THE GEAR SELECTOR'S SEARCH (`_panel_gen.js` placeGear): the plate's outline asked once a column. Exact (GATE
   PANELGEAR: 2 000 random dashes against the old function). DC-3 seat height tick in node 2 010 -> 563 ms.
 - THE AIRFRAME OF A SHEET, ONCE (`CAGE_CHAIN.afMemo`, `?afmemo=0` off, off under `RELEASE_FAST_OFF`): `cageAirframe`
-  was rebuilt about 12 times a whole build and 1-3 times a wing or gear tick from the same sheet (the Chinook: ~4 of
-  its 26 ms wing tick). Kept per sheet and scale under a stamp of everything the function reads.
+  was rebuilt 3-4 times a whole build on the Cub and the Chinook (a dozen call sites; the chain's comment says "a
+  dozen calls", which is the sites, not the calls) and 1-3 times a wing or gear tick from the same sheet (the
+  Chinook: ~4 of its 26 ms wing tick). In node the wing layer's tick: the Cub 42 -> 28 ms, the Chinook 36 -> 26. Kept per sheet and scale under a stamp of everything the function reads.
 - THE STAND MEASURED AT A PRESS ONLY WHEN THE ROW CAN MOVE THE SHEET (`CAGE_UI.standAlways = true` restores): the
   ~300 ms frame right after every press of a wing, tail or gear row (the Cub's 383 ms frame; 250-414 ms on the S20).
+  PROVEN ON FOUR AEROPLANES ONLY (INSTANT's and INSTANTREL's 44 rows: every row is pressed before it is dragged), and by
+  its construction (it moves WHEN the stand is measured: a deforming tick that comes first measures it itself).
 - THE TWO RELEASE RULES (section 3; also alone on the release ready).
 
 2.2 A SWITCH, OFF BY DEFAULT: THE DRAG BUDGET, `?dragbudget=auto` (or `=<ms>`; `?dragrest=<ms>`). A tick whose last
@@ -116,8 +119,9 @@ All in the page in node (`tools/_page_node.js`), each ends with `GATE <ID>: PASS
 | gate (run_gates.js row, core) | file | what it holds | alone | state |
 |---|---|---|---|---|
 | INSTANTREL (new) | `_instant_rel_check.js` | GATE INSTANT's check on the DC-3, the Super Petrel and the Cub, six rows with s1Z: a drag's release ends on the plain build's aeroplane | ~25 min, or three shards (the DC-3 ~7, the Petrel ~13, the Cub ~4) | PASS, 18 rows: on the release ready's own tree 14:54 (unsharded), and on this branch's game code 56f3924d6 as three shards (17:10, 17:16, 17:40) |
-| DERIVED (new) | `_derived_check.js` | derived / over ON against OFF: every aeroplane's stand (ON, OFF, OFF), the walks where a derived read or an overlay is in use; `GATES_CORE=1`: the DC-3 and the Petrel | ~25 min the 23 light aeroplanes, ~70 the 7 heavy | DERIVED_STATE |
+| DERIVED (new) | `_derived_check.js` | derived / over ON against OFF: every aeroplane's stand (ON, OFF, OFF), the walks where a derived read or an overlay is in use; `GATES_CORE=1`: the DC-3 and the Petrel | ~25 min the 23 light aeroplanes, ~70 the 7 heavy | PASS on all 30, the game code 56f3924d6: the 7 that matter (DC-3, Petrel, Pawnee, sailPlane, twinBoomFail, Chinook, Cub) compared 17:40-18:30 - 7 stands, 9 walks, all same, the crew's runs saved in the ticks 16, the Petrel's stSpan a release by the plan (ON) against a whole one (OFF), the same aeroplane; the other 23 call neither derived nor over (counted, one plain build each: the same code in both modes), 18:30-18:49 |
 | PANELGEAR (new) | `_panel_gear_check.js` | the gear selector's cheap search against the plain one, 2 000 dashes | 3 s | PASS (04:10 on 21d6a1c11; 14:59 on 457f3b288) |
+| AFMEMO (a mode of DERIVED's file, not a battery row yet) | `_derived_check.js --mode afmemo` | the sheet's airframe built once against built every time: every aeroplane, four plain builds ON / OFF / OFF / ON from a settled aeroplane; a difference counts where the two ON agree, the two OFF agree and ON is not OFF | ~25 min on two lanes | PASS on all 30 (3020e6efb, 18:50-19:27): no object and no spec differs by the memo, the memo used in every ON build (2-4 hits); three floatplanes drift build after build (the PC-6 on Wiplines 41 objects, the Ultralight twin 19, the Petrel 2) and are told apart by the ON / OFF / OFF / ON order |
 | INSTANT | `_instant_check.js` | unchanged rows; new options `--gate`, `--multiset`, `--budget held|lite`, `--budget-rest`, builds `dc3`, `petrel` | ~11-18 min | PASS, 26 rows on 56f3924d6 (17:27, 655 s) |
 
 THE SWEEP (row 1 per aeroplane, a real browser; needs the GPU lane and a built page):
