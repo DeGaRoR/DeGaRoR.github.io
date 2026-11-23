@@ -827,6 +827,7 @@ const GATES = [
   // the build's occupants it leaves ashore off the layer) - the stand, the snapshot and the flown mesh follow, the spec
   // stays the build's. The page's load chain on the metal Cessna, four jobs, a probe; ~1-2 min
   { id: 'CREWSEATS', file: '_crewseats_check.js', tier: 'core', wall: 300 },
+  { id: 'CREWSYM', file: '_crewsym_check.js', argv: ['--selftest'], tier: 'core', wall: 300 },   // KNEE-SYM (the user 23 Nov): the pilot's knees mirror, the aeroplane turned or not
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)

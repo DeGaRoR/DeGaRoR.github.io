@@ -2544,14 +2544,18 @@ function solveGripJob(occ, j, ctx) {
     occ.fig.localToWorld(pole.copy(ctx.poleFig));
   } else {
     ikDefaultPole(occ, j.chain, pole);
-    const side = c.side === 'L' ? 1 : -1;
-    if (c.arm) {                    // elbows: down + in/out slider
-      pole.y -= 0.22 * s;
-      pole.x += side * (0.03 + (ctx.elbows || 0)) * s;
-    } else {                        // knees: up-forward + in/out slider
-      pole.y += 0.10 * s; pole.z += 0.10 * s;
-      pole.x += side * (ctx.knees || 0) * s;
-    }
+    // KNEE-SYM (the user 23 Nov: "the pilot position is not symmetric, its right knee is more inside than its left"):
+    // the offsets below were added along the WORLD's axes - in the shed the aeroplane lies along world x, so "out" was
+    // fore/aft (opposite for the two sides) and "forward" was sideways (the SAME side for both knees): a mirrored pair
+    // came out lopsided, and the pose hung on how the aeroplane was turned when it was built. They are the body's now:
+    // up, forward and OUT in the fig's own frame (+y up, +z the pilot's forward), out = the side the chain's root is on.
+    occ.fig.updateWorldMatrix(true, false);
+    occ.fig.getWorldQuaternion(_qf);
+    occ.bones[c.root].getWorldPosition(_hv);
+    const out = occ.fig.worldToLocal(_hv).x >= 0 ? 1 : -1;
+    if (c.arm) _hf.set(out * (0.03 + (ctx.elbows || 0)) * s, -0.22 * s, 0);   // elbows: down + in/out slider
+    else _hf.set(out * (ctx.knees || 0) * s, 0.10 * s, 0.10 * s);           // knees: up-forward + in/out slider
+    pole.add(_hf.applyQuaternion(_qf));
     // the pole the editor chose, in the fig's frame: what the join carries
     // so the flown solve bends the same elbow the same way
     j.poleFig = occ.fig.worldToLocal(pole.clone());
