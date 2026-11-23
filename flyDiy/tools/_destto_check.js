@@ -195,6 +195,15 @@ function careerW3(W, sim, def, check, secs, overflew) {
   const c = sim.cgPos(), Wh = C.flightWhere(W, c[0], c[2], {});
   const crashed = !!(sim.damage && sim.damage().crashed);
   let d = C.playerFleetReconcile(C.careerNormalise(C.careerNew({ id: 'dev', seed: 'dev', name: 'the dev career' })), ['Cub']).doc;
+  // (MASTER-GREEN 23 Nov) CERT-GATES (the user 3 Nov: "you can fly an uncertified plane, but you cannot engage it in any
+  // mission in the story mode"; 74_career contractCertNeed: a paid or loaded contract needs the COMMERCIAL certificate). The
+  // reconciled Cub has no airframe row, so it holds none and the Trust's arc contract is refused - as it must be, and held
+  // here. The rows below are about the stop's delivery, not the bench: their Cub is a maker's airframe (careerCertOf:
+  // factory, not modified - both certificates), the plane a career's voucher buys
+  { const r0 = C.careerAccept(d, 'field.01');
+    check(!r0.ok && /commercial certificate/.test(r0.why || ''), tag + 'an uncertified Cub may not take the Trust\'s arc contract (CERT-GATES)', r0.why); }
+  d = JSON.parse(JSON.stringify(d));
+  d.career.airframes.Cub = Object.assign({}, d.career.airframes.Cub, { from: 'maker', factory: true, modified: false });
   // G2430 (CONTRACT-ROUTES) made most generated jobs multi-stop and not HOME-first, so the dev seed may offer no single
   // HOME -> w3 carry: the row then takes ITS OWN one (35 kg, no passenger, no condition), accepted the way careerAccept
   // keeps a job (live.rec = the record as offered) - what this row proves is the stop's delivery, not the generator's draw
