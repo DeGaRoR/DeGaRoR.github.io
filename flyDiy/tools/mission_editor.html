@@ -68,6 +68,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .tn.ro .lb b { color: var(--ed-dim); }
 .tn .badge { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: rgba(224,138,90,.16); color: var(--ed-bad); flex: none; }
 .tn .badge.w { background: rgba(216,160,122,.12); color: var(--ed-warn); }
+.tn .badge.f { background: rgba(120,190,150,.12); color: var(--ed-ok); }
 .tgroup { border-left: 1px solid var(--ed-hair); }
 .tsec { font: 600 10.5px/1 'IBM Plex Sans'; letter-spacing: .14em; text-transform: uppercase; color: var(--ed-faint); padding: 16px 14px 6px; }
 .tadd { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 14px 0; }
@@ -301,6 +302,50 @@ const isTut = m => m && m.tutorial != null;
 const campOf = id => { for (const c of S.pack.campaigns) for (const h of c.chapters) if (h.missions.includes(id)) return { c, h }; return null; };
 const readOnly = () => { const m = S.sel.id && mission(S.sel.id); if (m && isTut(m)) return true; const c = S.sel.c != null && S.pack.campaigns[S.sel.c]; return !!(c && c.readonly); };
 const recOf = m => safe(() => missionToContract(m, { pack: S.pack }));
+// VALIDATED WITH (the user, 23 Nov: "add a flag on the missions, possibly direct in editor, like validated with XXX
+// plane"). A mission carries what the test pilot's flight of it found: validated { with: <aeroplane> | null, sim,
+// flownS | verdict + why, sig }. tools/story_feas.js --stamp writes it from the kept flight rows; the editor shows it and
+// keeps it on Save. sig is what the mission ASKS OF A FLIGHT, as it is written in the pack (its kind, its legs and
+// steps, their order, its timers, its course, its landing lines - not its words, its pay or when it is offered): edit a
+// step and the flag reads "edited since the test pilot flew it" until it is flown and stamped again. (The mission as
+// WRITTEN, not its contract record: the editor's lean core and node's whole core fill a load's item defaults
+// differently. A site's own position is not in it.) ONE definition, between the two marks: story_feas.js reads it here.
+// <flight-sig>
+function flightSig(m) {
+  const s = JSON.stringify({ kind: m.kind, order: m.order || null, legs: m.legs, stol: m.stol || null, timers: m.timers || null, course: m.course || null, rules: m.rules || null, startFrom: m.startFrom || null },
+    (k, v) => (k === 'say' || k === 'onDone') ? undefined : v);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+// </flight-sig>
+// a mission's flag as the editor reads it: none | ok (flown, feasible) | red (flown, not feasible) | changed (its flight edited since)
+function flownOf(m) {
+  const v = m && m.validated;
+  if (!v || typeof v !== 'object') return { state: 'none' };
+  if (flightSig(m) !== v.sig) return { state: 'changed', v };
+  return { state: v.with ? 'ok' : 'red', v };
+}
+const flownShort = p => String(p).replace(/^light metal Cessna \(.*STOL kit.*$/, 'STOL-kit Cessna (test build)').replace(/^Cessna 172 \(list:50\) with the STOL kit.*$/, 'STOL-kit Cessna 172 (test build)');
+// the whole pack's flags, counted (the pack's own notes)
+function flownSummary() {
+  const n = { ok: 0, red: 0, changed: 0, none: 0 }, by = {}, sims = {};
+  for (const m of S.pack.missions) { if (isTut(m) || m.kind === 'build') continue; const F = flownOf(m); n[F.state]++; if (F.state === 'ok') by[flownShort(F.v.with)] = (by[flownShort(F.v.with)] || 0) + 1; if (F.v) sims[F.v.sim] = 1; }
+  if (!(n.ok + n.red + n.changed)) return null;
+  return el('div', { cls: 'notes' }, el('b', {}, 'The test pilot\'s flights' + (Object.keys(sims).length ? ' (sim ' + Object.keys(sims).join(', ') + ')' : '')),
+    el('div', { cls: 'ok' }, '✓ ' + n.ok + ' validated: ' + Object.keys(by).sort((a, b) => by[b] - by[a]).map(k => by[k] + ' ' + k).join(', ')),
+    n.red ? el('div', { cls: 'warn' }, '✗ ' + n.red + ' flown and not validated (each mission says why)') : null,
+    n.changed ? el('div', { cls: 'warn' }, '⚠ ' + n.changed + ' edited since they were flown') : null,
+    n.none ? el('div', { cls: 'faint' }, '– ' + n.none + ' not flown yet') : null);
+}
+const flownTime = t => Math.floor(t / 60) + ' min ' + String(Math.round(t % 60)).padStart(2, '0') + ' s';
+function flownLine(m) {
+  const F = flownOf(m), v = F.v;
+  if (F.state === 'none') return el('div', { cls: 'faint' }, '– Not flown by the test pilot yet (node tools/story_feas.js --fly --only=' + m.id + ', then --stamp)');
+  if (F.state === 'changed') return el('div', { cls: 'warn' }, '⚠ Its flight was edited since the test pilot flew it' + (v.with ? ' (then: ' + v.with + ', sim ' + v.sim + ')' : '') + ' - fly it again, then --stamp');
+  if (F.state === 'ok') return el('div', { cls: 'ok' }, '✓ Validated with: ' + v.with + (v.flownS ? ' · ' + flownTime(v.flownS) + ' flown' : '') + ' · sim ' + v.sim);
+  return el('div', { cls: 'warn' }, '✗ Not validated (sim ' + v.sim + '): ' + (v.why || v.verdict || 'not feasible as flown'));
+}
 function typeOf(m) {
   if (m.kind === 'build') return 'build';
   const steps = [].concat(...(m.legs || []).map(L => L.steps || []));
@@ -343,13 +388,15 @@ function tnode(o) {
   return el('div', { cls: 'tn' + (on ? ' sel' : '') + (o.ro ? ' ro' : ''), style: { paddingLeft: (10 + 16 * (o.ind || 0)) + 'px' }, title: o.tip || '',
     on: { click: () => { S.sel = o.sel; S.pick = null; S.pp = null; renderAll(); } } },
     ic, el('span', { cls: 'lb' }, el('b', {}, o.label), o.meta ? el('small', {}, o.meta) : null), o.bad ? el('span', { cls: 'badge', title: 'problems: see Checks' }, o.bad) : null,
-    o.wait ? el('span', { cls: 'badge w', title: o.wait }, 'later') : null);
+    o.wait ? el('span', { cls: 'badge w', title: o.wait }, 'later') : null,
+    // VALIDATED WITH: the test pilot's flight of it, at a glance (the mission's notes say it whole)
+    o.flown && o.flown.state !== 'none' ? el('span', { cls: 'badge ' + (o.flown.state === 'ok' ? 'f' : 'w'), title: o.flown.state === 'ok' ? 'validated with ' + o.flown.v.with + ' (sim ' + o.flown.v.sim + ')' : o.flown.state === 'changed' ? 'its flight was edited since the test pilot flew it' : 'not validated: ' + (o.flown.v.why || o.flown.v.verdict || '') }, o.flown.state === 'ok' ? '✓' : o.flown.state === 'changed' ? '⚠' : '✗') : null);
 }
 function missionNode(m, ind) {
   if (isTut(m)) { const b = (typeof STORY_BEATS !== 'undefined' ? STORY_BEATS : []).find(x => x.id === m.tutorial); return tnode({ label: (b ? b.title : m.tutorial), meta: 'tutorial · read-only', icon: '🔒', sel: { t: 'mission', id: m.id }, ind, ro: true }); }
   const rec = recOf(m), rw = rec ? contractRuntimeOk(rec) : '';
-  return tnode({ label: words(m.title) || m.id, meta: m.id + ' · ' + (KIND_LABEL[m.kind] || m.kind) + (m.client ? ' · ' + personName(m.client) : ''), dot: TYPE_COLOUR[typeOf(m)],
-    sel: { t: 'mission', id: m.id }, ind, bad: whyOf(m.id).length || null, wait: rw ? 'waits for its runtime: ' + rw : null });
+  return tnode({ label: words(m.title) || m.id, meta: m.id + ' · ' + (KIND_LABEL[m.kind] || m.kind) + (m.client ? ' · ' + personName(m.client) : '') + (flownOf(m).state === 'ok' ? ' · ✓ ' + flownShort(m.validated.with) : ''), dot: TYPE_COLOUR[typeOf(m)],
+    sel: { t: 'mission', id: m.id }, ind, bad: whyOf(m.id).length || null, wait: rw ? 'waits for its runtime: ' + rw : null, flown: flownOf(m) });
 }
 function renderTree() {
   const t = $('tree'); t.innerHTML = '';
@@ -951,7 +998,7 @@ function renderCard() {
     c.append(el('div', { cls: 'gc' }, ms.slice(0, 30).map(x => cardItem(x, false))));
     return;
   }
-  if (!m) { c.append(el('div', { cls: 'faint' }, 'Select a mission to see its card as the map screen shows it.')); return; }
+  if (!m) { c.append(el('div', { cls: 'faint' }, 'Select a mission to see its card as the map screen shows it.')); const fs_ = flownSummary(); if (fs_) N.append(fs_); return; }
   if (isTut(m)) { const t = missionTutorial().find(x => x.beat === m.tutorial) || {}; c.append(el('div', { cls: 'gc' }, el('div', { cls: 'mmItem open' }, el('div', { cls: 'mmBody', style: { paddingLeft: '16px', paddingTop: '14px' } }, el('p', {}, el('b', {}, t.title || m.id)), el('p', {}, t.brief || ''))))); return; }
   c.append(el('div', { cls: 'gc' }, cardItem(m, true)));
   // the editor's notes: the steps in words, the preferences, the money, whether today's runtime runs it
@@ -965,7 +1012,8 @@ function renderCard() {
     m.onDone && m.onDone.say ? el('div', { cls: 'dim' }, '“' + contractText(m.onDone.say.text, {}, Tx) + '” - ' + personName(m.onDone.say.who)) : null,
     rw ? el('div', { cls: 'pay' }, el('span', { cls: 'faint' }, 'Offered'), el('span', {}, credits(rw.pay.total) + ' credits' + (rw.pay.km ? ' · ' + kmFmt(rw.pay.km) + ' km' : '')),
       el('span', { cls: 'faint' }, 'Paid'), el('span', {}, credits(rw.paid)), rw.best !== rw.paid ? [el('span', { cls: 'faint' }, 'At best'), el('span', {}, credits(rw.best) + (rw.prefs ? ' · preferences +' + rw.prefs + ' %' : ''))] : null) : null,
-    rw ? el('div', { cls: rw.why ? 'warn' : 'ok' }, rw.why ? '⏳ Not playable yet: ' + rw.why : '✓ The game runs it today') : null));
+    rw ? el('div', { cls: rw.why ? 'warn' : 'ok' }, rw.why ? '⏳ Not playable yet: ' + rw.why : '✓ The game runs it today') : null,
+    m.kind === 'build' ? null : flownLine(m)));
 }
 
 // ---- the map (MAP_PACK: px = (x - x0) / mpp, py = (z - z0) / mpp; north up) ------------------------------------------

@@ -13,6 +13,10 @@
 //   node tools/story_feas.js --check     every mission of the pack: a current row and feasible, or one of the named
 //                             classes (an aircraft order; a delivery no official plane can fly); prints what is missing.
 //                             Exit 1 while a mission is not flown, stale, broken or infeasible outside those classes
+//   node tools/story_feas.js --stamp     VALIDATED WITH (the user, 23 Nov): every mission of src/missions/story.json gets its
+//                             flag from its current row - validated { with: <aeroplane> | null, sim, flownS | verdict + why,
+//                             sig } - and loses it when it has none (never flown on this sim). The file stays in the
+//                             editor's save format; the editor shows the flag (tools/mission_editor.html, flownOf)
 //   options: --rows=<dir> (default reports/STORY-REVAMP/feasibility)  --tries=3 (aeroplanes tried)  --tmax=3600 (a leg, sim s)  --quiet
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), cp = require('child_process'), crypto = require('crypto');
@@ -116,6 +120,32 @@ function classOf(m, r) {
   if (r && r.verdict === 'infeasible' && /^official/.test(r.pool || '') && /no official plane can do it/.test(r.why || '')) return 'player-built';
   return null;
 }
+// VALIDATED WITH: the flag on the mission itself (the editor's own definition of what a mission asks of a flight)
+function flightSigFn() {
+  const src = fs.readFileSync(path.join(T, 'mission_editor.html'), 'utf8'), m = src.match(/\/\/ <flight-sig>\n([\s\S]*?)\/\/ <\/flight-sig>/);
+  if (!m) throw new Error('tools/mission_editor.html: the flight-sig marks are gone');
+  return new Function(m[1] + '\nreturn flightSig;')();
+}
+function stamp() {
+  const { C, SP, list } = load();
+  const sig = flightSigFn(), N = C.missionPackNormalise(SP), by = {};
+  const n = { validated: 0, red: 0, cleared: 0, none: 0, order: 0 };
+  for (const q of list) by[q.id] = q;
+  for (const m of N.missions) {
+    const q = by[m.id];
+    if (!q) continue;                                            // a tutorial listing: no flag
+    const had = m.validated != null, r = q.order ? null : current(q);
+    delete m.validated;
+    if (q.order) { n.order++; continue; }
+    if (!r) { if (had) n.cleared++; else n.none++; continue; }
+    const s8 = sig(m);
+    if (r.verdict === 'feasible') { m.validated = { with: r.plane, sim: r.sim, flownS: r.timeS, sig: s8 }; n.validated++; }
+    else { m.validated = { with: null, verdict: classOf(q, r) === 'player-built' ? 'no official plane' : r.verdict, why: classOf(q, r) === 'player-built' ? 'no official plane can carry it: a plane the player builds' : String(r.why || '').replace(/\s+/g, ' ').slice(0, 160), sim: r.sim, sig: s8 }; n.red++; }
+  }
+  const txt = JSON.stringify(C.missionPackNormalise(N), null, 1) + '\n';
+  if (txt !== fs.readFileSync(PACK, 'utf8')) { fs.writeFileSync(PACK + '.tmp', txt); fs.renameSync(PACK + '.tmp', PACK); }   // (in one move: a flight may be reading the pack)
+  console.log('story_feas --stamp: ' + n.validated + ' validated with an aeroplane, ' + n.red + ' flown and not validated, ' + (n.none + n.cleared) + ' with no flag (not flown on ' + SIM + (n.cleared ? '; ' + n.cleared + ' flag(s) taken off' : '') + '), ' + n.order + ' aircraft orders');
+}
 function table() {
   const { list } = load();
   const rows = list.map(m => { const r = current(m), stale = !r && !!rowOf(m.id); return Object.assign({ id: m.id, where: m.where, kind: m.kind }, r ? { verdict: r.verdict, plane: r.plane, timeS: r.timeS, why: r.why, legs: r.legs, pool: r.pool, cls: classOf(m, r) } : { verdict: stale ? 'stale' : 'not flown', cls: m.order ? 'order' : null }); });
@@ -149,5 +179,6 @@ function check() {
 }
 if (has('fly')) fly().catch(e => { console.error(e); process.exit(2); });
 else if (has('table')) table();
+else if (has('stamp')) stamp();
 else if (has('check')) check();
 else console.log('story_feas.js --fly | --table | --check (see the header)');

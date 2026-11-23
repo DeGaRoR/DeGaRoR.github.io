@@ -285,6 +285,12 @@
      "who": "leonard",
      "text": "ct.field.01.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 966,
+    "sig": "d55c393f"
    }
   },
   {
@@ -325,6 +331,12 @@
      "who": "leonard",
      "text": "ct.field.02.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 975,
+    "sig": "0e37dda2"
    }
   },
   {
@@ -374,6 +386,12 @@
      "who": "leonard",
      "text": "ct.field.n1.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1028,
+    "sig": "6981476b"
    }
   },
   {
@@ -460,7 +478,13 @@
     "provider": "field",
     "gain": 0.5
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1063,
+    "sig": "b1c41d77"
+   }
   },
   {
    "id": "field.ridge",
@@ -494,7 +518,13 @@
     "provider": "field",
     "gain": 0.5
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 1258,
+    "sig": "da1876a1"
+   }
   },
   {
    "id": "field.cannery",
@@ -563,7 +593,13 @@
     "provider": "field",
     "gain": 0.5
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1003,
+    "sig": "8e648f9c"
+   }
   },
   {
    "id": "hangar.02",
@@ -597,7 +633,13 @@
     "provider": "field",
     "gain": 0.5
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1192,
+    "sig": "3d415a53"
+   }
   },
   {
    "id": "hangar.03",
@@ -631,7 +673,13 @@
     "provider": "field",
     "gain": 0.5
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1093,
+    "sig": "f3995c2b"
+   }
   },
   {
    "id": "hangar.04",
@@ -665,7 +713,13 @@
     "provider": "field",
     "gain": 0.5
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 1253,
+    "sig": "682a1234"
+   }
   },
   {
    "id": "hangar.05",
@@ -705,7 +759,13 @@
      "text": "ms.hangar.05.done"
     }
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+    "sim": "L40K",
+    "flownS": 1135,
+    "sig": "8f68e4eb"
+   }
   },
   {
    "id": "heritage.01",
@@ -739,7 +799,13 @@
     "provider": "field",
     "gain": 1
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 931,
+    "sig": "b19cea86"
+   }
   },
   {
    "id": "heritage.02",
@@ -791,7 +857,14 @@
      "text": "ms.heritage.02.done"
     }
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": null,
+    "verdict": "no official plane",
+    "why": "no official plane can carry it: a plane the player builds",
+    "sim": "L40K",
+    "sig": "cfb5d18a"
+   }
   },
   {
    "id": "minedock.n1",
@@ -1091,7 +1164,13 @@
     "provider": "minedock",
     "gain": 0.5
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2762,
+    "sig": "acb04398"
+   }
   },
   {
    "id": "mine.04",
@@ -3054,7 +3133,13 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1184,
+    "sig": "71407036"
+   }
   },
   {
    "id": "home.02",
@@ -3088,7 +3173,13 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1460,
+    "sig": "0fc7bc33"
+   }
   },
   {
    "id": "home.03",
@@ -3122,7 +3213,13 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+    "sim": "L40K",
+    "flownS": 1208,
+    "sig": "a2bca4e8"
+   }
   },
   {
    "id": "home.04",
@@ -3156,7 +3253,13 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+    "sim": "L40K",
+    "flownS": 929,
+    "sig": "7f7a60bc"
+   }
   },
   {
    "id": "home.05",
@@ -3198,7 +3301,13 @@
      "text": "ms.home.05.done"
     }
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+    "sim": "L40K",
+    "flownS": 890,
+    "sig": "7d973f09"
+   }
   },
   {
    "id": "home.06",
@@ -3244,7 +3353,14 @@
     "provider": "home",
     "gain": 0.5
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "no official plane",
+    "why": "no official plane can carry it: a plane the player builds",
+    "sim": "L40K",
+    "sig": "6b0afd51"
+   }
   },
   {
    "id": "home.07",
@@ -3278,7 +3394,13 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+    "sim": "L40K",
+    "flownS": 1203,
+    "sig": "1a749c2e"
+   }
   },
   {
    "id": "home.08",
@@ -3488,7 +3610,14 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 280 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "863c7d34"
+   }
   },
   {
    "id": "home.14",
@@ -3528,7 +3657,13 @@
      "text": "ms.home.14.done"
     }
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+    "sim": "L40K",
+    "flownS": 1193,
+    "sig": "8819e179"
+   }
   },
   {
    "id": "community.01",
@@ -3562,7 +3697,13 @@
     "provider": "community",
     "gain": 0.5
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1990,
+    "sig": "dc87e572"
+   }
   },
   {
    "id": "community.02",
@@ -3597,7 +3738,13 @@
     "provider": "community",
     "gain": 0.5
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2066,
+    "sig": "90018827"
+   }
   },
   {
    "id": "community.03",
@@ -3632,7 +3779,13 @@
     "provider": "community",
     "gain": 0.5
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1734,
+    "sig": "e3852306"
+   }
   },
   {
    "id": "community.04",
@@ -3667,7 +3820,13 @@
     "provider": "community",
     "gain": 0.5
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1771,
+    "sig": "a32eb1e9"
+   }
   },
   {
    "id": "community.05",
@@ -3702,7 +3861,13 @@
     "provider": "community",
     "gain": 0.5
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 1572,
+    "sig": "774c04b1"
+   }
   },
   {
    "id": "community.06",
@@ -3737,7 +3902,13 @@
     "provider": "community",
     "gain": 0.5
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2292,
+    "sig": "383bd1ed"
+   }
   },
   {
    "id": "community.07",
@@ -3772,7 +3943,13 @@
     "provider": "community",
     "gain": 0.5
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2118,
+    "sig": "65129cd2"
+   }
   },
   {
    "id": "community.08",
@@ -3806,7 +3983,13 @@
     "provider": "community",
     "gain": 1
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": "PC-6 Turbo Porter",
+    "sim": "L40K",
+    "flownS": 986,
+    "sig": "fbf3eec4"
+   }
   },
   {
    "id": "community.09",
@@ -3841,7 +4024,14 @@
     "gain": 1
    },
    "goods": "goods.parts",
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 0 kg / 1 pax, the job is 300 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "97c2d681"
+   }
   },
   {
    "id": "community.10",
@@ -3876,7 +4066,14 @@
     "gain": 1
    },
    "goods": "goods.parts",
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 0 kg / 1 pax, the job is 400 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "00190df4"
+   }
   },
   {
    "id": "community.11",
@@ -3917,7 +4114,14 @@
      "text": "ms.community.11.done"
     }
    },
-   "client": "james"
+   "client": "james",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 350 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "a50e05a1"
+   }
   },
   {
    "id": "club.stol",
@@ -3984,7 +4188,13 @@
      }
     }
    ],
-   "client": "stig"
+   "client": "stig",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 489,
+    "sig": "519ce7e4"
+   }
   },
   {
    "id": "club.spot",
@@ -4047,7 +4257,13 @@
      ]
     }
    ],
-   "client": "stig"
+   "client": "stig",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 488,
+    "sig": "086b3cb4"
+   }
   },
   {
    "id": "club.pylons",
@@ -4193,7 +4409,13 @@
      }
     }
    ],
-   "client": "stig"
+   "client": "stig",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1096,
+    "sig": "398158d2"
+   }
   },
   {
    "id": "club.regular",
@@ -4291,7 +4513,13 @@
      ]
     }
    ],
-   "client": "stig"
+   "client": "stig",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1086,
+    "sig": "375e1e68"
+   }
   },
   {
    "id": "club.tour",
@@ -4529,7 +4757,14 @@
      "text": "ms.club.tour.done"
     }
    },
-   "client": "stig"
+   "client": "stig",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "no progress: pass c1: not flown yet",
+    "sim": "L40K",
+    "sig": "1e6dd037"
+   }
   },
   {
    "id": "club.breakfast",
@@ -4572,7 +4807,13 @@
      "text": "ms.club.breakfast.done"
     }
    },
-   "client": "stig"
+   "client": "stig",
+   "validated": {
+    "with": "Jodel D112",
+    "sim": "L40K",
+    "flownS": 962,
+    "sig": "1b3044a1"
+   }
   },
   {
    "id": "story.T0",
