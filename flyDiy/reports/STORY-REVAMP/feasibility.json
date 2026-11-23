@@ -4,13 +4,13 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "not flown": 58,
+  "not flown": 57,
   "feasible": 23,
   "an aircraft order (not a flight)": 8,
-  "stale": 1,
-  "infeasible": 1
+  "infeasible": 2,
+  "stale": 1
  },
- "flownS": 32709,
+ "flownS": 33801,
  "rows": [
   {
    "id": "field.01",
@@ -453,7 +453,29 @@
    "id": "lumber.04",
    "where": "lumber:3",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 on Wiplines",
+   "timeS": 1092,
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "SEA",
+     "t": 1092,
+     "how": "crashed",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "crash",
+      "yield",
+      "break"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {

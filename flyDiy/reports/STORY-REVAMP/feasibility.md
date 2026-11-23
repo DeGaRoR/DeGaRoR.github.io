@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 23 feasible; 1 infeasible; 58 not flown; 1 stale. Time flown: 545 min 09 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 23 feasible; 2 infeasible; 57 not flown; 1 stale. Time flown: 563 min 21 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -34,7 +34,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 23 feasible; 1 infeas
 | lumber.01 | lumber:1 | feasible | Cessna 172 floats (career) | 6 min 59 s | SEA > mk_sea 419 |  |
 | lumber.02 | lumber:2 | not flown | - | - | - |  |
 | lumber.03 | lumber:2 | not flown | - | - | - |  |
-| lumber.04 | lumber:3 | not flown | - | - | - |  |
+| lumber.04 | lumber:3 | infeasible | PC-6 on Wiplines | 18 min 12 s | HOME > SEA 1092 | crashed: the damage ended the flight: a fus member broke |
 | lumber.run | contract | not flown | - | - | - |  |
 | resort.01 | contract | not flown | - | - | - |  |
 | resort.04 | contract | order | - | - | - |  |
