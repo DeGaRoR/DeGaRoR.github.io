@@ -36,6 +36,7 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   const UNITS = [], STRIPSEQ = [];   // --units: every pavement geometry built (strip / road / paved polygon); the 'strip*' slices in order
   const COMPOSE = [];   // every composition of the premises record: the boot step it ran in, its ms
   const LONG = [];           // every slice over 50 ms: { label, ms, step }
+  const OVER20 = [];         // every step over 20 ms: [label, ms] - the garage-first checklist (a step runs behind a live frame there)
   const SETTLE = { n: 0, ms: 0, max: 0, over50: 0, over100: 0 };
   let bootCur = null, bootAt = 0;
   const bootOpen = k => { const t = now(); if (bootCur) WIN.boot.push([bootAt, t, bootCur]); bootCur = k; bootAt = t; };
@@ -53,6 +54,7 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
           const k = String(label).replace(/[0-9]+/g, '#'), e = STEP[k] || (STEP[k] = { n: 0, ms: 0, max: 0 });
           e.n++; e.ms += d; if (d > e.max) e.max = d; WIN.world.push([t, t1, k]);
           if (d > 50) LONG.push({ label: String(label), ms: +d.toFixed(1), step: bootCur });
+          if (d > 20) OVER20.push([String(label), +d.toFixed(1)]);
           if (/^strips?( |$)/.test(String(label))) STRIPSEQ.push({ after: String(label), ms: +d.toFixed(1) });
           if (!r.done && r.value !== undefined) label = r.value;
           return r; },
@@ -217,7 +219,7 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   const round = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'number' ? Math.round(v) : { n: v.n, ms: Math.round(v.ms), max: Math.round(v.max) }]));
   const worldMs = Object.values(STEP).reduce((s, e) => s + e.ms, 0);
   const res = { label: LABEL, query: QUERY, workers: WORKERS, build: W.FLYDIY_BUILD || null, node: process.version, cpus: os.cpus()[0].model, wall,
-    boot: round(boot), world: { ms: Math.round(worldMs), slices: W.__WORLD_SLICES || null, steps: round(STEP), long: LONG.sort((a, b) => b.ms - a.ms) },
+    boot: round(boot), world: { ms: Math.round(worldMs), slices: W.__WORLD_SLICES || null, steps: round(STEP), long: LONG.sort((a, b) => b.ms - a.ms), over20: OVER20.sort((a, b) => b[1] - a[1]) },
     settle: Object.assign(round({ x: SETTLE }).x, { over50: SETTLE.over50, over100: SETTLE.over100, state: W.FLYDIY_WORLD_SETTLE || null }), census, drain, units, compose: COMPOSE, raster: rasterEnd, mats, wx, stripw: W.FLYDIY_STRIPW ? Object.assign({}, W.FLYDIY_STRIPW, { jobs: undefined }) : null, top,
     errors: P.errors.slice(0, 10) };
   fs.writeFileSync(path.join(OUT, 'world_build_' + LABEL + '.json'), JSON.stringify(res, null, 1));
@@ -228,6 +230,9 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;   // ms, the machine's 
   for (const [k, v] of Object.entries(res.boot).sort((a, b) => b[1] - a[1])) if (v >= 20) console.log('  ' + pad(k, 28) + num(v, 8));
   console.log('\nTHE WORLD STEP BY LABEL: ms, slices, the longest slice (ms) - total ' + res.world.ms + ' ms');
   for (const [k, v] of Object.entries(res.world.steps).sort((a, b) => b[1].ms - a[1].ms)) if (v.ms >= 10) console.log('  ' + pad(k, 34) + num(v.ms, 8) + num(v.n, 7) + num(v.max, 8) + (top.world && top.world[k] ? '   ' + top.world[k].slice(0, 3).map(f => f[0].split(' ')[0] + ' ' + f[1]).join(', ') : ''));
+  { const by = {}; for (const [l, ms] of OVER20) { const k = l.replace(/[0-9]+/g, '#'), e = by[k] || (by[k] = { n: 0, ms: 0, max: 0 }); e.n++; e.ms += ms; if (ms > e.max) e.max = ms; }
+    console.log('\nSTEPS OVER 20 ms IN THE WORLD STEP: ' + OVER20.length + ', ' + Math.round(OVER20.reduce((a, r) => a + r[1], 0)) + ' ms in them - label: count, sum, longest');
+    for (const k of Object.keys(by).sort((p, q) => by[q].max - by[p].max)) console.log('  ' + k.padEnd(36) + String(by[k].n).padStart(5) + String(Math.round(by[k].ms)).padStart(8) + String(Math.round(by[k].max)).padStart(8)); }
   console.log('\nSLICES OVER 50 ms IN THE WORLD STEP: ' + LONG.length + (LONG.length ? ' - ' + LONG.slice(0, 25).map(l => l.label + ' ' + Math.round(l.ms)).join(', ') : ''));
   console.log('\nSETTLE: ' + JSON.stringify(res.settle));
   console.log('COMPOSITIONS: ' + JSON.stringify(COMPOSE));

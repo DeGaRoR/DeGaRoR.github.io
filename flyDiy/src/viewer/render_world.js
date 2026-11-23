@@ -621,7 +621,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const seq = ++STRIPW.seq, d = STRIPW.at ? stripBoxDist(a, STRIPW.at[0], STRIPW.at[1]) : 0;   // (to the strip's box: a long strip passing the stand is near)
       STRIPW.jobs.set(a.id, { seq, key: stripKey(SP), r: null, done: false, miss: null, t0: performance.now(), ms: 0 });
       // (the recipe's fade and the refinement's reuse flag are the PAGE's: named, where the builder reads its own module's)
-      jobs.push({ seq, id: a.id, d, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) });
+      // (late: under near first the load waits for none of these - the worker's queue serves the houses before them, house_worker.js PRI)
+      jobs.push({ seq, id: a.id, d, late: !!STRIPW.near, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) });
     }
     if (!jobs.length) { STRIPW.why = 'no strip'; return; }
     jobs.sort((p, q) => p.d - q.d);
@@ -7841,6 +7842,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   yield 'props';
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
+  const COMPSTEPS = typeof location !== 'undefined' && /[?&]compsteps=1(?:&|$)/.test(location.search || '');   // (PERF-WORLDBUILD: the composition in steps, below)
   // G1340: the premises lamps' level by the day (0..1: on below a 2 deg sun) and the host's compile of the pool's other
   // count (app.js lampsPrep: the lit programs keyed and linked in the background before the pool arms / disarms)
   const lampsOn = day => Math.max(0, Math.min(1, (2 - day.sunEl) / 4));
@@ -7878,7 +7880,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       yield 'premises';
       // G909: a generator the record names may still be loading (build.js MANIFEST.lazy, asked for by world_boot.js)
       for (let n = 0; window.FLYDIY_LAZY && window.FLYDIY_LAZY.pending && window.FLYDIY_LAZY.pending() && n < 2000; n++) yield 'premises: the generators';
-      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
+      // PERF-WORLDBUILD (22 Nov, ?compsteps=1, opt-in): the renderer's composition - one task of 2.6-2.9 s inside make() -
+      // made HERE in steps instead (RENDER_PREMISES.composeSteps: the same record, builder and pool; the standing premises
+      // in force until its last step swaps them) and handed to make, which then composes nothing
+      const premRec0 = world.premises.rec;
+      const premPre = COMPSTEPS && window.RENDER_PREMISES.composeSteps ? (yield* window.RENDER_PREMISES.composeSteps(world, premRec0, premisesTreePool)) : null;
+      if (typeof window !== 'undefined') window.FLYDIY_COMPSTEPS = { on: COMPSTEPS, used: !!premPre };
+      if (premPre) yield 'premises: the renderer';   // (the swap was the step before: make()'s own body is this one)
+      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, premRec0, { precomposed: premPre,
         game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN), shedDims: () => shedDims,   // (G3096: the main hangar grabbed as drawn)
         // G831: where the town step will build from (app.js's stand, the one loading's) and how far: the house worker is
         // given that same dispatch at the rebuild, to generate while the rest of the world is laid out
