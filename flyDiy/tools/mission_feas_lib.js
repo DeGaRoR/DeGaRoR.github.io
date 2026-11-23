@@ -306,13 +306,14 @@ function nextTarget(doc, rec, cur) {
 }
 
 // the drawn route through the objectives (38c ROUTE-DRAW's record, end 'dest': on to the leg's To and land there)
-const RUN_IN = 1800;
+const RUN_IN = 1800, RUN_OUT = 1200;
 function routeFor(W, objs, survey) {
   const pts = [];
   const gnd = (x, z) => Math.max(W.terrainH(x, z), W.waterH ? W.waterH(x, z) : -Infinity);
   // the lead-in / lead-out: 600 m / 300 m, never more than 0.45 of the way from the objective before (no zig-zag back)
   let prev = null;
   const lead = (cx, cz, k) => { const d = prev ? 0.45 * Math.hypot(cx - prev[0], cz - prev[1]) : Infinity; prev = [cx, cz]; return Math.min(k, d); };
+  const lastObj = objs.length ? objs[objs.length - 1] : null;
   for (const s of objs) {
     const P = s.place;
     if (P.gate) {
@@ -333,6 +334,10 @@ function routeFor(W, objs, survey) {
       // competitor lines up from far out: the first objective gets an entry point 1800 m before it on its axis
       if (firstObj) pts.push({ x: cx - RUN_IN * dx, z: cz - RUN_IN * dz, alt: agl, ref: 'agl', V: null });
       pts.push({ x: cx - li * dx, z: cz - li * dz, alt: agl, ref: 'agl', V: null }, { x: cx, z: cz, alt: agl, ref: 'agl', V: null }, { x: cx + 0.5 * Math.min(li, 600) * dx, z: cz + 0.5 * Math.min(li, 600) * dz, alt: agl, ref: 'agl', V: null });
+      // ...AND THE LAST GATE'S RUN-OUT: the route ends 300 m past its last objective and the way home begins - a turn back
+      // (a fillet begun before the corner) and a climb the profile moves EARLIER for a slow climber. Flown: club.regular's
+      // last gate crossed at 191 m by the Cub and the Jodel (150 m at most), at 98 m by the Cessna. An exit point 1200 m on
+      if (s === lastObj) pts.push({ x: cx + RUN_OUT * dx, z: cz + RUN_OUT * dz, alt: agl, ref: 'agl', V: null });
     } else if (P.ring) {
       let dx = 0, dz = -1;
       if (typeof P.dir === 'number') { const a = P.dir * Math.PI / 180; dx = Math.sin(a); dz = -Math.cos(a); }

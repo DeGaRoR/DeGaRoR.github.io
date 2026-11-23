@@ -1,7 +1,7 @@
 {
  "what": "flydiy-build",
  "v": 10,
- "name": "cessnaMetal STOL kit",
+ "name": "cessnaMetal STOL kit + elevator",
  "spec": {
   "cage": {
    "planeScale": 0.745,
@@ -307,7 +307,7 @@
    "stChord": 0.95,
    "stChordTip": 0.62,
    "stSweep": 3,
-   "stHinge": 0.225,
+   "stHinge": 0.4,
    "finOn": 1,
    "finProject": 1,
    "finCut": 2,
@@ -1434,6 +1434,6 @@
    "flight": null
   }
  },
- "note": "STORY-REVAMP (23 Nov): the career's Cessna 172 (bugReports/cessnaMetal (1).json, untouched) with the garage's STOL kit - a fixed leading-edge slot over the whole span, a vortex-generator row, the drooped bush tips and the ailerons drooped with the flap. Set in the CAGE ROWS (wgSlat 1, wgVG 1, wgTip 7, wgDroop 1), the editor's own controls, as tools/fixtures/stol_cub_kit.json was made from the user's Cub. A TEST BUILD of the story's feasibility flights (tools/story_feas.js): what a player does to the Cessna to take a load into a short strip.",
+ "note": "STORY-REVAMP (23 Nov): the career's Cessna 172 (bugReports/cessnaMetal (1).json, untouched) with the garage's STOL kit - a fixed leading-edge slot over the whole span, a vortex-generator row, the drooped bush tips and the ailerons drooped with the flap. Set in the CAGE ROWS (wgSlat 1, wgVG 1, wgTip 7, wgDroop 1), the editor's own controls, as tools/fixtures/stol_cub_kit.json was made from the user's Cub. A TEST BUILD of the story's feasibility flights (tools/story_feas.js): what a player does to the Cessna to take a load into a short strip. AND A LARGER ELEVATOR (stHinge 0.225 -> 0.40: the elevator 40 % of the tailplane chord): with the kit alone the elevator cannot hold the slow approach the slot allows, the pilot flies the final 10 m/s fast and the build broke at two strips (obs.05 at w3, field.ridge at w4); with it the same build lands the 543 m strip in 129 m and the 210 m altiport in 56 m with 120 kg aboard (obs.05 flown). Two other variants were flown and dropped: a 30 % wider tailplane, alone and with this elevator, both capsized on the altiport.",
  "log": []
 }
