@@ -318396,3 +318396,5 @@ PERF-TRACE 7c (23 Nov, tools only: the 07:00 window's crash rows and a garage-fi
 - tools/freeze_ledger.js: a still prints how many of the held draws are the ground family's (the lab's `ground` in 'guardhold').
   The 07:00 journey: 8 stills in ordinary flight (0.9 s, the longest 229 ms), SIX OF THEM WITH NO PROGRAM LINKING over them - the guard
   held a frame for a material, not for a link.
+- THE HOW-TO FOR AFTER THIS SESSION: tools/PERF_TRACE.md - which reader answers which question, what is in a flight log, the reading
+  rules that each cost a wrong conclusion once, and what was open on 23 Nov.
