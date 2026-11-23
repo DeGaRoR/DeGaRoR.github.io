@@ -9,18 +9,30 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
-## Status for A0 (Mon 23 Nov)
+## Status for A0 (Mon 23 Nov, second note)
 
-- `claude/ready/story-7` 784d85bfe rides L40K: noted. I rebase `claude/story-revamp` on master once L40K is there.
+- MASTER L40J (089297693) BREAKS THE STORY PACK, BY A MERGE: `f9f813191` (train L40J: merge one-cessna-4; inside it
+  `7c30889ba`, ONE-CESSNA merged onto L40G) took an OLDER `src/core/72_contract_data.js` for two CONTRACT_FIELDS lines:
+  `xw_rough` is gone from the table (AFB-0220, the user 13 Nov: firm mud, STOL work) and `tw_ski` is back at
+  257 / -7707 / 380 m (SKYLINE-RESORT 146a752b7, 16 Nov: 282 / -7751 / 280 m, which is what the world still has). No
+  message names either as meant. Master's own GATE CONTRACTS is red on it by name ("the 17 runways", "wheels at
+  xw_rough", "amphibian at xw_rough"); its other four reds there are the refitted Cessna's (minedock.02 / .03, resort.05
+  not flyable by a validated design; "the C172 takes two into the mine street").
+  On a trial merge of L40J into this branch: STORYPACK, TUTORWALK and MISSIONLIVE go red on one cause - "field xw_rough
+  is not a field" (the aero club's short-landing event lands there). story-7 on L40K will show the same.
+  WHAT I DO: my merge of master restores those two lines as they were at L40H, in a commit of its own (droppable if you
+  fix it on the train first: the lines are identical).
+- THE REFITTED CESSNA (list:50, 1 006 kg, take-off 357 m) is now the career's `c172`: every feasibility row flown with
+  the light metal Cessna is flown again on the merged tree, and the STOL-kit test build is re-made from list:50.
+- `claude/ready/story-7` 784d85bfe rides L40K: noted. story-8 = this branch merged with master (after L40K if it is
+  there by Tue 05:00, else on L40J), a fresh ref, for L40M.
 - THE USER'S FOUR LARGE MISSION STORIES ARE IN story-7 (since story-2): four projects of the pack - the remote community
   (8 steps), home improvement (7), the observatory (6), the heritage site (2) - with short draft words. Their VERBATIM
-  text is not committed, on the user's own word (22 Nov, asked "commit the four stories verbatim?": "no"). So no ready is
-  owed for the stories themselves; what they still lack is listed under Gaps (scenery for four tracks, the clear-day
-  rule, the fly-in's other aeroplanes, the words).
-- A story-8 WILL come (rebased on master after L40K, for L40M): the feasibility flights with the wider pool the user
-  asked for on 23 Nov ("you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK ...
-  maybe you can even build a quick [STOL Cessna] to clear these"): every official plane + the PC-6 (wip list, 57 / 58).
-- The container was recycled overnight: the flights stopped at 12 of 91 rows and are restarted from the kept rows.
+  text is not committed, on the user's own word (22 Nov, asked "commit the four stories verbatim?": "no").
+- The flights: the user, 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3,
+  it's OK ... maybe you can even build a quick [STOL Cessna] to clear these". The harness flies every official plane,
+  the PC-6 (wip list, 57 / 58) and a STOL-kit test build. Two faults of MY harness were found from the rows today and
+  are corrected (the seat fill did not take; the course's entry and exit points) - see "The flights" below.
 
 ## Where it stands
 
