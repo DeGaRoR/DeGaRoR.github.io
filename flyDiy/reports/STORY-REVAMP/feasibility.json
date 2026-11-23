@@ -8,10 +8,10 @@
   "no official plane can fly it (the player builds one)": 2,
   "not flown": 31,
   "an aircraft order (not a flight)": 8,
-  "infeasible": 6,
-  "stale": 6
+  "infeasible": 7,
+  "stale": 5
  },
- "flownS": 59617,
+ "flownS": 60709,
  "rows": [
   {
    "id": "field.01",
@@ -820,7 +820,29 @@
    "id": "lumber.04",
    "where": "lumber:3",
    "kind": "contract",
-   "verdict": "stale",
+   "verdict": "infeasible",
+   "plane": "PC-6 on Wiplines",
+   "timeS": 1092,
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "SEA",
+     "t": 1092,
+     "how": "crashed",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "crash",
+      "yield",
+      "break"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {

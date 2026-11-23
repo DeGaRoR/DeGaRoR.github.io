@@ -1538,7 +1538,14 @@
      "text": "ms.lumber.04.done"
     }
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "crashed: the damage ended the flight: a fus member broke",
+    "sim": "L40K",
+    "sig": "28745911"
+   }
   },
   {
    "id": "lumber.run",
