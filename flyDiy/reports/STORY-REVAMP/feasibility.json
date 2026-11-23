@@ -5,13 +5,13 @@
  "missions": 91,
  "summary": {
   "feasible": 30,
-  "not flown": 37,
+  "not flown": 36,
   "stale": 10,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
-  "infeasible": 4
+  "infeasible": 5
  },
- "flownS": 46290,
+ "flownS": 47434,
  "rows": [
   {
    "id": "field.01",
@@ -1043,7 +1043,25 @@
    "id": "home.13",
    "where": "home:7",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 1144,
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 280 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 1144,
+     "how": "stopped",
+     "at": "w1",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {

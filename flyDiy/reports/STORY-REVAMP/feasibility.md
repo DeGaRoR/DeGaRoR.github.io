@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 30 feasible; 4 infeasible; 2 no official plane can fly it (the player builds one); 37 not flown; 10 stale. Time flown: 771 min 30 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 30 feasible; 5 infeasible; 2 no official plane can fly it (the player builds one); 36 not flown; 10 stale. Time flown: 790 min 34 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -79,7 +79,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 30 feasible; 4 infeas
 | home.10 | home:5 | not flown | - | - | - |  |
 | home.11 | home:5 | not flown | - | - | - |  |
 | home.12 | home:6 | not flown | - | - | - |  |
-| home.13 | home:7 | not flown | - | - | - |  |
+| home.13 | home:7 | infeasible | PC-6 Turbo Porter | 19 min 04 s | HOME > w1 1144 | the stop refuses the load: aboard 0 kg / 0 pax, the job is 280 kg / 0 pax |
 | home.14 | home:7 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 19 min 53 s | HOME > w3 480; w3 > w1 713 |  |
 | community.01 | community:1 | feasible | Piper Cub | 33 min 10 s | HOME > w6 1990 |  |
 | community.02 | community:2 | feasible | Piper Cub | 34 min 26 s | HOME > w3 571; w3 > w7 1495 |  |
