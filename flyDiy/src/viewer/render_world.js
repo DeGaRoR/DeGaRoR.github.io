@@ -3155,7 +3155,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let farIds = 0;
       // a node keeps its quantised samples (AS1, G905: 19_terrain_codec decodeRaw); its heights as doubles, the same numbers
       const hts = n => TERRAIN_CODEC.heights(n);
-      (function measure(n) {
+      // (PERF-WORLDBUILD, 23 Nov 2026: a generator the build delegates to - under a host's budget it yields between two nodes
+      //  ('far terrain: the measure': the walk was the 114 ms slice that ended on 'far terrain: the cut' behind a live garage);
+      //  with none it runs in one go: the same walk, the same order, the same numbers)
+      yield* (function* measure(n) {
+        if (HOSTB && hostDue()) yield 'far terrain: the measure';
         n.fid = farIds++;
         const nh = hts(n);
         let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = nh[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
@@ -3163,7 +3167,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (!n.kids) return;
         let e = 0;
         for (const c of n.kids) {
-          measure(c);
+          yield* measure(c);
           const qx = c.ix - n.ix * 2, qz = c.iz - n.iz * 2, ch = hts(c);
           let ec = 0;
           for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
