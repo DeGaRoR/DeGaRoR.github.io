@@ -1,0 +1,60 @@
+[run_gates] 0/6 jobs done · running SAILPLANE 30 s, GLIDE/0 30 s
+[run_gates] 0/6 jobs done · running SAILPLANE 60 s, GLIDE/0 60 s
+[run_gates] 1/6 jobs done · running GLIDE/0 90 s, GLIDE/1 9 s
+[run_gates] 1/6 jobs done · running GLIDE/0 120 s, GLIDE/1 39 s
+[run_gates] 1/6 jobs done · running GLIDE/0 150 s, GLIDE/1 69 s
+[run_gates] 1/6 jobs done · running GLIDE/0 180 s, GLIDE/1 99 s
+[run_gates] 1/6 jobs done · running GLIDE/0 210 s, GLIDE/1 129 s
+[run_gates] 1/6 jobs done · running GLIDE/0 240 s, GLIDE/1 159 s
+[run_gates] 1/6 jobs done · running GLIDE/0 270 s, GLIDE/1 189 s
+[run_gates] 2/6 jobs done · running GLIDE/1 219 s, GLIDE/2 17 s
+[run_gates] 2/6 jobs done · running GLIDE/1 249 s, GLIDE/2 48 s
+[run_gates] 2/6 jobs done · running GLIDE/1 279 s, GLIDE/2 78 s
+[run_gates] 2/6 jobs done · running GLIDE/1 309 s, GLIDE/2 108 s
+[run_gates] 2/6 jobs done · running GLIDE/1 340 s, GLIDE/2 138 s
+[run_gates] 2/6 jobs done · running GLIDE/1 370 s, GLIDE/2 168 s
+[run_gates] 2/6 jobs done · running GLIDE/1 400 s, GLIDE/2 198 s
+[run_gates] 2/6 jobs done · running GLIDE/1 430 s, GLIDE/2 228 s
+[run_gates] 2/6 jobs done · running GLIDE/1 460 s, GLIDE/2 258 s
+[run_gates] 2/6 jobs done · running GLIDE/1 490 s, GLIDE/2 288 s
+[run_gates] 2/6 jobs done · running GLIDE/1 520 s, GLIDE/2 318 s
+[run_gates] 2/6 jobs done · running GLIDE/1 550 s, GLIDE/2 348 s
+[run_gates] 4/6 jobs done · running GLIDE/3 28 s, IDLEPROP 5 s
+[run_gates] 5/6 jobs done · running GLIDE/3 58 s
+[run_gates] 5/6 jobs done · running GLIDE/3 88 s
+[run_gates] 5/6 jobs done · running GLIDE/3 118 s
+[run_gates] 5/6 jobs done · running GLIDE/3 148 s
+=== GLIDE ===
+--- shard 0/4 (282.8 s) ---
+ok   CIRCUIT  motorglider (motor off), 280 m over Jolene: right-hand at Jolene AFB 13/31, heading 311 deg, the glide flown 13.3: burn 262 m, downwind 199 m, base 124 m, final 90 m; landed on the runway 875 m in (361 past the aim), 1.6 m off the centreline, sink 0.23 m/s, 1039 m left (completed)
+ok   FAIL300  the C172-alike 2.6 km out on its way to East Point Clearing (15.7 km), the engine stops at 300 m: the engine stopped at t=12 s, 327 m up — an emergency: gliding to Cannery Runway, 1399 m away - a glider's circuit, right-hand, landing heading 108 deg; right-hand at Cannery Runway, heading 108 deg, the glide flown 9.2: downwind 261 m, base 139 m, final 88 m; landed on the runway 84 m in (65 past the aim), 8.5 m off the centreline, sink 2.70 m/s, 88 m left (forced-landing); 0 members broken
+GATE GLIDE: PASS
+--- shard 1/4 (574.5 s) ---
+ok   CIRCUIT  archaeopteryx (motor off), 360 m over Jolene: right-hand at Jolene AFB 13/31, heading 311 deg, the glide flown 12.8: burn 356 m, downwind 119 m, base 75 m, final 59 m; landed on the runway 796 m in (282 past the aim), 0.3 m off the centreline, sink 0.41 m/s, 1449 m left (completed)
+ok   FAIL1000 the C172-alike 2.6 km out on its way to East Point Clearing (15.7 km), the engine stops at 1000 m: the engine stopped at t=12 s, 932 m up — an emergency: gliding to Cannery Runway, 1385 m away - a glider's circuit, right-hand, landing heading 108 deg; right-hand at Cannery Runway, heading 108 deg, the glide flown 6.1: burn 866 m, downwind 314 m, base 195 m, final 148 m; landed on the runway 106 m in (88 past the aim), 9.1 m off the centreline, sink 1.58 m/s, 58 m left (forced-landing); 0 members broken
+GATE GLIDE: PASS
+--- shard 2/4 (349.6 s) ---
+ok   TOFIRST  off Skyline Altiport (696 m), sent to Jolene 7.6 km away: left-hand at Jolene AFB 13/31, heading 131 deg, the glide flown 13.3: downwind 152 m, base 91 m, final 59 m; landed on the runway 862 m in (348 past the aim), 2.2 m off the centreline, sink 0.26 m/s, 1001 m left (completed)
+ok   FUELDRY  the C172-alike 2.6 km out on its way to East Point Clearing (15.7 km), the tanks run dry at 600 m: out of fuel at t=10 s, 609 m up — an emergency: gliding to Cannery Runway, 1477 m away - a glider's circuit, right-hand, landing heading 108 deg; right-hand at Cannery Runway, heading 108 deg, the glide flown 6.1: burn 540 m, downwind 301 m, base 151 m, final 96 m; landed on the runway 115 m in (97 past the aim), 6.2 m off the centreline, sink 1.54 m/s, 74 m left (forced-landing); 0 members broken
+GATE GLIDE: PASS
+--- shard 3/4 (161.7 s) ---
+ok   NEAREST  sent to New Community Runway (24.2 km, out of reach) from 280 m over Jolene: left-hand at Jolene AFB 02/20, heading 204 deg, the glide flown 13.3: downwind 199 m, base 113 m, final 81 m; landed on the runway 720 m in (348 past the aim), 1.7 m off the centreline, sink 0.60 m/s, 598 m left (completed)
+GATE GLIDE: PASS
+=== SAILPLANE ===
+  ok   C 170 L in the wings (wingRoot 140, wingPanel 30), dumped in 3.4 min
+  ok   C 30 s at 300 m with the valve open: finite true, the water 170.0 -> 145.0 kg
+GATE SAILPLANE: PASS
+=== IDLEPROP ===
+  ok     5. dead < closed < clean, and the dead-engine glide within a quarter of the clean one
+  ok     6. thirty seconds flown with the throttle closed stay finite (the thrust down to -121 N, the wash finite)
+GATE IDLEPROP: PASS
+
+──────── summary ────────
+GLIDE     PASS   574.5 s  [4 shards]
+SAILPLANE PASS    80.9 s
+IDLEPROP  PASS     8.2 s
+total            663.6 s
+wall             794.1 s  (jobs 2)
+
+BATTERY: PASS
+exit 0
