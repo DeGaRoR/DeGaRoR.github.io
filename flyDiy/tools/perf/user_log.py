@@ -36,6 +36,7 @@ def main():
         (', %d events DROPPED' % h['eventsDropped']) if h.get('eventsDropped') else ''))
     if n and h.get('frames') and h['frames'] > n: P('NOTE: the session had %d frames and the ring kept the last %d: the start is not in this log (open the game with ?recring=131072 for a long session)' % (h['frames'], n))
     P('in the garage %.0f s (%d frames), in the world %.0f s (%d frames)' % (secs(garage), len(garage), secs(world), len(world)))
+    P('(the limits sit on a multiple of the screen's 16.7 ms: a frame of 6 intervals is 100.0 ms give or take its jitter. A frame counts as OVER 50 / 100 / 250 ms from 54 / 104 / 254 ms, so the count does not flip on the jitter - 23 Nov)')
     # the loading screens: the boot events 'loading <set>' ... 'gone <set>'
     P('')
     P('## Loading screens (rows 2, 3, 4)')
@@ -59,7 +60,7 @@ def main():
         full = [per.get(k, 0) for k in set(int(t[i] // 1000) for i in idx)]
         if hid: P('- %s: %d of %d frames were rendered and NOT SHOWN (held by the draw guard): left out of the frames a second below' % (label, hid, len(idx)))
         P('- %s: %.1f fps mean, median frame %.1f ms; seconds with 29+ frames %.1f %%; frames on time (<= 34.5 ms) %.1f %%; frames over 50 ms %.2f %%' % (
-            label, len(idx) / T, ds[len(ds) // 2], 100.0 * sum(1 for v in full if v >= 29) / len(full), 100.0 * sum(1 for v in ds if v <= 34.5) / len(ds), 100.0 * sum(1 for v in ds if v > 50) / len(ds)))
+            label, len(idx) / T, ds[len(ds) // 2], 100.0 * sum(1 for v in full if v >= 29) / len(full), 100.0 * sum(1 for v in ds if v <= 34.5) / len(ds), 100.0 * sum(1 for v in ds if v > 54) / len(ds)))
     P('')
     P('## Row 13, the frame rate (target: 30 fps held)')
     fps(garage, 'garage'); fps(world, 'world ')
@@ -68,7 +69,7 @@ def main():
 
     def top3(i): return ', '.join('%s %.0f' % (s, v) for v, s in sorted(((f[s][i] or 0), s) for s in slots if s in f)[::-1][:3])
     def freezes(idx, label, t0):
-        fr = [i for i in idx if dt[i] > 100]
+        fr = [i for i in idx if dt[i] > 104]
         P('- %s: %d frames over 100 ms%s' % (label, len(fr), (', the worst %.0f ms' % max(dt[i] for i in fr)) if fr else ''))
         for i in fr[:40]:
             P('    t+%7.1f s  %4.0f ms  %s%s  [%s]' % ((t[i] - t0) / 1000.0, dt[i], ('AGL %4.0f m ' % agl[i]) if agl[i] is not None and label.startswith('world') else '',
@@ -85,8 +86,8 @@ def main():
         for i in world:
             b = blocks[int((t[i] - t0) // 20000)]; b[0] += 1
             if dt[i] > 35: b[1] += 1      # (the profiler's ORANGE bar and freeze_ledger.js's limit: a frame that missed its 30 fps tick)
-            if dt[i] > 100: b[2] += 1
-            if dt[i] > 50: b.append(1)
+            if dt[i] > 104: b[2] += 1
+            if dt[i] > 54: b.append(1)
         nb = len(blocks); orange = sum(1 for b in blocks.values() if b[1]); red = sum(1 for b in blocks.values() if b[2])
         P('')
         P('## Row 9, evenness (target: at most 5 % of 20-second blocks with a frame over 35 ms, none with a freeze)')
@@ -143,7 +144,7 @@ def main():
             pre = sorted(calls[i] for i in world if t[i0] - 5000 <= t[i] < t[i0] and calls[i])
             med = pre[len(pre) // 2] if pre else 0
             worst = max(win, key=lambda i: dt[i])
-            over250 = [i for i in win if dt[i] > 250]; over100 = [i for i in win if dt[i] > 100]
+            over250 = [i for i in win if dt[i] > 254]; over100 = [i for i in win if dt[i] > 104]
             nor = [i for i in win if fl[i] & FL.get('noRender', 0)]
             thin = [i for i in win if med and calls[i] is not None and calls[i] < 0.1 * med and not (fl[i] & FL.get('noRender', 0))]
             errs = [e for e in ev if e[1] == 'catch' and t[i0] - 1000 <= e[0] <= t[i0] + 20000]
