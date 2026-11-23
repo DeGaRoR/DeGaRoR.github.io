@@ -175,6 +175,13 @@ for (const m of ['tubeFabric', 'wood'])
     return buildGen(sp);
   }, m]);
 
+// (MASTER-GREEN 23 Nov) A CASE BUILT TO FOLD. The soft shell (WEIGHT STUDY L4, ba864d49c; the user 12 Nov: "a cabin ...
+// tent-like material ... very, very low stiffness ... load any wing on top of it ... it should crumble") is built for 250 kg,
+// and a wing on it WITHOUT the hanging mast stands on its poles and folds (60_gen_spec GEN_MATERIALS.softShell; GATE
+// ULTRALIGHT holds it: "without the mast the wing sinks on yielding poles"). This matrix walks every material, so the soft
+// shell joined it at that commit and its cantilever - a 13 m wing on the poles - read DID NOT SURVIVE: true, and wanted.
+// The case stays, and asserts what the design says: it does NOT survive the ultimate load
+const FOLDS_BY_DESIGN = { 'GEN softShell cantilever': 'the soft shell: a cantilever wing on its poles folds (the user 12 Nov: "it should crumble")' };
 const rows = [];
 say('airframe                     1.0 g    3.8 g LIMIT   5.7 g ULT    worst member @ult');
 for (const [lbl, build, mat] of CASES) {
@@ -188,13 +195,14 @@ for (const [lbl, build, mat] of CASES) {
   const yieldPct = ru.worst ? ru.worst.pct : null;
   // The rig held and the structure integrated. The yield column is REPORTED,
   // not gated — see the note under the table for why.
-  const ok = !r1.bad && !rl.bad && !ru.bad;
+  const fold = FOLDS_BY_DESIGN[lbl], held = !r1.bad && !rl.bad && !ru.bad;
+  const ok = fold ? !held : held;
   rows.push({ lbl, r1, rl, ru, yieldPct, ok, mat,
               bilinear: def.beams.some(b => b.tens) });
   say(`  ${lbl.padEnd(26)} ${r1.tip.toFixed(2).padStart(6)} % ${rl.tip.toFixed(2).padStart(9)} %` +
       ` ${ru.tip.toFixed(2).padStart(11)} %   ` +
       (yieldPct === null ? '        n/a' : `${yieldPct.toFixed(0).padStart(4)}% of yield (${ru.worst.cls})`) +
-      `   ${!ok ? '*** DID NOT SURVIVE' : (yieldPct !== null && yieldPct >= 100 ? 'over yield' : 'ok')}`);
+      `   ${fold ? (held ? '*** SURVIVED - built to fold: ' + fold : 'folds, as built (' + fold + ')') : !ok ? '*** DID NOT SURVIVE' : (yieldPct !== null && yieldPct >= 100 ? 'over yield' : 'ok')}`);
 }
 {
   const over = rows.filter(r => r.yieldPct !== null && r.yieldPct >= 100);

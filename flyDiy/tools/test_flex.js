@@ -437,11 +437,21 @@ const runs = [];
 // everything runs here as before.
 const SH = require('./_shard.js');
 const MY_MATS = SH.shardOf(Object.keys(GEN_MATERIALS));
+// (MASTER-GREEN 23 Nov) A MATERIAL BUILT TO FOLD. The soft shell (WEIGHT STUDY L4, ba864d49c; the user 12 Nov: "a cabin ...
+// tent-like material ... very, very low stiffness ... load any wing on top of it ... it should crumble") is built for 250
+// kg; a wing on it without the hanging mast stands on its poles and folds, and "a Cub and a C172 on it come down parked
+// within a second" (60_gen_spec GEN_MATERIALS.softShell; GATE ULTRALIGHT holds it). This gate walks every material, so the
+// soft shell joined it at that commit: the stock airframe on it never reached cruise, and its 13 m cantilever read near a
+// mechanism and folding (39 %) - true, and wanted. Its rows stay, and assert what the design says: it does not fly the
+// stock airframe to cruise, and its cantilever is soft and folds. Every other material is held as before
+const BUILT_TO_FOLD = { softShell: 'the soft shell (the user 12 Nov: "it should crumble"; GATE ULTRALIGHT)' };
+const foldRuns = [];
 say('GARAGE (generated — `lin` closes to an area, so softness and yield margin follow):');
 for (const m of MY_MATS) {
   const spec = JSON.parse(JSON.stringify(GEN_DEFAULT));
   spec.fuselage.material = m;
   const o = flex(`GEN ${GEN_MATERIALS[m].name}`, buildGen(spec), m);
+  if (BUILT_TO_FOLD[m]) { foldRuns.push({ m, flew: !!o }); say(`  ${m}: ${o ? '*** REACHED CRUISE - built to fold: ' : 'does not reach cruise, as built: '}${BUILT_TO_FOLD[m]}`); continue; }
   if (o) runs.push(o);
   report(o);
 }
@@ -581,11 +591,13 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m, the couple's way
                 lin: (t2 && t4) ? t4 / t2 : NaN };
     r.tested = Number.isFinite(r.t2) && r.t2 >= TORS_FLOOR;
     rows.push(r);
+    r.fold = BUILT_TO_FOLD[(/^(\S+) cantilever$/.exec(lbl) || [])[1]] || null;   // (MASTER-GREEN: a material built to fold)
+    if (r.fold) continue;
     if (r.tested && (!Number.isFinite(r.lin) || r.lin < LIN_MIN)) soft.push(r);
   }
   for (const r of rows) {
     if (r.err) { say(`  ${r.lbl.padEnd(24)} BUILD FAILED: ${r.err}`); continue; }
-    const bad = r.tested && (!Number.isFinite(r.lin) || r.lin < LIN_MIN);
+    const bad = !r.fold && r.tested && (!Number.isFinite(r.lin) || r.lin < LIN_MIN);
     say(`  ${r.lbl.padEnd(24)} semi ${r.semi.toFixed(2).padStart(5)} m  p${r.panels}` +
         `  tors ${(r.t2 ?? NaN).toFixed(2).padStart(6)} /${(r.t4 ?? NaN).toFixed(2).padStart(7)}` +
         `  bend ${(r.bd ?? NaN).toFixed(1).padStart(6)} %` +
@@ -606,8 +618,12 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m, the couple's way
   // Healthy rows read 0.3-2.9 % under the 2 kN spread; the hinge reads
   // fifty-plus. 8 % is three times the stiffest legitimate cantilever.
   const BEND_MAX = 8;
-  const folded = rows.filter(r => !r.err &&
+  const folded = rows.filter(r => !r.err && !r.fold &&
     (!Number.isFinite(r.bd) || r.bd > BEND_MAX));
+  // (MASTER-GREEN) a material built to fold: its cantilever must be soft AND fold - the claim inverted, never dropped
+  const foldRows = rows.filter(r => r.fold);
+  for (const r of foldRows) say(`  ${r.lbl}: ${r.bd > BEND_MAX ? 'folds, as built' : '*** DOES NOT FOLD - built to fold'} (${r.bd == null ? '?' : r.bd.toFixed(1)} %): ${r.fold}`);
+  results['a material built to fold folds (its cantilever over ' + BEND_MAX + ' %)'] = foldRows.every(r => !r.err && Number.isFinite(r.bd) && r.bd > BEND_MAX);
   results['no garage configuration folds in bending'] = folded.length === 0;
   if (folded.length)
     say(`  *** FOLDING: ${folded.map(r => r.lbl + ' (' +
@@ -785,7 +801,8 @@ for (const o of runs) {
   for (const c of Object.keys(o.peak)) nums.push(o.peak[c].F, o.peak[c].strain);
 }
 results['every airframe reached cruise and was measured'] =
-  runs.length === MY_MATS.length;
+  runs.length === MY_MATS.filter(m => !BUILT_TO_FOLD[m]).length;
+results['a material built to fold does not fly the stock airframe to cruise'] = foldRuns.every(f => !f.flew);
 results['every measurement is finite'] = nums.every(Number.isFinite);
 results['no airframe diverged during the sweep'] = runs.every(o => !o.bad);
 
