@@ -5,11 +5,11 @@
  "missions": 91,
  "summary": {
   "not flown": 61,
-  "feasible": 16,
-  "stale": 6,
-  "an aircraft order (not a flight)": 8
+  "feasible": 18,
+  "an aircraft order (not a flight)": 8,
+  "stale": 4
  },
- "flownS": 18819,
+ "flownS": 21007,
  "rows": [
   {
    "id": "field.01",
@@ -72,8 +72,44 @@
    "id": "field.ridge",
    "where": "contract",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 1258,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 564,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 695,
+     "how": "stopped",
+     "at": "w4",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "field.cannery",
@@ -194,8 +230,30 @@
    "id": "heritage.01",
    "where": "heritage:1",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 930,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "nv_strip",
+     "t": 930,
+     "how": "stopped",
+     "at": "nv_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "heritage.02",

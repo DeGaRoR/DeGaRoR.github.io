@@ -1,129 +1,71 @@
 {
  "id": "heritage.01",
  "kind": "contract",
- "verdict": "infeasible",
- "plane": "Chinook",
- "timeS": 266,
- "why": "crashed: the damage ended the flight: a fus member broke",
+ "verdict": "feasible",
+ "plane": "STOL Cub",
+ "timeS": 930,
+ "why": "",
  "tried": [
-  "STOL Cub:infeasible",
-  "Carbon Cub SS:infeasible",
-  "Chinook:infeasible"
+  "STOL Cub:feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "nv_strip",
-   "t": 266,
-   "how": "crashed",
-   "at": null,
-   "stop": [],
+   "t": 930,
+   "how": "stopped",
+   "at": "nv_strip",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
    "kg": 0,
    "pax": 0,
-   "faults": [
-    "crash",
-    "break"
-   ],
+   "faults": [],
    "events": []
   }
  ],
  "attempts": [
   {
    "plane": "STOL Cub",
-   "verdict": "infeasible",
-   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+   "verdict": "feasible",
+   "why": "",
    "legs": [
     {
      "from": "HOME",
      "to": "nv_strip",
-     "t": 970,
+     "t": 930,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
-      "pivot: a turn of 103 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
-      "no-straight-in: the ground before East Point Clearing holds the straight-in 314 m over the circuit at the final's start - joining the circui",
-      "strip-short: East Point Clearing: the approach flies 14.3 m/s (19.2 over the ground: 4.9 m/s of wind behind on its one way in), the short-fi"
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 19.4 m/s until clear",
+      "no-straight-in: the ground before East Point Clearing holds the straight-in 313 m over the circuit at the final's start - joining the circui",
+      "strip-short: East Point Clearing: the approach flies 16.3 m/s (21.1 over the ground: 4.8 m/s of wind behind on its one way in), the short-fi"
      ],
      "landing": {
-      "run": 67,
-      "sink": 1.67,
-      "V": 12.2,
-      "offCentre": -0.3,
-      "pastAim": 25,
+      "run": 59,
+      "sink": 1.32,
+      "V": 13.9,
+      "offCentre": -0.6,
+      "pastAim": 58,
       "k": 0,
-      "three": false,
+      "three": true,
       "onStrip": true,
-      "tdIn": 35,
-      "stopLeft": 48
-     },
-     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 1 pax"
-    }
-   ]
-  },
-  {
-   "plane": "Carbon Cub SS",
-   "verdict": "infeasible",
-   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
-   "legs": [
-    {
-     "from": "HOME",
-     "to": "nv_strip",
-     "t": 845,
-     "how": "stopped",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "no-straight-in: the ground before East Point Clearing holds the straight-in 316 m over the circuit at the final's start - joining the circui",
-      "strip-short: East Point Clearing: the approach flies 18.5 m/s (23.3 over the ground: 4.9 m/s of wind behind on its one way in), the short-fi",
-      "off-the-strip: touched 35 m in, stopped 24 m past the end of 150 m (0 m off the centreline)"
-     ],
-     "landing": {
-      "run": 139,
-      "sink": 1.63,
-      "V": 17.1,
-      "offCentre": -0.1,
-      "pastAim": 25,
-      "k": 0,
-      "three": false,
-      "onStrip": false,
-      "tdIn": 35,
-      "stopLeft": -24
-     },
-     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 1 pax"
-    }
-   ]
-  },
-  {
-   "plane": "Chinook",
-   "verdict": "infeasible",
-   "why": "crashed: the damage ended the flight: a fus member broke",
-   "legs": [
-    {
-     "from": "HOME",
-     "to": "nv_strip",
-     "t": 266,
-     "how": "crashed",
-     "kg": 0,
-     "pax": 0,
-     "said": [
-      "vx-climb: ground ahead above the aeroplane — climbing at Vx 19.3 m/s until clear",
-      "no-straight-in: the ground before East Point Clearing holds the straight-in 308 m over the circuit at the final's start - joining the circui",
-      "capsized: on its back in ENROUTE at 25.0 m/s (bank 94 deg)"
-     ],
-     "stop": "the aeroplane is wrecked: nothing is delivered"
+      "tdIn": 68,
+      "stopLeft": 23
+     }
     }
    ]
   }
  ],
  "notes": [
-  "the seats filled as the job asks: STOL Cub flown with 2 aboard (the garage's seat-fill)",
-  "the seats filled as the job asks: Carbon Cub SS flown with 2 aboard (the garage's seat-fill)",
-  "the seats filled as the job asks: Chinook flown with 2 aboard (the garage's seat-fill)"
+  "the seats filled as the job asks: STOL Cub flown with 2 aboard (the garage's seat-fill)"
  ],
  "untested": false,
  "key": "63df8cdfe38b",
  "where": "heritage:1",
- "pool": "official+57,58+test builds",
- "wallS": 982
+ "pool": "official+57,58+test builds, the seats filled",
+ "wallS": 373
 }

@@ -1,23 +1,41 @@
 {
  "id": "field.ridge",
  "kind": "contract",
- "verdict": "infeasible",
+ "verdict": "feasible",
  "plane": "STOL Cub",
- "timeS": 595,
- "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+ "timeS": 1258,
+ "why": "",
  "tried": [
   "Piper Cub:infeasible",
   "Cessna 172 (career):infeasible",
-  "STOL Cub:infeasible"
+  "STOL Cub:feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 595,
+   "t": 564,
    "how": "stopped",
    "at": "w3",
-   "stop": [],
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "w4",
+   "t": 695,
+   "how": "stopped",
+   "at": "w4",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
    "kg": 0,
    "pax": 0,
    "faults": [],
@@ -28,32 +46,45 @@
   {
    "plane": "Piper Cub",
    "verdict": "infeasible",
-   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+   "why": "crashed: the damage ended the flight: a fus member broke",
    "legs": [
     {
      "from": "HOME",
      "to": "w3",
-     "t": 534,
+     "t": 606,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
-      "pivot: a turn of 106 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
-      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear"
+      "pivot: a turn of 96 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 23.0 m/s until clear"
      ],
      "landing": {
-      "run": 73,
-      "sink": 0.81,
-      "V": 15.5,
-      "offCentre": 0.1,
-      "pastAim": 5,
+      "run": 117,
+      "sink": 1.28,
+      "V": 18.2,
+      "offCentre": 0.2,
+      "pastAim": 4,
       "k": 1,
       "three": false,
       "onStrip": true,
-      "tdIn": 70,
-      "stopLeft": 400
-     },
-     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 1 pax"
+      "tdIn": 69,
+      "stopLeft": 357
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 792,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 927 m (planned 926)",
+      "slip: high on energy on the short final (+7.6 m at idle) — slipping it down",
+      "go-around: unstabilised approach at 15 m: high 9 m on the slope (attempt 1)"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
     }
    ]
   },
@@ -115,32 +146,56 @@
   },
   {
    "plane": "STOL Cub",
-   "verdict": "infeasible",
-   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 0 kg / 1 pax",
+   "verdict": "feasible",
+   "why": "",
    "legs": [
     {
      "from": "HOME",
      "to": "w3",
-     "t": 595,
+     "t": 564,
      "how": "stopped",
      "kg": 0,
      "pax": 0,
      "said": [
-      "pivot: a turn of 103 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot"
+      "pivot: a turn of 101 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 19.4 m/s until clear"
      ],
      "landing": {
-      "run": 27,
-      "sink": 1.1,
-      "V": 11.5,
-      "offCentre": 0.1,
-      "pastAim": 11,
+      "run": 40,
+      "sink": 0.9,
+      "V": 13.9,
+      "offCentre": -0.3,
+      "pastAim": 16,
       "k": 1,
       "three": true,
       "onStrip": true,
-      "tdIn": 21,
-      "stopLeft": 495
-     },
-     "stop": "aboard 0 kg / 0 pax, the job is 0 kg / 1 pax"
+      "tdIn": 26,
+      "stopLeft": 477
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 695,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 19.4 m/s until clear",
+      "slip: high on energy on the short final (+7.0 m at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 25,
+      "sink": -2.04,
+      "V": 13.4,
+      "offCentre": 0.5,
+      "pastAim": 18,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 28,
+      "stopLeft": 163
+     }
     }
    ]
   }
@@ -152,6 +207,6 @@
  "untested": false,
  "key": "4aec0468d36e",
  "where": "contract",
- "pool": "official+57,58+test builds",
- "wallS": 896
+ "pool": "official+57,58+test builds, the seats filled",
+ "wallS": 1815
 }

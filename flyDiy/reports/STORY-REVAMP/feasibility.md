@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 16 feasible; 61 not flown; 6 stale. Time flown: 313 min 39 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 18 feasible; 61 not flown; 4 stale. Time flown: 350 min 07 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -12,14 +12,14 @@ Summary (91 missions): 8 an aircraft order (not a flight); 16 feasible; 61 not f
 | field.n1 | contract | not flown | - | - | - |  |
 | field.round | contract | not flown | - | - | - |  |
 | field.hike | contract | feasible | Piper Cub | 17 min 42 s | HOME > w8 1062 |  |
-| field.ridge | contract | stale | - | - | - |  |
+| field.ridge | contract | feasible | STOL Cub | 20 min 58 s | HOME > w3 564; w3 > w4 695 |  |
 | field.cannery | contract | not flown | - | - | - |  |
 | hangar.01 | hangar:1 | feasible | Piper Cub | 16 min 46 s | HOME > w3 560; w3 > HOME 446 |  |
 | hangar.02 | hangar:1 | not flown | - | - | - |  |
 | hangar.03 | hangar:2 | not flown | - | - | - |  |
 | hangar.04 | hangar:2 | not flown | - | - | - |  |
 | hangar.05 | hangar:3 | feasible | Cessna 172 (career) | 21 min 26 s | HOME > w3 558; w3 > HOME 727 |  |
-| heritage.01 | heritage:1 | stale | - | - | - |  |
+| heritage.01 | heritage:1 | feasible | STOL Cub | 15 min 30 s | HOME > nv_strip 930 |  |
 | heritage.02 | heritage:2 | not flown | - | - | - |  |
 | minedock.n1 | contract | not flown | - | - | - |  |
 | minedock.b1 | contract | order | - | - | - |  |
