@@ -36,7 +36,15 @@ const AL = require(path.join(__dirname, 'analyze_log.js'));
 const PR = require(path.join(__dirname, 'program_report.js'));
 const r1 = v => v == null || v !== v ? null : Math.round(v * 10) / 10;
 const pct = (a, b) => b ? Math.round(1000 * a / b) / 10 : null;
-const ORANGE = 35, LONG = 50, FREEZE = 100, HARD = 250, BLOCK = 20000;
+// THE LIMITS SIT ON MULTIPLES OF THE DISPLAY'S INTERVAL (PERF-LEAD, 23 Nov): 50.0, 100.0 and 250.0 ms are 3, 6 and 15
+// intervals at 60 Hz, so "over 100 ms" flipped on the frame time's jitter (one log: 138 frames at 99 ms or more, 90 over
+// 100.0, 61 over 104). ONE RULE, the same in tools/perf/user_log.py and written in PERF-OBJECTIVES.md: a frame counts as
+// OVER 50 / 100 / 250 ms from 54 / 104 / 254 ms - 7 intervals or more is over 100; a frame of 6 intervals is AT 100.
+// 35 ms stays (33.3 is clear of it). The frames AT a limit (within 4 ms of it) are counted and PRINTED beside the row,
+// never dropped: a change that moves frames between 6 and 7 intervals stays visible.
+const EDGE = 4, NOMINAL = { long: 50, freeze: 100, hard: 250 };
+const ORANGE = 35, LONG = NOMINAL.long + EDGE, FREEZE = NOMINAL.freeze + EDGE, HARD = NOMINAL.hard + EDGE, BLOCK = 20000;
+const atLimit = (dt, nom) => dt > nom - EDGE && dt <= nom + EDGE;
 const F = { garage: 1, running: 2, held: 4, manual: 8, away: 16, freeze: 32, boot: 64, gpuForeign: 128, noRender: 256 };
 const ACT_TARGET = { 'garage-change': { ms: 5000, row: 5 }, 'interior-view': { ms: 2000, row: 6 }, 'garage-to-world': { ms: 20000, row: 3 }, 'world-to-garage': { ms: 3000, row: 4 } };
 
@@ -206,6 +214,7 @@ function ledger(log, opt) {
       frames: R.length, seconds: r1(total / 1000),
       over35: { n: over(ORANGE).length, pct: pct(over(ORANGE).length, R.length) }, over50: { n: over(LONG).length, pct: pct(over(LONG).length, R.length), excessMs: Math.round(ex(LONG)) },
       over100: { n: over(FREEZE).length, pct: pct(over(FREEZE).length, R.length), excessMs: Math.round(ex(FREEZE)) }, over250: { n: over(HARD).length, pct: pct(over(HARD).length, R.length) },
+      at: { 50: R.filter(r => atLimit(r.dt, NOMINAL.long)).length, 100: R.filter(r => atLimit(r.dt, NOMINAL.freeze)).length, 250: R.filter(r => atLimit(r.dt, NOMINAL.hard)).length },
       worstMs: r1(Math.max(...R.map(r => r.dt))), timeInLongFramesPct: pct(over(LONG).reduce((a, r) => a + r.dt, 0), total),
       blocks: { seconds: BLOCK / 1000, n: nb, withOrange: withO, withOrangePct: pct(withO, nb), with50: blocks.filter(x => x.over50).length, withFreeze: withR, withFreezePct: pct(withR, nb), with250: blocks.filter(x => x.hard).length,
         list: blocks.map(x => ({ s: r1(x.t / 1000), orange: x.orange, over50: x.over50, red: x.red, worst: r1(x.worst) })) },
@@ -241,12 +250,12 @@ function ledger(log, opt) {
   const W = contexts.world, G = contexts.garage, L = contexts.loading;
   const verdict = (ok, text) => ({ ok, text });
   const objectives = {
-    7: G ? verdict(G.over100.n === 0, 'garage: ' + G.over100.n + ' frame(s) over 100 ms in ' + G.seconds + ' s (worst ' + G.worstMs + ' ms)') : null,
-    8: W ? verdict(W.over100.n === 0 && W.stills.over100 === 0, 'world: ' + W.over100.n + ' frame(s) over 100 ms in ' + W.seconds + ' s (worst ' + W.worstMs + ' ms)' +
+    7: G ? verdict(G.over100.n === 0, 'garage: ' + G.over100.n + ' frame(s) over 100 ms in ' + G.seconds + ' s (worst ' + G.worstMs + ' ms; ' + G.at[100] + ' more AT 100 ms)') : null,
+    8: W ? verdict(W.over100.n === 0 && W.stills.over100 === 0, 'world: ' + W.over100.n + ' frame(s) over 100 ms in ' + W.seconds + ' s (worst ' + W.worstMs + ' ms; ' + W.at[100] + ' more AT 100 ms)' +
       (W.stills.n ? '; AND THE PICTURE STOOD STILL ' + W.stills.n + ' time(s), ' + W.stills.over100 + ' over 100 ms, the worst ' + r1(W.stills.worstMs) + ' ms, ' + r1(W.stills.totalMs / 1000) + ' s in all (frames rendered and not presented: the frames\' own times do not show it)' :
        (STF || events.some(e => e.kind === 'still') ? '; no still picture' : '; STILL PICTURES NOT RECORDED in this log (a build before PERF-TRACE 7): a held frame reads as an ordinary one here'))) : null,
     9: W && W.blocks.n ? verdict(W.blocks.withOrangePct <= 5 && W.blocks.withFreeze === 0, 'world: ' + W.blocks.withOrange + ' of ' + W.blocks.n + ' 20-second blocks have a frame over 35 ms (' + W.blocks.withOrangePct + ' %; the target 5 %), ' + W.blocks.withFreeze + ' have a freeze over 100 ms (the target 0)') : null,
-    10: L ? verdict(L.over100.n === 0, 'loading screens: ' + L.over100.n + ' frame(s) over 100 ms in ' + L.seconds + ' s, the worst ' + L.worstMs + ' ms (a frame that long is a screen that did not answer)') : null,
+    10: L ? verdict(L.over100.n === 0, 'loading screens: ' + L.over100.n + ' frame(s) over 100 ms in ' + L.seconds + ' s (' + L.at[100] + ' more AT 100 ms), the worst ' + L.worstMs + ' ms (a frame that long is a screen that did not answer)') : null,
   };
 
   // ---- the actions (objectives 5 and 6, and any 'act' the page marks) ----------------------------------------------
@@ -268,7 +277,7 @@ function ledger(log, opt) {
       frames: entries.filter(x => x.t > t0 && x.t <= settled + 1).map(x => ({ ms: x.ms, cause: x.cause, confidence: x.confidence })) };
   }
   return { kind: 'flydiy-freeze-ledger', v: 1, log: o.logFile || null, build: H.build || null, gpu: (H.gpu || {}).unmaskedRenderer || null,
-    limits: { orangeMs: ORANGE, longMs: LONG, freezeMs: FREEZE, hardMs: HARD, blockS: BLOCK / 1000, listedOverMs: MIN },
+    limits: { orangeMs: ORANGE, longMs: LONG, freezeMs: FREEZE, hardMs: HARD, blockS: BLOCK / 1000, listedOverMs: MIN, nominal: NOMINAL, edgeMs: EDGE },
     gpuTimer: H.gpuTimer ? { coverage: H.gpuTimer.coverage, ok: H.gpuTimer.ok } : null, recorder: H.overhead || null,
     // was the page seen? (a hidden or unfocused page is throttled: its frames mean nothing)
     page: { canvas: H.canvas ? H.canvas.w + 'x' + H.canvas.h : null, css: H.canvas ? H.canvas.cssW + 'x' + H.canvas.cssH : null, window: H.window ? H.window.w + 'x' + H.window.h : null, dpr: H.dpr || null,
@@ -283,7 +292,7 @@ function ledger(log, opt) {
 function text(R, show) {
   const L = [], lp = (s, n) => String(s == null ? '-' : s).padStart(n), pad = (s, n) => String(s == null ? '-' : s).padEnd(n);
   L.push('FREEZE LEDGER  ' + (R.log || '') + '  build ' + (R.build || '?') + '  ' + (R.gpu || ''));
-  L.push('  limits: orange > ' + R.limits.orangeMs + ' ms, long > ' + R.limits.longMs + ', FREEZE > ' + R.limits.freezeMs + ' (the user\'s), hard > ' + R.limits.hardMs + '; blocks of ' + R.limits.blockS + ' s' +
+  L.push('  limits: orange > ' + R.limits.orangeMs + ' ms; OVER 50 / 100 (the user\'s freeze) / 250 ms is counted from ' + R.limits.longMs + ' / ' + R.limits.freezeMs + ' / ' + R.limits.hardMs + ' ms - 3, 6 and 15 display intervals at 60 Hz are AT the limit, not over it (the rule of 23 Nov); blocks of ' + R.limits.blockS + ' s' +
     (R.gpuTimer ? '; GPU timed on ' + Math.round((R.gpuTimer.coverage || 0) * 100) + ' % of the frames asked' : '; no GPU timer'));
   { const P = R.page || {}, S = P.seen, f = x => x ? (x.state || '?') + (x.focus === true ? ', focused' : x.focus === false ? ', NOT FOCUSED' : '') : 'not recorded';
     const bad = (S && ((S.start && (S.start.state !== 'visible' || S.start.focus === false)) || (S.now && (S.now.state !== 'visible' || S.now.focus === false)))) || P.hiddenEvents > 0;

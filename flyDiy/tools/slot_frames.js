@@ -86,7 +86,7 @@ function slotFrames(log, opt) {
   }
   // ---- the sums --------------------------------------------------------------------------------------------------
   const sum = (a, f) => a.reduce((x, y) => x + (f(y) || 0), 0), cnt = (a, f) => a.filter(f).length;
-  const long = sel.filter(f => f.nextDt > OVER), fz = sel.filter(f => f.nextDt > 100);
+  const long = sel.filter(f => f.nextDt > OVER + 4), fz = sel.filter(f => f.nextDt > 104);   // (the limit rule of 23 Nov: over 50 / 100 ms is counted from 54 / 104)
   const group = (items, key, add) => { const m = new Map(); for (const it of items) { const k = key(it); let g = m.get(k); if (!g) m.set(k, g = { key: k, n: 0, ms: 0, in: 0, maybe: 0 }); g.n++; g.ms += it.ms || 0; g[it.where === 'in' ? 'in' : 'maybe']++; if (add) add(g, it); } return [...m.values()].sort((a, b) => b.ms - a.ms || b.n - a.n).map(g => Object.assign(g, { ms: r1(g.ms) })); };
   const allUses = [].concat(...sel.map(f => f.uses.filter(u => u.where !== 'out'))), allLinks = [].concat(...sel.map(f => f.links.filter(u => u.where !== 'out'))),
     allWaits = [].concat(...sel.map(f => f.waits.filter(u => u.where !== 'out'))), allDel = [].concat(...sel.map(f => f.deliveries.filter(u => u.where !== 'out')));
