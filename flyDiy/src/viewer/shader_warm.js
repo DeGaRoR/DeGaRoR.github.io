@@ -167,6 +167,7 @@ var PROG_WARM = (() => {
   function guard(THREE, renderer, opt) {
     const props = renderer.properties, orig = renderer.renderBufferDirect;
     const pend = new Map(), queue = [];
+    const newNow = [];   // PERF-TRACE 7: the materials first held in this frame (the 'guardhold' event)
     const G = { stats: { held: 0, compiles: 0, ready: 0, timedOut: 0, what: [] }, pend, heldNow: 0, heldGround: 0 };   // what: [object/material, frames held, ms] (the first 40)
     if (!props || typeof orig !== 'function' || typeof renderer.compileAsync !== 'function') { G.flush = () => 0; return G; }
     renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
@@ -179,6 +180,7 @@ var PROG_WARM = (() => {
           const n = { o: object, m: material, scene, rt: renderer.getRenderTarget(), done: false, t: 0, frames: 0, w: null };
           if (G.stats.what.length < 40) G.stats.what.push(n.w = [(object.name || object.type) + '/' + (material.name || material.type), 0, 0]);
           pend.set(material, n); queue.push(n); G.stats.held++; G.heldNow++; if (material.groundFamily || material.heavyLink) G.heldGround++;
+          if (newNow.length < 12) newNow.push((object.name || object.type) + '/' + (material.name || material.type) + ((material.userData && material.userData.progOwner) ? ' <' + [].concat(material.userData.progOwner)[0] + '>' : ''));
           return;
         }
       }
@@ -195,6 +197,11 @@ var PROG_WARM = (() => {
     G.flush = camera => {
       const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       for (const e of pend.values()) if (!e.done && e.t && now - e.t > 20000) { e.done = true; G.stats.timedOut++; }   // a link that never reports: drawn (and waited for) rather than gone
+      // PERF-TRACE 7 (the user's row 14, the blue frame): a frame in which the guard kept draws OUT says so in the log -
+      // how many, and which materials were held for the first time (many at once in the world's scene = a frame of sky)
+      // (PERF-LEAD, the merge of 23 Nov: + ground, the ground family's share of them - what ?holdframe=ground still holds a frame for)
+      if (G.heldNow > 0) { const FRg = (typeof window !== 'undefined' && window.FLIGHT_REC) || null; if (FRg && FRg.event) FRg.event('guardhold', null, { held: G.heldNow, ground: G.heldGround, new: newNow.slice() }); }
+      newNow.length = 0;
       G.heldNow = 0; G.heldGround = 0;   // (heldGround: the ground family's held draws - ?holdframe=ground)
       if (!queue.length) return 0;
       const prev = renderer.getRenderTarget();

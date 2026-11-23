@@ -83,7 +83,8 @@ function bigUploads(log, opt) {
   return { kind: 'flydiy-big-uploads', v: 1, build: H.build || null, context: CTX, ms: MS, back: BACK, long: LONG, flightFrames: C0.length, uploads: N,
     totalMs: Math.round(out.reduce((a, u) => a + u.ms, 0)), bufferMB: Math.round(out.reduce((a, u) => a + u.bufferMB, 0)), medianBuffers: median(out.map(u => u.buffers)), medianMB: r1(median(out.map(u => u.bufferMB))), medianMs: r1(median(out.map(u => u.bufferMs))),
     gapS: { median: r1(median(gaps)), min: gaps.length ? r1(Math.min(...gaps)) : null }, paidIn: { mirror: out.filter(u => u.paidIn === 'mirror').length, render: out.filter(u => u.paidIn === 'render').length },
-    followedByFreeze: out.filter(u => u.nextDt > 100).length, all: out.map(u => ({ s: u.s, x: u.x, z: u.z, agl: u.agl, MB: u.bufferMB, buffers: u.buffers, ms: u.ms, paidIn: u.paidIn })), withNewGeometries: out.filter(u => u.newGeometries > 0).length, medianNewGeometries: median(out.map(u => u.newGeometries)),
+    followedByFreeze: out.filter(u => u.nextDt > 104).length,   // (the limit rule of 23 Nov: over 100 ms is counted from 104)
+     all: out.map(u => ({ s: u.s, x: u.x, z: u.z, agl: u.agl, MB: u.bufferMB, buffers: u.buffers, ms: u.ms, paidIn: u.paidIn })), withNewGeometries: out.filter(u => u.newGeometries > 0).length, medianNewGeometries: median(out.map(u => u.newGeometries)),
     shapes: [...sizes].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, n]) => ({ shape: k, n })), slots, place, far,
     deliveredKB: out.reduce((s, u) => s + (u.deliveredKB || 0), 0),
     withDeliveries: out.filter(u => u.deliveries.length).length, withPremises: out.filter(u => u.premises).length, withFirstUses: out.filter(u => u.firstUses.length).length, list: out.slice().sort((a, b) => b.ms - a.ms).slice(0, o.top || 20) };

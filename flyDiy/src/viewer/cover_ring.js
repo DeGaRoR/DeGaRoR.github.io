@@ -1675,7 +1675,7 @@ var COVER_RING = (() => {
     // ---- per frame ------------------------------------------------------------------
     let queue = [];
     const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
-    function update() {
+    function updateBody() {
       { const live = skinRing(); if (live !== skinLive) { skinLive = live; for (const m of skinMats) m.needsUpdate = true; } }
       // THE ALPINE ROCKS' LINE (PERF-LEAD, 22 Nov): every 15 s while it changes - the cells, the instances, the worst cell's main-thread ms,
       // the hit sets live and the ops sent to the sim worker (one per set landed or dropped)
@@ -1752,7 +1752,7 @@ var COVER_RING = (() => {
       { const ey = camera.position.y, R2r = S.reach * S.reach, dist2 = b => { const x = b.box; if (!x) return 0;
           const dx = Math.max(x[0] - ex, 0, ex - x[3]), dy = Math.max(x[1] - ey, 0, ey - x[4]), dz = Math.max(x[2] - ez, 0, ez - x[5]); return dx * dx + dy * dy + dz * dz; };
         const dirty = []; for (const b of blocks.values()) if (b.dirty) dirty.push(b);
-        if (dirty.length) { dirty.sort((a, b) => dist2(a) - dist2(b)); for (const b of dirty.slice(0, S.blockBudget)) buildBlock(b); }
+        if (dirty.length) { const tb = performance.now(); dirty.sort((a, b) => dist2(a) - dist2(b)); for (const b of dirty.slice(0, S.blockBudget)) { buildBlock(b); STAT.blockN++; } STAT.blockMs += performance.now() - tb; }   // (blockN / blockMs: update()'s report)
         STAT.dirty = Math.max(0, dirty.length - S.blockBudget);   // G1119: the blocks still to rebuild after this frame (0: the ring is idle)
         let shown = 0, draws = 0, sub = 0, all = 0;
         const band = bandNow(), href = S.hRef / Math.max(1e-6, fieldH0), sizeK = FIELD ? S.sizeFade : 0;
@@ -1772,6 +1772,22 @@ var COVER_RING = (() => {
       STAT.live = cells.size; STAT.queued = queue.length;
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
+    }
+    // PERF-TRACE (PERF-LEAD, 22 Nov: "the cover slot's time - one block rebuilt, or spread over the frame's updates?"). The
+    // recorder's `cover` slot is ONE push round five updates (render_world.js: this file's four layers and the rock ring), and
+    // the evening's journeys show it as a REGIME, not a spike: 10-15 ms a frame for hundreds of frames below 100 m. A layer
+    // whose update took 4 ms or more says what it was made of, by the streamers' contract ('deliver': the freeze ledger,
+    // tools/slot_frames.js): the cells planted and the planting's ms (each layer has its OWN budgetMs, and they add up), the
+    // blocks rebuilt and their ms; the rest of the ms is the per-block visibility pass. Nothing under 4 ms: one small event
+    // a slow update, none in cruise.
+    const LAYER_NAME = 'cover ring: ' + (ctx.layer || 'cover');
+    function update() {
+      const t0 = performance.now(), b0 = STAT.built; STAT.plantMs = 0; STAT.blockMs = 0; STAT.blockN = 0;
+      updateBody();
+      const ms = performance.now() - t0;
+      if (ms >= 4) { const FR = (typeof window !== 'undefined' && window.FLIGHT_REC) || null, r1 = x => Math.round((x || 0) * 10) / 10;
+        if (FR && FR.event) FR.event('deliver', ms, { s: LAYER_NAME, n: STAT.built - b0, what: 'planted ' + (STAT.built - b0) + ' cells in ' + r1(STAT.plantMs) + ' ms, rebuilt ' + STAT.blockN + ' blocks in ' + r1(STAT.blockMs) + ' ms',
+          plantMs: r1(STAT.plantMs), blocks: STAT.blockN, blockMs: r1(STAT.blockMs), queued: STAT.queued || 0 }); }
     }
     // REVEAL-HITCH (19 Oct): THE CELLS ROUND AN EYE, PLANTED NOW. The shed's loop never runs the world's update, so the first
     // flight frame after a roll-out found the stand's ring unplanted - or planted from the boot's settle eye, 6 m up and 22 m
