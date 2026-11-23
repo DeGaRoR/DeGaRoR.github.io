@@ -7534,8 +7534,14 @@ function cageInterior(m, S) {
         }
         for (const f of faces) {
           const C = f.keys.map(k => corner.get(k));
-          qi([C[0].o, C[1].o, C[2].o, C[3].o]);                 // the outer skin, outward
-          qi([C[3].i, C[2].i, C[1].i, C[0].i]);                 // the inner, reversed
+          // TAPER-DIAG (the user 23 Nov, the dark trapezoid low aft): a panel's corners are lifted along the mean normals,
+          // so its quad is not flat (~6 degrees between its halves on the Chinook's lower flank). A quad is drawn as two
+          // triangles fanned from its first corner: the outer [0,1,2,3] split on 0-2, the reversed inner [3,2,1,0] on 3-1
+          // - opposite diagonals, so over half of each warped panel the inner skin stood centimetres OUTSIDE the outer
+          // one and its back face (the cabin darkening) was what the eye met (the page's raycast through the patch: the
+          // back face first, the front 3 mm behind). Both skins now split on the SAME diagonal, as explicit triangles.
+          qi([C[0].o, C[1].o, C[2].o]); qi([C[0].o, C[2].o, C[3].o]);   // the outer skin, outward (split on 0-2)
+          qi([C[2].i, C[1].i, C[0].i]); qi([C[3].i, C[2].i, C[0].i]);   // the inner, reversed (split on 0-2 too)
           for (let e = 0; e < 4; e++) {                          // walls on the shell's OPEN edges only
             const a = f.keys[e], b2 = f.keys[(e + 1) % 4], k = a < b2 ? a + '|' + b2 : b2 + '|' + a;
             if (edgeUse.get(k) !== 1) continue;

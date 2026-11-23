@@ -319240,6 +319240,16 @@ first 8 min: 54.9 % of seconds at 29+ fps, 17 frames over 100 ms (L40J 31), the 
    never the shaft. Now: aidMapBody (the model's own placement, def.refs.origin / sim.bodyOrigin / sim.axes) and the
    circle square to the drawn shaft (CAGE_ENG units' propAxis -> genAidPropOff -> thrust/prop .dir). The ground posts keep
    aidMap.
+7. The Chinook's taper, round 2 (the user 23 Nov: "we need a single body for the aft part"): TAPER-SHELL - the six boxes
+   are ONE shell (shared corners lifted along their panels' mean normal; outer skin outward, inner reversed, walls only
+   on the open edges); the seams and black lines went (stills before/after: flydiy-notes/evidence/chinook-taper-2026-11-23).
+   The dark trapezoid low aft stayed: the page's raycast through it met the INNER skin's back face first, the outer
+   3 mm behind. TAPER-DIAG - a lifted panel is not flat (~6 deg between its halves) and the outer [0,1,2,3] split on 0-2
+   while the reversed inner [3,2,1,0] split on 3-1: over half of each warped panel the inner stood outside. Both skins
+   now split on the same diagonal, as explicit triangles. GATE PARTS row "the taper shell shows its OUTSIDE to the eye"
+   (rays from outside along every skin triangle: the first taperPanel triangle met faces the ray; rod + taper panels and
+   the Chinook; selftest = the inner skin pushed outside): old code 84 / 11 rays back-first, new 0. PARTS' other reds
+   (cw_keelLevel cw_deckLevel cw_deckFall unclaimed) are master's (089297693 fails them too).
 NOT VERIFIED IN GAME (A0: no GPU / box runs while the user takes screenshots; the thermal rule): the dash, the panels and
 the prop circle are checked headless only (face counts, boxes) - A0's in-game round owed.
 TAILWHEEL E + I (down & out) on master since L40H: the twin-boom fixture flies the E-811, now 53 kg installed (the user's
