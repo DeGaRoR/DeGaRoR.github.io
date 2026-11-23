@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 19 feasible; 1 infeasible; 61 not flown; 2 stale. Time flown: 429 min 16 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 21 feasible; 1 infeasible; 59 not flown; 2 stale. Time flown: 482 min 59 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -19,7 +19,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 19 feasible; 1 infeas
 | hangar.03 | hangar:2 | not flown | - | - | - |  |
 | hangar.04 | hangar:2 | not flown | - | - | - |  |
 | hangar.05 | hangar:3 | feasible | Cessna 172 | 21 min 13 s | HOME > w3 545; w3 > HOME 728 |  |
-| heritage.01 | heritage:1 | stale | - | - | - |  |
+| heritage.01 | heritage:1 | feasible | STOL Cub | 15 min 30 s | HOME > nv_strip 930 |  |
 | heritage.02 | heritage:2 | not flown | - | - | - |  |
 | minedock.n1 | contract | not flown | - | - | - |  |
 | minedock.b1 | contract | order | - | - | - |  |
@@ -86,7 +86,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 19 feasible; 1 infeas
 | community.03 | community:2 | not flown | - | - | - |  |
 | community.04 | community:3 | not flown | - | - | - |  |
 | community.05 | community:4 | not flown | - | - | - |  |
-| community.06 | community:4 | not flown | - | - | - |  |
+| community.06 | community:4 | feasible | Piper Cub | 38 min 13 s | HOME > mn_strip 992; mn_strip > w7 1301 |  |
 | community.07 | community:4 | not flown | - | - | - |  |
 | community.08 | community:5 | not flown | - | - | - |  |
 | community.09 | community:6 | not flown | - | - | - |  |
@@ -97,4 +97,4 @@ Summary (91 missions): 8 an aircraft order (not a flight); 19 feasible; 1 infeas
 | club.pylons | contract | feasible | Piper Cub | 18 min 16 s | HOME > HOME 1096 [hit:g1 hit:g2 hit:g3 hit:g4] |  |
 | club.regular | contract | feasible | Piper Cub | 18 min 06 s | HOME > HOME 1086 [hit:r1 hit:r2] |  |
 | club.tour | club:2 | feasible | Piper Cub | 35 min 39 s | HOME > w3 855 [hit:a1 hit:a2]; w3 > w5 532 [hit:b1 hit:b2]; w5 > HOME 752 [hit:c1 hit:c2] |  |
-| club.breakfast | club:1 | not flown | - | - | - |  |
+| club.breakfast | club:1 | stale | - | - | - |  |

@@ -4,13 +4,13 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "not flown": 61,
-  "feasible": 19,
-  "stale": 2,
+  "not flown": 59,
+  "feasible": 21,
   "an aircraft order (not a flight)": 8,
+  "stale": 2,
   "infeasible": 1
  },
- "flownS": 25756,
+ "flownS": 28979,
  "rows": [
   {
    "id": "field.01",
@@ -231,8 +231,30 @@
    "id": "heritage.01",
    "where": "heritage:1",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 930,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "nv_strip",
+     "t": 930,
+     "how": "stopped",
+     "at": "nv_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "heritage.02",
@@ -1014,8 +1036,44 @@
    "id": "community.06",
    "where": "community:4",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 2293,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 992,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mn_strip",
+     "to": "w7",
+     "t": 1301,
+     "how": "stopped",
+     "at": "w7",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "community.07",
@@ -1273,7 +1331,7 @@
    "id": "club.breakfast",
    "where": "club:1",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "stale",
    "cls": null
   }
  ]

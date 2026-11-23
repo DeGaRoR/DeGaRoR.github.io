@@ -45,16 +45,16 @@
       "strip-short: East Point Clearing: the approach flies 16.3 m/s (21.1 over the ground: 4.8 m/s of wind behind on its one way in), the short-fi"
      ],
      "landing": {
-      "run": 59,
+      "run": 60,
       "sink": 1.32,
-      "V": 13.9,
+      "V": 14,
       "offCentre": -0.6,
       "pastAim": 58,
       "k": 0,
       "three": true,
       "onStrip": true,
       "tdIn": 68,
-      "stopLeft": 23
+      "stopLeft": 22
      }
     }
    ]
@@ -67,5 +67,6 @@
  "key": "63df8cdfe38b",
  "where": "heritage:1",
  "pool": "official+57,58+test builds, the seats filled",
- "wallS": 373
+ "sim": "L40J",
+ "wallS": 375
 }
