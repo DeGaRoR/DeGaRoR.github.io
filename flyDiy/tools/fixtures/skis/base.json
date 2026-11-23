@@ -4,51 +4,51 @@
  "base": "6a8d705c",
  "builds": {
   "builds/cub_2026-09-20_corrected.json": {
-   "def": "b4e1cd06bbbb",
-   "sh": "0bb2d356194d",
-   "sim": "ad8f08d2a7c6",
+   "def": "65a2c3af9c13",
+   "sh": "6b9bca7700d6",
+   "sim": "17dc97a0f863",
    "nodes": 97,
    "ski": false
   },
   "builds/jodel_2026-09-20_corrected.json": {
-   "def": "c14c1a3de222",
-   "sh": "0c86bafeadd5",
+   "def": "ed001b4b28ce",
+   "sh": "e7c0108f3ef2",
    "sim": "b8f978a94328",
    "nodes": 115,
    "ski": false
   },
-  "bugReports/cessnaMetal (1).json": {
-   "def": "f1b5d089bca2",
-   "sh": "7d84db242bc1",
+  "tools/fixtures/test_copies/cessnaMetal (1).json": {
+   "def": "46c546c0a553",
+   "sh": "99602d263023",
    "sim": "5cddbb102aef",
    "nodes": 107,
    "ski": false
   },
   "bugReports/cessnaFloatsWOrks.json": {
-   "def": "5d75a11f0af4",
-   "sh": "0b2004839e88",
+   "def": "4ed41a4bfed1",
+   "sh": "adfc62c6254d",
    "sim": "37a24324f81a",
    "nodes": 134,
    "ski": false
   },
   "tools/fixtures/build_v7_ultralight_2026-09-05.json": {
-   "def": "3ae5ed756987",
-   "sh": "30d11f2496d5",
+   "def": "fad8c9b539f9",
+   "sh": "4c4b3095b3b9",
    "sim": "697dcd96ca67",
    "nodes": 123,
    "ski": false
   },
-  "builds/candidates/superpetrel_V4_1.json": {
-   "def": "3bd0d3827b05",
-   "sh": "2ce04a6e2562",
-   "sim": "72e1a8ea9db0",
+  "tools/fixtures/test_copies/superpetrel_V4_1.json": {
+   "def": "4ee65ac963b1",
+   "sh": "cbdc7611c54b",
+   "sim": "2b5738e6dc25",
    "nodes": 184,
    "ski": false
   },
   "builds/candidates/carbon_cub_ss.json": {
-   "def": "6bdb9564bf26",
-   "sh": "7a234296cec4",
-   "sim": "c3927c0d945e",
+   "def": "e49edd39874e",
+   "sh": "568cd7cad1ad",
+   "sim": "1259bb946b99",
    "nodes": 95,
    "ski": false
   }

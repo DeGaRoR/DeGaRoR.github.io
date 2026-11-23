@@ -86,7 +86,7 @@ const P={
   // PROPER-COWLS: the head cylinders, merged into the skin (cylOn 0 = none)
   cylOn:0, cylAz:0, cylOff:0.3, cylR:0.12, cylZ0:0.1, cylZ1:0.4, cylNose:0.1, cylTail:0.15, cylRin:0, cylOffIn:null, cylBlend:0.025, cylOgive:0, cylProfile:0, cylFront:0.7, cylInlet:0, cylVert:1, cylSq:0.5, cylLipT:null, cylDuctLen:null, cylDuctEnd:null, cylDuctBack:null,
   gillOn:0, gillN:6, gillZ:0.35, gillY:0.5, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004, gillUp:null,   // (CAR-1: null = centred; gillUp, the car's height, wins over gillY when set)
-  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10, lampIn:0,   // CAR-1: the grille, the radiator cap (off)
+  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10, lampIn:0, blinkOn:0, blinkY:0,   // CAR-1: the grille, the radiator cap (off)
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
   // ENGINE-COOLING (12 Nov, the user: "let's have at least a top scoop"): scoopTop 1 puts it on the cowl's TOP
@@ -1325,7 +1325,7 @@ function buildGrille(group,mats){
   const hw=o.w*0.96, hh=o.h*0.96;
   const NR=Math.max(0,Math.round(P.grilleRows||0));
   const R=grilleNumRects({cx:o.cx,cy:o.cy,w:hw,h:hh});
-  const plateM=R?new THREE.MeshStandardMaterial({color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
+  const plateM=R?new THREE.MeshStandardMaterial({userData:{progOwner:'aircraft / cowl / grille number digits'},color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
   const inR=(x,y,r)=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];
   // (the user: "the letter should be white and the rest should not be painted"): the digits ivory, the rest bare grille
   const matAt=(x,y)=>!R?m:(R.ink.some(r=>inR(x,y,r))?plateM:m);
@@ -1383,7 +1383,7 @@ function buildLamps(group,mats,shellM){
   const ze=zEnd(), z=ze-Math.max(0,P.lampBack), cy=spineY(ze)+P.lampY, r=Math.max(0.03,P.lampR);
   const half=surfPoint(0,z)[0];
   const chrome=mats.steel||mats.skin, shell=shellM||mats.skin;
-  const lens=new THREE.MeshStandardMaterial({color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
+  const lens=new THREE.MeshStandardMaterial({userData:{progOwner:'aircraft / cowl / headlamp lens'},color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
   lens.userData.aeroskin=1;
   // CAR-3 (the user, 12 Nov: "two additional openings on the sides in which you're gonna stick the headlamps"):
   // lampIn 1 seats each lamp IN the face's side aperture (apMode 2 / 3: the fitted pair), lampBack behind the face,
@@ -1408,6 +1408,39 @@ function buildLamps(group,mats,shellM){
     const a=new THREE.Vector3(x-sg*r*0.2,cy-r*0.2,z-r*0.9), b=new THREE.Vector3(sg*(half-0.005),cy-r*0.6,z-r*1.6);
     const L=a.distanceTo(b), st=new THREE.Mesh(new THREE.CylinderGeometry(r*0.12,r*0.14,L,10),chrome);
     st.position.copy(a.clone().add(b).multiplyScalar(0.5)); st.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize()); st.name='cowlLamp'; group.add(st);
+  }
+}
+// CAR-3 (the user, 12 Nov: "use the little lights that we have at the wingtips there to do some blinkers"): blinkOn - a
+// wingtip light's teardrop (the cage light layer's pod: a quarter ellipse to the shoulder, a fine tail) on each side of
+// the bonnet just behind the face, its nose forward and AMBER (the lens IS the pod's nose, as on a wingtip), its tail
+// chrome; at the headlamps' height (lampIn: the inlets' centre, else lampY over the axis) less blinkY. Absent = none.
+function buildBlinkers(group,mats){
+  if(!(P.blinkOn>0)) return;
+  const ze=zEnd(), len=0.13, wide=0.05, high=0.032, NOSE=0.34;
+  const pr=(P.lampIn>0&&(P.apMode===2||P.apMode===3))?apertureList().slice(P.apMode===3?1:0):null;
+  const yT=(pr&&pr.length===2?pr[0].cy:spineY(ze)+P.lampY)-(P.blinkY||0);
+  const zc=ze-0.05-len*(1-NOSE)*0.15;                         // the widest station, the nose just short of the face
+  const lens=(typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', {color:new THREE.Color(0xff9a1a).multiplyScalar(0.45),emissive:0xff8a12,emissiveIntensity:0.6,roughness:0.2,metalness:0,side:THREE.DoubleSide},'aircraft / cowl / blinker lens');   // (PERF-TRACE: the owner, MATLIB's 4th argument)
+  lens.userData.aeroskin=1;
+  const tailM=mats.steel||mats.skin;
+  const f=u=>u<=NOSE?Math.sqrt(Math.max(0,1-Math.pow((NOSE-u)/NOSE,2))):Math.pow(Math.max(0,(1-u)/(1-NOSE)),0.72);
+  for(const sg of [1,-1]){
+    // the bonnet's side at that height: the section's own point, scanned over the near half
+    let best=null;
+    for(let k=-40;k<=40;k++){ const th=(sg>0?0:Math.PI)+k/40*Math.PI/2*(sg>0?1:-1), q=surfPoint(th,zc);
+      if(best==null||Math.abs(q[1]-yT)<Math.abs(best[1]-yT)) best=q; }
+    const cx=best[0], cy=best[1];
+    for(const [u0,u1,m] of [[0,NOSE,lens],[NOSE,1,tailM]]){
+      const pos=[], idx=[], R2=10, S2=14;
+      for(let j=0;j<=R2;j++){ const uu=0.5*(1-Math.cos(Math.PI*j/R2)), u=u0+(u1-u0)*uu, k=Math.max(f(u),1e-3), t=(u-NOSE)*len;
+        for(let i=0;i<S2;i++){ const th=2*Math.PI*i/S2;
+          // along -z (nose forward), up = out of the side (x), the width up the bonnet (y); half the pod sunk in the skin
+          pos.push(cx+sg*(Math.sin(th)*high*k), cy+Math.cos(th)*wide/2*k, zc-t); } }
+      for(let j=0;j<R2;j++) for(let i=0;i<S2;i++){ const i2=(i+1)%S2, a0=j*S2+i, a1=j*S2+i2, b0=(j+1)*S2+i, b1=(j+1)*S2+i2;
+        if(sg>0) idx.push(a0,b0,a1,a1,b0,b1); else idx.push(a0,a1,b0,a1,b1,b0); }
+      const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+      const mm=new THREE.Mesh(g,m); mm.name='cowlLamp'; group.add(mm);
+    }
   }
 }
 function buildCap(group,mats){
@@ -2366,6 +2399,6 @@ function coolHeads(R, toCowl){
   return { out:+out.toFixed(5), all:+all.toFixed(5) };
 }
 
-const COWL_API = { cutCylJoin, cylNorm, cylShape, surfPointU, buildCylinders, buildCylFillet, cylMerge, coolOpenings, coolHeads, gillsFit, buildGills, buildGrille, buildCap, buildLamps, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { cutCylJoin, cylNorm, cylShape, surfPointU, buildCylinders, buildCylFillet, cylMerge, coolOpenings, coolHeads, gillsFit, buildGills, buildGrille, buildCap, buildLamps, buildBlinkers, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

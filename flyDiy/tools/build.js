@@ -450,11 +450,16 @@ const MANIFEST = {
          // page's half (drive_mode.js) - fetched when the player asks to drive (the menu's Drive row, ?drive=1), never before:
          // the aeroplane's core and the first load carry none of it
          ['src/cars', 'cars_car.js'], ['src/cars', 'cars_lods.js'],
-         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
+         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'car_sheet_core.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
          ['src/viewer', 'drive_mode.js'],
          // LIVERY-STICKERS (9 Nov): THE TWELVE ALASKA MARKS' GEOMETRY (tools/livery_marks_prep.js) - fetched by aeroskin.js
          // the first time a livery sticker is drawn (aeroVinylGeo), never by an aeroplane that wears none
          ['src/viewer', 'livery_marks.js'],
+         // WINCH (2026-11-13): THE WINCH LAUNCH - the line, the drum and its driver (src/vehicle/winch.js, GATE WINCH), the
+         // winch drawn (tools/_winch_gen.js) and weathered (tools/_winch_weather.js), the page's half (winch_mode.js) -
+         // fetched with tow.js when the start chooser's winch launch is picked, never before (before the mission pair:
+         // GATE MISSIONLIVE reads the list's end)
+         ['src/vehicle', 'winch.js'], ['tools', '_winch_gen.js'], ['tools', '_winch_weather.js'], ['src/viewer', 'winch_mode.js'],
          // MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - the tracker's page half and its drawing (mission_live.js) and the
          // mission props (tools/_mission_gen.js: the pylon, the balloon column, the ring, the flag, the tie-down spot; it
          // reads TOWER_GEN, inlined above) - fetched by app.js missionLiveArm at the first departure with an accepted
@@ -585,7 +590,8 @@ const MANIFEST = {
     // welcome.js's WELCOME.RIG at eval (never on a rig) and app.js's FLIGHT_PROBE only at the player's first input
     // card_drag.js (G3526, GAME-MENUS) right after it: EVERY CARD IS DRAGGABLE - window.FLYDIY_DRAG, before any card's
     // own code (bench.js, app.js, freight_load.js, boombox.js, input_panel.js, gfx_settings.js) makes one
-    scripts: ['storage.js', 'flight_recorder.js', 'back_guard.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
+    // program_id.js (PERF-TRACE, 22 Nov): PROGRAMS.own(material, owner) before any material is made; the recorder hooks its registry
+    scripts: ['storage.js', 'program_id.js', 'flight_recorder.js', 'back_guard.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'forest_mist.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'moon_ui.js', 'aurora.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
@@ -1080,13 +1086,24 @@ function buildViewer(core) {
   // (G3240 NAMES) the names table rides ahead of the cards, which read it before the core runs (01_names.js: a `var`,
   // so the core's own copy re-declares it)
   const namesJs = cardsJs ? read(path.join(CORE_DIR, '01_names.js')) : '';
+  // AUDIO-ROBUST 5 (the user 22 Nov: "audio should start playing from the menu onwards, and through the loading"): THE MENU'S
+  // MUSIC - menu_music.js and the music catalogue ride in the BOOT slot, ahead of welcome.js (the menu runs before the island
+  // and before audio.js / music.js; music.js takes the menu's song over when it connects). The catalogue is the same JSON
+  // the core's slot inlines (FLYDIY_MUSIC: ~25 KB more page, named in the ready)
+  const MENU_MUSIC_JS = path.join(VIEW_DIR, 'audio', 'menu_music.js');
+  const menuMusicJs = fs.existsSync(MENU_MUSIC_JS) ? read(MENU_MUSIC_JS) : '';
+  if (menuMusicJs) syntaxCheck('audio/menu_music.js', menuMusicJs);
+  const MUSIC_BOOT = fs.existsSync(path.join(VIEW_DIR, 'audio', 'music_catalogue.json')) ? JSON.stringify(JSON.parse(fs.readFileSync(path.join(VIEW_DIR, 'audio', 'music_catalogue.json'), 'utf8'))).replace(/</g, '\\u003c') : '[]';
+  const menuMusicArt = menuMusicJs ? `\n<script>window.FLYDIY_MUSIC=${MUSIC_BOOT};\n${menuMusicJs}</script>` : '';
+  const menuMusicDev = menuMusicJs ? `\n<script>window.FLYDIY_MUSIC=${MUSIC_BOOT};</script>\n<script src="src/viewer/audio/menu_music.js?v=${sha(menuMusicJs).slice(0, 8)}"></script>` : '';
   const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${namesJs}\n${cardsJs}\n${bootJs}</script>`
-    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
+    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + menuMusicArt + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
   const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (namesJs ? `<script src="src/core/01_names.js?v=${sha(namesJs).slice(0, 8)}"></script>\n` : '')
     + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
     + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')
+    + menuMusicDev
     + (welcomeJs ? `\n<script src="src/viewer/${V.welcome}?v=${sha(welcomeJs).slice(0, 8)}"></script>` : ''));
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));

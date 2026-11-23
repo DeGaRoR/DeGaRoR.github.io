@@ -292,6 +292,7 @@ function genStrips(S, fr) {
     return a;
   };
 
+  const abW = k === 0 && wk.airbrake ? wk.airbrake : null, abZ = abW ? [abW.z0 * semi, abW.z1 * semi] : null;
   const zAll = [PL.zRoot, ...PL.zs];
   for (const [side, fw] of [[1, PL.wf.R], [-1, PL.wf.L]]) {
     for (let b = 0; b < PL.zs.length; b++) {
@@ -317,6 +318,8 @@ function genStrips(S, fr) {
         const fFrac = fEnd <= zLo ? 0
                     : fEnd >= zHi ? 1
                     : (fEnd - zLo) / (zHi - zLo);
+        // AIRBRAKES (GEN_RULES.airbrake): how much of this strip the brake's box spans (plane 0's; the key only there)
+        const abFrac = abZ ? Math.max(0, Math.min(zHi, abZ[1]) - Math.max(zLo, abZ[0])) / Math.max(1e-9, zHi - zLo) : 0;
         strips.push({
           kind: 'wing', side, t, chord: ch,
           area: 0.5 * (zo - zi) * ch,
@@ -330,6 +333,7 @@ function genStrips(S, fr) {
           // reads the strip's own numbers, never a single aeroplane-wide one
           plane: k, sparSpacing: PL.sparSpacing, cf,
         });
+        if (abFrac > 0) strips[strips.length - 1].ab = abFrac;   // (AIRBRAKES: a key only on the strips a brake spans)
         const xcd = (ST || stPlate > 0 || stSkid > 0) ? stXcd(zLo, zHi, b === PL.zs.length - 1 && t > 0.5) : 0;
         if (ST || xcd > 0) {
           // G2820: keys only where a device reaches - every other strip is
@@ -1487,7 +1491,7 @@ function genSubstepsTrue(nodes, beams) {
     // wood 66->79 (0.565->0.448), alloy 109 (0.448), carbon 152->156
     // (0.470->0.448). The floor alone read 76/83/109/159 — past the 80 GATE
     // MOUNT allows, which is why the bow lands with it and not after it.
-    const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+    const dry = i => ((nodes[i].mFuel || nodes[i].mWater) ? Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0) - (nodes[i].mWater || 0)) : nodes[i].m);
     const inv = 1 / dry(b.a) + 1 / dry(b.b);           // 1/reduced mass, dry
     wMax = Math.max(wMax, Math.sqrt(b.k * inv));
     cMax = Math.max(cMax, b.c * inv);
@@ -1507,7 +1511,7 @@ function genSubstepsTrue(nodes, beams) {
   // give <= GEN_NET_MAX; the smallest step that does is taken, never more than the old rule's, and a
   // build whose springs set the step is untouched - the same number, no beam changed.
   const byW = Math.min(200, Math.max(24, Math.ceil(wMax / (60 * GEN_WDT_MAX))));
-  const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+  const dry = i => ((nodes[i].mFuel || nodes[i].mWater) ? Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0) - (nodes[i].mWater || 0)) : nodes[i].m);
   const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
   // G2630 (RADIAL-DIVERGE): THE CAP CANNOT CARRY THE DAMPERS. Where the dampers alone ask more than the 200 cap, the
   // old rule flew 200 with every damper as built - outside the integrator. The user's Mosquito (carbon, oleo gear,
@@ -1595,7 +1599,7 @@ function genRigidFloatOf(nodes, clusters) {
 }
 function genFlightBox(nodes, beams, N0, clusters) {
   if (!(N0 > GEN_BOX_N)) return N0;
-  const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+  const dry = i => ((nodes[i].mFuel || nodes[i].mWater) ? Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0) - (nodes[i].mWater || 0)) : nodes[i].m);
   const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
   const hull = genRigidFloatOf(nodes, clusters);
   const net = hull ? beams.filter(b => !hull(b)) : beams;   // G790: the network the integrator carries
@@ -2091,6 +2095,13 @@ function genParams(S, fr, strips) {
           // per tank, in spec order, what the frame billed (the fuel gauges)
           vessels: ((S.energy && S.energy.vessels) || []).map(v => ({
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
+    // WATER TANKS (GEN_RULES.water): what the dump valve drains (the frame's `mWater` records) and where it leaves - the
+    // outlets as node weights and a drop below them, for the solver and the viewer's shower (absent with none)
+    ...(fr.parts && fr.parts.water ? { water: fr.parts.water } : {}),
+    // AIRBRAKES (GEN_RULES.airbrake): the solver's two numbers - the lift a full-out brake spoils on the strips it
+    // spans, and the plate's drag coefficient on their area (cdPlate x h) - absent with none
+    ...(S.wings && S.wings[0] && S.wings[0].airbrake ? { airbrake: { spoil: GEN_RULES.airbrake.spoil,
+        cd: GEN_RULES.airbrake.cdPlate * S.wings[0].airbrake.h } } : {}),
     // (WILGA-GEAR: a trailing-link leg's struts are no members - each stands in here at its stiffest, bottomed on its
     // stops, so the step is one the integrator carries; its orifice is semi-implicit and asks no step - 62c gearOleoF)
     // (PC6-OLEO: the telescopic tail strut likewise - its stop and its bearing as two members on the wheel and the foot)

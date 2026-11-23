@@ -436,7 +436,7 @@ function benchWorkerStart(onMessage, onError, opts) {
     const base = new URL('.', location.href).href;
     const W = (opts && opts.versioned && typeof window !== 'undefined') ? window : {};
     const url = URL.createObjectURL(new Blob([benchWorkerSource(base, W.FLYDIY_BUILD, W.FLYDIY_CORE_SHA)], { type: 'text/javascript' }));
-    const w = new Worker(url);
+    const w = new Worker(url, { name: 'garage / bench / checks and the performance sheet' });
     const kill = () => { try { w.terminate(); } catch (e) {} try { URL.revokeObjectURL(url); } catch (e) {} };
     w.onmessage = e => { try { onMessage(e.data); } catch (err) { console.warn('bench worker message:', err); } };
     w.onerror = err => { kill(); if (onError) onError(err && err.message || 'worker failed'); };

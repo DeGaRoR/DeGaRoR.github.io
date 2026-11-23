@@ -42,8 +42,9 @@ const sOn = born('motorglider'), sOff = born('motorglider', { engOn: 0 });
      `A engOn 0 writes one entry flagged none (${JSON.stringify({ type: e0.type, none: e0.none })}) and no vessel (${sOff.energy.vessels.length})`);
   ok(!sOn.engines.some(e => 'none' in e) && sOn.energy.vessels.length > 0, `A with the engine on: no flag, its vessel kept (${sOn.energy.vessels.length})`);
   const others = D.ARCHETYPES.map(a => { try { return [a.key, born(a.key)]; } catch (e) { return [a.key, null]; } }).filter(([, s]) => s);
-  const leak = others.filter(([, s]) => s.engines.some(e => e.none));
-  ok(others.length > 10 && !leak.length, `A latent: none of the ${others.length} cards flies it (${leak.map(x => x[0]).join(', ') || 'none'})`); }
+  // (the LS4-alike, 15 Nov, is the sailplane this was built for: the one card that flies it)
+  const leak = others.filter(([k, s]) => s.engines.some(e => e.none) !== (k === 'ls4'));
+  ok(others.length > 10 && !leak.length, `A latent: of the ${others.length} cards only the LS4-alike flies it (${leak.map(x => x[0]).join(', ') || 'none other'})`); }
 
 console.log('B. THE BILL');
 const dOn = C.buildGen(JSON.parse(JSON.stringify(sOn))), dOff = C.buildGen(JSON.parse(JSON.stringify(sOff)));

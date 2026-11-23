@@ -265,7 +265,7 @@ function makeLinkage(tau) {
   // G442.3: `thr0`..`thr3` ride too - each engine's own lever (the pilot's
   // throttle times ctl.eng[i]'s lever, G194's per-engine record; the pilot's
   // throttle alone when there is no record), for a twin's double throttle
-  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel', 'thr0', 'thr1', 'thr2', 'thr3'];
+  const KEYS = ['de', 'da', 'dr', 'flap', 'thr', 'brake', 'trim', 'fuel', 'thr0', 'thr1', 'thr2', 'thr3', 'airbrake'];   // (AIRBRAKES: the plates, the blue handle)
   const s1 = {}, s2 = {};
   for (const k of KEYS) { s1[k] = 0; s2[k] = 0; }
   const read = (ctl, k) => {

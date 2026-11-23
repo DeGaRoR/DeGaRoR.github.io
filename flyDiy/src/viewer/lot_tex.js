@@ -36,7 +36,7 @@ const LOT_GROUND = (() => {
   let LOT_MAT = null;
   function material(THREE, onLoad) {
   if (LOT_MAT) return LOT_MAT;
-  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0,
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / lots / ground patch' }, color: 0xffffff, roughness: 0.95, metalness: 0,
     transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   if (LOT) {
     m.map = lotTex(THREE, onLoad, 'grass', 'diff', true);

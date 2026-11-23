@@ -92,7 +92,8 @@ const arch = born('archaeopteryx');
   ok(UG && UG.linK > 0 && UG.buildKg > 0 && arch.gear.mono === true && arch.gear.ul === true && !('ul' in m0.gear) && !('ul' in tri.gear),
      `A the ultralight monowheel (s1Ul) writes gear.ul on the monowheel (${arch.gear.ul}), nothing with it off (${'ul' in m0.gear}) nor on a two-wheel gear (${'ul' in tri.gear})`);
   const others = D.ARCHETYPES.filter(a => a.key !== 'archaeopteryx').map(a => { try { return [a.key, born(a.key)]; } catch (e) { return [a.key, null]; } }).filter(([, s]) => s);
-  const leak = others.filter(([, s]) => s.fuselage.material === 'softShell' || (s.gear && s.gear.ul));
+  // (the LS4-alike, 15 Nov: the ultralight monowheel retracting under a sailplane - its gear.ul is its own; no soft shell)
+  const leak = others.filter(([k, s]) => s.fuselage.material === 'softShell' || (s.gear && s.gear.ul && k !== 'ls4'));
   ok(others.length > 10 && !leak.length, `A latent: none of the ${others.length} other cards flies either (${leak.map(x => x[0]).join(', ') || 'none'})`); }
 
 console.log('B. LIGHT');

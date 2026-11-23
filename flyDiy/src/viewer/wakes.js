@@ -106,7 +106,7 @@ WK.make = function (THREE, o) {
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e7);   // a layer over the whole sea: never culled as one
   const params = { color: 0xf3f5f4, roughness: 0.85, metalness: 0, transparent: true, depthWrite: false, vertexColors: true,
                    alphaMap: noiseTile(THREE), polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 };
-  const mat = typeof MATLIB !== 'undefined' && MATLIB.make ? MATLIB.make(THREE, 'std', params) : null;
+  const mat = typeof MATLIB !== 'undefined' && MATLIB.make ? MATLIB.make(THREE, 'std', params, 'water / wakes / ribbons') : null;
   const mesh = new THREE.Mesh(geo, mat || undefined);
   mesh.name = 'wakes';
   mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = true;

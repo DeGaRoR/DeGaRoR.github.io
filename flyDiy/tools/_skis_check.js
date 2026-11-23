@@ -42,9 +42,9 @@ const clone = o => JSON.parse(JSON.stringify(o));
 let fails = 0;
 const ok = (c, label) => { console.log((c ? '  ok   ' : '  FAIL ') + label); if (!c) fails++; };
 const BASE_FILE = path.join(T, 'fixtures', 'skis', 'base.json');
-const ABSENT = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-20_corrected.json', 'bugReports/cessnaMetal (1).json',
+const ABSENT = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-20_corrected.json', 'tools/fixtures/test_copies/cessnaMetal (1).json',
                 'bugReports/cessnaFloatsWOrks.json', 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
-                'builds/candidates/superpetrel_V4_1.json', 'builds/candidates/carbon_cub_ss.json'];
+                'tools/fixtures/test_copies/superpetrel_V4_1.json', 'builds/candidates/carbon_cub_ss.json'];
 const CC_CARD = 'tools/fixtures/test_copies/carbon_cub_ss_skis.json', PC6_CARD = 'tools/fixtures/test_copies/pc6_skis.json', POD_CARD = 'tools/fixtures/test_copies/carbon_cub_ss_pod.json';
 
 function bytesAll() {

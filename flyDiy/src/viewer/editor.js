@@ -2666,7 +2666,10 @@ function editorInit(api) {
   function hookXray() {
     if (xrayHooked) return;
     const c = $('xray');
-    if (c) { c.addEventListener('change', syncQuick); xrayHooked = true; }
+    if (c) { c.addEventListener('change', syncQuick); xrayHooked = true;
+      // PERF-TRACE (22 Nov): THE USER'S OBJECTIVE 6, MARKED - the interior (see-through) view asked for, as an 'act' event
+      // BEFORE the page's own handler runs (capture): tools/freeze_ledger.js reads click -> drawn against 2 s, no frame over 100 ms
+      c.addEventListener('change', () => { const FR = window.FLIGHT_REC; if (FR && FR.event) FR.event('act', null, { a: 'interior-view', s: 1, on: !!c.checked }); }, true); }
   }
 
   // THE BUTTONS ARE REPAINTED, NEVER RE-WIRED. There are three: rewriting the
@@ -3361,7 +3364,7 @@ function editorInit(api) {
   catch (e) {}
   let hiSel = null, hiHov = null, hiMats = null;
   function hiMat(op) {
-    const m = new THREE.MeshBasicMaterial({
+    const m = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / part highlight / fill' },
       color: HI.fill, transparent: true, opacity: op, depthWrite: false,
       side: THREE.DoubleSide, polygonOffset: true,
       polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -3369,7 +3372,7 @@ function editorInit(api) {
     return m;
   }
   function hiLine(which) {
-    const m = new THREE.LineBasicMaterial({
+    const m = new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / part highlight / edge outline' },
       color: which === 'sel' ? HI.line : HI.lineHov,
       transparent: true, opacity: which === 'sel' ? 1 : 0.75,
       depthTest: !HI.through, depthWrite: false, linewidth: HI.width });
@@ -3409,7 +3412,7 @@ function editorInit(api) {
   // deselect, rebake.
   function hiSilMask(which) {
     const bit = which === 'sel' ? 1 : 2;
-    const m = new THREE.MeshBasicMaterial({
+    const m = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / part highlight / silhouette stencil mask' },
       colorWrite: false, depthWrite: false, depthTest: false,
       side: THREE.DoubleSide });
     m.stencilWrite = true;
@@ -3421,7 +3424,7 @@ function editorInit(api) {
   }
   function hiSilShell(which) {
     const bit = which === 'sel' ? 1 : 2;
-    const m = new THREE.MeshBasicMaterial({
+    const m = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / part highlight / silhouette rim shell' },
       color: which === 'sel' ? HI.line : HI.lineHov,
       transparent: true, opacity: which === 'sel' ? 1 : 0.75,
       depthTest: !HI.through, depthWrite: false, fog: false,
@@ -3777,7 +3780,7 @@ function editorInit(api) {
     //                       the amber named here arrived washed. Converting it
     //                       first is what makes the hex mean what it says —
     //                       (250,212,130) -> a real amber against the cream.
-    const m = new THREE.MeshBasicMaterial({
+    const m = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / row hover pin / dot' },
       // (12 Nov: r186's managed colour already decodes the hex - convert only when management is off: once)
       color: THREE.ColorManagement && THREE.ColorManagement.enabled ? new THREE.Color(HI.pin) : new THREE.Color(HI.pin).convertSRGBToLinear(),
       transparent: true, opacity: 0.95, toneMapped: false,

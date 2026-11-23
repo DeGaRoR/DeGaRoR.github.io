@@ -673,6 +673,11 @@ window.CAGE_PAGE = {
                                                   'open', 'bubble']],
         // (the LS4, 13 Nov: the arch between the panes drawn as glass - a look only, the geometry and the physics untouched)
         ['canClear',  'canopy arch',    0, 1, 1, ['framed', 'clear (drawn as glass)'], { absent: 0 }],
+        // THE CONSTRUCTION'S STRENGTH (GEN_CATEGORY, the user 15 Nov: "a category of rigidity the player should choose,
+        // and not a slider ... clear options"): four words, the structure built and certified to it - normal (most light
+        // aircraft), very light (an ultralight's own risk), strong (sailplanes), aerobatic; stronger is heavier
+        ['certCat',   'construction', 0, 3, 1, ['normal', 'very light', 'strong (sailplanes)', 'aerobatic'],
+         { absent: 0, note: 'how strong the structure is built: the loads it is made for and certified at (normal +3.8 g, very light +3.0, strong +5.3, aerobatic +6.0) - stronger is heavier' }],
         // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):
         // a builder chooses what the top of the fuselage does behind the
         // cockpit — cabin roof running aft, or a turtledeck falling away.
@@ -767,7 +772,10 @@ window.CAGE_PAGE = {
          { when: P => +P.doorOn }],
       ]],
       ['cockpit', [
-        ['dashBack',  'dash setback',   0.01, 0.80, 0.005,   // (proto 17 Nov, the Velis: 0.30 -> 0.80, a dash out to the pilot)
+        // (16 Nov 2026, the LS4 - the user: "The dash in the real plane really protrudes ... maybe 40, even 50
+        // centimeters": a sailplane's instrument pod reaches back over the pilot's knees - the range 0.30 -> 1.00; a
+        // range only clamps the slider)
+        ['dashBack',  'dash setback',   0.01, 1.00, 0.005,
          { when: P => +P.intOn && +P.intDash, dim: 'len' }],
         ['dashLip',   'dash lip',       0.01, 0.10, 0.002,
          { when: P => +P.intOn && +P.intDash }],
@@ -782,6 +790,9 @@ window.CAGE_PAGE = {
          { when: P => +P.intOn && +P.intDash }],
         ['dashLegs',  'arch legs',      0, 2, 1, ['to the panel', 'to a rail', 'to the floor'],
          { when: P => +P.intOn && +P.intDash && +P.dashStyle === 1 }],
+        // THE INSTRUMENT HOOD (GEN_OUTFIT.hoodKgM2, the user 16 Nov: "like the real LS4 hood"): the panel and the
+        // glareshield moulded as one deep glass hood - weighed as the shell the depth row draws, not a flat board
+        ['dashHood',  'instrument hood (moulded)', 0, 1, 1, ['off', 'on'], { when: P => +P.intOn && +P.intDash, absent: 0 }],
       ]],
       // THE SHOULDER (G325): the sill trim — an L-section sheet from the
       // window transition W inboard and H down, from the dash aft. On for
@@ -900,6 +911,8 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.paxCount > 0, absent: -1 }],
         ['paxSeatZ',  'fore / aft in bay', -1.50, 1.50, 0.005,
          { when: P => +P.crewOn && +P.paxCount > 0 }],
+        ['paxGap',    'sbs seat gap (passengers; absent = the pilots\')', 0.18, 1.20, 0.005,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxAbreast >= 2 }],   // CAR-3
         ['seat2H',    'squab height',  -1, 1.50, 0.005,
          { link: { sentinel: -1, from: 'seatH', test: v => v < 0 } }],
         ['seat2Rake', 'back recline',  -1, 60, 0.5,
@@ -924,9 +937,16 @@ window.CAGE_PAGE = {
         // WEIGHT STUDY L3 (12 Nov, the user: "they should be fitted in the tubes ... no central levers"): the runs' kind -
         // the billed rate per metre of reach (GEN_OUTFIT.ctlKgM / ctlKgMLight); latent at 0
         ['ctlRuns',   'control runs',   0, 1, 1, ['cables and torque tubes', 'light: push-pull carbon rods, Dyneema'], { absent: 0 }],
-        ['ctlStick',  'pitch/roll',     0, 3, 1, ['stick between legs',
+        ['ctlStick',  'pitch/roll',     0, 4, 1, ['stick between legs',
                                                   'yoke', 'side stick R',
-                                                  'none']],
+                                                  'none', 'steering wheel (car)']],
+        // CAR-3: the steering wheel's size, its column's rake up toward the driver, the hub's reach off the dash
+        ['steerD',    'steering wheel diameter', 0.25, 0.60, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 0.42, dim: 'len' }],
+        ['steerRake', 'steering column rake (deg up)', 0, 70, 1,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 22 }],
+        ['steerReach', 'steering hub off the dash', 0.08, 0.80, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 0.34, dim: 'len' }],
         // (G3573: the controls follow a seat that may now stand a metre higher and further: their ranges doubled)
         ['stickX',    'stick left',    -0.90, 0.90, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],

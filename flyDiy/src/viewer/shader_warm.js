@@ -77,8 +77,20 @@ var PROG_WARM = (() => {
   function depthVariants(THREE, renderer, scenes, opt) {
     opt = opt || {};
     const helper = new THREE.Scene(), seen = new Set();
+    // PERF-TRACE (program_id.js): A DEPTH PROGRAM IS ITS CASTERS'. Three's own depth materials live inside the shadow map
+    // and no scene holds them; the stand-in's depth material is the one place their program meets a name. Every caster
+    // of a signature adds its declared owner(s) ('shadow pass / depth <- town / houses / walls'): metadata on userData,
+    // never in the key or the source. A custom depth material keeps its own declaration (the twin shares its userData).
+    const made = new Map();
+    const ownDepth = (d, R, dist) => {
+      const ow = d && R.userData ? R.userData.progOwner : null;
+      if (!ow) return;
+      const cur = d.userData.progOwner || (d.userData.progOwner = []);
+      for (const o of (Array.isArray(ow) ? ow : [ow])) { const w = 'shadow pass / ' + (dist ? 'distance' : 'depth') + ' <- ' + o; if (cur.indexOf(w) < 0) cur.push(w); }
+    };
     const vsm = renderer.shadowMap && renderer.shadowMap.type === THREE.VSMShadowMap;
     const FLIP = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide };
+    // progOwner: templates only, never drawn - each stand-in's depth material is its casters' (ownDepth, above)
     const base = new THREE.MeshDepthMaterial(), baseDist = THREE.MeshDistanceMaterial ? new THREE.MeshDistanceMaterial() : null;
     // what the pass draws with, as a light kind asks: point lights draw distance, the rest depth
     let kinds = { depth: false, distance: false };
@@ -96,8 +108,9 @@ var PROG_WARM = (() => {
         o.isInstancedMesh ? 'i' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '', o.isSkinnedMesh ? 's' : '',
         o.isBatchedMesh ? 'b' + (o._colorsTexture ? 'c' : '') : '', o.morphTargetInfluences ? 'mt' + o.morphTargetInfluences.length : '',
         Object.keys((o.geometry && o.geometry.attributes) || {}).sort().join('.'), Object.keys((o.geometry && o.geometry.morphAttributes) || {}).sort().join('.')].join('|');
-      if (seen.has(sig)) return; seen.add(sig);
+      if (seen.has(sig)) { ownDepth(made.get(sig), R, dist); return; } seen.add(sig);
       const d = custom ? twin(custom) : new src.constructor();
+      if (!custom) { made.set(sig, d); ownDepth(d, R, dist); }
       d.visible = true; d.wireframe = R.wireframe; d.side = side;
       d.alphaMap = R.alphaMap; d.alphaTest = alphaTest; d.map = R.map;
       d.clipShadows = R.clipShadows; d.clippingPlanes = R.clippingPlanes; d.clipIntersection = R.clipIntersection;

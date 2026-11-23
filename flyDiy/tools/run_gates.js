@@ -232,6 +232,8 @@ const GATES = [
   { id: 'RODROW', file: '_rodrow_check.js', tier: 'core', wall: 300 },
   { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
   { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
+  { id: 'WATERTANK', file: '_watertank_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: water tanks - spec.water, the blue tank, the fill, the dump valve, the outlet's checked run)
+  { id: 'SAILPLANE', file: '_sailplane_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: the category's load factor, the airbrakes, the LS4-alike card)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)
@@ -261,6 +263,12 @@ const GATES = [
   // the release at the top, the glide; the pilot's key; a weak link that breaks; the line's cost a frame; ~1 min
   { id: 'TOW', file: '_tow_check.js', tier: 'core', wall: 900 },
   { id: 'TRAILER', file: '_trailer_check.js', tier: 'core', wall: 140 },
+  // WINCH (2026-11-13): THE GLIDER WINCH LAUNCH - the motorglider (motor off) on 1000 m of cable to a fixed drum at the far
+  // end of Jolene AFB 13/31 (src/vehicle/winch.js: tow.js's line with the far end fixed and its rest length reeled in, the
+  // drum's engine and driver, the CG hook): lift-off, the climb at the speed the driver holds, the back-release at the
+  // top; the glide; the pilot's key; the weak link; the guillotine; 600 m; the autopilot's handover; the circuit to a
+  // landing; the line's cost; the page's wiring (winch_mode.js, the start chooser); ~6 min
+  { id: 'WINCH', file: '_winch_check.js', tier: 'core', wall: 600 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },

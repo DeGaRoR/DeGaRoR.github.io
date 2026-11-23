@@ -164,7 +164,12 @@ const flownOf = (P, plane) => {
 const envFor = (E, span) => (E && E.big && +span > E.span[1]) ? Object.assign({}, E, E.big) : E;
 // the second plane holds to its own floor (GEN_WING_ENVELOPE.second, NEW-SHAPES-1), as clampWing does: its notes say so
 const ENVW = (P, plane) => {
-  const E = envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && (plane ? P.w2Span : P.wgSpan));
+  let E = envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && (plane ? P.w2Span : P.wgSpan));
+  // (a slender wing's taper floor, the core's genTaperLo: the notes say the floor this wing is held to)
+  if (E && P && typeof genTaperLo === 'function') {
+    const lo = genTaperLo(E, +(plane ? P.w2Span : P.wgSpan), +(plane ? P.w2Chord : P.wgChord));
+    if (lo !== E.taper[0]) E = Object.assign({}, E, { taper: [lo, E.taper[1]] });
+  }
   if (!E || !plane || !E.second) return E;
   return Object.assign({}, E, { chord: [E.second.chord, E.chord[1]], span: [E.second.span, E.span[1]],
                                 spanPerChord: [E.second.spanPerChord, E.spanPerChord[1]] });
@@ -223,6 +228,11 @@ const tipShapeOf = P => (+P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 
                   full: +P.wgTipFull > 1 ? +P.wgTipFull : null } } : {};
 // (TIP-SKID: the same key the join flies - _cage_join.js cageJoinSpec; absent when off)
 const tipSkidOf = P => +P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {};
+// (AIRBRAKES, GEN_RULES.airbrake: the same key the join flies - _cage_join.js cageJoinSpec; absent when off)
+const airbrakeOf = P => +P.wgBrake ? { airbrake: { z0: P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30,
+  z1: (P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30) + (P.wgBrakeLen != null ? +P.wgBrakeLen : 0.16),
+  h: P.wgBrakeH != null ? +P.wgBrakeH : 0.20 } } : {};
+if (typeof window !== 'undefined') window.CAGE_AIRBRAKE_OF = airbrakeOf;
 const WING_ITEMS = [
   ['wingOn',   'wings',          0, 1, 1],
   // G185: 'parasol' — on cabane struts above the deck, lift struts to the
@@ -255,6 +265,13 @@ const WING_ITEMS = [
   // wing that goes down at rest on a single main wheel slides on it (the tail skid's law) instead of scraping
   ['wgTipSkid',  'wingtip skid', 0, 1, 1, ['none', 'skid'], { when: P => +P.wingOn }],
   ['wgTipSkidH', 'skid depth under the skin', 0.02, 0.30, 0.005, { when: P => +P.wingOn && +P.wgTipSkid, dim: 'm' }],
+  // AIRBRAKES (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a sailplane's
+  // Schempp-Hirth plates, a box each side behind the spar - where they start along the semispan, how long they run,
+  // how high the plate rises (of the local chord); the blue handle in the cockpit, the 7 (in) and 8 (out) keys
+  ['wgBrake',    'airbrakes', 0, 1, 1, ['none', 'plates (Schempp-Hirth)'], { when: P => +P.wingOn, absent: 0 }],
+  ['wgBrakeAt',  'airbrakes start (of the semispan)', 0.12, 0.80, 0.01, { when: P => +P.wingOn && +P.wgBrake, absent: 0.30 }],
+  ['wgBrakeLen', 'airbrakes length (of the semispan)', 0.04, 0.35, 0.01, { when: P => +P.wingOn && +P.wgBrake, absent: 0.16 }],
+  ['wgBrakeH',   'airbrake plate height (of the chord)', 0.05, 0.35, 0.01, { when: P => +P.wingOn && +P.wgBrake, absent: 0.20 }],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { when: P => +P.wingOn && !+P.wgPlan, note: heldNote('wgCrankAt') }],
   // G140: the crank SECTION — its own chord and fore/aft seat, the same
   // two numbers the root and tip carry. On a strutted wing the crank is
@@ -410,7 +427,8 @@ const WING_ITEMS = [
 // generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil', 'wgStrutSec', 'wgJury',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
-                         'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',   // TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
+                         'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',
+                         'wgBrake', 'wgBrakeAt', 'wgBrakeLen', 'wgBrakeH',   // (AIRBRAKES: the first plane's) TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
                          // G2820: the STOL devices are the first plane's in the
                          // editor (the spec and the physics take them per plane)
                          'wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan',
@@ -571,7 +589,7 @@ else (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || []))
 // pitot. The glass centre takes the glazing treatment (translucent,
 // never occluding), riding the view panel's glass alpha.
 const D2 = THREE.DoubleSide;
-const mk = (c, met, rgh) => new THREE.MeshStandardMaterial({
+const mk = (c, met, rgh) => new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / part colour fallback' },
   color: c, metalness: met, roughness: rgh, side: D2 });
 const COLS = {
   // THE CHECK IS DONE (G62.3). G38 put the WAISTBAND'S OWN PINK (#cc12a8) on
@@ -603,7 +621,7 @@ const MAT = {
 const glassMat = () => {
   const a = (window.CAGE_VIEW && window.CAGE_VIEW.glassA != null)
     ? window.CAGE_VIEW.glassA : 0.35;
-  return new THREE.MeshStandardMaterial({
+  return new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / glass centre fallback' },
     color: COLS.glassC, metalness: 0.05, roughness: 0.15, side: D2,
     transparent: true, opacity: a, depthWrite: false });
 };
@@ -680,7 +698,7 @@ function wingMat(cl, plane) {
 
 const wireMats = {};
 const wireMat = nm => wireMats[nm] ||
-  (wireMats[nm] = new THREE.LineBasicMaterial({ color: COLS[nm] || 0x8b95a2 }));
+  (wireMats[nm] = new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / wing / part wireframe' }, color: COLS[nm] || 0x8b95a2 }));
 
 // ---- helpers --------------------------------------------------------------
 // invert the game's rest transform: sample it at basis points, solve the
@@ -997,6 +1015,7 @@ function wingGSpec(P) {
       tip: TIP_KEYS[Math.round(P.wgTip)] || 'rounded',
       ...tipShapeOf(P),
       ...tipSkidOf(P),
+      ...airbrakeOf(P),
       ...(+P.wgTipTE > 0 ? { tipTE: Math.min(1, +P.wgTipTE) } : {}),   // TIP-TE (proto 17 Nov): see _cage_join
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
@@ -1445,7 +1464,7 @@ const drawBooms = (scene, P, teAt, leAt) => {
           bm = window.CAGE_SECMAT('boomSkin',
                                   { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide });
       } catch (e) {}
-      if (!bm) bm = new THREE.MeshStandardMaterial({ color: rodB ? 0x9aa0a6 : 0xd9d4c6,
+      if (!bm) bm = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / twin booms / skin fallback' }, color: rodB ? 0x9aa0a6 : 0xd9d4c6,
                                                      metalness: rodB ? 0.6 : 0.1, roughness: 0.45 });
       for (const s of [1, -1]) {
         const g = new THREE.BufferGeometry();
@@ -1880,7 +1899,7 @@ const wingPost = ctx => {
   // bay reads as a big pale trough instead of the dark box it is — which is
   // exactly how it first came out.
   const bayMat = () => {
-    const m = new THREE.MeshStandardMaterial({
+    const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / landing light bay' },
       color: 0x15171b, roughness: 0.42, metalness: 0.10,
       side: THREE.DoubleSide });
     m.userData.aeroskin = 1;
@@ -2253,7 +2272,7 @@ const wingPost = ctx => {
     if (A && A.aeroGlass) return A.aeroGlass(THREE, {});
     // the standalone bench has no aeroskin layer; it gets a stand-in that at
     // least reads as glass rather than as pale covering
-    const m = new THREE.MeshStandardMaterial({
+    const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / landing light lens fallback' },
       color: 0xdfeaf2, roughness: 0.07, metalness: 0.0,
       transparent: true, opacity: 0.34, side: THREE.DoubleSide,
       depthWrite: false });
@@ -2368,7 +2387,7 @@ const wingPost = ctx => {
           // the windows' to the instance — the same finish, tint and dials
           const jm = (window.CAGE_MAT_OF && window.CAGE_MAT_OF('joint'))
             || (window.CAGE_SECMAT && window.CAGE_SECMAT('joint', { surf: 0, fieldM: 1 }))
-            || new THREE.MeshStandardMaterial({ color: 0x1a1b1e, roughness: 0.7 });
+            || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing / landing light lens joint fallback' }, color: 0x1a1b1e, roughness: 0.7 });
           const jb = new THREE.Mesh(bead, jm);
           jb.name = 'edLensJoint_wing' + sd;
           group.add(jb);
@@ -2508,7 +2527,7 @@ const wingPost = ctx => {
     let wingRay = null;
     if (wingGeo && THREE.Raycaster) {
       const probe = new THREE.Group();
-      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      const pm = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / wing / skin ray probe' }, side: THREE.DoubleSide });
       for (const g of (skinProbe.length ? skinProbe : [wingGeo])) probe.add(new THREE.Mesh(g, pm));
       probe.updateMatrixWorld(true);
       const rc = new THREE.Raycaster();
@@ -2762,7 +2781,7 @@ const wingPost = ctx => {
     }
   // CONTROL SURFACES EXPLODE (G32, user): unbolt aft and slightly down —
   // assembly-style, scaled like the cage parts
-  for (const nm of ['ailR', 'ailL', 'flapR', 'flapL'])
+  for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'brkR', 'brkL'])   // (AIRBRAKES: the plates, wing skin too)
     if (gs[nm]) {
       // AN AILERON IS WING SKIN. It carries the field like the rest of the
       // covering — same ribs, same spar coordinate, same tapes — because it
@@ -2800,7 +2819,7 @@ const wingPost = ctx => {
     // upward ray meets the underside's faces from behind their winding —
     // measured, the main section answered null while the centre answered,
     // purely on which way each class's triangles happened to wind.
-    const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const pm = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / wing / skin ray probe' }, side: THREE.DoubleSide });
     for (const g of skinProbe) pg.add(new THREE.Mesh(g, pm));
     pg.updateMatrixWorld(true);
     const rc = new THREE.Raycaster();
@@ -2862,7 +2881,7 @@ const wingPost = ctx => {
     let uA = null, oA = null, lA = null, tA = null, bx = null;
     if (geos.length && THREE.Raycaster) {
       const pg = new THREE.Group();
-      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      const pm = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / wing / skin ray probe' }, side: THREE.DoubleSide });
       for (const g of geos) pg.add(new THREE.Mesh(g, pm));
       pg.updateMatrixWorld(true);
       const rc = new THREE.Raycaster();
@@ -2888,7 +2907,7 @@ const wingPost = ctx => {
     let ray = null;
     if (geos.length && THREE.Raycaster) {
       const pg = new THREE.Group();
-      const pm = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+      const pm = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / wing / skin ray probe' }, side: THREE.DoubleSide });
       for (const g of geos) pg.add(new THREE.Mesh(g, pm));
       pg.updateMatrixWorld(true);
       const rc = new THREE.Raycaster();
@@ -3008,7 +3027,7 @@ const wingPost = ctx => {
       const L = Math.hypot(v[0], v[1], v[2]) || 1;
       return [v[0] / L, v[1] / L, v[2] / L];
     };
-    surfs.push({ name: mv.group, kind: mv.group.lastIndexOf('ail', 0) === 0 ? 'ail' : 'flap',
+    surfs.push({ name: mv.group, kind: mv.group.lastIndexOf('ail', 0) === 0 ? 'ail' : mv.group.lastIndexOf('brk', 0) === 0 ? 'brk' : 'flap',
                  line: [toCage(mv.line[0]), toCage(mv.line[1])],
                  aft: dirC(mv.aft), up: dirC(mv.up),
                  r: mv.r, chord: mv.chord, side: mv.side,
@@ -3071,8 +3090,8 @@ const wingPost = ctx => {
     try {
       if (window.CAGE_SECMAT) rm = window.CAGE_SECMAT('radSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide });
     } catch (e) {}
-    if (!rm) rm = new THREE.MeshStandardMaterial({ color: 0x8a8f96, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide });
-    const coreM = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, metalness: 0.4, roughness: 0.8, side: THREE.DoubleSide });
+    if (!rm) rm = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing radiators / skin fallback' }, color: 0x8a8f96, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide });
+    const coreM = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / wing radiators / core' }, color: 0x1b1d1f, metalness: 0.4, roughness: 0.8, side: THREE.DoubleSide });
     // a rounded rectangle, top edge at yT, depth d, half-width hw, corner r; NP points, clockwise from top left
     const NP = 28;
     const ring = (xc, yT, d, hw, z) => {

@@ -227,6 +227,14 @@
    apart (MOBILE-GARAGE R1/R3), and what a row would say on hover is written on it (R17: nothing hover-only) */
 /* G3360 (CAREERS): the menu wears the garage's look - the --ed-* tokens (editor.css's one token root names #welcome) */
 #welcome .wcard.wmenu { width:min(440px, 100%); }
+#welcome .wmusic { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; }
+#welcome .wmusicbtn { font:inherit; font-size:12px; padding:4px 10px; border-radius:12px; cursor:pointer; color:#e9e6de;
+  background:transparent; border:1px solid rgba(255,255,255,.22); }
+#welcome .wmusicbtn.on { color:#1a1815; background:#e6a15a; border-color:#e6a15a; }
+#welcome .wmusicsel { font:inherit; font-size:12px; max-width:100%; min-width:0; flex:1 1 140px; color:#e9e6de;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); border-radius:6px; padding:3px 6px; }
+#welcome .wmusicsel option, #welcome .wmusicsel optgroup { color:#1a1815; }
+#welcome .wmusicnow { flex-basis:100%; color:#97907f; font-size:11px; min-height:1em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #welcome .wmodes { display:flex; flex-direction:column; gap:8px; margin:14px 0 4px; }
 #welcome .wmode { display:grid; grid-template-columns:28px 1fr auto; align-items:center; column-gap:12px; min-height:56px; width:100%;
   padding:9px 14px; border-radius:8px; text-align:left; cursor:pointer; color:var(--ed-ink); background:var(--ed-btn-bg);
@@ -576,6 +584,9 @@
       });
     });
     card.appendChild(list);
+    // AUDIO-ROBUST 5 (the user 22 Nov): the music, on by default from the menu on - its switch and what plays (a station,
+    // Random, Radio Jolene, or one song): audio/menu_music.js, in the BOOT slot ahead of this file
+    try { if (W.MENU_MUSIC && W.MENU_MUSIC.mount) W.MENU_MUSIC.mount(card); } catch (e) {}
     card.appendChild(el('div', 'wnote', 'Shown at every start. The sandbox is the game as it has always been.'));
     stampFoot(card);
     try { (cont || go).focus(); } catch (e) {}

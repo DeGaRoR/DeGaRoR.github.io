@@ -2603,6 +2603,549 @@ function rearDoorHardware(group, P, mesh) {
   key.quaternion.copy(boss.quaternion); key.position.set(xh, yh - 0.035, zh - 0.008); root.add(key);
   group.add(root);
 }
+// CAR-3 (the user, 12 Nov: "the TOW session has also developed a trailer, and for this trailer it has developed some tail
+// lights ... inherit them"): carTail - the trailer's combination lamp (src/vehicle/trailer_model.js: a black housing,
+// stop / tail red, the amber indicator, the white reverse) stood upright on each of the rear wall's rounded corners,
+// facing back and out along the corner's own 45-degree line (the airframe's sections just ahead of the wall: where the
+// half-width grows as fast as the body runs forward), its foot 5 cm over the rear bumper. A sharp corner (no 45-degree
+// run inside 25 cm) takes it on the wall's face, 6 cm in from the side. Absent = none.
+const CAR_LENS = {};
+function carLensMat(col, em) {
+  const k = col + '|' + em; if (CAR_LENS[k]) return CAR_LENS[k];
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car tail lamps / lens' }, color: col, emissive: em, emissiveIntensity: 1, roughness: 0.22, metalness: 0.05 });
+  m.userData.aeroskin = 1;                                   // a lens is never the grey understudy
+  return (CAR_LENS[k] = m);
+}
+function carTailLamps(group, P, AF) {
+  const z0 = AF.z0, H = 0.27, W = 0.075;
+  const halfX = (y, z) => { let best = null; for (let d = 0; d < 180; d++) { const a = AF.surf(z, d * Math.PI / 180), b = AF.surf(z, (d + 1) * Math.PI / 180);
+    if (a && b && (a[1] - y) * (b[1] - y) <= 0 && a[1] !== b[1]) { const t = (y - a[1]) / (b[1] - a[1]), x = Math.abs(a[0] + (b[0] - a[0]) * t); if (best == null || x > best) best = x; } } return best; };
+  // the lamp's foot: the rear bumper's top (bumperBuild's own height) + 5 cm, else a fifth of the way up the wall
+  let bot = Infinity, top = -Infinity;
+  for (let a = 0; a <= 180; a += 3) { const q = AF.surf(z0 + 0.05, a * D2R); if (q && isFinite(q[1])) { bot = Math.min(bot, q[1]); top = Math.max(top, q[1]); } }
+  if (!isFinite(bot)) return;
+  const yFoot = +P.bumpR ? bot + (+P.bumpY || 0) + Math.max(0.06, +P.bumpH || 0.15) / 2 + 0.05 : bot + 0.2 * (top - bot);
+  const yc = yFoot + H / 2;
+  // the corner's 45-degree station: d ahead of the wall where d(half)/dd falls to 1
+  let dc = null, xc = null;
+  for (let d = 0.004; d < 0.25; d += 0.004) {
+    const h0 = halfX(yc, z0 + d), h1 = halfX(yc, z0 + d + 0.004);
+    if (h0 == null || h1 == null) continue;
+    if ((h1 - h0) / 0.004 <= 1) { dc = d; xc = h0; break; }
+  }
+  // (CAR-3, the user 13 Nov: "place the backlights flat on the flat back surface ... not at 45 degrees like this"):
+  // carTailAt 1 = FLAT - the lens in the back's own plane (z0), facing straight aft, between the flat wall's edge (the
+  // van's door edges, +-0.855) and the body's full width; its black housing runs forward into the rounded corner to meet
+  // the skin, so the lamp reads as part of the flat back. Absent = on the corner's 45-degree station, as before.
+  const FLAT = Math.round(+P.carTailAt || 0) === 1;
+  let flat = null;
+  if (FLAT) {
+    const xF = halfX(yc, z0 + 0.001), xO = halfX(yc, z0 + 0.12);
+    if (xF != null && xO != null && xO - xF > 0.05) {
+      const w = Math.min(0.11, xO - xF - 0.03 - 0.016), xm = (xF + xO) / 2;
+      let dep = 0.03; for (let d = 0.004; d < 0.2; d += 0.004) { const h = halfX(yc, z0 + d); if (h != null && h >= xm + w / 2 + 0.008) { dep = d; break; } }
+      flat = { x: xm, w, dep: dep + 0.012 };
+    }
+  }
+  const root = new THREE.Group(); root.name = 'edTailLamps';
+  const black = GG.gearMat('dark'), chrome = GG.gearMat('chrome');
+  const red = carLensMat(0xb3141c, 0x5a0408), amber = carLensMat(0xe08a1e, 0x4a2404), white = carLensMat(0xf2f0e8, 0x2a2a26);
+  for (const sg of [-1, 1]) {
+    let pos, nrm;
+    if (flat) {
+      const lamp = new THREE.Group(), Wf = flat.w;
+      const add = (w, h, d, mat, y, out) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(0, y, out); lamp.add(m); };
+      add(Wf + 0.016, H + 0.016, flat.dep, black, 0, 0.013 - flat.dep / 2);   // the housing, forward into the corner
+      add(Wf + 0.006, H + 0.006, 0.006, chrome, 0, 0.012);                    // the bezel
+      add(Wf, H * 0.58, 0.01, red, H * 0.21, 0.016);                          // stop / tail
+      add(Wf, H * 0.24, 0.01, amber, -H * 0.2, 0.016);                        // the indicator
+      add(Wf, H * 0.14, 0.01, white, -H * 0.415, 0.016);                      // reverse
+      lamp.position.set(sg * flat.x, yc, z0);
+      lamp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1));
+      root.add(lamp);
+      continue;
+    }
+    if (dc != null) { pos = new THREE.Vector3(sg * xc, yc, z0 + dc); nrm = new THREE.Vector3(sg, 0, -1).normalize(); }
+    else { const h = halfX(yc, z0 + 0.01); if (h == null) continue; pos = new THREE.Vector3(sg * (h - 0.06), yc, z0); nrm = new THREE.Vector3(0, 0, -1); }
+    const lamp = new THREE.Group();
+    const add = (w, h, d, mat, y, out) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(0, y, out); lamp.add(m); };
+    add(W + 0.016, H + 0.016, 0.022, black, 0, 0.002);            // the housing, half in the skin
+    add(W + 0.006, H + 0.006, 0.006, chrome, 0, 0.012);          // the bezel
+    add(W, H * 0.58, 0.01, red, H * 0.21, 0.016);                // stop / tail
+    add(W, H * 0.24, 0.01, amber, -H * 0.2, 0.016);              // the indicator
+    add(W, H * 0.14, 0.01, white, -H * 0.415, 0.016);            // reverse
+    lamp.position.copy(pos);
+    lamp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm);
+    root.add(lamp);
+  }
+  group.add(root);
+}
+// CAR-3 (the user, 13 Nov: "rear suspension clips through rear tyre. Anchor it better, realistic"): carBeamR 1 - the
+// rear station drawn as a car's BEAM AXLE ON LEAF SPRINGS instead of the aeroplane's swinging-link V (whose tubes ran
+// from the flank, outboard of a wheel tucked into its arch, through the tyre to the hub). Per side, into that side's
+// leg group (a rigid unit: it rides its wheel as the leg did): the axle tube from the hub's back to the centre, a leaf
+// spring inboard of the brake plate (a pack of leaves of falling length on one curve through its two eyes and its seat,
+// underslung - under the axle - when the floor is too low for the pack on top), its front eye on a hanger and its rear
+// on a shackle to brackets on the floor, the two U-bolts and their plate clamping pack and tube, a telescopic shock
+// from an axle bracket up and forward to the floor; on the left side the differential (the banjo, its rear cover and
+// bolts, the pinion snout forward) and, driven, the propeller shaft forward with its universal joint. All from the
+// wheel's own box, the airframe's floor (AF.surf) and the unit's axle.
+function beamAxleSide(lg, lu, P, AF, wheelBox, plateX) {
+  const [hx, hy, hz] = lu.axle, sg = Math.sign(hx) || 1, R = lu.R || 0.3;
+  const dark = GG.gearMat('dark'), alloy = GG.gearMat('alloy'), chrome = GG.gearMat('chrome');
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const add = (geo, mat, pos, q) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (q) m.quaternion.copy(q); m.name = 'edBeamAxle'; lg.add(m); return m; };
+  const qY = (d) => new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.clone().normalize());
+  const rod = (a, b, r, mat, seg) => { const d = b.clone().sub(a), L = d.length(); if (L < 1e-4) return null;
+    return add(new THREE.CylinderGeometry(r, r, L, seg || 14), mat, a.clone().add(b).multiplyScalar(0.5), qY(d)); };
+  const X = V(1, 0, 0);
+  const botAt = z => { let b = Infinity; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(z, a * D2R); if (q && isFinite(q[1])) b = Math.min(b, q[1]); } return b; };
+  // the wheel's inboard face (its brake plate) and the spring's line just inboard of it
+  const xIn = wheelBox ? Math.min(Math.abs(wheelBox.min.x), Math.abs(wheelBox.max.x)) : Math.abs(hx) - 0.2;
+  const tubeR = Math.max(0.03, Math.min(0.045, 0.09 * R)), w = 0.055, t = 0.009, NL = 4, pad = 0.012;
+  const xs = Math.max(0.15, xIn - 0.045), Xs = sg * xs;     // (13 Nov, the user: "closer to the actual drivetrains": 4.5 cm in from the wheel's back)
+  const Ls = Math.max(0.8, Math.min(1.3, 2.4 * R));
+  const zF = hz + Ls / 2, zR = hz - Ls / 2;
+  const ybF = botAt(zF), ybR = botAt(zR), ybC = botAt(hz);
+  const yEF = ybF - 0.07, yER = ybR - 0.11;                 // the front eye on its hanger, the rear on its shackle
+  // overslung (the pack on the axle) when the floor leaves the main leaf a camber of 1 cm or more, else under it
+  const packH = NL * t;
+  const yOver = hy + tubeR + pad + packH - t / 2;
+  const over = Math.min(yEF, yER) - yOver >= 0.01;
+  const yMC = over ? yOver : hy - tubeR - pad - t / 2;      // the main leaf's centre, at the seat
+  // the main leaf: the quadratic through the front eye, the seat and the rear eye
+  const quad = (z0, y0, z1, y1, z2, y2) => z => y0 * (z - z1) * (z - z2) / ((z0 - z1) * (z0 - z2)) + y1 * (z - z0) * (z - z2) / ((z1 - z0) * (z1 - z2)) + y2 * (z - z0) * (z - z1) / ((z2 - z0) * (z2 - z1));
+  const yMain = quad(zF, yEF, hz, yMC, zR, yER);
+  const leaf = (L, dy) => {           // a leaf of length L, dy under the main leaf, on the main leaf's curve
+    const n = 24, pos = [], idx = [];
+    for (let k = 0; k <= n; k++) { const z = hz - L / 2 + L * k / n, y = yMain(z) - dy;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) pos.push(Xs + sx * w / 2, y + sy * t / 2, z); }
+    for (let k = 0; k < n; k++) { const a = k * 4, b = (k + 1) * 4;
+      for (let e = 0; e < 4; e++) { const e1 = (e + 1) % 4; idx.push(a + e, a + e1, b + e1, a + e, b + e1, b + e); } }
+    idx.push(0, 2, 1, 0, 3, 2); const l4 = n * 4; idx.push(l4, l4 + 1, l4 + 2, l4, l4 + 2, l4 + 3);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, dark); m.name = 'edBeamAxle'; lg.add(m); };
+  for (let i = 0; i < NL; i++) leaf(i === 0 ? Ls : Ls * (0.86 - 0.17 * (i - 1)), i * t);
+  // the rolled eyes, their rubber bushes and bolts
+  const qX = qY(X);
+  for (const [z, y] of [[zF, yEF], [zR, yER]]) {
+    const c = V(Xs, y + 0.018, z);
+    add(new THREE.TorusGeometry(0.019, 0.0055, 8, 20), dark, c, new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), X));
+    add(new THREE.CylinderGeometry(0.0135, 0.0135, w, 14), GG.gearMat('tyre'), c, qX);
+    add(new THREE.CylinderGeometry(0.007, 0.007, w + 0.04, 10), alloy, c, qX);
+    for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(0.011, 0.011, 0.008, 6), alloy, V(Xs + sx * (w / 2 + 0.017), c.y, z), qX);
+  }
+  // the front hanger: two cheeks either side of the eye, a plate on the floor
+  const cheeks = (z, yTop, yBot, dz) => { for (const sx of [-1, 1])
+      add(new THREE.BoxGeometry(0.006, yTop - yBot, dz), dark, V(Xs + sx * (w / 2 + 0.007), (yTop + yBot) / 2, z));
+    add(new THREE.BoxGeometry(w + 0.05, 0.008, dz + 0.04), dark, V(Xs, yTop - 0.004, z)); };
+  cheeks(zF, ybF, yEF - 0.005, 0.05);
+  // the rear shackle: a bracket on the floor, its upper pin, two links down and aft to the eye
+  const pinU = V(Xs, ybR - 0.035, zR + 0.03), pinL = V(Xs, yER + 0.018, zR);
+  cheeks(zR + 0.03, ybR, pinU.y - 0.02, 0.05);
+  for (const sx of [-1, 1]) { const o = V(sx * (w / 2 + 0.016), 0, 0);
+    const a = pinU.clone().add(o), b = pinL.clone().add(o), d = b.clone().sub(a);
+    add(new THREE.BoxGeometry(0.006, d.length() + 0.036, 0.03), dark, a.clone().add(b).multiplyScalar(0.5), qY(d)); }
+  add(new THREE.CylinderGeometry(0.007, 0.007, w + 0.05, 10), alloy, pinU, qX);
+  // the axle tube, the hub's back to the centre, a collar at the brake plate
+  // (the tube runs INTO the brake's backing plate when the wheel has one inside its rim - whBrake 2 - else to the
+  // wheel's back; the flared end, the axle's brake flange, against it)
+  const xEnd = plateX != null && plateX > xIn ? plateX : xIn + 0.004;
+  rod(V(sg * xEnd, hy, hz), V(0, hy, hz), tubeR, dark, 20);
+  add(new THREE.CylinderGeometry(tubeR * 1.9, tubeR * 1.2, 0.05, 20), dark, V(sg * (xEnd - 0.025), hy, hz), qX);
+  // the seat and the U-bolts round pack and tube, their plate and nuts
+  const packTop = over ? yMC + t / 2 : hy + tubeR, packBot = over ? hy - tubeR : yMC - t / 2 - (NL - 1) * t;
+  add(new THREE.BoxGeometry(w + 0.012, pad, 0.08), dark, V(Xs, over ? hy + tubeR + pad / 2 : hy - tubeR - pad / 2, hz));
+  for (const dz of [-0.045, 0.045]) {
+    for (const sx of [-1, 1]) rod(V(Xs + sx * (w / 2 + 0.008), packTop + 0.008, hz + dz), V(Xs + sx * (w / 2 + 0.008), packBot - 0.03, hz + dz), 0.0065, alloy, 8);
+    rod(V(Xs - (w / 2 + 0.008), packTop + 0.008, hz + dz), V(Xs + (w / 2 + 0.008), packTop + 0.008, hz + dz), 0.0075, alloy, 8);
+    for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(0.011, 0.011, 0.012, 6), alloy, V(Xs + sx * (w / 2 + 0.008), packBot - 0.024, hz + dz));
+  }
+  add(new THREE.BoxGeometry(w + 0.04, 0.01, 0.13), dark, V(Xs, packBot - 0.013, hz));
+  // the shock: inboard of the spring, from a bracket behind the axle up and forward to the floor
+  const xk = sg * Math.max(0.1, xs - 0.10);
+  const lo = V(xk, hy - 0.035, hz - 0.06), zUp = hz + 0.24, hi = V(xk, botAt(zUp) - 0.035, zUp);
+  if (hi.y - lo.y > 0.12) {
+    const d = hi.clone().sub(lo), u = d.clone().normalize(), L = d.length();
+    const at = f => lo.clone().add(u.clone().multiplyScalar(L * f));
+    rod(at(0.06), at(0.52), 0.023, dark, 16);              // the body
+    rod(at(0.46), at(0.62), 0.008, chrome, 10);            // the rod
+    rod(at(0.56), at(0.94), 0.027, dark, 16);              // the dust shield
+    for (const c of [lo, hi]) { add(new THREE.CylinderGeometry(0.016, 0.016, 0.034, 12), dark, c, qX);
+      add(new THREE.CylinderGeometry(0.006, 0.006, 0.06, 8), alloy, c, qX); }
+    add(new THREE.BoxGeometry(0.05, 0.008, 0.07), dark, V(xk, hi.y + 0.031, zUp));                  // its floor bracket
+    rod(V(xk, hy, hz), lo.clone().add(V(0, -0.0, 0)), 0.012, dark, 8);                                 // its axle bracket
+  }
+  // the differential, the pinion snout, the propeller shaft (the left side draws them once)
+  if (sg > 0) {
+    const ry = Math.max(0.07, Math.min(0.11, ybC - hy - 0.012)), rz = 0.12;
+    const banjo = add(new THREE.SphereGeometry(1, 28, 18), dark, V(0, hy, hz)); banjo.scale.set(0.11, ry, rz);
+    const cover = add(new THREE.CylinderGeometry(0.085, 0.09, 0.02, 28), dark, V(0, hy - 0.005, hz - rz * 0.9), new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(0, 0, -1)));
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2;
+      add(new THREE.CylinderGeometry(0.006, 0.006, 0.012, 6), alloy, V(0.078 * Math.cos(a), hy - 0.005 + 0.078 * Math.sin(a), hz - rz * 0.9 - 0.012), cover.quaternion); }
+    const z1 = hz + rz * 0.8, z2 = z1 + 0.13;
+    add(new THREE.CylinderGeometry(0.042, 0.06, z2 - z1, 20), dark, V(0, hy + 0.01, (z1 + z2) / 2), new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(0, 0, 1)));
+    add(new THREE.CylinderGeometry(0.05, 0.05, 0.014, 20), dark, V(0, hy + 0.01, z2 + 0.007), new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(0, 0, 1)));
+    // the universal joint and the shaft forward, rising gently to the gearbox under the floor
+    const uj = V(0, hy + 0.01, z2 + 0.035);
+    add(new THREE.BoxGeometry(0.05, 0.012, 0.012), alloy, uj); add(new THREE.BoxGeometry(0.012, 0.05, 0.012), alloy, uj);
+    const zEnd = hz + Math.min(1.6, Math.max(0.8, 3.2 * R)), yEnd = Math.min(botAt(zEnd) - 0.06, hy + 0.10);
+    rod(uj, V(0, yEnd, zEnd), 0.033, dark, 18);
+  }
+}
+
+// CAR-3 (the user, 13 Nov: "model some professional, good looking mud guards for the front wheels ... do 1 for the front,
+// one for the back, and a step on the side like the attached one [a 1940s carryall] ... The other option (both offered
+// in the editor) would be the straight style from the military pickup truck I attached, very square"; NEW parts, no
+// existing geometry changed): carFender 1 ROUNDED - a crowned sheet swept over each wheel on an arc carFenderGap clear
+// of the tyre, its outer edge turned down into a skirt with a rolled bead, the front one sweeping down and aft into the
+// running board, the rear one rising out of it; 2 SQUARE - flat panels (a flat top over the wheel, a raked front, a
+// slope down to the step) with a deep square skirt. carStep 1: the running board between them - a ribbed tread plate
+// with a turned-down edge on brackets to the floor. Painted in the livery's TRIM colour (spec.paint.trim). From the
+// units' axles and radii, the tyres' own boxes, the floor (AF.surf) - the front pair the foremost units, the rear the
+// aftmost.
+// CAR-3 (the user, 13 Nov: "give the van a proper licence plate"): carPlate 1 - a 12 x 6 inch (305 x 152 mm) pressed
+// plate in the period's manner: the state's name across the top, the number large, the year below, a rolled rim -
+// painted in the plate's colours (spec.meta.plate { top, main, bottom, bg, fg }; absent: the island's name, the build's
+// registration, '46', navy and cream) and EMBOSSED (the same drawing as its bump map); on a bracket in the right rear
+// door's lower panel (the left carries the spare), two plated bolts, a chrome plate lamp over it. In the gear layer's
+// frame (metres); the door from the cage mesh (rearDoors), else the rear wall's centre.
+// CAR-3 CAR-TEX (16 Nov, the user: "make ... the textures show"): the plate's and the tow sign's canvas faces, ONE factory
+// keyed by what they show, so the GAME rebuilds the very material the garage drew (the join keeps the key on the
+// material record - `carTex`, its own bucket with its uv - and app.js / parked.js call this, as WHEEL-TEX's tyres do).
+// key: JSON { k: 'plate', top, main, bottom, bg, fg } | { k: 'sign', text, a (width / height) }. Pooled per key.
+// window.CAGE_CARTEX.material(key) -> MeshStandardMaterial (map + bump), or null where no canvas draws (node)
+const CARTEX = (() => {
+  const pool = new Map();
+  const FONT = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+  const canvasOk = () => { try { const c = document.createElement('canvas'); return !!(c && c.getContext && c.getContext('2d')); } catch (e) { return false; } };
+  const drawPlate = (q, relief) => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+    g.fillStyle = relief ? '#000' : q.bg; g.fillRect(0, 0, 512, 256);
+    const ink = relief ? '#fff' : q.fg;
+    g.strokeStyle = ink; g.lineWidth = 10; g.beginPath(); g.roundRect ? g.roundRect(9, 9, 494, 238, 22) : g.rect(9, 9, 494, 238); g.stroke();
+    g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '700 34px ' + FONT; g.fillText(q.top, 256, 46);
+    g.font = '800 128px ' + FONT; g.fillText(q.main, 256, 140, 470);
+    g.font = '700 30px ' + FONT; g.fillText(q.bottom, 256, 218);
+    for (const x of [70, 442]) { g.beginPath(); g.arc(x, 46, 9, 0, Math.PI * 2); g.fillStyle = relief ? '#444' : '#0c1220'; g.fill(); g.fillStyle = ink; }   // the bolt holes
+    return c; };
+  const drawSign = (q, relief) => { const c = document.createElement('canvas'); c.width = 2048; c.height = Math.max(64, Math.round(2048 / Math.max(2, q.a || 8)));
+    const g = c.getContext('2d'), w = c.width, h = c.height;
+    g.fillStyle = relief ? '#000' : '#f2a900'; g.fillRect(0, 0, w, h);
+    const ch = Math.min(h * 1.6, w * 0.12);   // the chevron panels at either end
+    for (const side of [0, 1]) { g.save(); g.beginPath(); g.rect(side ? w - ch : 0, 0, ch, h); g.clip();
+      for (let k = -4; k < 12; k++) { g.beginPath(); const x0 = (side ? w - ch : 0) + k * h * 0.5; g.moveTo(x0, h); g.lineTo(x0 + h * 0.25, h); g.lineTo(x0 + h * 0.75, 0); g.lineTo(x0 + h * 0.5, 0); g.closePath();
+        g.fillStyle = relief ? '#555' : '#111'; g.fill(); } g.restore(); }
+    g.strokeStyle = relief ? '#fff' : '#111'; g.lineWidth = Math.max(6, h * 0.06); g.strokeRect(g.lineWidth / 2, g.lineWidth / 2, w - g.lineWidth, h - g.lineWidth);
+    g.fillStyle = relief ? '#fff' : '#111'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '800 ' + Math.round(h * 0.74) + 'px ' + FONT; g.fillText(q.text, w / 2, h * 0.54, w - 2 * ch - 40);
+    return c; };
+  function material(key) {
+    if (pool.has(key)) return pool.get(key);
+    if (typeof document === 'undefined' || !canvasOk()) return null;
+    let q = null; try { q = JSON.parse(key); } catch (e) { return null; }
+    const draw = q.k === 'plate' ? drawPlate : q.k === 'sign' ? drawSign : null;
+    if (!draw) return null;
+    const map = new THREE.CanvasTexture(draw(q, false)), bump = new THREE.CanvasTexture(draw(q, true));
+    if (THREE.SRGBColorSpace) map.colorSpace = THREE.SRGBColorSpace;
+    const m = q.k === 'plate' ? new THREE.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car tow kit / number plate' }, map, bumpMap: bump, bumpScale: 1.5, metalness: 0.35, roughness: 0.42 })
+                              : new THREE.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car tow kit / sign board' }, map, bumpMap: bump, bumpScale: 1.2, metalness: 0.2, roughness: 0.45 });
+    m.userData.propMat = q.k === 'plate' ? 'carPlate' : 'carTowSign';   // (its own bucket in the join)
+    m.userData.carTex = key;                                            // (the game's rebuild key)
+    m.userData.aeroskin = 1;                                            // (the garage's understudy greys every lit material not so marked)
+    pool.set(key, m); return m;
+  }
+  return { material, plateKey: q => JSON.stringify({ k: 'plate', top: q.top, main: q.main, bottom: q.bottom, bg: q.bg, fg: q.fg }),
+           signKey: (text, a) => JSON.stringify({ k: 'sign', text, a: +(+a).toFixed(2) }) };
+})();
+window.CAGE_CARTEX = CARTEX;
+
+function plateBuild(group, P, AF, mesh) {
+  let meta = {}; try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); meta = (S && S.meta) || {}; } catch (e) {}
+  const pl = Object.assign({ top: 'JOLENE ISLAND', main: String(meta.reg || 'HF 1003').toUpperCase(), bottom: '46', bg: '#1d2a44', fg: '#efe4c8' }, meta.plate || {});
+  const W = 0.305, H = 0.152;
+  // the face: CAGE_CARTEX's plate (the same material the game rebuilds from its key)
+  const face = CARTEX.material(CARTEX.plateKey(pl));
+  if (!face) return;                           // (a headless bench draws no canvas)
+  const steel = GG.gearMat('steel'), chrome = GG.gearMat('chrome'), dark = GG.gearMat('dark');
+  // where: the right door's lower panel (cage units x FS), else the rear wall's centre
+  const C2 = window.CAGE2, FS = ((C2 && C2.CAGE_UNIT) || 1) * (+P.planeScale || 1), RD = mesh && mesh.rearDoors;
+  let x, y, z;
+  if (RD) { const xr = Math.min(RD.x0, RD.x1) * FS, xm = (RD.xm != null ? RD.xm : 0) * FS, yA = RD.y0 * FS, yB = RD.y1 * FS;
+            x = (xr + xm) / 2; y = yA + (yB - yA) * 0.2; z = RD.z * FS - 0.004; }
+  else { let bot = Infinity; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(AF.z0 + 0.05, a * D2R); if (q) bot = Math.min(bot, q[1]); } x = 0; y = bot + 0.35; z = AF.z0 - 0.004; }
+  const root = new THREE.Group(); root.name = 'edPlate'; root.position.set(x, y, z); root.rotation.y = Math.PI;   // (facing aft)
+  const add = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.name = 'edPlate'; root.add(m); return m; };
+  add(new THREE.BoxGeometry(W + 0.03, H + 0.02, 0.006), dark, 0, 0, 0.003);                 // the bracket
+  const sh = new THREE.Shape(), r = 0.012; sh.moveTo(-W / 2 + r, -H / 2); sh.lineTo(W / 2 - r, -H / 2); sh.quadraticCurveTo(W / 2, -H / 2, W / 2, -H / 2 + r);
+  sh.lineTo(W / 2, H / 2 - r); sh.quadraticCurveTo(W / 2, H / 2, W / 2 - r, H / 2); sh.lineTo(-W / 2 + r, H / 2); sh.quadraticCurveTo(-W / 2, H / 2, -W / 2, H / 2 - r);
+  sh.lineTo(-W / 2, -H / 2 + r); sh.quadraticCurveTo(-W / 2, -H / 2, -W / 2 + r, -H / 2);
+  const back = new THREE.ExtrudeGeometry(sh, { depth: 0.0015, bevelEnabled: true, bevelThickness: 0.0012, bevelSize: 0.0015, bevelSegments: 2 });
+  add(back, steel, 0, 0, 0.007);
+  const fg = new THREE.ShapeGeometry(sh, 6); const pa = fg.attributes.position, uv = new Float32Array(pa.count * 2);
+  for (let i = 0; i < pa.count; i++) { uv[i * 2] = pa.getX(i) / W + 0.5; uv[i * 2 + 1] = pa.getY(i) / H + 0.5; }
+  fg.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  add(fg, face, 0, 0, 0.0115);
+  for (const bx of [-W * 0.363, W * 0.363]) add(new THREE.CylinderGeometry(0.008, 0.008, 0.006, 12), chrome, bx, H * 0.32, 0.014).rotation.x = Math.PI / 2;
+  // the plate lamp: a chrome hood over the plate's top edge, its lens down
+  const hood = add(new THREE.CylinderGeometry(0.035, 0.035, 0.09, 16, 1, false, 0, Math.PI), chrome, 0, H / 2 + 0.022, 0.03);
+  hood.rotation.z = Math.PI / 2; hood.rotation.y = Math.PI / 2;
+  const lensM = new THREE.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car tow kit / plate lamp lens' }, color: 0xfff6e0, emissive: 0x332a18, roughness: 0.3 }); lensM.userData.aeroskin = 1;
+  add(new THREE.BoxGeometry(0.07, 0.006, 0.03), lensM, 0, H / 2 + 0.006, 0.03);
+  group.add(root);
+}
+
+// CAR-3 TOW KIT (the user 13 Nov: "There is a flat face on top of the windscreen. Can you add some signs there,
+// indicating it's the tow vehicle? And add beacons. And windshield wipers for all windows"): three rows, absent = none.
+// Everything is placed off the drawn sheet (cage units x FS, the gear group's frame): the windscreen's own faces
+// (material 'windshield') give its top and bottom edges and its plane; the header is the sheet's forward-facing faces
+// over the glass's top edge. carTowSign 1 = a pressed sign on the header (amber, black chevrons, TOW); carBeacon 1 =
+// two amber beacons on the roof's front corners; carWipers 1 = two wipers parked along the windscreen's foot and one
+// on each rear window (rearWinOn), parked along its sill.
+function towKitBuild(group, P, AF, mesh) {
+  if (!mesh || !mesh.V || !mesh.F) return;
+  const C2 = window.CAGE2, FS = ((C2 && C2.CAGE_UNIT) || 1) * (+P.planeScale || 1);
+  // (a cut part's faces carry their explode offset as cutOff: measured back at their own place, cageAirframe's rule)
+  const Vf = (f, i) => { const p = mesh.V[i], o = f.cutOff || [0, 0, 0]; return [(p[0] - o[0]) * FS, (p[1] - o[1]) * FS, (p[2] - o[2]) * FS]; };
+  const ws = []; for (const f of mesh.F) if (f && f.m === 'windshield' && f.v) for (const i of f.v) ws.push(Vf(f, i));
+  const root = new THREE.Group(); root.name = 'edTowKit';
+  const dark = GG.gearMat('dark'), chrome = GG.gearMat('chrome');
+  const rubber = new THREE.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car beacons / rubber base' }, color: 0x141517, metalness: 0.1, roughness: 0.8 }); rubber.userData.aeroskin = 1;
+  const mk = (geo, mat, par) => { const m = new THREE.Mesh(geo, mat); m.name = 'edTowKit'; (par || root).add(m); return m; };
+  let G = null;
+  if (ws.length >= 3) {
+    const yT = Math.max(...ws.map(p => p[1])), yB = Math.min(...ws.map(p => p[1]));
+    const top = ws.filter(p => p[1] > yT - 0.02), bot = ws.filter(p => p[1] < yB + 0.02);
+    const zT = top.reduce((a, p) => a + p[2], 0) / top.length, zB = bot.reduce((a, p) => a + p[2], 0) / bot.length;
+    const xT = Math.max(...top.map(p => Math.abs(p[0]))), xB = Math.max(...bot.map(p => Math.abs(p[0])));
+    const up = new THREE.Vector3(0, yT - yB, zT - zB).normalize(), n = new THREE.Vector3(0, -up.z, up.y);   // (forward and up)
+    G = { yT, yB, zT, zB, xT, xB, up, n };
+  }
+  // ---- THE SIGN on the header
+  if (+P.carTowSign && G && typeof document !== 'undefined') {
+    let ok = false; try { const c = document.createElement('canvas'); ok = !!(c && c.getContext && c.getContext('2d')); } catch (e) {}
+    // the header: forward-facing sheet faces over the glass's top edge, near the middle
+    let hy0 = Infinity, hy1 = -Infinity, hz = 0, hn = 0; const cand = [];
+    for (const f of mesh.F) { if (!f || !f.v || f.v.length < 3 || /window|windshield|pane|Edge|joint|seal/i.test(f.m || '')) continue;
+      const P3 = f.v.map(i => Vf(f, i)), c = P3.reduce((a, p) => [a[0] + p[0] / P3.length, a[1] + p[1] / P3.length, a[2] + p[2] / P3.length], [0, 0, 0]);
+      if (Math.abs(c[0]) > 0.4 || c[1] < G.yT - 0.005 || c[1] > G.yT + 0.35 || Math.abs(c[2] - G.zT) > 0.2) continue;
+      const a = new THREE.Vector3(...P3[1]).sub(new THREE.Vector3(...P3[0])), b = new THREE.Vector3(...P3[2]).sub(new THREE.Vector3(...P3[0])), nn = a.cross(b).normalize();
+      if (Math.abs(nn.z) < 0.7 || f.back) continue;
+      cand.push([P3, c]); }
+    // the outer skin: the frontmost of them (a liner or trim behind it never counts)
+    if (cand.length) { hz = Math.max(...cand.map(q => q[1][2])); for (const [P3, c] of cand) if (c[2] > hz - 0.02) { for (const p of P3) { hy0 = Math.min(hy0, p[1]); hy1 = Math.max(hy1, p[1]); } hn++; } }
+    // (16 Nov, the user: "the tow service sign was not big enough ... it needed to span the whole area on top of the
+    // windshield"): the header's whole width (the windscreen's top edge, 3 % in from each end) and 88 % of its height
+    // (the face's own band can read short - its rounded top is not 'facing forward' - so the height is the larger of
+    // 88 % of that band and 70 % of the gap from the glass's top edge to the roof's top just behind it)
+    let roofTop = -Infinity;
+    if (AF && typeof AF.surf === 'function') for (let a = 0; a <= 180; a += 3) { const q = AF.surf(Math.max(AF.z0, Math.min(AF.z1, G.zT - 0.05)), a * D2R); if (q && isFinite(q[1])) roofTop = Math.max(roofTop, q[1]); }
+    const band = Math.max((hy1 - Math.max(hy0, G.yT)) * 0.88, isFinite(roofTop) ? (roofTop - G.yT) * 0.70 : 0);
+    if (ok && hn) { const H = Math.max(0.05, Math.min(0.30, band)), W = Math.max(0.3, 2 * G.xT * 0.94);
+      hy1 = Math.max(hy1, G.yT + H / 0.88);
+      const face = CARTEX.material(CARTEX.signKey('TOW  SERVICE', W / H));
+      if (face) {
+      const sg = new THREE.Group(); sg.name = 'edTowKit';
+      const yc = Math.max(hy0, G.yT) + 0.015 + H / 2;   // (its foot just over the glass's top edge)
+      sg.position.set(0, yc, hz + 0.004); root.add(sg);
+      mk(new THREE.BoxGeometry(W + 0.02, H + 0.016, 0.008), dark, sg).position.z = 0.004;   // the backing plate
+      const fg = new THREE.PlaneGeometry(W, H); mk(fg, face, sg).position.z = 0.0085;
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) { const b = mk(new THREE.CylinderGeometry(0.006, 0.006, 0.004, 10), chrome, sg); b.rotation.x = Math.PI / 2; b.position.set(sx * (W / 2 - 0.02), sy * (H / 2 - 0.012), 0.0105); }
+      }
+    }
+  }
+  // ---- THE BEACONS on the roof's front corners
+  if (+P.carBeacon && AF && typeof AF.surf === 'function') {
+    const zR = (G ? G.zT : AF.z1) - 0.22, zz = Math.max(AF.z0, Math.min(AF.z1, zR));
+    const ring = []; for (let a = 0; a <= 180; a += 2) { const q = AF.surf(zz, a * D2R); if (q && isFinite(q[1])) ring.push([Math.abs(q[0]), q[1]]); }
+    const yTop = Math.max(...ring.map(p => p[1])), half = Math.max(...ring.map(p => p[0]));
+    const xb = Math.min(half - 0.18, Math.max(0.3, half * 0.62));
+    const yAt = x => { let y = -Infinity; for (let i = 1; i < ring.length; i++) { const a = ring[i - 1], b = ring[i]; if ((a[0] - x) * (b[0] - x) <= 0 && a[0] !== b[0]) y = Math.max(y, a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])); } return isFinite(y) ? y : yTop; };
+    const lens = new THREE.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car beacons / amber lens' }, color: 0xffa21a, emissive: 0xff7a00, emissiveIntensity: 0.55, metalness: 0, roughness: 0.18, transparent: true, opacity: 0.88 });
+    lens.userData.aeroskin = 1;
+    for (const sx of [-1, 1]) { const b = new THREE.Group(); b.name = 'edTowKit'; b.position.set(sx * xb, yAt(xb) - 0.004, zz); root.add(b);
+      mk(new THREE.CylinderGeometry(0.075, 0.082, 0.035, 24), dark, b).position.y = 0.0175;          // the base
+      mk(new THREE.CylinderGeometry(0.062, 0.066, 0.006, 24), chrome, b).position.y = 0.038;         // its chrome ring
+      mk(new THREE.CylinderGeometry(0.058, 0.06, 0.075, 24, 1, true), lens, b).position.y = 0.079;   // the dome's wall
+      const cap = mk(new THREE.SphereGeometry(0.058, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), lens, b); cap.position.y = 0.1165;
+      const refl = mk(new THREE.BoxGeometry(0.06, 0.05, 0.004), chrome, b); refl.position.y = 0.075; refl.rotation.y = 0.6;   // the mirror inside
+      mk(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 12), lens, b).position.y = 0.072; }           // the bulb
+  }
+  // ---- THE WIPERS
+  const wiper = (pivot, ex, ey, ez, L, ang) => {
+    const g = new THREE.Group(); g.name = 'edTowKit'; g.matrixAutoUpdate = true;
+    const M = new THREE.Matrix4().makeBasis(ex, ey, ez); g.quaternion.setFromRotationMatrix(M); g.position.copy(pivot); root.add(g);
+    const a = new THREE.Group(); a.rotation.z = ang; g.add(a);
+    const hub = mk(new THREE.CylinderGeometry(0.016, 0.018, 0.022, 14), dark, g); hub.rotation.x = Math.PI / 2; hub.position.z = 0.011;
+    const nut = mk(new THREE.CylinderGeometry(0.007, 0.007, 0.01, 8), chrome, g); nut.rotation.x = Math.PI / 2; nut.position.z = 0.026;
+    const arm = mk(new THREE.BoxGeometry(L, 0.011, 0.006), dark, a); arm.position.set(L / 2, 0, 0.022);
+    const knee = mk(new THREE.BoxGeometry(0.05, 0.013, 0.012), dark, a); knee.position.set(0.04, 0, 0.022);
+    const bl = L * 0.92, blade = mk(new THREE.BoxGeometry(bl, 0.009, 0.012), dark, a); blade.position.set(L * 0.55, 0.014, 0.013);
+    const edge = mk(new THREE.BoxGeometry(bl * 0.98, 0.004, 0.008), rubber, a); edge.position.set(L * 0.55, 0.014, 0.004);
+    for (const t of [0.25, 0.75]) { const cl = mk(new THREE.BoxGeometry(0.012, 0.016, 0.01), dark, a); cl.position.set(L * 0.55 + (t - 0.5) * bl, 0.008, 0.018); } };
+  if (+P.carWipers) {
+    if (G) {   // the windscreen: two, parked along its foot, both laid toward the left (+x) side
+      const ex = new THREE.Vector3(1, 0, 0), L = Math.min(0.55, G.xB * 0.78);
+      for (const f of [-0.62, 0.18]) {
+        const pv = new THREE.Vector3(f * G.xB, G.yB, G.zB).addScaledVector(G.up, 0.022).addScaledVector(G.n, 0.004);
+        wiper(pv, ex, G.up.clone(), G.n.clone(), L, 0.06); }
+    }
+    if (+P.rearWinOn > 0 && AF) {   // the rear windows (cage units x FS, the knife's frame): one each, along the sill
+      const nR = Math.max(1, Math.min(2, Math.round(+P.rearWinN || 1))), gp = Math.max(0, +P.rearWinGap || 0) * FS;
+      const w = Math.max(0.05, +P.rearWinW || 0.6) * FS, h = Math.max(0.05, +P.rearWinH || 0.3) * FS, y = (+P.rearWinY || 0) * FS;
+      let zb = Infinity; for (const p of mesh.V) zb = Math.min(zb, p[2] * FS);
+      for (let i = 0; i < nR; i++) { const x = nR === 2 ? (i ? -0.5 : 0.5) * gp : 0;
+        // (a right-handed frame facing aft: its +x is the world's -x)
+        wiper(new THREE.Vector3(x + w * 0.36, y - h / 2 + 0.03, zb - 0.003), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), w * 0.72, 0.06); }
+    }
+  }
+  if (root.children.length) group.add(root);
+}
+
+function fenderBuild(group, P, AF, units) {
+  const style = Math.round(+P.carFender || 0);
+  if (!(style === 1 || style === 2) || !units || units.length < 4) return;
+  const gap = +P.carFenderGap > 0 ? +P.carFenderGap : 0.07, STEP = +P.carStep === 1;
+  // THE BODY'S OWN SKIN (the user: "just give it exactly the same material as the fuselage, then it can be reached by
+  // the livery, it can be reached by the weathering system"): AEROSKIN's `fenderSkin` section, a child of the body -
+  // its paint, finish, wear and markings - the twin booms' recipe; a bench without the livery UI gets a plain paint
+  let paint = null;
+  try { if (window.CAGE_SECMAT) paint = window.CAGE_SECMAT('fenderSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
+  if (!paint) paint = new THREE.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car fenders / bench paint' }, color: 0xd9d4c6, metalness: 0.3, roughness: 0.35, side: THREE.DoubleSide });
+  const tread = new THREE.MeshStandardMaterial({ userData: { progOwner: 'vehicles / car fenders / step tread' }, color: 0x1c1d1f, metalness: 0.2, roughness: 0.75, side: THREE.DoubleSide });
+  const dark = GG.gearMat('dark');
+  const root = new THREE.Group(); root.name = 'edFenders';
+  const zs = units.map(u => u.axle[2]), zF = Math.max(...zs), zR = Math.min(...zs);
+  const front = units.filter(u => Math.abs(u.axle[2] - zF) < 0.03), rear = units.filter(u => Math.abs(u.axle[2] - zR) < 0.03);
+  if (front.length !== 2 || rear.length !== 2) return;
+  // a tyre's lateral extent: its wheel group's box (by the unit's kind and side)
+  const tyreX = u => { let lo = Math.abs(u.axle[0]) - 0.18, hi = Math.abs(u.axle[0]) + 0.18;
+    group.children.forEach(o => { if (o.name !== 'edWheel' + u.kind || !o.children[0]) return; const b = new THREE.Box3().setFromObject(o.children[0]);
+      if (Math.sign(b.min.x + b.max.x) !== Math.sign(u.axle[0]) || Math.abs((b.min.z + b.max.z) / 2 - u.axle[2]) > 0.3) return;
+      lo = Math.min(Math.abs(b.min.x), Math.abs(b.max.x)); hi = Math.max(Math.abs(b.min.x), Math.abs(b.max.x)); });
+    return [lo, hi]; };
+  const botAt = z => { let b = Infinity; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(Math.max(AF.z0, Math.min(AF.z1, z)), a * D2R); if (q && isFinite(q[1])) b = Math.min(b, q[1]); } return b; };
+  const halfAt = z => { let h = 0; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(Math.max(AF.z0, Math.min(AF.z1, z)), a * D2R); if (q && isFinite(q[0])) h = Math.max(h, Math.abs(q[0])); } return h; };
+  // ---- the sweep: a profile [[|x|, d]] (d along the path's normal, + away from the wheel / up) along a path of
+  // {z, y, nz, ny} points; one sheet, drawn both sides
+  // (a profile may be a function of the path point: the rear guard's inner edge follows the body / the well)
+  const sheet = (sg, path, prof, mat) => {
+    const PP = typeof prof === 'function' ? path.map((q, i) => prof(q, i)) : null;
+    const pos = [], idx = [], np = (PP ? PP[0] : prof).length;
+    path.forEach((q, i) => { for (const [x, d] of (PP ? PP[i] : prof)) pos.push(sg * x, q.y + q.ny * d, q.z + q.nz * d); });
+    for (let i = 0; i + 1 < path.length; i++) for (let j = 0; j + 1 < np; j++) {
+      const a = i * np + j, b = a + 1, c = a + np, e = c + 1; idx.push(a, c, b, b, c, e); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat); m.name = 'edFender'; root.add(m); return m; };
+  const bead = (sg, path, x, d, r) => {
+    if (path.length < 2) return;
+    const pts = path.map(q => new THREE.Vector3(sg * x, q.y + q.ny * d, q.z + q.nz * d));
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.1), Math.max(8, pts.length * 3), r, 8, false), paint);
+    m.name = 'edFender'; root.add(m); };
+  // path builders (the path runs AFT: its normal (ty, -tz) points up / out of the wheel)
+  const withN = pts => pts.map((p, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let tz = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tz, ty) || 1; tz /= l; ty /= l;
+    // a sharp corner (the square style): the mitre - the two segments' normals' mean, stretched to keep the offset
+    let nz = ty, ny = -tz;
+    if (i > 0 && i < pts.length - 1 && p.corner) {
+      const s1 = [p[0] - a[0], p[1] - a[1]], s2 = [b[0] - p[0], b[1] - p[1]], l1 = Math.hypot(...s1) || 1, l2 = Math.hypot(...s2) || 1;
+      const n1 = [s1[1] / l1, -s1[0] / l1], n2 = [s2[1] / l2, -s2[0] / l2], m = [n1[0] + n2[0], n1[1] + n2[1]], lm = Math.hypot(...m) || 1;
+      const k = 1 / Math.max(0.35, (m[0] * n1[0] + m[1] * n1[1]) / lm); nz = m[0] / lm * k; ny = m[1] / lm * k;
+    }
+    return { z: p[0], y: p[1], nz, ny }; });
+  const arc = (zc, yc, r, f0, f1, n) => { const o = []; for (let k = 0; k <= n; k++) { const f = (f0 + (f1 - f0) * k / n) * D2R; o.push([zc + r * Math.cos(f), yc + r * Math.sin(f)]); } return o; };
+  const bez = (A, C1, C2, B, n) => { const o = []; for (let k = 1; k <= n; k++) { const t = k / n, u = 1 - t;
+    o.push([u*u*u*A[0] + 3*u*u*t*C1[0] + 3*u*t*t*C2[0] + t*t*t*B[0], u*u*u*A[1] + 3*u*u*t*C1[1] + 3*u*t*t*C2[1] + t*t*t*B[1]]); } return o; };
+  const seg = (A, B, n) => { const o = []; for (let k = 1; k <= n; k++) { const t = k / n; o.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); } return o; };
+  const crowned = (xi, xo, c, skirt) => { const o = [[xi, -0.035], [xi, 0]];
+    for (let k = 1; k <= 10; k++) { const x = xi + (xo - xi) * k / 10, u = 2 * (x - xi) / (xo - xi) - 1; o.push([x, c * (1 - u * u) * (k < 10 ? 1 : 0.5)]); }
+    o.push([xo + 0.006, -0.012], [xo + 0.009, -skirt * 0.6], [xo + 0.006, -skirt]); return o; };
+  const square = (xi, xo, skirt) => [[xi, -0.03], [xi, 0], [xo - 0.012, 0], [xo, -0.004], [xo + 0.002, -0.02], [xo + 0.002, -skirt], [xo - 0.006, -skirt - 0.004]];
+  for (const sg of [-1, 1]) {
+    const uF = front.find(u => Math.sign(u.axle[0]) === sg), uR = rear.find(u => Math.sign(u.axle[0]) === sg);
+    if (!uF || !uR) continue;
+    const [fLo, fHi] = tyreX(uF), [rLo, rHi] = tyreX(uR);
+    const zcF = uF.axle[2], ycF = uF.axle[1], RF = uF.R || 0.4, zcR = uR.axle[2], ycR = uR.axle[1], RR = uR.R || 0.4;
+    const xoF = fHi + 0.055, xiF = Math.max(0.2, fLo - 0.06), xoR = rHi + 0.055;
+    const xiR = Math.min(rHi - 0.02, Math.max(rLo, halfAt(zcR) - 0.03));
+    const yB = Math.min(botAt((zcF + zcR) / 2), botAt(zcF - RF), botAt(zcR + RR)) - 0.05 + (+P.carStepY || 0);   // the step's height (carStepY up, absent 0)
+    let xBi = Math.max(0.2, Math.min(halfAt((zcF + zcR) / 2) - 0.12, xoR - 0.25)), xBo = Math.max(xoF, xoR) + 0.005;
+    // (CAR-3, the user 13 Nov: "make sure that the wheel arches hug the fuselage at the back, there is a big gap, real
+    // ones are cut to silhouette ... match the wheel well dimension and have it come inside the wheel well"): with the
+    // rear axle's well cut (archOn & 1) the rear guard runs just INSIDE the well's opening (8 mm under its arc) and its
+    // inner edge reaches into the well, 3 mm short of the well's wall; off the well, it stops 3 mm short of the body's
+    // own silhouette at that height (the section's crossing) - flat where it lies inside the body's line, crowned
+    // outboard of it. Without a well: as before
+    const aGap = +P.archGap > 0 ? +P.archGap : 0.04, WELL = (Math.round(+P.archOn || 0) & 1) === 1;
+    const rAF = RF + gap, rAR = WELL ? Math.min(RR + gap, RR + aGap - 0.008) : RR + gap;
+    const halfAtY = (z, y) => { const zz = Math.max(AF.z0, Math.min(AF.z1, z)); let pv = null, best = -1;
+      for (let a = 0; a <= 180; a += 2) { const q = AF.surf(zz, a * D2R); if (!q || !isFinite(q[0])) continue; const c = [Math.abs(q[0]), q[1]];
+        if (pv && (pv[1] - y) * (c[1] - y) <= 0 && pv[1] !== c[1]) best = Math.max(best, pv[0] + (c[0] - pv[0]) * (y - pv[1]) / (c[1] - pv[1]));
+        pv = c; }
+      return best > 0 ? best : halfAt(z); };
+    const xWell = Math.max(0.2, rLo - aGap + 0.003), xBody = halfAt(zcR), Ra = RR + aGap;
+    // (a raised step, above the body's bottom edge: its inner edge hugs the side, 3 mm off, no brackets under it)
+    const STEP_UP = yB > botAt((zcF + zcR) / 2) + 0.005;
+    if (STEP_UP) xBi = Math.max(0.2, Math.min(halfAtY((zcF + zcR) / 2, yB + 0.01) + 0.003, xBo - 0.15));
+    const xInR = q => { if (WELL && Math.hypot(q.z - zcR, q.y - ycR) < Ra - 0.002) return xWell;
+      return Math.min(xoR - 0.08, halfAtY(q.z, Math.max(q.y, botAt(q.z) + 0.005)) + 0.003); };
+    const hugR = (xo, c, skirt, sq) => q => { const xi = xInR(q), xb = Math.max(xi, Math.min(xBody, xo - 0.08)), o = [[xi, sq ? -0.03 : -0.035], [xi, 0]];
+      for (let k = 1; k <= 10; k++) { const x = xi + (xo - xi) * k / 10, u = x > xb ? 2 * (x - xb) / (xo - xb) - 1 : -1;
+        o.push([x, sq ? (k === 10 ? -0.004 : 0) : c * (1 - u * u) * (k < 10 ? 1 : 0.5)]); }
+      if (sq) o.push([xo + 0.002, -0.02], [xo + 0.002, -skirt], [xo - 0.006, -skirt - 0.004]);
+      else o.push([xo + 0.006, -0.012], [xo + 0.009, -skirt * 0.6], [xo + 0.006, -skirt]);
+      return o; };
+    let pF, pR, zBF, zBR;
+    if (style === 1) {
+      // ROUNDED: the front over its wheel from ahead (52 deg, above the bumper) to behind (150), then down and aft
+      // to the step; the rear out of the step, up and over to behind its wheel (165)
+      const aF = arc(zcF, ycF, rAF, 52, 150, 26), A = aF[aF.length - 1], tA = [-Math.sin(150 * D2R), Math.cos(150 * D2R)];
+      zBF = A[0] - 0.42; const Bf = [zBF, yB];
+      pF = aF.concat(bez(A, [A[0] + tA[0] * 0.2, A[1] + tA[1] * 0.2], [Bf[0] + 0.2, Bf[1]], Bf, 12));
+      const D = [zcR + rAR * Math.cos(35 * D2R), ycR + rAR * Math.sin(35 * D2R)], tD = [-Math.sin(35 * D2R), Math.cos(35 * D2R)];
+      zBR = D[0] + 0.3; const Br = [zBR, yB];
+      pR = [Br].concat(bez(Br, [Br[0] - 0.16, Br[1]], [D[0] - tD[0] * 0.16, D[1] - tD[1] * 0.16], D, 12), arc(zcR, ycR, rAR, 35, 165, 26).slice(1));
+      const PF = withN(pF), PR = withN(pR);
+      sheet(sg, PF, crowned(xiF, xoF, 0.045, 0.10), paint); bead(sg, PF, xoF + 0.006, -0.098, 0.009);
+      sheet(sg, PR, WELL ? hugR(xoR, 0.02, 0.08, false) : crowned(xiR, xoR, 0.02, 0.08), paint); bead(sg, PR, xoR + 0.006, -0.078, 0.008);
+    } else {
+      // SQUARE: flat top over the wheel, raked front, a straight slope down and aft to the step; the rear the same
+      // mirrored, its back a short raked face
+      const yTF = ycF + rAF, yTR = ycR + rAR;
+      const F = [[zcF + RF + 0.06, Math.max(yTF - 0.14, ycF + 0.3)], [zcF + RF * 0.92, yTF], [zcF - RF * 0.6, yTF]];
+      zBF = zcF - RF - 0.30; F.push([zBF, yB]);
+      F[1].corner = F[2].corner = true;
+      pF = [F[0]].concat(seg(F[0], F[1], 3), seg(F[1], F[2], 10), seg(F[2], F[3], 8));
+      zBR = zcR + RR + 0.30;
+      const G = [[zBR, yB], [zcR + RR * 0.6, yTR], [zcR - RR * 0.95, yTR], [zcR - RR - 0.08, yTR - 0.18]];
+      G[1].corner = G[2].corner = true;
+      pR = [G[0]].concat(seg(G[0], G[1], 8), seg(G[1], G[2], 10), seg(G[2], G[3], 3));
+      // mark the corner points on the resampled paths (their mitres)
+      for (const P0 of [pF, pR]) for (const q of P0) for (const c of (P0 === pF ? F : G)) if (c.corner && Math.abs(q[0] - c[0]) < 1e-9 && Math.abs(q[1] - c[1]) < 1e-9) q.corner = true;
+      sheet(sg, withN(pF), square(xiF, xoF, 0.12), paint);
+      sheet(sg, withN(pR), WELL ? hugR(xoR, 0, 0.10, true) : square(xiR, xoR, 0.10), paint);
+    }
+    // THE STEP: a ribbed tread plate from the front fender's foot to the rear's, its edge turned down, on brackets
+    if (STEP && zBF - zBR > 0.3) {
+      const PB = withN(seg([zBF + 0.02, yB], [zBR - 0.02, yB], 1).length ? [[zBF + 0.02, yB], [zBR - 0.02, yB]] : []);
+      const prof = [[xBi, -0.02], [xBi, 0]];
+      const nR = 5; for (let k = 0; k < nR; k++) { const xm = xBi + (xBo - xBi) * (k + 0.75) / (nR + 0.5);
+        prof.push([xm - 0.012, 0], [xm - 0.008, 0.007], [xm + 0.008, 0.007], [xm + 0.012, 0]); }
+      prof.push([xBo - 0.006, 0], [xBo, -0.006], [xBo + 0.002, -0.035], [xBo - 0.004, -0.038]);
+      sheet(sg, PB, prof, paint);
+      // the rubber tread strips on top
+      for (let k = 0; k < nR; k++) { const xm = xBi + (xBo - xBi) * (k + 0.75) / (nR + 0.5);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.004, zBF - zBR - 0.1), tread);
+        m.position.set(sg * xm, yB + 0.009, (zBF + zBR) / 2); m.name = 'edFender'; root.add(m); }
+      // the brackets: an angle from the plate's underside up to the floor
+      for (const f of [0.2, 0.5, 0.8]) { const z = zBR + (zBF - zBR) * f, yb = botAt(z), xb = Math.max(0.2, Math.min(xBi + 0.05, halfAt(z) - 0.05));
+        if (!STEP_UP && yb - yB > 0.01) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.006, yb - yB, 0.05), dark); m.position.set(sg * xb, (yb + yB) / 2, z); m.name = 'edFender'; root.add(m);
+          const m2 = new THREE.Mesh(new THREE.BoxGeometry(xBo - xb - 0.02, 0.006, 0.05), dark); m2.position.set(sg * (xb + xBo - 0.02) / 2, yB - 0.006, z); m2.name = 'edFender'; root.add(m2); } }
+    }
+  }
+  group.add(root);
+}
+
 function spareBuild(group, P, AF) {
   const localBox = o => { const b2 = new THREE.Box3(); o.updateMatrixWorld(true);
     o.traverse(m => { if (!m.isMesh || !m.geometry) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
@@ -2610,23 +3153,35 @@ function spareBuild(group, P, AF) {
       while (n && n !== group) { n.updateMatrix(); M.premultiply(n.matrix); n = n.parent; }
       b2.union(bm.applyMatrix4(M)); });
     return b2; };
-  const sg = +P.spareSide < 0 ? -1 : 1, z = +P.spareZ;
-  const R = Math.max(0.1, +P.s1R || 0.3);                  // the road wheels' size
-  const y = (typeof AF.cyAt === 'function' ? AF.cyAt(z) : 0) + (+P.spareY || 0);
+  // (CAR-3, the user 13 Nov: "for the back to be nice to look at, just put a spare wheel in the middle of the left
+  // door, centered on the part without the window at the bottom"): spareAt 1 = ON THE REAR WALL - the same wheel,
+  // carrier, strap and buckle, drawn in a RIG whose +x is aft (the wall's outward normal) and whose +z runs across the
+  // car, stood on the wall plane AF.z0 at spareX across (spareSide's side) and spareY over the wall's own mid-height;
+  // spareK scales the wheel (absent 1 = the road wheels' size). Absent spareAt = the flank, as before.
+  const REAR = Math.round(+P.spareAt || 0) === 1;
+  const side = +P.spareSide < 0 ? -1 : 1;
+  const sg = REAR ? 1 : side;
+  const zW = REAR ? AF.z0 + 0.05 : +P.spareZ;
+  const z = REAR ? 0 : zW;
+  const R = Math.max(0.1, +P.s1R || 0.3) * (+P.spareK > 0 ? +P.spareK : 1);   // the road wheels' size
+  const yAbs = (typeof AF.cyAt === 'function' ? AF.cyAt(zW) : 0) + (+P.spareY || 0);
+  const y = REAR ? 0 : yAbs;
   const root = new THREE.Group(); root.name = 'edSpare';
+  const rig = REAR ? new THREE.Group() : root;
+  if (REAR) { rig.position.set(side * Math.abs(+P.spareX || 0), yAbs, AF.z0); rig.rotation.y = Math.PI / 2; root.add(rig); }
   // THE WHEEL, drawn fresh by the road wheels' own builder - no brake, NO HUB CAP (the user: "remove the little hubcap so
   // that it presents a flatter surface"), built at the origin first to measure its tyre, then seated
   const wb = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(), alloy: GG.Bag(), dark: GG.Bag(), brakefix: GG.Bag(), steel: GG.Bag() };
   GG.wheel(wb, [0, 0, 0], [sg, 0, 0], R, { brake: false, inboard: sg, P: Object.assign({}, P, { whCap: 0 }) });
   const wg = new THREE.Group();
-  for (const k of ['tyre', 'hub', 'alloy', 'dark']) if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
-  root.add(wg);
+  for (const k of ['tyre', 'hub', 'alloy', 'dark']) if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.wheelMat ? GG.wheelMat(k, P) : GG.gearMat(k));
+  rig.add(wg);
   const tb = new THREE.Box3().setFromObject(wg);
   const hwT = Math.max(Math.abs(tb.min.x), Math.abs(tb.max.x));     // the tyre's half-width (its widest, the bulge)
   const Rr = R * (+P.whRimD > 0 ? Math.min(0.85, +P.whRimD) : 0.42);
   // the flank: the body's half-width over the tyre's height and length
   let half = 0;
-  for (let zz = z - R; zz <= z + R + 1e-6; zz += R / 6)
+  if (!REAR) for (let zz = z - R; zz <= z + R + 1e-6; zz += R / 6)
     for (let a = 0; a <= 180; a += 2) { const q = AF.surf(zz, a * D2R);
       if (q && isFinite(q[0]) && q[1] >= y - R && q[1] <= y + R) half = Math.max(half, Math.abs(q[0])); }
   const CARRIER = 0.034;                                   // flange + clearance between the flank and the tyre's inner wall
@@ -2635,9 +3190,9 @@ function spareBuild(group, P, AF) {
   // the frame the fittings are drawn in: u outward from the wheel's centre, v up, w along the car
   const W = (u, v, w) => new THREE.Vector3(xc + sg * u, y + v, z + w);
   const chrome = GG.gearMat('chrome'), alloy = GG.gearMat('alloy'), steel = GG.gearMat('steel');
-  const leather = new THREE.MeshStandardMaterial({ color: 0x5a3822, roughness: 0.68, metalness: 0, side: THREE.DoubleSide });
-  const leatherEdge = new THREE.MeshStandardMaterial({ color: 0x3a2414, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
-  const add = (geo, mat, pos, rot) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (rot) m.quaternion.copy(rot); root.add(m); return m; };
+  const leather = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / spare wheel / leather strap' }, color: 0x5a3822, roughness: 0.68, metalness: 0, side: THREE.DoubleSide });
+  const leatherEdge = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / spare wheel / strap holes and keeper' }, color: 0x3a2414, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
+  const add = (geo, mat, pos, rot) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (rot) m.quaternion.copy(rot); rig.add(m); return m; };
   const qTo = (x, yy, zz) => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(x, yy, zz).normalize());
   const alongU = qTo(sg, 0, 0), alongW = qTo(0, 0, 1);
   // ---- THE CARRIER: a domed flange on the flank, four bolts, the stub axle through the hub - and past it, THE SPIKE
@@ -2671,6 +3226,13 @@ function spareBuild(group, P, AF) {
     const m = add(g, chrome, W(uN + 0.002, 0, 0));
     m.rotation.set(0, sg > 0 ? -Math.PI / 2 : Math.PI / 2, 0);
     m.rotateZ(s2 > 0 ? 0 : Math.PI);
+  }
+  // (CAR-3, the user 13 Nov: "drop the leather"): spareStrap 0 = NO STRAP - the wheel held by its carrier and the wing
+  // nut alone (a door-mounted spare's way); absent = the strap and its buckle, as before
+  if (+P.spareStrap === 0) {
+    rig.traverse(m => { if (m.isMesh && m.parent === rig) m.name = 'edSpareFit'; });
+    group.add(root);
+    return root;
   }
   // ---- THE STRAP, over the whole wheel: a bracket on the flank, over the tyre's crown following its section, down the
   // outer wall, on over the rim onto the disc, to the BUCKLE low on the disc; from there the lower strap to a tab on the
@@ -2734,7 +3296,7 @@ function spareBuild(group, P, AF) {
   for (const [h, w] of [[tS * 2.2 + kt, wS / 2 + kt], [tS * 2.2 + kt, -(wS / 2 + kt)], [-tS / 2 - kt, -(wS / 2 + kt)], [-tS / 2 - kt, wS / 2 + kt]])
     kp.push(W(ku + h, kv, w));
   add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(kp, true, 'catmullrom', 0.2), 40, 0.004, 6, true), leatherEdge);
-  for (const m of root.children) if (m.isMesh) m.name = 'edSpareFit';
+  rig.traverse(m => { if (m.isMesh && m.parent === rig) m.name = 'edSpareFit'; });
   group.add(root);
   return root;
 }
@@ -3458,11 +4020,11 @@ PAGE.post = ctx => {
     const wg = new THREE.Group();
     wg.name = 'edWheel' + (wb.kind || 'T');
     for (const k of ['tyre', 'hub', 'brake', 'alloy', 'dark'])
-      if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
+      if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.wheelMat ? GG.wheelMat(k, P) : GG.gearMat(k));   // (WHEEL-TEX: the textured tyre and rim when asked)
     group.add(wg);
   }
   // CAR-1 (the user, 12 Nov: "put a spare wheel on one of the sides, at the back, like the ref picture"): spareOn - the
-  // rearmost drawn road wheel, copied and stood against the body's flank (spareSide 1 right / -1 left) at spareZ (metres,
+  // rearmost drawn road wheel, copied and stood against the body's flank (spareSide 1 the left / port +x, -1 the right) at spareZ (metres,
   // the layers' z), its hub at the body's mid-height plus spareY. A picture only: it is not a unit, not a contact, and
   // it rides the body (named edSpare, not edWheel*). Absent = no spare.
   if (+P.spareOn && AF && typeof AF.surf === 'function') spareBuild(group, P, AF);
@@ -3471,6 +4033,10 @@ PAGE.post = ctx => {
     if (+P.bumpF) bumperBuild(group, P, AF, scene, true);
     if (+P.bumpR) bumperBuild(group, P, AF, scene, false);
     if (Math.round(+P.extRelief || 0) === 4) rearDoorHardware(group, P, mesh);
+    if (+P.carTail) carTailLamps(group, P, AF);
+    if (Math.round(+P.carFender || 0) > 0) fenderBuild(group, P, AF, legUnits);
+    if (+P.carPlate) plateBuild(group, P, AF, mesh);
+    if (+P.carTowSign || +P.carBeacon || +P.carWipers) towKitBuild(group, P, AF, mesh);
   }
   // THE TOW RELEASE (the user via A0, 15 Nov: "towed from an anchor at their main wheel position, just forward of it ...
   // the 3d anchor properly"): towHook 2, the CG release - its housing on the keel GEN_RULES.towHook.cg.ahead ahead of the
@@ -3508,6 +4074,14 @@ PAGE.post = ctx => {
   // distance (a centreline unit's forward), the leg and the wheel stay.
   // Display only: the join resets explodeD before it reads the layers.
   const exG = Math.max(0, P.explodeD || 0) * FS;
+  // CAR-3: carBeamR - the rearmost PAIR of units drawn as a beam axle on leaf springs (beamAxleSide)
+  const beamOn = Math.round(+P.carBeamR || 0) === 1 && AF && typeof AF.surf === 'function';
+  let beamU = [];
+  if (beamOn && legUnits.length) {
+    const zMin = Math.min(...legUnits.map(u => u.axle[2]));
+    beamU = legUnits.filter(u => Math.abs(u.axle[2] - zMin) < 0.03 && Math.abs(u.axle[0]) > 0.05 && !u.lever && !u.low);
+    if (beamU.length !== 2) beamU = [];
+  }
   for (const lu of legUnits) {
     // GR: the piston's own group (it slides up the leg as it retracts - the core's rule 'rigid' with `slide`)
     if (lu.low) { const lw = new THREE.Group(); lw.name = 'edMechLow' + lu.kind;
@@ -3515,6 +4089,15 @@ PAGE.post = ctx => {
       group.add(lw); }
     const lg = new THREE.Group();
     lg.name = 'edLeg' + lu.kind;
+    if (beamU.includes(lu)) {
+      let wg = null; group.children.forEach(o => { if (o.name === 'edWheel' + lu.kind) wg = o; });
+      let plateX = null; const bm = GG.gearMat('brake');
+      if (wg) wg.traverse(o => { if (o.isMesh && o.material === bm) { const b = new THREE.Box3().setFromObject(o);
+        plateX = Math.min(Math.abs(b.min.x), Math.abs(b.max.x)); } });
+      beamAxleSide(lg, lu, P, AF, wg ? new THREE.Box3().setFromObject(wg) : null, plateX);
+      group.add(lg);
+      continue;
+    }
     for (const k in lu.bags) {
       if (k === 'lever') continue;                       // (WILGA-GEAR: the moving parts' own bags, meshed below)
       const mf = lu.bags[k].mesh(lg, legM(k, lu.bags[k]));
@@ -3581,7 +4164,7 @@ PAGE.post = ctx => {
 
   if (P.gearSit && contacts.length) {
     const n = [0, cs, -sn];
-    const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33);
+    const grid = new THREE.GridHelper(12, 48, 0x39424e, 0x232a33); grid.material.userData.progOwner = 'editor / workbench / floor grid';
     grid.rotation.x = -pitch;
     grid.position.set(n[0] * gy, n[1] * gy, n[2] * gy);
     group.add(grid);
@@ -3732,7 +4315,7 @@ PAGE.post = ctx => {
     // VIEW's 'control cage' rule), amber when the fold fits, red when it does not
     if (fit && fit.wells && fit.wells.length && THREE.LineSegments && THREE.EdgesGeometry) {
       const wg = new THREE.Group(); wg.name = 'edWellGhost';
-      const lm = new THREE.LineBasicMaterial({ color: fit.ok ? 0xe0a23a : 0xe04a33, transparent: true, opacity: 0.9, depthTest: false });
+      const lm = new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / gear wells / fold fit outline' }, color: fit.ok ? 0xe0a23a : 0xe04a33, transparent: true, opacity: 0.9, depthTest: false });
       for (const w of fit.wells) {
         const bx = new THREE.BoxGeometry(w.max[0] - w.min[0], w.max[1] - w.min[1], w.max[2] - w.min[2]);
         const ls = new THREE.LineSegments(new THREE.EdgesGeometry(bx), lm);
