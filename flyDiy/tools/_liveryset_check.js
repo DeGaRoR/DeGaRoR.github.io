@@ -24,7 +24,7 @@ const GARAGE_SRC = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'garage.js')
 const load = src => { const m = new Module(path.join(T, 'flight_core.js'), null); m.filename = path.join(T, 'flight_core.js'); m.paths = Module._nodeModulePaths(T); m._compile(src, m.filename); return m.exports; };
 const BUILDS = {
   cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  metal: 'bugReports/cessnaMetal (1).json', floats: 'bugReports/cessnaFloatsWOrks.json',
+  metal: 'tools/fixtures/test_copies/cessnaMetal (1).json', floats: 'bugReports/cessnaFloatsWOrks.json',
   twin: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', rufus: 'builds/rufus_2026-10-18_certified.json',
 };
 const DONOR = 'builds/candidates/carbon_cub_ss.json';
