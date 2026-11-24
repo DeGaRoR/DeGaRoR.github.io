@@ -90,13 +90,28 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 
 ### What is left
 
-1. THE FLIGHTS: see "the feasibility state" just below; `--check` is not green yet, so GATE STORYFEAS is not registered.
-2. FIVE MISSIONS LAND ON CABIN LAKE, whose record names no landing direction (the island's aerodrome record: the
-   user's document). They stay red until it does; the flight with the direction named lands.
-   WATER CARGO OVER ABOUT 100 kg HAS NO FLOAT PLANE IN THE POOL: the float Cessna's loading card takes 98 kg (the
-   capability rule counts its seats and says 250), and the PC-6 on Wiplines of the wip list does not line up at HOME
-   (it is started there as an amphibian and gives up in the taxi). lumber.04 (250 kg) is red on it; a float hauler is
-   a plane the player builds.
+1. THE REDS OF THE FLIGHTS, BY WHAT WOULD TURN THEM (the missions under each cause: "The feasibility state" below; each
+   mission's own cause is on its flag in the editor). None of them is a fault of the mission system:
+   - THE LOADING CARD AGAINST THE CAPABILITY RULE (the largest group). `contractCanDo` says the Cessna's cabin takes
+     280 kg, so the board offers it the job; the loading view then puts 140 kg aboard (50 kg for the 210 m mountain
+     strip, 90 to 98 kg on floats), and the cards of the PC-6 and the DC-3-alike take no cargo at all. Either the
+     rule reads the card, or the cards are completed, or these loads wait for a hauler the player builds (the user,
+     23 Nov: "the players will not be limited to existing planes, they will modify them"). The loads are the pack's
+     draft numbers: the editor changes them, and the flag then reads "edited" until the mission is flown again.
+   - THE ALTIPORT (tw_ski) AND THE CANNERY STRIP (w5): the test pilot's landing. Flown light at the altiport the Cub
+     and the STOL Cub stop off the strip's end and cannot taxi back, the Jodel alone goes over in the rollout (with a
+     passenger it lands it); flown heavy it never gets down. At w5 the multi-leg tour's stop ends off the strip or
+     cannot leave (on L40J the Cub flew it). The pilot's owner has the rows and a scripted repro
+     (`reports/STORY-REVAMP/repro/`). A player lands these by hand: the missions are playable.
+   - THE 210 m MOUNTAIN STRIP WITH THREE ABOARD: the pilot will not go (277 m for the Cessna, 246 m for the PC-6):
+     a three-seat STOL plane the player builds.
+   - CABIN LAKE names no landing direction (the island's aerodrome record: the user's document): five missions land
+     there; the flight with the direction named lands.
+   - THE PC-6 ON WIPLINES (wip list) is started at HOME as an amphibian and often does not line up there; when it
+     does (lumber.03) it flies the job.
+2. `node tools/story_feas.js --check` is not green while those stand, so GATE STORYFEAS is not registered. After a
+   merge of master that changes the aeroplanes or the pilot: bump `SIM`, fly again (about 14 hours of 4 cores for the
+   whole pack; the reds cost the most), `--table`, `--stamp`, GATE STORYPACK.
 3. THE GAPS TABLE at the end of this file: scenery for 18 of the 31 world stages, two scenery readies not on master,
    the clear-day rule, the planes no official list has (a glider, a tow plane, a ski hauler, a STOL hauler), the
    Projects board and "restart this flight" on the page, portraits, the economy pass.
@@ -449,6 +464,8 @@ tables.
 | Cabin Lake (`cb_sea`) names no landing direction: the test pilot takes the closed end and capsizes; `approach: 0` on the lane lands it (flown). Its way out is not flown | the island's aerodrome record | the feasibility flight of home.08, three times |
 | the Cessna 172 capsizes out of its slip on a short final (mn_strip, w1; master's own `minedock.02` the same) | the pilot (43_pilot.js, WINGS-LEVEL's family) | the feasibility flights of mine.04 and home.03, and master's baseline |
 | a landing at w5 (Cannery Runway) on the game's day runs off the strip's end, and the leg back never leaves (the Cub; the STOL Cub rejects its take-off there too) | the pilot (43_pilot.js: the end it picks has a 10 m obstacle 25 m out, the aim is displaced 144 m into 310 m) or the field's record | `node tools/flight_script.js reports/STORY-REVAMP/repro/cub_w5_back.json` (no mission in it) | ON L40J club.tour flew its w5 stop and left again (the Cub, 2 139 s); the scripted repro was not run again |
+| THE CAPABILITY RULE AGAINST THE LOADING CARD: `contractCanDo` counts the Cessna's cabin at 280 kg; the loading view puts 140 kg aboard (50 kg for the 210 m mountain strip), and the PC-6's and the DC-3-alike's cards take no cargo. The board offers jobs the card then refuses | the rule (73_contracts.js ctCapKg) or the cards; the pack's draft loads | the flights of home.13, community.09 / .10 / .11, obs.02 / .06 / .08 / .09 |
+| the altiport (tw_ski) flown light or heavy: the test pilot lands long and cannot taxi back, or never gets down (the built-in pack's resort.03, resort.05, resort.b2, clients.03 among them); with one passenger the Jodel lands it | the pilot (43_pilot.js) or the field's record | the flights on L40K |
 | water cargo over about 100 kg: the float Cessna's loading card takes 98 kg while the capability rule says it can do 250; the PC-6 on Wiplines (wip list), started at HOME as an amphibian, does not line up there | planes (a float hauler the player builds); the capability rule against the loading card; the PC-6 on Wiplines' taxi | the feasibility flights of lumber.04 and home.08 |
 | the PC-6 Turbo Porter of the wip list carries no cargo: its loading card names no door and no seat row (passengers ride: 8 seats) | the PC-6 build (the drafting table's) | the feasibility flights of the cargo missions |
 | master L40J: `xw_rough` out of CONTRACT_FIELDS and `tw_ski` back at 380 m, by a merge (see the status at the top) | master's (the train) | the trial merge; master's own GATE CONTRACTS |
