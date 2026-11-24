@@ -95,6 +95,9 @@ for (const P of PK.packs) {
     '5l the programs of a scene link OFF the frame (built held down, compileSliced, then shown), behind one entry point (GARAGE_VIEW.prelink, GARAGE_VIEW.ready)');
   ok(/const GVIEW_WAIT = (\d+);/.test(app) && +app.match(/const GVIEW_WAIT = (\d+);/)[1] >= 300 && /if \(\+\+gviewTicks < GVIEW_WAIT\) return;/.test(app) && /gviewTicks = GVIEW_WAIT; gviewTick\(\);/.test(app),
     '5m the first scene of a session waits for the garage to have run (never inside a boot step); the boot list may ask earlier through prelink()');
+  // (24 Nov, A0 / L40N: ROUNDTRIP's roll-out 1 linked the scene's programs - the wait ran out inside the roll-out's shot)
+  { const t = app.indexOf('if (++gviewTicks < GVIEW_WAIT) return;'), g = app.indexOf('ROLLANIM.busy && ROLLANIM.busy()) return;', t), f = app.indexOf('gviewFor = hangar;', t);
+    ok(t > 0 && g > t && f > g, '5n the scene\'s first load never starts while a roll-out shot plays (its fetch, build and links wait for the shed)'); }
   ok(/gviewTick\(\)/.test(app) && /GARAGE_VIEW\.find\(window\.FLYDIY_WORLD, roomBase\(\), roomId\(\)\)/.test(app), '5f app.js asks for the room\'s scene by its world, field and shed, behind the room (gviewTick, GARAGE_VIEW.find)');
 }
 console.log(fails ? 'GATE GARAGEVIEW: FAIL (' + fails + ')' : 'GATE GARAGEVIEW: PASS');
