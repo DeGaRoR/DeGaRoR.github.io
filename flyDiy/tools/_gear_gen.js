@@ -3362,7 +3362,8 @@ function legTailwheel(bags, AF, P, st) {
 // rule, so a spec without its drawing flies the same wheel). Returns the leg families' record
 function legTipWheel(bags, AF, P, st) {
   const tipP = st.mount(0).p, x0 = tipP[0];
-  const hub = [x0, tipP[1] - st.R - 0.03, tipP[2]];
+  // (LAZAIR: st.fork, the V tip wheels' own row - the hub's drop past the tyre; the twin booms' V keeps its 3 cm)
+  const hub = [x0, tipP[1] - st.R - (st.fork != null ? st.fork : 0.03), tipP[2]];
   if (st.steer === 4) {
     const yS = hub[1] - st.R;
     sweep(bags.steel, resample([[x0, tipP[1] + 0.01, tipP[2] + 0.04], [x0, 0.5 * (tipP[1] + yS), tipP[2] - 0.01],

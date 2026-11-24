@@ -3687,7 +3687,9 @@ function genEngPropD0(S, e0, PP0) {
 const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0, wgStrutSec: 0, wgJury: 0, certCat: 0, wgBrake: 0, dashHood: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
+                               brkHold: 0, wgStrutSec: 0, wgJury: 0, certCat: 0, wgBrake: 0, dashHood: 0, rodOn: 1, spinOn: 1,
+                               vtWheels: 0, vtD: 0.2, vtWide: 0, vtFork: 0.03, vtCastor: 0 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
+                               // (LAZAIR, 24 Nov: the V hung down's tip wheels' rows, off - the vt* keys)
 // STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S OPTIONS - the figures the frame (61_gen_frame, the jury strut's members)
 // and the aero (62_gen_aero genStrutOptCdA, the drag of a round strut and of the jury) read. None is read by a build
 // without bracing.section / bracing.jury.
@@ -6579,7 +6581,13 @@ function clampSpec(spec) {
   S.tail.boomOval = genClampN(S.tail.boomOval, 1, 2);
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
-  S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // LAZAIR (24 Nov, the user: an inverted V-tail on a single boom): THE SIGN IS THE WAY - a negative vAngle is the
+  // classic V hung DOWN from the tail (the same 20-55 bounds on its size); every V before it is positive, to the bit
+  S.tail.vAngle = S.tail.vAngle < 0 ? -genClamp(-S.tail.vAngle, 20, 55)
+                                    : genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // ...and its drawn root's height (vRootY, m over the keel datum: the join's), the key only on a V hung down
+  if (S.tail.type === 'v' && S.tail.vAngle < 0 && S.tail.vRootY != null && isFinite(+S.tail.vRootY)) S.tail.vRootY = genClamp(+S.tail.vRootY, -2, 4);
+  else delete S.tail.vRootY;
   // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame's T.vee: a panel down and inboard from each boom, the
   // tail's wheels at the tips). Its own keys - a twin boom states the V's vAngle / Svt null (GEN_FIELDS 'tail.type').
   // ivAngle (deg, the panels' cant below the horizontal; the key's presence IS the layout), ivGap (m, the gap between
@@ -6795,6 +6803,20 @@ function clampSpec(spec) {
   if (S.gear.twSwivel === true && S.gear.twMode == null) S.gear.twMode = 'lock';
   delete S.gear.twSwivel;
   if (!['lock', 'fixed', 'skid'].includes(S.gear.twMode)) delete S.gear.twMode;
+  // LAZAIR (24 Nov): THE V TIPS' WHEELS (the join's gear.vTip, a single body's V hung down: tail.type 'v', vAngle < 0) -
+  // mode 'tail' (the tail contact is the two tips: a taildragger's), 'extra' (two more rolling contacts, castoring or
+  // fixed); R the wheel's radius, fork the hub's drop past the tyre under the tip, z the tips' lateral place, x / y an
+  // extra pair's station and height (the join's measure; absent: under the frame's V tips). Anything else: no key
+  { const VT = S.gear.vTip, fin = v => v != null && isFinite(+v);
+    if (VT && typeof VT === 'object' && S.tail && S.tail.type === 'v' && S.tail.vAngle < 0
+        && ((VT.mode === 'extra' && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))
+            || (VT.mode === 'tail' && S.gear.type === 'taildragger'))) {
+      const o = { mode: VT.mode, R: genClamp(fin(VT.R) ? +VT.R : 0.10, 0.03, 0.25), fork: genClamp(fin(VT.fork) ? +VT.fork : 0.03, 0, 0.40) };
+      if (fin(VT.z) && +VT.z > 0) o.z = genClamp(+VT.z, 0.05, 4);
+      if (VT.mode === 'extra' && fin(VT.x) && fin(VT.y)) { o.x = +VT.x; o.y = +VT.y; }
+      if (VT.mode === 'extra' && VT.castor === true) o.castor = true;
+      S.gear.vTip = o;
+    } else delete S.gear.vTip; }
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';
@@ -7472,7 +7494,8 @@ function resolveSpec(spec) {
     S.tail.Svt = Svt; S.tail.vG = G;
     S.tail.hSpan = bVt * cG;                          // horizontal projection
     S.tail.hChord = cVt;
-    S.tail.vHeight = 0.5 * bVt * sG;
+    // (LAZAIR: a height - the downward V's is its depth under the tail, the frame lays it by vAngle's sign)
+    S.tail.vHeight = 0.5 * bVt * Math.abs(sG);
     S.tail.vChord = cVt;
     S.tail.Sh = Svt * cG * cG;                        // effective, for reporting
     S.tail.Sv = Svt * sG * sG;

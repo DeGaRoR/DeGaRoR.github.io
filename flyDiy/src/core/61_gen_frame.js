@@ -2287,7 +2287,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // it level with the fin tip, which is a T-tail. Y only — `hX` is the tail arm
   // and is the builder's, so riding up the fin does not silently re-tune pitch.
   const finTopY = lastST.yt + t.vHeight * 0.82;
-  const stabY = isV ? tailY + t.vHeight
+  // (LAZAIR: a V hung DOWN - vAngle < 0 - roots where it is drawn, tail.vRootY, else at the tail's keel; its tips stand
+  // vHeight under the root)
+  const stabY = isV ? (t.vAngle < 0 ? (t.vRootY != null ? t.vRootY : lastST.yb) - t.vHeight : tailY + t.vHeight)
                     : tailY + (t.stabH || 0) * (finTopY - tailY);
   let HTL, HTR, FIN = null, FIN2 = null, HTBL = null, HTBR = null, BOOMS = null;
   let TAIL = null;                    // P4: the conventional tail's truss record (the strips read it)
@@ -2767,12 +2769,21 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   } else if (isV) {
   // the V keeps its two tip nodes on four members each (the ruddervator
   // pair is one surface, raked; a truss for it is its own chantier)
-  [HTL, HTR] = NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
+  // LAZAIR: A V HUNG DOWN ON ITS TIP WHEELS (gear.vTip, with the wheel where the gear layer drew it) puts its tip nodes
+  // AT the drawn tips - right over the wheels, so each wheel's leg stands straight under its tip (a wheel hung off a node
+  // 0.4 m ahead of it swung up about the leg: measured on the Chinook-Lazair, the tail sat on its tips) - and ties the
+  // two tips together (internal): the panels' only anchors are the boom's own narrow ring, so a tip loaded upward
+  // rotated about the boom's axis; with the tie the Lambda is a triangle. Every other V: the lines below, to the bit
+  const VTd = t.vAngle < 0 && S.gear && S.gear.vTip && S.gear.vTip.z > 0 ? S.gear.vTip : null;
+  const vtW = !VTd ? null : VTd.mode === 'tail' ? (S.gear.twX != null && S.gear.twY != null ? [S.gear.twX, S.gear.twY] : null)
+            : (VTd.x != null && VTd.y != null ? [VTd.x, VTd.y] : null);
+  [HTL, HTR] = vtW ? NM(vtW[0], vtW[1] + (VTd.R || 0.10) + (VTd.fork || 0), VTd.z, 'HT') : NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
   for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
     B(H, TPB, 'fus'); B(H, TPT, 'fus');
     B(H, side === 'L' ? last.BL : last.BR, 'fus');
     B(H, side === 'L' ? last.TL : last.TR, 'fus');
   }
+  if (vtW) B(HTL, HTR, 'fus', false, 'inner');
   cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
   // ---- THE TAIL IN THE WING'S IDIOM (TAIL CHANTIER 2 P4) --------------------
@@ -3129,6 +3140,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // (MONOWHEEL: and a tricycle's NOSE skid - the same shoe where the nose wheel's tyre would touch)
   const SKID = (S.gear.type === 'taildragger' || S.gear.type === 'tricycle') && S.gear.twMode === 'skid';
   const twRN = SKID ? 0.03 : S.gear.twR, twDy = SKID ? (S.gear.twR || 0.10) - 0.03 : 0, twKgK = SKID ? 0.5 : 1;
+  // LAZAIR: the V hung down's tip wheels (60_gen_spec gear.vTip: a single body's V, vAngle < 0), or null
+  const VTIP = isV && t.vAngle < 0 && S.gear.vTip ? S.gear.vTip : null;
+  const XW = [];                                    // LAZAIR: the extra wheels' nodes (refs.xw)
   // ...and a 'hull' whose lines never reached the spec (an archetype's birth spec, pre-join) flies on the floats the
   // gross sizes, the seaplane it can be without its drawing - never on wheels it does not have
   const WHEELS = S.gear.type !== 'floats' && S.gear.type !== 'hull';
@@ -3377,6 +3391,28 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       twId.push(W_);
     }
     [TW, TW2] = twId;
+  } else if (VTIP && VTIP.mode === 'tail') {
+    // LAZAIR (24 Nov, the user: "an inverted V tail with a little wheel at each panel tip, on a single boom"): THE V HUNG
+    // DOWN's TAIL CONTACTS ARE ITS TIPS - as the twin booms' inverted V's (above): a wheel (or the skid's shoe) under each
+    // panel's tip, refs.tw and refs.tw2, one law each (30_solver twLine, the row's kind). Where the gear layer drew them
+    // (gear.twX / twY, the drawn contact; vTip.z its lateral place), else under the frame's V tips by the fork's drop.
+    // Each hangs on its tip node (the leg) and is braced to the tail post's two nodes and its side's last ring (rule 10's
+    // pyramid: no member near-axial with another)
+    const twId = {};
+    for (const [H, sd, ring] of [[HTL, -1, [last.BL, last.TL]], [HTR, 1, [last.BR, last.TR]]]) {
+      const hp = nodes[H].p, R0 = VTIP.R || S.gear.twR || 0.10;
+      const x = S.gear.twX != null ? S.gear.twX : hp[0];
+      const y = S.gear.twY != null ? S.gear.twY : hp[1] - R0 - VTIP.fork;
+      const z = VTIP.z > 0 ? sd * VTIP.z : hp[2];
+      if (sd < 0) { twX = x; twY = y; }
+      const W_ = N(x, y - twDy, z, 'TW', twRN);
+      B(W_, H, 'gear', false, 'leg');
+      B(W_, TPB, 'gear', false, 'wire'); B(W_, TPT, 'gear', false, 'inner');
+      for (const q of ring) B(W_, q, 'gear', false, 'wire');
+      pt(W_, twKgK * R.wheelTwKg(R0) + mFairTw);
+      twId[sd] = W_;
+    }
+    TW = twId[-1]; TW2 = twId[1];
   } else if (S.gear.twOleo && !SKID && S.gear.twX != null && S.gear.twY != null) {
     // PC6-OLEO (15 Nov, the user: "we really need to build the actual [suspension] piece to it. That's essential, that's
     // its reason to be"): THE PC-6's TAILWHEEL, A TELESCOPIC OLEO. The cylinder (TOA its top, TOB its foot: on the
@@ -3454,6 +3490,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // SKIS: the tail ski's mass mostly on the tailpost foot (its pedestal and rigging hang off the spring's root): on the
     // wheel's node alone 8 kg let a PC-6's spring snap through under full rudder at the take-off's start (measured)
     if (SKR && SKR.third) pt(TPB, 0.6 * SKR.third.kg);
+  }
+  // LAZAIR: THE V TIPS' EXTRA WHEELS (gear.vTip 'extra': a tricycle's tail-strike wheels, or a second pair beside any
+  // gear) - one rolling contact under each tip (refs.xw: 30_solver rolls it as a main without brakes; castoring, it
+  // takes no side force), where the gear layer drew it (vTip x / y / z), else under the frame's V tips by the fork's
+  // drop; hung on the tip node and braced as the tail contacts above. No key, no node: every other build as it was
+  if (VTIP && VTIP.mode === 'extra') {
+    for (const [H, sd, ring] of [[HTL, -1, [last.BL, last.TL]], [HTR, 1, [last.BR, last.TR]]]) {
+      const hp = nodes[H].p, R0 = VTIP.R || 0.10;
+      const x = VTIP.x != null ? VTIP.x : hp[0], y = VTIP.y != null ? VTIP.y : hp[1] - R0 - VTIP.fork;
+      const W_ = N(x, y, VTIP.z > 0 ? sd * VTIP.z : hp[2], 'XW', R0);
+      B(W_, H, 'gear', false, 'leg');
+      B(W_, TPB, 'gear', false, 'wire'); B(W_, TPT, 'gear', false, 'inner');
+      for (const q of ring) B(W_, q, 'gear', false, 'wire');
+      pt(W_, R.wheelTwKg(R0));
+      XW.push(W_);
+    }
   }
   // TAIL-RETRACT (2026-11-09): A TAILDRAGGER'S RETRACTION KIT, on the mains' axles (their actuators, locks and
   // trunnions; the tailwheel stays fixed); priced once, as the tricycle's
@@ -4563,6 +4615,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     engine: engNodes, engineOf: engIdx, mains: GAL === GAR ? [GAL] : [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,   // (MONOWHEEL: one main)
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     ...(SKIDS.length ? { skids: SKIDS } : {}),       // TIP-SKID: the wingtip skids' shoes (the key only then)
+    ...(XW.length ? { xw: XW, ...(VTIP.castor ? { xwFree: 1 } : {}) } : {}),   // LAZAIR: the V tips' extra wheels (the key only then)
     ...(TOWH >= 0 ? { towHook: [TOWH] } : {}),       // THE TOW HOOK: the release's node, for the tow line (the key only then)
     ...(mastRef ? { mast: mastRef } : {}),          // THE HANGING NACELLE: the mast (3d; the key only then)
     ...(keelRef ? { keel: keelRef } : {}),          // ...and its keel beam (3e)

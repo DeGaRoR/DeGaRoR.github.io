@@ -3471,7 +3471,27 @@ PAGE.post = ctx => {
   // on the last build (window.CAGE_IV_TIPS, metres; it draws after this layer) or a quarter metre ahead of the boom end
   const IVD = window.CAGE_IV_DIR ? window.CAGE_IV_DIR(P) : { up: false, out: false };   // G3801: the way
   const IVg = !!TBg && Math.round(+P.stMount || 0) === 4 && +P.stOn !== 0 && !IVD.up;   // (an upward V: the booms' wheels)
+  // LAZAIR (24 Nov, the user: "an inverted V-tail with a little wheel at each panel tip, on a single boom"): A SINGLE
+  // BODY's V HUNG DOWN (the stab's cant at -20 or below) with its tip wheels on (GEAR_PAGE.vTipOf: the gear page's 'V
+  // tip wheels' rows) - the tips THIS build's panels have (CAGE_STAB_TIPS: the stab layer's panels computed dry, it
+  // draws after this layer). 'As the tail wheel' moves a taildragger's tail contact (station 2's leg 3) to the two tips
+  // exactly as the twin booms' inverted V does (tipMount below); 'extra wheels', or a build with no tail unit, hang two
+  // more wheels there - drawn with the airframe (no suspension, no unit), published for the join (CAGE_GEAR.vtExtra)
+  const VT = !TBg && GP.vTipOf ? GP.vTipOf(P) : null;
+  const vtTips = VT && window.CAGE_STAB_TIPS ? window.CAGE_STAB_TIPS(P, mesh) : null;
+  const VTg = !!(VT && vtTips);
+  const vtTailSt = VTg && VT.mode === 1 ? stations.find(st => st.id === 2 && st.leg === 3 && !+P.s2Nose) || null : null;
+  if (vtTailSt) {                                   // the tail unit's wheel is the tip wheels' size, its tyre their width
+    vtTailSt.R = VT.R; vtTailSt.fork = VT.fork;
+    if (VT.wide > 0) vtTailSt.P = Object.assign({}, vtTailSt.P, { whWide: VT.wide });
+  }
   const tipMount = (st, sgn) => {
+    if (VTg && st.leg === 3 && (st === vtTailSt || st.vtExtra)) {
+      const pub = vtTips.find(q => Math.sign(q[0]) === sgn) || vtTips[sgn > 0 ? 0 : 1];
+      const provider = () => ({ p: pub.slice(), n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] });
+      provider.x0 = pub[0]; provider.tip = true;
+      return provider;
+    }
     if (!IVg || st.leg !== 3) return null;
     const gap = window.CAGE_IV_GAP ? window.CAGE_IV_GAP(P) : 0.30, G = Math.max(20, Math.min(55, +P.stCant || 35)) * D2R;
     const pub = window.CAGE_IV_TIPS && window.CAGE_IV_TIPS.find(q => Math.sign(q[0]) === sgn);
@@ -3484,6 +3504,7 @@ PAGE.post = ctx => {
     return provider;
   };
   const boomMount = (st, sgn) => {
+    if (VTg && st === vtTailSt) return tipMount(st, sgn);   // LAZAIR: the single body's V tips
     if (!TBg || st.leg !== 3) return null;
     if (IVg) return tipMount(st, sgn);
     // CAR-4 (the user, 12 Nov: "back wheels track should be equal to the front wheel track"): twBoomOut sets the boom
@@ -3834,7 +3855,7 @@ PAGE.post = ctx => {
     }
   };
   for (const st of stations) {
-    const sides = (st.leg === 3 && TBg) ? [-1, 1] : (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
+    const sides = (st.leg === 3 && (TBg || (VTg && st === vtTailSt))) ? [-1, 1] : (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
     for (const s of sides) {
       const sgn = s === 0 ? 1 : s;
       let r, rOleo = null, retLow = null, retSc = null;
@@ -3872,7 +3893,7 @@ PAGE.post = ctx => {
         // (G3800: on twin booms the -x boom's fork is THE castor - refs.tw, model z < 0; the other boom's fork is
         // drawn with its leg: it rides its spring, it does not yaw in the picture)
         const cb = allBags();
-        const yaws = !TBg || sgn < 0;
+        const yaws = !(TBg || (VTg && st === vtTailSt)) || sgn < 0;   // (LAZAIR: the V tips' pair, as the booms')
         // PC6-OLEO: the PC-6 tailwheel's castor in four parts the flight poses apart (castorUnit's bags.pc6): the
         // collar, the V's upper arm, its lower bands - and the slider, the castor's own bags (the wheel rides in it)
         const pc6B = yaws && Math.round(+st.P.twStyle || 0) === 1 && +st.steer !== 4
@@ -3988,6 +4009,19 @@ PAGE.post = ctx => {
                       lever: r.lever ? Object.assign({}, r.lever, { bags: lb.lever }) : null });   // WILGA-GEAR
       contacts.push({ st, sgn, p: r.axle, R: st.R, oleo: r.pc6Oleo || null });   // (PC6-OLEO: the tail strut's record)
     }
+  }
+  // LAZAIR: THE V TIPS' EXTRA WHEELS ('extra wheels', or 'as the tail wheel' with no tail unit to move): the tip wheel's
+  // fork and wheel (legTipWheel, the twin booms' inverted V's own) under each tip, in the airframe's bags - fixed to the
+  // panel, no suspension, no unit of their own - and their axles published (CAGE_GEAR.vtExtra: the join and the frame
+  // put a rolling contact there, 61_gen_frame refs.xw)
+  const vtExtra = [];
+  if (VTg && !vtTailSt && GG.legTipWheel) for (const sgn of [-1, 1]) {
+    const stX = { leg: 3, vtExtra: true, R: VT.R, fork: VT.fork, steer: VT.castor ? 1 : 3, single: false };
+    stX.mount = tipMount(stX, sgn);
+    if (!stX.mount) continue;
+    const Pv = VT.wide > 0 ? Object.assign({}, P, { whWide: VT.wide }) : P;
+    const rX = GG.legTipWheel(bags, AFx, Pv, stX);
+    if (rX && rX.axle) vtExtra.push({ p: rX.axle.slice(), R: VT.R, sgn });
   }
   // the SPAT is the builder's to paint (phase C): its own livery section,
   // trim by default, borrowing the fuselage's colour — everything else in
@@ -4384,6 +4418,8 @@ PAGE.post = ctx => {
     ...(skiUnits.length ? { skis: skiUnits.map(u => ({ kind: u.kind, axle: u.axle, dims: u.dims, fittings: u.rec.fittings, yBottom: u.rec.yBottom,
                                                         links: (u.links || []).map(l => ({ name: l.name, pin: l.pin, tip: l.tip })) })) } : {}),
     ...(leverOut.length ? { lever: leverOut } : {}),                // WILGA-GEAR: the trailing-link legs as drawn
+    ...(vtExtra.length ? { vtExtra } : {}),                         // LAZAIR: the V tips' extra wheels as drawn (axles, metres)
+    ...(VTg ? { vtTips: vtTips.map(q => q.slice()), vtMode: vtTailSt ? 'tail' : 'extra' } : {}),   // LAZAIR: the tips they hang from
     ...(leverBad ? { leverBad } : {}),
     ...(swing ? { swing } : {}),
     ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)

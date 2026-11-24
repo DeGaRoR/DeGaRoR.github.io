@@ -1849,7 +1849,7 @@ const DESIGN_ROWS = [
     // boom deck at the centreline and the fin goes; the join writes
     // tail.type 'v' from the cant, the ruddervator mix is the solver's own
     read: P => Math.round(P.stMount) === 4 ? ['iv', 'ivOut', 'bvIn', 'bvOut'][Math.max(0, Math.min(3, Math.round(+P.stIvDir || 0)))]
-             : +P.stCant >= 20 ? 'v'
+             : Math.abs(+P.stCant) >= 20 ? 'v'     // (LAZAIR: a V canted down, its cant below -20, is still a V)
              : (Math.round(P.stMount) === 2 || +P.stY >= 1.8) ? 't'
              : +P.stY >= 0.75 ? 'cruci' : 'conv',
     options: [
