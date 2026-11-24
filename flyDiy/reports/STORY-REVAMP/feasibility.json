@@ -1697,7 +1697,12 @@
    "id": "clients.02",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "feasible",
+   "plane": null,
+   "timeS": 0,
+   "why": "",
+   "legs": [],
+   "pool": "validated",
    "cls": "order"
   },
   {

@@ -1,0 +1,18 @@
+{
+ "id": "clients.02",
+ "kind": "build",
+ "verdict": "feasible",
+ "plane": null,
+ "timeS": 0,
+ "why": "",
+ "tried": [],
+ "legs": [],
+ "attempts": [],
+ "notes": [],
+ "untested": true,
+ "key": "414f7f6c01a9",
+ "where": "contract",
+ "pool": "validated",
+ "sim": "L40K",
+ "wallS": 110
+}
