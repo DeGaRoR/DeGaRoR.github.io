@@ -193,7 +193,7 @@ var RAIN_FX = (function () {
       // FrontSide culled every one; every debug quad drawn right / up (counter-clockwise) drew
       side: THREE.DoubleSide,
       transparent: true, depthWrite: false, depthTest: true, blending: THREE.CustomBlending,
-      blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
+      blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor }, 'fx / rain / streaks');
     M.toneMapped = true; M.name = 'rain';
     const mesh = new THREE.Mesh(g, M); mesh.frustumCulled = false; mesh.renderOrder = 5; mesh.name = 'rain'; mesh.visible = false;
     const off = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], cam = [0, 0, 0];
