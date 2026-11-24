@@ -319254,3 +319254,31 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
   tail: two tail contacts at the drawn tips, standing on them and nothing else; extra: the Cessna's nose wheel and mains to the bit, two
   castoring contacts aft), K4 vtD / vtFork move the drawn wheel and the flown contact together, K5 the Lazair stands on its
   tips, turns on the brake and flies HOME's circuit (tw_probe --build lazair).
+
+## LAZAIR-TWIN - THE USER'S LAZAIR DIVERGED AT t 0: THE OLD RULE'S STEP IS NOW PROVED ON THE NETWORK (24 Nov 2026, A0's LAZFIX job; branch a0/lazair-twin-fix off master 896877867)
+- **The user's report.** "My Lazair model makes the sim diverge in the current build" - the plaque's flight 'sim-diverged' at
+  t 0, "the propeller struck". The build: tools/fixtures/lazair_user_2026-11-24.json (a hanging nacelle - fuselage.hang's mast,
+  rodHub - on a rod, two rotax277 pushers on the wing, the V hung down on its tip wheels, gear.vTip 'extra').
+- **The cause (measured, substep by substep).** Not the engines (their x is the station, z the lateral 0.952: mirrored by
+  index, sense +1 / -1, as the twin-floats ultralight's) and not the V. The MAST's lattice (61_gen_frame 3d: 0.15 kg nodes,
+  each on 8-12 'cabane' members at 1.54e6 N/m, 345 N s/m) has every member under its own omega dt / c dt bound at the rule's
+  167 substeps, and the NETWORK at (omega dt)^2 + 2 gamma dt = 5.44 (the dampers 4.45) against symplectic Euler's hard 4. The
+  rule checked the network only on the G580 path (springs under the dampers) and at the G2630 cap; where the springs set the
+  step it returned the per-beam step unproved. The mast blew up within 40 substeps (MST nodes to 288 m/s), NaN on the first
+  frame; the flung engines read a prop strike.
+- **The fix (62_gen_aero genSubstepsTrue, netGuard).** The step the old rule returns (the springs' step, or atCap's) is proved
+  against the hard edge, 1.05 x 4 (genNetEig's own 5 % margin: the validated Petrel reads 4.02 at 200 and flies): a Gershgorin
+  bound first (O(beams), no power iteration unless it could be over), then genNetEig. Only a network past the edge is
+  touched: its dampers cut as G2630 cuts them (the largest per-beam c dt bound that brings it to GEN_NET_MAX), the step raised
+  toward the cap only where the springs alone take more than half the margin; the rigid floats' members left out (G790).
+  Measured: every build and fixture under builds/ and tools/fixtures/ (95, raw buildGen) and the six VALIDATED builds plus the
+  twin-floats ultralight, the Chinook, the DC-3 and the twin boom JOINED (loadBuild) are bit-identical (substeps, substepsTrue,
+  every k and c); the Lazair alone moves (167 substeps kept, 112 mast/hub dampers cut, the network 3.00).
+- **GATE RADIALDIV** asks the Lazair's CONSTRUCTION and REST (its REST strain the airframe's: its bungee legs stand 5-7 % into
+  their stroke at rest), and its selftest catches the old rule on it (5.44, NaN at 0 s). The selftest's mosquito pair reads
+  MISSED on master's core too (their REST does not go red on the old rule any more): not this change's.
+- **Not yet (the next step of the job).** With the divergence gone the Lazair rolls (tw_probe roll: 25 m/s in 8.9 s, straight),
+  but at HOME a full-power start pitches it onto its nose leg (the high thrust line, 1.27 m, the pod's keel 3 cm over the
+  grass) and the pilot rejects a nose-over at V 3; the V tips' four 'fus' ties to the rod (the rod's 0.7 mm gauge) yield under
+  the tail's load at the spawn (a dent); the solver's G1470 rule strikes EVERY propeller when the nose ring touches (wrong for
+  wing and pusher engines); aid.prop and the garage marker read disc 0 only.
