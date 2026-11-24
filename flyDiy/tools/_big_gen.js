@@ -80,7 +80,7 @@ function texOf(lib, key, mapName) {
   return t;
 }
 const std = (c, o) => new THREE.MeshStandardMaterial(
-  Object.assign({ color: c, roughness: 0.92, metalness: 0 }, o || {}));
+  Object.assign({ userData: { progOwner: 'town / big buildings / finish slots' }, color: c, roughness: 0.92, metalness: 0 }, o || {}));
 function makeMats() {
   return {
     wall:   std(0x8a7f74),
@@ -88,10 +88,10 @@ function makeMats() {
     roof:   std(0x6f7478, { roughness: 0.6, metalness: 0.3 }),
     door:   std(0x6a5a4c, { roughness: 0.7, metalness: 0.3 }),
     metal:  std(0xa9b1b6, { roughness: 0.45, metalness: 0.75 }),
-    glass:  std(0x28343c, { roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.62, side: THREE.DoubleSide, userData: { flat: true } }),
-    sign:   std(0xffffff, { roughness: 0.8, userData: { flat: true } }),
-    awning: std(0x5a1c1c, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true } }),
-    trim:   std(0xd8d3c8, { roughness: 0.9, userData: { flat: true } }),      // the mill's white window frames
+    glass:  std(0x28343c, { roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.62, side: THREE.DoubleSide, userData: { flat: true, progOwner: 'town / big buildings / window glass' } }),
+    sign:   std(0xffffff, { roughness: 0.8, userData: { flat: true, progOwner: 'town / big buildings / sign board' } }),
+    awning: std(0x5a1c1c, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true, progOwner: 'town / big buildings / awning' } }),
+    trim:   std(0xd8d3c8, { roughness: 0.9, userData: { flat: true, progOwner: 'town / big buildings / window trim' } }),      // the mill's white window frames
     beam:   std(0x8a7358),                                                       // raw timber: the frames, the floors
   };
 }

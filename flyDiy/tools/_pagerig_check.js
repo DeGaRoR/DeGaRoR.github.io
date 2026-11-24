@@ -9,6 +9,8 @@
 //   page-rig-2 (16 Nov; the user via A0: "they keep failing their test runs"): 7 the anchor is the sim's CG, camGet().target the
 //     cross-check, an aim at the world origin a MISS (FLIGHT_PROBE.craft() is a Group at 0,0,0); the in-frame projection; the
 //     skip to the line-up; _serve.js from the repo; --gpu 6b the aircraft in the chase frame after fly(), 6c-6d an eyeNear grab.
+//   page-rig-4 (SEAPLANES 22 Nov): 7o-7p a float / hull build's start dialog (#edLaunch) answered by fly() - water by default;
+//     7q-7r flying is not drawing: an open fleet screen / new-plane panel closed (Escape), the AA rendering before fly() returns.
 //   node tools/_pagerig_check.js [--gpu [--out <dir>] [--cap 540]]
 'use strict';
 const fs = require('fs'), path = require('path'), { spawnSync } = require('child_process');
@@ -86,6 +88,30 @@ const fakeGrab = async (draw) => {
      '7m place() and every CLI view wait for the frame rate to come back before the grab');
   ok(/if \(r\.info\.blank && go\.retryBlank !== false\)/.test(code3) && /r\.info\.retried = true/.test(code3) && /SETTLE_MS/.test(code3),
      '7n a BLANK grab settles and grabs once more (capped wait), the second frame returned as it is'); }
+// (page-rig-4, SEAPLANES 22 Nov) a float / hull build's start dialog (#edLaunch, app.js launchAsk) is answered by fly(): every Go
+// only toggled it, and the Super Petrel's 03:18 slot never flew. The answer, on a stub page; fly() asks it after each Go.
+{ const stub = (hidden, ks) => { const clicked = []; const el = { hidden, querySelector: q => { const k = (q.match(/data-k=([a-z]+)/) || [])[1]; return ks.includes(k) ? { click: () => clicked.push(k) } : null; } };
+    return { doc: { getElementById: id => id === 'edLaunch' ? el : null }, clicked }; };
+  const ans = (d, k) => new Function('document', 'return ' + P.LAUNCH_ANSWER(k))(d.doc);
+  const w = stub(false, ['water', 'trailer']), t = stub(false, ['water', 'trailer']), h = stub(true, ['water']), m = stub(false, ['trailer']);
+  const rw = ans(w, 'water'), rt = ans(t, 'trailer'), rh = ans(h, 'water'), rn = new Function('document', 'return ' + P.LAUNCH_ANSWER())({ getElementById: () => null }), rm = ans(m, 'water');
+  ok(rw === 'water' && w.clicked.join() === 'water' && rt === 'trailer' && t.clicked.join() === 'trailer' && rh === null && !h.clicked.length && rn === null && rm === 'no water' && !m.clicked.length,
+     '7o the launch dialog: water / trailer clicked when open, nothing when closed or absent (a land build), a missing button named');
+  const code4 = SRC.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  ok(/getElementById\('bGo'\)[\s\S]{0,200}LAUNCH_ANSWER\(launch\)/.test(code4) && /fo\.launch === 'trailer' \? 'trailer' : 'water'/.test(code4) && /rig\.fly\(\{ launch: opt\('launch', 'water'\) \}\)/.test(code4),
+     "7p fly() answers it after each Go (default 'On the water', fly({ launch: 'trailer' }) / CLI --launch trailer)"); }
+// (page-rig-4, AUDIO via A0 22 Nov) FLYING IS NOT DRAWING: the loop returns before the world under a UI hold (the fleet screen,
+// the new-plane panel, the fiche's picture: FLYDIY_UI_HOLD) - fly() closes an open screen with ONE Escape and wants the AA to render
+{ const holds = w => new Function('window', 'return ' + P.UI_HOLDS)(w);
+  const a = holds({ FLEET_SCREEN: { isOpen: () => true }, NEW_PLANE: { isOpen: () => true } }), b = holds({}), c = holds({ FLEET_SCREEN: { isOpen: () => { throw new Error('x'); } } });
+  const sent = []; const KE = function (t, o) { this.type = t; this.key = o.key; };
+  new Function('document', 'window', 'KeyboardEvent', 'return ' + P.ESCAPE)({ body: { dispatchEvent: e => sent.push(e.key) } }, { dispatchEvent: e => sent.push('window:' + e.key) }, KE);
+  ok(a.join() === 'fleet screen,new plane' && !b.length && !c.length && sent.join() === 'Escape' && parses(P.AA_RATE),
+     '7q the holds named (fleet screen, new plane; none when absent or throwing); ONE Escape on the page; the AA rate probe parses');
+  const code5 = SRC.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  ok(/uh = await rig\.J\(UI_HOLDS\)[\s\S]{0,200}await rig\.ev\(ESCAPE\)[\s\S]{0,200}aa = await rig\.J\(AA_RATE\); if \(aa > 0\) break/.test(code5)
+     && /if \(!\(aa > 0\)\)[\s\S]{0,200}world is HELD/.test(code5) && /uiHolds: \$\{UI_HOLDS\}/.test(code5),
+     '7r fly() closes an open screen (Escape), wants AA renders > 0 a second, else throws naming the hold; WHY reports uiHolds'); }
 // 5 the CLI's usage
 const u = spawnSync(process.execPath, [path.join(__dirname, 'page_rig.js')], { encoding: 'utf8', timeout: 20000 });
 ok(u.status === 2 && /usage: node tools\/page_rig\.js --views/.test(u.stderr), '5 the CLI without arguments: usage, exit 2');

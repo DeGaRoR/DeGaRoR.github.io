@@ -1947,7 +1947,7 @@ function matsOrNull() { return MATS; }
 // where the building stands) live on the finish, and a material shared by two finishes would take the first's alone
 function makeMats(tag) {
   if (typeof MATLIB === 'undefined' || typeof THREE === 'undefined' || !THREE.MeshStandardMaterial) return null;
-  const sh = (k, shape, p) => MATLIB.shared(THREE, shape, p, 'derelict:' + (tag ? tag + ':' : '') + k);
+  const sh = (k, shape, p) => MATLIB.shared(THREE, shape, p, 'derelict:' + (tag ? tag + ':' : '') + k, 'town / derelict hangar / finish slots');
   const side2 = THREE.DoubleSide;
   const M = {};
   for (const k of ['steel', 'steelNew', 'concFloor', 'concWall', 'ply']) M[k] = sh(k, 'std', { color: 0xa09080, roughness: 0.9, metalness: 0 });

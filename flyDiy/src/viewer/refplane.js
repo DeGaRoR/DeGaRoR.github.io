@@ -434,7 +434,7 @@ function build(key) {
   for (var name in dec) {
     var g = dec[name];
     var mk = matKeyOf(payload, name);
-    if (!mats[mk]) mats[mk] = new THREE.MeshStandardMaterial({ name: 'ref:' + mk });
+    if (!mats[mk]) mats[mk] = new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / reference plane / model' }, name: 'ref:' + mk });
     var geo = new THREE.BufferGeometry();
     // NOT a copy: nothing here ever mutates a position, so the reference and
     // the flight model share one set of arrays and the second aeroplane in
@@ -612,7 +612,7 @@ function drawBox() {
   if (!isFinite(b.min.x) || b.min.x > b.max.x) return;
   // AMBER, and not the build's own 0x5db3ff blue. Two boxes in one room is
   // exactly the situation where "which one is that" must never be a question.
-  boxHelper = new THREE.Box3Helper(b, 0xffb020);
+  boxHelper = new THREE.Box3Helper(b, 0xffb020); boxHelper.material.userData.progOwner = 'editor / reference plane / bounds box';
   boxHelper.material.transparent = true;
   boxHelper.material.opacity = 0.75;
   boxHelper.material.depthTest = false;

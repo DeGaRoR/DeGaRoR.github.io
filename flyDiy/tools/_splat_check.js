@@ -315,8 +315,8 @@ function checkShader(G, splice, quiet) {
   // one ambient) and BOTH specular lobes faded out by roughness 0.9 (GGX at 1 on a dark ground measured
   // +40 % linear - a haze the world never had); the patch's twin a Lambert (15 units, not 17)
   const rw = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
-  say(/islandGroundHook \? new THREE\.MeshStandardMaterial\(\{ map: tex, roughness: 1, metalness: 0 \}\) : worldLambert/.test(rw), "the island's near ring is a MeshStandardMaterial (metalness 0), the analytic ring a Lambert");
-  say(/const gMatTwin = islandGroundHook \? worldLambert\(\{ map: tex \}\) : gMat;[\s\S]{0,200}innerPatchShared = \{ mat: gMatTwin/.test(rw), 'the premises patch clones a Lambert TWIN under the same hook (15 units; a Standard clone asks 17 and fails to link)');
+  say(/islandGroundHook \? new THREE\.MeshStandardMaterial\(\{(?: userData: \{ progOwner: '[^']*' \},)? map: tex, roughness: 1, metalness: 0 \}\) : worldLambert/.test(rw), "the island's near ring is a MeshStandardMaterial (metalness 0), the analytic ring a Lambert");
+  say(/const gMatTwin = islandGroundHook \? worldLambert\(\{(?: userData: \{ progOwner: '[^']*' \},)? map: tex \}\) : gMat;[\s\S]{0,200}innerPatchShared = \{ mat: gMatTwin/.test(rw), 'the premises patch clones a Lambert TWIN under the same hook (15 units; a Standard clone asks 17 and fails to link)');
   say(rw.includes(".replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/*"), "the hook cuts the IBL irradiance (the hemisphere stays the world's one ambient)");
   say(rw.includes("'vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness )' + GLOSS + ';'") && rw.includes("'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'") && /const SC = THREE\.ShaderChunk, GLOSS = ' \* smoothstep\( 0\.9, 0\.6, material\.roughness \)';/.test(rw), "the hook fades both specular lobes (the probe's and the sun's) out by roughness 0.9: dry ground is the Lambert it was");
   // (G1521, POTATO-DEEP: the hook's splat is SP - SPL unless the plain ground keys it out)

@@ -1,0 +1,35 @@
+{
+ "id": "home.01",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1184,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w1",
+   "t": 1184,
+   "how": "stopped",
+   "at": "w1",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "6e8ccae575fc",
+ "where": "home:1",
+ "pool": "validated",
+ "wallS": 1802
+}

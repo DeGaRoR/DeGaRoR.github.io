@@ -21,8 +21,8 @@ const ROOT = path.join(__dirname, '..', '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
+  cessna: 'builds/cessna172r_2026-11-08.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 const BK = opt('build', 'cub'), REPS = +opt('reps', 3), ONLY = opt('only', null) ? new Set(opt('only').split(',')) : null;
 const OUT = path.resolve(opt('out', path.join(__dirname, 'garage_census_' + BK + '.json')));
 const now = () => Number(process.hrtime.bigint()) / 1e6;

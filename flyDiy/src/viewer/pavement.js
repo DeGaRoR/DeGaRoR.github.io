@@ -372,7 +372,7 @@ const PAVEMENT = (() => {
   // game's premises) - the analytic world's strips keep their constant lift and their rows - and on a strip, or a road or a
   // polygon the caller marks (o.refine: render_premises, the aerodromes' own - within REFINE_NEAR of a runway); every
   // pavement refined cost 355 k triangles over Jolene's village roads and harbour aprons, for no wheel
-  const REFINE = { tol: 0.005, min: 0.75, roadV: false, poly: true, reuseHeight: typeof location !== 'undefined' && /[?&]pavereuse=1(?:&|$)/.test(location.search || '') };   // roadV stays off; height reuse is an opt-in experiment.
+  const REFINE = { tol: 0.005, min: 0.75, roadV: false, poly: true, reuseHeight: !(typeof location !== 'undefined' && /[?&]pavereuse=0(?:&|$)/.test(location.search || '')) };   // roadV stays off; (PERF-WORLDBUILD, 22 Nov) the height reuse is the DEFAULT - the heights the refinement read are the ones the vertices are written with; ?pavereuse=0 reads them again, as before (GATE PAVEXACT: the island byte for byte either way)
   // refineAxis(A, B, H, inside): A, B the two axes' stations (sorted); H(a, b) the ground at a on A's axis, b on B's;
   // inside(a, b) the point is paved. -> A with stations inserted
   // (DIRT-STRIP: `min` > 0 - a bush strip's bumps (26b_strip_micro) - the finest spacing, REFINE.min otherwise)
@@ -2236,7 +2236,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     TAB.tex.needsUpdate = true; TAB.uploads++;
   }
   // the pavement's material object, the one site that makes it (the old path's per-part ones and the table's one)
-  const pavMat = THREE => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false, side: THREE.FrontSide });
+  const pavMat = THREE => new THREE.MeshStandardMaterial({ userData: { progOwner: 'pavement / runways and aprons / surface' }, color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false, side: THREE.FrontSide });
   // THE ONE MATERIAL: the shared library's arrays, the rows, the debug switch - nothing per strip
   function tableMat(THREE) {
     if (TAB.mat) return TAB.mat;
@@ -2365,8 +2365,8 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   }
   function ptMaterial(THREE) {
     const mode = PT.mode;
-    if (mode === 't3') return new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false });
-    if (mode === 't3u') return new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false });
+    if (mode === 't3') return new THREE.MeshStandardMaterial({ userData: { progOwner: 'pavement / runways and aprons / surface (tier 3, lit)' }, color: 0xffffff, roughness: 1, metalness: 0, transparent: true, depthWrite: false });
+    if (mode === 't3u') return new THREE.MeshBasicMaterial({ userData: { progOwner: 'pavement / runways and aprons / surface (tier 3, unlit)' }, color: 0xffffff, transparent: true, depthWrite: false });
     const G = ptGround(); if (!G) return null;
     const M = G.clone(), inner = G.onBeforeCompile, key = G.customProgramCacheKey;
     M.transparent = true; M.depthWrite = false;

@@ -1137,7 +1137,9 @@ function drawPylonMount(group, f, P, GK, aft, C) {
 if (typeof window !== 'undefined') window.CAGE_PYLON = { caster: pylonCaster, hug: pylonHug, NS: PYLON_NS };
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
 // MONOWHEEL: THE HUGGING BODY for another layer - the gear layer's faired skid is this blade hung under the keel
-window.CAGE_PYLON = { pylonCaster, pylonHug, pylonOutline, drawPylonBlade };
+// (both keepers on one object: master's caster / hug / NS - the Wilga gear's fitted root reads CAGE_PYLON.caster - and this
+// branch's pylon tools, the tip skid's and the hub's; an assignment here had dropped the first set, 15 Nov, L40c WILGAGEAR)
+window.CAGE_PYLON = Object.assign(window.CAGE_PYLON || {}, { pylonCaster, pylonHug, pylonOutline, drawPylonBlade });
 function pylonMeshes(group, fair, jb, blendTop) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   // (PETREL-LS: the fairing's own livery section, 'pylon' - following the engine mount's when unset, as matOf did)
@@ -1189,13 +1191,13 @@ const matOf = name => {
   }
   if (!matCache[name]) {
     const [met, rgh] = EP.PROPS[name] || [0.55, 0.5];
-    matCache[name] = new THREE.MeshStandardMaterial({
+    matCache[name] = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / engine / part fallback' },
       color: new THREE.Color(EP.COL[name] || EP.NEUTRAL),
       metalness: met, roughness: rgh, side: THREE.DoubleSide });
   }
   return matCache[name];
 };
-const propM = new THREE.MeshStandardMaterial({
+const propM = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / propeller / wood fallback' },
   color: 0xc79a63, metalness: 0.0, roughness: 0.62,
   side: THREE.DoubleSide });
 // THE PROPELLER'S MATERIAL IS A CHOICE, not a name — the cowl bench's own
@@ -1863,7 +1865,7 @@ function engPlace(ctx, prev) {
       }
       u.propFit = { ok: !why.length, why, R, hub: u.prop.hub, wingHits, bodyHits, n };
       if (why.length) {
-        const bad = new THREE.MeshStandardMaterial({ color: 0x7a1a12, roughness: 0.6, metalness: 0.1,
+        const bad = new THREE.MeshStandardMaterial({ userData: { progOwner: 'editor / propeller fit / clash red' }, color: 0x7a1a12, roughness: 0.6, metalness: 0.1,
           emissive: new THREE.Color(0xff2a1a), emissiveIntensity: 0.45 });
         u.prop.group.traverse(o => { if (o.isMesh) o.material = bad; });
       }

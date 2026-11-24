@@ -838,8 +838,8 @@ async function pageRows() {
   const crypto = require('crypto'), C2D = require('./_c2d_digest.js');
   const { openPage } = require('./_page_node.js');
   const rd = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
-  const CUB = rd('builds/cub_2026-09-20_corrected.json').spec, MET = rd('tools/fixtures/build_v10_cessnaMetal_2026-09-26.json').spec;
-  const C172 = rd('tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json').spec;
+  const CUB = rd('builds/cub_2026-09-20_corrected.json').spec, MET = rd('builds/cessna172r_2026-11-08.json').spec;
+  const C172 = rd('bugReports/cessnaFloatsWOrks.json').spec;
   const env = (name, spec) => JSON.stringify({ what: 'flydiy-build', v: 10, name, spec });
   const t0 = Date.now();
   // THE PAGE ROWS RUN THE PLAYER-DERIVED PROPS (?parktrio=0). Since 21 Nov the default is the STATIC TRIO (the user's call:
@@ -851,7 +851,9 @@ async function pageRows() {
     const trio = q => { try { return new Function('W', 'return ' + line)({ location: { search: q } }); } catch (e) { return String(e); } };
     check(!!line && trio('') === true && trio('?mode=sandbox') === true && trio('?parktrio=0') === false && trio('?x=1&parktrio=0&y=2') === false && trio('?parktrio=01') === true,
       '11 the static trio is the default, ?parktrio=0 the player-derived props (parked.js STATIC_TRIO)', [trio(''), trio('?parktrio=0')].join(' / ')); }
-  const P = await openPage({ quiet: true, query: 'parktrio=0', storage: { 'flydiy.wip': env('cub', CUB), 'flydiy.build.parkC172': env('parkC172', C172) }, c2d: 'digest' });
+  // (...and ?based=1, since PERF-SIMPLIFY, 22 Nov: the based planes and the storage are ON HOLD by default, the user's call,
+  // dormant behind that flag; row 12p measures the fleet's save / capture / bake / decode, which only runs with it)
+  const P = await openPage({ quiet: true, query: 'parktrio=0&based=1', storage: { 'flydiy.wip': env('cub', CUB), 'flydiy.build.parkC172': env('parkC172', C172) }, c2d: 'digest' });
   const PW = P.win;
   await P.until(() => PW.BOOT && PW.BOOT.state === 'gone', 900000);
   const K = PW.PARKED, G = PW.GARAGE_SPEC;

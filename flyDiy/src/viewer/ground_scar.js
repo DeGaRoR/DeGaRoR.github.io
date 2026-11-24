@@ -93,7 +93,7 @@ var GROUND_SCAR = (() => {
   function make(THREE) {
     const ML = typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js');
     const m = ML.make(THREE, 'glass', { map: soil(THREE), vertexColors: true, roughness: 1, metalness: 0, depthWrite: false,
-      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }, 'fx / ground scars / decal');
     m.name = 'scar:decal';
     const mesh = new THREE.Mesh(empty(THREE), m);
     mesh.name = 'scar:decal'; mesh.visible = false; mesh.renderOrder = S.order; mesh.matrixAutoUpdate = false;

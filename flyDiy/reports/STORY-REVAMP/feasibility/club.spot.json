@@ -1,0 +1,40 @@
+{
+ "id": "club.spot",
+ "kind": "challenge",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 488,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w2",
+   "t": 488,
+   "how": "stopped",
+   "at": "w2",
+   "stop": [
+    "sub:0@0",
+    "scores",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": [
+    "stol:sp=95.3"
+   ]
+  }
+ ],
+ "notes": [
+  "the sp spot line names the landing way (204 deg): flown that way, whatever the wind"
+ ],
+ "untested": false,
+ "key": "3b6fa1c5c97a",
+ "where": "contract",
+ "pool": "validated",
+ "wallS": 350
+}

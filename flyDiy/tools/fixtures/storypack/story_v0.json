@@ -1,0 +1,6078 @@
+{
+ "what": "flydiy-missions",
+ "v": 1,
+ "id": "story",
+ "title": "ms.pack.story.title",
+ "rules": {
+  "jobs": "none",
+  "shady": false,
+  "unflyable": "offer"
+ },
+ "start": {
+  "sheds": {
+   "HOME": {
+    "without": [
+     "metal",
+     "wood"
+    ]
+   },
+   "w1": {
+    "without": [
+     "metal",
+     "wood"
+    ]
+   }
+  }
+ },
+ "clients": [
+  {
+   "id": "home",
+   "name": "prov.home.name",
+   "desc": "prov.home.desc",
+   "track": "home",
+   "fields": [
+    "w1",
+    "cb_sea"
+   ],
+   "person": "sophie",
+   "colour": "#c9785a"
+  },
+  {
+   "id": "community",
+   "name": "prov.community.name",
+   "desc": "prov.community.desc",
+   "track": "community",
+   "fields": [
+    "w6",
+    "w7"
+   ],
+   "person": "james",
+   "colour": "#7d9a8c"
+  },
+  {
+   "id": "aeroclub",
+   "name": "prov.aeroclub.name",
+   "desc": "prov.aeroclub.desc",
+   "track": "clients",
+   "fields": [
+    "HOME",
+    "w2",
+    "xw_rough",
+    "tw_ski"
+   ],
+   "person": "stig",
+   "colour": "#d14b4b"
+  }
+ ],
+ "campaigns": [
+  {
+   "id": "story.field",
+   "title": "prov.field.name",
+   "provider": "field",
+   "order": "any",
+   "chapters": [
+    {
+     "id": "field.work",
+     "title": "ms.chapter.field.work",
+     "order": "any",
+     "missions": [
+      "field.01",
+      "field.02",
+      "field.n1",
+      "field.round",
+      "field.hike",
+      "field.ridge",
+      "field.cannery"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "story.minedock",
+   "title": "prov.minedock.name",
+   "provider": "minedock",
+   "order": "any",
+   "chapters": [
+    {
+     "id": "minedock.work",
+     "title": "ms.chapter.minedock.work",
+     "order": "any",
+     "missions": [
+      "minedock.n1",
+      "mine.tour",
+      "lumber.run"
+     ]
+    },
+    {
+     "id": "minedock.orders",
+     "title": "ms.chapter.minedock.orders",
+     "order": "any",
+     "missions": [
+      "minedock.b1",
+      "minedock.b2"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "story.resort",
+   "title": "prov.resort.name",
+   "provider": "resort",
+   "order": "any",
+   "chapters": [
+    {
+     "id": "resort.work",
+     "title": "ms.chapter.resort.work",
+     "order": "any",
+     "missions": [
+      "resort.01",
+      "resort.guests"
+     ]
+    },
+    {
+     "id": "resort.orders",
+     "title": "ms.chapter.resort.orders",
+     "order": "any",
+     "missions": [
+      "resort.04",
+      "resort.b2"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "story.survey",
+   "title": "prov.survey.name",
+   "provider": "survey",
+   "order": "any",
+   "chapters": [
+    {
+     "id": "survey.work",
+     "title": "ms.chapter.survey.work",
+     "order": "any",
+     "missions": [
+      "survey.01",
+      "survey.02",
+      "survey.03",
+      "survey.05"
+     ]
+    },
+    {
+     "id": "survey.orders",
+     "title": "ms.chapter.survey.orders",
+     "order": "any",
+     "missions": [
+      "survey.04"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "story.clients",
+   "title": "prov.clients.name",
+   "provider": "clients",
+   "order": "any",
+   "chapters": [
+    {
+     "id": "clients.work",
+     "title": "ms.chapter.clients.work",
+     "order": "any",
+     "missions": [
+      "clients.01",
+      "clients.n1",
+      "clients.n2",
+      "clients.03",
+      "booze.01",
+      "booze.02"
+     ]
+    },
+    {
+     "id": "clients.orders",
+     "title": "ms.chapter.clients.orders",
+     "order": "any",
+     "missions": [
+      "clients.02",
+      "clients.04",
+      "clients.b1"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "story.aeroclub",
+   "title": "prov.aeroclub.name",
+   "provider": "aeroclub",
+   "order": "any",
+   "chapters": [
+    {
+     "id": "aeroclub.events",
+     "title": "ms.chapter.aeroclub.events",
+     "order": "any",
+     "missions": [
+      "club.stol",
+      "club.spot",
+      "club.pylons",
+      "club.regular"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tutorial",
+   "title": "ms.campaign.tutorial",
+   "tutorial": true,
+   "readonly": true,
+   "phase": 0,
+   "order": "seq",
+   "chapters": [
+    {
+     "id": "tutorial.beats",
+     "title": "ms.chapter.tutorial",
+     "order": "seq",
+     "missions": [
+      "story.T0",
+      "story.T1",
+      "story.T2",
+      "story.T3",
+      "story.T4",
+      "story.T5",
+      "story.T6",
+      "story.T7"
+     ]
+    }
+   ]
+  }
+ ],
+ "missions": [
+  {
+   "id": "field.01",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ct.field.01.title",
+   "brief": "ct.field.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": {
+        "field": "w3"
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": {
+        "field": "HOME"
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 1200
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard",
+   "onDone": {
+    "say": {
+     "who": "leonard",
+     "text": "ct.field.01.done"
+    }
+   }
+  },
+  {
+   "id": "field.02",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ct.field.02.title",
+   "brief": "ct.field.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 40,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 1800
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard",
+   "onDone": {
+    "say": {
+     "who": "leonard",
+     "text": "ct.field.02.done"
+    }
+   }
+  },
+  {
+   "id": "field.n1",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ct.field.n1.title",
+   "brief": "ct.field.n1.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "goods": "goods.mail",
+       "load": {
+        "kg": 30,
+        "pax": 0
+       },
+       "require": {
+        "when": {
+         "arrive": [
+          0,
+          1
+         ]
+        }
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 1900
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.25
+   },
+   "client": "leonard",
+   "onDone": {
+    "say": {
+     "who": "leonard",
+     "text": "ct.field.n1.done"
+    }
+   }
+  },
+  {
+   "id": "field.round",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.field.round.title",
+   "brief": "ms.field.round.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w5"
+       },
+       "load": {
+        "kg": 20,
+        "pax": 0
+       }
+      },
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w3"
+       },
+       "load": {
+        "kg": 20,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 1400
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.25
+   },
+   "repeat": {
+    "every": 3
+   },
+   "goods": "goods.mail",
+   "client": "leonard"
+  },
+  {
+   "id": "field.hike",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.field.hike.title",
+   "brief": "ms.field.hike.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w8"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2200
+   },
+   "goods": "goods.supplies",
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "field.ridge",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.field.ridge.title",
+   "brief": "ms.field.ridge.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "w4"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2400
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "field.cannery",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.field.cannery.title",
+   "brief": "ms.field.cannery.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w5"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 80,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2000
+   },
+   "goods": "goods.parts",
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "hangar.01",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.hangar.01.title",
+   "brief": "ms.hangar.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2200
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "hangar.02",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.hangar.02.title",
+   "brief": "ms.hangar.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w5"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2000
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "hangar.03",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.hangar.03.title",
+   "brief": "ms.hangar.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 90,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2600
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "hangar.04",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.hangar.04.title",
+   "brief": "ms.hangar.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w5"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 80,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2400
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 0.5
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "hangar.05",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.hangar.05.title",
+   "brief": "ms.hangar.05.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 120,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 4500
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 1
+   },
+   "onDone": {
+    "say": {
+     "who": "leonard",
+     "text": "ms.hangar.05.done"
+    }
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "heritage.01",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.heritage.01.title",
+   "brief": "ms.heritage.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "nv_strip"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 5200
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 1
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "heritage.02",
+   "provider": "field",
+   "kind": "contract",
+   "title": "ms.heritage.02.title",
+   "brief": "ms.heritage.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "nv_strip"
+       },
+       "load": {
+        "kg": 300,
+        "pax": 0,
+        "items": [
+         {
+          "id": "totem",
+          "kind": "long",
+          "kg": 300,
+          "dims": [
+           3,
+           0.6,
+           0.6
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 15000
+   },
+   "rep": {
+    "provider": "field",
+    "gain": 1.5
+   },
+   "onDone": {
+    "say": {
+     "who": "leonard",
+     "text": "ms.heritage.02.done"
+    }
+   },
+   "client": "leonard"
+  },
+  {
+   "id": "minedock.n1",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ct.minedock.n1.title",
+   "brief": "ct.minedock.n1.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mn_strip"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       },
+       "require": {
+        "when": {
+         "after": "dusk"
+        }
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2400
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.25
+   },
+   "client": "pete",
+   "onDone": {
+    "say": {
+     "who": "pete",
+     "text": "ct.minedock.n1.done"
+    }
+   }
+  },
+  {
+   "id": "minedock.b1",
+   "provider": "minedock",
+   "kind": "build",
+   "title": "ct.minedock.b1.title",
+   "brief": "ct.minedock.b1.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": {
+        "field": "SEA"
+       },
+       "require": {
+        "plane": [
+         {
+          "k": "hydro",
+          "op": "==",
+          "v": true
+         },
+         {
+          "k": "landAt",
+          "op": "==",
+          "v": "SEA",
+          "at": {
+           "pax": 0,
+           "kg": 150
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 48000
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 1
+   },
+   "followUp": {
+    "prefer": [
+     "tankL",
+     "costMax"
+    ],
+    "add": [
+     {
+      "k": "costMax",
+      "op": "<=",
+      "v": 157500
+     }
+    ]
+   },
+   "client": "pete"
+  },
+  {
+   "id": "minedock.b2",
+   "provider": "minedock",
+   "kind": "build",
+   "title": "ct.minedock.b2.title",
+   "brief": "ct.minedock.b2.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": {
+        "field": "mn_strip"
+       },
+       "require": {
+        "plane": [
+         {
+          "k": "takeoffAt",
+          "op": "==",
+          "v": "mn_strip",
+          "at": {
+           "pax": 0,
+           "kg": 200
+          }
+         },
+         {
+          "k": "landAt",
+          "op": "==",
+          "v": "mn_strip",
+          "at": {
+           "pax": 0,
+           "kg": 200
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 56000
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 1
+   },
+   "followUp": {
+    "add": [
+     {
+      "k": "costMax",
+      "op": "<=",
+      "v": 171800
+     },
+     {
+      "k": "rangeKm",
+      "op": ">=",
+      "v": 150
+     }
+    ]
+   },
+   "client": "pete"
+  },
+  {
+   "id": "minedock.01",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ct.minedock.01.title",
+   "brief": "ct.minedock.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "photo",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mn_strip"
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": {
+        "field": "HOME"
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2200
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.5
+   },
+   "client": "pete",
+   "onDone": {
+    "say": {
+     "who": "pete",
+     "text": "ct.minedock.01.done"
+    }
+   }
+  },
+  {
+   "id": "minedock.02",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ct.minedock.02.title",
+   "brief": "ct.minedock.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mn_strip"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3500
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.75
+   },
+   "client": "pete",
+   "onDone": {
+    "say": {
+     "who": "pete",
+     "text": "ct.minedock.02.done"
+    }
+   }
+  },
+  {
+   "id": "mine.03",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ms.mine.03.title",
+   "brief": "ms.mine.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mn_strip"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       }
+      },
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "mn_strip"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3600
+   },
+   "goods": "goods.parts",
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.5
+   },
+   "client": "pete"
+  },
+  {
+   "id": "mine.04",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ms.mine.04.title",
+   "brief": "ms.mine.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mn_strip"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3800
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 1
+   },
+   "onDone": {
+    "say": {
+     "who": "pete",
+     "text": "ms.mine.04.done"
+    }
+   },
+   "client": "pete"
+  },
+  {
+   "id": "mine.tour",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ms.mine.tour.title",
+   "brief": "ms.mine.tour.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mn_strip"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mn_strip"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3000
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.25
+   },
+   "repeat": {
+    "every": 2
+   },
+   "needs": {
+    "projects": [
+     "mine"
+    ]
+   },
+   "client": "pete"
+  },
+  {
+   "id": "minedock.05",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ct.minedock.05.title",
+   "brief": "ct.minedock.05.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "SEA"
+       },
+       "place": {
+        "field": "mk_sea"
+       },
+       "load": {
+        "kg": 30,
+        "pax": 0
+       }
+      },
+      {
+       "do": "photo",
+       "from": {
+        "field": "mk_sea"
+       },
+       "place": {
+        "field": "SEA"
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 4200
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.75
+   },
+   "client": "pete",
+   "onDone": {
+    "say": {
+     "who": "pete",
+     "text": "ct.minedock.05.done"
+    }
+   }
+  },
+  {
+   "id": "minedock.06",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ct.minedock.06.title",
+   "brief": "ct.minedock.06.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mk_sea"
+       },
+       "place": {
+        "field": "SEA"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 6000
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 1
+   },
+   "client": "pete",
+   "onDone": {
+    "say": {
+     "who": "pete",
+     "text": "ct.minedock.06.done"
+    }
+   }
+  },
+  {
+   "id": "lumber.01",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ms.lumber.01.title",
+   "brief": "ms.lumber.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "SEA"
+       },
+       "place": {
+        "field": "mk_sea"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2600
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.5
+   },
+   "client": "pete"
+  },
+  {
+   "id": "lumber.02",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ms.lumber.02.title",
+   "brief": "ms.lumber.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "SEA"
+       },
+       "place": {
+        "field": "mk_sea"
+       },
+       "load": {
+        "kg": 150,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3400
+   },
+   "goods": "goods.gear",
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.5
+   },
+   "client": "pete"
+  },
+  {
+   "id": "lumber.03",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ms.lumber.03.title",
+   "brief": "ms.lumber.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mk_sea"
+       },
+       "place": {
+        "field": "SEA"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2800
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.5
+   },
+   "client": "pete"
+  },
+  {
+   "id": "lumber.04",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ms.lumber.04.title",
+   "brief": "ms.lumber.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "SEA"
+       },
+       "place": {
+        "field": "mk_sea"
+       },
+       "load": {
+        "kg": 250,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 5200
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 1
+   },
+   "onDone": {
+    "say": {
+     "who": "pete",
+     "text": "ms.lumber.04.done"
+    }
+   },
+   "client": "pete"
+  },
+  {
+   "id": "lumber.run",
+   "provider": "minedock",
+   "kind": "contract",
+   "title": "ms.lumber.run.title",
+   "brief": "ms.lumber.run.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "SEA"
+       },
+       "place": {
+        "field": "mk_sea"
+       },
+       "load": {
+        "kg": 80,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2400
+   },
+   "rep": {
+    "provider": "minedock",
+    "gain": 0.25
+   },
+   "repeat": {
+    "every": 3
+   },
+   "needs": {
+    "projects": [
+     "lumber"
+    ]
+   },
+   "client": "pete"
+  },
+  {
+   "id": "resort.01",
+   "provider": "resort",
+   "kind": "contract",
+   "title": "ct.resort.01.title",
+   "brief": "ct.resort.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "tw_ski"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 1800
+   },
+   "rep": {
+    "provider": "resort",
+    "gain": 0.5
+   },
+   "client": "martha",
+   "onDone": {
+    "say": {
+     "who": "martha",
+     "text": "ct.resort.01.done"
+    }
+   }
+  },
+  {
+   "id": "resort.04",
+   "provider": "resort",
+   "kind": "build",
+   "title": "ct.resort.04.title",
+   "brief": "ct.resort.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": {
+        "field": "tw_ski"
+       },
+       "require": {
+        "plane": [
+         {
+          "k": "powertrain",
+          "op": "==",
+          "v": "electric"
+         },
+         {
+          "k": "seats",
+          "op": ">=",
+          "v": 2
+         },
+         {
+          "k": "enduranceMin",
+          "op": ">=",
+          "v": 30,
+          "at": {
+           "pax": 1,
+           "kg": 0,
+           "reserveMin": 10
+          }
+         },
+         {
+          "k": "landAt",
+          "op": "==",
+          "v": "tw_ski",
+          "at": {
+           "pax": 1,
+           "kg": 0
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 46000,
+    "bonus": [
+     {
+      "crit": "enduranceMin",
+      "by": 0.2,
+      "pct": 10
+     }
+    ]
+   },
+   "rep": {
+    "provider": "resort",
+    "gain": 1
+   },
+   "followUp": {
+    "prefer": [
+     "enduranceMin",
+     "seats"
+    ]
+   },
+   "client": "martha",
+   "onDone": {
+    "say": {
+     "who": "martha",
+     "text": "ct.resort.04.done"
+    }
+   }
+  },
+  {
+   "id": "resort.b2",
+   "provider": "resort",
+   "kind": "build",
+   "title": "ct.resort.b2.title",
+   "brief": "ct.resort.b2.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": {
+        "field": "tw_ski"
+       },
+       "require": {
+        "plane": [
+         {
+          "k": "xwindKt",
+          "op": ">=",
+          "v": 15
+         },
+         {
+          "k": "landAt",
+          "op": "==",
+          "v": "tw_ski",
+          "at": {
+           "pax": 1,
+           "kg": 0
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 38000
+   },
+   "rep": {
+    "provider": "resort",
+    "gain": 1
+   },
+   "followUp": {
+    "prefer": [
+     "xwindKt"
+    ],
+    "add": [
+     {
+      "k": "costMax",
+      "op": "<=",
+      "v": 85900
+     }
+    ]
+   },
+   "client": "martha"
+  },
+  {
+   "id": "resort.guests",
+   "provider": "resort",
+   "kind": "contract",
+   "title": "ms.resort.guests.title",
+   "brief": "ms.resort.guests.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "tw_ski"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "tw_ski"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2200
+   },
+   "rep": {
+    "provider": "resort",
+    "gain": 0.25
+   },
+   "repeat": {
+    "every": 3
+   },
+   "goods": "goods.guests",
+   "client": "martha"
+  },
+  {
+   "id": "resort.02",
+   "provider": "resort",
+   "kind": "contract",
+   "title": "ct.resort.02.title",
+   "brief": "ct.resort.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "tw_ski"
+       },
+       "load": {
+        "kg": 80,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2800
+   },
+   "rep": {
+    "provider": "resort",
+    "gain": 0.75
+   },
+   "client": "martha",
+   "onDone": {
+    "say": {
+     "who": "martha",
+     "text": "ct.resort.02.done"
+    }
+   }
+  },
+  {
+   "id": "resort.03",
+   "provider": "resort",
+   "kind": "contract",
+   "title": "ct.resort.03.title",
+   "brief": "ct.resort.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "photo",
+       "from": {
+        "field": "tw_ski"
+       },
+       "place": {
+        "field": "w3"
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": {
+        "field": "tw_ski"
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2400
+   },
+   "rep": {
+    "provider": "resort",
+    "gain": 0.5
+   },
+   "client": "martha",
+   "onDone": {
+    "say": {
+     "who": "martha",
+     "text": "ct.resort.03.done"
+    }
+   }
+  },
+  {
+   "id": "skyline.03",
+   "provider": "resort",
+   "kind": "contract",
+   "title": "ms.skyline.03.title",
+   "brief": "ms.skyline.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "tw_ski"
+       },
+       "load": {
+        "kg": 90,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2800
+   },
+   "goods": "goods.supplies",
+   "rep": {
+    "provider": "resort",
+    "gain": 0.5
+   },
+   "client": "martha"
+  },
+  {
+   "id": "resort.05",
+   "provider": "resort",
+   "kind": "contract",
+   "title": "ct.resort.05.title",
+   "brief": "ct.resort.05.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "tw_ski"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      },
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "tw_ski"
+       },
+       "load": {
+        "kg": 40,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 5800
+   },
+   "rep": {
+    "provider": "resort",
+    "gain": 1
+   },
+   "client": "martha",
+   "onDone": {
+    "say": {
+     "who": "martha",
+     "text": "ct.resort.05.done"
+    }
+   }
+  },
+  {
+   "id": "survey.01",
+   "provider": "survey",
+   "kind": "survey",
+   "title": "ct.survey.01.title",
+   "brief": "ct.survey.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "photo",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "nv_strip"
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": {
+        "field": "HOME"
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2000
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 0.5
+   },
+   "client": "kate",
+   "onDone": {
+    "say": {
+     "who": "kate",
+     "text": "ct.survey.01.done"
+    }
+   }
+  },
+  {
+   "id": "survey.02",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ct.survey.02.title",
+   "brief": "ct.survey.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mk_sea"
+       },
+       "place": {
+        "field": "SEA"
+       },
+       "load": {
+        "kg": 20,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2600
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 0.5
+   },
+   "client": "kate",
+   "onDone": {
+    "say": {
+     "who": "kate",
+     "text": "ct.survey.02.done"
+    }
+   }
+  },
+  {
+   "id": "survey.03",
+   "provider": "survey",
+   "kind": "survey",
+   "title": "ct.survey.03.title",
+   "brief": "ct.survey.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "photo",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "nv_strip"
+       }
+      },
+      {
+       "do": "photo",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mn_strip"
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": {
+        "field": "HOME"
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3400
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 0.75
+   },
+   "unlock": {
+    "stage": "survey:1"
+   },
+   "client": "kate",
+   "onDone": {
+    "say": {
+     "who": "kate",
+     "text": "ct.survey.03.done"
+    }
+   },
+   "needs": {
+    "after": [
+     "survey.01"
+    ]
+   }
+  },
+  {
+   "id": "survey.05",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ct.survey.05.title",
+   "brief": "ct.survey.05.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w3"
+       },
+       "load": {
+        "kg": 100,
+        "pax": 0
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 20,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 4800
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 1
+   },
+   "unlock": {
+    "stage": "survey:3"
+   },
+   "client": "kate",
+   "onDone": {
+    "say": {
+     "who": "kate",
+     "text": "ct.survey.05.done"
+    }
+   },
+   "needs": {
+    "rep": 1
+   }
+  },
+  {
+   "id": "survey.04",
+   "provider": "survey",
+   "kind": "build",
+   "title": "ct.survey.04.title",
+   "brief": "ct.survey.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": {
+        "field": "nv_strip"
+       },
+       "require": {
+        "plane": [
+         {
+          "k": "takeoffAt",
+          "op": "==",
+          "v": "nv_strip",
+          "at": {
+           "pax": 0,
+           "kg": 0,
+           "fuelMin": 60
+          }
+         },
+         {
+          "k": "landAt",
+          "op": "==",
+          "v": "nv_strip",
+          "at": {
+           "pax": 0,
+           "kg": 0,
+           "fuelMin": 60
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 44000
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 1
+   },
+   "unlock": {
+    "stage": "survey:2"
+   },
+   "followUp": {
+    "add": [
+     {
+      "k": "seats",
+      "op": ">=",
+      "v": 2
+     },
+     {
+      "k": "emptyKg",
+      "op": "<=",
+      "v": 380
+     }
+    ]
+   },
+   "client": "kate",
+   "onDone": {
+    "say": {
+     "who": "kate",
+     "text": "ct.survey.04.done"
+    }
+   },
+   "needs": {
+    "rep": 1
+   }
+  },
+  {
+   "id": "obs.01",
+   "provider": "survey",
+   "kind": "survey",
+   "title": "ms.obs.01.title",
+   "brief": "ms.obs.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "photo",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mt_strip"
+       }
+      },
+      {
+       "do": "photo",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w4"
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": {
+        "field": "HOME"
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3200
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 0.5
+   },
+   "client": "kate"
+  },
+  {
+   "id": "obs.02",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ms.obs.02.title",
+   "brief": "ms.obs.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mt_strip"
+       },
+       "load": {
+        "kg": 200,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 6500
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 1
+   },
+   "client": "kate"
+  },
+  {
+   "id": "obs.03",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ms.obs.03.title",
+   "brief": "ms.obs.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mt_strip"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3800
+   },
+   "needs": {
+    "after": [
+     "obs.02"
+    ]
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 0.5
+   },
+   "client": "kate"
+  },
+  {
+   "id": "obs.04",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ms.obs.04.title",
+   "brief": "ms.obs.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mt_strip"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 4200
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 0.5
+   },
+   "client": "kate"
+  },
+  {
+   "id": "obs.05",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ms.obs.05.title",
+   "brief": "ms.obs.05.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "mt_strip"
+       },
+       "load": {
+        "kg": 120,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 4600
+   },
+   "goods": "goods.gear",
+   "rep": {
+    "provider": "survey",
+    "gain": 0.5
+   },
+   "client": "kate"
+  },
+  {
+   "id": "obs.06",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ms.obs.06.title",
+   "brief": "ms.obs.06.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mt_strip"
+       },
+       "load": {
+        "kg": 150,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 5000
+   },
+   "goods": "goods.parts",
+   "rep": {
+    "provider": "survey",
+    "gain": 0.5
+   },
+   "client": "kate"
+  },
+  {
+   "id": "obs.07",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ms.obs.07.title",
+   "brief": "ms.obs.07.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mt_strip"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 4200
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 0.5
+   },
+   "client": "kate"
+  },
+  {
+   "id": "obs.08",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ms.obs.08.title",
+   "brief": "ms.obs.08.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mt_strip"
+       },
+       "load": {
+        "kg": 200,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 6000
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 1
+   },
+   "goods": "goods.parts",
+   "client": "kate"
+  },
+  {
+   "id": "obs.09",
+   "provider": "survey",
+   "kind": "contract",
+   "title": "ms.obs.09.title",
+   "brief": "ms.obs.09.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "mt_strip"
+       },
+       "load": {
+        "kg": 250,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 7000
+   },
+   "rep": {
+    "provider": "survey",
+    "gain": 1
+   },
+   "goods": "goods.parts",
+   "onDone": {
+    "say": {
+     "who": "kate",
+     "text": "ms.obs.09.done"
+    }
+   },
+   "client": "kate"
+  },
+  {
+   "id": "clients.01",
+   "provider": "clients",
+   "kind": "contract",
+   "title": "ct.clients.01.title",
+   "brief": "ct.clients.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w3"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "tw_ski"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 1500
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   },
+   "client": "adam",
+   "onDone": {
+    "say": {
+     "who": "adam",
+     "text": "ct.clients.01.done"
+    }
+   }
+  },
+  {
+   "id": "clients.n1",
+   "provider": "clients",
+   "kind": "contract",
+   "title": "ct.clients.n1.title",
+   "brief": "ct.clients.n1.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w3"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       },
+       "require": {
+        "when": {
+         "before": "dawn"
+        }
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2800
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   },
+   "client": "adam",
+   "onDone": {
+    "say": {
+     "who": "adam",
+     "text": "ct.clients.n1.done"
+    }
+   }
+  },
+  {
+   "id": "clients.n2",
+   "provider": "clients",
+   "kind": "contract",
+   "title": "ct.clients.n2.title",
+   "brief": "ct.clients.n2.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "load": {
+        "kg": 95,
+        "pax": 1,
+        "items": [
+         {
+          "id": "stretcher",
+          "kind": "stretcher",
+          "kg": 95,
+          "dims": [
+           2,
+           0.6,
+           0.5
+          ]
+         }
+        ]
+       },
+       "require": {
+        "when": {
+         "before": "dawn"
+        }
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3400
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   },
+   "client": "adam",
+   "onDone": {
+    "say": {
+     "who": "adam",
+     "text": "ct.clients.n2.done"
+    }
+   },
+   "needs": {
+    "after": [
+     "clients.n1"
+    ]
+   }
+  },
+  {
+   "id": "clients.03",
+   "provider": "clients",
+   "kind": "challenge",
+   "title": "ct.clients.03.title",
+   "brief": "ct.clients.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "fly",
+       "from": {
+        "field": "tw_ski"
+       },
+       "place": {
+        "field": "HOME"
+       },
+       "medals": [
+        {
+         "medal": "gold",
+         "le": 300
+        },
+        {
+         "medal": "silver",
+         "le": 420
+        },
+        {
+         "medal": "bronze",
+         "le": 540
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2000,
+    "bonus": [
+     {
+      "crit": "medal",
+      "by": "gold",
+      "pct": 100
+     },
+     {
+      "crit": "medal",
+      "by": "silver",
+      "pct": 50
+     }
+    ]
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 0.75
+   },
+   "client": "adam",
+   "onDone": {
+    "say": {
+     "who": "adam",
+     "text": "ct.clients.03.done"
+    }
+   }
+  },
+  {
+   "id": "clients.02",
+   "provider": "clients",
+   "kind": "build",
+   "title": "ct.clients.02.title",
+   "brief": "ct.clients.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": {
+        "field": "HOME"
+       },
+       "require": {
+        "plane": [
+         {
+          "k": "emptyKg",
+          "op": "<=",
+          "v": 300
+         },
+         {
+          "k": "spanM",
+          "op": "<=",
+          "v": 9
+         },
+         {
+          "k": "seats",
+          "op": ">=",
+          "v": 1
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 30000,
+    "bonus": [
+     {
+      "crit": "emptyKg",
+      "by": 0.1,
+      "pct": 10
+     }
+    ]
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 1
+   },
+   "followUp": {
+    "prefer": [
+     "emptyKg",
+     "spanM"
+    ],
+    "add": [
+     {
+      "k": "costMax",
+      "op": "<=",
+      "v": 43000
+     }
+    ]
+   },
+   "client": "adam",
+   "onDone": {
+    "say": {
+     "who": "adam",
+     "text": "ct.clients.02.done"
+    }
+   }
+  },
+  {
+   "id": "clients.04",
+   "provider": "clients",
+   "kind": "build",
+   "title": "ct.clients.04.title",
+   "brief": "ct.clients.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": {
+        "field": "HOME"
+       },
+       "require": {
+        "plane": [
+         {
+          "k": "costMax",
+          "op": "<=",
+          "v": 45800
+         },
+         {
+          "k": "xwindKt",
+          "op": ">=",
+          "v": 12
+         },
+         {
+          "k": "seats",
+          "op": ">=",
+          "v": 2
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 26000
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 1
+   },
+   "followUp": {
+    "prefer": [
+     "costMax",
+     "xwindKt"
+    ]
+   },
+   "client": "adam",
+   "onDone": {
+    "say": {
+     "who": "adam",
+     "text": "ct.clients.04.done"
+    }
+   },
+   "needs": {
+    "rep": 1
+   }
+  },
+  {
+   "id": "clients.b1",
+   "provider": "clients",
+   "kind": "build",
+   "title": "ct.clients.b1.title",
+   "brief": "ct.clients.b1.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": {
+        "field": "HOME"
+       },
+       "require": {
+        "plane": [
+         {
+          "k": "tankL",
+          "op": "<=",
+          "v": 20
+         },
+         {
+          "k": "enduranceMin",
+          "op": ">=",
+          "v": 60,
+          "at": {
+           "pax": 0,
+           "kg": 0,
+           "reserveMin": 15,
+           "tasKmh": 110
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 34000,
+    "bonus": [
+     {
+      "crit": "enduranceMin",
+      "by": 0.15,
+      "pct": 10
+     }
+    ]
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 1
+   },
+   "followUp": {
+    "prefer": [
+     "tankL",
+     "enduranceMin"
+    ],
+    "add": [
+     {
+      "k": "hydro",
+      "op": "==",
+      "v": true
+     }
+    ]
+   },
+   "client": "adam"
+  },
+  {
+   "id": "booze.01",
+   "provider": "clients",
+   "kind": "contract",
+   "title": "ms.booze.01.title",
+   "brief": "ms.booze.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w5"
+       },
+       "place": {
+        "field": "w8"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       },
+       "require": {
+        "when": {
+         "after": "dusk"
+        }
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3600
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 0
+   },
+   "client": "adam"
+  },
+  {
+   "id": "booze.02",
+   "provider": "clients",
+   "kind": "contract",
+   "title": "ms.booze.02.title",
+   "brief": "ms.booze.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w6"
+       },
+       "place": {
+        "field": "w5"
+       },
+       "load": {
+        "kg": 80,
+        "pax": 0
+       },
+       "require": {
+        "when": {
+         "before": "dawn"
+        }
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 4400
+   },
+   "rep": {
+    "provider": "clients",
+    "gain": 0
+   },
+   "needs": {
+    "after": [
+     "booze.01"
+    ]
+   },
+   "client": "adam"
+  },
+  {
+   "id": "home.01",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.01.title",
+   "brief": "ms.home.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 80,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.02",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.02.title",
+   "brief": "ms.home.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.03",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.03.title",
+   "brief": "ms.home.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 250,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.04",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.04.title",
+   "brief": "ms.home.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 200,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.05",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.05.title",
+   "brief": "ms.home.05.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 30,
+        "pax": [
+         "sophie"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.5
+   },
+   "onDone": {
+    "say": {
+     "who": "sophie",
+     "text": "ms.home.05.done"
+    }
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.06",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.06.title",
+   "brief": "ms.home.06.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 450,
+        "pax": 0,
+        "items": [
+         {
+          "id": "digger",
+          "kind": "crate",
+          "kg": 450,
+          "dims": [
+           1.8,
+           0.9,
+           1.3
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.5
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.07",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.07.title",
+   "brief": "ms.home.07.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 120,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.08",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.08.title",
+   "brief": "ms.home.08.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "SEA"
+       },
+       "place": {
+        "field": "cb_sea"
+       },
+       "load": {
+        "kg": 150,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.09",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.09.title",
+   "brief": "ms.home.09.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mk_sea"
+       },
+       "place": {
+        "field": "cb_sea"
+       },
+       "load": {
+        "kg": 100,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.10",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.10.title",
+   "brief": "ms.home.10.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "SEA"
+       },
+       "place": {
+        "field": "cb_sea"
+       },
+       "load": {
+        "kg": 250,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.11",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.11.title",
+   "brief": "ms.home.11.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mk_sea"
+       },
+       "place": {
+        "field": "cb_sea"
+       },
+       "load": {
+        "kg": 200,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.12",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.12.title",
+   "brief": "ms.home.12.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "SEA"
+       },
+       "place": {
+        "field": "cb_sea"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 2
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.5
+   },
+   "onDone": {
+    "say": {
+     "who": "sophie",
+     "text": "ms.home.12.done"
+    }
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.13",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.13.title",
+   "brief": "ms.home.13.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 280,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.25
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "home.14",
+   "provider": "home",
+   "kind": "contract",
+   "title": "ms.home.14.title",
+   "brief": "ms.home.14.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "w1"
+       },
+       "load": {
+        "kg": 200,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 0
+   },
+   "rep": {
+    "provider": "home",
+    "gain": 0.5
+   },
+   "onDone": {
+    "say": {
+     "who": "sophie",
+     "text": "ms.home.14.done"
+    }
+   },
+   "client": "sophie"
+  },
+  {
+   "id": "community.01",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.01.title",
+   "brief": "ms.community.01.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w6"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3200
+   },
+   "rep": {
+    "provider": "community",
+    "gain": 0.5
+   },
+   "client": "james"
+  },
+  {
+   "id": "community.02",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.02.title",
+   "brief": "ms.community.02.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 80,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3000
+   },
+   "goods": "goods.parts",
+   "rep": {
+    "provider": "community",
+    "gain": 0.5
+   },
+   "client": "james"
+  },
+  {
+   "id": "community.03",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.03.title",
+   "brief": "ms.community.03.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 2800
+   },
+   "goods": "goods.parts",
+   "rep": {
+    "provider": "community",
+    "gain": 0.5
+   },
+   "client": "james"
+  },
+  {
+   "id": "community.04",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.04.title",
+   "brief": "ms.community.04.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 90,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3200
+   },
+   "goods": "goods.tools",
+   "rep": {
+    "provider": "community",
+    "gain": 0.5
+   },
+   "client": "james"
+  },
+  {
+   "id": "community.05",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.05.title",
+   "brief": "ms.community.05.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w5"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 80,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3000
+   },
+   "goods": "goods.parts",
+   "rep": {
+    "provider": "community",
+    "gain": 0.5
+   },
+   "client": "james"
+  },
+  {
+   "id": "community.06",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.06.title",
+   "brief": "ms.community.06.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "mn_strip"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 60,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3400
+   },
+   "goods": "goods.tools",
+   "rep": {
+    "provider": "community",
+    "gain": 0.5
+   },
+   "client": "james"
+  },
+  {
+   "id": "community.07",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.07.title",
+   "brief": "ms.community.07.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 90,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 3000
+   },
+   "goods": "goods.supplies",
+   "rep": {
+    "provider": "community",
+    "gain": 0.5
+   },
+   "client": "james"
+  },
+  {
+   "id": "community.08",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.08.title",
+   "brief": "ms.community.08.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 4
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 6000
+   },
+   "rep": {
+    "provider": "community",
+    "gain": 1
+   },
+   "client": "james"
+  },
+  {
+   "id": "community.09",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.09.title",
+   "brief": "ms.community.09.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 300,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 6500
+   },
+   "rep": {
+    "provider": "community",
+    "gain": 1
+   },
+   "goods": "goods.parts",
+   "client": "james"
+  },
+  {
+   "id": "community.10",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.10.title",
+   "brief": "ms.community.10.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 400,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 8000
+   },
+   "rep": {
+    "provider": "community",
+    "gain": 1
+   },
+   "goods": "goods.parts",
+   "client": "james"
+  },
+  {
+   "id": "community.11",
+   "provider": "community",
+   "kind": "contract",
+   "title": "ms.community.11.title",
+   "brief": "ms.community.11.brief",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "w3"
+       },
+       "place": {
+        "field": "w7"
+       },
+       "load": {
+        "kg": 350,
+        "pax": 0
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 7500
+   },
+   "rep": {
+    "provider": "community",
+    "gain": 1
+   },
+   "goods": "goods.parts",
+   "onDone": {
+    "say": {
+     "who": "james",
+     "text": "ms.community.11.done"
+    }
+   },
+   "client": "james"
+  },
+  {
+   "id": "club.stol",
+   "provider": "aeroclub",
+   "kind": "challenge",
+   "title": "ms.club.stol.title",
+   "brief": "ms.club.stol.brief",
+   "pay": {
+    "base": 1500
+   },
+   "rep": {
+    "provider": "aeroclub",
+    "gain": 0.25
+   },
+   "repeat": {
+    "every": 1
+   },
+   "legs": [
+    {
+     "steps": [
+      {
+       "id": "l1",
+       "do": "land",
+       "place": {
+        "field": "xw_rough"
+       }
+      }
+     ]
+    }
+   ],
+   "stol": [
+    {
+     "id": "ld",
+     "kind": "landing",
+     "line": [
+      [
+       816.6,
+       -546
+      ],
+      [
+       794.7,
+       -555.7
+      ]
+     ],
+     "dir": 204,
+     "stop": "l1",
+     "medals": [
+      {
+       "medal": "gold",
+       "le": 80
+      },
+      {
+       "medal": "silver",
+       "le": 130
+      },
+      {
+       "medal": "bronze",
+       "le": 260
+      }
+     ],
+     "ghost": {
+      "m": 95,
+      "who": "stig"
+     }
+    }
+   ],
+   "client": "stig"
+  },
+  {
+   "id": "club.spot",
+   "provider": "aeroclub",
+   "kind": "challenge",
+   "title": "ms.club.spot.title",
+   "brief": "ms.club.spot.brief",
+   "pay": {
+    "base": 1500
+   },
+   "rep": {
+    "provider": "aeroclub",
+    "gain": 0.25
+   },
+   "repeat": {
+    "every": 1
+   },
+   "legs": [
+    {
+     "steps": [
+      {
+       "id": "s1",
+       "do": "land",
+       "place": {
+        "field": "w2"
+       }
+      }
+     ]
+    }
+   ],
+   "stol": [
+    {
+     "id": "sp",
+     "kind": "spot",
+     "line": [
+      [
+       843,
+       -654.6
+      ],
+      [
+       826.5,
+       -662
+      ]
+     ],
+     "dir": 204,
+     "stop": "s1",
+     "medals": [
+      {
+       "medal": "gold",
+       "le": 5
+      },
+      {
+       "medal": "silver",
+       "le": 20
+      },
+      {
+       "medal": "bronze",
+       "le": 280
+      }
+     ]
+    }
+   ],
+   "client": "stig"
+  },
+  {
+   "id": "club.pylons",
+   "provider": "aeroclub",
+   "kind": "challenge",
+   "title": "ms.club.pylons.title",
+   "brief": "ms.club.pylons.brief",
+   "pay": {
+    "base": 1500
+   },
+   "rep": {
+    "provider": "aeroclub",
+    "gain": 0.25
+   },
+   "repeat": {
+    "every": 1
+   },
+   "legs": [
+    {
+     "order": "seq",
+     "steps": [
+      {
+       "id": "g1",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -1860,
+          -150
+         ],
+         [
+          -1740,
+          -150
+         ]
+        ],
+        "dir": 0,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "g2",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -300,
+          -1560
+         ],
+         [
+          -300,
+          -1440
+         ]
+        ],
+        "dir": 90,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "g3",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          1260,
+          -150
+         ],
+         [
+          1140,
+          -150
+         ]
+        ],
+        "dir": 180,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "g4",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -300,
+          1260
+         ],
+         [
+          -300,
+          1140
+         ]
+        ],
+        "dir": 270,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "do": "land",
+       "place": {
+        "field": "HOME"
+       }
+      }
+     ]
+    }
+   ],
+   "timers": [
+    {
+     "id": "lap",
+     "start": "g1",
+     "stop": "g4",
+     "target": 215,
+     "splits": true,
+     "medals": [
+      {
+       "medal": "gold",
+       "le": 130
+      },
+      {
+       "medal": "silver",
+       "le": 165
+      },
+      {
+       "medal": "bronze",
+       "le": 215
+      }
+     ],
+     "ghost": {
+      "s": 150,
+      "who": "stig"
+     }
+    }
+   ],
+   "client": "stig"
+  },
+  {
+   "id": "club.regular",
+   "provider": "aeroclub",
+   "kind": "challenge",
+   "title": "ms.club.regular.title",
+   "brief": "ms.club.regular.brief",
+   "pay": {
+    "base": 1500
+   },
+   "rep": {
+    "provider": "aeroclub",
+    "gain": 0.25
+   },
+   "repeat": {
+    "every": 1
+   },
+   "legs": [
+    {
+     "order": "seq",
+     "steps": [
+      {
+       "id": "r1",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -1560,
+          1500
+         ],
+         [
+          -1440,
+          1500
+         ]
+        ],
+        "dir": 0,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "r2",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -1560,
+          -2500
+         ],
+         [
+          -1440,
+          -2500
+         ]
+        ],
+        "dir": 0,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "do": "land",
+       "place": {
+        "field": "HOME"
+       }
+      }
+     ]
+    }
+   ],
+   "timers": [
+    {
+     "id": "run",
+     "start": "r1",
+     "stop": "r2",
+     "target": 120,
+     "regularity": true,
+     "medals": [
+      {
+       "medal": "gold",
+       "le": 2
+      },
+      {
+       "medal": "silver",
+       "le": 6
+      },
+      {
+       "medal": "bronze",
+       "le": 25
+      }
+     ]
+    }
+   ],
+   "client": "stig"
+  },
+  {
+   "id": "club.tour",
+   "provider": "aeroclub",
+   "kind": "challenge",
+   "title": "ms.club.tour.title",
+   "brief": "ms.club.tour.brief",
+   "pay": {
+    "base": 3000
+   },
+   "rep": {
+    "provider": "aeroclub",
+    "gain": 0.75
+   },
+   "legs": [
+    {
+     "order": "seq",
+     "steps": [
+      {
+       "id": "a1",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -659,
+          -592
+         ],
+         [
+          -541,
+          -608
+         ]
+        ],
+        "dir": 352,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "a2",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -809,
+          -1692
+         ],
+         [
+          -691,
+          -1708
+         ]
+        ],
+        "dir": 352,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "aw",
+       "do": "land",
+       "place": {
+        "field": "w3"
+       }
+      }
+     ]
+    },
+    {
+     "order": "seq",
+     "steps": [
+      {
+       "id": "b1",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          6,
+          -2660
+         ],
+         [
+          -6,
+          -2540
+         ]
+        ],
+        "dir": 96,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "b2",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          1806,
+          -2860
+         ],
+         [
+          1794,
+          -2740
+         ]
+        ],
+        "dir": 96,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "bw",
+       "do": "land",
+       "place": {
+        "field": "w5"
+       }
+      }
+     ]
+    },
+    {
+     "order": "seq",
+     "steps": [
+      {
+       "id": "c1",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          2362,
+          -1953
+         ],
+         [
+          2438,
+          -2047
+         ]
+        ],
+        "dir": 309,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "c2",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          862,
+          -753
+         ],
+         [
+          938,
+          -847
+         ]
+        ],
+        "dir": 309,
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "pylons"
+       }
+      },
+      {
+       "id": "ch",
+       "do": "land",
+       "place": {
+        "field": "HOME"
+       }
+      }
+     ]
+    }
+   ],
+   "timers": [
+    {
+     "id": "L1",
+     "start": "a1",
+     "stop": "a2"
+    },
+    {
+     "id": "L2",
+     "start": "b1",
+     "stop": "b2"
+    },
+    {
+     "id": "L3",
+     "start": "c1",
+     "stop": "c2"
+    }
+   ],
+   "course": {
+    "timers": [
+     "L1",
+     "L2",
+     "L3"
+    ],
+    "medals": [
+     {
+      "medal": "gold",
+      "le": 110
+     },
+     {
+      "medal": "silver",
+      "le": 140
+     },
+     {
+      "medal": "bronze",
+      "le": 200
+     }
+    ],
+    "ghost": {
+     "s": 130,
+     "who": "stig",
+     "legs": [
+      30,
+      49,
+      51
+     ]
+    }
+   },
+   "onDone": {
+    "say": {
+     "who": "stig",
+     "text": "ms.club.tour.done"
+    }
+   },
+   "client": "stig"
+  },
+  {
+   "id": "club.breakfast",
+   "provider": "aeroclub",
+   "kind": "contract",
+   "title": "ms.club.breakfast.title",
+   "brief": "ms.club.breakfast.brief",
+   "pay": {
+    "base": 1800
+   },
+   "rep": {
+    "provider": "aeroclub",
+    "gain": 0.5
+   },
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": {
+        "field": "HOME"
+       },
+       "place": {
+        "field": "tw_ski"
+       },
+       "load": {
+        "kg": 0,
+        "pax": 1
+       },
+       "require": {
+        "maxMin": 14
+       }
+      }
+     ]
+    }
+   ],
+   "onDone": {
+    "say": {
+     "who": "stig",
+     "text": "ms.club.breakfast.done"
+    }
+   },
+   "client": "stig"
+  },
+  {
+   "id": "story.T0",
+   "tutorial": "T0"
+  },
+  {
+   "id": "story.T1",
+   "tutorial": "T1"
+  },
+  {
+   "id": "story.T2",
+   "tutorial": "T2"
+  },
+  {
+   "id": "story.T3",
+   "tutorial": "T3"
+  },
+  {
+   "id": "story.T4",
+   "tutorial": "T4"
+  },
+  {
+   "id": "story.T5",
+   "tutorial": "T5"
+  },
+  {
+   "id": "story.T6",
+   "tutorial": "T6"
+  },
+  {
+   "id": "story.T7",
+   "tutorial": "T7"
+  }
+ ],
+ "projects": [
+  {
+   "id": "hangar",
+   "name": "The old wartime hangar",
+   "client": "field",
+   "requires": {
+    "projects": [],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "safe",
+     "order": "any",
+     "missions": [
+      "hangar.01",
+      "hangar.02"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 2
+     },
+     "site": {
+      "id": "HOME",
+      "state": "safe"
+     },
+     "track": "field:1"
+    },
+    {
+     "id": "roof",
+     "order": "any",
+     "missions": [
+      "hangar.03",
+      "hangar.04"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "HOME",
+      "state": "roof"
+     },
+     "track": "field:2"
+    },
+    {
+     "id": "restored",
+     "order": "any",
+     "missions": [
+      "hangar.05"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "HOME",
+      "state": "restored"
+     },
+     "track": "field:3",
+     "gives": [
+      "kit:metal",
+      "tech:2"
+     ]
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "heritage",
+   "name": "The totem site",
+   "client": "field",
+   "requires": {
+    "projects": [],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "appraisal",
+     "order": "any",
+     "missions": [
+      "heritage.01"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "nv_strip",
+      "state": "cleared"
+     },
+     "track": "heritage:1"
+    },
+    {
+     "id": "totem",
+     "order": "any",
+     "missions": [
+      "heritage.02"
+     ],
+     "works": null,
+     "site": {
+      "id": "nv_strip",
+      "state": "raised"
+     },
+     "track": "heritage:2"
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "mine",
+   "name": "The old Copperhead mine",
+   "client": "minedock",
+   "requires": {
+    "projects": [],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "look",
+     "order": "any",
+     "missions": [
+      "minedock.01"
+     ],
+     "works": null,
+     "site": {
+      "id": "mn_strip",
+      "state": "surveyed"
+     }
+    },
+    {
+     "id": "experts",
+     "order": "any",
+     "missions": [
+      "minedock.02"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 2
+     },
+     "site": {
+      "id": "mn_strip",
+      "state": "scaffold"
+     },
+     "track": "minedock:1"
+    },
+    {
+     "id": "materials",
+     "order": "any",
+     "missions": [
+      "mine.03"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "mn_strip",
+      "state": "restored"
+     },
+     "track": "minedock:2"
+    },
+    {
+     "id": "opening",
+     "order": "any",
+     "missions": [
+      "mine.04"
+     ],
+     "works": null,
+     "site": {
+      "id": "mn_strip",
+      "state": "open"
+     }
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "harbour",
+   "name": "Greywater harbour",
+   "client": "minedock",
+   "requires": {
+    "projects": [
+     "mine"
+    ],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "pier",
+     "order": "any",
+     "missions": [
+      "minedock.05"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "SEA",
+      "state": "pier"
+     },
+     "track": "minedock:3"
+    },
+    {
+     "id": "store",
+     "order": "any",
+     "missions": [
+      "minedock.06"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "SEA",
+      "state": "store"
+     },
+     "track": "minedock:4"
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "lumber",
+   "name": "The lumber camp",
+   "client": "minedock",
+   "requires": {
+    "projects": [
+     "harbour"
+    ],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "landing",
+     "order": "any",
+     "missions": [
+      "lumber.01"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 2
+     },
+     "site": {
+      "id": "mk_sea",
+      "state": "landing"
+     },
+     "track": "lumber:1"
+    },
+    {
+     "id": "camp",
+     "order": "any",
+     "missions": [
+      "lumber.02",
+      "lumber.03"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "mk_sea",
+      "state": "camp"
+     },
+     "track": "lumber:2"
+    },
+    {
+     "id": "mill",
+     "order": "any",
+     "missions": [
+      "lumber.04"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "mk_sea",
+      "state": "mill"
+     },
+     "track": "lumber:3"
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "skyline",
+   "name": "Skyline in summer",
+   "client": "resort",
+   "requires": {
+    "projects": [],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "deal",
+     "order": "any",
+     "missions": [
+      "resort.02"
+     ],
+     "works": null,
+     "site": {
+      "id": "tw_ski",
+      "state": "deal"
+     },
+     "track": "resort:1"
+    },
+    {
+     "id": "lodge",
+     "order": "any",
+     "missions": [
+      "resort.03",
+      "skyline.03"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "tw_ski",
+      "state": "lodge"
+     },
+     "track": "resort:2"
+    },
+    {
+     "id": "hangar",
+     "order": "any",
+     "missions": [
+      "resort.05"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "tw_ski",
+      "state": "hangar"
+     },
+     "track": "resort:3"
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "observatory",
+   "name": "The Ardent observatory",
+   "client": "survey",
+   "requires": {
+    "projects": [
+     "hangar"
+    ],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "rounds",
+     "order": "any",
+     "missions": [
+      "obs.01"
+     ],
+     "works": null,
+     "site": {
+      "id": "mt_strip",
+      "state": "observed"
+     }
+    },
+    {
+     "id": "recon",
+     "order": "any",
+     "missions": [
+      "obs.02",
+      "obs.03"
+     ],
+     "works": null,
+     "site": {
+      "id": "mt_strip",
+      "state": "feasible"
+     }
+    },
+    {
+     "id": "tower",
+     "order": "any",
+     "missions": [
+      "obs.04",
+      "obs.05"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "mt_strip",
+      "state": "tower"
+     },
+     "track": "observatory:1"
+    },
+    {
+     "id": "drum",
+     "order": "any",
+     "missions": [
+      "obs.06",
+      "obs.07"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "mt_strip",
+      "state": "drum"
+     },
+     "track": "observatory:2"
+    },
+    {
+     "id": "hall",
+     "order": "any",
+     "missions": [
+      "obs.08"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "mt_strip",
+      "state": "hall"
+     },
+     "track": "observatory:3"
+    },
+    {
+     "id": "strip",
+     "order": "any",
+     "missions": [
+      "obs.09"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "mt_strip",
+      "state": "wide"
+     },
+     "gives": [
+      "tech:3"
+     ]
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "home",
+   "name": "Home improvement",
+   "client": "home",
+   "requires": {
+    "projects": [],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "strip",
+     "order": "any",
+     "missions": [
+      "home.01",
+      "home.02"
+     ],
+     "works": {
+      "cost": 1500,
+      "days": 2
+     },
+     "site": {
+      "id": "w1",
+      "state": "strip"
+     },
+     "track": "home:1"
+    },
+    {
+     "id": "cabin",
+     "order": "any",
+     "missions": [
+      "home.03",
+      "home.04",
+      "home.05"
+     ],
+     "works": {
+      "cost": 6000,
+      "days": 4
+     },
+     "site": {
+      "id": "w1",
+      "state": "cabin"
+     },
+     "track": "home:2",
+     "gives": [
+      "kit:wood"
+     ]
+    },
+    {
+     "id": "road",
+     "order": "any",
+     "missions": [
+      "home.06",
+      "home.07"
+     ],
+     "works": {
+      "cost": 4000,
+      "days": 5
+     },
+     "site": {
+      "id": "w1",
+      "state": "road"
+     },
+     "track": "home:3"
+    },
+    {
+     "id": "dock",
+     "order": "any",
+     "missions": [
+      "home.08",
+      "home.09"
+     ],
+     "works": {
+      "cost": 3000,
+      "days": 3
+     },
+     "site": {
+      "id": "cb_sea",
+      "state": "dock"
+     },
+     "track": "home:4"
+    },
+    {
+     "id": "lakeside",
+     "order": "any",
+     "missions": [
+      "home.10",
+      "home.11"
+     ],
+     "works": {
+      "cost": 8000,
+      "days": 4
+     },
+     "site": {
+      "id": "cb_sea",
+      "state": "lakeside"
+     },
+     "track": "home:5"
+    },
+    {
+     "id": "flyin",
+     "order": "any",
+     "missions": [
+      "home.12"
+     ],
+     "works": null,
+     "site": {
+      "id": "cb_sea",
+      "state": "flyin"
+     }
+    },
+    {
+     "id": "hangar",
+     "order": "any",
+     "missions": [
+      "home.13",
+      "home.14"
+     ],
+     "works": {
+      "cost": 12000,
+      "days": 5
+     },
+     "site": {
+      "id": "w1",
+      "state": "hangar"
+     },
+     "track": "home:6",
+     "gives": [
+      "hangar:home"
+     ]
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "community",
+   "name": "The community's runway",
+   "client": "community",
+   "requires": {
+    "projects": [],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "expert",
+     "order": "any",
+     "missions": [
+      "community.01"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 5
+     },
+     "site": {
+      "id": "w7",
+      "state": "first"
+     },
+     "track": "community:1"
+    },
+    {
+     "id": "grinder",
+     "order": "any",
+     "missions": [
+      "community.02",
+      "community.03"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 5
+     },
+     "site": {
+      "id": "w7",
+      "state": "second"
+     },
+     "track": "community:2"
+    },
+    {
+     "id": "grader",
+     "order": "any",
+     "missions": [
+      "community.04"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "w7",
+      "state": "graded"
+     },
+     "track": "community:3"
+    },
+    {
+     "id": "push",
+     "order": "any",
+     "missions": [
+      "community.05",
+      "community.06",
+      "community.07"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 7
+     },
+     "site": {
+      "id": "w7",
+      "state": "gravel"
+     },
+     "track": "community:4"
+    },
+    {
+     "id": "experts",
+     "order": "any",
+     "missions": [
+      "community.08"
+     ],
+     "works": null,
+     "site": {
+      "id": "w7",
+      "state": "planned"
+     }
+    },
+    {
+     "id": "tower",
+     "order": "any",
+     "missions": [
+      "community.09"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "w7",
+      "state": "tower"
+     },
+     "track": "community:5"
+    },
+    {
+     "id": "hangar",
+     "order": "any",
+     "missions": [
+      "community.10"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "w7",
+      "state": "hangar"
+     },
+     "track": "community:6"
+    },
+    {
+     "id": "terminal",
+     "order": "any",
+     "missions": [
+      "community.11"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "w7",
+      "state": "terminal"
+     },
+     "track": "community:7"
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  },
+  {
+   "id": "club",
+   "name": "The club house",
+   "client": "aeroclub",
+   "requires": {
+    "projects": [],
+    "rep": {},
+    "abilities": []
+   },
+   "offer": null,
+   "steps": [
+    {
+     "id": "house",
+     "order": "any",
+     "missions": [
+      "club.breakfast"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 3
+     },
+     "site": {
+      "id": "HOME",
+      "state": "clubhouse"
+     },
+     "track": "clients:1"
+    },
+    {
+     "id": "museum",
+     "order": "any",
+     "missions": [
+      "club.tour"
+     ],
+     "works": {
+      "cost": 0,
+      "days": 4
+     },
+     "site": {
+      "id": "HOME",
+      "state": "museum"
+     },
+     "track": "clients:2"
+    }
+   ],
+   "onDone": {
+    "abilities": [],
+    "projects": [],
+    "missions": [],
+    "clients": []
+   }
+  }
+ ],
+ "sites": [],
+ "text": {
+  "prov.aeroclub.name": {
+   "t": "The Jolene Aero Club",
+   "draft": true
+  },
+  "prov.aeroclub.short": {
+   "t": "Aero Club",
+   "draft": true
+  },
+  "prov.aeroclub.desc": {
+   "t": "People who fly for no reason at all, and keep score.",
+   "draft": true
+  },
+  "prov.home.name": {
+   "t": "Home",
+   "draft": true
+  },
+  "prov.home.short": {
+   "t": "Home",
+   "draft": true
+  },
+  "prov.home.desc": {
+   "t": "Your own strip in the middle of the island, and everything it could become.",
+   "draft": true
+  },
+  "prov.community.name": {
+   "t": "The Muskeg Community",
+   "draft": true
+  },
+  "prov.community.short": {
+   "t": "Community",
+   "draft": true
+  },
+  "prov.community.desc": {
+   "t": "They came for the quiet and they mean to keep it. Supplies are welcome. Visitors are a committee matter.",
+   "draft": true
+  },
+  "ms.field.round.title": {
+   "t": "The mail round",
+   "draft": true
+  },
+  "ms.field.round.brief": {
+   "t": "Two sacks, two strips: the Cannery and the Fishing Village, in the order you like. It comes round again.",
+   "draft": true
+  },
+  "ms.field.hike.title": {
+   "t": "Trail supplies",
+   "draft": true
+  },
+  "ms.field.hike.brief": {
+   "t": "Sixty kilos of supplies for the trail crew at the Hiking Strip. The strip is dirt. After rain it is something else.",
+   "draft": true
+  },
+  "ms.field.ridge.title": {
+   "t": "A lift up the mountain",
+   "draft": true
+  },
+  "ms.field.ridge.brief": {
+   "t": "One passenger from the Fishing Village to the Mountainside Strip. You land uphill. You will see why.",
+   "draft": true
+  },
+  "ms.field.cannery.title": {
+   "t": "The cannery's crates",
+   "draft": true
+  },
+  "ms.field.cannery.brief": {
+   "t": "Eighty kilos out of the Cannery Runway and back to the field. Short strip, full load: mind the far end.",
+   "draft": true
+  },
+  "ms.hangar.01.title": {
+   "t": "Props for the old hangar",
+   "draft": true
+  },
+  "ms.hangar.01.brief": {
+   "t": "Sixty kilos of shoring props from the Fishing Village. The Trust wants the old wartime hangar standing before it wants it pretty.",
+   "draft": true
+  },
+  "ms.hangar.02.title": {
+   "t": "The engineer",
+   "draft": true
+  },
+  "ms.hangar.02.brief": {
+   "t": "A structural engineer is waiting at the Cannery Runway with a hard hat and an opinion. Bring both.",
+   "draft": true
+  },
+  "ms.hangar.03.title": {
+   "t": "Roof sheets",
+   "draft": true
+  },
+  "ms.hangar.03.brief": {
+   "t": "Ninety kilos of roofing sheet from the Fishing Village: all a small aeroplane will take in one go.",
+   "draft": true
+  },
+  "ms.hangar.04.title": {
+   "t": "Rivets by the crate",
+   "draft": true
+  },
+  "ms.hangar.04.brief": {
+   "t": "Eighty kilos of fasteners out of the Cannery Runway. Leonard counted them. Twice.",
+   "draft": true
+  },
+  "ms.hangar.05.title": {
+   "t": "The door motor",
+   "draft": true
+  },
+  "ms.hangar.05.brief": {
+   "t": "A hundred and twenty kilos in one piece: the motor for the big doors. Not a job for the smallest aeroplane you own.",
+   "draft": true
+  },
+  "ms.hangar.05.done": {
+   "t": "She opens. First time since the war. The machines inside are yours to use: I would not know which end to hold.",
+   "draft": true
+  },
+  "ms.heritage.01.title": {
+   "t": "The appraisal",
+   "draft": true
+  },
+  "ms.heritage.01.brief": {
+   "t": "One appraiser to East Point Clearing: a hundred and fifty metres in the trees, the sea at one end. The experts swear it can be done. The experts are not flying.",
+   "draft": true
+  },
+  "ms.heritage.02.title": {
+   "t": "The totem",
+   "draft": true
+  },
+  "ms.heritage.02.brief": {
+   "t": "Three metres of carved cedar, three hundred kilos, from the Fishing Village to East Point. It does not come apart. Neither should you.",
+   "draft": true
+  },
+  "ms.heritage.02.done": {
+   "t": "It stands. The whole island will come and look at it, and nobody will ask how it got there. You and I will know.",
+   "draft": true
+  },
+  "ms.mine.03.title": {
+   "t": "Lime and timber",
+   "draft": true
+  },
+  "ms.mine.03.brief": {
+   "t": "Sixty kilos from the field, sixty from the Fishing Village, both to Copperhead Mine Street. One big aeroplane or two small trips: the old street does not care.",
+   "draft": true
+  },
+  "ms.mine.04.title": {
+   "t": "Opening day",
+   "draft": true
+  },
+  "ms.mine.04.brief": {
+   "t": "The first two paying visitors to the old mine. You land in the middle of the village, as people always did. Try to look as if it is normal.",
+   "draft": true
+  },
+  "ms.mine.04.done": {
+   "t": "They loved it. One of them asked if the landing is always like that. I said yes.",
+   "draft": true
+  },
+  "ms.mine.tour.title": {
+   "t": "The mine tour",
+   "draft": true
+  },
+  "ms.mine.tour.brief": {
+   "t": "Two visitors out to Copperhead Mine Street, two back. The regulars of the season.",
+   "draft": true
+  },
+  "ms.lumber.01.title": {
+   "t": "The foreman",
+   "draft": true
+  },
+  "ms.lumber.01.brief": {
+   "t": "One foreman from Greywater Dock to Cedar Harbour, with a chainsaw he will not check in. Floats only.",
+   "draft": true
+  },
+  "ms.lumber.02.title": {
+   "t": "Saws and fuel",
+   "draft": true
+  },
+  "ms.lumber.02.brief": {
+   "t": "A hundred and fifty kilos of saws, chain and fuel to Cedar Harbour.",
+   "draft": true
+  },
+  "ms.lumber.03.title": {
+   "t": "Crew change",
+   "draft": true
+  },
+  "ms.lumber.03.brief": {
+   "t": "Two loggers back to Greywater Dock after three weeks in the trees. Open a window.",
+   "draft": true
+  },
+  "ms.lumber.04.title": {
+   "t": "The saw head",
+   "draft": true
+  },
+  "ms.lumber.04.brief": {
+   "t": "Two hundred and fifty kilos: the head of the camp's mill, to Cedar Harbour. About all a floatplane with four seats will lift.",
+   "draft": true
+  },
+  "ms.lumber.04.done": {
+   "t": "She is cutting. You hear that? That is money.",
+   "draft": true
+  },
+  "ms.lumber.run.title": {
+   "t": "The camp run",
+   "draft": true
+  },
+  "ms.lumber.run.brief": {
+   "t": "A logger and eighty kilos of supplies to Cedar Harbour. The camp eats, the camp runs.",
+   "draft": true
+  },
+  "ms.resort.guests.title": {
+   "t": "Guests up, guests down",
+   "draft": true
+  },
+  "ms.resort.guests.brief": {
+   "t": "One guest up to Skyline, one back down. Martha's season, a seat at a time.",
+   "draft": true
+  },
+  "ms.skyline.03.title": {
+   "t": "The kitchen",
+   "draft": true
+  },
+  "ms.skyline.03.brief": {
+   "t": "Ninety kilos of kitchen for the lodge at Skyline. The stove is in three pieces. One of them is the heavy one.",
+   "draft": true
+  },
+  "ms.obs.01.title": {
+   "t": "First look at Ardent",
+   "draft": true
+  },
+  "ms.obs.01.brief": {
+   "t": "Two passes for the survey: over the summit of Mount Ardent, and over the Mountainside Strip on the way. Pick a day you can see the mountain.",
+   "draft": true
+  },
+  "ms.obs.02.title": {
+   "t": "Boots on the summit",
+   "draft": true
+  },
+  "ms.obs.02.brief": {
+   "t": "One scientist and two hundred kilos of instruments, onto the snow at Ardent Altiport. Skis. Uphill. No second try.",
+   "draft": true
+  },
+  "ms.obs.03.title": {
+   "t": "Bring her down",
+   "draft": true
+  },
+  "ms.obs.03.brief": {
+   "t": "The feasibility round is over and the scientist would like a bath. One passenger from Ardent Altiport to the field.",
+   "draft": true
+  },
+  "ms.obs.04.title": {
+   "t": "The riggers",
+   "draft": true
+  },
+  "ms.obs.04.brief": {
+   "t": "Two riggers to Ardent Altiport. The cableway takes steel. It does not take people.",
+   "draft": true
+  },
+  "ms.obs.05.title": {
+   "t": "What the cable car refuses",
+   "draft": true
+  },
+  "ms.obs.05.brief": {
+   "t": "A hundred and twenty kilos of instruments from the Fishing Village to Ardent: too fragile for the cableway, they say. So they asked a pilot.",
+   "draft": true
+  },
+  "ms.obs.06.title": {
+   "t": "The drum's bearings",
+   "draft": true
+  },
+  "ms.obs.06.brief": {
+   "t": "A hundred and fifty kilos for the observatory's second building.",
+   "draft": true
+  },
+  "ms.obs.07.title": {
+   "t": "The glaziers",
+   "draft": true
+  },
+  "ms.obs.07.brief": {
+   "t": "Two glaziers to Ardent Altiport, and their lunch.",
+   "draft": true
+  },
+  "ms.obs.08.title": {
+   "t": "The big lens crate",
+   "draft": true
+  },
+  "ms.obs.08.brief": {
+   "t": "Two hundred kilos, one crate, do not tilt. To Ardent Altiport.",
+   "draft": true
+  },
+  "ms.obs.09.title": {
+   "t": "The groomer",
+   "draft": true
+  },
+  "ms.obs.09.brief": {
+   "t": "Two hundred and fifty kilos of snow groomer for a wider, kinder strip on Ardent. The last time you land on the narrow one.",
+   "draft": true
+  },
+  "ms.obs.09.done": {
+   "t": "A station on the highest point of the island, and half of it came up in your aeroplane. The lab is open to you: use it.",
+   "draft": true
+  },
+  "ms.booze.01.title": {
+   "t": "A favour after dark",
+   "draft": true
+  },
+  "ms.booze.01.brief": {
+   "t": "Sixty kilos of \"preserves\" from the Cannery Runway to the Hiking Strip, after dusk. The label says jam. Nobody is going to read the label.",
+   "draft": true
+  },
+  "ms.booze.02.title": {
+   "t": "The same favour, the other way",
+   "draft": true
+  },
+  "ms.booze.02.brief": {
+   "t": "Eighty kilos out of the Old Community Runway to the Cannery, before dawn. It turns out the quiet people up there make something worth the trip.",
+   "draft": true
+  },
+  "ms.home.01.title": {
+   "t": "Drain pipe and a roller",
+   "draft": true
+  },
+  "ms.home.01.brief": {
+   "t": "Eighty kilos from the field to your own strip: drain pipe and a hand roller. The Cabin Strip is bumpy, narrow and sometimes mud. It is also the only way in.",
+   "draft": true
+  },
+  "ms.home.02.title": {
+   "t": "Rakes, stakes and string",
+   "draft": true
+  },
+  "ms.home.02.brief": {
+   "t": "Sixty kilos from the Fishing Village: enough to mark a strip and clear a corner to park on.",
+   "draft": true
+  },
+  "ms.home.03.title": {
+   "t": "The cabin, flat-packed",
+   "draft": true
+  },
+  "ms.home.03.brief": {
+   "t": "Two hundred and fifty kilos of timber frame from the Fishing Village. The hunter's shed was fine for one. It is not going to be one.",
+   "draft": true
+  },
+  "ms.home.04.title": {
+   "t": "Windows and a stove",
+   "draft": true
+  },
+  "ms.home.04.brief": {
+   "t": "Two hundred kilos from the field: glass, a stove, a door that shuts.",
+   "draft": true
+  },
+  "ms.home.05.title": {
+   "t": "Sophie moves in",
+   "draft": true
+  },
+  "ms.home.05.brief": {
+   "t": "One passenger, thirty kilos of what she could not leave behind, from the field to the Cabin Strip. Land it gently.",
+   "draft": true
+  },
+  "ms.home.05.done": {
+   "t": "It has a door. And a view. You told me it was a shed.",
+   "draft": true
+  },
+  "ms.home.06.title": {
+   "t": "The little digger",
+   "draft": true
+  },
+  "ms.home.06.brief": {
+   "t": "Four hundred and fifty kilos in one crate: a digger small enough to fly and big enough to cut a road to the lake. You do not own an aeroplane that carries it. Yet.",
+   "draft": true
+  },
+  "ms.home.07.title": {
+   "t": "Diesel for the digger",
+   "draft": true
+  },
+  "ms.home.07.brief": {
+   "t": "A hundred and twenty kilos of fuel from the Fishing Village. The digger drinks.",
+   "draft": true
+  },
+  "ms.home.08.title": {
+   "t": "Floats for a dock",
+   "draft": true
+  },
+  "ms.home.08.brief": {
+   "t": "A hundred and fifty kilos of dock floats from Greywater to your lake. First landing on Cabin Lake: floats under the aeroplane too.",
+   "draft": true
+  },
+  "ms.home.09.title": {
+   "t": "Cedar planks",
+   "draft": true
+  },
+  "ms.home.09.brief": {
+   "t": "A hundred kilos of decking from Cedar Harbour to Cabin Lake.",
+   "draft": true
+  },
+  "ms.home.10.title": {
+   "t": "The long dock",
+   "draft": true
+  },
+  "ms.home.10.brief": {
+   "t": "Two hundred and fifty kilos of dock from Greywater. Room for more than one aeroplane, for a reason.",
+   "draft": true
+  },
+  "ms.home.11.title": {
+   "t": "The lakeside cabin",
+   "draft": true
+  },
+  "ms.home.11.brief": {
+   "t": "Two hundred kilos of cabin from Cedar Harbour: beds for people who fly in.",
+   "draft": true
+  },
+  "ms.home.12.title": {
+   "t": "The fly-in",
+   "draft": true
+  },
+  "ms.home.12.brief": {
+   "t": "Two friends from Greywater to your lake, for the night. They would have brought their own aeroplane. They said yours is nicer.",
+   "draft": true
+  },
+  "ms.home.12.done": {
+   "t": "Everybody stayed. Nobody wanted to be the first to leave.",
+   "draft": true
+  },
+  "ms.home.13.title": {
+   "t": "Trusses",
+   "draft": true
+  },
+  "ms.home.13.brief": {
+   "t": "Two hundred and eighty kilos of roof truss from the field: your hangar is about to stop being a shed.",
+   "draft": true
+  },
+  "ms.home.14.title": {
+   "t": "Doors wide enough",
+   "draft": true
+  },
+  "ms.home.14.brief": {
+   "t": "Two hundred kilos of door from the Fishing Village: wide enough for the aeroplanes you have been borrowing space for.",
+   "draft": true
+  },
+  "ms.home.14.done": {
+   "t": "Now build something that needs it.",
+   "draft": true
+  },
+  "ms.community.01.title": {
+   "t": "The muskeg expert",
+   "draft": true
+  },
+  "ms.community.01.brief": {
+   "t": "One expert to the Old Community Runway: a path that happens to be straight, and happens to be mud. A small rough aeroplane. The community will meet you at the edge of it. Only at the edge.",
+   "draft": true
+  },
+  "ms.community.02.title": {
+   "t": "What the grinder lacks",
+   "draft": true
+  },
+  "ms.community.02.brief": {
+   "t": "Eighty kilos of parts from the Fishing Village to the new strip. Their rock grinder came by sea and has not ground a rock since.",
+   "draft": true
+  },
+  "ms.community.03.title": {
+   "t": "Belts and teeth",
+   "draft": true
+  },
+  "ms.community.03.brief": {
+   "t": "Sixty kilos more for the grinder, from the field. The new strip is two hundred metres of the same mud as the old one.",
+   "draft": true
+  },
+  "ms.community.04.title": {
+   "t": "A blade for the grader",
+   "draft": true
+  },
+  "ms.community.04.brief": {
+   "t": "Ninety kilos of grader blade from the field. Four hundred metres now, and every one of them has a bump.",
+   "draft": true
+  },
+  "ms.community.05.title": {
+   "t": "Culverts from the Cannery",
+   "draft": true
+  },
+  "ms.community.05.brief": {
+   "t": "Eighty kilos of culvert pipe from the Cannery Runway.",
+   "draft": true
+  },
+  "ms.community.06.title": {
+   "t": "Rail from the old mine",
+   "draft": true
+  },
+  "ms.community.06.brief": {
+   "t": "Sixty kilos of old mine rail from Copperhead Mine Street: the community has plans for it. The community always has plans.",
+   "draft": true
+  },
+  "ms.community.07.title": {
+   "t": "Geotextile",
+   "draft": true
+  },
+  "ms.community.07.brief": {
+   "t": "Ninety kilos of the cloth that keeps gravel on top of a swamp, from the Fishing Village.",
+   "draft": true
+  },
+  "ms.community.08.title": {
+   "t": "Four experts at once",
+   "draft": true
+  },
+  "ms.community.08.brief": {
+   "t": "Four experts from the field to a kilometre of new gravel. One flight, the committee insists: four arrivals would be four too many. You need a bigger aeroplane.",
+   "draft": true
+  },
+  "ms.community.09.title": {
+   "t": "A tower, some assembly required",
+   "draft": true
+  },
+  "ms.community.09.brief": {
+   "t": "Three hundred kilos of tower from the field.",
+   "draft": true
+  },
+  "ms.community.10.title": {
+   "t": "A hangar in bundles",
+   "draft": true
+  },
+  "ms.community.10.brief": {
+   "t": "Four hundred kilos of hangar frame from the field.",
+   "draft": true
+  },
+  "ms.community.11.title": {
+   "t": "The terminal",
+   "draft": true
+  },
+  "ms.community.11.brief": {
+   "t": "Three hundred and fifty kilos from the Fishing Village: the smallest terminal on any map. It has a bench.",
+   "draft": true
+  },
+  "ms.community.11.done": {
+   "t": "The committee has voted. You may land here whenever you bring something. That is the warmest thing we have ever said to anyone.",
+   "draft": true
+  },
+  "ms.club.stol.title": {
+   "t": "The short landing",
+   "draft": true
+  },
+  "ms.club.stol.brief": {
+   "t": "The rough strip beside runway 02/20, landing 204 degrees. Touch down past the line and stop. The metres from the line to where you stand are your score. Short of the line is a foul.",
+   "draft": true
+  },
+  "ms.club.spot.title": {
+   "t": "The spot landing",
+   "draft": true
+  },
+  "ms.club.spot.brief": {
+   "t": "Runway 02/20, landing 204 degrees: one painted line, three hundred metres in. Your first touch, measured from it. Before or after counts the same.",
+   "draft": true
+  },
+  "ms.club.pylons.title": {
+   "t": "Round the pylons",
+   "draft": true
+  },
+  "ms.club.pylons.brief": {
+   "t": "Four gates round the field, anticlockwise, under a hundred and fifty metres. The clock runs from the first to the last. Touch a pylon and it costs you three seconds.",
+   "draft": true
+  },
+  "ms.club.regular.title": {
+   "t": "Two minutes exactly",
+   "draft": true
+  },
+  "ms.club.regular.brief": {
+   "t": "Two gates, four kilometres apart. Cross the second one two minutes after the first: not sooner, not later. The fastest aeroplane wins nothing.",
+   "draft": true
+  },
+  "ms.club.tour.title": {
+   "t": "The island tour",
+   "draft": true
+  },
+  "ms.club.tour.brief": {
+   "t": "Three timed legs and three landings: the Fishing Village, the Cannery, home. The three times are added. The landings are not timed: take them as they come.",
+   "draft": true
+  },
+  "ms.club.tour.done": {
+   "t": "The club would like your aeroplane in a hangar with a rope in front of it. You may still fly it.",
+   "draft": true
+  },
+  "ms.club.breakfast.title": {
+   "t": "The flying breakfast",
+   "draft": true
+  },
+  "ms.club.breakfast.brief": {
+   "t": "One club member from the field to Skyline, wheels stopped within fourteen minutes of the brakes coming off. The pancakes are served at the top. They are served hot or not at all.",
+   "draft": true
+  },
+  "ms.club.breakfast.done": {
+   "t": "Everybody who flew in signed the wall. There is a wall now. There is a house round it.",
+   "draft": true
+  },
+  "ms.chapter.field.work": {
+   "t": "Work",
+   "draft": true
+  },
+  "ms.chapter.minedock.work": {
+   "t": "Work",
+   "draft": true
+  },
+  "ms.chapter.minedock.orders": {
+   "t": "Aircraft orders",
+   "draft": true
+  },
+  "ms.chapter.resort.work": {
+   "t": "Work",
+   "draft": true
+  },
+  "ms.chapter.resort.orders": {
+   "t": "Aircraft orders",
+   "draft": true
+  },
+  "ms.chapter.survey.work": {
+   "t": "Work",
+   "draft": true
+  },
+  "ms.chapter.survey.orders": {
+   "t": "Aircraft orders",
+   "draft": true
+  },
+  "ms.chapter.clients.work": {
+   "t": "Work",
+   "draft": true
+  },
+  "ms.chapter.clients.orders": {
+   "t": "Aircraft orders",
+   "draft": true
+  },
+  "ms.chapter.aeroclub.events": {
+   "t": "Events",
+   "draft": true
+  },
+  "ms.pack.story.title": {
+   "t": "Wingsmith: the story",
+   "draft": true
+  }
+ }
+}

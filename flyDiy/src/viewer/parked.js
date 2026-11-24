@@ -131,6 +131,12 @@
   // packs exactly as the published build did, despite the audit build hash.
   const FROZEN_STOCK = STATIC_TRIO || !!(W.location && /[?&]parkstock=1(?:&|$)/.test(W.location.search || ''));
   const TRIO_KEYS = ['arch:cub', 'arch:c172', 'arch:jodel'];
+  // PERF-SIMPLIFY (the user 22 Nov: "For the based planes and the storage, I'd like to put this on hold. We can still load the
+  // client cub, but the idea of live baking planes and adding them to the world or the garage was a small feature with a big
+  // cost"): the player's planes based at an aerodrome (the apron fleet) and kept in a building (the garage's residents) are
+  // NOT drawn - ON HOLD, dormant behind ?based=1 (or window.FLYDIY_BASED = true). The ledger (where each plane is kept) is
+  // unchanged (the node gates, with no page, keep exercising the drawing); the story's client Cub still stands on HOME's apron as the offline Cub prop (fleet_stand.js `only`)
+  const based = () => { if (W.FLYDIY_BASED === true) return true; if (W.FLYDIY_BASED === false) return false; if (!W.location) return true; try { return !!(W.location && /[?&]based=1(?:&|$)/.test(W.location.search || '')); } catch (e) { return false; } };
   function staticKey(key) {
     if (!STATIC_TRIO) return key;
     if (/jodel/i.test(key)) return TRIO_KEYS[2];
@@ -463,7 +469,11 @@
     return n;
   }
   function capture(key, spec0) {
-    if (STATIC_TRIO) { key = staticKey(key); if (!REC[key]) enqueue(key); return REC[key] || null; }
+    // VAN-TOW (the user 22 Nov: the validated van is THE glider tow car, "I don't want [it] built every time"): a CAR handed with
+    // its own spec (drive_mode.js stockVan, at the drive's / the tow's start - never at boot) is captured live, not stood in
+    // by the static trio's aeroplanes
+    const carLive = !!spec0 && typeof key === 'string' && key.lastIndexOf('car:', 0) === 0;
+    if (STATIC_TRIO && !carLive) { key = staticKey(key); if (!REC[key]) enqueue(key); return REC[key] || null; }
     if (REC[key]) return REC[key];
     if (!canCapture()) return null;
     flush();                                   // a batch in flight holds the editor: finish it first
@@ -677,7 +687,8 @@
     const ud = m.userData; m.userData = {};
     let c;
     try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
-    c.userData = Object.assign({}, ud, block ? { aeroD: block } : {}, { parked: 1 });
+    c.userData = Object.assign({}, ud, block ? { aeroD: block } : {}, { parked: 1,
+      progOwner: [].concat(ud.progOwner || 'aircraft / skin / undeclared').map(o => 'fleet / parked aircraft / ' + String(o).replace(/^aircraft \/ /, '')) });   // PERF-TRACE: a parked copy is the fleet's (program_id.js)
     if (m.defines) c.defines = Object.assign({}, m.defines);
     for (const k of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity'])
       if (m[k] !== undefined && c[k] !== undefined) c[k] = m[k];
@@ -717,6 +728,8 @@
         return cache[ck] = onBlock(s);
       }
       if (m.panel && rec.panel && rec.panel[m.panel]) return cache[ck] = rec.panel[m.panel];
+      if (m.carTex && W.CAGE_CARTEX) { const cm = W.CAGE_CARTEX.material(m.carTex); if (cm) return cache[ck] = cm; }   // CAR-TEX: the plate, the tow sign
+      if (m.tyreTex && W.CAGE_WHEELTEX) { const tm = W.CAGE_WHEELTEX.material(m.tyreTex); if (tm) return cache[ck] = tm; }   // WHEEL-TEX
       if (m.propMat && typeof W.propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');
@@ -734,7 +747,7 @@
       }
       if (m.ves && W.CAGE_ENERGY && W.CAGE_ENERGY.material)
         return cache[ck] = W.CAGE_ENERGY.material({ set: m.ves, tint: m.color, hueRad: m.vesHue || 0, hueOn: !!m.vesHueOn });
-      const std = new THREE.MeshStandardMaterial({
+      const std = new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / parked aircraft / painted parts' },
         color: m.color !== undefined ? m.color : 0xaad4ea, side,
         transparent: op < 1, opacity: op, depthWrite: op >= 1,
         ...(m.alphaTest ? { alphaTest: m.alphaTest } : {}),
@@ -869,7 +882,7 @@ self.onmessage = function (e) {
     const run = () => {
       try {
         if (!workerURL) workerURL = URL.createObjectURL(new Blob([SRC + '\n' + WORKER_JOB], { type: 'text/javascript' }));
-        const w = new Worker(workerURL);
+        const w = new Worker(workerURL, { name: 'fleet / parked aircraft / decimate' });
         w.onmessage = e => { w.terminate(); cb(e.data, null); };
         w.onerror = e => { w.terminate(); cb(null, e && e.message || 'worker error'); };
         w.postMessage(job);
@@ -933,8 +946,8 @@ self.onmessage = function (e) {
       if (C) geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
       if (S) { geo.setAttribute('aStruct', new THREE.BufferAttribute(S, 4)); geo.setAttribute('uv', new THREE.BufferAttribute(U, 2)); }
       const mat = g.mat ? g.mat
-        : g.cls === 2 ? new THREE.MeshStandardMaterial({ color: 0x1a2430, roughness: 0.15, metalness: 0.0, side: THREE.DoubleSide })
-        : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: g.cls === 1 ? 0.35 : 0.6, metalness: g.cls === 1 ? 0.9 : 0.0, side: THREE.DoubleSide });
+        : g.cls === 2 ? new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / parked aircraft / glass (static)' }, color: 0x1a2430, roughness: 0.15, metalness: 0.0, side: THREE.DoubleSide })
+        : new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / parked aircraft / body (static)' }, vertexColors: true, roughness: g.cls === 1 ? 0.35 : 0.6, metalness: g.cls === 1 ? 0.9 : 0.0, side: THREE.DoubleSide });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.renderOrder = g.clear ? 10 : 0;
       mesh.castShadow = !g.clear; mesh.receiveShadow = true;
@@ -1215,7 +1228,7 @@ self.onmessage = function (e) {
       const key = ext.buckets[b].key, m = vis.mats[key] || {};
       let src = null;
       try { src = matFor(key); } catch (e) { src = null; }
-      if (!src || !src.isMeshStandardMaterial) src = new THREE.MeshStandardMaterial({ color: src && src.color ? src.color : (m.color != null ? m.color : 0x808080), roughness: 0.6 });
+      if (!src || !src.isMeshStandardMaterial) src = new THREE.MeshStandardMaterial({ userData: { progOwner: 'fleet / parked aircraft / merged skin' }, color: src && src.color ? src.color : (m.color != null ? m.color : 0x808080), roughness: 0.6 });
       const n = ts.length * 3, p = new Float32Array(n * 3), q = new Float32Array(n * 3), u = new Float32Array(n * 2), s = new Float32Array(n * 4), a = new Float32Array(n * 2);
       for (let i = 0; i < ts.length; i++) for (let e = 0; e < 3; e++) {
         const c = ts[i] * 3 + e, v = ext.idx[c], o = i * 3 + e;
@@ -1351,10 +1364,12 @@ self.onmessage = function (e) {
     const map = tex(d.tex[0], true), nmap = tex(d.tex[1], false), orm = tex(d.tex[2], false);
     const o = { map, normalMap: nmap, normalMapType: THREE.ObjectSpaceNormalMap, roughnessMap: orm, metalnessMap: orm,
                 roughness: 1, metalness: 1, side: THREE.DoubleSide };
+    // progOwner: mat.userData.progOwner, three lines below (both branches)
     const mat = d.cc ? new THREE.MeshPhysicalMaterial(Object.assign(o, { clearcoat: 1, clearcoatMap: orm, clearcoatRoughness: d.ccR }))
-                     : new THREE.MeshStandardMaterial(o);
+                     : new THREE.MeshStandardMaterial(o);   // progOwner: mat.userData.progOwner, just below
     mat.name = 'parked:baked';
     mat.userData.parkedBaked = 1;
+    mat.userData.progOwner = 'fleet / parked aircraft / baked model';   // PERF-TRACE (program_id.js): whose programs these are
     const geos = d.L.map(L => {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(L.pos, 3));
@@ -1498,7 +1513,7 @@ self.onmessage = function (e) {
     const COL = { fuselage: 0xffb040, wing: 0x40c0ff, tail: 0xb080ff, engine: 0xff5050, gear: 0x80ff80, floats: 0x40e0e0 };
     for (const b of hb) {
       const box = new THREE.Box3(new THREE.Vector3(...b.min), new THREE.Vector3(...b.max));
-      const h = new THREE.Box3Helper(box, COL[b.name.replace(/\d+$/, '')] || 0xffffff);
+      const h = new THREE.Box3Helper(box, COL[b.name.replace(/\d+$/, '')] || 0xffffff); h.material.userData.progOwner = 'fleet / parked aircraft / debug boxes';
       h.name = 'hitbox:' + b.name;
       grp.add(h);
     }
@@ -1925,7 +1940,8 @@ self.onmessage = function (e) {
   try { if (W.location && /[?&]parkclean=0(?:&|$)/.test(W.location.search || '')) W.__parkClean0 = true; } catch (e) {}
   // G2226: ON by default (the user's ruling GQ9: the fleet visible everywhere; FLEET-PROPS B's timing) - off with ?fleet=0 or
   // window.FLYDIY_FLEET = false (the A/B and the gates' 'off' rows)
-  const fleetOn = () => { if (STATIC_TRIO) return false; if (W.FLYDIY_FLEET === false) return false; if (W.FLYDIY_FLEET === true) return true; try { return !(W.location && /[?&]fleet=0(?:&|$)/.test(W.location.search || '')); } catch (e) { return true; } };
+  const fleetOn = () => { if (STATIC_TRIO && !based()) return false;   // (PERF-SIMPLIFY: ?based=1 stands the fleet again - the static trio's stand-ins unless ?parktrio=0)
+     if (W.FLYDIY_FLEET === false) return false; if (W.FLYDIY_FLEET === true) return true; try { return !(W.location && /[?&]fleet=0(?:&|$)/.test(W.location.search || '')); } catch (e) { return true; } };
   const isMine = key => typeof key === 'string' && key.lastIndexOf('mine:', 0) === 0;
   // the game's state (app.js FLYDIY_HOLDS): no handle (a gate's vm) = a garage at rest
   const holds = () => { try { return W.FLYDIY_HOLDS ? W.FLYDIY_HOLDS() : null; } catch (e) { return null; } };
@@ -2178,7 +2194,7 @@ self.onmessage = function (e) {
                // the offline tool's door (cookPack) and the A/B's live twin (abLive)
                COOK, cookable, cookSig, cookEncode, cookDecode, cookRecord, cookLoad, cookAll, cookPack, abLive, bakeData, cutBaked,
                // G2220-G2224, the fleet: the rules, the state, the doors (the garage's queue, the roll-out's decode), the pure pick
-               resident, residentFill, residentDrop, residents: RESIDENT,   // G2315: the garage's residents (one rung, decode only)
+               based, resident, residentFill, residentDrop, residents: RESIDENT,   // G2315: the garage's residents (one rung, decode only)
                FLEET_DRAW, fleet: FLEET, fleetOn, fleetSig, fleetQueue, fleetStep, fleetBake, fleetLoad, fleetTouch, fleetEvict, fleetPick, fleetLadder, fleetCap, garageIdle, mayDecode,
                bakeClear: () => db().then(d => new Promise((res, rej) => { const tx = d.transaction('bake', 'readwrite'); tx.objectStore('bake').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })),
                // the record's far levels as the object holds them, for the gate's numbers

@@ -80,7 +80,7 @@ const ABSENT_AT = { apLift: 0, wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42,
   exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopHold: 0, scoopWFit: 0, scoopTaperH: 1, scoopTaperW: 1, scoopRev: 0, scoopTop: 0, scoopAft: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partArc: 0, podFit: 0, cylOn: 0, cylAz: 0, cylOff: 0.3, cylR: 0.12, cylZ0: 0.1, cylZ1: 0.4, cylNose: 0.1, cylTail: 0.15, cylRin: 0, cylOffIn: null, cylBlend: 0.025, cylOgive: 0, cylProfile: 0, cylFront: 0.7, cylInlet: 0, cylVert: 1, cylSq: 0.5, cylLipT: null, cylDuctLen: null, cylDuctEnd: null, cylDuctBack: null, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
   gillOn: 0, gillN: 6, gillZ: 0.35, gillY: 0.5, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004, tailHold: 0, inletBand: 0, gillUp: null,
   grilleOn: 0, grilleN: 9, grilleBar: 0.012, grilleSet: 0.03, grilleHBar: 1, capOn: 0, capR: 0.032, capBack: 0.07,
-  grilleNum: 0, grilleNumH: 0.5, grilleRows: 0, lampOn: 0, lampR: 0.085, lampGap: 0.06, lampY: 0.05, lampBack: 0.10, lampIn: 0 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)   // (PETREL-LS: tailHold, the tail cone's held height; inletBand, the inlet's even band)
+  grilleNum: 0, grilleNumH: 0.5, grilleRows: 0, lampOn: 0, lampR: 0.085, lampGap: 0.06, lampY: 0.05, lampBack: 0.10, lampIn: 0, blinkOn: 0, blinkY: 0 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)   // (PETREL-LS: tailHold, the tail cone's held height; inletBand, the inlet's even band)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
@@ -319,7 +319,7 @@ function innerOf(skin, cA, back) {
   // MATTE AND NOT METAL, whatever the outside is: a polished alclad cowl is
   // still primer on the inside, and a metalness that high on an albedo this
   // low reflects the sky straight back and undoes the darkening.
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / inner lining' },
     color: c, metalness: 0.0, roughness: 0.95,
     side: back ? THREE.BackSide : THREE.DoubleSide,
     transparent: op < 1, opacity: op, depthWrite: op >= 1 });
@@ -336,14 +336,14 @@ function mats() {
   if (MATS) return MATS;
   const D = THREE.DoubleSide;
   MATS = {
-    skin:  new THREE.MeshStandardMaterial({ color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: D }),
-    host:  new THREE.MeshStandardMaterial({ color: 0x99a3ad, metalness: 0.40, roughness: 0.55, side: D }),
-    dark:  new THREE.MeshStandardMaterial({ color: 0x15181b, metalness: 0.10, roughness: 0.92, side: D }),
+    skin:  new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / skin fallback' }, color: 0xdfe3e7, metalness: 0.55, roughness: 0.36, side: D }),
+    host:  new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / host fallback' }, color: 0x99a3ad, metalness: 0.40, roughness: 0.55, side: D }),
+    dark:  new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / dark fallback' }, color: 0x15181b, metalness: 0.10, roughness: 0.92, side: D }),
     // (no `inner` here: the interior is DERIVED from the built skin by
     // innerOf, on both paths — it is not hardware and has no finish of its
     // own, and GATE SKINMAT reads this table as the list of what does)
-    steel: new THREE.MeshStandardMaterial({ color: 0x6d737a, metalness: 0.90, roughness: 0.35, side: D }),
-    prop:  new THREE.MeshStandardMaterial({ color: 0xc79a63, metalness: 0.0, roughness: 0.62, side: D }),
+    steel: new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / steel fallback' }, color: 0x6d737a, metalness: 0.90, roughness: 0.35, side: D }),
+    prop:  new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / cowl / prop fallback' }, color: 0xc79a63, metalness: 0.0, roughness: 0.62, side: D }),
   };
   return MATS;
 }
@@ -1584,6 +1584,7 @@ function cowlPlace(ctx, again) {
   if (CW.buildGrille) CW.buildGrille(cowl, M);        // CAR-1: the grille (off unless grilleOn)
   if (CW.buildCap) CW.buildCap(cowl, M);              // CAR-1: the radiator cap (off unless capOn)
   // CAR-1: the headlamps (off unless lampOn), their shells in the BODY's livery material
+  if (CW.buildBlinkers) CW.buildBlinkers(cowl, M);    // CAR-3: the wingtip teardrops as blinkers (off unless blinkOn)
   if (CW.buildLamps) CW.buildLamps(cowl, M, (typeof window !== 'undefined' && window.CAGE_SECMAT)
     ? window.CAGE_SECMAT('body', { surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: 1, tint0: 0xc8c8c8 }) : null);
   // THE INSIDE OF THE SHELL (G243.1, the user, with the back faces of the

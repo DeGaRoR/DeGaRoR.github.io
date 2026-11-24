@@ -113,7 +113,7 @@ for (const [tag, [key0, cons]] of Object.entries(STOCK)) {
 // rule 3 on the user's own case: the Mosquito's sill band (waistband 0x262626, inherited from the Cub) and a band set
 // by hand both take the new paint; the wing's own colour, set by hand, holds
 {
-  const M = require(path.join(__dirname, 'fixtures', 'repro', 'mosquito_3.json'));
+  const M = require(path.join(__dirname, 'fixtures', 'test_copies', 'mosquito_3.json'));
   const spec = JSON.parse(JSON.stringify(M.spec));
   spec.finish.sections.floorLoop = { tint: 0xaa0000 };       // a band painted by hand
   spec.finish.sections.wingSkin = { tint: 0x00aa00 };        // the wing, its own colour by hand

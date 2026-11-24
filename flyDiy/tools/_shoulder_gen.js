@@ -1293,16 +1293,26 @@ function panelBuild(mesh, spec, opt) {
   const parts = [];
   // the doors: key x side, from the door's own skin faces (as-built)
   const doors = new Map();
+  // CESSNA-REFIT (16 Nov, the user: "the inside structure is not cut by the new pilot window"): a window DRAWN on the
+  // door (the knife's pane, faceClass null - it is not the band glass) is a pane the panel must stop under too. The
+  // shoulder's leg sits at the old band's sill, above a drawn window that reaches lower, and the panel covered the pane
+  // from inside. Collected apart (the skin and glass lists, which the edges and the sampler read, are as before); a door
+  // without a drawn pane builds the same panel.
+  const panes = new Map();
   mesh.F.forEach(f => {
-    if (!f.doorKey || f.shoulder || f.doorPanel || faceClass(f) === null) return;
+    if (!f.doorKey || f.shoulder || f.doorPanel) return;
+    const knifePane = f.knife && GLASS.has(f.m) && !f.att && !f.paneEdge;
+    if (!knifePane && faceClass(f) === null) return;
     const P = asBuilt(mesh.V, f);
     let sx = 0; for (const p of P) sx += p[0];
     const side = sx >= 0 ? 1 : -1;
     const k = f.doorKey + ':' + side;
+    if (knifePane) { let lo = 1e9; for (const p of P) lo = Math.min(lo, p[1]); panes.set(k, Math.min(panes.has(k) ? panes.get(k) : 1e9, lo)); return; }
     if (!doors.has(k)) doors.set(k, { key: f.doorKey, side, skin: [], glass: [], cutOff: f.cutOff || null });
     const d = doors.get(k);
     (faceClass(f) === 'G' ? d.glass : d.skin).push(P);
   });
+  for (const [k, lo] of panes) if (doors.has(k)) doors.get(k).paneLo = lo;
   const shParts = (mesh.shoulder && mesh.shoulder.parts) || [];
   const DASH = { z: null, y: null };
   if (doors.size) for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
@@ -1322,6 +1332,7 @@ function panelBuild(mesh, spec, opt) {
       let g = 1e9; for (const P of d.glass) for (const p of P) g = Math.min(g, p[1]);
       yTop = (g < 1e8 ? g : y1) - o.margin;
     }
+    if (d.paneLo != null) yTop = Math.min(yTop, d.paneLo - o.margin);   // a drawn pane on the door (see above)
     const yBot = y0 + o.margin;
     if (yTop - yBot < 0.08) continue;
     // THE DOOR'S EDGES AT A HEIGHT, conservatively: the extent of the door's
