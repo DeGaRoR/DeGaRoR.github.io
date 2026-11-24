@@ -153,7 +153,11 @@ function checkDoors(src) {
   for (const d of DOORS) {
     const at = src.indexOf(d);
     if (!check(at >= 0, 'door not found in _cage_ui.js', d)) { ok = false; continue; }
-    const body = src.slice(at, at + 3000);     // G377: applySpec grew past 1400 (G334's registration lines)
+    // (MASTER-GREEN 24 Nov: the door's OWN body, to its closing brace (or `};`) at column 0 - a fixed window went stale twice: 1400
+    // at G377, then 3000 on L40K, where applySpec's build() sits at 3003 and its loaded(spec) still first, at 778; the
+    // claim is the order inside the door, and a door is its body. A door without a column-0 brace reads 3000 as before)
+    const ends = [src.indexOf('\n}\n', at), src.indexOf('\n};\n', at)].filter(e => e > at), end = ends.length ? Math.min(...ends) : -1;
+    const body = src.slice(at, end > at ? end : at + 3000);   // (a handler assigned `= () => { ... };` ends at its `};`)
     // G3700: applySpec hands the spec on (`loaded(spec)`: the float layer holds the saved station)
     const b = body.indexOf('build();'), l = body.search(/\bloaded\((spec)?\);/);
     ok = check(l >= 0 && b >= 0 && l < b,
