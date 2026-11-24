@@ -20773,8 +20773,8 @@
     return { D, s, tgt, az: tgt + s * 0.45, el: 0.16, dist: D * 1.7 };
   }
   function flRevealStart() {
-    labCoverBudget();                    // (?coverbudget=K, the lab's: the cover layers' work a frame, set once)
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
+    labCoverBudget();                    // (?coverbudget=K, the lab's: the cover layers' work a frame, set once - AFTER the hand-back: GATE UILAYER U5)
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
     if (window.GFX && window.GFX.hw) window.GFX.hw.reveal();   // G1995: the step-down's measuring starts from the hand-over
     flShedBox = worldShedBox();
