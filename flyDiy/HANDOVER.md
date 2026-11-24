@@ -319213,3 +319213,36 @@ THE PERF CHECK (PERF-LEAD, 15:10-15:40, headed 5120x1440, quiet; evidence perf-c
 L40J. Cold 114-120 s / 453-463 programs (L40J 119-127 s / 451), returning 103 s, Go 2.5 s (11.5 s with the shot). The journey's
 first 8 min: 54.9 % of seconds at 29+ fps, 17 frames over 100 ms (L40J 31), the page never shown. The crash: the page 6.7 s
 (unchanged: the fix is L40M's perf-lead-1 + Deform's wreck-clear).
+
+## MASTER-GREEN green-4 - master's old reds, triaged; the orphans fixed, every re-pin with its reason (cloud session, 22-24 Nov 2026; claude/ready/green-4 on L40K 56047b34e)
+
+The triage of master's core reds (61 at train L40h) and its running table: flyDiy/reports/MASTER-GREEN.md on
+claude/master-green (gate, class REAL / PIN / FLAKY, cause, owner, fix, status, with the bisected commits). This ready
+carries every fix the table marks green, each its own commit; each re-pin names the change that moved its pin:
+- stale pins: GROUNDQUERY, ACCEPT (hudWind, hudGear, the LS4's hudBrakeWater, ctlStrip), WINGSTRUCT, TREES, SHADOWSKY,
+  LAKEBED (and its L40J shared ground program), MICRO and GAMEPREM for this branch's own fixes; ENERGYBASE (HULL-B50,
+  ELECTRIC-TRAINER), ENGINE (ENGINE-DIALS A) and SKIS (below) re-blessed; ROUGHWHEEL's self-test row C;
+- source fixes: NODUMMY (atD -> atDeg), SAVE (skiPos a view key), STORAGE (PREM_STORE.spots follow the pack), STAGES
+  (stageRestore keeps the entry's key order), ASSETS + MEDIA (design_cub's two copies, a dead thumbnail row; the cowl's
+  two materials through MATLIB with L40K's owner tags, never throwing without matlib.js), CANDIDATES (the cars reached
+  through vehicles.json, as FLAGSHIP's choice b says; jodel_geo's hidden "next" row), NAMES ("Alaska" -> "North Coast",
+  the id kept);
+- THE DEFAULT-ROW LEAKS: ELECTRIC-TRAINER's four rows (L40h) and CESSNA-REFIT's three cowl rows (L40J) had no
+  CAGE_DEFAULT_ABSENT entry, so every build the load door joins gained keys, and its certificate's fingerprint, the
+  parked bake's, the certificate store's and the procurement's keys moved. Absent at their defaults again: they stand.
+- THE CORE'S MATH: 44 stray Math.sin / cos / pow sites on CORE_MATH (tools/_core_math_sites.js: 0 stray on L40K).
+- THE SOLVER (src/core/30_solver.js): on the rough ground's tandem cam the slope's normal read the cams' mean against raw
+  terrainH (a false slope at every stone; ~4 % of the grade on a slope) and the tangent branch dropped the stone's push.
+  ROUGHWHEEL A and SLOPE (row 1: +7.3 % -> -1.4 %) green.
+- GATE SETUPS OLDER THAN A RULE: DESTTO's career Cub flies a maker's airframe, after asserting CERT-GATES' refusal of an
+  uncertified one; LOAD and FLEX assert the soft shell's designed fold (the user 12 Nov: "it should crumble").
+- SKIS on L40K: seven defs lose the seven leaked rows; the Jodel's sheet and steps moved inside L40K at the merge of
+  ls4-arch-2 (2b2a52772): node builds the Jodel at the page's 469.732 kg (JOINPARITY's side).
+- STOL's capture re-taken on this tree: the cards unchanged; the six builds' specs lose the leaked rows; every physics
+  digest of the six builds is plain L40K's to the digit (L40K's capture was LS4-ARCH's tree's).
+- L40K's OWN REDS fixed here: the LS4's parked-footprint row [7.5, 0.8, 5.1] (TAXICLEAR 1; the envelope unchanged), the
+  LS4's airbrake handle finish (SKINMAT), LIVERYSET's metal Cessna path (ONE-CESSNA moved it), STARTER reading each door's
+  own body (applySpec's build() past the old 3000 window), TOW's page row admitting the winch's launch name.
+Every other red has its owner and its cause in MASTER-GREEN.md (LOAD's glass: HULL-B50, bisected; DESIGNCHECK's shell
+calibration; FLEX's tail-arm truss; the spitfire card's tail wire snapping at rest; TERRAINMATCH's lattice over a kinked
+junction ease; DMGINST's guard one frame later; the Pilot and Deform rows).
