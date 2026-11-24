@@ -299,6 +299,8 @@ function cageJoinSpec(P, M, T) {
                // so the resolved spec of a build without them is the bytes it was). A P without the row says nothing
                ...(P.wgStrutSec != null ? { section: Math.round(+P.wgStrutSec) === 1 ? 'tube' : null } : {}),
                ...(P.wgJury != null ? { jury: [null, 'wing', 'cabin'][Math.round(+P.wgJury)] || null } : {}),
+               // PHYSICS-AUDIT step 2 (2026-11-21): the flying wires' section, stated in both states as the two above
+               ...(P.bpWireSec != null ? { wireSection: Math.round(+P.bpWireSec) === 1 ? 'streamline' : null } : {}),
                // G185: the cabane's drawing style where there is one, and the
                // truss on a biplane. SPEC-FIXPOINT (A3): STATED in every state
                // - the defaults (GEN_FIELDS 'bracing.*') where the aeroplane
@@ -496,6 +498,17 @@ function cageJoinSpec(P, M, T) {
       spec.gear.twY = M.twY;
     if (M.twOleo && typeof M.twOleo === 'object') spec.gear.twOleo = M.twOleo; else delete spec.gear.twOleo;
     if (M.twR > 0) spec.gear.twR = M.twR;
+    // LAZAIR (24 Nov): THE V TIPS' WHEELS (the gear layer drew them under a single body's V hung down: the gear page's
+    // 'V tip wheels' rows) - 'tail': the tail contact is the two tips (twX / twY above are the drawn one's; z its lateral
+    // place), 'extra': two more rolling contacts where they are drawn (x aft of the firewall, y over the keel datum, z
+    // lateral), castoring or fixed. The key only then: every other build's spec is what it was, to the bit
+    if (M.vtip && (M.vtip.mode === 'tail' || M.vtip.mode === 'extra')) {
+      const r4 = v => +(+v).toFixed(4), V = M.vtip;
+      spec.gear.vTip = { mode: V.mode, R: r4(V.R), fork: r4(V.fork),
+                         ...(V.z > 0 ? { z: r4(V.z) } : {}),
+                         ...(V.mode === 'extra' && isFinite(V.x) && isFinite(V.y) ? { x: r4(V.x), y: r4(V.y) } : {}),
+                         ...(V.mode === 'extra' && V.castor ? { castor: true } : {}) };
+    } else delete spec.gear.vTip;
     // G121.1: THE FAIRING SWITCH REACHES THE PHYSICS. The mains' three-state
     // row ('none'/'spat'/'trousers') has drawn the shell since the gear
     // bench, and since G115 the spec's `gear.fairing` prices it
@@ -883,6 +896,9 @@ function cageJoinSpec(P, M, T) {
   if (M.Sv > 0) tl.Sv = M.Sv;
   if (M.Svt > 0) tl.Svt = M.Svt;
   if (+P.tailDrawn) tl.drawn = 1;                  // REAL-CANON: PETREL-LS's drawn-tail rules (60_gen_spec, 61_gen_frame), latent
+  // PHYSICS-AUDIT step 2 (2026-11-21): the tailplane's bracing, stated in both states (null at "by its skin": the merge
+  // takes it off, the normaliser deletes it)
+  if (P.stBrace != null) tl.brace = [null, 'wires', 'none'][Math.round(+P.stBrace)] || null;
   if (M.hTaper > 0) tl.hTaper = M.hTaper;          // P4: the trusses' trapezoids
   if (M.vTaper > 0) tl.vTaper = M.vTaper;
   if (typeof M.dorsalArea === 'number' && isFinite(M.dorsalArea))
@@ -910,8 +926,11 @@ function cageJoinSpec(P, M, T) {
     // cant came home)
     if (!(M.Svt > 0)) tl.Svt = null;
   }
-  if (typeof M.tailCant === 'number' && M.tailCant >= 20) {
+  // (LAZAIR: signed - a cant below -20 is a V that hangs DOWN; clampSpec keeps the sign, 61_gen_frame lays it so)
+  if (typeof M.tailCant === 'number' && Math.abs(M.tailCant) >= 20) {
     tl.type = 'v'; tl.vAngle = M.tailCant;
+    // LAZAIR: the V hung down's drawn root height (keel datum, m: 61_gen_frame hangs the panels from it); the key only then
+    if (M.tailCant < 0 && typeof M.vRootY === 'number' && isFinite(M.vRootY)) tl.vRootY = +M.vRootY.toFixed(4); else delete tl.vRootY;
     // ...and a conventional tail's areas are not a V's (the V measures Svt;
     // left stated, a V the join could not size would fly the old tailplane)
     if (M.tailJoined) { tl.Sh = null; tl.Sv = null; }
@@ -1281,7 +1300,8 @@ function cageSurfHinge(pts, surf, opts) {
     // V from the booms: an up-and-in panel's port TE goes the other way round its hinge): a turn of +a about the axis
     // moves the aft edge along axis x aft, whose z (port) is -axis.y - so the sign is -sign(axis.y); a flat axis keeps
     // the side rule (a normal V's and the inverted V's read the same as before: their port axes rise, starboard fall)
-    if (opts && opts.cant >= 20) { out.drive2 = 'dr'; out.sgn2 = Math.abs(axis[1]) > 1e-6 ? (axis[1] > 0 ? -1 : 1) : (port ? -1 : 1); }
+    // (LAZAIR: a V canted DOWN mixes too - its sign is the axis's, whichever way the panel leans)
+    if (opts && Math.abs(opts.cant) >= 20) { out.drive2 = 'dr'; out.sgn2 = Math.abs(axis[1]) > 1e-6 ? (axis[1] > 0 ? -1 : 1) : (port ? -1 : 1); }
   }
   else if (S2 === 'flapR' || S2 === 'flapL') { out.drive = 'flap'; out.sgn = -1; }
   else if (S2 === 'brkR' || S2 === 'brkL') { out.drive = 'airbrake'; out.sgn = 1; }   // AIRBRAKES: a slide, no turn
@@ -1667,6 +1687,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // PC6-OLEO: the PC-6 tailwheel's strut (twStyle 1) flies as a telescopic oleo (61_gen_frame's twOleo)
           M.twOleo = single.oleo || null;
         }
+        // LAZAIR: the V tips' wheels as drawn (the gear layer's vtMode / vtExtra; GEAR_PAGE.vTipOf the rows)
+        const VTm = G2.vtMode && window.GEAR_PAGE && window.GEAR_PAGE.vTipOf ? window.GEAR_PAGE.vTipOf(P) : null;
+        if (VTm && fwOk) {
+          if (G2.vtMode === 'tail' && single) M.vtip = { mode: 'tail', R: VTm.R, fork: VTm.fork, z: Math.abs(single.p[0]) };
+          else if (G2.vtMode === 'extra' && G2.vtExtra && G2.vtExtra.length) {
+            const q = G2.vtExtra[0];
+            M.vtip = { mode: 'extra', R: VTm.R, fork: VTm.fork, castor: VTm.castor, x: zFw - q.p[2], y: q.p[1] - yD, z: Math.abs(q.p[0]) };
+          }
+        }
         // G53: the RIDE HEIGHT — the mains' axle in the keel datum. This
         // is the row whose absence floated the whole frame 0.36 m above
         // the visual (gear.y sat on the legDrop default, yBoundBy said
@@ -1961,7 +1990,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // (G3800: the inverted V on twin booms - the stab layer's mount 4 - is measured as a V's panels: its area,
           // its cant; filed as its own keys below, the twin's ivAngle / ivGap / ivS)
           const isIV = !!(SBv && SBv.mount === 4 && TBj);
-          const isV = !!(SBv && SBv.cant >= 20) || isIV;
+          const isV = !!(SBv && Math.abs(SBv.cant) >= 20) || isIV;   // (LAZAIR: a downward V is a V)
           // T2.3 (140): the stab's incidence, as drawn (degrees, LE up +)
           if (SBv && typeof SBv.inc === 'number' && isFinite(SBv.inc)) M.hInc = SBv.inc;
           // THE AREAS AND THE CONTROL FRACTIONS, off the sheets
@@ -2084,6 +2113,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               M.hSpan = 2 * Math.max(Math.abs(vb.x0), Math.abs(vb.x1));
               M.hX = zFw - (vb.z0 + vb.z1) / 2;
               M.stabY = vb.y0 - yD;
+              // LAZAIR: a V hung down roots at the TOP of its drawing (the deck, or under a rod's belly) - the frame
+              // hangs its panels from there (tail.vRootY, keel datum)
+              if (SBv.cant < 0) M.vRootY = vb.y1 - yD;
             }
           } else if (fB && (fB.y1 - fB.y0) > 0.3 && tailDatum) {
             const finTop = fB.y1 - yD;
@@ -2143,7 +2175,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           }
           // MEAN CHORDS — area over span
           if (M.Sh > 0 && M.hSpan > 0) M.hChord = M.Sh / M.hSpan;
-          if (M.Svt > 0 && M.hSpan > 0 && M.tailCant >= 20)
+          if (M.Svt > 0 && M.hSpan > 0 && Math.abs(M.tailCant) >= 20)
             M.hChord = M.Svt / (M.hSpan / Math.cos(M.tailCant * Math.PI / 180));
           if (M.Sv > 0 && M.vHeight > 0) M.vChord = (TBj ? M.Sv / 2 : M.Sv) / M.vHeight;
           // THE CLAMPS SPEAK (P1, the G206.3 lesson): a measured value the

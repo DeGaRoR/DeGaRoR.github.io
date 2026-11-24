@@ -1,0 +1,92 @@
+{
+ "id": "lumber.04",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "PC-6 on Wiplines",
+ "timeS": 1092,
+ "why": "crashed: the damage ended the flight: a fus member broke",
+ "tried": [
+  "Cessna 172 floats (career):infeasible",
+  "PC-6 on Wiplines:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "SEA",
+   "t": 1092,
+   "how": "crashed",
+   "at": null,
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "crash",
+    "yield",
+    "break"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 98 kg / 0 pax, the job is 250 kg / 0 pax",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 434,
+     "how": "stopped",
+     "kg": 98,
+     "pax": 0,
+     "said": [],
+     "landing": {
+      "run": 284,
+      "sink": 0.4,
+      "V": 31.1,
+      "offCentre": -1,
+      "pastAim": 111,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 419,
+      "stopLeft": 797
+     },
+     "stop": "aboard 98 kg / 0 pax, the job is 250 kg / 0 pax"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 on Wiplines",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "SEA",
+     "t": 1092,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "gave-up: still in TAXI at t=708 s — out of patience, not out of sky",
+      "lineup-timeout: could not line up in 120 s — stopping to replan",
+      "replan: not lined up with a run ahead (2039 m, 307.9 m off) — planning the departure again"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: Cessna 172 floats (career) flown with 1 aboard (the garage's seat door)",
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
+ "untested": false,
+ "key": "2fa43b196913",
+ "where": "lumber:3",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 2133
+}

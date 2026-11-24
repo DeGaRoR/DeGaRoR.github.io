@@ -1,0 +1,96 @@
+{
+ "id": "club.breakfast",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Jodel D112",
+ "timeS": 962,
+ "why": "",
+ "tried": [
+  "Piper Cub:infeasible",
+  "Jodel D112:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "tw_ski",
+   "t": 962,
+   "how": "stopped",
+   "at": "tw_ski",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: the airframe crushed (2.1 kJ of plastic work)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 1397,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "wings-level: the rudder eased off: the aileron on its stop against 10 deg of bank (13 deg of sideslip)",
+      "capsized: on its back in ROLLOUT at 11.9 m/s (bank -90 deg) - after \"gave-up\"",
+      "out-of-energy: the engine seized at t=1395 s — engines stopped"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Jodel D112",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 962,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 370 m (planned 368)",
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 369 m (planned 368)",
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 369 m (planned 368)"
+     ],
+     "landing": {
+      "run": 89,
+      "sink": 0.97,
+      "V": 16.4,
+      "offCentre": 1.3,
+      "pastAim": 152,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 169,
+      "stopLeft": 22
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats filled as the job asks: Piper Cub flown with 2 aboard (the garage's seat-fill)",
+  "the seats filled as the job asks: Jodel D112 flown with 2 aboard (the garage's seat-fill)"
+ ],
+ "untested": false,
+ "key": "a6d18532684a",
+ "where": "club:1",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 1595
+}

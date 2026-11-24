@@ -1,0 +1,6 @@
+# SMOKE of the lab build (not for numbers): does it boot, does the page read every switch, is each load's flight log
+# saved and read, does Go depart. Three loads, a busy box allowed.
+#   bash tools/perf/smoke_lab.sh        (through: cpu_token.sh run PERF-LEAD --gpu -- bash tools/perf/smoke_lab.sh)
+SMOKE_BASE ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
+SMOKE_ALL  ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&latelinks=1&lampsfixed=1&firstuse=1&pace=16 ; new ; H5K ; --rollout
+SMOKE_HOLD ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&day=night ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js --init-file tools/perf/init_striphold.js

@@ -1,0 +1,18 @@
+{
+ "id": "survey.04",
+ "kind": "build",
+ "verdict": "untested",
+ "plane": null,
+ "timeS": 0,
+ "why": "no criterion fails on Piper Cub, Jodel D112, Chinook, Stearman-alike, Tiger Moth-alike, Camel-alike, DC-3-alike, PA-18 on floats, Super Petrel LS, Ruckus Solo 103, Ruckus Back-Country, Carbon Cub SS, Cessna 172, Electric trainer, Cessna 172 floats (career), Rufus, Client Cub, Twin busher floats 4b, STOL Cub, ugly bi, mosquito, pusherLight, twinBoomFail, B-ITES, Ultralight twin on floats, Archaeopteryx-alike, LS4-alike (not a career design: untested here - takeoffAt, landAt)",
+ "tried": [],
+ "legs": [],
+ "attempts": [],
+ "notes": [],
+ "untested": true,
+ "key": "65627d601692",
+ "where": "contract",
+ "pool": "validated",
+ "sim": "L40K",
+ "wallS": 77
+}

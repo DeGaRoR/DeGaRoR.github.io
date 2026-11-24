@@ -1173,6 +1173,24 @@ function zoneMemoOf(world, o, sig) {
   M.hits = 0; M.misses = 0; M.seen = new Set();
   return M;
 }
+// PERF-WORLDBUILD (23 Nov 2026, with PERF-LEAD): THE HOST'S BUDGET. A long loop of the composition (the sower's plots along
+// a road, the planter's candidates) may stop where an item ends: `if (stepDue(K)) yield label;`. With a host that sets
+// window.FLYDIY_WORLD_BUDGET = { left: () => ms } (garage first: a few ms while a slider moves, ~25 ms at rest) the loop
+// runs until the budget is spent (left() <= 0); with none it yields every K-th ask, a fixed count. Where the yields fall
+// never changes an answer: compose() drains the same generator in one go.
+let stepDueN = 0;
+function stepDue(K) { const B = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return B && typeof B.left === 'function' ? B.left() <= 0 : (++stepDueN % K === 0); }
+const drainSteps = g => { for (;;) { const r = g.next(); if (r.done) return r.value; } };
+// (zoneMemoRun's stepped form: run is a generator - the sower's, the planter's; the same key, the same kept output)
+function* zoneMemoSteps(M, kind, id, keyOf, runSteps) {
+  if (!M) return yield* runSteps();
+  let key = null; try { key = keyOf(); } catch (e) { key = null; }   // (an input that will not serialise: no memo for it)
+  const T = M[kind], had = T.get(id); M.seen.add(kind + ':' + id);
+  if (key !== null && had && had.key === key) { M.hits++; return zmClone(had.out); }
+  const out = yield* runSteps(); M.misses++;
+  if (key !== null) T.set(id, { key, out: zmClone(out) }); else T.delete(id);
+  return out;
+}
 // the memo's answer for a zone (kind 'sow' | 'forest'): the kept output when the key matches, else run() and keep it
 function zoneMemoRun(M, kind, id, keyOf, run) {
   if (!M) return run();
@@ -1190,7 +1208,8 @@ function zoneMemoRun(M, kind, id, keyOf, run) {
 // loop and the riparian rule verbatim; every plot rejected that leaves the
 // zone, enters an exclude / keep-out, or overlaps a plot already sown
 // ---------------------------------------------------------------------------
-function sowPlots(zone, roads, ctx) {
+function sowPlots(zone, roads, ctx) { return drainSteps(sowPlotsSteps(zone, roads, ctx)); }
+function* sowPlotsSteps(zone, roads, ctx) {
   // ctx = { T(lx, lz) the composed ground in the premises frame, waterY, seed, excludes: [poly], plots: [existing], keepOut: [poly] }
   const V = Object.assign({}, ZONE_RULES, KIND_RULES[zone.kind] || {}, zone.rules || {});
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0, 1);
@@ -1248,6 +1267,7 @@ function sowPlots(zone, roads, ctx) {
       let t = tA + 6 + rnd() * 8;
       let k = 0;
       while (t < tB - 26) {
+        if (stepDue(8)) yield 'premises: plots';
         const w = V.plotMin + rnd() * (V.plotMax - V.plotMin);
         if (t + w > tB - 6) break;
         for (const sgn of [1, -1]) {
@@ -1333,7 +1353,8 @@ function pickFor(plot, cat, rnd, theme, zone) {
 // THE FOREST — planTrees' wood layer inside a forest zone: a jittered grid at
 // a spacing the density sets, a clearing noise, off the water, the roads,
 // the plots, the excludes; the species drawn from the palette by proportion
-function planForest(zone, ctx) {
+function planForest(zone, ctx) { return drainSteps(planForestSteps(zone, ctx)); }
+function* planForestSteps(zone, ctx) {
   // ctx = { T, waterY, seed, excludes, plots, roads: [{pts, w}], pool: [{key, size, sink, proportion, h}], trees: [existing] }
   const density = zone.density === undefined ? 1 : clamp(+zone.density, 0.05, 3);
   const step = 6 / Math.sqrt(density);
@@ -1371,6 +1392,7 @@ function planForest(zone, ctx) {
   const bb = polyBBox(zone.poly), s = zoneSeed % 1000 * 0.618 + 9;
   const clearing = zone.rules && zone.rules.clearings === false ? -1 : 0.38;
   for (let z = bb.z0 + 1; z < bb.z1; z += step) for (let x = bb.x0 + 1; x < bb.x1; x += step) {
+    if (stepDue(64)) yield 'premises: a wood';
     const px = x + (rnd() - 0.5) * step * 0.75, pz = z + (rnd() - 0.5) * step * 0.75;
     if (!inPoly(zone.poly, px, pz)) continue;
     if (fbm(px * 0.035 + 2.2, pz * 0.035 + 8.8, s, 3) < clearing) continue;
@@ -2173,7 +2195,7 @@ LINK_SOLVERS.cable = { needs: 'built', band: { minDeg: 15, maxDeg: 45 },
     if (!isFinite(top.P.lineDeg)) top.P.lineDeg = seed0;
     const vil = { base, top, T: { h: ctx.T } };
     let tram;
-    try { tram = VG.tramLine(vil, r => ctx.build(r)); } catch (e) { return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': ' + (e && e.message)] }; }
+    try { tram = VG.tramLine(vil, r => ctx.build(r)); } catch (e) { if (e && e.stepMiss) throw e; return { ok: false, geom: null, patch: {}, issues: ['cable ' + link.id + ': ' + (e && e.message)] }; }
     const issues = [];
     const deg = tram && tram.angle !== undefined ? (Math.abs(tram.angle) > 3.2 ? tram.angle : tram.angle * 180 / Math.PI) : NaN;
     if (!(deg >= this.band.minDeg && deg <= this.band.maxDeg)) issues.push('cable ' + link.id + ': the line is ' + (isFinite(deg) ? deg.toFixed(0) + ' deg' : 'unsolved') + ', outside ' + this.band.minDeg + '..' + this.band.maxDeg);
@@ -2200,6 +2222,33 @@ function solveLinks(rec, items, phase, ctx) {
     out.push(Object.assign({ link: L, A, B }, sol));
   }
   return out;
+}
+// PERF-WORLDBUILD (23 Nov 2026): THE BUILT LINKS, A BUILD A STEP. The cable's solver builds each station three times
+// (its line angle converging) inside one call: 0.5 s in one step of the stepped composition. Here the SAME solve is run
+// with a builder that answers only what is already built and stops the solve at the first build it lacks (stepMiss);
+// that one is built in a step of its own - by the caller's builder, on a copy of the parameters as the solver had them -
+// every item's parameters and build put back as they stood, and the solve run again from the start: the same calls with
+// the same parameters in the same order (a build is a pure function of its generator and parameters: render_premises'
+// memo holds it), so the same answer as solveLinks. With no builder: solveLinks, as it is.
+function* solveLinksSteps(rec, items, phase, ctx) {
+  if (!ctx || typeof ctx.build !== 'function') return solveLinks(rec, items, phase, ctx);
+  const snap = items.map(it => ({ it, P: it.P ? Object.keys(it.P).map(k => [k, it.P[k]]) : null, had: Object.prototype.hasOwnProperty.call(it, 'built'), built: it.built }));
+  const back = () => { for (const q of snap) { const it = q.it;
+    if (q.P && it.P) { const keep = new Set(q.P.map(e => e[0])); for (const k of Object.keys(it.P)) if (!keep.has(k)) delete it.P[k]; for (const [k, v] of q.P) it.P[k] = v; }
+    if (q.had) it.built = q.built; else delete it.built; } };
+  const have = new Map(), MISS = { stepMiss: true, r: null, k: null };
+  const ask = r => { const k = r.gen + '|' + JSON.stringify(r.P); if (have.has(k)) return have.get(k);
+    MISS.k = k; MISS.r = Object.assign({}, r, { P: Object.assign({}, r.P) }); throw MISS; };
+  const ctx2 = Object.assign({}, ctx, { build: ask });
+  for (let n = 0; n < 4096; n++) {
+    try { return solveLinks(rec, items, phase, ctx2); }
+    catch (e) { if (e !== MISS) throw e; }
+    back();
+    yield 'premises: a station';
+    have.set(MISS.k, ctx.build(MISS.r));
+    yield 'premises: the built links';
+  }
+  return solveLinks(rec, items, phase, ctx);   // (never: a solve that asks for ever-new builds - solved in one go, as before)
 }
 
 // ---------------------------------------------------------------------------
@@ -2853,7 +2902,14 @@ function areaLabel(a) {
 // ---------------------------------------------------------------------------
 // compose — the overlay a world composes at its terrainH seam
 // ---------------------------------------------------------------------------
-function compose(rec0, world, opts) {
+// PERF-WORLDBUILD (22 Nov 2026): THE COMPOSITION IN STEPS. The game's second composition (the renderer's, with the
+// stations' builder and the tree pool) was ONE task of 2.6-2.9 s on the page's thread, the longest of the load. Its body
+// is a generator now: composeSteps yields a label where a stage or a zone ends (the stages' own boundaries, each site,
+// each zone's sowing, each forest zone) and RETURNS the overlay; nothing is shared with the caller before that return.
+// compose() drains it in one go: the same statements in the same order, the same overlay. A host that can spread the
+// work (20_world premises.setSteps, the world build under ?compsteps=1) runs it a slice at a time.
+function compose(rec0, world, opts) { const g = composeSteps(rec0, world, opts, false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+function* composeSteps(rec0, world, opts, stepped) {   // (stepped: a host runs it a step a call - the built links then a build a step; compose() solves them in one call, as it always did)
   const o = opts || {};
   const boundedRoads = o.boundedRoads !== false;
   // PERF-WORLDBUILD (22 Nov 2026): THE POLYGON BOUND IS THE DEFAULT. Codex's exact short-cut of 20 Nov (dEdgeOf: a paved polygon
@@ -2891,6 +2947,7 @@ function compose(rec0, world, opts) {
     typeof r.rail === 'string' && r.rail ? { rail: r.rail } : {}, typeof r.poles === 'string' && r.poles ? { poles: r.poles } : {},
     (+r.polesSide === 1 || +r.polesSide === -1) ? { polesSide: +r.polesSide } : {}));   // (G2918: its own clearing) the pavement's (v1.16)
   const nAuth = mods.length;
+  yield 'premises: the runways';
   // THE RUNWAYS (stage 2, BEFORE the roads - v1.2: a taxi road near a strip must sit on the strip's graded ground, so its nodes are read after the runway grades): a DERIVED grade along the centreline at elev + slope * s
   // (elev = T1 at the centre), a DERIVED surface strip of the record's class,
   // a DERIVED tree exclude 30 m round the box, and the aerodrome record
@@ -2960,6 +3017,7 @@ function compose(rec0, world, opts) {
   }
   // (DIRT-STRIP) the micro strips published for STRIP_MICRO.at / puddleAt in the WORLD frame (the island's: nothing when none)
   if (typeof STRIP_MICRO !== 'undefined') STRIP_MICRO.publish(rec.id || 'premises', microStrips.map(q => ({ id: q.id, f: q.f, toLocal: (x, z) => F.toLocal(x, z) })));
+  yield 'premises: the roads';
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
   const JH = new Map();   // (G2950) a junction's height: the first road graded through it sets it
@@ -3063,6 +3121,7 @@ function compose(rec0, world, opts) {
     // (TOWN-ROAD-SIDES: roadGradeW - a traded street flat under all it draws, its grade's outer edge where it was)
     if (M) mods.push(M);
   }
+  yield 'premises: the shelves';
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
   const catS = o.catalogue || collect(o.globals || (typeof window !== 'undefined' ? window : {}));
   const T1s = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
@@ -3564,6 +3623,7 @@ function compose(rec0, world, opts) {
   const gsAddTo = (M, b, e) => { for (let i = Math.floor(b.x0 / GS_C), i1 = Math.floor(b.x1 / GS_C); i <= i1; i++) for (let j = Math.floor(b.z0 / GS_C), j1 = Math.floor(b.z1 / GS_C); j <= j1; j++) { const k = gsKey(i, j); let l = M.get(k); if (!l) M.set(k, l = []); l.push(e); } };
   const roadBB = roadObjs.map(r => { const b = polyBBox(r.pts); return { x0: b.x0 - r.w, z0: b.z0 - r.w, x1: b.x1 + r.w, z1: b.z1 + r.w }; });
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
+  yield 'premises: the overlay';
   const O = {
     n: mods.length, nAuthored: nAuth, rec, stage: SV.staged ? { n: SV.n, tracks: SV.tracks } : null, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
     // G1385: the cover polygons' vegetation - vegAt(x, z) -> undefined (no polygon here) | null (none) | a mix name;
@@ -4265,6 +4325,7 @@ function compose(rec0, world, opts) {
     return best;
   }
 
+  yield 'premises: the placement';
   // PLACEMENT (stage 5): the zones sown in array order — a later zone's plots
   // reject against the earlier ones; forest zones plant after every plot is known
   if (!o.noPlace) {
@@ -4320,6 +4381,7 @@ function compose(rec0, world, opts) {
     // THE SITES (stage 5a): placed first; every item's foot + margin keeps the plots and the wood out
     const cat = catS;
     for (const st of rec.layers.sites) {
+      yield 'premises: a site';
       const S = placeSite(st, cat, ctx);
       for (const it of S.items) {
         O.records.items.push(it);
@@ -4330,17 +4392,21 @@ function compose(rec0, world, opts) {
       for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: st.id }); }   // (LOT-CLEAR: the woods too)
       for (const i of S.issues) O.records.issues.push(i);
     }
+    yield 'premises: the links';
     O.records.links = solveLinks(rec, O.records.items, 'placed');
+    yield 'premises: the built links';
     // phase B: the links that need the BUILT stations - only when the caller hands a builder (the
     // renderer does; the gate does under its stub); tramLine builds the pair itself, three passes
-    const linksB = solveLinks(rec, O.records.items, 'built', { globals: o.globals || (typeof window !== 'undefined' ? window : {}), build: o.build || null, T: O.localH });
+    const linksOpt = { globals: o.globals || (typeof window !== 'undefined' ? window : {}), build: o.build || null, T: O.localH };
+    const linksB = stepped !== false ? yield* solveLinksSteps(rec, O.records.items, 'built', linksOpt) : solveLinks(rec, O.records.items, 'built', linksOpt);
     for (const L of linksB) O.records.links.push(L);
     for (const L of O.records.links) for (const i of L.issues || []) O.records.issues.push(i);
     for (const z of rec.layers.zones) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
+      yield 'premises: plots';
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
         { let n = 0; const zc = Object.assign({}, ctx, { waterY: zoneWaterY(z) });
-          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; if (plotCarOff(z, p.id)) p.noCar = true; O.records.plots.push(p); n++; }
+          for (const p of yield* zoneMemoSteps(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlotsSteps(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; if (plotCarOff(z, p.id)) p.noCar = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -4353,6 +4419,7 @@ function compose(rec0, world, opts) {
     // the slots' places); its lawn is a DERIVED flatten at the plan's level, cut here and joined to
     // the index, the park re-stood on the cut ground; the entry's fill names what stands in its
     // slots - each an item in placeSite's shape (so the renderer builds it like a site's)
+    yield 'premises: the parks';
     O.records.parks = [];
     {
       const globals = o.globals || (typeof window !== 'undefined' ? window : {});
@@ -4424,12 +4491,14 @@ function compose(rec0, world, opts) {
     // the tree pool, from a caller that hands the list or the function that makes it
     // (the renderer passes `o.pool()`, some callers pass `pool: () => []`); planForest
     // only ever indexed it and never noticed, the garden pass filters it and did
+    yield 'premises: the wood';
     const pool = (typeof o.pool === 'function' ? o.pool() : o.pool) || [];
     const tctx = { T: O.localH, waterY, seed: rec.seed, excludes: ctx.excludes.concat(excl.filter(e => e.roadClear).map(e => e.poly)), plots: O.records.plots, roads: roadObjs, pool, trees: O.records.trees };
     for (const z of rec.layers.zones) if (z.kind === 'forest' && z.poly && z.poly.length >= 3 && polySimple(z.poly))
-      { const zc = Object.assign({}, tctx, { waterY: zoneWaterY(z) });
-        for (const t of zoneMemoRun(ZM, 'forest', z.id, () => zmKey(z, zc, roadObjs, zc), () => planForest(z, zc))) O.records.trees.push(t); }
+      { yield 'premises: a wood'; const zc = Object.assign({}, tctx, { waterY: zoneWaterY(z) });
+        for (const t of yield* zoneMemoSteps(ZM, 'forest', z.id, () => zmKey(z, zc, roadObjs, zc), () => planForestSteps(z, zc))) O.records.trees.push(t); }
     O.zoneMemo = ZM ? { gen: ZM.gen, hits: ZM.hits, misses: ZM.misses } : null;   // (G2960)
+    yield 'premises: the records';
     // THE GARDEN TREES ARE GONE (2026-09-23, the user: "I don't want them to be fixed
     // trees, I want to use the normal tree system, and just paint those zones ... never
     // any tree as fixture without its lod system, we take the normal ones, maybe alter
@@ -4832,7 +4901,7 @@ const API = { SURFACE_WX_NAMES, surfaceName, PREMISES_V, LAYERS, STAND_PAD, stan
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
-  frameOf, zoneWaterY: zoneWaterYOf, compose, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
+  frameOf, zoneWaterY: zoneWaterYOf, compose, composeSteps, issues, warnings, checks, bake, curvTol, collect, rasterCellIndex, rasterTileDecode, GRQ_A, GRQ_B };
 if (typeof window !== 'undefined') window.PREMISES_GEN = API;
 // standalone in node (GATE PREMISES requires this file) the API is the module; inside the core
 // bundle 90_node_exports.js assigns module.exports after this line and carries PREMISES_GEN itself

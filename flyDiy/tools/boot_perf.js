@@ -46,11 +46,24 @@ const CHROME = [
   '/usr/bin/google-chrome', '/usr/bin/chromium',
 ].find(p => fs.existsSync(p));
 if (!CHROME) { console.error('boot_perf: no Chrome found'); process.exit(2); }
-const UDD = flag('cold') ? path.join(os.tmpdir(), 'cdp_boot_' + PORT + '_' + Date.now())
-                         : path.join(os.tmpdir(), 'flydiy_boot_perf_profile');
-const args = ['--headless=new', '--remote-debugging-port=' + PORT,
-  '--window-size=1920,1080', '--hide-scrollbars', '--no-first-run',
-  '--user-data-dir=' + UDD, '--disable-gpu-sandbox', 'about:blank'];
+// --udd <dir>: this Chrome profile, kept between runs (the WARM-CACHE test, PERF-LEAD 22 Nov: a second PROCESS on
+// the profile a cold run just filled is a returning player's load). --chrome <flag>, repeatable: one more Chrome
+// switch (e.g. --chrome --gpu-program-cache-size-kb=1048576). Neither is given by default: the runs are as before.
+const UDD = opt('udd', null) || (flag('cold') ? path.join(os.tmpdir(), 'cdp_boot_' + PORT + '_' + Date.now())
+                         : path.join(os.tmpdir(), 'flydiy_boot_perf_profile'));
+const XFLAGS = argv.map((a, i) => (a === '--chrome' ? argv[i + 1] : null)).filter(Boolean);
+// --headed: a VISIBLE Chrome (the user, 22 Nov: "the only reliable timing comes from an actual in-browser test").
+// --size W,H: the window (default 1920,1080; the user's screen is 5120,1440). Headless, the page's viewport is set to
+// it. Headed, NOTHING is emulated: the viewport is what the window leaves under its tabs and bars, as for a player,
+// and the run prints the canvas it really drew (`canvas WxH`): read that, not the window, before comparing two rows.
+const HEADED = flag('headed');
+const [SW, SH] = String(opt('size', '1920,1080')).split(/[,x]/).map(Number);
+if (!(SW > 0 && SH > 0)) { console.error('boot_perf: --size W,H'); process.exit(2); }
+// (23 Nov, A0's fix 6881e8d2a: a COVERED headed window is backgrounded by Chrome - no rAF, a load that never ends; the user's
+//  own windows may cover it during an unattended night window)
+const args = [...(HEADED ? ['--window-position=0,0', '--no-default-browser-check', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'] : ['--headless=new']), '--remote-debugging-port=' + PORT,
+  '--window-size=' + SW + ',' + SH, '--hide-scrollbars', '--no-first-run',
+  '--user-data-dir=' + UDD, '--disable-gpu-sandbox'].concat(XFLAGS, ['about:blank']);
 const ch = spawn(CHROME, args, { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => {
@@ -126,19 +139,24 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
     const d = r.result; if (!d || d.exceptionDetails) throw new Error('page: ' + (d && d.exceptionDetails ? d.exceptionDetails.text : JSON.stringify(r))); return d.result.value; };
   await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Network.enable', { maxTotalBufferSize: 200000000 });
-  await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  if (!HEADED) await cmd('Emulation.setDeviceMetricsOverride', { width: SW, height: SH, deviceScaleFactor: 1, mobile: false });
+  let VP = [SW, SH];   // the viewport the screenshots clip to: the emulated one, or (headed) the window's own, read below
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: INJECT });
+  // --init-file <js file> (22 Nov): a script run in the page BEFORE any of its own (a window.FLYDIY_* switch a test
+  // needs set before the boot reads it). Named in the run's output: a seeded run is never mistaken for a plain one.
+  { const f = opt('init-file', null); if (f) { await cmd('Page.addScriptToEvaluateOnNewDocument', { source: fs.readFileSync(f, 'utf8') }); console.log('  init ' + f); } }
   // a same-origin page first, so the profiler survives the navigation (a
   // cross-origin hop would swap the renderer process)
   await cmd('Page.addScriptToEvaluateOnNewDocument', { source: require('./_stock_pin.js').pinScript() });   // G770: the OLD stock (GEN_DEFAULT), pinned - a fresh first boot is the Cub
   await cmd('Page.navigate', { url: ORIGIN + '/__boot_perf_warm__' }); await sleep(800);
+  if (HEADED) try { const v = JSON.parse(await ev('JSON.stringify([innerWidth, innerHeight])')); if (v[0] > 0 && v[1] > 0) VP = v; } catch (e) {}
   await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 500 });
   await cmd('Profiler.start');
   const navT = Date.now();
   await cmd('Page.navigate', { url: URL });
   const shotAt = [0.2, 2, 5]; const taken = new Map(); let bootGoneWall = null;
   const snap = async name => {
-    const r = await cmd('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1920, height: 1080, scale: 0.25 } });
+    const r = await cmd('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: VP[0], height: VP[1], scale: 0.25 } });
     const buf = Buffer.from(r.result.data, 'base64');
     if (flag('shots')) {
       fs.mkdirSync(SHOTDIR, { recursive: true }); fs.writeFileSync(path.join(SHOTDIR, `boot_${TAG}_${name}.png`), buf);
@@ -152,7 +170,12 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   // until SECS, and past that until the overlay has been gone 5.5 s (the
   // +5 s shot) - the sample that sees the drop can itself be held back by a
   // post-drop block; hard cap SECS + 30
-  const due = () => Date.now() - navT < SECS * 1000 || (bootGoneWall && Date.now() - bootGoneWall < 5500 && Date.now() - navT < (SECS + 30) * 1000);
+  // --after N (22 Nov, for a slot's worth of loads): stop N seconds after the overlay is GONE instead of watching the
+  // page to SECS whatever happened (a 110 s load under --secs 240 spends 130 s of box time on nothing); SECS is then
+  // only the cap for a load that never ends. N >= 6 keeps the +5 s shot.
+  const AFTER = Math.max(0, +opt('after', 0));
+  const due = AFTER ? () => (bootGoneWall ? Date.now() - bootGoneWall < Math.max(6, AFTER) * 1000 : Date.now() - navT < SECS * 1000)
+    : () => Date.now() - navT < SECS * 1000 || (bootGoneWall && Date.now() - bootGoneWall < 5500 && Date.now() - navT < (SECS + 30) * 1000);
   while (due()) {
     await sleep(250);
     let s = null; try { s = await ev(`(() => { const M = window.__M || {}; const st = (window.TREE_FILL && TREE_FILL.stat) ? TREE_FILL.stat() : null;
@@ -172,18 +195,38 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   // keep arriving in front of you
   let rollout = null;
   if (flag('rollout') && bootGoneWall) {
-    const t0r = Date.now();
-    await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
-    let goneWall = null; const rt = new Map();
-    while (Date.now() - t0r < 90000 && !(goneWall && Date.now() - goneWall > 8500)) {
+    // --pre-rollout-file <js file> (22 Nov): one expression awaited in the garage BEFORE the click (e.g. the clock set to
+    // noon after a night load: the departure that re-keys every lit program). Its result is the run's `pre-rollout` line.
+    let preOut = null;
+    { const f = opt('pre-rollout-file', null);
+      if (f) { try { const v = await ev(fs.readFileSync(f, 'utf8')); preOut = typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { preOut = 'failed: ' + e.message; } await sleep(1500); } }
+    let progs0 = null; try { progs0 = await ev("WORLD.renderer.info.programs.length"); } catch (e) {}
+    const t0r = Date.now(), RSECS = +opt('rollout-secs', 90);
+    // the button is #bGo today ("Fly the circuit"); the 'roll out' text is the September page's. Pressed again every
+    // 2 s until the roll-out's screen shows or the page flies (RIG-PROCEDURE: "click #bGo until flying").
+    const GO = "(()=>{const b=document.getElementById('bGo');if(b){b.click();return 1;}let n=0;[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>{x.click();n++;});return n;})()";
+    await ev(GO); let goClicks = 1;   // (a click DURING the roll-out shot skips the shot: the count says whether this run's did)
+    let goneWall = null, lastGo = Date.now(), seen = false, flyWall = null; const rt = new Map();
+    // --rollout-watch N (22 Nov eve): how long the page is watched AFTER the roll-out's screen lifts for the flight to begin
+    // (default 8.5 s, the stills' span). With links still pending the reveal waits for them (app.js programsReady) and
+    // 8.5 s saw no flight in three rows of the evening's window; a longer watch ends as soon as the flight is seen
+    // (and the 8.5 s of stills are in).
+    const WATCH = Math.max(8.5, +opt('rollout-watch', 8.5)) * 1000;
+    while (Date.now() - t0r < RSECS * 1000 && !(goneWall && (Date.now() - goneWall > WATCH || (flyWall && Date.now() - goneWall > 8500)))) {
       await sleep(250);
+      try { const f = JSON.parse(await ev("(()=>{const c=document.body.classList;return JSON.stringify({fly:c.contains('mode-fly')&&!c.contains('mode-ws')&&!c.contains('rollShot'),set:window.BOOT&&BOOT.set,state:window.BOOT&&BOOT.state});})()"));
+        if (f.set === 'rollout' && f.state !== 'gone') seen = true;
+        if (f.fly && !flyWall) flyWall = Date.now();
+        // --rollout-once (23 Nov): Go is pressed ONCE, so the roll-out shot PLAYS (about 11 s): the departure a player sees
+        if (!flag('rollout-once') && !seen && !f.fly && Date.now() - lastGo > 2000) { lastGo = Date.now(); await ev(GO); goClicks++; } } catch (e) {}
       let s = null; try { s = JSON.parse(await ev(`(() => { const B = window.BOOT; const st = (window.TREE_FILL && TREE_FILL.ringStat) ? TREE_FILL.ringStat() : null;
         return JSON.stringify({ state: B.state, set: B.set, phase: B.current && B.current.id, ring: st, flying: /TAXI|DOWNWIND|FINAL|STOPPED/.test(document.body.innerText) }); })()`)); } catch (e) { continue; }
       if (s.set === 'rollout' && s.state === 'gone' && !goneWall) { goneWall = Date.now(); rollout = { screenMs: goneWall - t0r, ring: s.ring }; }
       if (goneWall) for (const k of [0.3, 3, 8]) if (!rt.has(k) && Date.now() - goneWall >= k * 1000) rt.set(k, await snap('rollout_plus' + k + 's'));
       if (flag('shots') && !goneWall && s.phase && !rt.has('ph:' + s.phase)) { rt.set('ph:' + s.phase, 1); await snap('rollout_' + s.phase); }
     }
-    if (!rollout) rollout = { screenMs: null, note: 'the roll-out screen never lifted in 90 s' };
+    if (!rollout) rollout = { screenMs: null, note: 'the roll-out screen never lifted in ' + RSECS + ' s' };
+    rollout.flyMs = flyWall ? flyWall - t0r : null; rollout.goClicks = goClicks; rollout.programs0 = progs0; rollout.pre = preOut;
     rollout.still = { lift_vs_3s: stillness(rt.get(0.3), rt.get(3)), s3_vs_8s: stillness(rt.get(3), rt.get(8)) };
     try { rollout.log = JSON.parse(await ev("JSON.stringify(BOOT.log.filter(e => e.k === 'step' || e.k === 'show' || e.k === 'ready' || e.k === 'fail').slice(-12))")); } catch (e) {}
     try { rollout.ringAfter = JSON.parse(await ev("JSON.stringify(TREE_FILL.ringStat ? TREE_FILL.ringStat() : null)")); } catch (e) {}
@@ -194,8 +237,32 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   }
   let gpu = null; try { gpu = JSON.parse(await ev(`(() => { const r = WORLD.renderer, g = r.getContext(), i = r.info; const d = g.getExtension('WEBGL_debug_renderer_info');
     return JSON.stringify({ programs: i.programs.length, geometries: i.memory.geometries, textures: i.memory.textures,
+      canvas: g.drawingBufferWidth + 'x' + g.drawingBufferHeight, view: innerWidth + 'x' + innerHeight, dpr: devicePixelRatio,
+      vis: document.visibilityState, focus: document.hasFocus(),
       parallel: !!g.getExtension('KHR_parallel_shader_compile'), gl: d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER) }); })()`)); } catch (e) { gpu = String(e); }
+  // --eval-file <js file>: one expression read in the page at the end of the run, its (short) result printed as the
+  // run's `eval` line and kept in the JSON - a row's own numbers (a FLYDIY_* counter, the longest world slice).
+  // --dump-file <js file> <out file>: the same for a LARGE result (a saved flight log): written to the out file whole.
+  let evalOut = null;
+  { const f = opt('eval-file', null);
+    if (f) try { const v = await ev(fs.readFileSync(f, 'utf8')); evalOut = typeof v === 'string' ? v : JSON.stringify(v); } catch (e) { evalOut = 'eval failed: ' + e.message; }
+    const di = argv.indexOf('--dump-file');
+    // (kept in the page and fetched 4 MB at a time: one CDP answer of a 15-30 MB flight log is slow or refused)
+    if (di >= 0 && argv[di + 2]) try { const NL = String.fromCharCode(10);
+      const ex = fs.readFileSync(argv[di + 1], 'utf8').split(NL).filter(l => !/^\s*\/\//.test(l)).join(NL).replace(/[;\s]+$/, '');   // (its comment lines and a last ';' off: it is wrapped as ONE expression)
+      const len = await ev('(window.__BPD = String((' + NL + ex + NL + '))).length'); let v = '';
+      for (let a = 0; a < len; a += 4000000) v += await ev('window.__BPD.slice(' + a + ', ' + (a + 4000000) + ')');
+      await ev('(window.__BPD = null, 0)');
+      fs.mkdirSync(path.dirname(path.resolve(argv[di + 2])), { recursive: true }); fs.writeFileSync(argv[di + 2], v);
+      console.log('  dump ' + argv[di + 2] + ' ' + fs.statSync(argv[di + 2]).size + ' bytes'); } catch (e) { console.log('  dump failed: ' + e.message); } }
   const prof = (await cmd('Profiler.stop')).result.profile;
+  // --profile-out <file> (23 Nov): the sampled profile kept whole (nodes, samples, their deltas), so a window of it can be
+  // cut AFTER the run by times the page itself logged (garage first's slices: tools/perf/profile_window.py)
+  { const po = opt('profile-out', null);
+    if (po) { try { fs.mkdirSync(path.dirname(path.resolve(po)), { recursive: true });
+      fs.writeFileSync(po, JSON.stringify({ startTime: prof.startTime, endTime: prof.endTime, samples: prof.samples, timeDeltas: prof.timeDeltas,
+        nodes: prof.nodes.map(n => [n.id, (n.callFrame.url || '').replace(/\?.*$/, '').replace(/^.*\//, '') || '(native)', n.callFrame.functionName || '(anon)', n.callFrame.lineNumber + 1, n.children || []]) }));
+      console.log('  profile ' + po + ' ' + fs.statSync(po).size + ' bytes'); } catch (e) { console.log('  profile-out failed: ' + e.message); } } }
   // --window a,b (ms of the page's clock, roughly): the self time by function inside it
   const WIN = opt('window', null);
   if (WIN) {
@@ -235,7 +302,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   const byType = {}; for (const r of netRows) byType[r.type] = (byType[r.type] || 0) + r.kb;
   const longSum = M.longTasks.reduce((a, e) => a + e.d, 0);
   const longTop = M.longTasks.slice().sort((a, b) => b.d - a.d).slice(0, 8);
-  const out = { url: URL, tag: TAG, cold: flag('cold'), secs: SECS, date: new Date().toISOString().slice(0, 10), gpu, rollout,
+  const out = { url: URL, tag: TAG, evalOut, cold: flag('cold'), secs: SECS, date: new Date().toISOString().slice(0, 10), gpu, rollout,
     milestones: M.ev, bootGone: M.bootGone || null, bootLog, paints: M.paints, propsLanded: M.props.length, charsLanded: M.chars.length,
     fetches: M.fetches.length, longTaskTotalMs: longSum, longTasks: longTop, profileTotalMs: +(total / 1000).toFixed(0), stillness: still,
     byFile: top(byFile, 25), byFn: top(byFn, 40), inclusive: [...incl].sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +(v / 1000).toFixed(0)]),
@@ -247,6 +314,8 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
   const pad = (s, n) => String(s).padEnd(n);
   console.log(`boot_perf ${TAG}  ${URL}\n  gpu ${gpu && gpu.gl}  programs ${gpu && gpu.programs}  parallel-compile ${gpu && gpu.parallel}`);
+  console.log(`  ${HEADED ? 'HEADED' : 'headless'} window ${SW}x${SH}  view ${gpu && gpu.view}  canvas ${gpu && gpu.canvas}  dpr ${gpu && gpu.dpr}  page ${gpu && gpu.vis}${gpu && gpu.focus ? ', focused' : ', NOT focused'}`);
+  if (evalOut !== null) console.log('  eval ' + String(evalOut).replace(/\s+/g, ' ').slice(0, 600));
   console.log('  milestones: ' + M.ev.map(e => e.k + '@' + e.t).join('  '));
   if (bootLog) {
     // the steps with their ms, the marks, and the landings folded per key
@@ -259,6 +328,7 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   console.log(`  stillness (mean |dpx|, 0 = nothing changed after the drop): drop->2s ${still.drop_vs_2s}  drop->5s ${still.drop_vs_5s}  2s->5s ${still.s2_vs_5s}`);
   console.log(`  network ${(out.netTotalKB / 1024).toFixed(1)} MB / ${out.netRequests} req (failed ${out.netFailed})  ` + Object.entries(byType).map(([k, v]) => k + ' ' + (v / 1024).toFixed(1) + ' MB').join(', '));
   console.log('  media by table: ' + out.bytesBySub.slice(0, 14).map(([k, kb, n]) => k.replace(/^media\//, '') + ' ' + (kb / 1024).toFixed(1) + ' MB/' + n).join(', '));
+  if (rollout) console.log('  rollout: screen ' + rollout.screenMs + ' ms, flying after ' + rollout.flyMs + ' ms (Go clicked ' + rollout.goClicks + 'x' + (rollout.goClicks > 1 ? ': the 2nd click skips the roll-out shot, about 11 s when it plays' : ': the roll-out shot played') + '), programs ' + rollout.programs0 + ' -> ' + rollout.programs + (rollout.pre ? ', pre-rollout ' + String(rollout.pre).slice(0, 200) : ''));
   if (rollout) console.log('  ROLL-OUT: screen ' + rollout.screenMs + ' ms  steps ' + ((rollout.log || []).filter(e => e.k === 'step').map(e => e.id + ':' + e.ms).join(' ')) + '  ring at lift ' + JSON.stringify(rollout.ring) + '  after ' + JSON.stringify(rollout.ringAfter) + '  programs ' + rollout.programs + '  stillness lift->3s ' + rollout.still.lift_vs_3s + '  3s->8s ' + rollout.still.s3_vs_8s + (rollout.note ? '  ' + rollout.note : ''));
   console.log('  props landed ' + M.props.length + '  chars ' + M.chars.length + '  ASSET_FETCH ' + M.fetches.length);
   console.log('  inclusive ms: ' + out.inclusive.slice(0, 16).map(([k, v]) => pad(k.split(' @')[0], 18) + v).join('\n                '));
@@ -266,5 +336,16 @@ const stillness = (A, B) => { if (!A || !B || A.w !== B.w || A.h !== B.h) return
   if (COMPARE && fs.existsSync(COMPARE)) { const c = JSON.parse(fs.readFileSync(COMPARE, 'utf8'));
     console.log(`  vs ${path.basename(COMPARE)}: overlay gone ${c.bootGone} -> ${M.bootGone} ms; long tasks ${c.longTaskTotalMs} -> ${longSum} ms; network ${(c.netTotalKB / 1024).toFixed(1)} -> ${(out.netTotalKB / 1024).toFixed(1)} MB; programs ${c.gpu && c.gpu.programs} -> ${gpu && gpu.programs}`); }
   console.log('  wrote ' + path.relative(process.cwd(), OUT));
+  // --udd: the profile is read by the NEXT run, so Chrome closes itself (Browser.close on the browser's own socket,
+  // 20 s at most) and has the time to write its GPU shader cache to disk; a kill would leave the next run cold.
+  if (opt('udd', null)) {
+    const gone = new Promise(r => ch.once('exit', r));
+    try { const v = await getJSON('http://127.0.0.1:' + PORT + '/json/version');
+      const bw = new WebSocket(v.webSocketDebuggerUrl); await new Promise((r, j) => { bw.onopen = r; bw.onerror = j; });
+      bw.send(JSON.stringify({ id: 1, method: 'Browser.close' })); } catch (e) { console.log('  Browser.close failed: ' + e.message); }
+    const how = await Promise.race([gone.then(() => 'closed itself'), sleep(20000).then(() => 'KILLED after 20 s (its shader cache may not be on disk)')]);
+    console.log('  chrome ' + how); if (ch.exitCode === null) ch.kill();
+    return;
+  }
   ws.close(); ch.kill();
 })().catch(e => { console.error(e); ch.kill(); process.exit(1); });

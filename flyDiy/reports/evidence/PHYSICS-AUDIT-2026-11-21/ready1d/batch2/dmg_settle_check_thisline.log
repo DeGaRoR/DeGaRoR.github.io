@@ -1,0 +1,93 @@
+(270 s; X 1 cm over / 6 under, Y 2 cm over / 25 under, debris 2 cm)
+Cub:
+  a trunk at 30 m/s, the centreline: 80 broken, 2 pieces at 15 s
+    piece CORE (96 nodes, 469.5 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -0.9 cm (MNTBR) - covering -39.0 cm (firewall), anything drawn -58.4 cm (cdfe3e7:cowl), fastest node 0.275 m/s
+    piece #92 (1 nodes, 7.8 kg; AXLEL): lowest node 0.0 cm (AXLEL) - covering - cm (null), anything drawn - cm (null), fastest node 0 m/s
+  ok    cub trunk-0: the crash flown finite
+  ok    cub trunk-0: every detached piece still at 15 s (fastest 0.000 m/s)
+  ok    cub trunk-0: every detached piece's lowest node on the ground ( cm; within +1 / -6)
+  ok    cub trunk-0: every detached piece's covering ON the ground, not over it ( cm; within +2 / -25)
+  ok    cub trunk-0: no island rides a loose piece (0): each went as a body
+  ok    cub trunk-0: every scrap at rest, held, its drawing on the ground ( cm)
+  a trunk at 30 m/s, the wing 2.5 m out: 12 broken, 2 pieces at 15 s
+    piece CORE (93 nodes, 456.7 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -3.8 cm (WF) - covering -12.9 cm (c7d8792), anything drawn -12.9 cm (c7d8792:wing), fastest node 0.003 m/s
+    piece #48 (4 nodes, 20.6 kg; WF,WR): lowest node -0.1 cm (WF) - covering -26.5 cm (c8b95a2), anything drawn -26.5 cm (c8b95a2:wing), fastest node 0 m/s
+  ok    cub trunk-2.5: the crash flown finite
+  ok    cub trunk-2.5: every detached piece still at 15 s (fastest 0.000 m/s)
+  ok    cub trunk-2.5: every detached piece's lowest node on the ground (-0.1 cm; within +1 / -6)
+  FAIL  cub trunk-2.5: every detached piece's covering ON the ground, not over it (-26.5 cm; within +2 / -25)
+  ok    cub trunk-2.5: no island rides a loose piece (0): each went as a body
+  ok    cub trunk-2.5: every scrap at rest, held, its drawing on the ground ( cm)
+  stand-in wheel+leg (31 points): 20/20 at rest, 20 held, its lowest drawn point -1.0..0.0 cm, the last asleep at 4.73 s
+  ok    cub wheel+leg: every drop at rest, held, on the ground
+  stand-in eng+prop (12 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 4.44 s
+  ok    cub eng+prop: every drop at rest, held, on the ground
+  stand-in cowl (26 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.2 s
+  ok    cub cowl: every drop at rest, held, on the ground
+  stand-in spinner (25 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.99 s
+  ok    cub spinner: every drop at rest, held, on the ground
+  stand-in pane (18 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.6 s
+  ok    cub pane: every drop at rest, held, on the ground
+Jodel:
+  a trunk at 30 m/s, the centreline: 32 broken, 2 pieces at 15 s
+    piece CORE (102 nodes, 464.1 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -0.4 cm (TW) - covering 32.0 cm (body), anything drawn 12.2 cm (woodFrame), fastest node 0.164 m/s
+    piece #97 (13 nodes, 5.6 kg; FIN,VF,VR,VX): lowest node -0.0 cm (VX) - covering -3.7 cm (c9aa4b0), anything drawn -4.1 cm (c9aa2ab:hinge), fastest node 0 m/s
+  ok    jodel trunk-0: the crash flown finite
+  ok    jodel trunk-0: every detached piece still at 15 s (fastest 0.000 m/s)
+  ok    jodel trunk-0: every detached piece's lowest node on the ground (-0.0 cm; within +1 / -6)
+  ok    jodel trunk-0: every detached piece's covering ON the ground, not over it (-3.7 cm; within +2 / -25)
+  ok    jodel trunk-0: no island rides a loose piece (0): each went as a body
+  ok    jodel trunk-0: every scrap at rest, held, its drawing on the ground ( cm)
+  a trunk at 30 m/s, the wing 2.5 m out: 17 broken, 2 pieces at 15 s
+    piece CORE (102 nodes, 464.1 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -0.3 cm (TW) - covering 32.1 cm (body), anything drawn 30.7 cm (cb9c2cc:access), fastest node 0.445 m/s
+    piece #97 (13 nodes, 5.6 kg; FIN,VF,VR,VX): lowest node -0.0 cm (VX) - covering -3.7 cm (c9aa4b0), anything drawn -4.2 cm (c9aa2ab:hinge), fastest node 0 m/s
+  ok    jodel trunk-2.5: the crash flown finite
+  ok    jodel trunk-2.5: every detached piece still at 15 s (fastest 0.000 m/s)
+  ok    jodel trunk-2.5: every detached piece's lowest node on the ground (-0.0 cm; within +1 / -6)
+  ok    jodel trunk-2.5: every detached piece's covering ON the ground, not over it (-3.7 cm; within +2 / -25)
+  ok    jodel trunk-2.5: no island rides a loose piece (0): each went as a body
+  ok    jodel trunk-2.5: every scrap at rest, held, its drawing on the ground ( cm)
+  stand-in wheel+leg (29 points): 20/20 at rest, 20 held, its lowest drawn point -0.8..0.0 cm, the last asleep at 6.39 s
+  ok    jodel wheel+leg: every drop at rest, held, on the ground
+  stand-in eng+prop (12 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.94 s
+  ok    jodel eng+prop: every drop at rest, held, on the ground
+  stand-in cowl (26 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.2 s
+  ok    jodel cowl: every drop at rest, held, on the ground
+  stand-in spinner (25 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.99 s
+  ok    jodel spinner: every drop at rest, held, on the ground
+  stand-in pane (18 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.6 s
+  ok    jodel pane: every drop at rest, held, on the ground
+metal Cessna:
+  a trunk at 30 m/s, the centreline: 93 broken, 4 pieces at 15 s
+    piece CORE (54 nodes, 979.9 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -1.1 cm (S0BL) - covering -60.3 cm (body), anything drawn -60.3 cm (body), fastest node 0.018 m/s
+    piece #12 (61 nodes, 65.5 kg; S3BL,S3BR,S3TL,S3TR,S4BL,S4BR): lowest node -0.3 cm (S3BL) - covering -12.5 cm (taper), anything drawn -12.5 cm (taper), fastest node 0.002 m/s
+    piece #115 (1 nodes, 13.6 kg; AXLER): lowest node 0.0 cm (AXLER) - covering - cm (null), anything drawn - cm (null), fastest node 0 m/s
+    piece #116 (1 nodes, 10.6 kg; TW): lowest node 0.0 cm (TW) - covering - cm (null), anything drawn - cm (null), fastest node 0 m/s
+  ok    metal trunk-0: the crash flown finite
+  ok    metal trunk-0: every detached piece still at 15 s (fastest 0.002 m/s)
+  ok    metal trunk-0: every detached piece's lowest node on the ground (-0.3 cm; within +1 / -6)
+  ok    metal trunk-0: every detached piece's covering ON the ground, not over it (-12.5 cm; within +2 / -25)
+  ok    metal trunk-0: no island rides a loose piece (0): each went as a body
+  ok    metal trunk-0: every scrap at rest, held, its drawing on the ground ( cm)
+  a trunk at 30 m/s, the wing 2.5 m out: 32 broken, 2 pieces at 15 s
+    piece CORE (56 nodes, 1004.1 kg; S0BL,S0BR,S0TL,S0TR,S1BL,S1BR): lowest node -0.5 cm (TW) - covering -51.1 cm (c8b95a2), anything drawn -51.1 cm (c8b95a2:wing), fastest node 0.069 m/s
+    piece #12 (61 nodes, 65.5 kg; S3BL,S3BR,S3TL,S3TR,S4BL,S4BR): lowest node -0.3 cm (S5BL) - covering -9.8 cm (taper), anything drawn -17.6 cm (cc8ccd2:access), fastest node 0.002 m/s
+  ok    metal trunk-2.5: the crash flown finite
+  ok    metal trunk-2.5: every detached piece still at 15 s (fastest 0.002 m/s)
+  ok    metal trunk-2.5: every detached piece's lowest node on the ground (-0.3 cm; within +1 / -6)
+  ok    metal trunk-2.5: every detached piece's covering ON the ground, not over it (-9.8 cm; within +2 / -25)
+  ok    metal trunk-2.5: no island rides a loose piece (0): each went as a body
+  ok    metal trunk-2.5: every scrap at rest, held, its drawing on the ground ( cm)
+  stand-in wheel+leg (29 points): 20/20 at rest, 20 held, its lowest drawn point -0.9..0.0 cm, the last asleep at 6.68 s
+  ok    metal wheel+leg: every drop at rest, held, on the ground
+  stand-in eng+prop (12 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.94 s
+  ok    metal eng+prop: every drop at rest, held, on the ground
+  stand-in cowl (26 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.2 s
+  ok    metal cowl: every drop at rest, held, on the ground
+  stand-in spinner (25 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.99 s
+  ok    metal spinner: every drop at rest, held, on the ground
+  stand-in pane (18 points): 20/20 at rest, 20 held, its lowest drawn point 0.0..0.0 cm, the last asleep at 3.6 s
+  ok    metal pane: every drop at rest, held, on the ground
+51 checks, 1 failed
+GATE DMGSETTLE: FAIL
+exit 1

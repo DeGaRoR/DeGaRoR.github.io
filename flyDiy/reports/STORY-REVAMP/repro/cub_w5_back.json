@@ -1,0 +1,9 @@
+{ "name": "cub_w5_back", "what": "the Cub: HOME to w5, then the leg back from where it stopped", "plane": "list:1", "from": "HOME", "to": "w5", "day": "game", "persona": "expert",
+  "steps": [
+    { "name": "board", "do": "board" },
+    { "name": "start-up", "do": "start", "until": { "engine": true }, "capS": 10 },
+    { "name": "take-off", "until": { "agl": 30 }, "capS": 600 },
+    { "name": "land and stop on w5", "until": { "stoppedAt": "w5" }, "capS": 1500 },
+    { "name": "leg back: take-off", "do": "leg", "to": "HOME", "until": { "agl": 30 }, "capS": 900 },
+    { "name": "land and stop on HOME", "until": { "stoppedAt": "HOME" }, "capS": 1500 }
+  ] }

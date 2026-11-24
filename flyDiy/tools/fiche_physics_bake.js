@@ -4,7 +4,8 @@
 // the game's load door (tools/_load_build.js), then genFichePages (66c), written beside the plane's fiche pictures:
 //   media/fiches/<key>/physics.json        (fiche_physics.js dataFor reads it from its side picture's folder)
 // The pictures' frames are not baked: the page fits them on its own pictures (fitFrame).
-//   node tools/fiche_physics_bake.js [--only <key,key>] [--jobs N] [--dry] [--prune]   (a full bake prunes the fiches gone from the index; --prune alone only prunes)
+//   node tools/fiche_physics_bake.js [--only <key,key>] [--jobs N] [--dry] [--prune] [--dedupe]   (a full bake prunes the fiches gone from the index; --prune alone only prunes;
+//   every bake then dedupes - a page byte-identical to an earlier fiche's is that fiche's, by the index's physicsAt; --dedupe alone only dedupes)
 'use strict';
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 const T = __dirname, FLY = path.join(T, '..'), OUT = path.join(FLY, 'media', 'fiches');
@@ -44,7 +45,29 @@ function prune() {
     fs.unlinkSync(f); if (!fs.readdirSync(path.join(OUT, d)).length) fs.rmdirSync(path.join(OUT, d));
     console.log(d.padEnd(36), 'PRUNED: no longer in the index'); }
 }
+// THE SAME PAGE ONCE (PHYSICS-AUDIT 1d, 24 Nov; GATE ASSETS "dupes"): two fiches of the same aeroplane - the Client Cub
+// is the default Cub in another livery (list:26 and design:cub) - bake byte-identical pages, and media/ holds a file once.
+// After a bake, in the index's order: a fiche whose page is byte-identical to an earlier fiche's has its own file removed
+// and points at that one (its index entry's `physicsAt`, 'dir/physics.json'); a fiche whose own page is unique (or
+// re-baked and now different) loses the pointer. Read by fiche_physics.js (dataFor), fiche_board.js (bakedRec), GATE
+// MEDIA and physics_pages_shot.js; kept by fiche_bake.js when it rewrites an entry.
+function dedupe() {
+  const IP = path.join(OUT, 'index.json'), J = JSON.parse(fs.readFileSync(IP, 'utf8')), seen = {}, crypto = require('crypto');
+  let moved = 0;
+  for (const [k, e] of Object.entries(J.fiches || {})) {
+    const dir = ((e.pics && e.pics.side) || '').split('/')[0]; if (!dir) continue;
+    const own = path.join(OUT, dir, 'physics.json');
+    if (fs.existsSync(own)) {
+      const h = crypto.createHash('sha256').update(fs.readFileSync(own)).digest('hex');
+      if (seen[h] && seen[h] !== dir) { fs.unlinkSync(own); e.physicsAt = seen[h] + '/physics.json'; moved++; console.log(k.padEnd(40), 'THE SAME PAGE as ' + seen[h] + ': points at it'); }
+      else { seen[h] = dir; delete e.physicsAt; }
+    } else if (e.physicsAt && !fs.existsSync(path.join(OUT, e.physicsAt))) { console.log(k.padEnd(40), 'its page ' + e.physicsAt + ' is gone: re-bake it'); delete e.physicsAt; }
+  }
+  fs.writeFileSync(IP, JSON.stringify(J, null, 1) + '\n');
+  return moved;
+}
 if (argv.includes('--prune')) { prune(); process.exit(0); }
+if (argv.includes('--dedupe')) { dedupe(); process.exit(0); }
 if (argv.includes('--dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), r.dir.padEnd(36), r.file); process.exit(0); }
 const jobs = +opt('jobs', '3');
 let next = 0, bad = 0;
@@ -53,4 +76,4 @@ const one = () => { if (next >= rows.length) return Promise.resolve();
   return new Promise(res => { const p = spawn(process.execPath, [__filename, '--one', r.file, r.dir], { cwd: FLY, stdio: ['ignore', 'inherit', 'pipe'] });
     let err = ''; p.stderr.on('data', d => { err += d; });
     p.on('close', c => { if (c) { bad++; console.log(`${r.dir.padEnd(36)} FAILED: ${err.trim().split('\n').pop()}`); } res(); }); }).then(one); };
-Promise.all(Array.from({ length: Math.min(jobs, rows.length) }, one)).then(() => { if (!only && !bad) prune(); console.log(`fiche_physics_bake: ${rows.length - bad} of ${rows.length}`); process.exit(bad ? 1 : 0); });
+Promise.all(Array.from({ length: Math.min(jobs, rows.length) }, one)).then(() => { if (!only && !bad) prune(); dedupe(); console.log(`fiche_physics_bake: ${rows.length - bad} of ${rows.length}`); process.exit(bad ? 1 : 0); });

@@ -1,0 +1,8 @@
+# THE PERF CHECK OF A TRAIN'S BUILD (first: L40J, 23 Nov 03:15, A0's ask) - run with LM_AFTER=12 (Go 12 s after the reveal).
+# Two COLD loads at the user's 5K (a new Chrome profile each: an empty shader cache), the departure watched to the flight:
+# the first with the roll-out shot SKIPPED (the rig's second click), the second with the shot PLAYED (--rollout-once: one
+# click, what a player sees); then the second profile again = a RETURNING player's load.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+TRAIN_COLD1 ; D:/Dev/wt-t42 ; - ; new   ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+TRAIN_COLD2 ; D:/Dev/wt-t42 ; - ; train ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+TRAIN_WARM  ; D:/Dev/wt-t42 ; - ; train ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js

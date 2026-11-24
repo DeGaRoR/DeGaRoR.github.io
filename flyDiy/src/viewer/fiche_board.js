@@ -225,7 +225,8 @@
   const baked = () => bakedP || (bakedP = (typeof fetch === 'function' ? fetch(BAKED + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
     .then(j => (bakedIdx = (j && j.fiches) || {}), () => ({})));
   const bakedRec = (key, B) => { const b = B[key]; if (!b) return null; const pics = {}; for (const v in b.pics || {}) pics[v] = BAKED + b.pics[v];
-    return { name: key, baked: true, data: b.data || { name: b.name }, pics, listRow: key, listFile: b.listFile || '' }; };
+    return Object.assign({ name: key, baked: true, data: b.data || { name: b.name }, pics, listRow: key, listFile: b.listFile || '' },
+      b.physicsAt ? { physicsAt: BAKED + b.physicsAt } : {}); };   // (PHYSICS-AUDIT 1d: the same aeroplane's page, held once)
   // the All planes screen's tile: a small door in its corner (a span: a button cannot hold a button); a click opens the board, not the plane
   function tileDoor(tile, key) {
     if (!tile || !key) return;

@@ -229,6 +229,8 @@ window.CAGE_PAGE = {
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     pilHandGrip: 0.075,
     pilStickFwd: 0,              // G3875: the stick hand fore/aft (0 = where the grip puts it)
+    // SEAT-WIDTH / SIT-OFFSET (the user 21 Nov): the seat's width x and the bottom's place on the seat (CAGE_DEFAULT_ABSENT)
+    seatW: 1, pilSitZ: 0, pilSitY: 0, paxSitZ: 0, paxSitY: 0,
     // G2797: the hands apart (0 = one setting for both, as always)
     pilHandsApart: 0, pilFistL: 0.5, pilFistR: 0.5, pilGripL: 0.075, pilGripR: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
@@ -893,6 +895,9 @@ window.CAGE_PAGE = {
         ['seatH',     'up / down (squab height)', 0.00, 1.50, 0.005],
         ['seatRake',  'back recline',   0, 60, 0.5],
         ['seatTilt',  'squab recline',  -10, 40, 0.5],
+        // SEAT-WIDTH (the user 21 Nov: "Seats lack a width setting"): the preset's calibrated width x, every seat aboard;
+        // the cabin's room still caps it (absent at 1)
+        ['seatW',     'seat width ×',   0.60, 1.60, 0.01],
         ['seatGap',   'sbs seat gap',   0.18, 1.20, 0.005,
          { when: P => +P.seatLayout === 1 }],
       ], 'open'],
@@ -1057,6 +1062,10 @@ window.CAGE_PAGE = {
         // G3875 (the user, 29 Oct: "the hand control for the stick should allow for some fore-aft adjustment,
         // because right now the stick is not perfectly held"): metres along the pilot's own forward, the stick hand only
         ['pilStickFwd', 'stick hand fore/aft', -0.08, 0.08, 0.005],
+        // SIT-OFFSET (the user 21 Nov: "seat the pilot correctly in any seat, the position of his bottom"): metres on
+        // the seat, fore / aft (+ forward) and up / down; the hands and feet follow onto the controls (absent at 0)
+        ['pilSitZ',   'bottom fore/aft', -0.15, 0.15, 0.005],
+        ['pilSitY',   'bottom up/down',  -0.10, 0.10, 0.005],
         // G2797 (the user's garage review, 18 Oct: "hand controls applied per
         // hand"): the two hands set apart - each one's fist and its place on
         // the grip; off, both follow the two rows above
@@ -1075,6 +1084,9 @@ window.CAGE_PAGE = {
       // do not apply
       ['passenger pose', [
         ['paxRecline','recline offset',-15, 25, 0.5],
+        // SIT-OFFSET: the co-pilot's and every passenger's bottom on the seat (absent at 0)
+        ['paxSitZ',   'bottom fore/aft', -0.15, 0.15, 0.005],
+        ['paxSitY',   'bottom up/down',  -0.10, 0.10, 0.005],
         // G205: the feet, placed without pedals — fore-aft from the seat
         // back, height over the bay floor, half-spread (metres); and the
         // upper-body idle clip's weight

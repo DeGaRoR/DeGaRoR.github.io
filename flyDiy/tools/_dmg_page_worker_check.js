@@ -7,7 +7,7 @@
 //
 //   node tools/_dmg_page_worker_check.js              -> "GATE DMGPAGEW: PASS|FAIL"
 //   node tools/_dmg_page_worker_check.js --selftest   -> negative verification (the mirror's dmgState taken away must turn it red)
-//   --secs=S (sim seconds after the placement, default 5)
+//   --secs=S (sim seconds after the placement, default 5); --rest=S (sim seconds more, the wreck lying, default 7)
 //
 // THE PAGE ITSELF IN NODE (tools/_page_node.js), dev.html?simw=1&damage=1, the user's Cub (builds/cub_2026-09-20_corrected.json),
 // the solver in a REAL thread (the harness's Worker shim over src/viewer/sim_host.js - GATE SIMWORKER-PAGE's set-up): the
@@ -20,8 +20,14 @@
 //     app.js dmgNow hands the skin break and the debris);
 //   3 the skin break ran on the page (records made, riding vertices) and the debris did (the wreck active, a piece or a part gone);
 //   4 no page error, no worker error.
+//   6 (ROW 14, 23 Nov - PERF-LEAD's screen run: brkCage 43-51 ms a frame with the wreck lying still, its rest return never
+//     taken) THE WRECK AT REST IS DRAWN AS IT STANDS: --rest=S more sim seconds after the crash (default 7), then over the
+//     last REST_WIN s the break path's clock (FLYDIY_DMG_PROF): brkCage took its rest return on at least half the frames,
+//     and never was it held by a record's pending binding (why.bind 0: under the inherited binding nothing empties
+//     R.pending - the bug).
 // NEGATIVE-VERIFIED (--selftest): the mirror's dmgState removed from the page's sim once the flight is live (the bug as it
-// was): 2 and 3 must go red.
+// was): 2 and 3 must go red. --selftest also flies window.FLYDIY_REST_PENDWORK = true (the rest test as it was: a pending
+// binding holds it under the inherited binding too): 6 must go red.
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const { spawnSync } = require('child_process');
@@ -32,7 +38,7 @@ const CUB = 'builds/cub_2026-09-20_corrected.json';
 
 // ============================================================ THE CHILD: one page
 async function child() {
-  const out = arg('out'), fault = arg('fault', ''), SECS = +arg('secs', 5);
+  const out = arg('out'), fault = arg('fault', ''), SECS = +arg('secs', 5), REST = +arg('rest', 7), REST_WIN = 2;
   const { openPage } = require('./_page_node.js');
   const R = { fault, t: {}, errors: [], frames: 0 };
   const t0 = Date.now();
@@ -60,6 +66,7 @@ async function child() {
   const sim = FP.sim(), world = FP.world();
   R.mirrored = typeof sim.dmgState === 'function';
   // the bug as it was (selftest): the page's sim without the mirror's damage state
+  if (fault === 'pendwork') W.FLYDIY_REST_PENDWORK = true;
   if (fault === 'nodmg') Object.defineProperty(sim, 'dmgState', { configurable: true, enumerable: true, writable: true, value: undefined });
   // the crash (tools/dmg_skingpu_box.js pageFlown's): 4 m up, 30 m/s along the heading, placed through the worker
   const [xA] = sim.axes(), hl = Math.hypot(xA[0], xA[2]), fx = -xA[0] / hl, fz = -xA[2] / hl, V = 30, D = 40;
@@ -86,6 +93,14 @@ async function child() {
     if (K) { wreck = wreck || !!K.active; gone = Math.max(gone, K.parts.filter(p => p.gone).length); bodies = Math.max(bodies, K.bodies.length); }
   }
   R.t.crash = Date.now() - t1;
+  // 6 the wreck lying: REST s more, the clock read over the last REST_WIN s
+  { const t2 = Date.now(), tR = sim.t; let reset = false, fr = 0;
+    for (let f = 0; f < REST * 60 + 1200 && sim.t - tR < REST; f++) {
+      if (!reset && sim.t - tR >= REST - REST_WIN && W.FLYDIY_DMG_PROF) { W.FLYDIY_DMG_PROF(true); reset = true; fr = 0; }
+      await P.frames(1); if (reset) fr++; }
+    const pr = W.FLYDIY_DMG_PROF ? W.FLYDIY_DMG_PROF() : null;
+    R.rest = pr ? { frames: fr, rested: pr.rested, why: pr.why, cageMs: pr.sumMs[2], cageMax: pr.maxMs[2], secs: REST, win: REST_WIN } : null;
+    R.t.rest = Date.now() - t2; }
   // (train 41, A0: THE SHEET - at the crash's end, every riding record's longest drawn live edge past 1.5 x its rest + 5 cm)
   R.sheet = W.FLYDIY_SKIN_LONGEST ? W.FLYDIY_SKIN_LONGEST() : null;
   R.cut = W.FLYDIY_CUT_STATS ? W.FLYDIY_CUT_STATS() : null;   // G4102 (CUT-THROUGH)
@@ -104,7 +119,7 @@ async function child() {
 // ============================================================ THE PARENT
 function runChild(extra) {
   const out = path.join(os.tmpdir(), 'dmgpagew_' + process.pid + (extra.fault ? '_' + extra.fault : '') + '.json');
-  const a = [__filename, '--child=1', '--out=' + out, '--secs=' + extra.secs];
+  const a = [__filename, '--child=1', '--out=' + out, '--secs=' + extra.secs, '--rest=' + extra.rest];
   if (extra.fault) a.push('--fault=' + extra.fault);
   const w0 = Date.now();
   const r = spawnSync(process.execPath, ['--max-old-space-size=6000'].concat(a), { stdio: ['ignore', 'inherit', 'inherit'], timeout: 2 * 3600 * 1000 });
@@ -142,24 +157,37 @@ function judge(R, say) {
   if (R.cut && R.cut.copies > 0 && !(R.cut.meshes > 0)) bad('the cut copies were made (' + R.cut.copies + ') but no mesh draws them');
   if (R.cut && R.cut.bad > 0) bad('a cut copy drawn not finite (' + R.cut.bad + ' records)');
   if (R.sheet && R.sheet.past > 0) bad('A DRAWN SHEET: ' + R.sheet.past + ' records with a live edge past 1.5 x its rest + 5 cm - the worst ' + JSON.stringify(R.sheet.worst[0]));
+  // 6 THE WRECK AT REST (row 14)
+  say('  the wreck lying, the last ' + (R.rest ? R.rest.win : '-') + ' s of ' + (R.rest ? R.rest.secs : '-') + ' s more: ' + JSON.stringify(R.rest));
+  if (!R.rest) bad('the break path\'s clock (FLYDIY_DMG_PROF) is not on the page');
+  else {
+    if (R.rest.why && R.rest.why.bind > 0) bad('THE WRECK AT REST RE-POSED FOR A PENDING BINDING: why.bind ' + R.rest.why.bind + ' of ' + R.rest.frames + ' frames (nothing under the inherited binding empties R.pending)');
+    if (!(R.rest.rested >= 0.5 * R.rest.frames)) bad('THE WRECK AT REST IS NOT DRAWN AS IT STANDS: brkCage\'s rest return ' + R.rest.rested + ' of ' + R.rest.frames + ' frames (wants half or more); why ' + JSON.stringify(R.rest.why));
+  }
   // 4 errors
   const we = R.end && R.end.errors ? R.end.errors.length : 0;
   if ((R.errors || []).length || we) bad('errors: page ' + JSON.stringify(R.errors).slice(0, 400) + ', worker ' + JSON.stringify(R.end && R.end.errors).slice(0, 300));
   return fails;
 }
 function parent() {
-  const secs = +arg('secs', 5), say = m => console.log(m);
+  const secs = +arg('secs', 5), rest = +arg('rest', 7), say = m => console.log(m);
   if (argv.includes('--selftest')) {
     say('DMGPAGEW selftest: the mirror\'s dmgState taken off the page\'s sim (the bug as it was) must turn the row red');
-    const R = runChild({ fault: 'nodmg', secs });
+    const R = runChild({ fault: 'nodmg', secs, rest });
     const f = judge(R, say);
-    const red = f.some(m => /THE PAGE HOLDS NO BREAK/.test(m));
-    say('  ' + (red ? 'ok  ' : 'FAIL') + '  the fault turned the row red' + (f.length ? ': ' + f.join(' | ') : ''));
+    const red1 = f.some(m => /THE PAGE HOLDS NO BREAK/.test(m));
+    say('  ' + (red1 ? 'ok  ' : 'FAIL') + '  the fault turned the row red' + (f.length ? ': ' + f.join(' | ') : ''));
+    say('DMGPAGEW selftest 2: the rest test as it was (FLYDIY_REST_PENDWORK = true: a pending binding holds it) must turn row 6 red');
+    const R2 = runChild({ fault: 'pendwork', secs, rest });
+    const f2 = judge(R2, say);
+    const red2 = f2.some(m => /RE-POSED FOR A PENDING BINDING|NOT DRAWN AS IT STANDS/.test(m));
+    say('  ' + (red2 ? 'ok  ' : 'FAIL') + '  the fault turned row 6 red' + (f2.length ? ': ' + f2.join(' | ') : ''));
+    const red = red1 && red2;
     console.log('GATE DMGPAGEW-SELFTEST: ' + (red ? 'PASS' : 'FAIL'));
     process.exit(red ? 0 : 1);
   }
   say('GATE DMGPAGEW - under the physics worker a crash\'s breaks reach the page (dev.html?simw=1&damage=1, the user\'s Cub, a trunk at 30 m/s)');
-  const R = runChild({ secs });
+  const R = runChild({ secs, rest });
   const f = judge(R, say);
   for (const m of f) say('  FAIL  ' + m);
   if (!f.length) say('  ok    the worker\'s breaks on the page, the skin break and the debris ran there');

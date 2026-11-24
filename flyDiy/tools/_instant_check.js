@@ -31,8 +31,12 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
   cessna: 'builds/cessna172r_2026-11-08.json', floats: 'bugReports/cessnaFloatsWOrks.json',
   // PHONE-EDIT-PERF (2 Nov): the user's twin-boom pusher on floats (their S20 FE log's plane; the file's own name)
-  twin: 'tools/fixtures/test_copies/Twin_busher_floats_2.json' };
+  twin: 'tools/fixtures/test_copies/Twin_busher_floats_2.json',
+  // PERF-SLIDERS (23 Nov): wing engines on a gear that retracts into the nacelles (the DC-3), a hull with a pylon engine
+  // (the Super Petrel) - GATE INSTANTREL's two (_instant_rel_check.js)
+  dc3: 'builds/candidates/dc3_2026-10.json', petrel: 'builds/candidates/superpetrel_V4_2.json' };
 const WANT = opt('builds', 'cub,metal').split(',');
+const SHD = require('./_shard.js');   // PERF-SLIDERS: the builds dealt over the runner's shards (GATE INSTANTREL: three aeroplanes, ~4 / 7 / 13 min)
 // the rows: one or more of each preview kind (a kept sheet's layer rows, the cage's rows, the sheet's detail rows)
 const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW', 'dashBack', 'shoulderT']);
 const log = s => console.log('  ' + s);
@@ -41,6 +45,8 @@ const log = s => console.log('  ' + s);
 const SETTLE = +opt('settle', 1500);
 const BAKED = argv.includes('--fleet-baked');   // G2225: --fleet with every bake already made (tools/_fleet_synth.js): no capture runs - isolates the drag's own path
 const FLEETQ = argv.includes('--fleet') || BAKED;   // G2225
+const GNAME = opt('gate', 'INSTANT');   // PERF-SLIDERS: the verdict line's name (GATE INSTANTREL runs this file on its own builds and rows)
+const BUDGETF = opt('budget', null), BREST = argv.includes('--budget-rest');   // PERF-SLIDERS: the drag budget, forced (below)
 
 const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), 'utf8').match(/const FP = `([\s\S]*?)`;\n/)[1];
 
@@ -49,6 +55,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
   let bad = 0;
   const T = [];   // G2228: the wall per build and per row (the summary names a slow one)
   for (const bk of WANT) {
+    if (!SHD.take()) continue;   // (run_gates --shard=i/N: one build a shard; unsharded, every build)
     const tB = Date.now(), rowT = [];
     const storage = { 'flydiy.wip': fs.readFileSync(path.join(ROOT, BUILDS[bk] || bk), 'utf8') };
     if (FLEETQ) Object.assign(storage, require('./perf/fleet_b_set.js').storage());
@@ -83,6 +90,11 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       set(x) { fv = x; if (x) cgUsed = { CAGE_DATUM: CGT.CAGE_DATUM.read, FLYDIY_CG_MODEL: CGT.FLYDIY_CG_MODEL.read }; } }); }
     const CGFREE = argv.includes('--cgfree');
     const U = W.CAGE_UI, Ev = W.Event, PE = W.PointerEvent || W.Event;
+    // PERF-SLIDERS (23 Nov): --budget held|lite - THE DRAG BUDGET's two ways of a tick over the budget (_cage_ui.js BUDGET:
+    // a held tick builds nothing, a lite one the row's own layers; the layers owed and the release's build), forced on
+    // every tick whatever the clock says; --budget-rest: the hand rests 200 ms before the release (the rest's preview runs).
+    // The verdict is the gate's own: the drag ends on the plain build's aeroplane.
+    if (BUDGETF) { U.dragBudgetMs = 1; U.dragBudgetForce = BUDGETF; log('drag budget forced: ' + BUDGETF + (BREST ? ', a rest before each release' : '')); }
     // --float-release (PHONE-1b diag): a floatplane's drag release takes the plan again (1a sends it whole); a differing
     // row then says who wrote the shared footwell (uFootA) on each way, and what the crew layer measured
     if (argv.includes('--float-release')) U.floatRelease = true;
@@ -118,6 +130,9 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       el.dispatchEvent(new PE('pointerdown', EVO)); winToo('pointerdown');
       for (let i = 1; i <= 4; i++) { el.value = String(Math.min(hi, Math.max(lo, x0 + dir * d * i))); el.dispatchEvent(new Ev('input', EVO)); winToo('input'); await P.until(() => false, 30); }
       if (FL) await P.until(() => false, 4000);                   // --fleet: the slider HELD STILL past the queue's idle window
+      const bg0 = U.budget ? [U.budget.held, U.budget.lites, U.budget.rests] : null;
+      if (BREST) await P.until(() => false, 200);                 // --budget-rest: the hand rests (PERF-SLIDERS)
+      if (BUDGETF && U.budget) log(k.padEnd(12) + ' budget: held ' + U.budget.held + ', lite ' + U.budget.lites + ', rests ' + U.budget.rests + (bg0 ? ' (+' + (U.budget.rests - bg0[2]) + ' in the rest)' : '') + ', owed ' + [...U.budget.owed].join(' '));
       const capD = FL ? FL.stats.captures - cap0 : 0;
       U.dragSettleMs = 350;
       el.dispatchEvent(new Ev('change', EVO)); winToo('change'); W.dispatchEvent(new PE('pointerup', EVO));
@@ -153,6 +168,15 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       rowT.push([k, Date.now() - tR]);
       for (const i of diffs.slice(0, 3)) { const a = A.out[i] || '(none)', b = B.out[i] || '(none)'; let c = 0; while (c < a.length && a[c] === b[c]) c++;
         log('   @' + i + ' short: ' + a.slice(0, 50) + ' ..@' + c + ': ' + a.slice(Math.max(0, c - 60), c + 120) + '\n     long:  ' + b.slice(0, 50) + ' ..@' + c + ': ' + b.slice(Math.max(0, c - 60), c + 120)); }
+      // PERF-SLIDERS (23 Nov): --multiset - THE SAME OBJECTS IN ANOTHER ORDER, OR OTHER OBJECTS? (PERF-LEAD: "is what differs
+      // visible or flown, or is it the scene's order and five helper objects".) The fingerprint's lines compared as a
+      // multiset, the order left out: what each way holds that the other does not (a line is one object: its type, name,
+      // visibility, matrix, geometry counts and sums, materials)
+      if (!same && argv.includes('--multiset')) { const cnt = new Map(); for (const o of A.out) cnt.set(o, (cnt.get(o) || 0) + 1); for (const o of B.out) cnt.set(o, (cnt.get(o) || 0) - 1);
+        const onlyA = [], onlyB = []; for (const [o, n] of cnt) { for (let i = 0; i < n; i++) onlyA.push(o); for (let i = 0; i < -n; i++) onlyB.push(o); }
+        log('   AS A MULTISET: ' + onlyA.length + ' object(s) only the short way holds, ' + onlyB.length + ' only the long way; the resolved spec ' + (hA === hB ? 'the same' : 'DIFFERS'));
+        for (const o of onlyA.slice(0, 24)) log('     short only: ' + o.slice(0, 330));
+        for (const o of onlyB.slice(0, 24)) log('     long only:  ' + o.slice(0, 330)); }
       if (!same && (fwA.length || fwB.length))
         log('   footwell, crew: short ' + crA + '  long ' + crB + '\n   writes, short:\n     ' + fwA.slice(-5).join('\n     ') +
             '\n   writes, long:\n     ' + fwB.slice(-5).join('\n     '));
@@ -223,6 +247,6 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     log('wall ' + bk + ': ' + ((Date.now() - tB) / 1000).toFixed(0) + ' s (boot ' + (tBoot / 1000).toFixed(0) + ' s; slowest rows ' + rowT.slice().sort((x, y) => y[1] - x[1]).slice(0, 3).map(r => r[0] + ' ' + (r[1] / 1000).toFixed(0) + ' s').join(', ') + ')');
   }
   console.log(bad ? '  ' + bad + ' row(s) differ' : '  every drag ended on the plain build\'s aeroplane');
-  console.log(bad ? 'GATE INSTANT: FAIL (' + bad + ' row(s) differ)' : 'GATE INSTANT: PASS');
+  console.log(bad ? 'GATE ' + GNAME + ': FAIL (' + bad + ' row(s) differ)' : 'GATE ' + GNAME + ': PASS');
   process.exit(bad ? 1 : 0);
-})().catch(e => { console.error('_instant_check: ' + (e && e.stack || e)); console.log('GATE INSTANT: FAIL (threw)'); process.exit(1); });
+})().catch(e => { console.error('_instant_check: ' + (e && e.stack || e)); console.log('GATE ' + (typeof GNAME === 'string' ? GNAME : 'INSTANT') + ': FAIL (threw)'); process.exit(1); });

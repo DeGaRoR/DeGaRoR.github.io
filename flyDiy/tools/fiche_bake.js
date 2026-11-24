@@ -142,7 +142,8 @@ for (const r of rows) {
   // `file`: the build file's own internal name - a plane loaded from it carries that as its save's name, and the board shows
   // the list's name for it, never the key (fiche_board.js titleOf; the user 9 Nov: "piperCub" on a fiche)
   let file = ''; try { file = JSON.parse(fs.readFileSync(path.join(FLY, r.file), 'utf8')).name || ''; } catch (e) {}
-  index.fiches[r.thumb] = { name: r.name, file, listFile: r.file, listRow: r.n != null ? 'list:' + r.n : r.thumb, data, pics };
+  const was = index.fiches[r.thumb];   // (PHYSICS-AUDIT 1d: its physics page's pointer, fiche_physics_bake.js dedupe, rides on)
+  index.fiches[r.thumb] = Object.assign({ name: r.name, file, listFile: r.file, listRow: r.n != null ? 'list:' + r.n : r.thumb, data, pics }, was && was.physicsAt ? { physicsAt: was.physicsAt } : {});
   done++;
   console.log('fiche_bake:', r.thumb, r.name, v.ms + ' ms', Object.keys(pics).join(','), 'worst task ' + JSON.stringify(v.time && v.time.worst),
     'hydro: ' + (!v.hydro ? 'none' : v.hydro.refused ? 'REFUSED for ' + v.hydro.ms + ' ms on a float build (the bench busy, or no row - the fiche says see the hydroplane test)' : !v.hydro.done ? 'unsettled after ' + v.hydro.ms + ' ms (the fiche says see the hydroplane test)'

@@ -1,0 +1,11 @@
+# GARAGE FIRST, ROUND 1 (?boot=garagefirst; PERF-LEAD, 23 Nov) - the prototype's first numbers. Run TWICE with a different
+# LM_AFTER (the seconds between the garage's reveal and Go):
+#   LM_AFTER=150: the world has the time to load behind the garage - the row's "load" IS the garage's reveal (row 2), the
+#                 eval's gf.ms is the world ready (row 3), afterReveal is the garage's long tasks meanwhile (rows 1 and 7),
+#                 then Go -> flying (row 3b) with whatever the roll-out still loads under its screen.
+#   LM_AFTER=5:   Go pressed at once: the roll-out's screen joins the load (gf.joinMs).
+# The build is the prototype's own folder (LAB_DEST=D:/Dev/perf-lab-gf bash tools/perf/lab_build.sh), never the standing lab build.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+GF_COLD   ; D:/Dev/perf-lab-gf ; boot=garagefirst ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 240 --init-file tools/perf/init_longtasks.js
+GF_WARM   ; D:/Dev/perf-lab-gf ; boot=garagefirst ; gf  ; H5K ; --rollout --rollout-watch 60 --rollout-secs 240 --init-file tools/perf/init_longtasks.js
+GF_WARM2  ; D:/Dev/perf-lab-gf ; boot=garagefirst ; gf  ; H5K ; --rollout --rollout-watch 60 --rollout-secs 240 --init-file tools/perf/init_longtasks.js

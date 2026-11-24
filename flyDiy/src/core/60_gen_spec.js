@@ -2127,7 +2127,51 @@ const GEN_DRAG = {
   junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003 },
   // an exhaust stack in the wind
   exhStack: 0.003,
+  // THE SPAN EFFICIENCY OF A SLENDER WING (PHYSICS-AUDIT step 1, 2026-11-21; 62_gen_aero genOswald): the inviscid span
+  // loading of a straight tapered wing (eInv) and the profile drag's growth with CL^2 (kv: a turbulent riveted or
+  // fabric surface 0.007 - with it the law meets Raymer's fit at an aspect ratio of 7.9; a smooth composite skin,
+  // GEN_SURF_MATERIALS cd0 at or under smoothCd0, half of it: sailplanes hold 0.8-0.9 at aspect ratios of 15-25),
+  // phased in over arLo..arHi
+  span: { arLo: 6, arHi: 10, eInv: 0.95, kv: 0.007, kvSmooth: 0.0035, smoothCd0: 0.0006 },
+  // A BRACING WIRE'S DRAG ON ITS THICKNESS (PHYSICS-AUDIT step 2, 2026-11-21): a round cable across the flow, below the
+  // drag crisis, is the Cd 1.0 the truss always billed (Hoerner ch. 3: 1.0-1.2); a STREAMLINE wire - the lenticular
+  // "RAF wire" every wire-braced biplane from 1916 on flew, a Tiger Moth's and a Stearman's - is 0.3-0.4 on the same
+  // thickness (Hoerner ch. 6, lenticular and faired wire sections at a fineness of 3-4): 0.35
+  wire: { cdRound: 1.0, cdStream: 0.35 },
+  // THE ROWS THE DRAG STUDY SUPPORTS (PHYSICS-AUDIT step 5, 2026-11-22; reports/PHYSICS-AUDIT-2026-11-21.md; GATE DRAGROWS)
+  //   float     A FLOAT'S OWN DRAG. A floatplane paid for a phantom wheeled gear: genGearCdA billed two bare wheels and
+  //             two legs on gear.type 'floats' (the PA-18 on floats' gear row was the landplane Cub's, to the digit) and
+  //             its floats nothing. Now: each float `cd` on its frontal (beam x depth; Hoerner, Fluid-Dynamic Drag
+  //             ch. 13: seaplane floats with their step 0.2-0.25) and its struts and spreaders - the frame's own exposed
+  //             float members - a streamline section strutT thick at `strutCd`, the truss's own figure; no wheels, no
+  //             legs (an amphibian's wheels are the amph row's, as before)
+  //   hullK     A HULL IS NOT A FUSELAGE: the step, the chines and the spray rails cost a planing hull about half again
+  //             a streamlined body's drag (Hoerner ch. 13: flying-boat hulls 0.10-0.14 on their frontal where a
+  //             fuselage of the same fineness is 0.07-0.09). The body row x hullK when the fuselage is the boat
+  //   radialWake  A BARE RADIAL AHEAD OF THE BODY: the cooling row bills an uncowled or ring-cowled radial as a wall of
+  //             cylinders (kCool.radialBare / radialRing: the engine's own pressure drag), and the body row billed the
+  //             fuselage behind it its full form factor on top - the same pressure drag twice. The body's form share
+  //             (FF - 1) / FF is taken off in proportion to the body's frontal the engine's disc covers, and to how far
+  //             the cowl is from a NACA cowl (which is the body's own nose: nothing taken off)
+  float: { cd: 0.25, strutCd: 0.10 },
+  hullK: 1.5,
+  radialWake: 1,
 };
+// THE TAIL'S BRACE WIRES ARE THE TAILPLANE'S CONSTRUCTION'S (PHYSICS-AUDIT step 2, 2026-11-21; GATE WIRES). The frame
+// braces every conventional stab's tips to the fin post with four tension wires (61_gen_frame, G233: the lattice's own
+// roll path; no layer draws them, G284), and the drag billed all four on every build - a 172's, a DC-3's, a sailplane's
+// cantilever tailplane paid for cables it does not carry. A FABRIC-COVERED stab (a Cub's, a Camel's: GEN_SURF_MATERIALS
+// fabric / steel / fabricAlu / aluFabric) is wire-braced; a STRESSED-SKIN one (alloy, carbon, glass, a D-tube) is a
+// cantilever. The row says otherwise when the aeroplane does: tail.brace 'wires' | 'none' (the stab layer's stBrace).
+// Read by the drag alone (62_gen_aero) and by the members' `ext` flag - the structure, its masses and its stiffness are
+// the same either way (a cantilever's wires stand for the spar the lattice does not have).
+const GEN_TAIL_CANTILEVER = { alloy: 1, carbon: 1, glass: 1, dtube: 1 };
+function genTailBraced(S) {
+  const b = S && S.tail && S.tail.brace;
+  if (b === 'wires') return true;
+  if (b === 'none') return false;
+  return !GEN_TAIL_CANTILEVER[genSurfKey(S, 'stab')];
+}
 
 // ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
 // I'd rather that be encoded in physics"; futureDesigns/ENGINE-COOLING-2026-11.md, its defaults ruled "OK"). The heat
@@ -2898,6 +2942,159 @@ function genPropSynth(pr, pitchKey) {
   return pr;
 }
 
+// THE PROPELLER IS CUT FOR THE AEROPLANE (PHYSICS-AUDIT step 3, 2026-11-21; reports/PHYSICS-AUDIT-2026-11-21.md;
+// GATE PROPFIT). genPropSynth above gives every propeller the same curve: `Tstatic x V0 = propV0K x P`, so the peak is
+// 75 % for all of them, at V0 / sqrt(3) - and V0 is set by the disc loading alone (255-478 km/h on aeroplanes that top
+// out at 87-370). A wooden cruise propeller on a 140 km/h aeroplane really is where that puts it (the J-3: 0.73 at
+// its top speed, the rule's own anchor); a metal one is not (the 172R: 0.75 flown where its book needs 0.80), and a
+// slow aeroplane on a big disc flies far down the left of a curve cut for three times its speed (the Ruckus: 0.43 in
+// the climb). A real fixed-pitch propeller is cut for ITS aeroplane, and what it then makes is bounded by the air
+// through its disc. So, once the drag is known (64_gen_build, after the stall is measured):
+//   THE DESIGN TOP SPEED   Vtop: where nE discs' thrust meets the build-up's drag (the body row wheels up, the
+//                          surfaces' Cd0 x area, the struts; the induced term on the wing's own eAR) - a closed solve
+//                          on the build-up, no probe
+//   THE DESIGN POINT       the propeller is cut for Vd = design[class] x Vtop (a climb propeller for less, a cruise one
+//                          for more) and there it makes the ACTUATOR DISC's thrust at its blade efficiency:
+//                          T (V + w) = etaBlade P,  T = 2 rho A (V + w) w   (genPropDiscT). etaBlade is the blade's
+//                          own losses - profile drag, swirl, the tips - by its material: a thick wooden blade 0.79 (the
+//                          J-3's anchor above, reproduced), a thin metal or composite one 0.84 (the 172R's 0.80 at
+//                          123 kt; the 6 % PROP-CLASSES measured between wood and metal, here on the top end only)
+//   THE LAW IS UNCHANGED   T = Tstatic - kV2 V^2, through the static thrust of the pitch class (the fm column: validated
+//                          on the Cub's and the 172's rolls and climbs, kept) and the design point: kV2 = (Tstatic -
+//                          Td) / Vd^2. A slow aeroplane on a big disc would need MORE than its class's static thrust to
+//                          reach its design point (the disc's thrust barely falls from standing to 25 m/s): no
+//                          propeller pulls more than its disc allows, so kV2 is at least what keeps the law under the
+//                          disc's thrust past the design point, and the static thrust is what that gives when it is
+//                          more than the class's (the Ruckus: fm 0.48 -> ~0.6, a paramotor propeller's)
+//   THE REDLINE            a fixed pitch unloads as the aeroplane accelerates and the engine runs up to its rated speed:
+//                          past that the pilot comes off the power. The speed where the full-throttle rpm reaches the
+//                          redline is Vred = redline[class] x Vtop - a standard propeller is pitched to turn rated rpm
+//                          flat out in level flight (the J-3: 2300 at its 87 mph; the 172R: 2500), a climb propeller
+//                          gets there sooner and its top speed is rpm-limited, a cruise one never does. It rides the
+//                          shaft law the tachometer already reads (00_registry genShaftRpm: n^2 = t nS^2 + (nR V /
+//                          V1)^2, V1 = Vred / sqrt(1 - staticK^2)), so the needle and the thrust agree; the solver
+//                          holds the throttle to what keeps n at the redline (30_solver thrLimit)
+// A CONSTANT-SPEED PROPELLER (the engine's `cs`; PHYSICS-AUDIT step 6, 2026-11-22; genPropGovern below) has no pitch to
+// be cut for: its governor turns the blades to absorb the power at every speed, so it flies the actuator disc ITSELF -
+// T = min(its static cap, genPropDiscT(P, A, V, etaBlade)) - from the take-off roll to the top speed, and has no
+// redline to meet (the governor holds the rpm). The quadratic cannot follow that curve: laid through its static and
+// top-speed thrust it over-reads the climb by 7-23 %. The solver flies the disc (30_solver csThrust, params.prop.cs);
+// Tstatic and kV2 are still written, as the quadratic through the disc's thrust at 0.4 x and 1 x the design top speed,
+// for the readers that estimate with them (the pilot's, the hull's and the drive's). An unpowered build has no propeller.
+const GEN_PROP_FIT = {
+  etaBlade: { wood: 0.79, maple: 0.79, walnut: 0.79, alu: 0.84, carbon: 0.84 },
+  design:   { climb: 0.85, standard: 1.0, cruise: 1.10, seaplane: 0.75 },
+  redline:  { climb: 0.80, standard: 1.0, cruise: 1.15, seaplane: 0.70 },
+  // a biplane's span efficiency on its total area, for the design top speed's induced term (the audit's measured
+  // 1.06-1.13 on the three wire-braced recreations)
+  eBiplane: 1.1,
+  // how far the quadratic may stand over the disc's thrust between the design speed and 1.5 x it
+  over: 1.03,
+  // a governed propeller standing: the figure of merit of full-power constant-speed propellers tied down (FM 0.49-0.59,
+  // Hartzell and MT statics on the O-360, Flight Resource's tests for STC SA02245CH: fm = FM^(2/3) 0.62-0.70), x the
+  // blade-count factor genPropSynth uses
+  fmGoverned: 0.65,
+};
+// the actuator disc: the thrust a propeller of disc A absorbing P makes at V, at blade efficiency etaB (standing: the
+// momentum figure (2 rho A)^(1/3) (etaB P)^(2/3)). A fixed 12-pass relaxation: smooth in every argument
+function genPropDiscT(P, A, V, etaB, rho) {
+  if (!(V > 0.5)) return Math.cbrt(2 * rho * A) * CORE_MATH.pow(etaB * P, 2 / 3);
+  let T = etaB * P / V;
+  for (let i = 0; i < 12; i++) {
+    const q = 0.5 * rho * V * V;
+    T = 0.5 * T + 0.5 * etaB * (2 / (1 + Math.sqrt(1 + T / (q * A)))) * P / V;
+  }
+  return T;
+}
+// the design top speed (m/s): the highest V where nE discs meet f q + W^2 / (q S eAR); null when they never do
+function genPropVtop(o) {
+  const g = V => { const q = 0.5 * RHO * V * V; return o.nE * genPropDiscT(o.P, o.A, V, o.etaB, RHO) - (q * o.f + o.W * o.W / (q * o.S * o.eAR)); };
+  let hi = 400; if (!(g(hi) < 0)) return null;
+  let lo = hi; while (lo > 5 && !(g(lo) > 0)) lo *= 0.9;
+  if (!(lo > 5)) return null;
+  for (let i = 0; i < 40; i++) { const m = 0.5 * (lo + hi); if (g(m) > 0) lo = m; else hi = m; }
+  return 0.5 * (lo + hi);
+}
+// `pr` the propeller genPropSynth has just synthesised at its pitch class (D, area, material, powerW, Tstatic,
+// pitchUsed); `o` the aeroplane: { nE, f (m2, wheels up), W (N), S (m2), eAR }. Writes Tstatic, kV2, V0, VPeak and the
+// fit's own Vtop / Vd / etaD / V1 on `pr`; returns it, or null when there is nothing to fit (and `pr` is as it was).
+function genPropFit(pr, o) {
+  const F = GEN_PROP_FIT;
+  if (!pr || pr.none || !(pr.Tstatic > 0) || !(pr.powerW > 0) || !o || !(o.f > 0) || !(o.W > 0) || !(o.S > 0) || !(o.eAR > 0)) return null;
+  const A = pr.area > 0 ? pr.area : Math.PI * pr.D * pr.D / 4, etaB = F.etaBlade[pr.material] || F.etaBlade.wood;
+  const cls = F.design[pr.pitchUsed] ? pr.pitchUsed : 'standard';
+  const Vt = genPropVtop({ P: pr.powerW, nE: o.nE > 0 ? o.nE : 1, A, etaB, f: o.f, W: o.W, S: o.S, eAR: o.eAR });
+  if (!(Vt > 0)) return null;
+  const Vd = F.design[cls] * Vt;
+  const Td = genPropDiscT(pr.powerW, A, Vd, etaB, RHO);
+  // the least kV2 that keeps the law within `over` of the disc's thrust past the design point (read at 1.1 .. 1.5 Vd:
+  // a quadratic is not the disc's curve, and a propeller whose class already stands within 3 % of it keeps its class's
+  // static thrust - the Tiger Moth's, the Carbon Cub's)
+  let kNeed = 0;
+  for (let j = 1; j <= 5; j++) {
+    const V = Vd * (1 + 0.1 * j);
+    kNeed = Math.max(kNeed, (Td - F.over * genPropDiscT(pr.powerW, A, V, etaB, RHO)) / (V * V - Vd * Vd));
+  }
+  const T0 = Math.max(pr.Tstatic, Td + kNeed * Vd * Vd);
+  pr.Tstatic = T0;
+  pr.kV2 = (T0 - Td) / (Vd * Vd);
+  pr.V0 = Math.sqrt(T0 / pr.kV2);
+  pr.VPeak = pr.V0 / Math.sqrt(3);
+  pr.Vtop = Vt; pr.Vd = Vd; pr.etaD = Td * Vd / pr.powerW;
+  pr.V1 = F.redline[cls] * Vt / Math.sqrt(1 - GEN_SHAFT.staticK * GEN_SHAFT.staticK);
+  return pr;
+}
+
+// THE PROPELLER AT IDLE IS A BRAKE (PHYSICS-AUDIT step 4, 2026-11-21; reports/PHYSICS-AUDIT-2026-11-21.md; GATE
+// IDLEPROP). The thrust was `throttle x max(0, Tstatic - kV2 V^2)`: with the throttle closed the propeller was not
+// there, and the aeroplane glided on its clean polar - the 172 at 11.2:1 where its handbook, propeller windmilling,
+// gives 9.0 at 65 KIAS. A propeller that is not driven is driven BY the air: its disc takes momentum out of the stream.
+// As a drag area, a share `k` of the disc's own:  D = k x q x A  (per propeller), and the thrust runs linearly from
+// that drag with the throttle closed to the law's thrust with it open:
+//     T(thr) = thr x Tcap(V) - (1 - thr) x k q A
+//   dead      a fixed pitch WINDMILLING on a dead engine, 0.10: the 172R's polar (drag area 0.54 m2, e 0.70, measured
+//             and matched to its top speed) glides 9.2:1 at 128 km/h with 0.10 of its 2.85 m2 disc - the POH's 9.0 at
+//             120. Hoerner (Fluid-Dynamic Drag, ch. 13) puts a windmilling propeller at 0.1-0.2 of its disc
+//   run       the same propeller on an engine IDLING, 0.05: the idling engine carries half of what the air would have
+//             to (an idle-power glide is flatter than an engine-out one: every instructor's warning about practice
+//             forced landings)
+//   stopped   a seized engine's stopped blades, 0.04 (Raymer: 0.8 x the solidity x the disc, a two-blade's 0.05)
+//   electric  a motor's propeller, driven or not, 0.03: nothing to turn over but the rotor (the Velis's 15:1 is flown
+//             with the motor off)
+//   governedDead  a governed propeller on a dead engine goes coarse or feathers, 0.02
+// The throttle that gives no thrust at all is k q A / (Tcap + k q A): a few per cent on the approach. Read by the
+// solver (30_solver, each engine by its own state), by the trim (64_gen_build: the cruise and approach throttles are
+// solved on the same line) and by real_check's glide rows. No propeller (an unpowered build): nothing.
+const GEN_PROP_IDLE = { run: 0.05, dead: 0.10, stopped: 0.04, electric: 0.03, governedDead: 0.02 };
+// `state` 'run' (the engine turning, by its throttle) | 'dead' (windmilling) | 'stopped' (seized)
+function genPropIdleK(eng, pr, state) {
+  if (!pr || !(pr.D > 0) || !(pr.Tstatic > 0)) return 0;
+  const K = GEN_PROP_IDLE, e = eng || {};
+  if (e.aspiration === 'electric') return K.electric;
+  if (state === 'stopped') return K.stopped;
+  if (state === 'dead') return e.cs ? K.governedDead : K.dead;
+  return K.run;
+}
+
+// A GOVERNED PROPELLER'S NUMBERS (step 6): `pr` as genPropSynth left it, `o` as genPropFit's. Writes pr.cs { T0, etaB }
+// (the solver's law), the estimating quadratic (Tstatic, kV2, V0, VPeak) and Vtop; returns pr, or null (nothing to do)
+function genPropGovern(pr, o) {
+  const F = GEN_PROP_FIT;
+  if (!pr || pr.none || !(pr.Tstatic > 0) || !(pr.powerW > 0) || !o || !(o.f > 0) || !(o.W > 0) || !(o.S > 0) || !(o.eAR > 0)) return null;
+  const A = pr.area > 0 ? pr.area : Math.PI * pr.D * pr.D / 4, etaB = F.etaBlade[pr.material] || F.etaBlade.wood;
+  const T0 = F.fmGoverned * (1 + 0.055 * ((pr.blades || 2) - 2)) * Math.cbrt(2 * RHO * A) * CORE_MATH.pow(pr.powerW, 2 / 3);
+  pr.cs = { T0, etaB };
+  const Vt = genPropVtop({ P: pr.powerW, nE: o.nE > 0 ? o.nE : 1, A, etaB, f: o.f, W: o.W, S: o.S, eAR: o.eAR });
+  if (Vt > 0) {
+    const Ta = Math.min(T0, genPropDiscT(pr.powerW, A, 0.4 * Vt, etaB, RHO)), Tb = genPropDiscT(pr.powerW, A, Vt, etaB, RHO);
+    pr.kV2 = Math.max(1e-9, (Ta - Tb) / (Vt * Vt * (1 - 0.16)));
+    pr.Tstatic = Tb + pr.kV2 * Vt * Vt;
+    pr.V0 = Math.sqrt(pr.Tstatic / pr.kV2); pr.VPeak = pr.V0 / Math.sqrt(3);
+    pr.Vtop = Vt; pr.Vd = Vt; pr.etaD = Tb * Vt / pr.powerW;
+  }
+  return pr;
+}
+
 // WHICH PITCH THIS AEROPLANE WANTS, given the stall speed its wing actually
 // measured.
 //
@@ -3485,10 +3682,14 @@ function genEngPropD0(S, e0, PP0) {
 // (the Archaeopteryx branch's rows, each absent = this value = every build before it: the fin's rudder below the
 //  stab, the hub's pylon, the wingtip skid, the light control runs, the rod's own material and wall, the ultralight
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+// (PHYSICS-AUDIT step 2, 2026-11-21: the tailplane's bracing, stBrace 0 = by its skin, and the flying wires' section,
+//  bpWireSec 0 = round cable)
+const GEN_CAGE_ROW_NEUTRAL = { stBrace: 0, bpWireSec: 0, eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0, wgStrutSec: 0, wgJury: 0, certCat: 0, wgBrake: 0, dashHood: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
+                               brkHold: 0, wgStrutSec: 0, wgJury: 0, certCat: 0, wgBrake: 0, dashHood: 0, rodOn: 1, spinOn: 1,
+                               vtWheels: 0, vtD: 0.2, vtWide: 0, vtFork: 0.03, vtCastor: 0 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
+                               // (LAZAIR, 24 Nov: the V hung down's tip wheels' rows, off - the vt* keys)
 // STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S OPTIONS - the figures the frame (61_gen_frame, the jury strut's members)
 // and the aero (62_gen_aero genStrutOptCdA, the drag of a round strut and of the jury) read. None is read by a build
 // without bracing.section / bracing.jury.
@@ -4123,7 +4324,13 @@ const GEN_RULES = {
   // the clean lift); a Standard Class's pair at 1.2 m each, 0.2 c high takes the glide from ~40 to ~8 (the LS4 manual's
   // approach with full brakes, as recalled ~7-9). kgPerM / pricePerM a side, per metre of box (the cassette, two plates'
   // linkage, the springs, the cover strips: ~1.4 kg a metre)
-  airbrake: { spoil: 0.6, cdPlate: 1.2, kgPerM: 1.4, pricePerM: 900, z: [0.12, 0.92], h: [0.05, 0.35] },
+  // cdPlate 1.2 -> 2.0 (PHYSICS-AUDIT 1d, 23 Nov 2026; GATE SAILPLANE B). At 1.2 the LS4-alike's pair added 245-250 N
+  // at 28 m/s: under 10:1 only while its clean glide was 19.5 (a clean drag of 247 N). The plan's span efficiency
+  // (step 1) put the clean glide at 24.5 (197 N; the book's is ~38 there) and the same plates left it at 10.9 - further
+  // from the 7-9 above, not nearer. 1.2 is a plate in the free stream; this one stands on the wing's upper surface at
+  // mid chord, where the air runs ~1.25 x the flight speed at a glide's lift (1.5-1.6 x the pressure), and its wake
+  // takes the pressure recovery of the section behind it. INFERRED 2.0: 8.2:1 at 28 m/s, 9.2 at 25, 6.5 at 33.
+  airbrake: { spoil: 0.6, cdPlate: 2.0, kgPerM: 1.4, pricePerM: 900, z: [0.12, 0.92], h: [0.05, 0.35] },
   // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
   // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
   // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release
@@ -4282,7 +4489,29 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      (genHarnessKg: the starter cable, the charging lead, a run per powered load, the outside lights over the span and
 //      the tail arm) where it was 1.2 kg + 0.15 kg per item - every aeroplane with a bus weighs a little more (the Cub
 //      +1.7 kg empty, MASS-BUDGET.md)
-const PHYSICS_V = 9;
+//  10  2026-11-21, PHYSICS-AUDIT (reports/PHYSICS-AUDIT-2026-11-21.md; the user: "I'm OK with the plan and you may
+//      proceed"), its steps 1-4 on one bump:
+//      step 1  the span efficiency of a wing of aspect ratio over 6-8 (62_gen_aero genOswald, GEN_DRAG.span): the polar
+//              of every such wing moves - its induced drag, its lift slope - and so its plaque and certificate; a wing
+//              at or under 6, and a fabric or metal one under 7.9, is as it was to the bit
+//      step 2  the bracing wires' drag (GEN_DRAG.wire, genTailBraced): a stressed-skin tailplane no longer pays four
+//              brace wires (every alloy and composite build: 0.02-0.07 m2 off its body row), a biplane's flying wires
+//              may be streamline; a fabric-tailed monoplane is as it was to the bit
+//      step 3  the fixed-pitch propeller is cut for the aeroplane (genPropFit: its design speed, its blade's material,
+//              the actuator disc's thrust there) and held to its redline (30_solver thrLimit, on the tachometer's own
+//              law): every powered build's thrust curve moves - a wooden standard propeller's by a per cent or two, a
+//              metal or composite one's by ~6 % at the top end, a slow aeroplane's by a third in the climb
+//      step 4  the propeller at idle is a brake (GEN_PROP_IDLE, 30_solver): below full throttle every powered build
+//              carries a share of its disc as drag - nothing at full throttle or standing, a few per cent of the
+//              cruise throttle, a steeper glide and a shorter float with the throttle closed; the trim's cruise and
+//              approach throttles are solved on the same law
+//      step 5  (2026-11-22) the drag rows the study supports (GEN_DRAG.float / hullK / radialWake): a floatplane pays its floats and
+//              their struts where it paid a phantom wheeled gear, a hull half again a fuselage's body row, a bare
+//              radial's fuselage less the form drag the engine already pays - every float, hull and bare-radial build
+//      step 6  (2026-11-22) a governed propeller flies the actuator disc itself (genPropGovern, 30_solver csThrust):
+//              every build whose engine is `cs` - the turbines, and the Twin Wasp's Hydromatic (the registry row now
+//              says so) - climbs and cruises on etaBlade x the disc's ideal efficiency, and stands on fm 0.65
+const PHYSICS_V = 10;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -6157,6 +6386,11 @@ function clampSpec(spec) {
   if (S.bracing.strutFoot != null && Number.isFinite(+S.bracing.strutFoot) && +S.bracing.strutFoot > 0)
     S.bracing.strutFoot = genClamp(+S.bracing.strutFoot, 0.05, 8); else delete S.bracing.strutFoot;
   if (S.bracing.jury !== 'wing' && S.bracing.jury !== 'cabin') delete S.bracing.jury;
+  // PHYSICS-AUDIT step 2 (2026-11-21): the flying wires' section ('streamline'; absent = the round cable every build
+  // before had) and the tailplane's bracing ('wires' | 'none'; absent = by the stab's own skin, genTailBraced). Anything
+  // else, null included, is deleted: absent is the default
+  if (S.bracing.wireSection !== 'streamline') delete S.bracing.wireSection;
+  if (S.tail && S.tail.brace !== 'wires' && S.tail.brace !== 'none') delete S.tail.brace;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
@@ -6347,7 +6581,13 @@ function clampSpec(spec) {
   S.tail.boomOval = genClampN(S.tail.boomOval, 1, 2);
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
-  S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // LAZAIR (24 Nov, the user: an inverted V-tail on a single boom): THE SIGN IS THE WAY - a negative vAngle is the
+  // classic V hung DOWN from the tail (the same 20-55 bounds on its size); every V before it is positive, to the bit
+  S.tail.vAngle = S.tail.vAngle < 0 ? -genClamp(-S.tail.vAngle, 20, 55)
+                                    : genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // ...and its drawn root's height (vRootY, m over the keel datum: the join's), the key only on a V hung down
+  if (S.tail.type === 'v' && S.tail.vAngle < 0 && S.tail.vRootY != null && isFinite(+S.tail.vRootY)) S.tail.vRootY = genClamp(+S.tail.vRootY, -2, 4);
+  else delete S.tail.vRootY;
   // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame's T.vee: a panel down and inboard from each boom, the
   // tail's wheels at the tips). Its own keys - a twin boom states the V's vAngle / Svt null (GEN_FIELDS 'tail.type').
   // ivAngle (deg, the panels' cant below the horizontal; the key's presence IS the layout), ivGap (m, the gap between
@@ -6563,6 +6803,20 @@ function clampSpec(spec) {
   if (S.gear.twSwivel === true && S.gear.twMode == null) S.gear.twMode = 'lock';
   delete S.gear.twSwivel;
   if (!['lock', 'fixed', 'skid'].includes(S.gear.twMode)) delete S.gear.twMode;
+  // LAZAIR (24 Nov): THE V TIPS' WHEELS (the join's gear.vTip, a single body's V hung down: tail.type 'v', vAngle < 0) -
+  // mode 'tail' (the tail contact is the two tips: a taildragger's), 'extra' (two more rolling contacts, castoring or
+  // fixed); R the wheel's radius, fork the hub's drop past the tyre under the tip, z the tips' lateral place, x / y an
+  // extra pair's station and height (the join's measure; absent: under the frame's V tips). Anything else: no key
+  { const VT = S.gear.vTip, fin = v => v != null && isFinite(+v);
+    if (VT && typeof VT === 'object' && S.tail && S.tail.type === 'v' && S.tail.vAngle < 0
+        && ((VT.mode === 'extra' && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))
+            || (VT.mode === 'tail' && S.gear.type === 'taildragger'))) {
+      const o = { mode: VT.mode, R: genClamp(fin(VT.R) ? +VT.R : 0.10, 0.03, 0.25), fork: genClamp(fin(VT.fork) ? +VT.fork : 0.03, 0, 0.40) };
+      if (fin(VT.z) && +VT.z > 0) o.z = genClamp(+VT.z, 0.05, 4);
+      if (VT.mode === 'extra' && fin(VT.x) && fin(VT.y)) { o.x = +VT.x; o.y = +VT.y; }
+      if (VT.mode === 'extra' && VT.castor === true) o.castor = true;
+      S.gear.vTip = o;
+    } else delete S.gear.vTip; }
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';
@@ -7240,7 +7494,8 @@ function resolveSpec(spec) {
     S.tail.Svt = Svt; S.tail.vG = G;
     S.tail.hSpan = bVt * cG;                          // horizontal projection
     S.tail.hChord = cVt;
-    S.tail.vHeight = 0.5 * bVt * sG;
+    // (LAZAIR: a height - the downward V's is its depth under the tail, the frame lays it by vAngle's sign)
+    S.tail.vHeight = 0.5 * bVt * Math.abs(sG);
     S.tail.vChord = cVt;
     S.tail.Sh = Svt * cG * cG;                        // effective, for reporting
     S.tail.Sv = Svt * sG * sG;

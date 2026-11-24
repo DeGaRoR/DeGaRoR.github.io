@@ -39,6 +39,7 @@ function stage(k, c, damage) {
   const C = L.core(), o = c.o, d0 = L.defOf(k), def = Object.assign({}, d0, { params: Object.assign({}, d0.params, { damage }) });
   const elev = 300, { W, TH, strip } = L.flatWorld(elev), sim = C.makeSim(def, W);
   sim.reset(0);
+  if (!o.agl && sim.stance) sim.stance();         // (STANCE-AS-GAME, A0 23 Nov: on its wheels, stood as the game stands it)
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev + (o.agl || 0) }));
   const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   if (!o.agl) for (let f = 0; f < 120; f++) sim.step(1 / 60);

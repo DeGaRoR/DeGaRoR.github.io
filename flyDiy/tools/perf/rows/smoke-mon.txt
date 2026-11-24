@@ -1,0 +1,2 @@
+# SMOKE of Monday's lab build (not for numbers; LM_AFTER=8): every switch on, a departure watched to the flight.
+SMOKE_MON ; D:/Dev/perf-lab-built ; farslots=1&mirpace=1&mirlean=1&latelinks=bg&stripw=1&patchw=1&roadw=1&pavefirst=1&groundfirst=1 ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js

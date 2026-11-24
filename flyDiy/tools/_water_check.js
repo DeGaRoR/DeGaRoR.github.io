@@ -358,6 +358,11 @@ console.log('\n4. THE TILE');
   const N = a.N; let same = true, nan = false;
   for (let i = 0; i < a.data.length; i++) { if (a.data[i] !== b.data[i]) same = false; if (Number.isNaN(a.data[i])) nan = true; }
   verdict(same && !nan, `deterministic (${N}x${N}, two bakes byte-equal), no NaN`);
+  // (PERF-WORLDBUILD, 23 Nov 2026) the bake in steps - a yield wherever a host could ask for one - is the one-task bake
+  if (!W.bakeTileSteps) verdict(false, 'WATER.bakeTileSteps is missing (the tile in steps)');
+  else { const g = W.bakeTileSteps(64, 12345, () => true); let ny = 0, r; for (;;) { r = g.next(); if (r.done) break; ny++; }
+    const c = r.value; let eq = c.data.length === a.data.length && c.hmax === a.hmax; for (let i = 0; eq && i < a.data.length; i++) if (a.data[i] !== c.data[i]) eq = false;
+    verdict(eq && ny >= N, `the bake in steps is the one-task bake byte for byte (${ny} yields: every row)`); }
   // periodic: the bake is a sum of integer waves, so the analytic slope at u = 0 and u = 1 is the same
   // sample - the texel grid never reaches u = 1 (texel N would be texel 0). Check the wrap by re-baking
   // the first row's analytic form against the last row's continuation: the row-to-row step at the seam

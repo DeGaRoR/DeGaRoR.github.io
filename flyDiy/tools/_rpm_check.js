@@ -29,6 +29,9 @@ const check = (ok, label, extra) => {
 const cl = o => JSON.parse(JSON.stringify(o));
 const within = (x, ref, tol) => Math.abs(x - ref) <= tol * ref;
 
+// the piston rows whose propeller is a constant-speed one (their hub, by name)
+const GOVERNED_PISTONS = new Set(['r1830_hs23e50']);   // Hamilton Standard 23E50 Hydromatic
+
 function run() {
   fail.length = 0;
   // ---- 1. THE CENSUS: every row carries a rated speed ----------------------
@@ -36,8 +39,12 @@ function run() {
     const e = row.engine || {};
     check(e.rpm > 0 && e.rpm <= 14000, 'census: ' + k + ' carries a rated rpm');
     check(e.gear === undefined || (e.gear >= 1 && e.gear <= 5), 'census: ' + k + ' gear in 1..5');
-    check(!!e.cs === (e.aspiration === 'turbine'),
-      'census: cs (constant-speed) on every turbine row and no other', k);
+    // (re-stated 2026-11-22, PHYSICS-AUDIT step 6: it read "cs on every turbine row and no other". The R-1830's row is
+    //  sold with the Hamilton Standard 23E50 Hydromatic, a constant-speed propeller, and since step 6 `cs` is what makes
+    //  a propeller fly the governed law - so the row says so. The check stays as strict: every turbine row, the piston
+    //  rows NAMED here, and no other.)
+    check(!!e.cs === (e.aspiration === 'turbine' || GOVERNED_PISTONS.has(k)),
+      'census: cs (constant-speed) on every turbine row, the named governed piston rows, and no other', k);
   }
 
   // ---- 2. THE LAW, on the A-65 / 74CK -------------------------------------
@@ -119,7 +126,10 @@ function run() {
   // the key: off = no thrust, windmill
   sim.setEngine(0, { key: 'off' });
   sim.step(1 / 60);
-  check(sim.out.thrust === 0 && sim.eng[0].running === false, 'sim: key off stops the engine');
+  // (PHYSICS-AUDIT step 4, 2026-11-21: a stopped engine's propeller is a brake - its thrust is no longer exactly 0 but
+  //  minus its windmilling drag, k q A; against the brakes that is a creep's worth, under a newton. The check is the
+  //  same claim: no thrust from an engine that is off)
+  check(sim.out.thrust <= 0 && sim.out.thrust > -1 && sim.eng[0].running === false, 'sim: key off stops the engine (no thrust; ' + sim.out.thrust.toExponential(1) + ' N of windmilling drag against the brakes)');
   check(sim.fuel.burnKgH === 0, 'sim: a stopped engine burns nothing');
   sim.setEngine(0, { key: 'both' });
   check(sim.eng[0].running === false, 'sim: mags on does not start an engine by itself');
@@ -152,7 +162,7 @@ function run() {
     s3.reset(); s3.ctl.brake = 1; s3.ctl.thr = 1;
     let tDry = -1;
     for (let i = 0; i < 60 * 150 && tDry < 0; i++) { s3.step(1 / 60); if (!s3.eng[0].running) tDry = i / 60; }
-    check(tDry > 0 && s3.fuel.kg === 0 && s3.out.thrust === 0,
+    check(tDry > 0 && s3.fuel.kg === 0 && s3.out.thrust <= 0 && s3.out.thrust > -1,   // (step 4: no thrust - at most the stopped propeller's drag at a creep)
       'sim: a 0.4 L tank runs dry at full throttle and the engine stops',
       tDry > 0 ? tDry.toFixed(0) + ' s' : 'never');
     const expect = 0.4 * 0.72 / TH.burnKgH * 3600;

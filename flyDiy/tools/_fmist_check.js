@@ -55,6 +55,12 @@ else {
   const m1 = FMIST.bakeMap(W, 256), m2 = FMIST.bakeMap(W, 256);
   let same = true; for (let k = 0; k < m1.px.length; k++) if (m1.px[k] !== m2.px[k]) { same = false; break; }
   yes(same, 'two bakes are bit-identical');
+  // (PERF-WORLDBUILD, 23 Nov) the map in steps - a yield wherever a host could ask for one - is the one-task map
+  if (!FMIST.bakeMapSteps) yes(false, 'FMIST.bakeMapSteps is missing (the map in steps)');
+  else { const g = FMIST.bakeMapSteps(W, 256, () => true); let n = 0, r; for (;;) { r = g.next(); if (r.done) break; n++; }
+    const m3 = r.value; let eq = m3.px.length === m1.px.length && m3.px2.length === m1.px2.length;
+    for (let k = 0; eq && k < m1.px.length; k++) if (!Object.is(m1.px[k], m3.px[k]) || !Object.is(m1.px2[k], m3.px2[k])) eq = false;
+    yes(eq && n > 1000, 'the map in steps is the one-task map bit for bit, map and contours (' + n + ' yields: every row of every pass)'); }
   let inRange = true, sea = 0, nSea = 0, fin = true;
   const N = m1.N;
   for (let k = 0; k < N * N; k++) {
@@ -95,7 +101,7 @@ console.log('5. the GRAPHICS row');
   const presets = (G.match(/fmist: '(off|on)'/g) || []).length;
   yes(/\{ k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'on', steps: \[/.test(G), 'the row exists: a free reload row, ON by default (the user 10 Nov; the veil is compiled in at the start)');
   yes(presets === 0, 'no preset names it: the desktop presets stay frozen (GATE GFX), the player turns it on (' + presets + ' preset keys)');
-  yes(/rows: \['clouds', 'mist', 'fmist', 'glare'\]/.test(G), 'it sits in the sky group');
+  yes(/k: 'sky',[^\n]*rows: \['clouds', 'mist', 'fmist'[^\]]*'glare'\]/.test(G), 'it sits in the sky group');   // (RAIN, 16 Nov: the sky group took the 'rain' row after fmist)
   global.location = { search: '' }; global.localStorage = { getItem: k => (k === 'flydiy.fmist' ? '1' : null) };
   const F2 = fresh(path.join(SRC, 'forest_mist.js'));
   // THE DEFAULT METHOD (the user 21 Nov approved Codex's cloud-pass mist): with the clouds on, the pockets ride the cloud

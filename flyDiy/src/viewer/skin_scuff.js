@@ -875,11 +875,12 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
     const C = W ? W.wraps : WRAPS;
     let w = C.get(key);
     if (w) return w;
-    w = function (sh, r) {
+    // (forced: the awake twin's call, below - the block spliced whatever the waker says, the twin not counted among its materials)
+    const body = function (sh, r, forced) {
       if (h) h.call(this, sh, r);
       // (the uniforms asleep too: a program found in the material's map keeps the LAST compile's uniforms object)
       for (const k in U) sh.uniforms[k] = U[k];
-      if (W) { W.mats.add(this); if (!always && !W.on) return; }
+      if (W) { if (!forced) W.mats.add(this); if (!always && !W.on && !forced) return; }
       const obj = kind !== 'baked';
       // (GD_OFF, GROUND-FX 17 Nov: the live mud / rain term's two 3-D samplers took the scuffed program past the GPU's 16
       // texture units - the 16:05 re-shoot's link error, VALIDATE_STATUS false; compiled out here, the unit count is
@@ -907,8 +908,16 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
         .replace('#include <lights_physical_fragment>', (kind === 'glass' ? AERO_DMG_GLASS_FS : surf)
                  + '#include <lights_physical_fragment>\n' + AERO_DMG_CC_FS);
     };
+    w = function (sh, r) { return body.call(this, sh, r, false); };
     w.toString = W && !always ? () => 'dmg.scuff|' + (W.on ? key : 'asleep|' + baseKey) : () => 'dmg.scuff|' + key;
     w.scuffKind = kind;
+    // THE AWAKE TWIN'S HOOK (PERF-LEAD lab, 22 Nov, app.js ?latelinks=bg): the same wrapper with the block always spliced, under
+    // the key the live material takes when it wakes ('dmg.scuff|' + key) - a COPY of a wrapped material wearing it compiles
+    // the awake program while the live one sleeps on, so the awake programs can be linked in the background after the reveal
+    // (no frame draws a twin) and the wake finds them in three's cache. Nothing uses it unless that switch is on.
+    const wA = function (sh, r) { return body.call(this, sh, r, true); };
+    wA.toString = () => 'dmg.scuff|' + key; wA.scuffKind = kind;
+    w.awakeTwin = wA;
     C.set(key, w);
     return w;
   }

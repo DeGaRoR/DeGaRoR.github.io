@@ -16,6 +16,11 @@
 //   (c) LEVEL    the highest pitch on the water is <= the boom's own upsweep (the line from the lowest point just aft of
 //                the hull's stern to the tail post): "the boom at most parallel to the water"
 //   (d) AWAY     the run reaches 30 kt and lifts off (dry 2 s) inside 90 s
+//   (e) STABLE   (PETREL-FIXES-4, A0 23 Nov) the static margin at real_check's own loads (MIN 70 kg pilot 1/4 fuel, TYP
+//                80 kg 1/2 fuel, MTOW the type's gross) stays at today's figures or above - the light loads are the thin
+//                ones and no other gate reads them: STRADDLE-FIX (ls4-arch-1, REAL-FIGURES' meant mass move) took MIN
+//                1.80 -> 0.55 % and TYP 2.99 -> 1.60 % unseen. The floors are those figures (a hair under, for the bit
+//                noise); a margin target, if the user names one, raises them here
 // THE TAIL = every node more than 0.3 m aft of the hull's stern (the hull record's pos + its xStern; x aft, y up).
 // It also prints the reads that name a cause: the hull step's angle aft of the CG (the seaplane rule, 10-15 deg) and
 // the thrust line's height over the CG. Master db2298a41 on superpetrel_V4_1: the step 16.2 deg aft (not tail-heavy),
@@ -116,5 +121,21 @@ verdict(!foot.length || (isFinite(to.footRun) && to.footRun >= FOOT_DIP), '(b3) 
 verdict(isFinite(to.boomRun) && to.boomRun >= BOOM_DIP, '(b2) BOOM ROOT: the boom\'s lowest on the run ' + f2(to.boomRun) + ' m over the water (>= ' + BOOM_DIP + ': the hump\'s squat, a coarse bound)');
 verdict(to.pitchMax <= boomDeg, '(c) LEVEL: the highest pitch on the water ' + f2(to.pitchMax, 1) + ' deg <= the boom\'s upsweep ' + f2(boomDeg, 1) + ' deg (at most parallel)');
 verdict(to.kt30 != null && to.lift != null, '(d) AWAY: 30 kt at ' + f2(to.kt30, 1) + ' s, lift-off at ' + f2(to.lift, 1) + ' s (inside 90 s)');
+// ---- (e) the static margin at real_check's loads (its own cases, the same loaded def and shakedown as its band) ----
+if (CARD === 'builds/candidates/superpetrel_V4_2.json') {   // (the floors are the landed V4.2's; another card skips the row)
+  const SM_FLOOR = { min: 0.50, typ: 1.55, mtow: 11.50 };   // % - today's 0.55 / 1.60 / 11.57 (23 Nov, b8511c47b), a hair under
+  const RC = require('./real_check.js');
+  const P = RC.PLANES.petrel42, R = RC.REFS[P.ref];
+  const d0 = mkDef(), F = RC.loadFacts(d0);
+  for (const lc of RC.cases(d0, F, R, P, false)) {
+    const d = mkDef();
+    for (const n of d.nodes) if (n.mFuel > 0) { n.m = Math.max(0.5, n.m - n.mFuel * (1 - lc.fuel)); n.mFuel *= lc.fuel; }
+    for (const [i, kg] of lc.adds) d.nodes[i].m = Math.max(0.5, d.nodes[i].m + kg);
+    const sh = C.genShakedown(d, { slim: true }), sm = sh && sh.staticMargin * 100, fl = SM_FLOOR[lc.id];
+    const cg = sh && sh.cBar ? (sh.cgX - sh.xLEmac) / sh.cBar * 100 : NaN;
+    if (fl == null) continue;
+    verdict(isFinite(sm) && sm >= fl, '(e) STABLE ' + lc.id.toUpperCase() + ': ' + f2(lc.mass, 1) + ' kg, CG ' + f2(cg, 1) + ' % MAC, static margin ' + f2(sm) + ' % (>= ' + f2(fl) + ')');
+  }
+}
 console.log('GATE PETRELTRIM: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
