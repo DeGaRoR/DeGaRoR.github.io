@@ -320,6 +320,10 @@
     // A6 (G436.7): the march runs BEFORE the scene (the previous frame's depth ends its rays) and the
     // composite is a quad in the world scene at the cloud's own depth - the silhouettes per MSAA sample
     aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt, true); });
+    // GARAGE-VIEW (22 Nov, the user: "why are we not just using the same method?"): while a cooked scene stands in the garage, the
+    // clouds through its door are the GAME's pass too (gviewCloudPre: marched from the room's eye stood in the world, the composite in
+    // the room's own draw). The world's line above stays word for word (GATE STORY and GATE INTROSCENE read it): this one adds the room.
+    aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt, true); else gviewCloudPre(r, cam, rt, drawnScene); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // THE POST PASSES (POST-FX study, 2026-09-21): src/viewer/post_fx.js - six rows of the GRAPHICS
@@ -1358,6 +1362,9 @@
   function bakeHangarEnv(o) {
     if (envDeferred || envAway) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
+    // GARAGE-VIEW: the room's probe is shot at the ROOM's level (a cooked scene shows the outdoors at the game's exposure: the walls and
+    // the aeroplane stay lit as before); the frame's own draw puts the day back (gviewCloudPre, or the next applyDay)
+    if (hangar.gviewBake) hangar.gviewBake(true);
     // G2662: `o.part` is one slice of the clock's sliced bake (envSliceStep, below): 'face' (o.face, 0-5: that face of
     // the cube only), 'room' (the PMREM of the faces already shot + the swap), 'outdoors' (the outdoor materials' sky).
     // No `o` = the one-shot bake every other caller asks for; it shoots everything now, so a sliced job is moot.
@@ -1757,8 +1764,50 @@
     try { const L = world && world.premises && world.premises.rec && world.premises.rec.layers;
       return ((L && L.surface) || []).filter(e => e && (e.apron || e.surface === 5) && Array.isArray(e.poly) && e.poly.length > 2).map(e => e.poly); } catch (e) { return []; }
   }
+  // GARAGE-VIEW (22 Nov): the cooked world out of the club hangar's and the large hangar's door (garage_view.js). OPT-IN while
+  // the look is being judged (?gview=1; the user's rule: a look lands whole): the pack is fetched behind the room, the scene
+  // stood when it lands (hangar.gviewFrom), the outdoors' materials taken into the sky's probe by one more bake
+  // ON wherever a room has a cooked scene (the user, 22 Nov, on the side by sides: "you may commit and push for inclusion"); ?gview=0 keeps the
+  // room's own hand-drawn outdoors. FLYDIY_GVIEW_ON: a rig's switch over both (true / false: the before and the after in one boot)
+  const gviewOn = () => { try { const w = window.FLYDIY_GVIEW_ON; return w === true || (w !== false && !/[?&]gview=0\b/.test(location.search || '')); } catch (e) { return false; } };
+  const gviewPacks = new Map();   // a pack's base -> its load (one fetch a scene, shared by the rooms it serves)
+  let gviewFor = null, gviewJob = null, gviewTicks = 0;
+  // THE FIRST SCENE OF A SESSION WAITS FOR THE GARAGE TO HAVE RUN (GVIEW_WAIT of its own frames, about 10 s): never inside a boot step. GATE
+  // FRAMECOST, 22 Nov, the door view on by default: its 6.2 MB of vertex data and 3 program links stood in the boot's 'garage:landing' step.
+  // A room entered later asks at once; the boot's list may ask earlier, at the step it chooses, through GARAGE_VIEW.prelink().
+  const GVIEW_WAIT = 600;
+  // GARAGE_VIEW.prelink() -> the room's scene job (found, fetched, built held down, its programs linked by compileSliced, shown), GARAGE_VIEW.ready: for the
+  // boot's list (PERF-LEAD, 22 Nov: "not on the path of the first view ... through compileSliced ... one entry point I can call")
+  if (typeof GARAGE_VIEW !== 'undefined') { GARAGE_VIEW.ready = false; GARAGE_VIEW.prelink = () => { gviewTicks = GVIEW_WAIT; gviewTick(); return gviewJob || Promise.resolve(null); }; }
+  // the clouds through the door by the game's own pass (aa's pre hook, the room's draws): the probe's level is put back first
+  function gviewCloudPre(r, cam, rt, drawnScene) {
+    if (!hangar || !hangar.gviewCloudCam || typeof CLOUDS === 'undefined') return;
+    if (hangar.gviewBake) hangar.gviewBake(false);
+    if (drawnScene !== hangarScene) return;
+    const wc = hangar.gviewCloudCam(cam); if (!wc) return;
+    // (the clouds take the air between: the atlas is the room's own day, ATMO.update in applyDay; the switch is off in the shed for the room's materials)
+    const ap = typeof ATMO !== 'undefined' && ATMO.setAP; if (ap) ATMO.setAP(true);
+    CLOUDS.draw(r, wc, rt, true); hangar.gviewCloudDone();
+    if (ap) ATMO.setAP(false);
+  }
+  function gviewTick() {
+    if (!gviewOn() || !hangar || !hangar.gviewFrom || gviewFor === hangar || typeof GARAGE_VIEW === 'undefined') return;
+    if (++gviewTicks < GVIEW_WAIT) return;   // (the session's first scene: after the garage has run; later rooms find the count long past)
+    gviewFor = hangar; const H = hangar, tFind = performance.now(); GARAGE_VIEW.ready = false;
+    gviewJob = GARAGE_VIEW.find(window.FLYDIY_WORLD, roomBase(), roomId()).then(row => { if (!row || hangar !== H) return null;
+      if (!gviewPacks.has(row.base)) gviewPacks.set(row.base, GARAGE_VIEW.load(((typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '') + row.base, THREE));
+      return gviewPacks.get(row.base); })
+    // THE SCENE'S PROGRAMS LINK OFF THE FRAME: built held down, compileSliced (paced slices) over its group, then shown - never a link in the frame that shows it
+    .then(pack => { if (!pack || hangar !== H) return null; const t0 = performance.now(), B = H.gviewFrom(pack, true); if (!B) return null; const tB = performance.now();
+      return Promise.resolve(typeof compileSliced === 'function' ? compileSliced(B.group, aa && aa.target ? aa.target() : null, hangarScene) : null).catch(() => {})
+        .then(() => { if (hangar !== H) return null; H.gviewShow(); GARAGE_VIEW.ready = true;
+          // (loadMs: asked -> fetched, decoded, uploaded, 0 for a room whose scene was already loaded; linkMs: the programs, off the frame)
+          window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(tB - t0).toFixed(1), linkMs: +(performance.now() - tB).toFixed(0), loadMs: +(t0 - tFind).toFixed(0), scene: B }; return B; }); })
+      .catch(e => { console.warn('flyDiy: the garage view -', e && e.message); return null; });
+  }
   let hoTry = 0;
   function hoTreesTick() {
+    gviewTick();
     if (!hangar || !hangar.treesFrom || hangar.treesDone || !WF || !WF.treeSideSheet || (++hoTry % 20)) return;
     try { const S = WF.treeSideSheet({ max: 4 }); if (S && hangar.treesFrom(S)) hangar.treesDone = true; } catch (e) { hangar.treesDone = true; console.warn('flyDiy: the room trees -', e && e.message); }
   }

@@ -25,6 +25,22 @@ Keep it a tool: every fitted value lands on a garage row in the card (`flyDiy/to
 missing control is flagged as a garage gap (REF_MATCH.md section 7) and then built as a row, and the how-to is updated
 with whatever the next aeroplane teaches.
 
+## The world out of a hangar's door (the garage-view toolset)
+
+What a garage room shows through its door is a COOKED SCENE of the game's own world round that airfield (measured,
+captured from the game, a few static meshes), never drawn by hand. To make, update or check one, use the toolset:
+
+- the how-to: `flyDiy/tools/GARAGE_VIEW.md` (stages, frames, traps, when the world changes, a new site, the log);
+- the tools: `flyDiy/tools/garage_view/` (`gv.sh <pack> survey|capture|build|shoot|status` is the one command; `site.js`
+  lists every airfield with hangar plots and writes a site file; `measure.js`, `census.js`, `map.js`, `sketch.js`,
+  `page.py`, `capture.js`, `ground_merge.js`, `cook.js`, `install.js`); each prints its usage at the top of its file;
+- the runtime: `flyDiy/src/viewer/garage_view.js`, stood by `hangar.gviewFrom`; the pack list
+  `flyDiy/src/core/garage_view_packs.json`; the scenes under `flyDiy/media/garage_view/<pack>/`;
+- GATE GARAGEVIEW (`flyDiy/tools/_garageview_check.js`) says which pack is STALE when a hangar moved or the record changed.
+
+A shed is placed by its TRUE yaw (never `siteToLocal`'s quarter turn); a capture needs a GPU slot; a look lands whole,
+side by side with the game, on a page for the user.
+
 ## Fitting an aeroplane to its BLUEPRINTS (the drafting table)
 
 When a user gives a blueprint (a three-view) of a real aeroplane and asks for a card that matches it, use the drafting
