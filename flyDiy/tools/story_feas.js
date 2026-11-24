@@ -24,7 +24,7 @@ const T = __dirname, ROOT = path.join(T, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const has = k => argv.includes('--' + k);
-const BUILDS = 'tools/fixtures/storyfeas/cessna172_stol_kit.json,tools/fixtures/storyfeas/cessna172r_stol_kit.json';   // two test builds: the light metal Cessna (the retired list:40) and the Cessna 172 (list:50), each with the garage's STOL kit
+const BUILDS = 'tools/fixtures/test_copies/cessna172_stol_kit.json,tools/fixtures/test_copies/cessna172r_stol_kit.json';   // two test builds: the light metal Cessna (the retired list:40) and the Cessna 172 (list:50), each with the garage's STOL kit
 // THE SIM A ROW WAS FLOWN ON. A row's key is its mission's record; the aeroplanes and the pilot change under it at a train.
 // Bumped BY HAND when master is merged in (the pilot, the career's designs): every row flown before is stale and flown again
 const SIM = 'L40K';   // (23 Nov: L40K builds the Cub, the Jodel and the Cessna 172 differently - their defs and shakedowns differ from L40J's)
