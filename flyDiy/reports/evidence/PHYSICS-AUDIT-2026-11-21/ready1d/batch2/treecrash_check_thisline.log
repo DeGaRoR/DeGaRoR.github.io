@@ -103,3 +103,11 @@ Super Petrel:
   ok    jodel/trunk0 against the reference: broken p 0.317, pieces p 0.465, work p 0.611, mountOff p 1.000, cowlOff p 1.000
   ok    Jodel, 30 m/s trunk, 2.5 m out: every member crashed, a wing member broken, finite, the energy bounded - broken 81 [65-111], pieces 5 [4-8], work 3.8 [2.8-5.0], mountOff 0/16, cowlOff 0/16 (kJ for the work)
   ok    jodel/trunk25 against the reference: broken p 0.836, pieces p 0.969, work p 0.356, mountOff p 1.000, cowlOff p 1.000
+  ok    metal Cessna, 30 m/s trunk, the centreline: every member crashed, a wing member broken, finite, the energy bounded - broken 110 [108-128], pieces 5 [5-6], work 67.2 [66.0-71.2], mountOff 16/16, cowlOff 16/16 (kJ for the work)
+  FAIL  metal/trunk0 against the reference: broken p 0.806, pieces MOVED p 0.000, work MOVED p 0.000, mountOff p 0.164, cowlOff p 0.164 - pieces median 8 -> 5 (pooled p10-p90 spread 2.5); work median 36580.55 -> 67241.7 (pooled p10-p90 spread 15890.5)
+  ok    metal Cessna, 30 m/s trunk, 2.5 m out: every member crashed, a wing member broken, finite, the energy bounded - broken 35 [33-37], pieces 3 [3-3], work 41.5 [39.5-43.9], mountOff 0/16, cowlOff 0/16 (kJ for the work)
+  FAIL  metal/trunk25 against the reference: broken p 0.520, pieces MOVED p 0.000, work MOVED p 0.001, mountOff p 1.000, cowlOff p 1.000 - pieces median 5 -> 3 (pooled p10-p90 spread 8.5); work median 18134.4 -> 41463.350000000006 (pooled p10-p90 spread 28809.8)
+        (the ensembles: 533 s)
+  69/73 checks
+GATE TREECRASH: FAIL
+exit 1
