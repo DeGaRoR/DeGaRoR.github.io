@@ -1,0 +1,12 @@
+  1686 images under media/ (10 in assets/, not gated), census 20841 ms
+  FLAT      0 (allowed 0)
+  DUPES     2 groups, 2 redundant files (allowed 0 / 0)
+  HUGE      2 over 4096 px (allowed 2)
+  JPGNOR    167 JPEG normal maps (allowed 167)
+  MATS      174 'new THREE.*Material' sites in 35 files (allowed 172 in 34)
+  WRITERS   writeMedia folds; write_media folds
+  (21.3 s)
+  FAIL dupes: fc82782e117f8c7a has 2 (allowed 0) - a byte-identical copy of a file already in media/: writeMedia / write_media return the existing one
+  FAIL dupes: f722b458ddbc1812 has 2 (allowed 0) - a byte-identical copy of a file already in media/: writeMedia / write_media return the existing one
+  FAIL mats: tools/_cowl_gen.js has 2 (allowed 0) - a `new THREE.*Material` site: materials are made in src/viewer/matlib.js (AS4a)
+GATE ASSETS: FAIL

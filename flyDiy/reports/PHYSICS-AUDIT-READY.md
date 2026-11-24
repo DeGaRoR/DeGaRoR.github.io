@@ -33,6 +33,37 @@ Each was flown on this line and on master `56047b34e` with the same probe (the g
 Checks 3 and 4 fail on master under the same check names with other text; 5 and 6 are new checks on flights already
 red on master. None is re-pinned.
 
+## A0's batch 2 (24 Nov 11:55): the verdicts
+
+L40L's full battery on `2c85503ba` (this line + A0's LS4 footprint row) against master `56047b34e`, by check name. Each
+red was re-run here, on this line and on master, in this container. **One thing first: several fingerprints are not
+the same on two machines.** In this container master's own run fails ENGCONFIG's 18 build hashes and DMGFABRIC's 9 "base's
+bits" against their pins, which pass on A0's box. So a pin written here would be wrong on the box: **the re-pins below
+are agreed here and must be written on the box**, with the reason given. Evidence: `reports/evidence/PHYSICS-AUDIT-2026-11-21/ready1d/batch2/`.
+
+| A0's row | verdict | what was found |
+|---|---|---|
+| A. ENGINEDIALS "r1830_hs23e50 ... DIFFERS: cs false vs true" | **FIXED** (`tools/engine_dial_points.json`) | Step 6 made the R-1830 row governed; its point on the dials now sets the custom engine's constant-speed propeller row (`cs: 1`). Passes |
+| A. ENGCONFIG: 18 build hashes | **RE-PIN ON THE BOX, agreed** | PHYSICS_V 10: steps 3 and 4 move every powered build's flown steps by design. Not re-pinned here (master fails the same 18 in this container) |
+| A. DMGFABRIC: 9 (+1) "the base's bits" (cub t*) | **RE-PIN ON THE BOX, agreed** | The same 9 fail on master in this container. The tenth, "cub t0: damage ON, no covered panel parted - the base's bits": on this physics no covered panel parts in that crash (on master 7 ties were made), so the run is compared with the base pin - the same family |
+| A. POD 6 "no pod - ... the base core's, to the bit" | **RE-PIN ON THE BOX, agreed** | Master fails the same 12 POD rows in this container: machine-dependent bits. The certificate and flown steps move by design under PHYSICS_V 10 |
+| A. SKIS 7 def / sheet / steps hashes | **RE-PIN ON THE BOX, agreed** | Here master passes 6 of the 7 (the Jodel's fails on master here too), this line fails all 7: the def, the sheet and 300 flown steps move by design (steps 1-6). Blessed on the box because the Jodel's pin does not travel |
+| A. TREECRASH "cub/trunk against the reference: broken/pieces/work MOVED" | **RE-WRITE THE REFERENCE, agreed** | Master passes it here; this line moves the Cub's 25 m/s trunk ensemble (broken, median 48 -> 54; pieces 2 -> 4; work 14568 -> 13636 J): the propeller's idle drag and its strike rpm (steps 3-4) are in the crash. A two-sided statistical reference: written once with the others on the box |
+| B1. JOIN "a cut engine makes no thrust, the other still does" | **RESTATED, kept sharp** (`tools/_join_check.js`) | A cut lever leaves its engine idling, and since step 4 an idling propeller is a brake: -3.1e-3 N rolling at 0.18 m/s, where it was exactly 0. Now: the cut engine's thrust is never positive and no more than its share of `sim.idleDragAt`. Passes |
+| B2. ENGCONFIG WAKES tri / skymaster in the solver | **RESTATED, kept sharp** (`tools/_engconfig_check.js`) | An engine switched off windmills since step 4: its disc's wash is the deficit momentum theory gives a negative thrust (-0.1 m/s), and the Skymaster's series wake (the discs' forces summed, as always) is the pusher's less the nose's deficit (36.4 m/s either way to one decimal). Now: the dead disc's thrust negative, its wash a deficit under 0.5 m/s, the series wake under the pusher's own by under 0.5 m/s. Both pass |
+| B3. DMGGEAR touchdowns, "0.81 (tail VF-S4TL)", "the airframe 0.92 (VF-S4TL), the gear 0.72 (TW-S0BR)" | **NAMED** - these rows are the SUPER PETREL's, not the refit 172's | Its 23.473 limit sink is 2.27 m/s (the 172's is 2.56 and its rows hold: firm 0.41, limit 0.61, gear-side, on both trees). The Petrel's worst member is its fin fitting in tension, and in this container MASTER already fails all three of its rows: 0.684 / 0.720 / airframe 0.962 against 2/3. This line: 0.663 / **0.815** / 0.921 (the gear 0.62 -> 0.72). The firm touchdown is 13 % higher, the others lower; this line also carries the Petrel card's aluminium-and-fabric wing (physics-cards). A fin sized at the edge of the headroom on both lines: the Petrel's structure, not the drag model |
+| B4. DMGINTEGRITY "THE ENGINE THROUGH THE FIREWALL" (the metal Cessna) | **NAMED** | The nose-in is flown with the throttle closed, so step 4's idle drag acts on the engine through the 180 km/h run-in; the crash runs differently (43 members broken against 39) and the engine's CG node, already torn off its mount, ends 10 cm into cabin bay 5. A detached part, which the limiters are not built to hold (the gate's own REPORT line calls such probes "a detached part, §8.2"); the check counts it. The damage layer's to judge. ("the fuselage cut across behind ring 3" for the Super Petrel fails on master here too) |
+| B5. DMGSETTLE "cub trunk: every detached piece's covering ON the ground" | **NAMED** | A detached wing piece's skin ends 26.5 cm into the ground against the -25 cm bound. In this container master fails the same check on the metal Cessna's trunk crash at -44.6 cm: the bound sits inside crash-to-crash scatter |
+| B6. DMGWRECK "the clip ... (worst 39.0 cm)" | **NAMED** | The metal Cessna's 30 m/s trunk crash: the propeller strikes at 818 rpm instead of 984 (step 3's propeller law), the crash runs differently (93 broken against 117) and the crushed cowl comes to rest 1.5 m from the wreck with a corner 39 cm inside cabin bay 1. Released debris does not collide with the airframe: the damage layer's |
+| B7. DMGCLUSTERS "SEVERE for the twin ... the worst cut 0.905" | **NAMED** | The same member and mode as on master (the boom root, in bending; nothing parts), at 0.905 of its limit against the check's 0.93-1.00 window (master 0.984): the impact arrives softer on this physics. The scenario is a calibration point of the damage layer; re-centre it there, not here. (The two FIN rows fail on master here too) |
+| B8. ASSETS "dupes d74dbf0bae5de169" | **FIXED** (the bake, the viewer, GATE MEDIA) | The Client Cub is the default Cub in another livery: master's own fresh bake gives `design_cub` and `list_26` byte for byte (its committed pages were stale). `fiche_physics_bake.js` now dedupes after every bake (a page identical to an earlier fiche's is removed; the fiche's index entry points at it, `physicsAt`), read by `fiche_board.js` / `fiche_physics.js`, GATE MEDIA and `physics_pages_shot.js`, kept by `fiche_bake.js`. `list:26` -> `design_cub`. ASSETS' other reds (two dupes, two material sites) and MEDIA's thumbnail red are master's own here |
+
+**The re-pins, on the box, on `2c85503ba` (or the tree this lands on), each with the reason "PHYSICS-AUDIT PHYSICS_V 10 (steps
+1-6): the flown physics moves by design; checked 24 Nov against master's own run, reds traced in PHYSICS-AUDIT-READY.md":**
+`node tools/_engconfig_check.js --pin` (the 18 build rows), `node tools/_pod_check.js --bless`, `node tools/_skis_check.js
+--bless`, `node tools/_treecrash_check.js --write-ref`, and DMGFABRIC's `BASE` table in `tools/_dmg_fabric_check.js` from
+its printed bits (its nine rows, and "cub-t0-on": no panel parts in that crash on this physics).
+
 ## What is in it (one PHYSICS_V bump, 9 -> 10)
 
 | step | what | where | gate |

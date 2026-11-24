@@ -1,0 +1,107 @@
+(548 s, 6 builds + the V-tail Cub)
+Cub:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 36 frames with a new break, no live strip on two pieces; 124 broken, 3 strips dropped (the old rule: 4), 0 split; CRASHED (a fus member broke)
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 7 frames with a new break, no live strip on two pieces; 13 broken, 2 strips dropped (the old rule: 2), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 3 frames with a new break, no live strip on two pieces; 15 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    28 limiters (engine-firewall) with the layer on, none off; the build's own 404 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.16 (HELD), a flown pull to 4.20 g 1.16, FAR 23.473's drop 1.16
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters MNTBR 0.31 m into bay 0, MNTBL 0.31 m into bay 0, CGE 0.29 m into bay 0, MNTTR 0.25 m into bay 0, MNTTL 0.20 m into bay 0, ENGR 0.09 m into bay 0, ENGL 0.08 m into bay 0; with them none (15 broken, CRASHED, finite)
+4. the cost
+  REPORT  a break event (12 members, the union-find over 404 beams / 97 nodes, 28 strips): 124.6 us
+Jodel:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 8 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 1/1, wing0L:root 1/1, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 5 frames with a new break, no live strip on two pieces; 32 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 2 frames with a new break, no live strip on two pieces; 17 broken, 0 strips dropped (the old rule: 2), 0 split; CRASHED (a tail member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 4 frames with a new break, no live strip on two pieces; 30 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (an impact of 9 g)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    28 limiters (engine-firewall) with the layer on, none off; the build's own 502 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.13 (HELD), a flown pull to 4.08 g 1.13, FAR 23.473's drop 1.13
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters MNTTR 0.38 m into bay 0, MNTTL 0.27 m into bay 0, MNTBL 0.26 m into bay 0, ENGL 0.26 m into bay 1, MNTBR 0.25 m into bay 0, CGE 0.24 m into bay 0, MNTTL 0.23 m into bay 1, ENGR 0.15 m into bay 0, ENGL 0.14 m into bay 0; with them none (30 broken, CRASHED, finite)
+4. the cost
+  REPORT  a break event (12 members, the union-find over 502 beams / 115 nodes, 28 strips): 149.4 us
+metal Cessna:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 33 strips live, none on two pieces
+  ok    92 members a strip holds, each broken alone (no group): 192 of the 192 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (32 / 32 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 22 frames with a new break, no live strip on two pieces; 117 broken, 0 strips dropped (the old rule: 2), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 11 frames with a new break, no live strip on two pieces; 50 broken, 0 strips dropped (the old rule: 7), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 9 frames with a new break, no live strip on two pieces; 39 broken, 0 strips dropped (the old rule: 1), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    28 limiters (engine-firewall) with the layer on, none off; the build's own 492 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.08 (HELD — over yield), a flown pull to 4.60 g 1.08, FAR 23.473's drop 1.08
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters MNTTR 0.51 m into bay 0, CGE 0.51 m into bay 0, MNTBR 0.25 m into bay 0, MNTBL 0.25 m into bay 0, ENGR 0.22 m into bay 0, ENGL 0.19 m into bay 0, MNTTR 0.12 m into bay 4 (off its mount), MNTBL 0.10 m into bay 4 (off its mount), MNTBL 0.07 m into bay 3 (off its mount), MNTTR 0.06 m into bay 5 (off its mount), MNTBL 0.05 m into bay 5 (off its mount); with them none (39 broken, CRASHED, finite)
+  REPORT  the probe elsewhere, with them (not a limiter's: a detached part or a folded panel, §8.2): wing0R:WR 0.31 m bay 3 off @3.87; stab:HR 0.24 m bay 1 off @1.78; wing0R:WR 0.20 m bay 4 off @3.62; stab:HR 0.17 m bay 1 off @1.75; wing0R:WR 0.17 m bay 3 off @3.93; stab:HF 0.16 m bay 0 off @0.35
+4. the cost
+  REPORT  a break event (12 members, the union-find over 492 beams / 117 nodes, 33 strips): 98.4 us
+Cessna floats:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 27 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 160 of the 160 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 9 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/0, wing0R:strut 0/0, wing0L:root 0/0, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, floatL:strut 0/0, floatR:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a severe float nose-in (150 km/h, 10 m/s, 60 deg): after each of the 10 frames with a new break, no live strip on two pieces; 89 broken, 1 strips dropped (the old rule: 1), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    28 limiters (engine-firewall) with the layer on, none off; the build's own 543 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.12 (HELD), a flown pull to 5.00 g 1.11, FAR 23.473's drop 1.11
+4. the cost
+  REPORT  a break event (12 members, the union-find over 543 beams / 134 nodes, 27 strips): 232.2 us
+twin floatplane:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, engL:mount 0/0, engR:mount 0/0, stab:attach 0/0, fin:attach 0/0, floatL:strut 0/0, floatR:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a severe float nose-in (150 km/h, 10 m/s, 60 deg): after each of the 8 frames with a new break, no live strip on two pieces; 34 broken, 0 strips dropped (the old rule: 3), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    0 limiters (none: no nose engine) with the layer on, none off; the build's own 500 members either way (the limiters are no members)
+4. the cost
+  REPORT  a break event (12 members, the union-find over 500 beams / 123 nodes, 28 strips): 28.3 us
+Super Petrel:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 42 strips live, none on two pieces
+  ok    114 members a strip holds, each broken alone (no group): 242 of the 242 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 14 groups broken alone: no strip on two pieces, no break-up (wing0R:root 0/1, wing0L:root 0/1, wing1R:root 0/1, wing1L:root 0/1, wing1L:interplane 0/0, wing1R:interplane 0/0, eng:mount 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0, wing1L:strut 0/0, wing1R:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (40 / 40 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 17 frames with a new break, no live strip on two pieces; 359 broken, 3 strips dropped (the old rule: 16), 0 split; CRASHED (a gear member broke)
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 16 frames with a new break, no live strip on two pieces; 86 broken, 4 strips dropped (the old rule: 11), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 11 frames with a new break, no live strip on two pieces; 91 broken, 0 strips dropped (the old rule: 6), 0 split; CRASHED (a wing member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 51 body nodes and nothing of a group's part
+  FAIL  the fuselage cut across behind ring 3 (10 members): no break-up
+3. SUPPORT limiters (G1822)
+  ok    0 limiters (none: no nose engine) with the layer on, none off; the build's own 845 members either way (the limiters are no members)
+4. the cost
+  REPORT  a break event (22 members, the union-find over 845 beams / 184 nodes, 42 strips): 109.8 us
+The V-tail Cub (its tail strips read the body axes: the SPLIT path):
+  ok    stab:attach + tw:gear broken: 2 tail strips split onto the core (they kept 75 %, 75 % of their weight; renormalised to 1.000, 1.000), 2 dropped (50 %, 50 % on the core: under 70 %); none on two pieces
+Broke up (the flight over at once): metal Cessna, a trunk at 30 m/s, the centreline: at 1.29 s (TPB); metal Cessna, a trunk at 30 m/s, the wing 2.5 m out: at 1.42 s (TPB); metal Cessna, a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): at 0.24 s (TPB); Cessna floats, a severe float nose-in (150 km/h, 10 m/s, 60 deg): at 0.15 s (TPB); twin floatplane, a severe float nose-in (150 km/h, 10 m/s, 60 deg): at 0.12 s (TPB)
+  63/64 checks
+GATE DMGINTEGRITY: FAIL
+exit 1
