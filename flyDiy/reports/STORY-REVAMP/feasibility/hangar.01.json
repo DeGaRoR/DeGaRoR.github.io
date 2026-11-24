@@ -1,0 +1,49 @@
+{
+ "id": "hangar.01",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1006,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 560,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "HOME",
+   "t": 446,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "1cf9ed47bbb7",
+ "where": "hangar:1",
+ "pool": "validated",
+ "wallS": 1477
+}

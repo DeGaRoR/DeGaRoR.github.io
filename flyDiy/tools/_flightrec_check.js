@@ -418,9 +418,16 @@ function session(script) {
     `7 the build's MANIFEST loads flight_recorder.js (at ${sc.indexOf('flight_recorder.js')}) before render_world, gfx_settings and app`);
   const L0 = app.indexOf('  function loop(ts) {'), L1 = app.indexOf('\n  }\n', L0), loop = app.slice(L0, L1);
   const iB = loop.indexOf('if (FR) FR.begin(ts, pc);'), iP = loop.indexOf('const pc = PACE.frame(ts);'), iE = loop.indexOf('if (FR) FR.end(true, cg);'), iPE = loop.lastIndexOf('PACE.end(');   // (REVEAL: the drawn frame's - a held frame reports earlier, flagged)
-  verdict(iP >= 0 && iB > iP && iE > 0 && iE < iPE && /if \(holdRender\) \{ if \(FR\) FR\.end\(false, cg\);/.test(loop),
+  // RE-PINNED 22 Nov 2026 (PERF-TRACE; red since NEW-PLANE a586da804 on master, on claude/perf-codex and every branch of it): the
+  // loop's hold was `if (holdRender) {` and is now `if (holdRender || uiHold || <the new-plane chooser open> || <the fleet screen
+  // open>) {` - MORE frames are held, and the held frame's body is the same to the character (FR.end(false, cg); POSE_LERP.back();
+  // PACE.end(.., true)). What these two checks protect - a held frame ends the recorder's frame unrendered and tells the pace it was
+  // held - is unchanged; only the literal of the condition moved. The pattern takes `holdRender` FIRST and any further `|| ...` terms;
+  // the body is asserted as before.
+  const HOLD = 'if \\(holdRender(?: \\|\\| [^{};]+)?\\) \\{ if \\(FR\\) FR\\.end\\(false, cg\\);';
+  verdict(iP >= 0 && iB > iP && iE > 0 && iE < iPE && new RegExp(HOLD).test(loop),
     '  app.js: begin after the frame clock says the frame is ours, end before PACE.end, end(false) on the boot\'s hold');
-  verdict(/if \(holdRender\) \{ if \(FR\) FR\.end\(false, cg\); POSE_LERP\.back\(\); PACE\.end\([^;]*, true\);/.test(loop) && /function end\(workMs, physMs, steps, now, ran, held\) \{\s+if \(P\.legacy \|\| held\) return;/.test(app),
+  verdict(new RegExp(HOLD + ' POSE_LERP\\.back\\(\\); PACE\\.end\\([^;]*, true\\);').test(loop) && /function end\(workMs, physMs, steps, now, ran, held\) \{\s+if \(P\.legacy \|\| held\) return;/.test(app),
     '  app.js: a held frame (holdRender) reports itself to PACE.end flagged held, and the pace counts nothing of it (REVEAL)');
   // GARAGE-LINK (A0 24 Oct; HWCOV): the session header asks the GL nothing - the GPU's name is asked once, when the context is
   // wrapped (a getParameter is a call the page waits on: one header() held the garage boot's end 2.2 s, the GPU linking)
@@ -442,7 +449,10 @@ function session(script) {
       '  rollout_perf: BOOT.state from the first frame; a frame overlapping a screen leaves over100, a task the worst task (the 1 s count keeps every task), for gates.screen; the JSON carries the spans (GATE-SCREEN)'); }
   { const pg = (app.match(/function worldPrelinkGfx\(\) \{[\s\S]*?\n  \}\n/) || [''])[0], ss = (app.match(/function settleScreen\(what\) \{[\s\S]*?\n  \}\n/) || [''])[0];
     verdict(/TRIP_BY\.worldCompile/.test(pg) && /k === tripKeys\.worldCompile/.test(pg) && /compileSliced\(scene,[^\n]*dress\)/.test(pg) && /compileDepthVariants\(scene, true, dress\)/.test(pg) && !/holdRender/.test(pg)
-      && /done: \(\) => \{[^\n]*if \(garage\) setTimeout\(worldPrelinkGfx, 0\);/.test(ss),
+      // (RE-PINNED 22 Nov 2026, PERF-TRACE; red since BOOT-LOOP-GUARD 199708760: the settle screen's done() is now wrapped,
+      //  `done: loopDone(() => { ... })` - loopDone runs the same function and then starts the loop whatever it did. The line this
+      //  check protects, `if (garage) setTimeout(worldPrelinkGfx, 0);` inside that done(), is there as before: the wrapper is accepted.)
+      && /done: (?:loopDone\()?\(\) => \{[^\n]*if \(garage\) setTimeout\(worldPrelinkGfx, 0\);/.test(ss),
       '  app.js: a world setting changed in the shed starts the world\'s link from the shed (worldPrelinkGfx: re-keyed only, per-task dress, no hold) - the roll-out\'s worldCompile finds it linked (REVEAL)'); }
   verdict(/if \(FR\) FR\.push\(0\); script\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && /if \(FR\) FR\.push\(1\); sim\.step\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && FR.SLOTS[0] === 'script' && FR.SLOTS[1] === 'solver',
     '  app.js: the pilot\'s script and each solver step pushed (slots 0 and 1 are script and solver)');

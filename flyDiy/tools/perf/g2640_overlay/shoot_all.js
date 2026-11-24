@@ -5,8 +5,8 @@ const SH = require(path.resolve('tools/_geoparity_shot.js'));
 const floats = s => { s.gear.type = 'floats'; s.cage = Object.assign({}, s.cage, { gearFloats: 1 }); };
 const B = [
   ['cub', 'builds/cub_2026-09-20_corrected.json'], ['jodel', 'builds/jodel_2026-09-20_corrected.json'],
-  ['cessna', 'bugReports/cessnaMetal (1).json'], ['twinFloats', 'tools/fixtures/build_v7_ultralight_2026-09-05.json', floats],
-  ['mosquito2', 'tools/fixtures/repro/mosquito_2.json'], ['mosquito3', 'tools/fixtures/repro/mosquito_3.json'],
+  ['cessna', 'builds/cessna172r_2026-11-08.json'], ['twinFloats', 'tools/fixtures/build_v7_ultralight_2026-09-05.json', floats],
+  ['mosquito2', 'tools/fixtures/test_copies/mosquito_2.json'], ['mosquito3', 'tools/fixtures/test_copies/mosquito_3.json'],
   ['cub_finSwept25', 'builds/cub_2026-09-20_corrected.json', s => { s.cage.finSweep = 25; }],
 ];
 for (const [k, f, p] of B) {

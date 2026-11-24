@@ -688,7 +688,7 @@ function sync3D() {
       var tex = new THREE.CanvasTexture(r.cv);
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = window.FLYDIY_ANISO || 4;
-      var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true,
+      var mat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / blueprint / three-view sheet' }, map: tex, transparent: true,
         side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
       mat.name = 'blueprint:' + v.kind;
       var mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);

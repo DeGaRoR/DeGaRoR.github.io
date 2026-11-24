@@ -1134,6 +1134,46 @@ function genWingInto(def, out) {
         chord: (1 - hf) * fm.chord, side,
         infl: frameAt(zm).wF });
     }
+    // ---- AIRBRAKES (GEN_RULES.airbrake, wings[0].airbrake): THE PLATE, a moving group of its own ----------------------
+    // A thin plate standing in the wing at mid-chord (between the spars, just aft of the main one), its top just under
+    // the upper skin and its height `h` of the local chord below it; the handle (ctl.airbrake) slides it straight up
+    // out of the skin by that height - published as a SLIDE along the section's up (the Fowler's contract, G239) and
+    // no turn (k ~ 0). Its points ride the spar nodes as the loft's do. Plane 0's only, nothing without one.
+    if (kPl === 0 && W.airbrake && W.airbrake.z1 > W.airbrake.z0) {
+      const AB = W.airbrake, semiW = zAll[zAll.length - 1], E = genAfEval(W.naca), XC = 0.5, TH = 0.004;
+      const zA = AB.z0 * semiW, zB = AB.z1 * semiW, zm = 0.5 * (zA + zB);
+      const fr = z => { const f = frameAt(z), ch = genV3.norm(genV3.sub(f.pR, f.pF));
+        let up = genV3.norm(genV3.cross(ch, [0, 0, 1])); if (up[1] < 0) up = genV3.mul(up, -1);
+        const k = kOf(XC), infl = [];
+        for (const [i2, w2] of f.wF) if (w2 > 1e-6) infl.push([i2, (1 - k) * w2]);
+        for (const [i2, w2] of f.wR) if (w2 > 1e-6) infl.push([i2, k * w2]);
+        return { f, ch, up, infl }; };
+      const M = genMesh(), corner = [];
+      for (const z of [zA, zB]) {
+        const R = fr(z), c = R.f.chord, yTop = E.up(XC)[1] * c - 0.002, hP = AB.h * c;
+        const base = genV3.add(R.f.pF, genV3.mul(R.ch, (XC - sparF) * c));
+        const row = [];
+        for (const [dx, dy] of [[-TH / 2, yTop], [TH / 2, yTop], [TH / 2, yTop - hP], [-TH / 2, yTop - hP]])
+          row.push(M.v(B(genV3.add(genV3.add(base, genV3.mul(R.ch, dx)), genV3.mul(R.up, dy))), dx > 0 ? 1 : 0, dy === yTop ? 1 : 0, R.infl));
+        corner.push(row);
+      }
+      // the box's four long faces and its two ends, both windings (a plate is seen from both sides)
+      const face = (a1, b1, c1, d1) => { M.quad(a1, b1, c1, d1); M.quad(d1, c1, b1, a1); };
+      for (let e = 0; e < 4; e++) { const e2 = (e + 1) % 4; face(corner[0][e], corner[0][e2], corner[1][e2], corner[1][e]); }
+      face(corner[0][0], corner[0][1], corner[0][2], corner[0][3]); face(corner[1][0], corner[1][1], corner[1][2], corner[1][3]);
+      const Rm = fr(zm), cm = Rm.f.chord;
+      const p0 = genV3.add(Rm.f.pF, genV3.mul(Rm.ch, (XC - sparF) * cm));
+      const a0 = B(p0), a1 = B(genV3.add(p0, genV3.mul(Rm.up, AB.h * cm)));
+      const pA = genV3.add(fr(zA).f.pF, genV3.mul(fr(zA).ch, (XC - sparF) * fr(zA).f.chord));
+      const pB = genV3.add(fr(zB).f.pF, genV3.mul(fr(zB).ch, (XC - sparF) * fr(zB).f.chord));
+      const dirB = d => { const q0 = B(p0), q1 = B(genV3.add(p0, d)); return genV3.norm([q1[0] - q0[0], q1[1] - q0[1], q1[2] - q0[2]]); };
+      CTRL_MESH.push({ group: 'brk' + sd + GSFX, mesh: M, pivot: a0,
+        axis: genV3.norm(genV3.sub(B(pB), B(pA))),
+        drive: 'airbrake', sgn: 1, k: 1e-6, drive2: null, sgn2: 0,
+        slide: [a1[0] - a0[0], a1[1] - a0[1], a1[2] - a0[2]],
+        line: [B(pA), B(pB)], aft: dirB(Rm.ch), up: dirB(Rm.up), r: 0, chord: AB.h * cm, side,
+        infl: Rm.f.wF });
+    }
     // ---- TIP-SKID (60_gen_spec GEN_TIP_SKID): THE WINGTIP SKID's HOOP, a fitting in the pitot's group ----
     // Off the numbers the frame hangs the shoe's node on (61_gen_frame 5c): the tip joint's station (where the bow
     // starts; a square or winglet tip's end), the aerofoil's own lower contour (genAfEval), from xc[0] to xc[1] of the
@@ -1508,6 +1548,7 @@ function genWing(def) {
       skin: genPaintRow(S),
       ailR: genPaintRow(S), ailL: genPaintRow(S),
       flapR: genPaintRow(S), flapL: genPaintRow(S),
+      brkR: { color: 0xc9d0d4, rough: 0.38, metal: 0.75 }, brkL: { color: 0xc9d0d4, rough: 0.38, metal: 0.75 },   // AIRBRAKES: bare alloy plates
       canopy:    { color: 0xa9c6d6, opacity: 0.32, rough: 0.04, metal: 0.0 },
       // G185: the second plane's rows (same paint; the editor's livery
       // sections override per part)

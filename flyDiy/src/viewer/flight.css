@@ -1209,6 +1209,15 @@ body.fl2.mode-fly #shotBack { display:none !important; }
   background:var(--ed-plate); color:var(--ed-ink); border:1px solid var(--ed-border); box-shadow:0 10px 28px rgba(0,0,0,.45);
   font:400 12px/1.3 'IBM Plex Sans', sans-serif; }
 #photoBar[hidden] { display:none; }
+/* PHOTO-ONE (21 Nov): H hides the bar; the idle cursor leaves the screen; the shed's rows */
+#photoBar.phHide { display:none; }
+body.shot.phIdle, body.shot.phIdle * { cursor:none !important; }
+#photoBar .phRow { display:flex; align-items:center; gap:8px; padding:6px 2px; }
+#photoBar .phRow > span { flex:0 0 88px; font:500 11px/1.2 'IBM Plex Sans'; color:var(--ed-faint); }
+#photoBar .phRow input[type=range] { flex:1; min-width:0; }
+#photoBar .phRow > b { font:600 11px/1 'IBM Plex Mono', monospace; color:var(--ed-ink); min-width:34px; text-align:right; }
+#photoBar .phPick { flex:1; padding:6px 8px; border-radius:6px; border:1px solid var(--ed-hair); background:transparent; color:var(--ed-ink); font:500 11px/1 'IBM Plex Sans'; cursor:pointer; }
+#photoBar .phPick.on { border-color:var(--ed-acc); background:var(--ed-acc-soft); }
 #photoBar * { font-style:normal; }
 #photoBar .phHead { display:flex; align-items:baseline; gap:10px; padding:0 2px 8px; border-bottom:1px solid var(--ed-hair); }
 #photoBar .phHead b { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase; color:var(--ed-ink); }

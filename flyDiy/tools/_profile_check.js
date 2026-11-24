@@ -6,7 +6,7 @@
 // it happily run into them if an approach circuit has trees through?".
 //
 // THE VALIDATED AEROPLANES ONLY: the Jodel (builds/jodel_2026-09-20_corrected.json), the user's Cub
-// (builds/cub_2026-09-20_corrected.json) and the user's metal Cessna (tools/fixtures/build_v10_cessnaMetal_2026-09-26.json).
+// (builds/cub_2026-09-20_corrected.json) and the user's metal Cessna (bugReports/cessnaMetal (1).json).
 //
 //   1 THE CLIMB (the analytic world's HOME, calm, the pilot from the take-off to the crosswind turn): from the screen
 //     height (15 m, the 50 ft a handbook's take-off ends at) to the end of CLIMB the airspeed never under 1.3 Vs in the
@@ -32,7 +32,7 @@ const arg = (k, d) => { const a = process.argv.find(s => s.startsWith('--' + k +
 const BUILDS = {
   jodel: path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'),
   cub: path.join(T, '..', 'builds', 'cub_2026-09-20_corrected.json'),
-  cessnaMetal: path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json'),   // (the key kept: the pins read it) CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
+  cessnaMetal: path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json'),   // (the key kept: the pins read it) CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture bugReports/cessnaMetal (1).json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
 };
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
 // the core under test: PILOT_CORE (pilot_trace's own switch) for a before / after on another build

@@ -283,7 +283,7 @@ function groundMesh(THREE, plan, o) {
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   g.computeVertexNormals();
-  const m = new THREE.MeshStandardMaterial({ color: 0x9fb06a, roughness: 1.0, metalness: 0, vertexColors: true });
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'props / totem park / lawn' }, color: 0x9fb06a, roughness: 1.0, metalness: 0, vertexColors: true });
   const LOT = (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || null;
   if (LOT && LOT.grass) {
     const tex = (img, srgb) => {
@@ -330,7 +330,7 @@ function totemBuild(THREE, plan, o) {
   // 188, 0x303030 145 (gl.readPixels on the bench canvas, 2026-09-13). A
   // sunlit granite boulder photographs at ~150-170, so the albedo is set
   // where the pixel lands there, not where a swatch looks right
-  const rockMat = new THREE.MeshStandardMaterial({ color: 0x3a3b37, roughness: 1.0, metalness: 0 });
+  const rockMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'props / totem park / boulders' }, color: 0x3a3b37, roughness: 1.0, metalness: 0 });
   for (const r of plan.rocks) {
     const m = new THREE.Mesh(rockGeo(THREE, r.r, plan.seed * 31 + stats.rocks), rockMat);
     m.position.set(r.x, r.y + r.r * 0.1, r.z);
@@ -346,7 +346,7 @@ function totemBuild(THREE, plan, o) {
     // generator stands a clan house in it
     const h = plan.house;
     const box = new THREE.Mesh(new THREE.BoxGeometry(h.w, 4.5, h.d),
-      new THREE.MeshBasicMaterial({ color: 0xd8b26a, wireframe: true, transparent: true, opacity: 0.35 }));  // pre-ok: the bench's house-slot wire ghost (not light)
+      new THREE.MeshBasicMaterial({ userData: { progOwner: 'props / totem park / house slot wire ghost' }, color: 0xd8b26a, wireframe: true, transparent: true, opacity: 0.35 }));  // pre-ok: the bench's house-slot wire ghost (not light)
     box.position.set(h.x, (h.y !== undefined ? h.y : plan.ground(h.x, h.z)) + 2.25, h.z);
     box.rotation.y = h.ry;
     box.name = 'totem:houseSlot';

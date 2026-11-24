@@ -2,7 +2,7 @@
 // frames_shot.js - THE FRAMES IN THE SHED, HEADLESS (T2.1, 2026-09-21)
 //
 //   node tools/frames_shot.js --url "http://localhost:8471/flyDiy/dev.html?world=none" \
-//        [--build builds/cessna172_2026-09-20.json] [--set frCabTopY=1.15,frPaxProfile=1] \
+//        [--build builds/cessna172r_2026-11-08.json] [--set frCabTopY=1.15,frPaxProfile=1] \
 //        [--hover frCabTopY] [--views q,s,f,t] [--panel] [--out screenshots/frames/cab] [--wait 4000] [--log]
 //
 // The garage_shot / panel_shot rig (headless Chrome over CDP, this machine's

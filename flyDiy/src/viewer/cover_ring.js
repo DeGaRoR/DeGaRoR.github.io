@@ -444,7 +444,7 @@ var COVER_RING = (() => {
       if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
       // a shaped species' own cut (the user 15 Nov: "they would all need the alpha fairly low"): its tint's alpha; a flower keeps 0.5
       const cut = c && shapedOf(c) && c.tint && c.tint.alpha > 0 ? +c.tint.alpha : 0.5;
-      const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: cut, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
+      const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: cut, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 }, 'cover / ring / cards (grass, flowers, shrubs)');
       // no normal override (the bench has none): upHook forced the object normal up on this
       // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
       LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m);   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
@@ -496,7 +496,7 @@ var COVER_RING = (() => {
             let mat = q.mat;
             if (rockish(c) && plain.has(q.mat.map || null)) mat = plain.get(q.mat.map || null);
             else if (rockish(c)) {                              // the leaf hook's AO attribute drew the rocks black (the bench): a plain copy
-              mat = MATLIB.make(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 });   // the ring's own: its fade (and a cut) hook it
+              mat = MATLIB.make(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }, 'cover / ring / rocks');   // the ring's own: its fade (and a cut) hook it
               plain.set(q.mat.map || null, mat);
               // THE SKIRT IS CUT (2026-09-22, the coast scans): a photoscanned strip carries the sand round its rocks, and
               // that skirt lay on the terrain as a pale plate wherever the ground fell away under it. A rock row's

@@ -4,7 +4,7 @@
 // the Conquer's ball, its loads back to the car as car.extF; the bunks push up only, the latch opens when the wing
 // carries the weight - the glider study's probe_trailer, made a module) and src/vehicle/trailer_model.js (the trailer
 // drawn). The floatplane is the Twin-582 floatplane archetype; the flying boat the classic-V hull with a pylon O-540 off
-// the Cessna-on-floats build (tools/fixtures/trailer_hull_classic_pylon.json: `node tools/hull_matrix.js
+// the Cessna-on-floats build (tools/fixtures/test_copies/trailer_hull_classic_pylon.json: `node tools/hull_matrix.js
 // --one=classic:pylon --fitonly --save=...`, the hull fit's cycle), each flown by trailer.js's hands (the page's player
 // flies himself).
 //   FIT     the floatplane on its trailer at rest: a pad under each float's keel fore and aft, the cradle's attitude,
@@ -43,7 +43,7 @@ const P0 = G.places['rwy:HOME:0'], P1 = G.places['rwy:HOME:1'];
 const dl = Math.hypot(P1.x - P0.x, P1.z - P0.z), dx = (P1.x - P0.x) / dl, dz = (P1.z - P0.z) / dl, hdg = Math.atan2(dz, dx);
 const A = DS.ARCHETYPES.find(x => x.key === 'floatplane');
 const DEF = { floats: C.buildGen(DS.designBake(A.sel, A.over)),
-              hull: C.buildGen(C.genMigrateSpec(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'trailer_hull_classic_pylon.json'), 'utf8')).spec)) };
+              hull: C.buildGen(C.genMigrateSpec(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'test_copies', 'trailer_hull_classic_pylon.json'), 'utf8')).spec)) };
 
 // the rig at runway 13's end: the car 14 m in, the aeroplane settled on its keels behind it, then seated on the trailer
 function rig(which, o) {
@@ -251,7 +251,7 @@ const clipWords = c => (c.n ? c.n + ' points inside a tyre (the worst ' + (c.wor
   }
   // (13 Nov) THE WEATHERING (the user: "a little weathering ... the same system as the planes and the field"): every material
   // patched with the planes' grunge sheet, every anchor of three's physical program hit, its uniforms in, its own program key;
-  // the wood at half its saturation; the macros one shared write
+  // the wood at 0.7 of its saturation (13 Nov, the user: "in the middle of the two options"); the macros one shared write
   { const R = rig('floats'), Mw = TM.buildTrailerModel(THREE, R.L.trailer, { ao: false }), bad = [];
     let n = 0;
     for (const [k, m] of Object.entries(Mw.materials)) { if (!m || !m.isMaterial) continue; n++;
@@ -263,7 +263,7 @@ const clipWords = c => (c.n ? c.n + ' points inside a tyre (the worst ' + (c.wor
     }
     const satW = TM.TRL_WX.mat.timber[3], satP = TM.TRL_WX.mat.plank[3];
     const w0 = TM.trailerWeather(THREE), w1 = TM.trailerWeather(THREE, { mud: 0.8 }), w2 = TM.trailerWeather(THREE, { mud: w0.mud });
-    const okW = bad.length === 0 && n >= 12 && satW === 0.5 && satP === 0.5 && w1.mud === 0.8 && w2.mud === w0.mud && w0.age > 0 && w0.age < 0.6;
+    const okW = bad.length === 0 && n >= 12 && satW === 0.7 && satP === 0.7 && w1.mud === 0.8 && w2.mud === w0.mud && w0.age > 0 && w0.age < 0.6;
     ok = ok && okW;
     surf += '; THE WEATHERING: ' + (n - bad.length) + ' / ' + n + ' materials patched (the planes\' grunge sheet, the program \'trl-wx\')' + (bad.length ? ' - NOT ' + bad.join(', ') : '') +
       ', the macros age ' + f(w0.age, 2) + ' mud ' + f(w0.mud, 2) + ' rain ' + f(w0.rain, 2) + ' (one shared write), the wood at ' + satW + ' x its saturation' + (okW ? '' : ' - FAILED');
@@ -327,7 +327,8 @@ const clipWords = c => (c.n ? c.n + ' points inside a tyre (the worst ' + (c.wor
       // (13 Nov: the sandbox's start chooser - window.FLYDIY_START's six calls, the car tow by its pick, the push stepped
       //  before each solver step after the hand's input, flown inline, and its handover; the story left alone)
       start: ['available:', 'vehicle:', 'powered:', 'async starts()', 'async destinations(startId)', 'go(o)'].every(k => APP.includes('window.FLYDIY_START = {') && APP.includes(k)),
-      cartow: /if \(START\.mode === 'cartow'\) return true;/.test(APP), pushStep: /else if \(START\.push && !START\.push\.done\) pushStep\(\);/.test(APP),
+      // (WINCH-LAND 23 Nov: the car tow's branch may carry the winch launch beside it - the car tow still required)
+      cartow: /if \(START\.mode === 'cartow'( \|\| START\.mode === 'winch')?\) return true;/.test(APP), pushStep: /else if \(START\.push && !START\.push\.done\) pushStep\(\);/.test(APP),
       pushInline: /\|\| START\.mode === 'push';/.test(APP), story: /available: \(\) => !startStory\(\)/.test(APP) };
     const miss = Object.keys(hooks).filter(k => !hooks[k]);
     const okL = lazy.includes('src/vehicle/trailer.js') && lazy.includes('src/vehicle/trailer_model.js') && !B.MANIFEST.core.some(n => /trailer/.test(n));

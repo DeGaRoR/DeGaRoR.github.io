@@ -442,7 +442,7 @@ function editCheck() {
     ok(miss === 0, '3 the stones\' draws hold the same uniforms (bar the batching\'s own)', SA.states.size + ' distinct states instanced, ' + SB.states.size + ' batched');
     ok(SB.mats < SA.mats && SB.meshes < SA.meshes && SB.draws < SA.draws, '3 fewer materials, meshes and draws', 'materials ' + SA.mats + ' -> ' + SB.mats + ', meshes ' + SA.meshes + ' -> ' + SB.meshes + ', draws ' + SA.draws + ' -> ' + SB.draws);
     const CL = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'cliffs.js'), 'utf8');
-    ok(/MATLIB\.shared\(THREE, 'std', \{ map: q\.mat\.map \|\| null, roughness: 1, metalness: 0 \}\)/.test(CL), '3 the cliffs ask the stones\' record (one material per map)');
+    ok(/MATLIB\.shared\(THREE, 'std', \{ map: q\.mat\.map \|\| null, roughness: 1, metalness: 0 \}(?:, null, '[^']*')?\)/.test(CL), '3 the cliffs ask the stones\' record (one material per map)');
   }
   // 4
   const K = keysSide();

@@ -51,7 +51,8 @@
 //   node tools/flight_script.js home_circuit                 a library scenario (tools/flight_scripts/<name>.json)
 //   node tools/flight_script.js path/to/scenario.json        any scenario file
 //   node tools/flight_script.js --list                       the library
-//   options: --out <dir> · --log <file.jsonl> · --quiet · --runner node (default) | page (the GPU, in A0's slot: --cap S --size WxH --repo <a tree to serve>)
+//   options: --out <dir> · --log <file.jsonl> · --quiet · --runner node (default) | page (the GPU, in A0's slot: --cap S --size WxH --repo <a tree to serve>
+//            --headed (a visible Chrome) --live (page_rig's native flight wait) --q "k=v&..." (the page's query) --boot S (seconds allowed for the load))
 //   exit 0 = every step passed, 1 = a step failed (the WHY printed and logged), 2 = a bad scenario
 // AS A MODULE: const FS = require('./flight_script.js'); const R = FS.runNode(scenario, { log: file, quiet: true });
 //   R = { ok, steps: [...], failed: { step, why } | null, t, wall, log }
@@ -478,7 +479,9 @@ if (require.main === module) {
   const bad = checkScenario(S);
   if (bad.length) { console.error('flight_script: bad scenario ' + S.name + ':\n  ' + bad.join('\n  ')); process.exit(2); }
   if (runner === 'page') {   // (A GPU RUN NEEDS A0's SLOT: boxlock.sh take gpu first, RIG-PROCEDURE 1)
-    runPage(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), cap: +opt('cap', 900), size: opt('size', undefined), repo: opt('repo', undefined), q: opt('q', undefined) })
+    // (PERF-TRACE 22 Nov: --headed --live --q --boot reach page_rig too - the user's rule: timing from a VISIBLE browser at the big screen's size)
+    runPage(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), cap: +opt('cap', 900), size: opt('size', undefined), repo: opt('repo', undefined),
+      headed: argv.includes('--headed'), live: argv.includes('--live'), q: opt('q', undefined), boot: +opt('boot', 0) || undefined })
       .then(R => process.exit(R.ok ? 0 : 1), e => { console.error('flight_script (page): ' + (e && e.message || e)); process.exit(2); });
   } else {
     const R = runNode(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), every: opt('every', undefined) });

@@ -73,7 +73,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, keelLevel:0, deckLevel:0, deckFall:0, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // PROPER-COWLS: the side gills (the Carbon Cub's): off by default
   // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
   // two-row radial's rear row; null = lobeT)
@@ -86,7 +86,7 @@ const P={
   // PROPER-COWLS: the head cylinders, merged into the skin (cylOn 0 = none)
   cylOn:0, cylAz:0, cylOff:0.3, cylR:0.12, cylZ0:0.1, cylZ1:0.4, cylNose:0.1, cylTail:0.15, cylRin:0, cylOffIn:null, cylBlend:0.025, cylOgive:0, cylProfile:0, cylFront:0.7, cylInlet:0, cylVert:1, cylSq:0.5, cylLipT:null, cylDuctLen:null, cylDuctEnd:null, cylDuctBack:null,
   gillOn:0, gillN:6, gillZ:0.35, gillY:0.5, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004, gillUp:null,   // (CAR-1: null = centred; gillUp, the car's height, wins over gillY when set)
-  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10, lampIn:0,   // CAR-1: the grille, the radiator cap (off)
+  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10, lampIn:0, blinkOn:0, blinkY:0,   // CAR-1: the grille, the radiator cap (off)
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
   // ENGINE-COOLING (12 Nov, the user: "let's have at least a top scoop"): scoopTop 1 puts it on the cowl's TOP
@@ -356,10 +356,11 @@ function prepareLid(){
   // one recipe, used for the deck and the keel with their own scale and sweep
   // (q1 / q2: this line's own shoulder and fullness - the keel's may differ from the rest, see keelShoulder)
   // (level: the line leaves z0 LEVEL - the fuselage's own bottom carried on - rather than on the barrel's taper)
-  const half=(k,sweep,end,q1,q2,level)=>{
+  // (lvl: KEEL-LEVEL, 16 Nov - the slope the line leaves z0 on when `level`, so it can cancel the spine's climb)
+  const half=(k,sweep,end,q1,q2,level,lvl)=>{
     const a1c=q1!=null?q1:c1, a2c=q2!=null?q2:c2;
     const z0=cl-clamp(sweep,0,0.95)*cl, Lh=ze-z0;
-    const v0=k*lerp(h0,h1,z0/cl), sv=level?0:sh*k;
+    const v0=k*lerp(h0,h1,z0/cl), sv=level?(lvl||0):sh*k;
     return {z0, k, c:mkCurve([z0, z0+Lh*a1c, ze-Lh*0.05, ze],
                              [v0, v0+sv*Lh*a1c, end+(v0-end)*a2c, end])};
   };
@@ -376,8 +377,34 @@ function prepareLid(){
   const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
   // PROPER-COWLS V5 (the user, 8 Nov: "you are drawing the top side completely straight ... a little taper ... so that
   // you come and kiss better the top of the prop"): the top line's own bend, as the keel's (absent = the bowl's pair)
+  // DECK-LEVEL (16 Nov, the 172, the user: "the cowl does not start straight ... a little band next to the firewall
+  // which is smaller, and breaks the continuity"): the keel's KEEL-LEVEL for the top line - it leaves the firewall
+  // level AS SEEN (the spine climbs by lidRise over the barrel, so the top's own half-height shrinks at that rate) and
+  // the barrel no longer climbs over the fuselage's deck in its first centimetres. Absent: the taper's slope, as always
   const T=half(kT, P.deckSweep, lidRT()+fr,
-               P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1));
+               P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1),
+               +P.deckLevel>0, +P.deckLevel>0 ? -(+P.lidRise||0)/cl - (+P.deckFall||0) : 0);
+  // (and the stretch BEHIND the bend - the last sweep share by the firewall - carries the same level line, not the
+  // taper's: else the top still climbs in its first centimetres, the very band the user saw)
+  // DECK-FALL (16 Nov, the 172, the user: "this one dips towards the propeller, and ours don't dip enough"): with deckLevel,
+  // the top line falls by deckFall (m a metre, as seen) toward the nose instead of leaving level - the three-view's
+  // straight descent from the firewall to the nose bowl. Absent 0: level, as deckLevel drew it
+  if(+P.deckLevel>0){ const z0=T.z0; T.lin={ v0:T.c.at(z0), sv:-(+P.lidRise||0)/cl-(+P.deckFall||0), z0 }; }
+  // DECK-FALL AS ONE CONVEX LINE (16 Nov, the 172, the user: "we need to get rid of the little hump close to the nose to get a
+  // purely monotonous curve"). The bowl's bend was aimed at the firewall's height (fullness measured from v0), so a top
+  // that already falls toward the nose dipped under the bend's second point and climbed back to it: a hump. With a fall the
+  // line is drawn AS SEEN (the spine's climb taken out): straight on the fall to the shoulder, then the bowl - its second
+  // point between the chord to the ring (deckRound 0) and the fall carried on (1) - so the control polygon is convex and
+  // the line only ever steepens into the face. Absent (deckFall 0): the bend as it was, to the bit
+  if(+P.deckLevel>0&&+P.deckFall>0){
+    const z0=T.z0, Lh=ze-z0, fall=+P.deckFall, lr=+P.lidRise||0;
+    const s0=T.c.at(z0)+lr*z0/cl, sE=lidRT()+lr+(+P.faceRise||0);            // seen heights: the line's start, the ring's top
+    const line=z=>s0-fall*(z-z0);
+    const z1=z0+Lh*clamp(P.deckShoulder==null?c1:+P.deckShoulder,0,0.92), z2=ze-Lh*0.05, v1=line(z1);
+    const chord=v1+(sE-v1)*(z2-z1)/Math.max(ze-z1,1e-6), r=clamp(P.deckRound==null?c2:+P.deckRound,0,1);
+    const v2=Math.max(chord+(Math.max(line(z2),chord)-chord)*r, sE);
+    T.seen=mkCurve([z0,z1,z2,ze],[s0,v1,v2,sE]);
+  }
   // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
   // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
   // carry the barrel late (shoulder 0.88) bent its bottom late and sharp too. keelShoulder / keelRound give the bottom
@@ -386,7 +413,12 @@ function prepareLid(){
   // Absent (null) = the bowl's pair, to the bit.
   const K=half(kB, P.keelSweep, lidRB()-fr,
                P.keelShoulder==null?null:clamp(+P.keelShoulder,0,0.92), P.keelRound==null?null:clamp(+P.keelRound,0,1),
-               P.keelShoulder!=null);   // its own bend leaves the firewall level and rounds up into the face
+               P.keelShoulder!=null,    // its own bend leaves the firewall level and rounds up into the face
+               // KEEL-LEVEL (16 Nov, the 172, the user: "this gentle, easing curve, where the tangent aligns at the firewall
+               // bottom with the fuselage, then curves upwards"): level as SEEN - the line is drawn about the spine, which
+               // climbs over the barrel (lidRise), so it leaves on the spine's own slope and stays level in the side view.
+               // Absent: level along the spine, as always
+               +P.keelLevel>0 ? (+P.lidRise||0)/cl : 0);
   // PROPER-COWLS (2026-11-08): `waistF` - THE WIDEST LINE'S HEIGHT AT THE BARREL END, as a fraction of the front's
   // half-height. A straight cowl's front is centred on the thrust line and shorter than the firewall, so a waist held at
   // ONE fraction of the height would fall or climb along the barrel; with waistF the widest line runs straight from the
@@ -435,7 +467,9 @@ function sectionAtZ(z){
     nB=sqExp(lerp(P.sqFrontBot,P.lidSqBot,u));
   }
   const hLin=lerp(P.aftH,P.aftH*P.taperH,clamp(z/cl,0,1));
-  let bT = z<=LID.T.z0 ? LID.T.k*hLin : Math.max(LID.T.c.at(z),0.003);
+  let bT = z<=LID.T.z0 ? (LID.T.lin ? Math.max(LID.T.lin.v0+LID.T.lin.sv*(z-LID.T.lin.z0),0.003) : LID.T.k*hLin) : Math.max(LID.T.c.at(z),0.003);
+  // (DECK-FALL: the seen line less the local spine - the bowl's own lift taken back below, as for every shaped ring)
+  if(LID.T.seen&&z>LID.T.z0) bT=Math.max(LID.T.seen.at(z)-(z>cl&&lidShaped()?P.lidRise:cy),0.003)+(z>cl&&lidShaped()?cy-P.lidRise:0);
   let bB = z<=LID.K.z0 ? LID.K.k*hLin : Math.max(LID.K.c.at(z),0.003);
   let yw = z<=LID.W.z0 ? (LID.W.kF==null ? LID.W.k*hLin : lerp(LID.W.yA,LID.W.yF,clamp(z/cl,0,1))) : LID.W.c.at(z);
   if(z>cl&&lidShaped()){ const sh=cy-P.lidRise; bT=Math.max(bT-sh,0.003); bB=Math.max(bB+sh,0.003); if(z>LID.W.z0) yw-=sh; }
@@ -1291,7 +1325,7 @@ function buildGrille(group,mats){
   const hw=o.w*0.96, hh=o.h*0.96;
   const NR=Math.max(0,Math.round(P.grilleRows||0));
   const R=grilleNumRects({cx:o.cx,cy:o.cy,w:hw,h:hh});
-  const plateM=R?new THREE.MeshStandardMaterial({color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
+  const plateM=R?new THREE.MeshStandardMaterial({userData:{progOwner:'aircraft / cowl / grille number digits'},color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
   const inR=(x,y,r)=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];
   // (the user: "the letter should be white and the rest should not be painted"): the digits ivory, the rest bare grille
   const matAt=(x,y)=>!R?m:(R.ink.some(r=>inR(x,y,r))?plateM:m);
@@ -1349,7 +1383,7 @@ function buildLamps(group,mats,shellM){
   const ze=zEnd(), z=ze-Math.max(0,P.lampBack), cy=spineY(ze)+P.lampY, r=Math.max(0.03,P.lampR);
   const half=surfPoint(0,z)[0];
   const chrome=mats.steel||mats.skin, shell=shellM||mats.skin;
-  const lens=new THREE.MeshStandardMaterial({color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
+  const lens=new THREE.MeshStandardMaterial({userData:{progOwner:'aircraft / cowl / headlamp lens'},color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
   lens.userData.aeroskin=1;
   // CAR-3 (the user, 12 Nov: "two additional openings on the sides in which you're gonna stick the headlamps"):
   // lampIn 1 seats each lamp IN the face's side aperture (apMode 2 / 3: the fitted pair), lampBack behind the face,
@@ -1374,6 +1408,39 @@ function buildLamps(group,mats,shellM){
     const a=new THREE.Vector3(x-sg*r*0.2,cy-r*0.2,z-r*0.9), b=new THREE.Vector3(sg*(half-0.005),cy-r*0.6,z-r*1.6);
     const L=a.distanceTo(b), st=new THREE.Mesh(new THREE.CylinderGeometry(r*0.12,r*0.14,L,10),chrome);
     st.position.copy(a.clone().add(b).multiplyScalar(0.5)); st.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize()); st.name='cowlLamp'; group.add(st);
+  }
+}
+// CAR-3 (the user, 12 Nov: "use the little lights that we have at the wingtips there to do some blinkers"): blinkOn - a
+// wingtip light's teardrop (the cage light layer's pod: a quarter ellipse to the shoulder, a fine tail) on each side of
+// the bonnet just behind the face, its nose forward and AMBER (the lens IS the pod's nose, as on a wingtip), its tail
+// chrome; at the headlamps' height (lampIn: the inlets' centre, else lampY over the axis) less blinkY. Absent = none.
+function buildBlinkers(group,mats){
+  if(!(P.blinkOn>0)) return;
+  const ze=zEnd(), len=0.13, wide=0.05, high=0.032, NOSE=0.34;
+  const pr=(P.lampIn>0&&(P.apMode===2||P.apMode===3))?apertureList().slice(P.apMode===3?1:0):null;
+  const yT=(pr&&pr.length===2?pr[0].cy:spineY(ze)+P.lampY)-(P.blinkY||0);
+  const zc=ze-0.05-len*(1-NOSE)*0.15;                         // the widest station, the nose just short of the face
+  const lens=(typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', {color:new THREE.Color(0xff9a1a).multiplyScalar(0.45),emissive:0xff8a12,emissiveIntensity:0.6,roughness:0.2,metalness:0,side:THREE.DoubleSide},'aircraft / cowl / blinker lens');   // (PERF-TRACE: the owner, MATLIB's 4th argument)
+  lens.userData.aeroskin=1;
+  const tailM=mats.steel||mats.skin;
+  const f=u=>u<=NOSE?Math.sqrt(Math.max(0,1-Math.pow((NOSE-u)/NOSE,2))):Math.pow(Math.max(0,(1-u)/(1-NOSE)),0.72);
+  for(const sg of [1,-1]){
+    // the bonnet's side at that height: the section's own point, scanned over the near half
+    let best=null;
+    for(let k=-40;k<=40;k++){ const th=(sg>0?0:Math.PI)+k/40*Math.PI/2*(sg>0?1:-1), q=surfPoint(th,zc);
+      if(best==null||Math.abs(q[1]-yT)<Math.abs(best[1]-yT)) best=q; }
+    const cx=best[0], cy=best[1];
+    for(const [u0,u1,m] of [[0,NOSE,lens],[NOSE,1,tailM]]){
+      const pos=[], idx=[], R2=10, S2=14;
+      for(let j=0;j<=R2;j++){ const uu=0.5*(1-Math.cos(Math.PI*j/R2)), u=u0+(u1-u0)*uu, k=Math.max(f(u),1e-3), t=(u-NOSE)*len;
+        for(let i=0;i<S2;i++){ const th=2*Math.PI*i/S2;
+          // along -z (nose forward), up = out of the side (x), the width up the bonnet (y); half the pod sunk in the skin
+          pos.push(cx+sg*(Math.sin(th)*high*k), cy+Math.cos(th)*wide/2*k, zc-t); } }
+      for(let j=0;j<R2;j++) for(let i=0;i<S2;i++){ const i2=(i+1)%S2, a0=j*S2+i, a1=j*S2+i2, b0=(j+1)*S2+i, b1=(j+1)*S2+i2;
+        if(sg>0) idx.push(a0,b0,a1,a1,b0,b1); else idx.push(a0,a1,b0,a1,b1,b0); }
+      const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+      const mm=new THREE.Mesh(g,m); mm.name='cowlLamp'; group.add(mm);
+    }
   }
 }
 function buildCap(group,mats){
@@ -2332,6 +2399,6 @@ function coolHeads(R, toCowl){
   return { out:+out.toFixed(5), all:+all.toFixed(5) };
 }
 
-const COWL_API = { cutCylJoin, cylNorm, cylShape, surfPointU, buildCylinders, buildCylFillet, cylMerge, coolOpenings, coolHeads, gillsFit, buildGills, buildGrille, buildCap, buildLamps, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { cutCylJoin, cylNorm, cylShape, surfPointU, buildCylinders, buildCylFillet, cylMerge, coolOpenings, coolHeads, gillsFit, buildGills, buildGrille, buildCap, buildLamps, buildBlinkers, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

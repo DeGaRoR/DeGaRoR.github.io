@@ -63,7 +63,7 @@ CS=D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/CLOUD-SHOTS
 for RB in cub twin; do PB=$RB PE reg_$RB --rows none --query idle=0 --initjs "$CS/atlas_hook.js" --evaljs "$CS/reg_check.js" --evalwait 15 --shotview s --shot "$OUTD/s20_reg_${RB}_side.jpg" --out "$OUTD/reg_$RB.json"; done
 if ! late; then
   say "run touch (PHONE-GARAGE's checks)"
-  timeout 900 node "$FLY/tools/perf/mobile_phone_cdp.js" --port $APORT --url "http://localhost:$PORT/flyDiy/dev.html?profile=phone" --build "$FLY/bugReports/Twin_busher_floats_2.json" \
+  timeout 900 node "$FLY/tools/perf/mobile_phone_cdp.js" --port $APORT --url "http://localhost:$PORT/flyDiy/dev.html?profile=phone" --build "$FLY/tools/fixtures/test_copies/Twin_busher_floats_2.json" \
     --skip boot,drag,frames,soak --shot "$OUTD/s20_after_edit_tab.jpg" --out "$OUTD/touch.json" --no-adb >> "$OUTD/touch.txt" 2>&1
   say "  touch exit $?"
 fi

@@ -395,9 +395,9 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
       m.userData.townkit = kind;
       return m;
     };
-    for (const k of KINDS) mats[k] = hooked(k, lib.shared(THREE, 'house', { side: k === 'plain2' ? THREE.DoubleSide : THREE.FrontSide, dithering: dith }, 'townkit:' + k));
+    for (const k of KINDS) mats[k] = hooked(k, lib.shared(THREE, 'house', { side: k === 'plain2' ? THREE.DoubleSide : THREE.FrontSide, dithering: dith }, 'townkit:' + k, 'town / houses / kit walls'));
     const depthOf = scope => {
-      const d = lib.shared(THREE, 'depth', {}, scope);
+      const d = lib.shared(THREE, 'depth', {}, scope, 'town / houses / kit depth');
       d.onBeforeCompile = sh => { Object.assign(sh.uniforms, U); const miss = []; editDepth(sh, miss); if (miss.length) { ST.missing = miss; console.warn('townkit: the depth edits missed', miss); } };
       d.customProgramCacheKey = () => 'townkit:depth';
       return d;
@@ -408,7 +408,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
     const matsBy = new Map();
     function matsFor(tag) {
       let m = matsBy.get(tag);
-      if (!m) { m = {}; for (const k of KINDS) m[k] = hooked(k, lib.shared(THREE, 'house', { side: k === 'plain2' ? THREE.DoubleSide : THREE.FrontSide, dithering: dith }, 'townkit:' + tag + ':' + k)); matsBy.set(tag, m); }
+      if (!m) { m = {}; for (const k of KINDS) m[k] = hooked(k, lib.shared(THREE, 'house', { side: k === 'plain2' ? THREE.DoubleSide : THREE.FrontSide, dithering: dith }, 'townkit:' + tag + ':' + k, 'town / houses / kit walls')); matsBy.set(tag, m); }
       return m;
     }
     // the instanced arm's own records (MATLIB.variant copies a hook only when it is the material's own property; the
@@ -472,7 +472,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
       for (const [gk, G] of GEO) KINDS.forEach((k, ki) => {
         if (!G[k]) return;
         const n = cap.get(Math.floor(gk / 3));
-        const mi = matsI[k] || (matsI[k] = hooked(k, lib.shared(THREE, 'house', { side: k === 'plain2' ? THREE.DoubleSide : THREE.FrontSide, dithering: dith }, 'townkit:inst:' + k)));
+        const mi = matsI[k] || (matsI[k] = hooked(k, lib.shared(THREE, 'house', { side: k === 'plain2' ? THREE.DoubleSide : THREE.FrontSide, dithering: dith }, 'townkit:inst:' + k, 'town / houses / kit walls (instanced)')));
         const im = new THREE.InstancedMesh(G[k], mi, n);
         const ida = new THREE.InstancedBufferAttribute(new Float32Array(n), 1); G[k].setAttribute('aKitId', ida);
         im.name = 'townkit:inst:' + k; im.count = 0; im.castShadow = true; im.receiveShadow = true; im.frustumCulled = true;

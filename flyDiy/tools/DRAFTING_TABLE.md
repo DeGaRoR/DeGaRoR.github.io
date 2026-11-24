@@ -724,7 +724,8 @@ EACH, maximum flotation 2,781 / 2,854 kg for the pair, FAR 23.751), a three-view
 - THE LIVERIES (the livery kit only; the tints authored under the colour fix, claude/fit-procedure-colour):
   the floats card wears the photographs' yellow (green-over-blue cheat lines, a green tailplane, the script on the
   cowl; tools/drafting/refs/pc6_livery_floats_yellow.py); two red-and-white land liveries ride as cards of their own
-  (builds/candidates/pc6_livery_alpengluehn / _nordwind; tools/drafting/refs/pc6_liveries_redwhite.py): a Swiss alpine
+  (builds/candidates/pc6_livery_alpengluehn / _nordwind - since 18 Nov the PC-6 cards' own liveries "Alpengluehn" and
+  "Nordwind" in the livery manager, the two card files retired; tools/drafting/refs/pc6_liveries_redwhite.py): a Swiss alpine
   sweep with a flash, a cross trail and the flag, and a German jump ship with twin cheat lines and red tips. A
   side-projected text set high on a cowl smears over its top (seen from above): keep a cowl's lettering on the flat
   flank.

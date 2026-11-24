@@ -514,7 +514,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
     const uni = Object.assign({}, U, { uSkyEye: { value: new THREE.Vector4(40000, 0, 0, 0) } });
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
     else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
-    skyMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: skyFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
+    skyMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: skyFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false }, 'sky / clouds / sky map');
     skyRT = new THREE.WebGLRenderTarget(SKY_W, SKY_H * SKY_EYES, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
   }
   // the sky pass drawn once without a readback while the noise still bakes: its program compiles then (a
@@ -679,7 +679,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
     const uni = Object.assign({}, U, { uSteps: { value: new THREE.Vector2(steps || 24, 3) }, uFrame: { value: frameYaw || 0 }, uEye: U.uEye });
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
     else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
-    const m = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: DOME_VERT, fragmentShader: domeFrag(), glslVersion: THREE.GLSL3, side: THREE.BackSide,
+    const m = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / clouds / dome' }, uniforms: uni, vertexShader: DOME_VERT, fragmentShader: domeFrag(), glslVersion: THREE.GLSL3, side: THREE.BackSide,
       transparent: true, blending: THREE.NormalBlending, depthTest: !!(opts && opts.depthTest), depthWrite: false, toneMapped: false, fog: false });
     domeMats.push(m);
     return m;
@@ -709,7 +709,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
     noiseRT = mk3(NB); detailRT = mk3(ND);
     fsScene = new THREE.Scene(); fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); quad.frustumCulled = false; fsScene.add(quad);
-    bakeMat = new THREE.ShaderMaterial({ uniforms: { uBake: { value: new THREE.Vector3(0, NB, 0) } }, vertexShader: BAKE_VERT, fragmentShader: BAKE_FRAG, depthTest: false, depthWrite: false, toneMapped: false });
+    bakeMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / clouds / noise bake' }, uniforms: { uBake: { value: new THREE.Vector3(0, NB, 0) } }, vertexShader: BAKE_VERT, fragmentShader: BAKE_FRAG, depthTest: false, depthWrite: false, toneMapped: false });
     U.uNoise.value = noiseRT.texture; U.uDetail.value = detailRT.texture;
     U.uInvProj.value = new THREE.Matrix4(); U.uCamMat.value = new THREE.Matrix4(); U.uCamPos.value = new THREE.Vector3(); U.uRes.value = new THREE.Vector2(1, 1);
     U.uGlob.value = new THREE.Vector4(S.sigma, 40000, S.detailPeriod, 1);
@@ -723,10 +723,10 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
     else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
     uni.uMT = uMT; uni.uMJ = uMJ;
-    marchMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
-    compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDZ: U.uDZ, uDepthK: U.uDepthK, uPM: U.uPM, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG(), depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
+    marchMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / clouds / march' }, uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
+    compMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / clouds / composite' }, uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDZ: U.uDZ, uDepthK: U.uDepthK, uPM: U.uPM, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG(), depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });
     compMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat); compMesh.frustumCulled = false; compMesh.renderOrder = 1e6; compMesh.visible = false; compMesh.name = 'cloudComposite';
-    shadowMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U), vertexShader: QUAD_VERT, fragmentShader: shadowFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
+    shadowMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / clouds / shadow map' }, uniforms: Object.assign({}, U), vertexShader: QUAD_VERT, fragmentShader: shadowFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
     shadowRT = (typeof ATMO !== 'undefined' && ATMO.G && ATMO.G.rtAP) ? ATMO.G.rtAP : null;   // the tile lives in the atlas (the flag stays off without it)
     // the GPU timer
     try { const gl = renderer.getContext(); timer.ext = gl.getExtension('EXT_disjoint_timer_query_webgl2'); timer.gl = gl; } catch (e) { timer.ext = null; }
@@ -755,7 +755,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
   const halton = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
   function histMats() {
     if (histMat) return;
-    histMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, uniforms: { uCur: { value: null }, uKT: { value: null }, uHist: { value: null }, uInvProj: U.uInvProj, uCamMat: U.uCamMat, uPrevVP: { value: new THREE.Matrix4() }, uDelta: { value: new THREE.Vector3() }, uTK: { value: new THREE.Vector4() } },
+    histMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / clouds / temporal history' }, glslVersion: THREE.GLSL3, uniforms: { uCur: { value: null }, uKT: { value: null }, uHist: { value: null }, uInvProj: U.uInvProj, uCamMat: U.uCamMat, uPrevVP: { value: new THREE.Matrix4() }, uDelta: { value: new THREE.Vector3() }, uTK: { value: new THREE.Vector4() } },
       vertexShader: QUAD_VERT, fragmentShader: HIST_FRAG(), depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
   }
   function histResolve(r, camera, w, h) {
@@ -1189,7 +1189,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
   const PROBE_N = 64;
   function probeMats() {
     if (probeMat) return;
-    probeMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, uniforms: { uNoise: U.uNoise, uDetail: U.uDetail, uWeather: U.uWeather, uDepth: U.uDepth, uShadow: { value: null }, uWhat: { value: 0 } },
+    probeMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / clouds / light probe' }, glslVersion: THREE.GLSL3, uniforms: { uNoise: U.uNoise, uDetail: U.uDetail, uWeather: U.uWeather, uDepth: U.uDepth, uShadow: { value: null }, uWhat: { value: 0 } },
       vertexShader: QUAD_VERT, fragmentShader: `precision highp float; precision highp sampler3D; precision highp sampler2DArray; ${GLSL3_OUT}
         varying vec2 vUv; uniform sampler3D uNoise, uDetail; uniform sampler2DArray uWeather; uniform sampler2D uDepth, uShadow; uniform float uWhat;
         void main() { vec2 tuv = vUv; if (uWhat < 0.5) gl_FragColor = textureLod(uNoise, vec3(vUv, 0.5), 0.0); else if (uWhat < 1.5) gl_FragColor = textureLod(uDetail, vec3(vUv, 0.5), 0.0); else if (uWhat < 2.5) gl_FragColor = texture(uWeather, vec3(vUv, uWhat - 2.0)); else if (uWhat < 3.5) gl_FragColor = vec4(texture(uDepth, vUv).r, 0.0, 0.0, 1.0); else gl_FragColor = texture(uShadow, ${TILE_UV()}); }`,

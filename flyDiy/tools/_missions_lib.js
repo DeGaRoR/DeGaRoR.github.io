@@ -15,7 +15,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const CORE_DIR = path.join(__dirname, '..', 'src', 'core');
 // the editor's set, in its <script> order = build.js MANIFEST.core's
 const LEAN = ['01_names.js', '26_hangar_fit.js', '34_occupant.js', '38c_route.js', '72_people_faces.js', '72_people.js', '72_accept.js',
-              '72_contract_data.js', '73_contracts.js', '73b_missions.js', '73c_mission_run.js', '79_story.js'];
+              '72_contract_data.js', '73_contracts.js', '73b_missions.js', '73c_mission_run.js', '79_story.js', '79b_tech.js'];
 // over the core, the model's own files (and the people) fresh; the rest is the core's
 const FRESH = ['72_people_faces.js', '72_people.js', '72_accept.js', '72_contract_data.js', '73_contracts.js', '73b_missions.js', '73c_mission_run.js',
                '74_career.js', '75_career_wire.js'];

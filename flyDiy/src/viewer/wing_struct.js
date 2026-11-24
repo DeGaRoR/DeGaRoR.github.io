@@ -585,7 +585,7 @@
       const c = COL[fin === 'bareAlu' ? 'alu' : fin === 'steelTube' ? 'steel' : fin === 'composite' ? 'carbon' : fin === 'gelcoat' ? 'glass' : fin.replace(/^plain:/, '')] || COL.spruce;
       const ML = G2.MATLIB;
       m = ML.shared(T, 'std', { color: new T.Color(c[0], c[1], c[2]), side: T.DoubleSide,
-        roughness: /bareAlu|steelTube/.test(fin) ? 0.45 : 0.78, metalness: /bareAlu|steelTube/.test(fin) ? 0.6 : 0.03 }, 'wingStruct:' + fin);
+        roughness: /bareAlu|steelTube/.test(fin) ? 0.45 : 0.78, metalness: /bareAlu|steelTube/.test(fin) ? 0.6 : 0.03 }, 'wingStruct:' + fin, 'aircraft / wing structure / members');
     }
     m.userData = Object.assign({}, m.userData, { wingStruct: fin, cageUni: 1 });
     if (variant === 'noPoint') {   // the fiche: no point light (see fiche() below)
