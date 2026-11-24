@@ -117,6 +117,30 @@ WHAT THE TOOL DOES NOT DO, learnt the same morning:
   else - the clouds march's two-output variant built at its first draw, 1.4 s - the owner is wrong and the milliseconds
   are right. The program first drawn just before the wait is the one to look at.
 
-NEXT, in order: the 13:00 lever rows' table (ms saved a setting, each against a baseline of the same hour) decides which
-geometry to cut; the automatic scale's new rule flown (does it climb back to 0.85 and hold the card under 28 ms); the
-tail's split once `lostBy` reads zero; then the census pin of section 4.
+THE LEVERS (24 Nov 13:00, the same cruise, one setting down a row, against a base of the same hour; whole-frame GPU
+median / p90 change in ms; base climb 38.1 / 49.8 at 38 M triangles, cruise 30.1 / 42.8 at 15 M; noise about 0.6):
+
+| lever | climb med / p90 | cruise med / p90 | CPU loop, climb |
+|---|---|---|---|
+| render scale 0.75 | -5.9 / -3.6 | -3.9 / -5.7 | -4.3 |
+| ground blend lean | -4.9 / -4.3 | -2.8 / -4.9 | -4.3 |
+| shadows off | -4.6 / -8.9 | not valid (the rig's cap) | -8.0 |
+| msaa4 | -3.1 / -2.9 | -1.8 / -2.1 | -3.6 |
+| ground cover off | -2.5 / -10.8 | +0.5 / -3.4 | -6.7 |
+| forest detail minimum | -1.4 / -4.7 | +0.3 / +0.1 | -2.9 |
+| forest density 100 | +0.9 / +2.8 | -0.4 / +0.6 | +1.6 |
+
+- The median is pixels and the ground shader (scale, ground blend). The tail near the ground is the cover and the
+  shadows: each halves the climb's triangles (the shadow maps' draws are in renderer.info's count) and cuts the CPU loop
+  by 7-8 ms - near the ground the loop is 36.8 ms, over the 33.3 budget on the CPU side too.
+- The per-pass "shadow" segment (three's shadowMap.render) reads 0.1-0.6 ms while shadows off saves 4.6: most shadow work
+  is elsewhere. Use the knock-out's number.
+- SETTING clouds 'off' THROUGH GFX.set MID-FLIGHT RESTARTS THE FLIGHT (the sim's clock back to 0, a fresh recorder): that
+  row has no data. A setting that rebuilds the page goes in the query, not in a page step.
+- PERF-LEAD's new scale rule (the part that does not scale, learnt): it now tries to climb back (two trials up in the
+  cruise); after a failed trial its 60 s hold kept it at 0.5 to the end of the 75 s window. A longer cruise is the test.
+
+NEXT, in order: ground blend 'lean' judged by the user's eye as a default (the cheapest median lever, no pixels lost);
+the cover's shadow-map copies near the ground (a cover that casts no shadow, or a nearer shadow cut-off for it - the p90
+lever, not "cover off"); the automatic scale's new rule on a cruise long enough for its 60 s hold to expire; the clouds
+and terrain rows again with the setting in the page's query; then the census pin of section 4.
