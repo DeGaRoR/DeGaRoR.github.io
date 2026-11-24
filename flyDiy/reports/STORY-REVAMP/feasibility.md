@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 55 feasible; 16 infeasible; 3 no official plane can fly it (the player builds one); 6 not flown; 3 stale. Time flown: 1762 min 45 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 56 feasible; 16 infeasible; 3 no official plane can fly it (the player builds one); 6 not flown; 2 stale. Time flown: 1783 min 18 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -42,7 +42,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 55 feasible; 16 infea
 | resort.guests | contract | feasible | Jodel D112 | 29 min 53 s | HOME > tw_ski 962; tw_ski > HOME 830 |  |
 | resort.02 | skyline:1 | feasible | Piper Cub | 34 min 31 s | HOME > w3 570; w3 > tw_ski 1502 |  |
 | resort.03 | skyline:2 | infeasible | STOL Cub | 21 min 01 s | HOME > tw_ski 572; tw_ski > tw_ski 689 | never took off on tw_ski > tw_ski (689 s on the ground: HOLD>DEPART>TAXI>STOP>HOLD>STOPPED) - the page ended it as a stop and the career counted it (a step judged on stop.aero alone) |
-| skyline.03 | skyline:2 | stale | - | - | - |  |
+| skyline.03 | skyline:2 | feasible | Piper Cub | 20 min 33 s | HOME > tw_ski 1233 |  |
 | resort.05 | skyline:3 | infeasible | PC-6 Turbo Porter | 40 min 00 s | HOME > tw_ski 2400 | the flight did not end (2400 s) |
 | survey.01 | contract | feasible | Piper Cub | 37 min 49 s | HOME > HOME 1650; HOME > HOME 619 |  |
 | survey.02 | contract | feasible | Cessna 172 floats (career) | 20 min 01 s | SEA > mk_sea 427; mk_sea > SEA 774 |  |

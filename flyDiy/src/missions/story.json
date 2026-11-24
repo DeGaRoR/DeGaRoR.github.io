@@ -2000,7 +2000,13 @@
     "provider": "resort",
     "gain": 0.5
    },
-   "client": "martha"
+   "client": "martha",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1233,
+    "sig": "578869bc"
+   }
   },
   {
    "id": "resort.05",
