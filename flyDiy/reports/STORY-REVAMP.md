@@ -130,13 +130,14 @@ Those, by cause:
 - resort.03, clients.03: the altiport (tw_ski, 280 m on a 20 % grade), flown light: the Cub and the STOL Cub touch about 100 m in, stop off the strip's end on the slope and cannot taxi back; the Jodel alone goes on its back in the rollout (with a passenger it lands it: club.breakfast, resort.01, resort.guests). The built-in pack's own mission - the pilot's or the field's
 - resort.05: two passengers to the altiport (tw_ski): with three aboard the STOL-kit Cessna goes around until its fuel is out and the PC-6 gives up in the flare - the altiport again, flown heavy; master's own GATE CONTRACTS names this mission red ("stage 0 is flyable by a validated design")
 - obs.02: 200 kg and a passenger into the 210 m mountain strip: the STOL-kit Cessna lands there, its loading card takes 140 kg beside the passenger - a hauler the player builds
-- obs.03: NOT READ YET
+- obs.03: a passenger fetched FROM the 210 m mountain strip: the aeroplanes land there (the Cessna, the STOL Cub) and none gets lined up to leave - the test pilot's taxi on that strip (the STOL Cub goes over in the taxi, the Carbon Cub in the rollout); the flights TO it are feasible (obs.01, obs.05)
 - obs.04, obs.07: two passengers into the 210 m mountain strip: with three aboard the test pilot will not go (the STOL-kit Cessna needs 277 m, the PC-6 246 m) - a three-seat STOL plane the player builds
 - obs.06, obs.08, obs.09: 150 to 250 kg into the 210 m mountain strip: the STOL-kit Cessna lands there but its loading card takes 50 kg for that strip, and the PC-6 will not go (a 226 m landing run) - the observatory's hauler, a plane the player builds (the class named before any flight)
 - clients.n2: no official plane can carry it (a 175 kg load with its long item): a named class, not flown
 - home.06: no official plane can carry it (450 kg into the 383 m Cabin Strip): a STOL hauler the player builds - a named class, not flown
-- home.08: Cabin Lake names no landing direction (the island's aerodrome record); its 150 kg is also over what a float plane of the pool loads
-- home.10, home.11: Cabin Lake names no landing direction (the island's aerodrome record)
+- home.08: Cabin Lake names no landing direction (the island's aerodrome record): the float Cessna flies the closed final and breaks up; its 150 kg is also over what a float plane of the pool loads
+- home.10: Cabin Lake names no landing direction (the island's aerodrome record): the float Cessna flies the closed final and breaks up; its 250 kg is also over what a float plane of the pool loads
+- home.11: 200 kg on water for Cabin Lake: refused at the loading (the float Cessna takes 100 kg, the Twin busher 40) before the lake is reached - a float hauler the player builds; then Cabin Lake's landing direction
 - home.13: 280 kg to the Cabin Strip: the capability rule says the Cessna's cabin takes 280 kg, its loading card takes 140 kg of it (flown with the pilot alone); the PC-6's card takes none - the rule against the card, or a hauler the player builds
 - community.09, community.10, community.11: heavy cargo (300 kg and more): the Cessna's cabin takes 280 kg, and the loading cards of the PC-6 and the DC-3-alike take none - a hauler the player builds, or those two cards
 - club.tour: the stop at w5 (Cannery Runway, 310 m, a 10 m obstacle 25 m from its end): the test pilot lands off the strip or cannot line up to leave - the listed pilot / field gap (on L40J the Cub flew the whole tour; on L40K the Cub and the Jodel land off the end, the STOL Cub lands and cannot taxi out)
