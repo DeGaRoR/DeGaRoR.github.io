@@ -179,12 +179,19 @@ LAKEBED lift the drawn lakes' closure; LOOKS quotes the fields texture's line): 
 
 ## 5. Next, in order
 
-0. THE HAND-OVER'S ONE LONG TASK (648 ms, 19:57: texture calls 432 ms, bufferData 118 ms, inside the world step under no
-   label). Cut `GF_READY.cpuprofile.json` (evidence/perf-check-evening-gf-2026-11-23) at 66.4 s to see which it is: a
-   tick of app.js worldPreUpload holding one very large texture (a texture array - the splat's sets, the houses', the
-   impostors' - is ONE initTexture and cannot be split from outside: it needs its layers uploaded a tick each, in the
-   module that owns it), or worldBuilt's own body (GFX.onWorld applying the saved graphics, setPlayerSheds building the
-   sheds). Estimate: an hour to name, half a day to cut, with a browser row.
+0. THE 648 ms TASK WAS THE TREE IMPOSTORS' BAKE, not the hand-over (cut from `GF_READY.cpuprofile.json` at 66.4 s:
+   plantWoodland < impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll - the bake's draws were the tree models'
+   first: maps 377 ms, buffers 115-142 ms, a link wait 50 ms). `claude/ready/perf-worldbuild-6` uploads the tree pool's
+   packs (maps a step each, geometry 16 MB a step) before plantWoodland, under the budget. THAT BLOCK HAS NEVER RUN IN
+   NODE (the tree maps do not settle there): look for `scene.userData.treeWarm` and the 'trees: ' labels in the first
+   browser row, and for the bake's task gone. If the bake is still long, what is left is its own draws and the link.
+0b. THE SETTLE'S LONG TASKS (evening row: 371 / 270 / 133 / 100 / 96 ms at 79.6-81.6 s; cut the same profile there).
+   Every streamer honours the slice's clock (`FLYDIY_SLICE.until`) only before STARTING a unit, and the unit is atomic:
+   scenery_life.js tick < place < mastLife < freeForMast < offRoad < roadDist (the life's whole stand in one call, with
+   ground reads that decode raster tiles on first touch); render_premises hlodTick < hlodCell < hlodBake (one far-town
+   cell's merge; three's getDataURL under bandOf); render_premises hitPendingStep < aircraftOf < 29_obstacles
+   aircraftShape < hull (one parked aeroplane). Each has to become resumable - its loop keeping its place across calls -
+   and each runs in flight too: a day each with its own gate, in that order by size.
 1. THE IMPOSTOR SHEETS' READBACKS (section 2, "not cut"): 164 + 279 ms on the garage's frames right after the world
    step. A small copy to read back instead of the whole sheet. Estimate: half a day, with a browser row to prove it (a
    GPU path: node cannot see it).
