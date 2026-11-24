@@ -365,11 +365,13 @@ const ENG_GROUPS = [
     // the V's own angle (2026-09-05): its two banks sit this far apart,
     // about the aim above — 60 on a Hirth, 90 on an Argus
     ['vee',     'V angle deg', 45, 120, 1, x => x.toFixed(0)],
-    ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
+    // (SMALL-ENGINES 24 Nov: from 0.04, a chainsaw's ~48 mm single - the Lazair's Pioneer)
+    ['bore',    'bore mm',   0.04, 0.16, 0.001, mm],
     ['stroke',  'stroke mm', 0.04, 0.16, 0.001, mm],   // (to 0.16: the Merlin's 152.4)
     // (ENGINE-DIALS: 1000-7500, was 1800-6500 - the Clerget's 1 250 and the
     // Rotax 503's 6 800 are registry rows)
-    ['rpm',     'rpm',       1000, 7500, 50],
+    // (SMALL-ENGINES 24 Nov: to 10 000 - the paramotor singles the Minimax lists, the Polini Thors at 8 000-9 000)
+    ['rpm',     'rpm',       1000, 10000, 50],
     ['stagger', 'stagger',   0, 0.5, 0.01],
   ], isPiston],
   ['architecture', [
