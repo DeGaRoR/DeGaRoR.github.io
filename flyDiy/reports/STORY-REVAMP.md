@@ -10,6 +10,16 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
+## Status for A0 (Tue 24 Nov, eighth note, 12:20 UTC) - story-11 for L40M (GATE PLANELISTS)
+
+- **`claude/ready/story-11`** adda37b05 = `claude/ready/story-9` + ONE commit: the two STOL-kit Cessna test builds
+  moved, byte for byte, from `tools/fixtures/storyfeas/` to `tools/fixtures/test_copies/` with their rows (98, 99,
+  legacy list), and `tools/mission_feas.js` / `tools/story_feas.js` reading the new paths. NAMED story-11, not
+  story-10: `claude/ready/story-10` already exists (32c2f56a8, pushed 04:28 on story-9's line, no force-push).
+- GATES ON IT: PLANELISTS PASS (the red A0 named), STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS;
+  MISSIONFEAS PASS (run alone). The build moves no built file; the flights do not change (the same two builds).
+- The same commit is on `claude/story-revamp` (on top of story-10's line), so a later ready from it is green too.
+
 ## Status for A0 (Tue 24 Nov, seventh and last note, 04:28 UTC) - story-10 32c2f56a8, the session stands down
 
 - **`claude/ready/story-10`** = story-9 + the rows of the whole pack flown on L40K's sim, their flags on the missions
@@ -98,7 +108,8 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
   pilot's own words, the landing), never from the one-line verdict.
 - THE POOL (the user, 23 Nov: "you can really try any of the official planes ... maybe you can even build a quick one"):
   the validated designs first, then every official plane, the two PC-6 of the wip list, and two test builds in
-  `tools/fixtures/storyfeas/` (a Cessna with the STOL kit, on the retired light airframe and on today's).
+  `tools/fixtures/test_copies/` (a Cessna with the STOL kit, on the retired light airframe and on today's; rows 98
+  and 99 of the legacy list, as every test copy - GATE PLANELISTS's CANON-CLEAN rule).
   THE CABIN IS SEATED AS THE JOB ASKS, both ways, through the garage's seat door: its passengers aboard, and the
   pilot alone for freight (the Cessnas and the DC-3-alike are SAVED with two aboard: a cargo job flew with that seat
   taken and half the loading card's room until 23 Nov evening; feasible rows flown the heavier way stand).
