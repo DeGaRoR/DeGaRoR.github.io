@@ -69,6 +69,16 @@ INSIDE the world step under no label (texture calls 432 ms, bufferData 118 ms; a
 section 5, step 0. Totals: 55 tasks of 50 ms+ behind the garage, 14 over 100 ms, the worst 648 (61 / 16 / 1 419 at
 16:00; 104 tasks and a worst of 3 456 ms on the morning's builds). The world step 26.9 s, ready at 90.3 s: no cost seen.
 
+The defaults in the browser (PERF-LEAD, 24 Nov 03:00, a quiet box, `claude/ready/perf-worldbuild-5` in build
+a843af6b52cf, THE PLAIN ADDRESS - garage first and all six switches by default, no query): the garage shown at 32.0 s,
+the world ready 90.6 s after the run began (world 28.5 | town 5.1 | ring 6.5 | settle 7.9 with settle=near | worldCompile
+18.8 | craft 19.4). Behind the garage: 59 tasks of 50 ms+, 15 over 100 ms, the worst 752 ms, 6.5 s in all - no
+regression from the defaults, the four workers' switches on and used. By label: the impostors' bake 752 (6 tasks not the
+build's own slices, 1 538 ms: `perf-worldbuild-6`'s target); the settle 16 tasks / 3 over 100 / worst 389; town 4 / 3 /
+203; frames 8 / 2 / 261; the built links 118; patch ground: its fields 109; roads 102; under 100: patch ground 83, a
+site 82, forest mist 79, far terrain patch 77, the shelves 74, houses 74, houses: the kit 72, trees 64, ground material
+61, far terrain: a quadrant 53. After the world step: 98 ms. `perf-worldbuild-6` has NO row yet.
+
 ## 2. The world build's steps, as they stand
 
 Two label conventions, and they differ by one: `tools/perf/world_build_node.js` files a step under the label that OPENED
