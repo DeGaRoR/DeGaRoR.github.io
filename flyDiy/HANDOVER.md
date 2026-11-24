@@ -319539,3 +319539,33 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
 - THE REDS ARE FIVE CAUSES, none the mission system's: (1) the capability rule against the loading card (contractCanDo says the Cessna's cabin takes 280 kg, the loading view puts 140 kg aboard, 50 kg for the 210 m strip, 90-100 kg on floats; the PC-6's and the DC-3-alike's cards take no cargo); (2) the test pilot's landing at the altiport tw_ski flown light or heavy, and the multi-leg tour's stop at w5; (3) the 210 m mountain strip with three aboard, and the taxi out of it; (4) Cabin Lake names no landing direction; (5) the PC-6 on Wiplines started at HOME does not line up.
 - AFTER A MERGE OF MASTER that changes the aeroplanes or the pilot: bump SIM in tools/story_feas.js, fly again (--fly --workers=4 --tmax=2400; about 14 hours of 4 cores), --table, --stamp, GATE STORYPACK. A red mission costs up to three aeroplanes of its legs.
 - A CLOUD LESSON MORE: the container was restarted once in the night under a tracked waiter (00:08 UTC): the flights in the air were lost, the pushed rows were not - commit rows as they land.
+
+## L40L + L40M (A0, Tue 24 Nov 2026, one combined train) - the physics audit, the crash's blue page gone, the DC-3 sliders, the three-wheel stance, the user's mission stories
+
+WHAT LANDED (on L40K 56047b34e + the LAZAIR push 896877867): PHYSICS-AUDIT 1d + batch 2 (PHYSICS_V 10: span efficiency, bracing
+wires, propeller fit / idle / governed; the seven cards; GLIDE + SAILPLANE fixed, JOIN / ENGCONFIG wakes restated sharp, ENGINEDIALS
+fixed, the fiche dedupe; the re-pins it agreed written ON THE BOX: POD / SKIS --bless (ENGCONFIG --pin prints a table to paste and TREECRASH --write-ref threw: both OWED, named below), reason
+"PHYSICS-AUDIT PHYSICS_V 10 (steps 1-6): the flown physics moves by design; checked 24 Nov against master's own run") + A0's LS4
+footprint row (TAXICLEAR, master's red since L40K); perf-lead-2d (the crash: NO blue page, rows 14/15 met on L40M's own build, worst
+frame 133 ms; UISMOKE + UILAYER fixed); FLAGSHIP's user-fixes-1121-2 (TRICYCLE-STANCE: no nosewheel plane was stood on three wheels;
+KNEE-SYM + GATE CREWSYM; TAPER; the DMG staging as the game); perf-sliders-1b + release-1/-2 (the DC-3's gear 2 158 -> 34 ms a tick;
+the Chinook's crew no longer rebuilt every slider tick); Deform's wreck-clear / wreck-rest / crash-prelink; night-sun-2; rain-4;
+frame-drawn-3; garage-view-2; audio-robust-2; petrel-fixes-4; pilot-slope-power-3; story-9 + story-10 (the user's mission stories).
+HELD to L40N: hangar-switch (its rebase not pushed).
+
+THE PERF CHECK (PERF-LEAD, 08:00-08:12 quiet, build 426ff43ba7b2): GO - the crash met (no page, 0 programs linked after the impact),
+cold 121.7 s (L40K 114-120), the journey L40K's level (garage first and the flight switches are not defaults here: L40N).
+
+NAMED, NOT HELD (owners):
+- PHYSICS-AUDIT (traced in PHYSICS-AUDIT-READY.md, batch 2): DMGGEAR (the Super Petrel's fin fitting, master red too), DMGINTEGRITY
+  (the metal firewall: a detached part, §8.2), DMGSETTLE (the bound inside the scatter), DMGWRECK clip (debris vs airframe), DMGCLUSTERS
+  twin (a calibration point), DMGFABRIC's base table (to re-pin from its printed bits), ROUTE fly:metal vs, UNIFY STRIP Brian, the TOW
+  / ALTIPORT push rows -> physics-audit-2 / the damage layer. BENCH: the Rufus re-stamp (A0, GPU).
+- PETRELTRIM (e) STABLE MIN 0.36 % / TYP 1.46 % vs the floors 0.50 / 1.55 (petrel-fixes-4): the cards' lighter Petrel (aluFabric wing)
+  moves the CG aft - positive, thin; the target is the user's call (SEAPLANES / REAL-FIGURES).
+- JOINPARITY + STOL twin floatplane (FLAGSHIP, MEANT): the taper cover redone - the cover's billed mass on a taperPanels build, the
+  twin floatplane +68 g; the join capture and the STOL fixture to re-take (a page capture). STOL jodel / metal and JOINPARITY's metal
+  rows: master's own since L40K.
+- ALTIPORT row 4 (the metal Cessna's short final): the card's owed vref-raised elevator (FLAGSHIP).
+- ENGCONFIG (18 build hashes) and TREECRASH (the Cub trunk reference) re-pins agreed by PHYSICS-AUDIT, OWED (A0): the table paste and the write-ref error.
+- Master's own (L40K's list) stand as they were.
