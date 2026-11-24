@@ -17,7 +17,7 @@ const ok = (c, what, more) => { console.log((c ? '  ok   ' : '  FAIL ') + what +
 //  on; it now asks the default's exact rule: a real page - a renderer that can compile ahead - unless ?boot=loadfirst)
 ok(src.includes("const REAL_PAGE = typeof location !== 'undefined' && typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '');") && src.includes("const GF_DEFAULT = REAL_PAGE && !!renderer && typeof renderer.compileAsync === 'function' && !LABQ('boot=loadfirst');")
   && /gf: LABQ\('boot=garagefirst'\) \|\| GF_DEFAULT,/.test(src), '1a garage first is the default on a real page; ?boot=loadfirst is the one loading screen as it was; the node page (flydiy-node) keeps the old boot');
-ok(/if \(GF_BOOT && LAB\.gfS\.cloudEarly\) \{ const t0 = performance\.now\(\); cloudsWarm\(\); try \{ renderer\.getContext\(\)\.finish\(\); \} catch \(e\) \{\}/.test(src),
+ok(/if \(GF_BOOT && LAB\.gfS\.cloudEarly\) \{ const t0 = perfNow\(\); cloudsWarm\(\); try \{ renderer\.getContext\(\)\.finish\(\); \} catch \(e\) \{\}/.test(src),
   '1k the clouds\' first draw is inside the boot (the recheck step), the page waiting for the GPU there - not behind the garage');
 ok(/const GF_BOOT = LAB\.gf && !GARAGE_ONLY;/.test(src), '1b the boot asks one constant (GF_BOOT), false without the switch');
 const sites = (src.match(/!GARAGE_ONLY && !GF_BOOT/g) || []).length;
