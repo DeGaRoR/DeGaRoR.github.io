@@ -1769,7 +1769,12 @@
   let hoTry = 0;
   function hoTreesTick() {
     if (!hangar || !hangar.treesFrom || hangar.treesDone || !WF || !WF.treeSideSheet || (++hoTry % 20)) return;
-    try { const S = WF.treeSideSheet({ max: 4 }); if (S && hangar.treesFrom(S)) hangar.treesDone = true; } catch (e) { hangar.treesDone = true; console.warn('flyDiy: the room trees -', e && e.message); }
+    // (24 Nov: stood HELD, their material's program linked for the room's lights and the frame's target, then shown - the
+    //  garage's frame no longer makes and links it inside a draw: 155-234 ms in every load, garage first or not)
+    try { const S = WF.treeSideSheet({ max: 4 }), hold = !!hangar.treesShow && typeof compileSliced === 'function' && typeof renderer.compileAsync === 'function';
+      if (S && hangar.treesFrom(S, hold)) { hangar.treesDone = true;
+        if (hold) { const H = hangar; Promise.resolve().then(() => compileSliced(H.treesGroup(), aa && aa.target ? aa.target() : null, hangarScene)).catch(e => console.warn('flyDiy: the room trees, their link -', e && e.message)).then(() => H.treesShow()); } }
+    } catch (e) { hangar.treesDone = true; console.warn('flyDiy: the room trees -', e && e.message); }
   }
   const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
