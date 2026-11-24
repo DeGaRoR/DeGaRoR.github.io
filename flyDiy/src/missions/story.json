@@ -2053,6 +2053,13 @@
      "who": "martha",
      "text": "ct.resort.05.done"
     }
+   },
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the flight did not end (2400 s)",
+    "sim": "L40K",
+    "sig": "63716c2e"
    }
   },
   {

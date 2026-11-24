@@ -7,11 +7,11 @@
   "feasible": 48,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
-  "not flown": 20,
-  "infeasible": 8,
+  "not flown": 19,
+  "infeasible": 9,
   "stale": 5
  },
- "flownS": 84612,
+ "flownS": 87012,
  "rows": [
   {
    "id": "field.01",
@@ -1331,7 +1331,27 @@
    "id": "resort.05",
    "where": "skyline:3",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 2400,
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 2400,
+     "how": "timeout",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "timeout"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
