@@ -46,6 +46,7 @@ const SETTLE = +opt('settle', 1500);
 const BAKED = argv.includes('--fleet-baked');   // G2225: --fleet with every bake already made (tools/_fleet_synth.js): no capture runs - isolates the drag's own path
 const FLEETQ = argv.includes('--fleet') || BAKED;   // G2225
 const GNAME = opt('gate', 'INSTANT');   // PERF-SLIDERS: the verdict line's name (GATE INSTANTREL runs this file on its own builds and rows)
+const BUDGETF = opt('budget', null), BREST = argv.includes('--budget-rest');   // PERF-SLIDERS: the drag budget, forced (below)
 
 const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), 'utf8').match(/const FP = `([\s\S]*?)`;\n/)[1];
 
@@ -89,6 +90,11 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       set(x) { fv = x; if (x) cgUsed = { CAGE_DATUM: CGT.CAGE_DATUM.read, FLYDIY_CG_MODEL: CGT.FLYDIY_CG_MODEL.read }; } }); }
     const CGFREE = argv.includes('--cgfree');
     const U = W.CAGE_UI, Ev = W.Event, PE = W.PointerEvent || W.Event;
+    // PERF-SLIDERS (23 Nov): --budget held|lite - THE DRAG BUDGET's two ways of a tick over the budget (_cage_ui.js BUDGET:
+    // a held tick builds nothing, a lite one the row's own layers; the layers owed and the release's build), forced on
+    // every tick whatever the clock says; --budget-rest: the hand rests 200 ms before the release (the rest's preview runs).
+    // The verdict is the gate's own: the drag ends on the plain build's aeroplane.
+    if (BUDGETF) { U.dragBudgetMs = 1; U.dragBudgetForce = BUDGETF; log('drag budget forced: ' + BUDGETF + (BREST ? ', a rest before each release' : '')); }
     // --float-release (PHONE-1b diag): a floatplane's drag release takes the plan again (1a sends it whole); a differing
     // row then says who wrote the shared footwell (uFootA) on each way, and what the crew layer measured
     if (argv.includes('--float-release')) U.floatRelease = true;
@@ -124,6 +130,9 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       el.dispatchEvent(new PE('pointerdown', EVO)); winToo('pointerdown');
       for (let i = 1; i <= 4; i++) { el.value = String(Math.min(hi, Math.max(lo, x0 + dir * d * i))); el.dispatchEvent(new Ev('input', EVO)); winToo('input'); await P.until(() => false, 30); }
       if (FL) await P.until(() => false, 4000);                   // --fleet: the slider HELD STILL past the queue's idle window
+      const bg0 = U.budget ? [U.budget.held, U.budget.lites, U.budget.rests] : null;
+      if (BREST) await P.until(() => false, 200);                 // --budget-rest: the hand rests (PERF-SLIDERS)
+      if (BUDGETF && U.budget) log(k.padEnd(12) + ' budget: held ' + U.budget.held + ', lite ' + U.budget.lites + ', rests ' + U.budget.rests + (bg0 ? ' (+' + (U.budget.rests - bg0[2]) + ' in the rest)' : '') + ', owed ' + [...U.budget.owed].join(' '));
       const capD = FL ? FL.stats.captures - cap0 : 0;
       U.dragSettleMs = 350;
       el.dispatchEvent(new Ev('change', EVO)); winToo('change'); W.dispatchEvent(new PE('pointerup', EVO));

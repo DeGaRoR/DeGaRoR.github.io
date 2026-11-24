@@ -1546,6 +1546,10 @@ function updateDims(box, FS) {
 // of parked.js's captures under the roll-out screen (applySpecSteps). build() runs it to the end - every slider,
 // every door, exactly as before.
 function build() {
+  // PERF-SLIDERS: a plain build may have changed the build itself (the rows' timed previews are forgotten); a drag tick
+  // over the budget keeps the value only (HELD), or builds the row's own layers (LITE: BUDGET.lite)
+  if (!DRAG_TICK && !RELEASE && !CG_ONLY) budgetForget();
+  if (DRAG_TICK && !BUDGET.force && budgetHold()) return;
   const t0 = performance.now(), g = buildSteps();
   try { while (!g.next().done); } finally { geBuilt(performance.now() - t0); }
 }
@@ -1605,7 +1609,128 @@ function geBuilt(ms) {
 // side: tools/perf/garage_lag_same.js). A click, a typed value, the keyboard, a select: a plain build, as before.
 // `CAGE_UI.dragDefer = false` builds every tick in full; `CAGE_UI.dragSettleMs` moves the 350 ms pause.
 let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
+// PERF-SLIDERS (23 Nov 2026, PERF-OBJECTIVES row 1: "no frame > 50 ms while a slider moves"; the user, 22 Nov: "editing the
+// dc3 is really laggy on the phone, while the chinook was really easy ... laggy even before it updates"): THE DRAG BUDGET.
+// A drag tick builds its preview inside the `input` handler, and that preview's cost grows with the aeroplane (the layers
+// a row moves and every layer they feed rebuild their meshes); the hand sends a tick a frame however long the last one
+// took, so on a large aeroplane every frame of the drag is as long as its preview and the knob itself trails the finger.
+// With a budget (?dragbudget=<ms> | auto, or CAGE_UI.dragBudgetMs; OFF by default: every tick builds, as before) a row's
+// preview is TIMED each time it builds, and each tick takes the dearest of three ways that fits:
+//   LIVE  the whole preview fits the budget: the tick builds it, as before (a light aeroplane never leaves this);
+//   LITE  the whole does not fit but the layers the row itself moves do: the tick builds THOSE (the plan's layers less
+//         the ones only FED by them - the struts, the gear, the tail behind a wing row); the fed layers are OWED and
+//         run when the hand has rested ?dragrest=<ms> (120), and in the release's build;
+//   HELD  not even that fits (or a cage row's deform does not): the tick BUILDS NOTHING - P holds the value (the number,
+//         the knob, the bubble move with the hand), the corner spinner says the aeroplane is behind, and ONE preview is
+//         built when the hand has rested - timed again, so a row that got cheap goes live again.
+// THE FLOOR IS HELD, THE LOOK IS LIVE (PERF-LEAD, 23 Nov, from the user's own words on the phone's "live preview, with
+// update a little afterwards"): the model following the knob is what is wanted; HELD only keeps a heavy aeroplane workable.
+// A row never timed on this BUILD is GUESSED before its first tick: a layer row from the plan's layers' last run
+// (CAGE_CHAIN.plan, each layer's msRan, the deferred detail layers left out), a cage row from the last cage tick, else
+// from the dearest row seen; with nothing to guess from, the first tick builds. The times are the build's: any plain
+// build (a select, a switch, a typed structure - an engine removed makes a heavy row light) and any load forget them.
+// The settle build is the RELEASE's only: no 350 ms pause build under a resting hand while the pointer is down. The
+// release builds what the drag reached, as before (a held tick left DRAG_LATE set; the owed layers are forced into its
+// plan). CAGE_UI.budget: the counters and the times (the sweep rigs read them); CAGE_UI.dragBudgetForce = 'held' | 'lite'
+// | 'live' puts every tick on one way whatever the clock says (a gate's, tools/_instant_check.js --budget).
+// ?dragbudget=auto (PERF-LEAD, 23 Nov: "50 minus the measured idle work, per device, rather than a fixed 20"): at each
+// press the budget is row 1's 50 ms less the work a frame took over the last 3 s (the flight recorder's own `work`: the
+// user's S20 FE 14 ms with the Chinook, 19 with the DC-3) less 6 ms for what a frame costs outside the loop (the sheet's
+// own repaint, the compositor), between 8 and 40 ms; 20 where no frame was recorded. THAT IS THE DESKTOP'S (row 1 as
+// written). ON THE PHONE (the touch profile) auto is 100 ms: the user, 23 Nov, from the real-phone table - "I found the
+// chinook performance to be acceptable, so you can benchmark this. Even before your fix. Nothing longer, but that felt
+// acceptable. The DC3 should do the same." The reference row is the Chinook on their S20 FE before any fix: a LIVE
+// preview at 99 ms a tick (141 ms a frame, worst 440) on a wing drag, 55 / 80 on cabin length, 124 / 247 on the gear
+// station, the release 0.2-1.3 s. A row as quick as the Chinook's keeps following the finger; only a slower one goes
+// lite or held. BUDGET_PHONE_MS is that tick WITH ITS OWN SPREAD: the Chinook's wing ticks on the S20 FE are 99.7 ms at the
+// median and 203 at the worst (realphone_chinook_before.json), so at 100 the reference aeroplane itself was held on every
+// other tick (and on every tick in Chrome's phone emulation, where the same tick is 147 ms: the window of 23 Nov,
+// phone_after.json - 27 to 58 ticks held of 30 to 60 on every aeroplane, the Chinook among them). 150: the Chinook
+// follows as it does today, an aeroplane whose ticks are half as long again still follows, a slower one goes lite or held.
+const BUDGET = { url: 0, auto: 20, work: null, rest: 120, full: new Map(), lone: new Map(), cage: null, top: 0, t: null, force: false, spin: false,
+  lite: false, afterLite: false, owed: new Set(), held: 0, lites: 0, rests: 0, live: 0, guesses: 0, last: '' };
+try { const q = (typeof location !== 'undefined' && location.search) || '';
+  const m = /(^|[?&])dragbudget=([0-9.]+|auto)/.exec(q); if (m) { const v = +m[2]; BUDGET.url = m[2] === 'auto' ? 'auto' : v > 0 && v < 5 ? 20 : (v || 0); }
+  const r = /(^|[?&])dragrest=([0-9.]+)/.exec(q); if (r && +r[2] > 0) BUDGET.rest = +r[2]; } catch (e) {}
+const budgetMs = () => { const U = typeof window !== 'undefined' ? window.CAGE_UI : null; let v = U && U.dragBudgetMs != null ? U.dragBudgetMs : BUDGET.url; if (v === 'auto') v = BUDGET.auto; v = +v; return v > 0 ? v : 0; };
+const BUDGET_PHONE_MS = 150;
+function budgetAuto() {
+  try { const PF = window.PROFILE; if (PF && PF.is && PF.is('ui', 'touch')) { BUDGET.work = null; BUDGET.auto = BUDGET_PHONE_MS; return; } } catch (e) {}
+  let w = null;
+  try { const R = window.FLIGHT_REC, s = R && R.stats ? R.stats(3000) : null; if (s && s.n > 5 && s.work > 0) w = s.work; } catch (e) {}
+  BUDGET.work = w; BUDGET.auto = w == null ? 20 : Math.max(8, Math.min(40, Math.round(50 - w - 6)));
+}
+function budgetForget() { BUDGET.full.clear(); BUDGET.lone.clear(); BUDGET.cage = null; BUDGET.top = 0; }
+// a built tick's time, kept for its row: a lite tick's is the row's own layers', any other the whole preview's
+function budgetNote(k, ms, path, lite) {
+  if (lite && path === 'preview') BUDGET.lone.set(k, ms);
+  else { BUDGET.full.set(k, ms); if (path === 'deform') BUDGET.cage = ms; }
+  if (ms > BUDGET.top) BUDGET.top = ms;
+}
+// the first tick of a row on this build: what its preview would cost, whole and alone, without building it
+function budgetGuess(k) {
+  try {
+    const stepSel = $('step') ? $('step').value : (PAGE.defaultStep || 'crease');
+    const step = stepSel === 'crease' ? 'crease' : +stepSel, L = +$('lvl').value;
+    BUDGET.guesses++;
+    if (LAST_SHEET && sheetKeyOf(P, { step, level: L }) !== SHEET_KEY) {          // a cage row: no layer plan, the stand deforms
+      const c = BUDGET.cage != null ? BUDGET.cage : (BUDGET.top > 0 ? BUDGET.top : null);
+      if (c != null) BUDGET.full.set(k, c);
+      return;
+    }
+    const CH = window.CAGE_CHAIN, plan = CH && CH.on ? CH.plan(P) : null;
+    if (!plan) return;
+    let full = 0, lone = 0;
+    CH.layers.forEach((l, i) => { if (!plan.run[i] || (CH.DEFERS && CH.DEFERS.has(l.name))) return; const ms = +l.msRan || 0; full += ms; if (plan.why[i] !== 'fed') lone += ms; });
+    BUDGET.full.set(k, full); BUDGET.lone.set(k, lone);
+    if (full > BUDGET.top) BUDGET.top = full;
+  } catch (e) {}
+}
+// a drag tick, before it builds: true = HELD (nothing is built); false with BUDGET.lite = LITE; false = LIVE
+function budgetHold() {
+  BUDGET.lite = false;
+  const B = budgetMs(); if (!(B > 0)) return false;
+  const k = GE.key, U = window.CAGE_UI, F = U && U.dragBudgetForce;
+  if (!BUDGET.full.has(k)) budgetGuess(k);
+  const full = BUDGET.full.get(k), lone = BUDGET.lone.get(k);
+  const mode = F || (!(full > B) ? 'live' : (lone != null && lone <= B) ? 'lite' : 'held');
+  if (mode !== 'held' && mode !== 'lite') { BUDGET.live++; BUDGET.last = 'live'; return false; }
+  // behind from here: one preview of the whole when the hand rests
+  if (BUDGET.t) clearTimeout(BUDGET.t);
+  BUDGET.t = setTimeout(budgetRest, BUDGET.rest);
+  if (mode === 'lite') { BUDGET.lite = true; BUDGET.afterLite = true; BUDGET.lites++; BUDGET.last = 'lite'; return false; }
+  DRAG_LATE = true;                      // the release builds what the held ticks reached
+  if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  BUDGET.held++; BUDGET.last = 'held';
+  if (!BUDGET.spin) { BUDGET.spin = true; busySpin(true); }   // (once a hold: busySpin reads the view's box)
+  return true;
+}
+// LITE: the plan less the layers only fed by the row's own (owed); any other preview, and the release: the owed ones too
+function budgetPlan(plan, lite) {
+  const CH = window.CAGE_CHAIN;
+  if (!plan || !CH) return plan;
+  if (lite) CH.layers.forEach((l, i) => { if (plan.run[i] && plan.why[i] === 'fed') { plan.run[i] = false; plan.why[i] = ''; BUDGET.owed.add(l.name); } });
+  else if (BUDGET.owed.size) { CH.layers.forEach((l, i) => { if (BUDGET.owed.has(l.name) && !plan.run[i]) { plan.run[i] = true; plan.why[i] = 'owed'; } }); BUDGET.owed.clear(); }
+  return plan;
+}
+// the hand rested: one preview of where it stands (after lite ticks: the owed layers), timed
+function budgetRest() {
+  BUDGET.t = null;
+  if (!DRAG_ON) return;                  // let go meanwhile: the release's build has it
+  const k = GE.key, aft = BUDGET.afterLite;
+  BUDGET.lite = false; BUDGET.afterLite = false;
+  DRAG_TICK = true; BUDGET.force = true; geBegin();
+  const t0 = geNow();
+  try { build(); }
+  finally { DRAG_TICK = false; BUDGET.force = false;
+    const ms = geNow() - t0; budgetNote(k, aft ? (BUDGET.lone.get(k) || 0) + ms : ms, GE.path, false);
+    geEnd('drag', k); if (BUDGET.spin) { BUDGET.spin = false; busySpin(false); } }
+  BUDGET.rests++; BUDGET.last = 'rest';
+}
 function dragSettle() {
+  if (BUDGET.t) { clearTimeout(BUDGET.t); BUDGET.t = null; }
+  if (BUDGET.spin) { BUDGET.spin = false; busySpin(false); }
+  BUDGET.lite = false; BUDGET.afterLite = false;
   if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
   relCancel();
   if (DRAG_LATE) { DRAG_LATE = false; RELEASE = true; try { build(); } finally { RELEASE = false; } }
@@ -2152,6 +2277,24 @@ function standSoon() {
       const I = standInfo(LAST_SHEET, +$('lvl').value); if (I.ok) standFollowers(I); } } catch (e) {}
   }, 0);
 }
+// PERF-SLIDERS (23 Nov 2026): ...ONLY WHEN THE PRESSED ROW CAN MOVE THE SHEET. The measure (the stand's base, its map, the parts
+// that ride: ~300 ms on the Cub in the garage at 5120, 250-414 ms on the user's S20 FE) ran at EVERY press, and for a
+// wing, tail or gear row - whose ticks keep the sheet and never deform the stand - it was the frame right after the press
+// and nothing else (the Cub's wing span: one 383 ms frame, then 50-67 ms ones). The row is asked directly: the sheet's key
+// with the row one step away against the key as it stands (CAGE2.cageSpec, under a ms). A row that says no and moves the
+// sheet after all (a threshold further along its travel) is measured by its first deforming tick, as a tick that comes
+// before the measure always was. CAGE_UI.standAlways = true: every press, as before.
+function standWanted(rng) {
+  try {
+    if (window.CAGE_UI && window.CAGE_UI.standAlways) return true;
+    const k = rng && typeof rng.id === 'string' && rng.id.slice(0, 2) === 'p_' ? rng.id.slice(2) : null;
+    if (!k || !(k in P)) return true;
+    const st = +rng.step || 0.001, x0 = +rng.value, v = x0 + st <= +rng.max ? x0 + st : x0 - st;
+    if (!isFinite(v) || v === x0) return true;
+    const o = { step: 0, level: 0 }, k0 = sheetKeyOf(P, o), k1 = sheetKeyOf(Object.assign({}, P, { [k]: v }), o);
+    return k0 == null || k1 == null || k0 !== k1;
+  } catch (e) { return true; }
+}
 // the stand as it was built (a drag that came back to the stand's own cage, before a preview of it)
 function standRestore(stand) {
   const I = stand && DEFORM.get(stand);
@@ -2259,9 +2402,13 @@ function* releaseSteps(built, rplan) {
   // layer's groups in the chain's order (a layer that ran re-added its groups at the end)
   {
     const own = [meshObj, cageObj, loopsObj].filter(o => o && o.parent === scene);
-    const lay = []; for (const l of CH.layers) for (const o of l.objs || []) if (o.parent === scene) lay.push(o);
-    const mine = new Set(own.concat(lay));
-    const order = scene.children.filter(o => !mine.has(o)).concat(own, lay);
+    // (PERF-SLIDERS: `pre` - what a layer added before the layers under it ran: a hull's tub, sponsons and strakes. A whole
+    // build adds them after the fuselage's objects, the outermost layer's first)
+    const seen = new Set(own);
+    const pre = []; for (let i = CH.layers.length - 1; i >= 0; i--) for (const o of CH.layers[i].pre || []) if (o.parent === scene && !seen.has(o)) { seen.add(o); pre.push(o); }
+    const lay = []; for (const l of CH.layers) for (const o of l.objs || []) if (o.parent === scene && !seen.has(o)) { seen.add(o); lay.push(o); }
+    const mine = new Set(own.concat(pre, lay));
+    const order = scene.children.filter(o => !mine.has(o)).concat(own, pre, lay);
     if (order.length === scene.children.length && order.some((o, i) => o !== scene.children[i]))
       scene.children.splice(0, scene.children.length, ...order);
   }
@@ -2392,7 +2539,7 @@ function* buildSteps() {
   // the pointer up, the pause) is the whole build that follows every drag, as before.
   const CH = window.CAGE_CHAIN;
   const plan = (DRAG_TICK && CH && CH.on && built === LAST_SHEET && meshObj && !PREVIEW_OFF() &&
-    !(window.CAGE_UI && window.CAGE_UI.dragDefer === false)) ? CH.plan(P) : null;
+    !(window.CAGE_UI && window.CAGE_UI.dragDefer === false)) ? budgetPlan(CH.plan(P), BUDGET.lite) : null;   // (PERF-SLIDERS: LITE / the owed layers)
   if (plan) {
     GE.path = 'preview';
     standRestore(LAST_SHEET);
@@ -2412,7 +2559,7 @@ function* buildSteps() {
   // G1451: a drag's release that keeps the sheet runs what the drag reached
   if (RELEASE || CG_ONLY) {
     const why = releaseWhy(built);
-    const rplan = !why ? CH.plan(P, true, built.sheet) : null;
+    const rplan = !why ? budgetPlan(CH.plan(P, true, built.sheet), false) : null;   // (PERF-SLIDERS: the layers a lite drag owes)
     // PHONE-EDIT-PERF: a floatplane's float layer reads the CG, which no record holds - it runs on every release
     if (rplan && +P.gearFloats > 0) CH.layers.forEach((l, i) => { if (l.name === 'float' && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'cg'; } });
     // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too
@@ -2423,7 +2570,12 @@ function* buildSteps() {
     // layers between it and the tanks were kept (a dependency no record or edge names yet); with the sheet changed every
     // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
     const crewL = CH.layers.find(l => l.name === 'crew');
-    const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
+    // PERF-SLIDERS (23 Nov): ...OR A ROW THE CREW READS THROUGH A DERIVED READ MOVED (CAGE_CHAIN.derivedMoved: the main gear's
+    // station on a gear that retracts). With the raw read the crew ran in such a drag and this rule sent the release whole;
+    // the derived read spares the ticks, not the release - GATE DERIVED found the plan's release on those aeroplanes not
+    // the whole build's (the DC-3's nacelle wells cut 6 vertices apart, the Super Petrel's float group out of order)
+    const derCrew = !!(rplan && CH.derivedMoved && CH.derivedMoved(P).includes('crew'));
+    const crewMoved = !!(rplan && crewL && (crewL.seq > WHOLE_SEQ || derCrew) && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
     // PERF-SLIDERS (23 Nov 2026): ...OR THE WING THAT MOVED IN THE DRAG CARRIES THE ENGINES. A preview runs the wing at the hand's
     // last value, so the release's plan finds the wing's reads as they stand and runs neither it nor its release edge to the
     // engine layer (CAGE_CHAIN REL_FEEDS wing > eng, cowl): the DC-3's wing span ended with its nacelle engines one build
@@ -2697,6 +2849,7 @@ function* buildSteps() {
     const ctx = { scene, spec, mesh: sFix, P, stat: $('stat'), defer };
     // G1441: the chain records what each layer reads (the preview's plan is made from it)
     if (CH && CH.run) CH.run(ctx, P, null); else PAGE.post(ctx);
+    BUDGET.owed.clear();                 // (PERF-SLIDERS: every layer ran)
   }
   catch (e) { console.error('page post hook:', e); }
   if (!DRAG_TICK) try { wellApply(); wingWellApply(); nacWellApply(); } catch (e) { console.error('wells:', e); }   // RETRACT G4/G5: the wells, as the gear says
@@ -3097,11 +3250,18 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       DRAG_TICK = DRAG_ON === rng;
       GE.key = k; geBegin();
       const how = DRAG_TICK ? 'drag' : 'input';
+      const bOn = DRAG_TICK && budgetMs() > 0, tB = bOn ? geNow() : 0;
       try { oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value); }
-      finally { DRAG_TICK = false; geEnd(how, k); }
-      if (DRAG_LATE) dragSettleSoon();
+      finally { if (bOn && GE.nb > 0) budgetNote(k, geNow() - tB, GE.path, BUDGET.lite);   // PERF-SLIDERS: a built tick, timed for its row
+        BUDGET.lite = false;
+        DRAG_TICK = false; geEnd(how, k); }
+      // (PERF-SLIDERS: with a drag budget the settle is the release's - no pause build under a resting hand)
+      if (DRAG_LATE && !(bOn && DRAG_ON)) dragSettleSoon();
     };
-    rng.addEventListener('pointerdown', () => { releaseFlush(); DRAG_ON = rng; standSoon(); });
+    // (PERF-SLIDERS: under a drag budget the press does not measure the stand - 250-414 ms on the user's S20 FE at the
+    // first press after a build, whatever the row; the first deform tick measures it itself, as G1443 says it can -
+    // and the budget is taken from the frames just drawn, ?dragbudget=auto)
+    rng.addEventListener('pointerdown', () => { releaseFlush(); DRAG_ON = rng; if (budgetMs() > 0) budgetAuto(); else if (standWanted(rng)) standSoon(); });
     rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettleLater('release', k); });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
@@ -3244,6 +3404,7 @@ function applySpec(spec, what, steps) {
   // after the boot's stock design flew that design's float bows (fltBow 0.36, fltBowB 0.15, fltSide 0.22) and its
   // cowl stub. A build fully determines the aeroplane (G63): those rows go back to absent; the view keys stay.
   const F = G.cageFromSpec(spec), VK = G.CAGE_VIEW_KEYS || {};
+  budgetForget();                        // PERF-SLIDERS: another aeroplane - its rows' previews are timed afresh
   for (const k of Object.keys(P)) if (!(k in F) && !(k in VK)) delete P[k];
   Object.assign(P, F);
   loaded(spec);
@@ -6433,6 +6594,7 @@ anchorSize();                              // the page opens at its ×1
 syncSliders();
 window.CAGE_UI = { P, build, buildCg, releaseFlush, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
+  budget: BUDGET,                        // PERF-SLIDERS: the drag budget (held / rests / live ticks, each row's timed preview)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // G3715 (COWL-RES): the eye sheet - the interior view's switch (eyeWatch's; a rig's), the flight capture's hold (_cage_join), the
   // counters (builds, the last build's ms, swaps, the last swap's ms, what stands) and the mesh standing's level

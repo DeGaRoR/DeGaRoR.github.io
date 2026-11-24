@@ -744,6 +744,14 @@ const GATES = [
   // among them (a row that turns the sit: the Cub's tank, the limbs) - _instant_rel_check.js
   // (A0, 23 Nov: 1 405 s alone was the battery's longest chunk - one aeroplane a shard: the DC-3 ~7 min, the Petrel ~13, the Cub ~4)
   { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', shards: 3, wall: 900 },
+  // PERF-SLIDERS: A DERIVED READ GIVES THE AEROPLANE THE RAW READ GAVE (CAGE_CHAIN.derived: the dash's gear selector asks
+  // "do the mains stand off the centreline", the crew layer no longer re-runs on every tick of the gear's station) - per
+  // aeroplane and derived row, three walks from the same aeroplane (ON, OFF, OFF: the two OFF name the noise), the scene's
+  // fingerprint and the resolved spec; core: the DC-3-alike and the Super Petrel, full: every aeroplane a player can open
+  { id: 'DERIVED', file: '_derived_check.js', tier: 'core', wall: 2400 },
+  // PERF-SLIDERS: the dash's gear selector placed by the cheap search (_panel_gen.js placeGear: the plate's outline asked
+  // once a column) stands where the plain search put it - 2 000 random dashes, the old function kept in the check
+  { id: 'PANELGEAR', file: '_panel_gear_check.js', tier: 'core', wall: 120 },
   // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
