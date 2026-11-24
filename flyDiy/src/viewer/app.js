@@ -14052,15 +14052,70 @@
   // bench measured at roll-out, so an edit made in between cannot be
   // certified by a flight of the aeroplane before it.
   let testFlight = null;
+  // PHONE-TESTFLIGHT-UX (the user, 24 Nov, on the phone: "There's little feedback on button push, and the test flight
+  // might rather be an option in the plaque"): THE PHONE'S HAND-OFF SAID. The test flight leaves the phone garage by a
+  // reload (profile.js flyStart), and a press used to close the menu and show nothing until the reload's loading screen -
+  // or nothing at all when it did not go. Now the press puts up #phFlyGo (body.html, phone.css: the loading screen's own
+  // look), "Taking <the aeroplane> to the test field...", which the reload's own screen takes over; a hand-off that does
+  // not go says why on the same panel, with an OK. kind: 'go' | 'bad' | null (down). PHONE_FLY_UX.note() is the gates'
+  const PHONE_FLY_NOTE = { kind: null, text: '' };
+  const PHONE_FLY_FLOATS = 'The test field has no water: take the floats off to test-fly here.';
+  let phoneFlyT = 0;
+  function phoneFlyNote(kind, text) {
+    PHONE_FLY_NOTE.kind = kind || null; PHONE_FLY_NOTE.text = kind ? String(text || '') : '';
+    if (phoneFlyT) { clearTimeout(phoneFlyT); phoneFlyT = 0; }
+    const box = $('phFlyGo'), msg = $('phFlyMsg'), ok = $('phFlyOk');
+    if (!box) return;
+    if (!kind) { box.hidden = true; return; }
+    box.className = kind;
+    if (msg) msg.textContent = PHONE_FLY_NOTE.text;
+    if (ok) { ok.hidden = kind === 'go'; if (kind === 'bad' && ok.focus) try { ok.focus(); } catch (e) {} }
+    box.hidden = false;
+    // a reload the browser did not make (its leave prompt answered Stay): the way back to the garage comes up after a while
+    if (kind === 'go' && ok) phoneFlyT = setTimeout(() => { phoneFlyT = 0; if (PHONE_FLY_NOTE.kind === 'go') ok.hidden = false; }, 15000);
+  }
+  function phoneFlyGoing() {
+    let n = '';
+    try { n = (window.GARAGE_SPEC && window.GARAGE_SPEC.name && window.GARAGE_SPEC.name()) || ''; } catch (e) {}
+    if (!n) n = (def && def.params && def.params.name) || '';
+    return 'Taking ' + (n || 'the aeroplane') + ' to the test field\u2026';
+  }
+  // the phone's ask (the menu's line, the plaque's button): the screen first, then the bench's own row (bench.js
+  // BENCH_RUN: its card, its arming) a beat later, so the screen is painted before the build's sync and the reload's wait
+  function phoneFlyAsk() {
+    if (floatsOn()) { phoneFlyNote('bad', PHONE_FLY_FLOATS); return false; }
+    phoneFlyNote('go', phoneFlyGoing());
+    setTimeout(() => {
+      const R = window.BENCH_RUN;
+      let went = false;
+      try { went = !!(R && R('flight')); } catch (e) { console.warn('flyDiy: the test flight -', e && e.message); }
+      if (went || PHONE_FLY_NOTE.kind === 'bad') return;   // gone (the reload is on its way), or startTestFlight said why
+      const why = R && R.why;
+      phoneFlyNote('bad', why === 'busy' ? 'The bench is busy: wait for its check or flight to finish, then try again.'
+        : why === 'build' ? 'The bench cannot measure this build yet' + (R.note ? ': ' + R.note : '') + '. Fix it, then try again.'
+        : !inGarage ? 'The test flight leaves from the garage.'
+        : 'Could not start the test flight. Try again, or reload the page.');
+    }, 60);
+    return true;
+  }
+  window.PHONE_FLY_UX = { ask: phoneFlyAsk, note: () => ({ kind: PHONE_FLY_NOTE.kind, text: PHONE_FLY_NOTE.text }), down: () => phoneFlyNote(null) };
   function startTestFlight(card) {
     if (!inGarage) return false;
     // G3791 (PHONE-TESTFLIGHT): THE PHONE GARAGE HANDS OFF - it has no world; the build is synced and committed (the WIP
     // the flight page restores), the card kept for the next load, and the page reloads on the test field
     // (profile.js flyStart; false when the profile has no test flight). Floats: the test field has no water (v1)
+    // PHONE-TESTFLIGHT-UX (24 Nov): and it SAYS SO - the hand-off screen from here to the reload's own (phoneFlyNote), or
+    // why it did not go, in plain words; every way in (the menu's line, the plaque's button, the bench's row) comes here
     if (GARAGE_ONLY) {
-      if (floatsOn()) return false;
-      try { if (window.CAGE_UI) syncBuild(); if (window.GARAGE_SPEC && window.GARAGE_SPEC.commit) window.GARAGE_SPEC.commit(); } catch (e) { console.warn('flyDiy: the build could not be kept for the test flight -', e && e.message); return false; }
-      try { return !!(window.PROFILE && window.PROFILE.flyStart && window.PROFILE.flyStart(card ? { alt: card.alt || null, V: card.V || null, fp: card.fp || null } : null)); } catch (e) { return false; }
+      if (floatsOn()) { phoneFlyNote('bad', PHONE_FLY_FLOATS); return false; }
+      try { if (window.CAGE_UI) syncBuild(); if (window.GARAGE_SPEC && window.GARAGE_SPEC.commit) window.GARAGE_SPEC.commit(); } catch (e) {
+        console.warn('flyDiy: the build could not be kept for the test flight -', e && e.message);
+        phoneFlyNote('bad', 'Could not keep the build for the test flight, so nothing flew. Try again.'); return false; }
+      phoneFlyNote('go', phoneFlyGoing());
+      let went = false;
+      try { went = !!(window.PROFILE && window.PROFILE.flyStart && window.PROFILE.flyStart(card ? { alt: card.alt || null, V: card.V || null, fp: card.fp || null } : null)); } catch (e) { went = false; }
+      if (!went) phoneFlyNote('bad', 'Could not start the test flight: this browser would not open the test field. Try again, or reload the page.');
+      return went;
     }
     const fp = card && card.fp;
     rollOut(() => {
@@ -21772,10 +21827,19 @@
   // (fly 'testfield'): the bench's own row run (bench.js BENCH_RUN), which hands off to the test field (startTestFlight)
   // (the profile asked directly: GARAGE_ONLY is declared further down, in its temporal dead zone here)
   if (window.FLYDIY_MENU && window.PROFILE && window.PROFILE.is && window.PROFILE.is('boot', 'garage')) try {
+    // PHONE-TESTFLIGHT-UX (24 Nov): the line stays with floats on (a press says why: the test field has no water) and
+    // says what it does (phoneFlyAsk: the hand-off screen, or the reason it did not go)
     window.FLYDIY_MENU.add({ k: 'testflight', label: 'Test flight', sec: 'Flight', before: 'controls',
-      when: () => inGarage && !floatsOn() && !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('fly', 'testfield')),
-      act: () => { gmOpen(false); try { if (window.BENCH_RUN) window.BENCH_RUN('flight'); } catch (e) { console.warn('flyDiy: the test flight -', e && e.message); } } });
+      when: () => inGarage && !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('fly', 'testfield')),
+      act: () => { gmOpen(false); phoneFlyAsk(); } });
   } catch (e) { console.warn('flyDiy: the test flight line -', e && e.message); }
+  // PHONE-TESTFLIGHT-UX: THE PLAQUE'S TEST FLIGHT (body.html #pqFlyRow, the Plaque tab's first line) - the same ask as the
+  // menu's line; and the hand-off screen's OK. The phone garage's alone: on the desktop the row stays hidden
+  if (window.PROFILE && window.PROFILE.is && window.PROFILE.is('boot', 'garage') && window.PROFILE.is('fly', 'testfield')) try {
+    const row = $('pqFlyRow'), b = $('pqFly'), ok = $('phFlyOk');
+    if (row && b) { b.onclick = () => phoneFlyAsk(); row.hidden = false; }
+    if (ok) ok.onclick = () => phoneFlyNote(null);
+  } catch (e) { console.warn('flyDiy: the plaque test flight -', e && e.message); }
 
   // ---- G3643-G3649 THE FLIGHT LAYOUT (the user's 25 Oct mockup and answers) ---------------------------------------------
   // "a simplified interface ... all the current options, but in a clearer, and more mobile friendly interface". The same

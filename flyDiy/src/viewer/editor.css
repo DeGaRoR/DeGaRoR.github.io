@@ -39,8 +39,9 @@
    G3722 (PHONE-GARAGE): and the garage top bar's card (#edPopCard, editor.js, body-level: the explode slider).
    NEW-PLANE: and the full-screen new-aeroplane chooser (#npWrap, new_plane.js, body-level).
    FLEET: and the full-screen fleet (#flWrap, fleet_screen.js, body-level).
-   START-CHOOSER: and the start sheet (#scSheet, start_chooser.js, body-level). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard, #npWrap, #flWrap, #scSheet, #gEmptyCard) {
+   START-CHOOSER: and the start sheet (#scSheet, start_chooser.js, body-level).
+   PHONE-TESTFLIGHT-UX: and the phone's test-flight hand-off (#phFlyGo, body.html, body-level; phone.css lays it out). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard, #npWrap, #flWrap, #scSheet, #gEmptyCard, #phFlyGo) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
