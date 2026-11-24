@@ -319847,3 +319847,60 @@ Joby JM1, the Minimax 1100R's Hirth F-33 / Polini Thor 202-250-303 / Simonini Mi
 - GATES on the tip: ENGID ENGINEDIALS AUDIOENG TECH RPM PROPS PROCURE PARTS REALREFS SPECFIX FRAMES KNIFE STRUT COMMITHYGIENE
   PASS; ENGINE and ENGCONFIG red as on master (the same rows, the same hashes). small-engines-1 (c0ff676de) is this
   without the note - superseded.
+
+## TANK-BAYS - A TANK BEHIND THE POD, ON THE BOOM, IN THE AFT FAIRING OR THE AERO NOSE; THE CLEAN PLASTIC JUG (24 Nov 2026, A0's TANK job; branch a0/tank-bays off master 896877867)
+The user, building a Lazair: "I would want the fuel tanks to be able to stick to the back face of a pod, where the aft aero
+pod goes. There's a lot of place there and the software prevents me from putting it there. Anywhere in the boom, attached
+to the aft pod, inside an aft cowl or aero pods is fine. And the plastic one is really dirty, with a grunge texture that
+can't be taken off. I'd need a clean plastic one". (The real Lazair's 5-gallon jug stands strapped behind the seat back,
+in the open frame between the pod and the boom.)
+- **WHY IT WAS REFUSED:** every body bay lives INSIDE the swept field (the sheet's sections) and is clamped to it; on a pod
+  and rod the field ends at the pod's aft face (`aftCabin` collapsed to x1 < x0, room 0 L: the capacity slider's top 1 L),
+  and the cabin bay behind the seat held a 5 L sliver. Nothing could stand outside the skin.
+- **THE CORE (60c GEN_BAYS, appended - the old bays' order and records untouched):** `podAft` "Behind the pod (on its aft
+  face)", `boom` "On the boom", `aeroAft` "Inside the aft fairing", `aeroNose` "Inside the aero nose". Each is a BODY bay to
+  the frame (61_gen_frame bodyRing at the vessel's `along` and `lv`: the kilos where drawn, the burn's `mFuel` there, the
+  hydro's tank volume on the same `_pair`); `mount` names the editor's placement; `ext` (podAft, boom) = outside the skin,
+  litres the rule's `room` (60 / 40 L, the slider's top). Ranges start at `genPodAftX(S)` (fuse.boxRear). The finish
+  clamps (60_gen_spec, fuel section, fuel vessel, water vessel) know `cleanPoly`.
+- **THE EDITOR (_cage_energy.js, TANK-BAYS block):** `mountAbsent` offers a bay only where the drawing has it (the face: a
+  rod or twin booms, no pusher on the face, no aero aft over it, no taper panels closing the frame; the rod: boomStyle 1
+  and the tube drawn - a lofted boom: inside it; the fairing: aeroAftOn drawn; the aero nose: no nose engine) and words
+  why not (`CAGE_ENERGY.mountGone()`, the panel's disabled option). A tank in a bay the aeroplane lost KEEPS its bay and
+  station (weighed there, drawn nowhere, red with the reason - the strut pod's rule). `mountBay`/`mountSweep` measure: the
+  face = the field's end (bayCacheOf axisMax) and the pod's section ahead of it; the rod = the sheet's `boomTube` rings
+  (`rodGeo`); the fairings' limits = the field's and the crew's reach. `mountPlace`: face - centreline, upright, `lv` from
+  the keel line (0) to the rod's underside (1); rod - a cylinder (ROD_FINE 3.5) its top 22 mm under the tube; inside -
+  in the sections, on the side of the rod with the more room. `mountSearch`: a tank with no station takes the FIRST place
+  that clears (fore to aft from the face, levels 0.5, 0.35, 0.65 ...; aft to fore in the nose), judged as the layout
+  judges, and the station is written into the vessel. JUDGED by judgeTank against `surfMnt` (the body tanks' soup + the
+  gear, wing, struts, tail, hinge layer's control runs, bracing...) and `mountExtra`: the propellers' discs
+  (`propDiscHit`, a hand (50 mm) clear of each disc swept, off the drawn edProp blades) and, behind the pod, the cradle's
+  reach to the face (150 mm: "not against the pod's aft face ... slide it forward"). DRAWN with the tank in steel: a tray
+  under the jug to the face and two pads (face), two clamps round the tube and their hangers (rod). The panel: no up/down
+  row on the rod; the readout says how it is held.
+- **THE CLEAN JUG (FINISH.cleanPoly "clean plastic (translucent)"):** natural HDPE (0xf2e8c4, the tint row its colour), no
+  scanned set at all, translucent (0.72, depthWrite off: the fuel level shows), `cleanShellMat` - owner 'aircraft / fuel
+  tanks and batteries / clean plastic jug', the fuel liquid's own program variant (plain standard, transparent, no map,
+  front side, no hook): no new program. vesSet 'cleanPoly' carries it to the flown aeroplane (app.js / parked.js matFor).
+  The moulded (grunge) plastic is untouched.
+- **THE USER'S LAZAIR (private build, not committed), 20 L, clean jug, vessel 'moulded':** the search puts it at 1.253 m aft
+  of the datum, 6 mm off the pod's aft face (the face measured 1.144, its pillars to 1.24), lv 0.05 (low: the truss tubes
+  converge above it), 0.32 x 0.38 x 0.21 m, on its cradle, clear. Flown: 292.2 kg, CG 0.775 m (wing root as saved: 0.751),
+  static margin 0.174 full / 0.187 reserves (0.184 as saved), FLIES A CIRCUIT (climb 3.99 m/s, take-off 89 m); empty the CG
+  moves 24.8 mm forward. Its other places: on the rod a 20 L cylinder meets the truss then the V hung under the rod
+  ("into the tailplane"); the short aero nose and a fin-shaped aero aft hold no 20 L (red, said).
+- **GATE TANKBAYS (new, core, ~4 min), tools/_tank_bays_check.js:** the rows appended and billed where drawn (0.3 m aft =
+  the tank's kilos x 0.3 / M, the burn in place); on the validated Chinook as a Lazair (engMount 3, taper panels off, rod
+  high) the jug placed against the face, committed, its cradle drawn; red into the pod (the crew) and away from the face;
+  the rod tank on its clamps; the aero aft (offered, the face not, in words) and a 15 L tank in it; the pusher's face
+  refused in words, a tank left there kept and red; the taper panels refused in words; the pusher's disc measured (1.71 m)
+  and a box in it red, a hand past its tip or behind its plane not; the clean jug's material, owner, program, game door.
+- **NOT DONE / STATED CUTS:** the thrust line is taken fore-aft for every disc; an external tank's buoyancy is carved from
+  its host hull slice (32_hydro) as if inside; the vertical billing is bodyRing's top/bottom pair; no browser look yet
+  (the jug's translucency over the fuel, the cradle's look).
+- **CHART-ON-DEMAND (follow-up, the user 24 Nov: "The graph with the CG as a function of fuel should only be generated on
+  demand"):** the energy panel's CG-against-fuel chart (BALANCE.compute's sweep inside readoutCompute) and its two loading
+  rows (occupants, baggage) now sit in a fold, closed by default; the sweep runs only while it is open (`job.chart`), and its
+  answer is kept per aeroplane and loading (CHART_KEY): reopening an unchanged build draws the kept chart. The shakedown and
+  the fill readouts are unchanged. GATE ENERGY pins it ('lag: the CG-against-fuel chart is swept only when ...').

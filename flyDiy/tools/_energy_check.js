@@ -801,6 +801,11 @@ if (SHOW) for (const s of seen)
   check(/const compute = ' \+ readoutCompute\.toString\(\)/.test(en) &&
         /applyReadouts\(readoutCompute\(job, \{ buildGen, genShakedown, genSpecAtFuel \}/.test(en),
     'lag: one readout body (readoutCompute) serves the worker and the on-page fallback');
+  // CHART-ON-DEMAND (the user 24 Nov: "The graph with the CG as a function of fuel should only be generated on demand"):
+  // the chart's sweep runs only while its fold is open, and its answer is kept until the aeroplane or the loading changes
+  check(/if \(BAL && job\.chart\) out\.chart = BAL\.compute/.test(en) && /job\.chart = CHART_OPEN && READ_KEY !== CHART_KEY;/.test(en) &&
+        /CHART_OPEN = chDet\.open;/.test(en) && /let CHART_OPEN = false/.test(en),
+    'lag: the CG-against-fuel chart is swept only when its fold is opened (closed by default), and kept until the build changes');
   check(/if \(!r \|\| r\.seq !== readSeq\) return;/.test(en),
     'lag: a readout about an aeroplane that has changed since is dropped by sequence');
   check(/readWorkerDead = true; readWorker = null;[\s\S]{0,120}readoutsNow\(\);/.test(en),

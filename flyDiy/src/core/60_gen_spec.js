@@ -6064,7 +6064,7 @@ function genWaterClamp(S) {
     if (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2 && v.dims.profile.length <= 33)
       v.dims.profile = v.dims.profile.map(x => genClamp(+x || 0, 0, 1));
     else v.form = v.form === 'cyl' ? 'cyl' : 'box';
-    if (v.finish != null && !['paint', 'alu', 'plastic', 'rubber', 'bluePoly'].includes(v.finish)) v.finish = null;
+    if (v.finish != null && !['paint', 'alu', 'plastic', 'rubber', 'bluePoly', 'cleanPoly'].includes(v.finish)) v.finish = null;
     v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
     if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint))) v.tint = null;
     out.push(v);
@@ -6435,7 +6435,7 @@ function clampSpec(spec) {
     // so there is no version bump and an absent value means "as the vessel
     // itself is made", which is what every file written before this meant.
     if (E.finish != null &&
-        !['paint', 'alu', 'plastic', 'rubber'].includes(E.finish)) E.finish = null;
+        !['paint', 'alu', 'plastic', 'rubber', 'cleanPoly'].includes(E.finish)) E.finish = null;   // (TANK-BAYS: the clean jug)
     E.hue = genClamp(E.hue || 0, 0, 359);
     if (E.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(E.tint))) E.tint = null;
     // WATER TANKS (GEN_RULES.water): the fuel tank's own fields, clamped the same way, plus the fill; a body or wing
@@ -6485,7 +6485,7 @@ function clampSpec(spec) {
       // Nothing here weighs: GEN_VESSELS is still what prices and weighs a
       // tank, and it knows nothing about colour.
       if (v.finish != null &&
-          !['paint', 'alu', 'plastic', 'rubber'].includes(v.finish))
+          !['paint', 'alu', 'plastic', 'rubber', 'cleanPoly'].includes(v.finish))
         v.finish = null;
       v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
       if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint)))

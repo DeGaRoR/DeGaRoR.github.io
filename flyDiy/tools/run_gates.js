@@ -1423,6 +1423,11 @@ const GATES = [
   // sizes; the mount is gone and each vessel's hardware is raycast from its
   // centre against every other surface (the fuselage sheet included)
   { id: 'TANKMOUNT', file: '_tank_mount_check.js', tier: 'core' },
+  // TANK-BAYS (the user 24 Nov, a Lazair: "the fuel tanks ... stick to the back face of a pod ... Anywhere in the boom,
+  // attached to the aft pod, inside an aft cowl or aero pods is fine ... I'd need a clean plastic one"): the four mounted
+  // bays (behind the pod, on the boom, in the aft fairing, in the aero nose) placed, judged, drawn and said in the page's
+  // own chain, billed where drawn; the clean translucent jug (no grunge, its owner, no new program)
+  { id: 'TANKBAYS', file: '_tank_bays_check.js', tier: 'core', wall: 240 },
   // THE PANEL ARC, session 1 (2026-09-11): the sources the instruments read
   // — the shaft speed against the J-3's real numbers, the burn against the
   // thermo sheet, nz at rest and in free fall, the key and the starter
