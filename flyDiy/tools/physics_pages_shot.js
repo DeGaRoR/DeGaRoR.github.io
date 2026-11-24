@@ -12,7 +12,7 @@ const phone = +opt('phone', 0) || 0;   // --phone <w>: the phone's portrait colu
 const theme = phone ? 'dark' : opt('theme', 'sheet'), pages = opt('pages', 'drag,physics,electrics,integrity,reference').split(','), out = path.resolve(opt('out', path.join(FLY, 'screenshots', 'physics_pages')));
 const IX = JSON.parse(fs.readFileSync(path.join(FLY, 'media', 'fiches', 'index.json'), 'utf8')).fiches;
 const only = opt('only', '') ? opt('only').split(',') : null;
-const keys = Object.keys(IX).filter(k => (!only || only.includes(k)) && fs.existsSync(path.join(FLY, 'media', 'fiches', path.dirname(IX[k].pics.side || 'x/x'), 'physics.json')));
+const keys = Object.keys(IX).filter(k => (!only || only.includes(k)) && fs.existsSync(path.join(FLY, 'media', 'fiches', IX[k].physicsAt || path.join(path.dirname(IX[k].pics.side || 'x/x'), 'physics.json'))));
 let pw = null; try { pw = require('playwright'); } catch (e) { console.error('physics_pages_shot: needs Playwright (npm i -D playwright)'); process.exit(1); }
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png' };
 const srv = http.createServer((q, r) => {
