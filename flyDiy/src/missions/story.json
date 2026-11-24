@@ -2756,7 +2756,14 @@
      "text": "ms.obs.09.done"
     }
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 250 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "08e31835"
+   }
   },
   {
    "id": "clients.01",
