@@ -15,7 +15,13 @@
 //   3 THE HOLD UNDER Crr: parked, no brake, on a grade of ~3 % (under grass Crr 0.05) it stays where it stands
 //     (under 2 cm in 8 s)
 //   4 THE BRAKES: parked on the ~9 % grade with the brakes on it holds (under 3 cm in 8 s); 1 is the same place without
-//   5 ACROSS THE SLOPE: parked across the ~9 % grade, no brake, the tyres' side grip holds it (under 3 cm in 8 s)
+//   5 ACROSS THE SLOPE: parked across the ~9 % grade, no brake, the tyres' side grip holds it: the drift ACROSS the
+//     wheels (along the strip, downhill) under 3 cm in 8 s; and it settles: its whole drift in 6-10 s under 3 cm.
+//     SLOPE-FIX (24 Nov, A0's ruling (a)): the halved altiport's ruts (1-2 cm, a metre off the centreline, walls ~10 %)
+//     lie across this aeroplane's rolling direction. Since the contact reads its slope along the aeroplane, an unbraked
+//     wheel rolls ~5 cm forward into the rut and stops there - the user's slope rule (22 Nov): "a parked or braked
+//     plane stays put, or rolls as physics says", and a wheel rolling into a rut whose wall beats Crr is physics. The
+//     row is unbraked; a braked wheel holding a rut wall is row 4's
 // Flat ground is master's to the bit (a contact whose difference is exactly zero takes the old lines): proved by the
 // branch's bit-compare (HANDOVER TOW-LAUNCH SLOPE), held in the battery by every flat-HOME gate's own pins.
 // ~1 min (the island loaded once, five runs of 8-12 s).
@@ -93,7 +99,10 @@ ok(steep.g > 0.07 && mild.g > 0.02 && mild.g < CRR - 0.01, '0 the stations: a st
   const d = drift(R, 2, 10); ok(d < 0.03, '4 parked on ~9 % with the brakes on: it holds', (d * 100).toFixed(2) + ' cm in 2-10 s (' + (drift(R, 6, 10) * 100).toFixed(2) + ' cm in 6-10 s)'); }
 // 5 ACROSS THE SLOPE (~9 %, the nose across, no brake)
 { if (SHOW) console.log('  5 across the slope'); const R = run(steep.s, alt.hdg + Math.PI / 2, 10);
-  const d = drift(R, 2, 10); ok(d < 0.03, '5 parked across ~9 %, no brake: the side grip holds', (d * 100).toFixed(2) + ' cm in 2-10 s (' + (drift(R, 6, 10) * 100).toFixed(2) + ' cm in 6-10 s)'); }
+  const h5 = alt.hdg + Math.PI / 2, f5x = Math.cos(h5), f5z = Math.sin(h5), a5 = at(R, 2), b5 = at(R, 10);
+  const side = Math.abs(-(b5.x - a5.x) * f5z + (b5.z - a5.z) * f5x), fwd = (b5.x - a5.x) * f5x + (b5.z - a5.z) * f5z, d = drift(R, 2, 10), dS = drift(R, 6, 10);
+  ok(side < 0.03, '5 parked across ~9 %, no brake: the side grip holds', (side * 100).toFixed(2) + ' cm across the wheels in 2-10 s (rolled ' + (fwd * 100).toFixed(2) + ' cm along them, ' + (d * 100).toFixed(2) + ' cm in all)');
+  ok(dS < 0.03, '5 parked across ~9 %, no brake: it settles', (dS * 100).toFixed(2) + ' cm in 6-10 s'); }
 
 for (const l of lines) console.log(l);
 console.log(lines.length + ' checks, ' + F.length + ' failed');
