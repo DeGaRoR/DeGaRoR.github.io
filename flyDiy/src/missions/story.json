@@ -3722,7 +3722,14 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the flight did not end (2400 s)",
+    "sim": "L40K",
+    "sig": "d3a14d2d"
+   }
   },
   {
    "id": "home.10",
@@ -3844,7 +3851,14 @@
      "text": "ms.home.12.done"
     }
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "crashed: the damage ended the flight: a fus member broke",
+    "sim": "L40K",
+    "sig": "578e632b"
+   }
   },
   {
    "id": "home.13",

@@ -1,0 +1,134 @@
+{
+ "id": "home.12",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "Twin busher floats 4b",
+ "timeS": 575,
+ "why": "crashed: the damage ended the flight: a fus member broke",
+ "tried": [
+  "Cessna 172 floats (career):infeasible",
+  "PC-6 on Wiplines:infeasible",
+  "Twin busher floats 4b:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "cb_sea",
+   "t": 575,
+   "how": "crashed",
+   "at": null,
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "crash",
+    "yield",
+    "break",
+    "prop-strike"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: an impact of 10 g",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "cb_sea",
+     "t": 563,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "slip: high on the final (100 m over the slope at idle) — slipping it down",
+      "flare-guard: not flaring 225 m over the aim of Cabin Lake (25 m at most) - the final flies on",
+      "wings-level: the rudder eased off: the aileron on its stop against 27 deg of bank (22 deg of sideslip)"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 on Wiplines",
+   "verdict": "infeasible",
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "SEA",
+     "t": 1415,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "slip: high on the final (26 m over the slope at idle) — slipping it down",
+      "go-around: unstabilised approach at 85 m: sinking 3.3 m/s (attempt 1)",
+      "go-around: unstabilised approach at 85 m: sinking 3.2 m/s (attempt 2)"
+     ],
+     "landing": {
+      "run": 260,
+      "sink": 0.84,
+      "V": 27.5,
+      "offCentre": 0.3,
+      "pastAim": 105,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 412,
+      "stopLeft": 827
+     }
+    },
+    {
+     "from": "SEA",
+     "to": "cb_sea",
+     "t": 2400,
+     "how": "timeout",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "lineup-timeout: could not line up in 120 s — stopping to replan",
+      "lineup-timeout: could not line up in 120 s — stopping to replan",
+      "replan: not lined up with a run ahead (160 m, 73.5 m off) — planning the departure again"
+     ],
+     "stop": "stopped off an aerodrome: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Twin busher floats 4b",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "cb_sea",
+     "t": 575,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "flap-limited: the elevator cannot hold flap 0.55 — landing on 0.30",
+      "capsized: on its back in FINAL at 12.0 m/s (bank -92 deg)",
+      "flap-limited: the elevator cannot hold flap 0.30 — landing on 0.25"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: Cessna 172 floats (career) flown with 3 aboard (the garage's seat door)",
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats",
+  "the seats as the job asks: PC-6 on Wiplines flown with 3 aboard (the garage's seat door)",
+  "the seats as the job asks: Twin busher floats 4b flown with 3 aboard (the garage's seat door)"
+ ],
+ "untested": false,
+ "key": "30b9d6c9ad59",
+ "where": "home:6",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 8623
+}

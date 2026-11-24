@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 58 feasible; 20 infeasible; 3 no official plane can fly it (the player builds one); 2 not flown. Time flown: 1903 min 38 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 58 feasible; 22 infeasible; 3 no official plane can fly it (the player builds one). Time flown: 1987 min 11 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -75,10 +75,10 @@ Summary (91 missions): 8 an aircraft order (not a flight); 58 feasible; 20 infea
 | home.06 | home:3 | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 450 kg aboard, the cabin takes 90 kg; jodel: Jodel: 450 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 450 kg aboard, the cabin takes 280 kg; c172f: Cessna  |
 | home.07 | home:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 20 min 03 s | HOME > w3 472; w3 > w1 731 |  |
 | home.08 | home:4 | infeasible | Twin busher floats 4b | 10 min 58 s | SEA > cb_sea 658 | the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax |
-| home.09 | home:4 | not flown | - | - | - |  |
+| home.09 | home:4 | infeasible | Twin busher floats 4b | 73 min 58 s | SEA > mk_sea 394; mk_sea > mk_sea 1644; mk_sea > cb_sea 2400 | the flight did not end (2400 s) |
 | home.10 | home:5 | infeasible | PC-6 on Wiplines | 18 min 12 s | HOME > SEA 1092 | crashed: the damage ended the flight: a fus member broke |
 | home.11 | home:5 | infeasible | Twin busher floats 4b | 6 min 36 s | SEA > mk_sea 396 | the stop refuses the load: aboard 40 kg / 0 pax, the job is 200 kg / 0 pax |
-| home.12 | home:6 | not flown | - | - | - |  |
+| home.12 | home:6 | infeasible | Twin busher floats 4b | 9 min 35 s | SEA > cb_sea 575 | crashed: the damage ended the flight: a fus member broke |
 | home.13 | home:7 | infeasible | PC-6 Turbo Porter | 19 min 04 s | HOME > w1 1144 | the stop refuses the load: aboard 0 kg / 0 pax, the job is 280 kg / 0 pax |
 | home.14 | home:7 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 19 min 53 s | HOME > w3 480; w3 > w1 713 |  |
 | community.01 | community:1 | feasible | Piper Cub | 33 min 10 s | HOME > w6 1990 |  |

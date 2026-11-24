@@ -21,7 +21,8 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 - THE PACK ON L40K: 81 of the 83 flights flown (about 32 hours of flight). 58 VALIDATED WITH AN AEROPLANE; 23 red or
   waiting for a plane, each with its cause (the handover section: "what is left" groups them, "the feasibility state"
   lists them). The last two (home.09, home.12: Cabin Lake landings) were still in the air when this ready was cut;
-  their rows go to `claude/story-revamp` if they land. The 8 aircraft orders are not flights: 4 pass their criteria
+  THEY LANDED RED AT 06:20 UTC, on the lake's closed final as the others - their rows and flags are on
+  `claude/story-revamp` only (two row files, two flags in story.json): ALL 83 FLIGHTS ARE FLOWN, 58 validated, 25 red. The 8 aircraft orders are not flights: 4 pass their criteria
   on an official plane, 3 are untested (no career design), 1 (resort.b2) fails its landing test at the altiport.
 - THE CLUB: four of the five scored events and the club's contract are validated (the Cub; the Jodel for the
   contract); the multi-leg tour is red on its stop at w5 on this sim (it flew on L40J).
@@ -142,7 +143,7 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 ### The feasibility state
 
 <!-- feas-state -->
-ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 58 FEASIBLE, 23 red or waiting for a plane the player builds, 2 not flown yet on this sim (0 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
+ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 58 FEASIBLE, 25 red or waiting for a plane the player builds, 0 not flown yet on this sim (0 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
 The feasible ones, by the aeroplane that flew them: 27 Piper Cub, 8 STOL Cub, 7 light metal Cessna with the STOL kit (test build), 4 PC-6 Turbo Porter, 4 Cessna 172 floats (career), 4 Jodel D112, 2 Cessna 172, 1 PA-18 on floats, 1 PC-6 on Wiplines.
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
@@ -156,6 +157,7 @@ Those, by cause:
 - clients.n2: no official plane can carry it (a 175 kg load with its long item): a named class, not flown
 - home.06: no official plane can carry it (450 kg into the 383 m Cabin Strip): a STOL hauler the player builds - a named class, not flown
 - home.08: Cabin Lake names no landing direction (the island's aerodrome record): the float Cessna flies the closed final and breaks up; its 150 kg is also over what a float plane of the pool loads
+- home.09, home.12: Cabin Lake names no landing direction (the island's aerodrome record): the float Cessna flies the closed final and breaks up
 - home.10: Cabin Lake names no landing direction (the island's aerodrome record): the float Cessna flies the closed final and breaks up; its 250 kg is also over what a float plane of the pool loads
 - home.11: 200 kg on water for Cabin Lake: refused at the loading (the float Cessna takes 100 kg, the Twin busher 40) before the lake is reached - a float hauler the player builds; then Cabin Lake's landing direction
 - home.13: 280 kg to the Cabin Strip: the capability rule says the Cessna's cabin takes 280 kg, its loading card takes 140 kg of it (flown with the pilot alone); the PC-6's card takes none - the rule against the card, or a hauler the player builds
