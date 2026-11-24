@@ -2708,7 +2708,14 @@
     "gain": 1
    },
    "goods": "goods.parts",
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 200 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "1b0527fc"
+   }
   },
   {
    "id": "obs.09",
