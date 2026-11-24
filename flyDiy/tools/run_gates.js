@@ -123,6 +123,7 @@ const GATES = [
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
   { id: 'FMIST', file: '_fmist_check.js', tier: 'core' },   // FOREST-MIST (2026-11-10): off is identical, the map, the weather's law, the row
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
+  { id: 'RAIN', file: '_rain_check.js', tier: 'core' },   // RAIN step 1 (LOOK-1, 16 Nov): the rain field - the weather map's A channel, rainAt, a dry day dry
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
   // G2820 (STOL-WING): slats / slots, VGs, fences, cuffs, endplates, drooped tips, drooping ailerons, Fowler area
@@ -713,6 +714,7 @@ const GATES = [
   // tundra is a torus, every tail cone has its zone (the mirrored pod's too), the Mosquito's whole-cabin shoulder,
   // and the comment strip the source-scan gates share is a lexer. Seconds.
   { id: 'EDBUGS', file: '_edbugs_check.js', tier: 'core' },
+  { id: 'REFLOCK', file: '_reflock_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },   // REF-LOCK (the user 21 Nov): a locked row shows no slider
   // THE FITTINGS (G81-G85): GEN_ACCESS resolved against the built skin, and
   // the geometry that lands there. Every fitting on its own skin, one per
   // flank, snapped to real structure, standing OUT, no two in one place, and
@@ -740,7 +742,16 @@ const GATES = [
   // its retracting gear on the wing (the DC-3-alike: its wing span's release left the engines' layer one build behind)
   // a hull with a pylon engine (the Super Petrel) and the Cub; six rows each, the main gear's station along the fuselage
   // among them (a row that turns the sit: the Cub's tank, the limbs) - _instant_rel_check.js
-  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', wall: 1500 },
+  // (A0, 23 Nov: 1 405 s alone was the battery's longest chunk - one aeroplane a shard: the DC-3 ~7 min, the Petrel ~13, the Cub ~4)
+  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', shards: 3, wall: 900 },
+  // PERF-SLIDERS: A DERIVED READ GIVES THE AEROPLANE THE RAW READ GAVE (CAGE_CHAIN.derived: the dash's gear selector asks
+  // "do the mains stand off the centreline", the crew layer no longer re-runs on every tick of the gear's station) - per
+  // aeroplane and derived row, three walks from the same aeroplane (ON, OFF, OFF: the two OFF name the noise), the scene's
+  // fingerprint and the resolved spec; core: the DC-3-alike and the Super Petrel, full: every aeroplane a player can open
+  { id: 'DERIVED', file: '_derived_check.js', tier: 'core', wall: 2400 },
+  // PERF-SLIDERS: the dash's gear selector placed by the cheap search (_panel_gen.js placeGear: the plate's outline asked
+  // once a column) stands where the plain search put it - 2 000 random dashes, the old function kept in the check
+  { id: 'PANELGEAR', file: '_panel_gear_check.js', tier: 'core', wall: 120 },
   // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
@@ -752,6 +763,10 @@ const GATES = [
   // G3630 (HANGAR-VIEW): the view out of the garage door is the world - the capture's faces and the lookup one convention,
   // the distance resolve inverts three's depth, the boot / return / lights / outdoors seams, no GPU readback
   { id: 'HANGARVIEW', file: '_hangarview_check.js', tier: 'core', wall: 30 },
+  // GARAGE-VIEW (22 Nov): the cooked world out of a hangar's door is TODAY's world - every pack's sheds stand where the record
+  // puts them and its signature is the record's rev (a miss names the pack to cook again), the scene whole and under its budget,
+  // placed by the shed's true yaw, the room's hand-drawn outdoors down while it stands
+  { id: 'GARAGEVIEW', file: '_garageview_check.js', tier: 'core', wall: 15 },
   // G2111 (GARAGE-LAPTOP): the flown model hidden behind the editor's cage is not deformed in the garage - two deterministic
   // pages (the skip, the old every-frame pose) hold bit-identical skins when it is shown for a call and on the stand after
   // the roll-out; the idle garage uploads no more skin than before
@@ -845,6 +860,7 @@ const GATES = [
   // the build's occupants it leaves ashore off the layer) - the stand, the snapshot and the flown mesh follow, the spec
   // stays the build's. The page's load chain on the metal Cessna, four jobs, a probe; ~1-2 min
   { id: 'CREWSEATS', file: '_crewseats_check.js', tier: 'core', wall: 300 },
+  { id: 'CREWSYM', file: '_crewsym_check.js', argv: ['--selftest'], tier: 'core', wall: 300 },   // KNEE-SYM (the user 23 Nov): the pilot's knees mirror, the aeroplane turned or not
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)
@@ -1010,6 +1026,23 @@ const GATES = [
   // fitting's own dimensions
   { id: 'STRUT', file: '_strut_check.js', tier: 'core' },
   { id: 'STRUTOPT', file: '_strutopt_check.js', tier: 'core' },   // STRUT-OPTIONS: the strut's section and jury strut
+  // WIRES (PHYSICS-AUDIT step 2, 21 Nov): the bracing wires' drag is the wires the aeroplane has - a stressed-skin
+  // tailplane pays no brace wires (by its skin, or as the row tail.brace states), a biplane's flying wires are round
+  // cable or streamline wire (bracing.wireSection); the structure the same either way, the rows absent at 0.
+  { id: 'WIRES', file: '_wires_check.js', tier: 'core', wall: 3 },
+  // PROPFIT (PHYSICS-AUDIT step 3, 21 Nov): the fixed-pitch propeller cut for its aeroplane - the anchor's static thrust
+  // to the bit and its curve within 5 %, the design point on the actuator disc at the blade's efficiency, the blade's
+  // material, no propeller over its disc, the redline on the tachometer's own law, the pitch classes, a governed or
+  // absent propeller untouched, the built spec a fixed point.
+  { id: 'PROPFIT', file: '_propfit_check.js', tier: 'core', wall: 5 },
+  // IDLEPROP (PHYSICS-AUDIT step 4, 21 Nov): the propeller that is not driven is a brake - nothing at full throttle or
+  // standing, a share of the disc as drag with the throttle closed (by the engine's state: turning, dead, seized,
+  // electric, governed), linear between; the trim's cruise and approach throttles on the same law; nothing diverges.
+  { id: 'IDLEPROP', file: '_idleprop_check.js', tier: 'core', wall: 10 },
+  // DRAGROWS (PHYSICS-AUDIT step 5, 22 Nov): a floatplane pays its floats and their struts (it paid a phantom wheeled
+  // gear), a hull half again a fuselage's body row, a bare radial's fuselage less the form drag the engine pays; a
+  // landplane, an inline engine and a measured cowl untouched.
+  { id: 'DRAGROWS', file: '_dragrows_check.js', tier: 'core', wall: 60 },
   // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
   // stand beside your build, held to their PUBLISHED span and length — every
   // measurement taken against a reference is worth exactly what that check is

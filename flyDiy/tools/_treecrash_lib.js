@@ -154,7 +154,10 @@ function hardLanding(key, o) {
   let W, strip, sim;
   const probe = C.makeSim(def, null);
   if (probe.hydro) { W = C.makeWorld(); strip = W.aerodromes.find(a => a.id === 'SEA'); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, strip); }
-  else { ({ W, strip } = flatWorld(0)); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 })); }
+  // (STANCE-AS-GAME, A0 23 Nov: on its wheels on the ground the aeroplane is stood as the game stands it - sim.stance()
+  // after reset (app.js applyRoute, sim_host, drive_mode); a level drop is a spawn no player sees, and since
+  // TRICYCLE-STANCE a tricycle too is stood on its three wheels)
+  else { ({ W, strip } = flatWorld(0)); sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance(); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 })); }
   lastRun.sim = sim;
   for (let f = 0; f < 240; f++) sim.step(1 / 60);
   const gap = o.gap == null ? 0.02 : o.gap, sink = o.sink;
@@ -171,6 +174,7 @@ function hardLanding(key, o) {
 function circuit(key, o) {
   const C = core(), def = defOf(key, o), world = C.makeWorld();
   const sim = C.makeSim(def, world); sim.reset(0); lastRun.sim = sim;
+  if (!sim.hydro && sim.stance) sim.stance();     // (STANCE-AS-GAME: the game's placement step)
   const a = world.aerodromes.find(x => x.id === (sim.hydro ? 'SEA' : 'HOME')) || world.aerodromes[0];
   if (sim.hydro) C.placeAtAerodrome(sim, a);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
@@ -205,6 +209,7 @@ function atTrunk(key, o) {
 }
 function flyRun(C, sim, def, TH, strip, elev, o) {
   sim.reset(0);
+  if (!o.agl && sim.stance) sim.stance();         // (STANCE-AS-GAME: on its wheels, stood as the game stands it)
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev + (o.agl || 0) }));
   const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   if (!o.agl) for (let f = 0; f < 120; f++) sim.step(1 / 60);

@@ -1849,7 +1849,7 @@ const DESIGN_ROWS = [
     // boom deck at the centreline and the fin goes; the join writes
     // tail.type 'v' from the cant, the ruddervator mix is the solver's own
     read: P => Math.round(P.stMount) === 4 ? ['iv', 'ivOut', 'bvIn', 'bvOut'][Math.max(0, Math.min(3, Math.round(+P.stIvDir || 0)))]
-             : +P.stCant >= 20 ? 'v'
+             : Math.abs(+P.stCant) >= 20 ? 'v'     // (LAZAIR: a V canted down, its cant below -20, is still a V)
              : (Math.round(P.stMount) === 2 || +P.stY >= 1.8) ? 't'
              : +P.stY >= 0.75 ? 'cruci' : 'conv',
     options: [
@@ -2483,7 +2483,7 @@ const ARCHETYPES = [
                     // DH.82A's), the upper plane higher; the planes' station: measured (STEP 1 below)
                     wgParaH: 0.58, wgDx: 0.35, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
                     w2Pos: 2, w2Stagger: 0.56, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0,
+                    bpInter: 0, bpWires: 1, bpWireSec: 1, bpCabane: 0,
                     ...OPEN_TANDEM,
                     halfW: 0.54, roofHalfW: 0.42, roofY: 0.68, keelY: -0.58, waistY: 0.22, floorY: -0.32,
                     // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
@@ -2569,7 +2569,7 @@ const ARCHETYPES = [
                     wgDx: 0.55,      // (the planes' station now follows the shorter forward deck: measured below)
                     wgParaH: 0.44, w2Span: 9.5, w2Chord: 1.52, w2ChordTip: 1.52,
                     w2Pos: 2, w2Stagger: 0.66, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5,
+                    bpInter: 0, bpWires: 1, bpWireSec: 1, bpCabane: 0, cw_propD: 2.5,
                     // the PT-17's Continental radial runs UNCOWLED (the user, 27 Oct: "remove the cowl, there's a proper
                     // option for that" - the cowl part's own switch)
                     cowlOn: 0,
@@ -2650,7 +2650,7 @@ const ARCHETYPES = [
     over: { cage: { wgSpan: 8.53, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0, wgDihedral: 0, cw_propD: 2.59,   // the 8 ft 6 in wooden propeller
                     w2Span: 8.53, w2Chord: 1.37, w2ChordTip: 1.37, w2Dihedral: 3,   // the reference measures 2.8 deg; the row steps 0.5 (the F.1 drawings say 5)
                     w2Pos: 2, w2Stagger: 0.48, wgAilOn: 1, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0,
+                    bpInter: 0, bpWires: 1, bpWireSec: 1, bpCabane: 0,
                     ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,
                     // the upper centre section NOT cut (the user's review)
                     wgCentre: 0,
@@ -4188,6 +4188,8 @@ function designBake(sel, over) {
       interplaneAt: +full.bpInterAt || 0.62,
       wires: ['none', 'both', 'flying'][Math.round(full.bpWires == null ? 1 : full.bpWires)] || 'both',
       cabane: Math.round(full.bpCabane || 0) ? 'V' : 'N' });
+    // PHYSICS-AUDIT step 2 (2026-11-21): a card's streamline flying wires (absent at 0: the bytes every card had)
+    if (Math.round(+full.bpWireSec || 0) === 1) bracing.wireSection = 'streamline';
     // the first plane's aileron switch is intent too (a Tiger Moth's upper
     // plane carries none)
     if (full.wgAilOn != null && !+full.wgAilOn)

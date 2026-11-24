@@ -48,6 +48,10 @@ const AP_WHY = (() => {
     [/^floating with (\d+) m left/, m => 'it floated too long: only ' + m[1] + ' m of strip left'],
     // G3330's hop (43_pilot.js ROLLOUT, the DC-3's bounce): a hop past bounceGA (2 m), or still climbing at a metre
     [/^bounced ([\d.]+) m off the touch at ([\d.]+) m\/s/, m => 'it bounced ' + m[1] + ' m back up off the touchdown (' + kmh(m[2]) + ' km/h)'],
+    // FLARE-LOST (43_pilot.js FLARE): a flare flown 30 m up, climbing or past the strip's end - round again even when committed
+    [/^flown off the flare: (\d+) m up with (-?\d+) m of strip left/, m => +m[2] < 0
+      ? 'it flew off the end of the strip in the flare (' + m[1] + ' m up)'
+      : 'it climbed away in the flare (' + m[1] + ' m up, ' + m[2] + ' m of strip left)'],
   ];
   // the stabilised-approach gate's why (43_pilot.js FINAL: slow / fast / high / low / sinking / off the centreline / flaps)
   function steady(w) {

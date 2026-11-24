@@ -1799,7 +1799,11 @@ function engPlace(ctx, prev) {
     // the drawn disc's offset from the mount the aids measure the prop's clearance from (app.js aidPropOff)
     let propAt = null;
     if (pg) { const pv = pg.position.clone(); ug.updateMatrix(); pv.applyMatrix4(ug.matrix); propAt = [pv.x, pv.y, pv.z]; }
-    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, faceZ: f.z, faceYc: f.yc, propAt,
+    // PROP-CHECK (the user 21 Nov: the check's tilt differs from the propeller's): the SHAFT, the unit's own +z turned by its
+    // tilt (ug.rotation), in the same frame - the aids draw the disc square to it
+    let propAxis = null;
+    if (pg) { const av = new THREE.Vector3(0, 0, 1).applyQuaternion(ug.quaternion); propAxis = [av.x, av.y, av.z]; }
+    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, faceZ: f.z, faceYc: f.yc, propAt, propAxis,
                    at: [ug.position.x, ug.position.y, ug.position.z],
                    prop: pg ? { hub: propHub, R: 0.5 * Math.max(0.2, +CW.P.propD || 1.5), group: pg } : null,
                    propFit: null });

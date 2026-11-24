@@ -115,7 +115,10 @@ var SKY_LIGHT = (function () {
       ATMO.sunTransmittance(altKm, dir[1], _T);
       const mT = maxc(_T);
       // the sun fades through the horizon (its own transmittance does most of it)
-      const fade = isMoon ? (moon[1] > -0.02 ? 1 : 0) : Math.min(1, Math.max(0, (el + 1.5) / 2));
+      // NIGHT-SUN (atmo.js THE LIGHT SEEN): the moon goes through the horizon on the sun's own ramp. It was whole down to -1.15 deg and
+      // then gone in a frame: five minutes of moonlight (and of its glint on the sea) from a moon under the horizon, then a cut
+      const NS_OFF = !!ATMO.NIGHTSUN_OFF, elK = isMoon ? Math.asin(Math.max(-1, Math.min(1, moon[1]))) / D2R : el;
+      const fade = isMoon && NS_OFF ? (moon[1] > -0.02 ? 1 : 0) : Math.min(1, Math.max(0, (elK + 1.5) / 2));
       let I = K_SUN * mT * unit * gain * fade;
       if (isMoon) I *= moonE;
       if (o.keyGain != null && !isMoon) I *= o.keyGain;   // the key alone (CLOUDS C3: the layer's transmittance over a room - the dome keeps its scale)
@@ -141,7 +144,7 @@ var SKY_LIGHT = (function () {
     // the hemisphere: the sky's irradiance from both lights
     const hemi = o.hemi;
     if (hemi) {
-      ATMO.skyIrradiance(altKm, sun, _E);
+      ATMO.skyIrradiance(altKm, sun, _E, ATMO.twilight ? ATMO.twilight(el) : 1);   // NIGHT-SUN: the sun's sky light through the astronomical twilight (none under -18 deg)
       if (moonE > 0 && moon[1] > -0.1) { ATMO.skyIrradiance(altKm, moon, _Em); _E[0] += _Em[0] * moonE; _E[1] += _Em[1] * moonE; _E[2] += _Em[2] * moonE; }
       const L = Math.max(1e-9, lum(_E)), mE = maxc(_E);
       const boost = o.hemiBoost != null ? o.hemiBoost : 1;
@@ -149,6 +152,8 @@ var SKY_LIGHT = (function () {
       hemi.intensity = Math.max(K_HEMI * L * unit * boost, 3e-7 * unit);
       if (hemi.color && hemi.color.setRGB) {
         hemi.color.setRGB(_E[0] / mE, _E[1] / mE, _E[2] / mE);
+        // NIGHT-SUN: no sun in the sky (under -18 deg) and no moon - the floor below is the night's own light, and takes its colour (a black one lit nothing)
+        if (!(L > 1e-9) && !ATMO.NIGHTSUN_OFF) hemi.color.setRGB(NIGHT_TINT.col[0], NIGHT_TINT.col[1], NIGHT_TINT.col[2]);
         // CLOUDS C3: under a cloud the sky's light is the deck's (the sun's transmitted colour diffused), not the zenith's blue
         if (o.cloudT != null && o.cloudT < 1 && !isMoon) { const mT = maxc(_T), w = 0.6 * (1 - Math.max(0, o.cloudT)); hemi.color.lerp(_c3.setRGB(_T[0] / mT, _T[1] / mT, _T[2] / mT), w); }
       }

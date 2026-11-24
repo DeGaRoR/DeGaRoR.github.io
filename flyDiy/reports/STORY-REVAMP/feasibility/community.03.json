@@ -1,0 +1,70 @@
+{
+ "id": "community.03",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1734,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w7",
+   "t": 1734,
+   "how": "stopped",
+   "at": "w7",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w7",
+     "t": 1734,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "go-around: unstabilised approach at 72 m: high 9 m on the slope (attempt 2)",
+      "committed-unstable: unstabilised (high 9 m on the slope) but committed - landing it",
+      "slip: high on the final (15 m over the slope at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 211,
+      "sink": 0.63,
+      "V": 17.6,
+      "offCentre": -2.1,
+      "pastAim": 310,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 498,
+      "stopLeft": 312
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "e7af9c2a3815",
+ "where": "community:2",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 756
+}

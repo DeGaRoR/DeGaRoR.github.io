@@ -92,7 +92,10 @@ const GROUP = ['8b · tail — stab & elevator', [
     // (DRAFTING TABLE, 11 Nov: the PC-6's stab sits 0.9 over its seat - the range was the slider's alone, 0.8)
     ['stY', 'up / down (from the seat)', -0.20, 1.20, 0.005],
     ['stZ', 'fore / aft',       -0.60, 0.60, 0.005],
-    ['stCant', 'cant (V-tail) °', 0, 55, 0.5],
+    // LAZAIR (24 Nov, the user: "an inverted V-tail on a single boom"): the cant goes NEGATIVE - the classic V's two
+    // panels laid DOWN from their seat (a Lambda under the boom), each panel's upper face still up and its ruddervator's
+    // sense the elevator's; past -20 the tips can carry the tail's wheels (the gear page's 'V tip wheels' row)
+    ['stCant', 'cant (V-tail; below 0 the V hangs down) °', -55, 55, 0.5],
   ], 'open', { when: P => +P.stOn }],
   ['cut', [
     ['stCut',    'stab / elevator', 0, 2, 1,
@@ -120,6 +123,11 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stChordTip', 'tip chord (of the root)',           0.30, 1.50, 0.01],
     ['stSweep',    'sweep (deg, the hinge rakes)',      -10, 45, 0.5],
     ['stHinge',    'elevator chord (of the root)',      0.08, 0.45, 0.005],
+    // PHYSICS-AUDIT step 2 (2026-11-21): the tailplane's BRACING is its drag - a fabric-covered stab is wire-braced to
+    // the fin post (four cables in the wind), a stressed-skin one is a cantilever (none); the row says otherwise when
+    // the aeroplane does (60_gen_spec genTailBraced, tail.brace). Absent at 0 (by its skin)
+    ['stBrace',    'bracing',                           0, 2, 1, ['by its skin', 'brace wires', 'none (cantilever)'],
+     { when: P => !+P.boomTwin }],
   ], 'open', { when: P => +P.stOn }],
   ['corners', [
     ['stTipZ',  'tip fore / aft (sweep)',     -0.60, 0.60, 0.005],
@@ -191,12 +199,14 @@ const ivReachOf = (P, bx) => ivDirOf(P).out
   : bx - 0.5 * ivGapOf(P);
 window.CAGE_IV_DIR = ivDirOf;
 window.CAGE_IV_REACH = ivReachOf;
-PAGE.post = ctx => {
-  if (prevPost) prevPost(ctx);
+// LAZAIR (24 Nov): the build is a function - `dry` computes the panels and returns the downward V's tips (metres) with
+// nothing drawn and nothing published, so the gear layer (it draws BEFORE this one) hangs the tip wheels on THIS
+// build's tips, not the last build's (window.CAGE_STAB_TIPS below); the post is the same function, drawing
+const stabBuild = (ctx, dry) => {
   const { scene, mesh, P, stat } = ctx;
   const DRAW = window.CAGE_FIN_DRAW;
-  dispose(group); group = null;
-  if (!Math.round(P.stOn === undefined ? 1 : P.stOn) || !DRAW) return;
+  if (!dry) { dispose(group); group = null; }
+  if (!Math.round(P.stOn === undefined ? 1 : P.stOn) || !DRAW) return null;
 
   // spec: the fin grammar under the st* values, dorsal and keel forced out
   const finP = {};
@@ -243,7 +253,12 @@ PAGE.post = ctx => {
   // G3800: mount 4, THE INVERTED V, is a twin boom's only (anywhere else it reads as 'between the booms' / the keel)
   const mount0 = Math.round(P.stMount || 0), mount = mount0 === 4 && !TB ? 0 : mount0;
   const IV = mount === 4;
-  const cantDeg = IV ? Math.max(20, Math.min(55, +P.stCant || 35)) : Math.max(0, +P.stCant || 0);
+  // (LAZAIR: a negative cant on a single body - a fuselage or one boom - lays the classic V downward, -55 its floor; on
+  // twin booms it reads 0, as it always did; 0 and up as before, to the bit)
+  const cantDeg = IV ? Math.max(20, Math.min(55, +P.stCant || 35))
+                     : +P.stCant < 0 && !TB ? Math.max(-55, +P.stCant) : Math.max(0, +P.stCant || 0);
+  // LAZAIR: THE DOWNWARD V - a single boom's classic V canted past -20 (its tips carry the tail's wheels, _cage_gear)
+  const vDown = !TB && cantDeg <= -20;
   const cant = cantDeg * Math.PI / 180;
   // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
   // the root chord's leading edge (the most forward root-line vertex)
@@ -269,8 +284,13 @@ PAGE.post = ctx => {
     const plateTop = yT + RF.SADDLE.hS / FSd;              // cage units
     const half = 0.5 * (P.stThick || 0.05);
     const under = yRef + (P.stY || 0) - half;              // the stab's underside
-    if (under < plateTop) yRef += plateTop - under;        // lifted onto the plate
-    rodSeat = { z: zH, yT, yB, plateTop, r: 0.5 * (yT - yB), axis: RF.axisOf ? RF.axisOf(deck, zH) : [0, 0, -1] };   // (HULL-B37: the tube's own axis)
+    // LAZAIR: a V canted DOWN hangs UNDER the tube - its root's upper face against the BOTTOM plate (one asked for higher
+    // is lowered onto it; lower, a pedestal carries it); a level or upward stab rides the crown's plate as ever
+    const plateBot = yB - RF.SADDLE.hS / FSd, hang = cantDeg < 0;
+    const over = yRef + (P.stY || 0) + half;               // the root's upper face
+    if (hang) { if (over > plateBot) yRef -= over - plateBot; }
+    else if (under < plateTop) yRef += plateTop - under;   // lifted onto the plate
+    rodSeat = { z: zH, yT, yB, plateTop, plateBot, hang, r: 0.5 * (yT - yB), axis: RF.axisOf ? RF.axisOf(deck, zH) : [0, 0, -1] };   // (HULL-B37: the tube's own axis)
   }
   if ((mount === 3 || IV) && deck)               // the boom's own centre
     yRef = 0.5 * (deck.top(FIN.FIN_DEFAULT.zH1 + dzS) + deck.bot(FIN.FIN_DEFAULT.zH1 + dzS));
@@ -343,11 +363,11 @@ PAGE.post = ctx => {
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const wire = $('wire') && $('wire').checked;
   const bySec = !$('color') || $('color').checked;
-  group = new THREE.Group();
+  if (!dry) group = new THREE.Group();
   // NAMED for the editor (G76/G77): the part table says which layer a
   // part lives in, and G79's raycast resolves a hit to a part through
   // that. One string, no behaviour.
-  group.name = 'cageLayer:stab';
+  if (!dry) group.name = 'cageLayer:stab';
   const ex = cutMode ? Math.max(0, P.explodeD || 0) : 0;
   const lay = { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
                 sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant,
@@ -365,12 +385,13 @@ PAGE.post = ctx => {
     // half's lay at the far boom's x with the cant negated, so the panel's upper face stays up (the ruddervator's
     // sense is the elevator's, as on every V) and its winding is the mirror half's own
     const half = FIN.finToStab(disp, layOf(side));
-    if (IV && !IVD.up) {   // the tip (metres): the panel's lowest points, their middle - the tail's wheel hangs there (_cage_gear)
+    if ((IV && !IVD.up) || vDown) {   // the tip (metres): the panel's lowest points, their middle - the tail's wheel hangs there (_cage_gear)
       let yMin = Infinity; for (const p of half.V) yMin = Math.min(yMin, p[1]);
       let sx = 0, sz = 0, n = 0; for (const p of half.V) if (p[1] < yMin + 0.02) { sx += p[0]; sz += p[2]; n++; }
       const FSt = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
       if (n) ivTips.push([sx / n * FSt, yMin * FSt, sz / n * FSt]);
     }
+    if (dry) continue;
     for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
       const sub = part
         ? { V: half.V, F: half.F.filter(f => f.part === part) } : half;
@@ -386,6 +407,7 @@ PAGE.post = ctx => {
       group.add(obj);
     }
   }
+  if (dry) return vDown ? ivTips : null;
   // G307: the saddle and the pedestal under a rod-mounted stab (metric
   // hardware in a child scaled back out of the group's cage units; tagged as
   // hardware so the join's bounds skip it)
@@ -404,14 +426,21 @@ PAGE.post = ctx => {
     // fin's and stab's, z-fighting. When the fin has already plated this
     // station the stab is bolted onto that plate (its pedestal stands on it);
     // a station only the gear's collar holds still gets the stab's own plate.
-    const finPlate = FSn.find(g => g.top && Math.abs(g.z - zUse) < 0.005);
+    // (LAZAIR: a downward V hangs from the BELLY's plate - the fin's crown plate is not its own)
+    const finPlate = !rodSeat.hang && FSn.find(g => g.top && Math.abs(g.z - zUse) < 0.005);
     const rec = finPlate ? { top: finPlate.top }
       : RF.saddle(bag, { ctr: [0, 0.5 * (rodSeat.yT + rodSeat.yB) * FS, zUse], axis: rodSeat.axis || [0, 0, -1],
-                         r: rodSeat.r * FS, collar: !shared, plate: { top: 1, W: Wp, L: Lp } });
+                         r: rodSeat.r * FS, collar: !shared, plate: rodSeat.hang ? { bot: 1, W: Wp, L: Lp } : { top: 1, W: Wp, L: Lp } });
+    const Wb = finPlate ? Math.min(Wp, finPlate.W) : Wp, Lb = finPlate ? Math.min(Lp, finPlate.L) : Lp;
+    if (rodSeat.hang) {   // LAZAIR: the pedestal from the root's upper face up to the belly plate
+      const over = (yRef + (P.stY || 0) + 0.5 * (P.stThick || 0.05)) * FS;
+      const gapH = rec && rec.bot ? rec.bot[1] - over : 0;
+      if (gapH > 0.005) RF.pedestal(bag, { base: [rec.bot[0], over - 0.001, rec.bot[2]], axis: [0, 0, -1], h: gapH + 0.001, W: Wb * 0.8, L: Lb * 0.8 });
+    } else {
     const under = (yRef + (P.stY || 0) - 0.5 * (P.stThick || 0.05)) * FS;
     const gap = rec && rec.top ? under - rec.top[1] : 0;
-    const Wb = finPlate ? Math.min(Wp, finPlate.W) : Wp, Lb = finPlate ? Math.min(Lp, finPlate.L) : Lp;
     if (gap > 0.005) RF.pedestal(bag, { base: rec.top, axis: [0, 0, -1], h: gap + 0.001, W: Wb * 0.8, L: Lb * 0.8 });
+    }
     const sad = new THREE.Group();
     sad.name = 'edSaddle_stab';
     sad.scale.setScalar(1 / FS);
@@ -421,7 +450,7 @@ PAGE.post = ctx => {
   }
   group.scale.setScalar(FS);
   scene.add(group);
-  window.CAGE_IV_TIPS = IV && !IVD.up ? ivTips : null;   // G3800: read by the gear layer on the next build (G3801: a downward V's)
+  window.CAGE_IV_TIPS = (IV && !IVD.up) || vDown ? ivTips : null;   // G3800: read by the gear layer on the next build (G3801: a downward V's; LAZAIR: a single boom's)
 
   // THE LAY, published with the cage (2026-09-03). `cage` is in FIN space —
   // the stab is the fin model laid flat (G23) — so a caller holding a named
@@ -450,5 +479,16 @@ PAGE.post = ctx => {
     }
     stat.textContent += t;
   }
+  return null;
+};
+PAGE.post = ctx => {
+  if (prevPost) prevPost(ctx);
+  stabBuild(ctx, false);
+};
+// LAZAIR: THE DOWNWARD V's TIPS FOR THIS BUILD (metres, [x, y, z] a side: the panel's lowest points' middle) - the
+// panels computed dry, as the post lays them; null when the V does not hang down
+window.CAGE_STAB_TIPS = (P, mesh) => {
+  try { const t = stabBuild({ P, mesh, scene: null, stat: null }, true); return t && t.length === 2 ? t : null; }
+  catch (e) { return null; }
 };
 })();

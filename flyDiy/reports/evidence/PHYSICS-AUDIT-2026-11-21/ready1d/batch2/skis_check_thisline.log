@@ -1,0 +1,75 @@
+1 ABSENT IS AS TODAY (the core before the skis, to the bit)
+  FAIL builds/cub_2026-09-20_corrected.json: def 7fa6001be6bb, sheet 59b09f2c0aa5, 300 steps 4ca749961afd (base 65a2c3af9c13 / 6b9bca7700d6 / 17dc97a0f863)
+  ok   builds/cub_2026-09-20_corrected.json: no ski key, no parts.ski
+  FAIL builds/jodel_2026-09-20_corrected.json: def 3f7ca0a9ff56, sheet 37f36395234d, 300 steps d2c30578b0e1 (base ed001b4b28ce / e7c0108f3ef2 / b8f978a94328)
+  ok   builds/jodel_2026-09-20_corrected.json: no ski key, no parts.ski
+  FAIL tools/fixtures/test_copies/cessnaMetal (1).json: def 9a09b3724195, sheet 2b3249393954, 300 steps e3b834d3b777 (base 46c546c0a553 / 99602d263023 / 5cddbb102aef)
+  ok   tools/fixtures/test_copies/cessnaMetal (1).json: no ski key, no parts.ski
+  FAIL bugReports/cessnaFloatsWOrks.json: def 3ace6147cac1, sheet a65d67f2d735, 300 steps 3aba2179f974 (base 4ed41a4bfed1 / adfc62c6254d / 37a24324f81a)
+  ok   bugReports/cessnaFloatsWOrks.json: no ski key, no parts.ski
+  FAIL tools/fixtures/build_v7_ultralight_2026-09-05.json: def 13a8f8469124, sheet 9261e291a1e9, 300 steps 477696b108cb (base fad8c9b539f9 / 4c4b3095b3b9 / 697dcd96ca67)
+  ok   tools/fixtures/build_v7_ultralight_2026-09-05.json: no ski key, no parts.ski
+  FAIL tools/fixtures/test_copies/superpetrel_V4_1.json: def d597ac2198d2, sheet 394db9956f4d, 300 steps 6f8c13ac278a (base 4ee65ac963b1 / cbdc7611c54b / 2b5738e6dc25)
+  ok   tools/fixtures/test_copies/superpetrel_V4_1.json: no ski key, no parts.ski
+  FAIL builds/candidates/carbon_cub_ss.json: def d1ed2a4e4d07, sheet fefa127c3fb7, 300 steps fb7e5546378d (base e49edd39874e / 568cd7cad1ad / 1259bb946b99)
+  ok   builds/candidates/carbon_cub_ss.json: no ski key, no parts.ski
+2 THE SPEC: where a ski can be, its bounds, the latent rows
+  ok   a taildragger keeps its plain ski
+  ok   floats: the ski key dropped
+  ok   a merge's null: no key
+  ok   an unknown kind is plain, the bounds hold (L 6 / W 0.08 / ped kept, prot and drop are not a plain ski's): {"kind":"plain","L":6,"W":0.08,"ped":0.3,"third":{"L":0.2}}
+  ok   a wheel-ski: drop and cycle bounded, prot kept, no pedestal row
+  ok   normalising a normalised ski changes nothing
+  ok   the join's nulls drop: {"kind":"plain","L":1.7,"W":0.3}
+  ok   a ski wears no spat (the drawn skis have none)
+  ok   genStolCageOff: the ski rows at "no skis" and the preview are absent (s1R)
+  ok   a ski build keeps its rows, never its preview (gearSki,skiL,s1R)
+  ok   the cage saves no ski row at its default (CAGE_DEFAULT_ABSENT) and never the preview (cageToSpec)
+3 MASS, PRICE AND DRAG PAID
+  ok   plain < penetration < wheel-ski: 13.9 / 18.9 / 29.1 kg, $3890 / 7598 / 17851, CdA 0.114 / 0.131 / 0.173 m2
+  ok   a plain ski replaces its wheel: gear 40.0 kg -> 34.2 (two 9.3 kg tundras off, two 5.6 kg skis on, the tail ski)
+  ok   a wheel-through ski adds to its wheel: gear 59.4 kg
+  ok   the price paid: gear $3848 -> plain $4952, wheel-ski $21732
+  ok   the flown CdA: 0.7814 -> plain 0.6603 (the tundras' drag off) / penetration 0.9120 / wheel-ski 0.9546 m2
+  ok   the aeroplane: 562.1 kg -> plain 555.7, wheel-ski 595.2
+  ok   the PC-6's wheel-ski kit: 145.8 kg (the references: 100-150 kg), $56736
+  ok   an unsized ski is the SS2300 scaled to bear its share at 8000 Pa: 1.21 x 0.275 m, 0.312 m2 bearing, for ~553 kg
+4 WHAT IS DRAWN FLIES (the game's load door: the editor draws, the join measures)
+  ok   the Carbon Cub: the SS2300 as drawn, a wheel-ski - its tyre through the cutout ({"kind":"retract","L":2.007,"W":0.457,"tip":0.09,"at":0.585,"inc":3,"skin":0.051,"skinL":0.025,"beam":0.57,"notchAt":0.49,"mat":null,"ped":null,"prot":0.03,"drop":0.06,"time":15,"third":{"L":0.6,"W":0.17,"tip":0.027,"at":0.55,"skin":0.02,"skinL":0.01,"prot":0.06}})
+  ok   the Carbon Cub: the tyre (0.74 x 0.34 m) passes the cutout at its lowest with 1.5 cm to the outline (the cutout from 39 % of the length, the tyre 0.266 m off the shell's centreline)
+  ok   the PC-6: the tyre (0.69 x 0.29 m) passes the cutout at its lowest with 1.5 cm to the outline (the cutout from 44 % of the length, the tyre 0.275 m off the shell's centreline)
+  ok   the SS2300 weighs its 27 lb with rigging on its own outline (0.930 m2 of skins, fixed beside its wheel); as the Cub's wheel-ski (its slide and jack, the cutout grown for the 31" tyre: 0.889 m2) 15.43 kg a ski
+  ok   the PC-6: a wheel-ski as drawn, its tail ski through its wheel ({"kind":"retract","L":2.9,"W":0.66,"tip":0.131,"at":0.585,"inc":3,"skin":0.07,"skinL":0.035,"beam":0.57,"notchAt":0.49,"mat":"alu","ped":null,"prot":0.03,"drop":0.06,"time":15,"third":{"L":0.95,"W":0.28,"tip":0.043,"at":0.55,"skin":0.02,"skinL":0.01,"prot":0.06}})
+  ok   the flown ski is the drawn one (length, toe)
+  ok   the drawn ski is a flown part (the join's edSki parts, app.js's ski rigs on the solver's pitch and selector)
+5 THE AREA SETS THE PRESSURE (a powder layer over HOME)
+  ok   the sinkage falls as the ski grows: 0.6 x 0.12 m 29.6 cm, 1.1 x 0.2 m 18.7 cm, 1.7 x 0.305 m 11.9 cm
+  ok   a well-sized ski sinks 11.9 cm (< 12), the 0.6 x 0.12 m ski 29.6 (the layer: 30 cm)
+  ok   the Carbon Cub on its drawn skis lifts off in 82 m (9.7 s)
+  ok   ...on 0.6 x 0.12 m skis it never leaves (ABORT at 8.0 s, 1.3 m moved)
+6 NO WHEEL BRAKES ON STRAIGHT SKIS
+  ok   a straight-ski slide-out on packed snow: 60.6 m with the brake held as without - to the bit
+  ok   a wheel-ski with its skis up keeps its wheel brakes: 59.1 m rolled free, 7.1 braked
+7 THE WHEEL-SKI'S SELECTOR
+  ok   unset, the selector follows the surface: skis up on grass, down on powder
+  ok   the drawn ski rides it: -0.090 m up on grass, 0.000 down
+  ok   the pilot lowers them on the grass: down in 15.02 s (the kit's 15 s cycle)
+  ok   ...and the axles rise onto them: +6.0 cm (the ski's 6 cm below the tyre)
+8 THE BELLY POD ON THE CARBON CUB, END TO END (the garage's ventral cargo pod: spec.pod)
+  ok   the pod survives the game's load door and resolves: 2.10 m, 116 L, rated 65 kg, from 1.07 to 3.17 m aft of the firewall
+  ok   mass and balance: the shell 9.77 kg ($2912), 562.1 -> 574.4 kg, CG 20.0 -> 21.7 % MAC, static margin 0.232
+  ok   the pod full (65 kg): CG 30.5 % MAC, static margin 0.147
+  ok   the drag: axial CdA 0.7814 -> 0.8037 m2 (the pod 0.0220), the range -0.0 %
+  ok   the garage's readout: no red, clearances [["level",0.67],["threePoint",0.29]]
+  ok   the freight: without the pod 6 of 8 placed, with it 7 (flat0, flat1 in the pod, 24 of 65 kg)
+  ok   ...strapped onto the pod's own four nodes (2: a pod torn off takes its freight with it)
+  ok   the pod and the skis together: no red ([["level",0.67],["threePoint",0.29]])
+9 ONE SOFT GROUND - SNOW-MUD'S (its SURFACE codes, GROUND_SOFT, GROUND_SKI_MU; no second version)
+  ok   no second soft ground: world.soft and SOFT_GROUND are gone, the skis call SNOW-MUD's groundSinkPlate / groundSinkWheel
+  ok   with no fresh layer the rut is SNOW-MUD's plate law: 7.86 cm, between groundSinkPlate's 7.09 at rest (2.49 kN on 0.86 m2) and 9.10 at the settle's peak (3.72 kN)
+  ok   SNOW-MUD's row drives it: its powder 4 x softer, the ski 24.27 cm deep (n 1.6: x 2.38 expected)
+  ok   the skis write SNOW-MUD's readouts: out.softZ 10.1 cm = the deepest ski's 10.1 (the frame's substeps against its end; the dust's plough reads it)
+  ok   the plume's data (SNOW-MUD owns the plume): def.refs.skis [[92,0.56,2.06,true,"plain"],[93,0.56,2.06,true,"plain"],[94,0.21,0.62,false,"plain"]] in out.skiSink's order; no key without skis
+  ok   the sole slides on GROUND_SKI_MU (the snow rows are GROUND_SOFT's own); no ski row on the mud (no ski belongs there: its selector stays up)
+GATE SKIS: FAIL (7)
+exit 1

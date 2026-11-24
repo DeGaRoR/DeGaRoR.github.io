@@ -101,7 +101,7 @@ console.log('5. the GRAPHICS row');
   const presets = (G.match(/fmist: '(off|on)'/g) || []).length;
   yes(/\{ k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'on', steps: \[/.test(G), 'the row exists: a free reload row, ON by default (the user 10 Nov; the veil is compiled in at the start)');
   yes(presets === 0, 'no preset names it: the desktop presets stay frozen (GATE GFX), the player turns it on (' + presets + ' preset keys)');
-  yes(/rows: \['clouds', 'mist', 'fmist', 'glare'\]/.test(G), 'it sits in the sky group');
+  yes(/k: 'sky',[^\n]*rows: \['clouds', 'mist', 'fmist'[^\]]*'glare'\]/.test(G), 'it sits in the sky group');   // (RAIN, 16 Nov: the sky group took the 'rain' row after fmist)
   global.location = { search: '' }; global.localStorage = { getItem: k => (k === 'flydiy.fmist' ? '1' : null) };
   const F2 = fresh(path.join(SRC, 'forest_mist.js'));
   // THE DEFAULT METHOD (the user 21 Nov approved Codex's cloud-pass mist): with the clouds on, the pockets ride the cloud

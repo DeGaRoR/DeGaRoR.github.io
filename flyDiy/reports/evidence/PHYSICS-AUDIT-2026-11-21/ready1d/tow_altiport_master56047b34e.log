@@ -1,0 +1,141 @@
+t 0 agl 0.9 V 0.5 wheels 1 x 1 thrust 0.0 de 0.00
+t 1 agl 0.9 V 2.3 wheels 1 x 1 thrust 0.0 de 0.00
+t 2 agl 0.9 V 4.0 wheels 1 x 4 thrust 0.0 de 0.00
+t 3 agl 0.9 V 5.8 wheels 1 x 9 thrust 0.0 de 0.00
+t 4 agl 0.9 V 7.5 wheels 1 x 16 thrust 0.0 de 0.00
+t 5 agl 0.9 V 8.1 wheels 1 x 23 thrust 0.0 de 0.00
+t 6 agl 0.9 V 8.6 wheels 1 x 32 thrust 0.0 de 0.00
+t 7 agl 0.9 V 9.0 wheels 1 x 40 thrust 0.0 de 0.00
+t 8 agl 1.0 V 9.6 wheels 1 x 50 thrust 0.0 de 0.00
+t 9 agl 1.0 V 10.2 wheels 1 x 59 thrust 0.0 de 0.00
+t 10 agl 1.1 V 10.6 wheels 0 x 70 thrust 0.0 de -0.10
+t 11 agl 1.0 V 11.0 wheels 1 x 81 thrust 0.0 de 0.00
+t 12 agl 1.0 V 11.4 wheels 1 x 92 thrust 0.0 de 0.00
+t 13 agl 1.0 V 11.9 wheels 1 x 103 thrust 0.0 de 0.00
+t 14 agl 1.0 V 12.4 wheels 1 x 115 thrust 0.0 de 0.00
+t 15 agl 1.0 V 12.9 wheels 1 x 128 thrust 0.0 de 0.00
+t 16 agl 1.0 V 13.1 wheels 1 x 141 thrust 0.0 de 0.00
+t 17 agl 1.1 V 13.1 wheels 1 x 154 thrust 0.0 de 0.00
+t 18 agl 1.1 V 12.5 wheels 1 x 167 thrust 0.0 de 0.00
+t 19 agl 1.2 V 13.5 wheels 1 x 179 thrust 0.0 de 0.00
+t 20 agl 1.0 V 11.9 wheels 1 x 192 thrust 0.0 de 0.00
+t 21 agl 1.0 V 10.6 wheels 1 x 202 thrust 0.0 de 0.00
+t 22 agl 1.0 V 9.6 wheels 1 x 210 thrust 0.0 de 0.00
+t 23 agl 1.0 V 8.4 wheels 1 x 217 thrust 0.0 de 0.00
+t 24 agl 0.9 V 7.7 wheels 1 x 223 thrust 0.0 de 0.00
+t 25 agl 1.0 V 7.7 wheels 1 x 228 thrust 0.0 de 0.00
+t 26 agl 1.0 V 8.7 wheels 1 x 234 thrust 0.0 de 0.00
+t 27 agl 1.0 V 10.0 wheels 1 x 242 thrust 0.0 de 0.00
+t 28 agl 1.2 V 11.4 wheels 1 x 250 thrust 0.0 de 0.00
+t 29 agl 1.4 V 14.0 wheels 0 x 260 thrust 0.0 de 0.70
+t 30 agl 1.9 V 17.2 wheels 0 x 272 thrust 0.0 de 0.70
+t 31 agl 3.5 V 21.2 wheels 0 x 285 thrust 0.0 de 0.70
+t 32 agl 3.2 V 24.0 wheels 0 x 302 thrust 0.0 de 0.61
+t 33 agl 6.7 V 25.4 wheels 0 x 322 thrust 0.0 de 0.40
+t 34 agl 11.6 V 26.1 wheels 0 x 344 thrust 0.0 de 0.29
+t 35 agl 18.8 V 26.3 wheels 0 x 367 thrust 0.0 de 0.25
+t 36 agl 29.2 V 26.5 wheels 0 x 390 thrust 0.0 de 0.23
+t 37 agl 43.0 V 26.5 wheels 0 x 414 thrust 0.0 de 0.22 GLIDE
+t 38 agl 58.9 V 26.7 wheels 0 x 439 thrust 0.0 de 0.31 GLIDE
+t 39 agl 74.1 V 26.8 wheels 0 x 466 thrust 0.0 de 0.32 GLIDE
+t 40 agl 86.4 V 26.7 wheels 0 x 492 thrust 0.0 de 0.32 GLIDE
+t 41 agl 93.3 V 26.5 wheels 0 x 518 thrust 0.0 de 0.29 GLIDE
+t 42 agl 98.5 V 26.2 wheels 0 x 543 thrust 0.0 de 0.27 GLIDE
+t 43 agl 106.7 V 26.0 wheels 0 x 567 thrust 0.0 de 0.26 GLIDE
+t 44 agl 123.2 V 25.8 wheels 0 x 589 thrust 0.0 de 0.26 GLIDE
+t 45 agl 139.9 V 25.6 wheels 0 x 610 thrust 0.0 de 0.26 GLIDE
+t 46 agl 157.2 V 25.4 wheels 0 x 631 thrust 0.0 de 0.27 GLIDE
+t 47 agl 175.2 V 25.3 wheels 0 x 651 thrust 0.0 de 0.27 GLIDE
+t 48 agl 190.6 V 25.2 wheels 0 x 671 thrust 0.0 de 0.27 GLIDE
+t 49 agl 205.2 V 25.0 wheels 0 x 691 thrust 0.0 de 0.28 GLIDE
+t 50 agl 218.6 V 24.9 wheels 0 x 710 thrust 0.0 de 0.28 GLIDE
+t 51 agl 227.3 V 24.9 wheels 0 x 730 thrust 0.0 de 0.28 GLIDE
+t 52 agl 230.3 V 24.8 wheels 0 x 749 thrust 0.0 de 0.29 GLIDE
+t 53 agl 225.5 V 24.7 wheels 0 x 769 thrust 0.0 de 0.29 GLIDE
+t 54 agl 223.0 V 24.6 wheels 0 x 789 thrust 0.0 de 0.29 GLIDE
+t 55 agl 218.6 V 24.6 wheels 0 x 808 thrust 0.0 de 0.30 GLIDE
+t 56 agl 206.8 V 24.5 wheels 0 x 828 thrust 0.0 de 0.30 GLIDE
+t 57 agl 200.5 V 24.5 wheels 0 x 849 thrust 0.0 de 0.30 GLIDE
+t 58 agl 208.0 V 24.4 wheels 0 x 869 thrust 0.0 de 0.30 GLIDE
+t 59 agl 210.1 V 24.4 wheels 0 x 890 thrust 0.0 de 0.31 GLIDE
+t 60 agl 209.9 V 24.3 wheels 0 x 910 thrust 0.0 de 0.31 GLIDE
+t 61 agl 214.4 V 24.3 wheels 0 x 931 thrust 0.0 de 0.31 GLIDE
+t 62 agl 214.7 V 24.3 wheels 0 x 952 thrust 0.0 de 0.31 GLIDE
+t 63 agl 219.5 V 24.2 wheels 0 x 974 thrust 0.0 de 0.31 GLIDE
+t 64 agl 226.5 V 24.2 wheels 0 x 995 thrust 0.0 de 0.31 GLIDE
+t 65 agl 234.2 V 24.2 wheels 0 x 1017 thrust 0.0 de 0.31 GLIDE
+t 66 agl 241.6 V 24.2 wheels 0 x 1038 thrust 0.0 de 0.32 GLIDE
+t 67 agl 255.1 V 24.2 wheels 0 x 1060 thrust 0.0 de 0.32 GLIDE
+t 68 agl 272.1 V 24.1 wheels 0 x 1082 thrust 0.0 de 0.32 GLIDE
+t 69 agl 293.7 V 24.1 wheels 0 x 1104 thrust 0.0 de 0.32 GLIDE
+t 70 agl 311.1 V 24.1 wheels 0 x 1126 thrust 0.0 de 0.32 GLIDE
+t 71 agl 325.1 V 24.1 wheels 0 x 1148 thrust 0.0 de 0.32 GLIDE
+t 72 agl 337.9 V 24.1 wheels 0 x 1171 thrust 0.0 de 0.32 GLIDE
+t 73 agl 350.9 V 24.1 wheels 0 x 1193 thrust 0.0 de 0.32 GLIDE
+t 74 agl 365.2 V 24.1 wheels 0 x 1215 thrust 0.0 de 0.32 GLIDE
+t 75 agl 380.3 V 24.1 wheels 0 x 1238 thrust 0.0 de 0.32 GLIDE
+t 76 agl 392.8 V 24.1 wheels 0 x 1260 thrust 0.0 de 0.32 GLIDE
+t 77 agl 402.3 V 24.1 wheels 0 x 1283 thrust 0.0 de 0.32 GLIDE
+t 78 agl 409.1 V 24.1 wheels 0 x 1305 thrust 0.0 de 0.32 GLIDE
+t 79 agl 414.3 V 24.1 wheels 0 x 1328 thrust 0.0 de 0.32 GLIDE
+t 80 agl 418.3 V 24.1 wheels 0 x 1351 thrust 0.0 de 0.32 GLIDE
+t 81 agl 422.2 V 24.1 wheels 0 x 1373 thrust 0.0 de 0.32 GLIDE
+t 82 agl 427.9 V 24.1 wheels 0 x 1396 thrust 0.0 de 0.32 GLIDE
+t 83 agl 431.1 V 24.1 wheels 0 x 1419 thrust 0.0 de 0.32 GLIDE
+t 84 agl 434.9 V 24.1 wheels 0 x 1442 thrust 0.0 de 0.32 GLIDE
+t 85 agl 437.6 V 24.1 wheels 0 x 1464 thrust 0.0 de 0.32 GLIDE
+t 86 agl 440.9 V 24.1 wheels 0 x 1487 thrust 0.0 de 0.32 GLIDE
+t 87 agl 445.9 V 24.1 wheels 0 x 1510 thrust 0.0 de 0.32 GLIDE
+t 88 agl 449.1 V 24.1 wheels 0 x 1533 thrust 0.0 de 0.32 GLIDE
+t 89 agl 451.9 V 24.1 wheels 0 x 1556 thrust 0.0 de 0.32 GLIDE
+t 90 agl 453.8 V 24.1 wheels 0 x 1579 thrust 0.0 de 0.32 GLIDE
+t 91 agl 459.0 V 24.1 wheels 0 x 1602 thrust 0.0 de 0.32 GLIDE
+t 92 agl 464.4 V 24.1 wheels 0 x 1625 thrust 0.0 de 0.32 GLIDE
+t 93 agl 469.4 V 24.1 wheels 0 x 1649 thrust 0.0 de 0.32 GLIDE
+t 94 agl 473.9 V 24.1 wheels 0 x 1672 thrust 0.0 de 0.31 GLIDE
+t 95 agl 476.6 V 24.1 wheels 0 x 1695 thrust 0.0 de 0.31 GLIDE
+t 96 agl 478.2 V 24.1 wheels 0 x 1718 thrust 0.0 de 0.31 GLIDE
+t 97 agl 479.3 V 24.1 wheels 0 x 1741 thrust 0.0 de 0.31 GLIDE
+t 98 agl 480.6 V 24.1 wheels 0 x 1765 thrust 0.0 de 0.31 GLIDE
+t 99 agl 482.3 V 24.1 wheels 0 x 1788 thrust 0.0 de 0.31 GLIDE
+t 100 agl 483.8 V 24.1 wheels 0 x 1811 thrust 0.0 de 0.31 GLIDE
+t 101 agl 484.0 V 24.1 wheels 0 x 1835 thrust 0.0 de 0.31 GLIDE
+t 102 agl 488.1 V 24.1 wheels 0 x 1858 thrust 0.0 de 0.31 GLIDE
+t 103 agl 497.3 V 24.1 wheels 0 x 1881 thrust 0.0 de 0.31 GLIDE
+t 104 agl 502.3 V 24.1 wheels 0 x 1905 thrust 0.0 de 0.31 GLIDE
+t 105 agl 509.9 V 24.1 wheels 0 x 1928 thrust 0.0 de 0.31 GLIDE
+t 106 agl 517.5 V 24.1 wheels 0 x 1951 thrust 0.0 de 0.31 GLIDE
+t 107 agl 515.8 V 24.1 wheels 0 x 1975 thrust 0.0 de 0.31 GLIDE
+t 108 agl 514.2 V 24.1 wheels 0 x 1998 thrust 0.0 de 0.31 GLIDE
+t 109 agl 512.7 V 24.1 wheels 0 x 2022 thrust 0.0 de 0.31 GLIDE
+t 110 agl 511.2 V 24.1 wheels 0 x 2045 thrust 0.0 de 0.31 GLIDE
+t 111 agl 509.6 V 24.1 wheels 0 x 2069 thrust 0.0 de 0.31 GLIDE
+t 112 agl 508.0 V 24.1 wheels 0 x 2092 thrust 0.0 de 0.31 GLIDE
+t 113 agl 506.5 V 24.1 wheels 0 x 2116 thrust 0.0 de 0.31 GLIDE
+t 114 agl 505.0 V 24.1 wheels 0 x 2139 thrust 0.0 de 0.31 GLIDE
+t 115 agl 503.5 V 24.1 wheels 0 x 2163 thrust 0.0 de 0.31 GLIDE
+t 116 agl 502.1 V 24.1 wheels 0 x 2186 thrust 0.0 de 0.31 GLIDE
+t 117 agl 500.6 V 24.1 wheels 0 x 2210 thrust 0.0 de 0.31 GLIDE
+t 118 agl 499.1 V 24.1 wheels 0 x 2233 thrust 0.0 de 0.31 GLIDE
+t 119 agl 497.6 V 24.1 wheels 0 x 2257 thrust 0.0 de 0.31 GLIDE
+t 120 agl 496.1 V 24.1 wheels 0 x 2281 thrust 0.0 de 0.31 GLIDE
+t 121 agl 494.7 V 24.1 wheels 0 x 2304 thrust 0.0 de 0.31 GLIDE
+t 122 agl 493.2 V 24.1 wheels 0 x 2328 thrust 0.0 de 0.31 GLIDE
+t 123 agl 491.6 V 24.1 wheels 0 x 2351 thrust 0.0 de 0.31 GLIDE
+t 124 agl 490.0 V 24.1 wheels 0 x 2375 thrust 0.0 de 0.31 GLIDE
+t 125 agl 488.3 V 24.1 wheels 0 x 2399 thrust 0.0 de 0.31 GLIDE
+t 126 agl 486.5 V 24.1 wheels 0 x 2422 thrust 0.0 de 0.31 GLIDE
+t 127 agl 484.5 V 24.1 wheels 0 x 2446 thrust 0.0 de 0.31 GLIDE
+t 128 agl 482.4 V 24.1 wheels 0 x 2469 thrust 0.0 de 0.31 GLIDE
+t 129 agl 480.5 V 24.1 wheels 0 x 2493 thrust 0.0 de 0.31 GLIDE
+t 130 agl 478.7 V 24.1 wheels 0 x 2517 thrust 0.0 de 0.31 GLIDE
+t 131 agl 476.8 V 24.1 wheels 0 x 2540 thrust 0.0 de 0.31 GLIDE
+t 132 agl 475.0 V 24.1 wheels 0 x 2564 thrust 0.0 de 0.31 GLIDE
+t 133 agl 473.2 V 24.1 wheels 0 x 2588 thrust 0.0 de 0.31 GLIDE
+t 134 agl 471.4 V 24.1 wheels 0 x 2611 thrust 0.0 de 0.31 GLIDE
+t 135 agl 469.5 V 24.1 wheels 0 x 2635 thrust 0.0 de 0.31 GLIDE
+t 136 agl 467.6 V 24.1 wheels 0 x 2659 thrust 0.0 de 0.31 GLIDE
+t 137 agl 465.7 V 24.1 wheels 0 x 2682 thrust 0.0 de 0.31 GLIDE
+t 138 agl 463.7 V 24.1 wheels 0 x 2706 thrust 0.0 de 0.31 GLIDE
+t 139 agl 461.7 V 24.1 wheels 0 x 2730 thrust 0.0 de 0.31 GLIDE
+FAIL ALTIPORT pushed off Skyline Altiport: lift-off 10.0 s, 10.6 m/s, 70 m down the slope; to Fishing Village Strip (divert Fishing Village Strip 581 m, burn 212 m, downwind 182 m, base 103 m, final 65 m); landed OFF it 333 m in, 0.9 m off the centreline, -55 m left (completed)

@@ -64,7 +64,8 @@ function child(k) {
     const g = def.params.gen.drag, Dg = D.drag;
     const sum = Object.values(Dg.rows).reduce((a, v) => a + v, 0);
     ok(near(sum, g.axial, 5e-4), 'DRAG rows add to ' + sum + ', the axial row is ' + g.axial);
-    const terms = C.genFicheGearTerms(S), ts = Object.values(terms).reduce((a, v) => a + v, 0);
+    // (PHYSICS-AUDIT step 5: the terms read the build's own float rows - genFicheGearTerms(S, drag))
+    const terms = C.genFicheGearTerms(S, g), ts = Object.values(terms).reduce((a, v) => a + v, 0);
     ok(near(ts, g.gear, 1e-9), 'DRAG gear terms add to ' + ts + ', genGearCdA ' + g.gear);
     ok(near(Dg.groups.fuselage.cda, g.body, 1e-4), 'DRAG the fuselage group is not the body row');
     ok(Object.values(Dg.groups).every(x => x.dV > 0), 'DRAG a part that costs nothing or gains');

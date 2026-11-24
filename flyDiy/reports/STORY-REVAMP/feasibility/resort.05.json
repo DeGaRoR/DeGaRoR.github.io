@@ -1,0 +1,82 @@
+{
+ "id": "resort.05",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 2400,
+ "why": "the flight did not end (2400 s)",
+ "tried": [
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible",
+  "PC-6 Turbo Porter:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "tw_ski",
+   "t": 2400,
+   "how": "timeout",
+   "at": null,
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "timeout"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 2400,
+     "how": "timeout",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "out-of-energy: out of fuel at t=1624 s — engines stopped",
+      "capsized: on its back in FLARE at 3.9 m/s (bank 151 deg) - after \"gave-up\"",
+      "wings-level: the rudder eased off: the aileron on its stop against 174 deg of bank (0 deg of sideslip)"
+     ],
+     "stop": "stopped off an aerodrome: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "infeasible",
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 2400,
+     "how": "timeout",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+2.0 m at idle) — slipping it down",
+      "committed-unstable: unstabilised (high 10 m on the slope) but committed - landing it",
+      "gave-up: still in FLARE at t=1088 s — out of patience, not out of sky"
+     ],
+     "stop": "stopped off an aerodrome: nothing is delivered"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) flown with 3 aboard (the garage's seat door)",
+  "the seats as the job asks: PC-6 Turbo Porter flown with 3 aboard (the garage's seat door)"
+ ],
+ "untested": false,
+ "key": "1a9373546a01",
+ "where": "skyline:3",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 3278
+}

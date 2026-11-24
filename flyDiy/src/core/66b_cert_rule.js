@@ -94,6 +94,12 @@ function certStrip(spec, o) {
   // G2820 / G2827 (STOL-WING, L28b) on the core's path too: a STOL record at "every device off" is the absent key, as
   // bench.js benchStripCosmetic and procureFpP1 have it
   if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object') { if (w.stol == null) delete w.stol; if (w.tipShape == null) delete w.tipShape; }   // (HULL-B26: the tip's own shape, null = the kind's - as stol)
+  // PHYSICS-AUDIT step 2 (2026-11-22): the join STATES the flying wires' section and the tail's bracing in both states
+  // (A3: null when the row is back at its default, so the garage's merge takes it off). A null is the absent key every
+  // build before the rows carried - it hashes as absent, so no certificate is withdrawn for a row nobody touched
+  // (found red: GATE BENCH, "the load door still builds the body that was stamped" on the shipped Rufus)
+  if (c.bracing && typeof c.bracing === 'object' && c.bracing.wireSection == null) delete c.bracing.wireSection;
+  if (c.tail && typeof c.tail === 'object' && c.tail.brace == null) delete c.tail.brace;
   if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);
   if (c.cage && typeof c.cage === 'object' && c.cage.dashV != null) {
     const cg = c.cage;

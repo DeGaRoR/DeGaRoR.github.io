@@ -1,0 +1,65 @@
+{
+ "id": "community.11",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 755,
+ "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 350 kg / 0 pax",
+ "tried": [
+  "PC-6 Turbo Porter:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 755,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 350 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 755,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 94 deg that the wheels (16.4 m) cannot steer on the route - turning on the spot"
+     ],
+     "landing": {
+      "run": 235,
+      "sink": 1.06,
+      "V": 24.4,
+      "offCentre": 0.2,
+      "pastAim": 2,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 67,
+      "stopLeft": 241
+     },
+     "stop": "aboard 0 kg / 0 pax, the job is 350 kg / 0 pax"
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "f6bddd3af596",
+ "where": "community:8",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 649
+}

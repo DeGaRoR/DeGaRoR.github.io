@@ -1,0 +1,111 @@
+{
+ "id": "field.n1",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1028,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 537,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 30,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "HOME",
+   "t": 490,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
+   "kg": 30,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 537,
+     "how": "stopped",
+     "kg": 30,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 105 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.9 m/s until clear"
+     ],
+     "landing": {
+      "run": 63,
+      "sink": 0.66,
+      "V": 15.9,
+      "offCentre": 0,
+      "pastAim": 5,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 70,
+      "stopLeft": 410
+     }
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 490,
+     "how": "stopped",
+     "kg": 30,
+     "pax": 0,
+     "said": [
+      "terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 24 m",
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 78 m (planned 68)",
+      "taxi-in: taxiing in to the stand, 931 m"
+     ],
+     "landing": {
+      "run": 143,
+      "sink": 0.78,
+      "V": 17.1,
+      "offCentre": 0,
+      "pastAim": 51,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 565,
+      "stopLeft": 1617
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "waited for the window (arrive 00:00-01:00): 2026-07-16 28800 s UT"
+ ],
+ "untested": false,
+ "key": "9fc7c433eaf5",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 432
+}

@@ -1,0 +1,37 @@
+RL t=383.7 FLARE nose 4.7 Vg 17.0 thr 0.75 brk 0.00 bD 0.00 dr -0.35 de 0.31 s -65 c 0.3
+RL t=383.9 ROLLOUT nose 5.2 Vg 16.5 thr 0.00 brk 0.00 bD 0.00 dr -0.33 de 0.35 s -61 c 0.2
+RL t=384.1 ROLLOUT nose 6.3 Vg 16.0 thr 0.00 brk 0.00 bD 0.00 dr -0.53 de 0.35 s -58 c 0.1
+RL t=384.3 ROLLOUT nose 7.7 Vg 15.6 thr 0.00 brk 0.02 bD 0.00 dr -0.65 de 0.35 s -55 c -0.2
+RL t=384.5 ROLLOUT nose 8.7 Vg 15.1 thr 0.00 brk 0.06 bD 0.00 dr -0.73 de 0.35 s -52 c -0.4
+RL t=384.7 ROLLOUT nose 9.3 Vg 14.5 thr 0.00 brk 0.00 bD 0.00 dr -0.94 de 0.35 s -49 c -0.7
+RL t=384.9 ROLLOUT nose 10.3 Vg 14.2 thr 0.00 brk 0.02 bD 0.00 dr -0.89 de 0.35 s -46 c -1.0
+RL t=385.1 ROLLOUT nose 11.2 Vg 13.6 thr 0.00 brk 0.06 bD 0.00 dr -0.88 de 0.35 s -43 c -1.4
+RL t=385.3 ROLLOUT nose 12.0 Vg 13.2 thr 0.00 brk 0.11 bD 0.00 dr -0.87 de 0.35 s -41 c -1.8
+RL t=385.5 ROLLOUT nose 12.3 Vg 12.7 thr 0.00 brk 0.11 bD 0.00 dr -0.87 de 0.35 s -38 c -2.3
+RL t=385.7 ROLLOUT nose 11.4 Vg 12.3 thr 0.00 brk 0.02 bD 0.00 dr -0.87 de 0.35 s -36 c -2.8
+RL t=385.9 ROLLOUT nose 10.5 Vg 11.9 thr 0.00 brk 0.07 bD 0.00 dr -0.83 de 0.35 s -33 c -3.3
+RL t=386.1 ROLLOUT nose 8.1 Vg 11.5 thr 0.00 brk 0.12 bD 0.00 dr -0.81 de 0.35 s -31 c -3.8
+RL t=386.3 ROLLOUT nose 5.1 Vg 11.0 thr 0.00 brk 0.16 bD 0.00 dr -0.79 de 0.35 s -29 c -4.2
+RL t=386.5 ROLLOUT nose 0.7 Vg 10.4 thr 0.00 brk 0.21 bD 0.00 dr -0.59 de 0.35 s -27 c -4.5
+RL t=386.7 ROLLOUT nose 4.5 Vg 9.9 thr 0.00 brk 0.26 bD 0.00 dr -0.39 de 0.35 s -25 c -4.6
+RL t=386.9 ROLLOUT nose 9.4 Vg 9.3 thr 0.00 brk 0.31 bD 0.00 dr -0.18 de 0.35 s -23 c -4.5
+RL t=387.1 ROLLOUT nose 13.7 Vg 8.7 thr 0.00 brk 0.36 bD 0.00 dr 0.02 de 0.35 s -21 c -4.2
+RL t=387.3 ROLLOUT nose 16.9 Vg 8.1 thr 0.00 brk 0.40 bD 0.00 dr 0.22 de 0.35 s -19 c -3.9
+RL t=387.5 ROLLOUT nose 19.3 Vg 7.5 thr 0.00 brk 0.45 bD 0.00 dr 0.43 de 0.35 s -18 c -3.4
+RL t=387.7 ROLLOUT nose 20.9 Vg 6.8 thr 0.00 brk 0.50 bD 0.00 dr 0.57 de 0.35 s -16 c -2.9
+RL t=387.9 ROLLOUT nose 21.7 Vg 6.1 thr 0.00 brk 0.55 bD 0.00 dr 0.55 de 0.35 s -15 c -2.5
+RL t=388.1 ROLLOUT nose 21.6 Vg 5.3 thr 0.00 brk 0.60 bD 0.00 dr 0.53 de 0.35 s -14 c -2.0
+{"from":"HOME","to":"tw_ski","t":440.87,"ok":false,"outcome":"completed","landedOn":"tw_ski","groundLoop":0,"offStrip":114,"nan":false,"declined":null,"heldOff":null,"track":null}
+faults [{"k":"off-strip","note":"the landing roll left tw_ski's box","t":385.8}]
+phases ["HOLD","ROLL","LIFTOFF","CLIMB","INBOUND","FINAL","FLARE","ROLLOUT","STOPPED"]
+verdicts ["vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear","slope: stopped on a 10.1 % grade — rolling 110 m on to the level part"]
+warnings []
+dep {"turned":0,"uturn":false,"latMax":0,"rollS":109.1,"rollFromEnd":109.1,"toDist":123.5,"taxiT":2}
+arr {"final":{"d":1400.5,"h":728.4},"apprClear":{"c":11.1,"d":40.9,"what":"ground"},"td":{"s":-64.3,"c":0.3},"landing":{"run":55,"sink":-0.73,"V":13.5,"offCentre":0.3,"pastAim":59,"k":1,"three":true,"onStrip":true,"tdIn":75,"stopLeft":150},"stopS":98.1}
+fuel {"litres":43.1,"burnt":1.9}
+damage {"yields":0,"breaks":0,"dented":false,"crashed":false,"gPeak":1.4,"propAt":null}
+trackI [0,221]
+appr {"technique":"short","Vref":17.3,"Vbase":17.3,"gust":0.2,"aimIn":17,"flap":0.7,"len":280,"surface":0,"runNeed":111,"gs":0.11,"reqGs":0.105,"gsWhy":"obstacle","obst":{"d":25,"h":2.6},"held":{"Vtd":17.3,"tail":4.5,"need":135,"needShort":113,"room":198,"grade":0.068}}
+landing {"run":55,"sink":-0.73,"V":13.5,"offCentre":0.3,"pastAim":59,"k":1,"three":true,"onStrip":true,"tdIn":75,"stopLeft":150}
+phases DEPART@0 HOLD@0 ROLL@2 LIFTOFF@14 CLIMB@23 INBOUND@116 FINAL@322 FLARE@379 ROLLOUT@384 STOPPED@441
+verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear | slope: stopped on a 10.1 % grade — rolling 110 m on to the level part

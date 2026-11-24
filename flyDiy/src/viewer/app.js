@@ -330,6 +330,10 @@
     // A6 (G436.7): the march runs BEFORE the scene (the previous frame's depth ends its rays) and the
     // composite is a quad in the world scene at the cloud's own depth - the silhouettes per MSAA sample
     aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt, true); });
+    // GARAGE-VIEW (22 Nov, the user: "why are we not just using the same method?"): while a cooked scene stands in the garage, the
+    // clouds through its door are the GAME's pass too (gviewCloudPre: marched from the room's eye stood in the world, the composite in
+    // the room's own draw). The world's line above stays word for word (GATE STORY and GATE INTROSCENE read it): this one adds the room.
+    aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt, true); else gviewCloudPre(r, cam, rt, drawnScene); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // THE POST PASSES (POST-FX study, 2026-09-21): src/viewer/post_fx.js - six rows of the GRAPHICS
@@ -357,9 +361,13 @@
   // azimuth (the water's level: the first water out along it, to 24 km); from there and at D/2 and 2D (on water only) the terrain's profile is
   // walked toward the sun (20 m, x1.55, 16 steps: to 14 km). No water toward the sun, or no sample on water: 1 (nothing to judge).
   // A sun behind the ridge draws no path. Eased (0.15 a frame) so a crest crossing the disc fades the path, never blinks it
-  function glintVis(c, d, v) {
+  // NIGHT-SUN (21 Nov, atmo.js THE LIGHT SEEN): d is the KEY light's direction (the moon's at night) and the answer holds at every
+  // hour (water.js: the visibility is no longer the day's alone); hor = the share of its disc over the WATER's horizon (ATMO.discOver
+  // at the sea's level): a light under it draws no path - it used to answer 1 there ("nothing to hide")
+  function glintVis(c, d, v, hor) {
     const hz = Math.hypot(d.x, d.z);
-    if (d.y <= 0 || hz < 1e-4) return v + (1 - v) * 0.15;   // (no sun: nothing to hide; the shader's day weight is 0 at night)
+    if (hor != null && hor <= 0) return v - v * 0.15;
+    if (d.y <= 0 || hz < 1e-4) return v + ((hor != null ? hor : 1) - v) * 0.15;   // (the light on the horizon's line, or overhead: the disc's share alone)
     const ax = d.x / hz, az = d.z / hz, wet = (x, z) => { const h = world.waterH(x, z); return Number.isFinite(h) && h > world.terrainH(x, z) ? h : NaN; };
     let wy = NaN;
     for (let t = 0; t <= 24000 && !Number.isFinite(wy); t = t ? t * 1.35 : 8) wy = wet(c.x + ax * t, c.z + az * t);   // (a ridge 800 m up sees its path 16 km out)
@@ -373,19 +381,20 @@
       for (let i = 0; i < 16; i++) { if (world.terrainH(px + d.x * t, pz + d.z * t) > hw + 0.5 + d.y * t) { clear = 0; break; } t *= 1.55; }
       seen += clear;
     }
-    return v + ((n ? seen / n : 1) - v) * 0.15;
+    return v + ((n ? seen / n : 1) * (hor != null ? hor : 1) - v) * 0.15;
   }
   // LOOK-HALO (13 Nov, atmo.js uApK.y): the share of the sun the TERRAIN hides from the eye - three rays (the centre and half a degree
   // over and under), the profile walked from the eye (15 m, x1.35, 26 steps: to 37 km). The craft and the shed are not occluders here
   // (the air beyond a strut is lit). Eased 0.1 a frame, as the glare's
-  let eyeHide = 0;
+  let eyeHide = 0, eyeHideRaw = 0;   // (NIGHT-SUN: eyeHideRaw the frame's own answer, un-eased - the reflection probe's, which fades on its own)
   function sunHiddenEye(c, d, v) {
-    if (d.y <= -0.02) return v - v * 0.1;
+    if (d.y <= -0.02) { eyeHideRaw = 0; return v - v * 0.1; }
     let hid = 0;
     for (const dy of [0, 0.0087, -0.0087]) {
       const yy = d.y + dy; let t = 15;
       for (let i = 0; i < 26; i++) { if (world.terrainH(c.x + d.x * t, c.z + d.z * t) > c.y + yy * t) { hid++; break; } t *= 1.35; }
     }
+    eyeHideRaw = hid / 3;
     return v + (hid / 3 - v) * 0.1;
   }
   // THE COCKPIT (the panel arc, session 4): cockpit.js's one instance —
@@ -1373,6 +1382,9 @@
   function bakeHangarEnv(o) {
     if (envDeferred || envAway) { envDirty = true; return; }
     if (!hangar || !THREE.PMREMGenerator || !renderer.setRenderTarget) return;
+    // GARAGE-VIEW: the room's probe is shot at the ROOM's level (a cooked scene shows the outdoors at the game's exposure: the walls and
+    // the aeroplane stay lit as before); the frame's own draw puts the day back (gviewCloudPre, or the next applyDay)
+    if (hangar.gviewBake) hangar.gviewBake(true);
     // G2662: `o.part` is one slice of the clock's sliced bake (envSliceStep, below): 'face' (o.face, 0-5: that face of
     // the cube only), 'room' (the PMREM of the faces already shot + the swap), 'outdoors' (the outdoor materials' sky).
     // No `o` = the one-shot bake every other caller asks for; it shoots everything now, so a sliced job is moot.
@@ -1772,8 +1784,50 @@
     try { const L = world && world.premises && world.premises.rec && world.premises.rec.layers;
       return ((L && L.surface) || []).filter(e => e && (e.apron || e.surface === 5) && Array.isArray(e.poly) && e.poly.length > 2).map(e => e.poly); } catch (e) { return []; }
   }
+  // GARAGE-VIEW (22 Nov): the cooked world out of the club hangar's and the large hangar's door (garage_view.js). OPT-IN while
+  // the look is being judged (?gview=1; the user's rule: a look lands whole): the pack is fetched behind the room, the scene
+  // stood when it lands (hangar.gviewFrom), the outdoors' materials taken into the sky's probe by one more bake
+  // ON wherever a room has a cooked scene (the user, 22 Nov, on the side by sides: "you may commit and push for inclusion"); ?gview=0 keeps the
+  // room's own hand-drawn outdoors. FLYDIY_GVIEW_ON: a rig's switch over both (true / false: the before and the after in one boot)
+  const gviewOn = () => { try { const w = window.FLYDIY_GVIEW_ON; return w === true || (w !== false && !/[?&]gview=0\b/.test(location.search || '')); } catch (e) { return false; } };
+  const gviewPacks = new Map();   // a pack's base -> its load (one fetch a scene, shared by the rooms it serves)
+  let gviewFor = null, gviewJob = null, gviewTicks = 0;
+  // THE FIRST SCENE OF A SESSION WAITS FOR THE GARAGE TO HAVE RUN (GVIEW_WAIT of its own frames, about 10 s): never inside a boot step. GATE
+  // FRAMECOST, 22 Nov, the door view on by default: its 6.2 MB of vertex data and 3 program links stood in the boot's 'garage:landing' step.
+  // A room entered later asks at once; the boot's list may ask earlier, at the step it chooses, through GARAGE_VIEW.prelink().
+  const GVIEW_WAIT = 600;
+  // GARAGE_VIEW.prelink() -> the room's scene job (found, fetched, built held down, its programs linked by compileSliced, shown), GARAGE_VIEW.ready: for the
+  // boot's list (PERF-LEAD, 22 Nov: "not on the path of the first view ... through compileSliced ... one entry point I can call")
+  if (typeof GARAGE_VIEW !== 'undefined') { GARAGE_VIEW.ready = false; GARAGE_VIEW.prelink = () => { gviewTicks = GVIEW_WAIT; gviewTick(); return gviewJob || Promise.resolve(null); }; }
+  // the clouds through the door by the game's own pass (aa's pre hook, the room's draws): the probe's level is put back first
+  function gviewCloudPre(r, cam, rt, drawnScene) {
+    if (!hangar || !hangar.gviewCloudCam || typeof CLOUDS === 'undefined') return;
+    if (hangar.gviewBake) hangar.gviewBake(false);
+    if (drawnScene !== hangarScene) return;
+    const wc = hangar.gviewCloudCam(cam); if (!wc) return;
+    // (the clouds take the air between: the atlas is the room's own day, ATMO.update in applyDay; the switch is off in the shed for the room's materials)
+    const ap = typeof ATMO !== 'undefined' && ATMO.setAP; if (ap) ATMO.setAP(true);
+    CLOUDS.draw(r, wc, rt, true); hangar.gviewCloudDone();
+    if (ap) ATMO.setAP(false);
+  }
+  function gviewTick() {
+    if (!gviewOn() || !hangar || !hangar.gviewFrom || gviewFor === hangar || typeof GARAGE_VIEW === 'undefined') return;
+    if (++gviewTicks < GVIEW_WAIT) return;   // (the session's first scene: after the garage has run; later rooms find the count long past)
+    gviewFor = hangar; const H = hangar, tFind = performance.now(); GARAGE_VIEW.ready = false;
+    gviewJob = GARAGE_VIEW.find(window.FLYDIY_WORLD, roomBase(), roomId()).then(row => { if (!row || hangar !== H) return null;
+      if (!gviewPacks.has(row.base)) gviewPacks.set(row.base, GARAGE_VIEW.load(((typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '') + row.base, THREE));
+      return gviewPacks.get(row.base); })
+    // THE SCENE'S PROGRAMS LINK OFF THE FRAME: built held down, compileSliced (paced slices) over its group, then shown - never a link in the frame that shows it
+    .then(pack => { if (!pack || hangar !== H) return null; const t0 = performance.now(), B = H.gviewFrom(pack, true); if (!B) return null; const tB = performance.now();
+      return Promise.resolve(typeof compileSliced === 'function' ? compileSliced(B.group, aa && aa.target ? aa.target() : null, hangarScene) : null).catch(() => {})
+        .then(() => { if (hangar !== H) return null; H.gviewShow(); GARAGE_VIEW.ready = true;
+          // (loadMs: asked -> fetched, decoded, uploaded, 0 for a room whose scene was already loaded; linkMs: the programs, off the frame)
+          window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(tB - t0).toFixed(1), linkMs: +(performance.now() - tB).toFixed(0), loadMs: +(t0 - tFind).toFixed(0), scene: B }; return B; }); })
+      .catch(e => { console.warn('flyDiy: the garage view -', e && e.message); return null; });
+  }
   let hoTry = 0;
   function hoTreesTick() {
+    gviewTick();
     if (!hangar || !hangar.treesFrom || hangar.treesDone || !WF || !WF.treeSideSheet || (++hoTry % 20)) return;
     // (24 Nov: stood HELD, their material's program linked for the room's lights and the frame's target, then shown - the
     //  garage's frame no longer makes and links it inside a draw: 155-234 ms in every load, garage first or not)
@@ -8908,6 +8962,72 @@
     F.ms = performance.now() - t0;
   }
   if (typeof window !== 'undefined') window.DUST_FX = { get fx() { return dustFx; }, make: () => dustMake() };
+  // RAIN AROUND YOU (RAIN step 1b, LOOK-1, 16 Nov; src/viewer/rain.js): the streaks round the eye, fed by the clouds' local rain
+  // (CLOUDS.rain: the drawn decks' rain potential x the day's rain, read up-wind under the base). MADE LAZILY: nothing is built or
+  // compiled until it first rains near the eye - a dry day never pays the program. ?rain=0 switches it off (no program ever);
+  // the GRAPHICS row 'rain' picks the tier (off / lean / full). The eye's velocity is the camera's own (any view: a parked
+  // chase, the cockpit at 50 m/s, the free eye), smoothed; in the cockpit the box round the head is dry and the density falls
+  // with airspeed (the windscreen carries the rest). Not yet: roofs (setRoofs is there, the premises' list is not wired) and
+  // the landing light's cone - the next steps.
+  const RAIN_Q = (() => { try { const m = /[?&]rain=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
+  let rainFx = null;
+  const RAIN_ST = { t: 0, last: null, vel: [0, 0, 0], vp: null, cabInv: null, light: null, why: 'dry' };
+  // RAIN ON THE GLASS (step 2 prototype, 17 Nov): the glass's wetness rises in rain (~6 s) and dries out of it (~60 s), handed to the glass
+  // program with the airspeed, the clock and gravity in craft space (world down through the shared uCraftInv) - the drops' flow
+  let glassWet = 0;
+  const _gDown = [0, 0, -1];
+  function glassRainFrame(dt, R, off) {
+    if (typeof AEROWX === 'undefined' || !AEROWX.aeroWxSetRain) return;
+    const target = off ? 0 : (R > 0 ? R : 0);
+    if (dt > 0) { glassWet += (target - glassWet) * Math.min(1, dt / (target > glassWet ? 6 : 60)); if (target === 0 && glassWet < 0.002) glassWet = 0; }
+    if (!(glassWet > 0) && !(target > 0)) { AEROWX.aeroWxSetRain(THREE, 0, 0, 0, null); return; }
+    let g = null;
+    try { const U = window.AEROSKIN && AEROSKIN.aeroSharedU ? AEROSKIN.aeroSharedU(THREE) : null;
+      if (U && U.uCraftInv) { const e = U.uCraftInv.value.elements, x = -e[4], y = -e[5], z = -e[6], n = Math.hypot(x, y, z) || 1; _gDown[0] = x / n; _gDown[1] = y / n; _gDown[2] = z / n; g = _gDown; } } catch (err) {}
+    const V = sim && sim.cgVel ? Math.hypot.apply(null, sim.cgVel()) : 0;
+    AEROWX.aeroWxSetRain(THREE, glassWet, V, RAIN_ST.t, g);
+  }
+  function syncRainFx(dt) {
+    const R = typeof CLOUDS !== 'undefined' && CLOUDS.ready ? CLOUDS.rain : 0, G = window.GFX && window.GFX.get ? window.GFX.get() : null;
+    const pick = RAIN_Q === 0 ? 'off' : ((G && G.rain) || 'auto');
+    const tier = pick === 'auto' ? (G && /^(laptop|potato|retro)$/.test(G.preset || '') ? 'lean' : 'full') : pick;   // auto: lean on the light presets
+    glassRainFrame(dt, R, RAIN_Q === 0);   // the drops on the glass (the streaks' tier does not switch them; ?rain=0 does)
+    // NO FREEZE WHEN THE FIRST SHOWER COMES (RAIN, 21 Nov; the user's table rows 8-9: no frame over 100 ms in flight): the streaks'
+    // one program is made on a day that RAINS SOMEWHERE (the day's rain > 0, ~23 % of the plan's days) while it is still dry here, and
+    // linked off the frame (renderer.compileAsync, the prop disc's way); a dry day never makes it. Until the link lands the streaks
+    // stay hidden (a shower's first fraction of a second without them) - a draw would have linked it synchronously in the frame
+    const dayRains = !!(world && world.day && +world.day.rain > 0);
+    if (!rainFx) {
+      if (!(R > 0 || dayRains) || tier === 'off' || typeof RAIN_FX === 'undefined' || !THREE.InstancedBufferGeometry) { RAIN_ST.why = R > 0 ? 'off (' + tier + ')' : 'dry'; return; }
+      rainFx = RAIN_FX.make(THREE); scene.add(rainFx.mesh);
+      RAIN_ST.vp = new THREE.Vector2(); RAIN_ST.cabInv = new THREE.Matrix4();
+      RAIN_ST.light = { sunCol: new THREE.Color(), skyCol: new THREE.Color() };
+      rainFx.linked = typeof renderer.compileAsync !== 'function';
+      if (!rainFx.linked) { const fx = rainFx; RAIN_ST.linkT0 = performance.now(); fx.mesh.visible = true;
+        renderer.compileAsync(fx.mesh, camera, scene).then(() => { fx.linked = true; RAIN_ST.linkMs = performance.now() - RAIN_ST.linkT0; }, () => { fx.linked = true; });
+        fx.mesh.visible = false; }
+    }
+    if (!rainFx.linked) { rainFx.mesh.visible = false; RAIN_ST.why = 'linking'; return; }
+    camera.updateMatrixWorld();
+    const me = camera.matrixWorld.elements, p = [me[12], me[13], me[14]], S = RAIN_ST;
+    if (dt > 0) {
+      S.t += dt;
+      if (S.last) { const k = Math.min(1, dt * 6); for (let i = 0; i < 3; i++) { const v = (p[i] - S.last[i]) / dt; S.vel[i] += ((Math.abs(v) < 400 ? v : 0) - S.vel[i]) * k; } }
+      S.last = p;
+    }
+    const W = LKW(), L = S.light;
+    let sun = null;
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; sun = [sd.x, sd.y, sd.z];
+      L.sunCol.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); L.skyCol.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity); }
+    renderer.getDrawingBufferSize(S.vp);
+    const cockpit = cam.mode === 'cockpit';
+    if (cockpit) S.cabInv.copy(camera.matrixWorldInverse);
+    const V = sim && sim.cgVel ? Math.hypot.apply(null, sim.cgVel()) : Math.hypot(S.vel[0], S.vel[1], S.vel[2]);
+    rainFx.sync(camera, { rain: R, t: S.t, wind: W ? [W[0], W[1]] : [0, 0], eyeVel: S.vel, cockpit, V, tier, sun, sunCol: L.sunCol, skyCol: L.skyCol,
+      viewport: [S.vp.x, S.vp.y], cabin: cockpit ? { inv: S.cabInv, half: RAIN_FX.LOOK.cabinHalf } : null });
+    S.why = rainFx.drawn ? 'drawn' : (R > 0 ? 'off (' + tier + ')' : 'dry');
+  }
+  if (typeof window !== 'undefined') window.RAIN_LIVE = { get fx() { return rainFx; }, get st() { return RAIN_ST; }, get q() { return RAIN_Q; }, get glassWet() { return glassWet; } };
   // ---- GROUND-FX (16 Nov 2026): THE MUD ON THE AEROPLANE, COMPUTED FROM ITS GEOMETRY, live (ground_deposit.js; the design
   // futureDesigns/GROUND-FX-2026-11-15.md sections 3 and 7). THE USER, 15 Nov: "projecting on the right places, as a function
   // of the actual plane geometry". THE GRID: the flown aeroplane's own meshes in craft space (uCraftInv x each mesh's world),
@@ -14748,6 +14868,20 @@
     const y = [z[1] * xA[2] - z[2] * xA[1], z[2] * xA[0] - z[0] * xA[2], z[0] * xA[1] - z[1] * xA[0]];
     return q => [0, 1, 2].map(k => Ms[k] + xA[k] * (q[0] - Md[0]) + y[k] * (q[1] - Md[1]) + z[k] * (q[2] - Md[2]));
   }
+  // PROP-CHECK (the user 21 Nov: "the propeller check is sometimes quite different from the actual propeller; sometimes 5 cm
+  // discrepancy on the station, tilting is different too"): THE DRAWN AEROPLANE'S OWN PLACEMENT - the firewall ring
+  // (def.refs.origin, sim.bodyOrigin) on the sim's raw axes, z = x cross y, the basis the model's matrix is made of
+  // (posePlane). aidMap stands on the LOADED mains, so a spring leg's give moved the disc off the drawn propeller; the
+  // posts that stand on the ground keep aidMap, the propeller's circle takes this
+  function aidMapBody() {
+    const ids = def && def.refs && (def.refs.origin || def.refs.noseFrame);
+    if (!ids || !ids.length || !sim || !sim.bodyOrigin || !sim.axes) return null;
+    const Od = [0, 0, 0];
+    for (const i of ids) { const n = def.nodes[i]; if (!n) return null; for (let k = 0; k < 3; k++) Od[k] += n.p[k] / ids.length; }
+    const Os = sim.bodyOrigin(), [xA, yU] = sim.axes();
+    const z = [xA[1] * yU[2] - xA[2] * yU[1], xA[2] * yU[0] - xA[0] * yU[2], xA[0] * yU[1] - xA[1] * yU[0]];
+    return q => [0, 1, 2].map(k => Os[k] + xA[k] * (q[0] - Od[0]) + yU[k] * (q[1] - Od[1]) + z[k] * (q[2] - Od[2]));
+  }
   function buildAids(bal, lin) {
     if (!AID_KEYS) return;
     aidsClear();
@@ -14855,15 +14989,20 @@
     }
     if (want.indexOf('prop') >= 0 && A.prop) {
       const r = row('aid.prop'), col = lvlC(r);
+      // PROP-CHECK: the circle in the blades' own plane - square to the SHAFT (p.dir: the engine's tilt, from the
+      // editor's drawn unit), not to the body axis - and placed as the aeroplane is (aidMapBody)
+      const MB = aidMapBody() || M;
+      const segB = (p, q, col2) => { const a = MB(p), b = MB(q); V.push(a[0], a[1], a[2], b[0], b[1], b[2]); for (let i = 0; i < 2; i++) Cc.push(col2[0], col2[1], col2[2]); };
       for (const p of A.prop) {
-        const c = p.at, N = 36;
-        for (let i = 0; i < N; i++) {
-          const a0 = i / N * 2 * Math.PI, a1 = (i + 1) / N * 2 * Math.PI;
-          seg([c[0], c[1] + p.R * Math.cos(a0), c[2] + p.R * Math.sin(a0)], [c[0], c[1] + p.R * Math.cos(a1), c[2] + p.R * Math.sin(a1)], col);
-        }
+        const c = p.at, N = 36, d = Array.isArray(p.dir) ? p.dir : [-1, 0, 0];
+        // the disc's two in-plane axes: lateral (design z) and its "up", square to the shaft
+        const ul = [0, 0, 1], up0 = [d[1] * ul[2] - d[2] * ul[1], d[2] * ul[0] - d[0] * ul[2], d[0] * ul[1] - d[1] * ul[0]];
+        const upL = Math.hypot(up0[0], up0[1], up0[2]) || 1, up = up0.map(v => v / upL * (up0[1] < 0 ? -1 : 1));
+        const at = a => [0, 1, 2].map(k => c[k] + p.R * (Math.cos(a) * up[k] + Math.sin(a) * ul[k]));
+        for (let i = 0; i < N; i++) segB(at(i / N * 2 * Math.PI), at((i + 1) / N * 2 * Math.PI), col);
         if (p.hit) rod([c[0], p.hit[1], p.hit[2]], p.hit, col, 0.025, false);
         const gy = p.ground != null ? c[1] - p.R - p.ground : p.water != null ? c[1] - p.R - p.water : null;
-        if (gy != null) seg([c[0], c[1] - p.R, c[2]], [c[0], gy, c[2]], col);
+        if (gy != null) segB([c[0], c[1] - p.R, c[2]], [c[0], gy, c[2]], col);
         label([c[0], c[1] + p.R + 0.3, c[2]], 'prop ' + (p.struct != null ? Math.round(p.struct * 100) + ' cm from ' + p.who.replace(/^the /, '') : 'clear of the structure'), col,
               p.ground != null ? Math.round(p.ground * 100) + ' cm over the ground' : p.water != null ? Math.round(p.water * 100) + ' cm over the water at gross' : '');
       }
@@ -22716,6 +22855,7 @@
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
     gdFrame(running ? fdt : 0);                                    // GROUND-FX: the mud computed from the geometry, the dust film, the rain on the skin
+    if (!inGarage) syncRainFx(running ? fdt : 0); else if (rainFx) rainFx.mesh.visible = false;   // RAIN: the streaks round the eye (made the first time it rains)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets
@@ -22843,11 +22983,16 @@
         const mT = Math.max(L.T[0], L.T[1], L.T[2], 1e-6);
         // the clouds between the eye and the sun dim the flare (C2: the CPU column, the same field the shadow bakes)
         const cT = (!inShed && typeof CLOUDS !== 'undefined' && CLOUDS.sunT && !L.isMoon) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
-        SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, isMoon: L.isMoon, phase: L.phase,
+        // NIGHT-SUN: x the share of the disc over the EYE's horizon (atmo.js seen()) - the flare's own rays know the terrain, not the Earth: over the
+        // sea a light under the horizon kept its glow
+        const hE = window.ATMO && ATMO.seen && !ATMO.NIGHTSUN_OFF ? (L.isMoon ? ATMO.seen().moon.hor : ATMO.seen().sun.hor) : 1;
+        SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, seen: hE, isMoon: L.isMoon, phase: L.phase,
                                              aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
         SKY_GLARE.render(renderer);
-        if (!inShed && window.WATER && WATER.glint && typeof world.waterH === 'function' && typeof world.terrainH === 'function') WATER.glint.vis = glintVis(camera.position, glareDir, WATER.glint.vis);   // LOOK-GLINT
-        if (window.ATMO && ATMO.sunHidden) { eyeHide = (inShed || L.isMoon || typeof world.terrainH !== 'function') ? 0 : sunHiddenEye(camera.position, glareDir, eyeHide); ATMO.sunHidden(eyeHide); }   // LOOK-HALO
+        // NIGHT-SUN: the key light's disc over the WATER's horizon (the path's) - the moon's at night, as the terrain's share below
+        const NS = window.ATMO && ATMO.discOver && !ATMO.NIGHTSUN_OFF ? ATMO : null, horW = NS ? NS.discOver(glareDir.y, 0, L.isMoon ? NS.P.moonRad : NS.P.sunRad) : null;
+        if (!inShed && window.WATER && WATER.glint && typeof world.waterH === 'function' && typeof world.terrainH === 'function') WATER.glint.vis = glintVis(camera.position, glareDir, WATER.glint.vis, horW);   // LOOK-GLINT
+        if (window.ATMO && ATMO.sunHidden) { eyeHide = (inShed || (L.isMoon && !NS) || typeof world.terrainH !== 'function') ? (eyeHideRaw = 0) : sunHiddenEye(camera.position, glareDir, eyeHide); ATMO.sunHidden(eyeHide, eyeHideRaw); }   // LOOK-HALO (NIGHT-SUN: the moon's too, when it is the key)
       }
     }
     if (photoGrab && framePresented) { const g = photoGrab; photoGrab = null; try { g(renderer.domElement); } catch (e) { console.warn('flyDiy: the photo -', e && e.message); } }   // G3741

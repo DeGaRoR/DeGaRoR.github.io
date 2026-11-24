@@ -1,0 +1,95 @@
+1. EVERY REGISTRY ENGINE IS A POINT ON THE DIALS
+  ok     a point for each of the 45 registry engines
+  ok     a65_sensenich74      <- continental A-65: rpm 2300, geared 0, liquid 0, bmepK 0.923533, massK 1.06811  [cg aft 0.199 m, price 13520 vs 11000]
+  ok     r1830_hs23e50        <- P&W R-1830: rpm 2700, geared 1, gearRatio 1.78, bmepK 0.863858, massK 1.0587  [cg aft 0.16 m, price 95698 vs 78000]
+  ok     io360_mccauley       <- lycoming IO-360: rpm 2700, geared 0, liquid 0, bmepK 1.02726, massK 0.957371  [cg aft 0.243 m, price 49233 vs 52000]
+  ok     rotax277_pusher      <- rotax 277: rpm 6250, geared 1, gearRatio 2.58, liquid 0, bore 0.072, bmepK 0.766484, massK 2.06117  [cg aft 0.113 m, price 4476 vs 5300]
+  ok     vw2180_wood          <- VW 2180: rpm 3200, geared 0, liquid 0, bmepK 0.770713, massK 1.09312  [cg aft 0.191 m, price 11913 vs 8700]
+  ok     rotax582_ivo         <- rotax 582: rpm 6500, geared 1, gearRatio 2.62, liquid 1, rpmMax 6800, bmepK 0.803209, massK 1.41802  [cg aft 0.168 m, price 11581 vs 8800]
+  ok     jabiru2200_std       <- jabiru 2200: rpm 3300, geared 0, liquid 0, bore 0.0975, bmepK 1.05777, massK 0.983748  [cg aft 0.198 m, price 18996 vs 21800]
+  ok     rotax912_warp        <- rotax 912 (flat): rpm 5800, geared 1, gearRatio 2.27, liquid 1, bore 0.0795, bmepK 1.03717, massK 1.12541  [cg aft 0.228 m, price 17674 vs 22000]
+  ok     rotax912is_warp      <- rotax 912 iS: rpm 5800, geared 1, gearRatio 2.43, liquid 1, bore 0.084, bmepK 1.14568, massK 1.13265  [cg aft 0.236 m, price 23211 vs 22000]
+  ok     o200_eprops          <- continental O-200: rpm 2750, geared 0, liquid 0, bmepK 1.00891, massK 0.983857  [cg aft 0.206 m, price 23664 vs 43000]
+  ok     r985_hs2b20          <- P&W R-985: rpm 2300, geared 0, bmepK 0.925665, massK 0.803741  [cg aft 0.154 m, price 67918 vs 52000]
+  ok     verner7u_wood        <- Verner Scarlett 7U: rpm 2400, geared 0, bmepK 1.80404, massK 1.25806  [cg aft 0.119 m, price 25075 vs 31900]
+  ok     clerget9b_wood       <- Clerget 9B: rpm 1250, geared 0, bmepK 0.595603, massK 0.495546  [cg aft 0.146 m, price 33291 vs 37700]
+  ok     merlin66_rotol4      <- Rolls-Royce Merlin 66: rpm 3000, geared 1, gearRatio 2.096, liquid 1, bmepK 0.900007, massK 1.08509  [cg aft 0.631 m, price 108554 vs 261000]
+  ok     rotec3600_std        <- Rotec R3600: rpm 3600, geared 1, gearRatio 2, bmepK 1.07643, massK 0.928857  [cg aft 0.124 m, price 40133 vs 43500]
+  ok     mikron3_wood         <- Walter Mikron III: rpm 2600, geared 0, liquid 0, bmepK 0.954596, massK 1.08982  [cg aft 0.312 m, price 13339 vs 23200]
+  ok     gipsymajor1_wood     <- DH Gipsy Major: rpm 2350, geared 0, liquid 0, bmepK 0.851372, massK 0.917258  [cg aft 0.389 m, price 33291 vs 55000]
+  ok     hirth508_wood        <- Hirth HM 508D: rpm 3000, geared 1, gearRatio 1.5, liquid 0, bmepK 1.10465, massK 0.905329  [cg aft 0.353 m, price 57520 vs 58000]
+  ok     argus10c_wood        <- Argus As 10C: rpm 2000, geared 0, liquid 0, bmepK 0.877546, massK 0.799892  [cg aft 0.394 m, price 54162 vs 55100]
+  ok     o320_mccauley        <- lycoming O-320: rpm 2700, geared 0, liquid 0, bmepK 0.969391, massK 0.941022  [cg aft 0.243 m, price 40133 vs 52000]
+  ok     o540_hartzell        <- lycoming O-540: rpm 2575, geared 0, liquid 0, bmepK 0.937795, massK 0.856837  [cg aft 0.333 m, price 54054 vs 64000]
+  ok     io550_hartzell3      <- continental IO-550: rpm 2700, geared 0, liquid 0, bore 0.13335, bmepK 1.15812, massK 0.933541  [cg aft 0.339 m, price 59570 vs 60900]
+  ok     io720_hartzell3      <- lycoming IO-720: rpm 2650, geared 0, liquid 0, bmepK 1.1638, massK 0.973161  [cg aft 0.422 m, price 65124 vs 65300]
+  ok     rotax915_carbon      <- rotax 915 iS: rpm 5800, geared 1, gearRatio 2.54, liquid 1, bmepK 1.21435, massK 1.34258  [cg aft 0.236 m, price 36903 vs 51600]
+  ok     rotax916_carbon      <- rotax 916 iS: rpm 5800, geared 1, gearRatio 2.54, liquid 1, bore 0.084, bmepK 1.21782, massK 1.37135  [cg aft 0.236 m, price 42478 vs 55300]
+  ok     ranger440_wood       <- Ranger L-440: rpm 2450, geared 0, liquid 0, bmepK 1.06298, massK 0.970759  [cg aft 0.497 m, price 51095 vs 50800]
+  ok     w670_hs2b            <- Continental W-670: rpm 2075, geared 0, bmepK 0.902708, massK 0.855281  [cg aft 0.153 m, price 52840 vs 52200]
+  ok     r755_hs2b            <- Jacobs R-755: rpm 2200, geared 0, bore 0.13335, bmepK 1.02508, massK 0.835019  [cg aft 0.155 m, price 58932 vs 59500]
+  ok     m14p_v530            <- Vedeneyev M-14P: rpm 2900, geared 1, gearRatio 1.52, bmepK 0.844615, massK 0.773867  [cg aft 0.136 m, price 62750 vs 62400]
+  ok     r1340_hs12d40        <- P&W R-1340: rpm 2250, geared 0, bmepK 0.939759, massK 0.846479  [cg aft 0.164 m, price 75054 vs 75400]
+  ok     rotax503_wood        <- rotax 503: rpm 6800, geared 1, gearRatio 2.58, liquid 0, bmepK 0.586142, massK 1.50474  [cg aft 0.163 m, price 8586 vs 4700]
+  ok     emrax268_carbon      <- EMRAX 268: canD 0.3, rpm 2400, geared 0, liquid 0, bmepK 1.92437, massK 0.628858  [cg aft 0.15 m, price 32100 vs 32000]
+  ok     outrunner2212_9x47   <- RC 2212 outrunner: rpm 9000, geared 0, liquid 0, bmepK 1.09078, massK 1.23884  [cg aft 0.025 m, price 13 vs 25]
+  ok     outrunner3548_12x6   <- RC 2212 outrunner: canD 0.035, canL 0.048, volts 14.8, rpm 11000, geared 0, liquid 0, bmepK 1.35547, massK 1.54776  [cg aft 0.045 m, price 49 vs 55]
+  ok     outrunner6374_18x10  <- RC 6374 outrunner: rpm 6300, geared 0, liquid 0, bmepK 1.30298, massK 0.961259  [cg aft 0.069 m, price 122 vs 130]
+  ok     eppg_direct_130      <- e-PPG 12 kW: rpm 2500, geared 0, liquid 0, bmepK 1.05727, massK 0.986922  [cg aft 0.13 m, price 3600 vs 3800]
+  ok     fes_folding_100      <- FES sustainer: rpm 4500, geared 0, liquid 0, bmepK 1.48826, massK 1.37941  [cg aft 0.123 m, price 6600 vs 9500]
+  ok     emrax228_3blade      <- EMRAX 228: canD 0.26, rpm 2400, geared 0, liquid 0, bmepK 1.51954, massK 0.93005  [cg aft 0.131 m, price 16500 vs 11000]
+  ok     e811_velis           <- pipistrel E-811: rpm 2500, geared 0, liquid 1, bmepK 1.0208, massK 1.83069  [cg aft 0.194 m, price 17280 vs 31500]
+  ok     sp260d_class         <- SP260D-class: rpm 2500, geared 0, liquid 0, bmepK 1.5595, massK 0.878656  [cg aft 0.328 m, price 78000 vs 90000]
+  ok     pt6a114a_hartzell3   <- P&W PT6A-114A: tRpm 1900, tCanD 0.4, bmepK 1.00817, massK 1.08392, tCanL 1.192  [cg aft 0.684 m, price 365418 vs 390000]
+  ok     pt6a34_hartzell4     <- P&W PT6A-34: tRpm 2200, bmepK 1.00179, massK 0.923506, tCanL 1.1263  [cg aft 0.68 m, price 411217 vs 420000]
+  ok     pt6a42_hartzell4     <- P&W PT6A-42: tRpm 2000, bmepK 1.00006, massK 1.09143, tCanL 1.24375  [cg aft 0.731 m, price 471371 vs 455000]
+  ok     pt6a60a_hartzell4    <- P&W PT6A-60A: tRpm 1700, bmepK 1.00009, massK 1.17455, tCanL 1.35122  [cg aft 0.796 m, price 594569 vs 590000]
+  ok     pt6a27_hartzell3     <- P&W PT6A-27: tRpm 2200, bmepK 0.999971, massK 1.14111, tCanL 1.20362  [cg aft 0.664 m, price 291934 vs 410000]
+2. EVERY PROPELLER OFFICIAL CONTENT FLIES IS ON THE EDITOR'S ROWS
+  ok     bugReports/cessnaFloatsWOrks.json: 2.06 m, 2-blade alu, standard pitch
+  ok     builds/candidates/B-ITES.json: 1.69 m, 2-blade alu, standard pitch
+  ok     builds/candidates/Twin_busher_floats_4b.json: 1.91 m, 3-blade carbon, climb pitch
+  ok     builds/candidates/build_v7_ultralight_2026-09-05_floats.json: 1.91 m, 2-blade carbon, standard pitch
+  ok     builds/candidates/build_v8_pusher_2026-09-11.json: 1.59 m, 2-blade carbon, standard pitch
+  ok     builds/candidates/camel_2026-10.json: 2.59 m, 2-blade wood, cruise pitch
+  ok     builds/candidates/carbon_cub_ss.json: 2.03 m, 2-blade carbon, standard pitch
+  ok     builds/candidates/cub_chord160.json: 1.91 m, 2-blade wood, standard pitch
+  ok     builds/candidates/dc3_2026-10.json: 3.4 m, 3-blade alu, standard pitch
+  ok     builds/candidates/electric_trainer.json: 1.62 m, 2-blade carbon, standard pitch
+  ok     builds/candidates/flydiy-build (4).json: 1.62 m, 2-blade carbon, standard pitch
+  ok     builds/candidates/ls4_2026-11.json: D (the powerplant's), 2-blade wood, standard pitch
+  ok     builds/candidates/mosquito.json: 2.34 m, 3-blade wood, standard pitch
+  ok     builds/candidates/pa18_floats_chord160.json: 1.91 m, 2-blade wood, standard pitch
+  ok     builds/candidates/pawnee (1).json: 1.52 m, 2-blade wood, cruise pitch
+  ok     builds/candidates/pc6_drafting_2026-11-11.json: 2.7 m, 3-blade alu, climb pitch
+  ok     builds/candidates/pc6_floats_2026-11-13.json: 2.7 m, 3-blade alu, climb pitch
+  ok     builds/candidates/ruckus_2026-11-09.json: 1.73 m, 3-blade carbon, standard pitch
+  ok     builds/candidates/ruckus_std_2026-11-09.json: 1.6 m, 2-blade carbon, standard pitch
+  ok     builds/candidates/sailPlane.json: D (the powerplant's), 2-blade wood, standard pitch
+  ok     builds/candidates/stearman_2026-10.json: 2.5 m, 2-blade alu, standard pitch
+  ok     builds/candidates/stol_cub_showcase.json: 1.8 m, 3-blade carbon, standard pitch
+  ok     builds/candidates/superpetrel_V4_2.json: 1.6 m, 3-blade carbon, standard pitch
+  ok     builds/candidates/tigermoth_2026-10.json: 1.91 m, 2-blade wood, standard pitch
+  ok     builds/candidates/ugly_bi.json: 1.91 m, 2-blade wood, standard pitch
+  ok     builds/cessna172r_2026-11-08.json: 1.905 m, 2-blade alu, standard pitch
+  ok     builds/cub_2026-09-20_corrected.json: 1.91 m, 2-blade wood, standard pitch
+  ok     builds/jodel_2026-09-20_corrected.json: 1.83 m, 2-blade wood, cruise pitch
+  ok     tools/fixtures/build_v7_ultralight_2026-09-05.json: 1.91 m, 2-blade carbon, standard pitch
+  ok     the pitch row offers exactly what the physics flies: auto, climb, standard, cruise, seaplane (GEN_PROP_PITCH + auto)
+  ok     the float kit's pitch list is the row's, in its order
+  ok     the float kit sets the pitch through the row's writer
+3. A CUSTOM ENGINE INHERITS NOTHING FROM ITS FALLBACK KEY
+  ok     rotax582_ivo as a custom engine on 5 fallback keys: one engine, one propeller (D 1.8 m), one drive (2 cyl), one wing station, one tech stage, one price
+  ok     verner7u_wood as a custom engine on 5 fallback keys: one engine, one propeller (D 1.8 m), one drive (7 cyl), one wing station, one tech stage, one price
+  ok     r1830_hs23e50 as a custom engine on 5 fallback keys: one engine, one propeller (D 1.8 m), one drive (14 cyl), one wing station, one tech stage, one price
+  ok     emrax268_carbon as a custom engine on 5 fallback keys: one engine, one propeller (D 1.8 m), one drive (4 cyl), one wing station, one tech stage, one price
+  ok     pt6a114a_hartzell3 as a custom engine on 5 fallback keys: one engine, one propeller (D 1.8 m), one drive (4 cyl), one wing station, one tech stage, one price
+4. THE LATENT PHYSICS FIELDS: A ROW, OR A CONSTANT THE JOIN WRITES
+  ok     the join's constants are GEN_DEFAULT's: camber 0, crownTop 0.72, crownSide 0.07
+  ok     the mains' stiffness row writes gear.stiffness off its default (1.7 -> 1.7); at 1 it stays absent, the physics' 1
+  ok     the join leaves the camber and the crown absent: the physics flies GEN_DEFAULT's, the constants
+  ok     builds/candidates/dc3_2026-10.json: its stiffness 3 loads onto the row (s1Stiff 3)
+  ok     every official / candidate / validated build (29) carries a stiffness on the row and the constants
+  ok     the row's writer moves the row and writes spec.prop.pitch (GARAGE_SPEC.update, the design tiles' and the kit's call)
+GATE ENGINEDIALS: PASS
+exit 0
