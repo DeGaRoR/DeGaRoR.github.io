@@ -174,7 +174,16 @@ WHAT IS OFFERED NOW.
   under the live host; the hangar's tree cards linked before they are shown; the clouds' first draw inside the boot; every
   compile behind the live garage puts the live program back; the automatic render scale's way back up; perf-trace-9.
   21 gates pass on it. A0's trial of the 22 real-page gates on master + -5 was running at the time of writing.
-- THE FALLBACK if the default flip costs the battery more than a morning: one line, `GF_DEFAULT` false (app.js).
+- THE FALLBACK if the default flip costs the battery more than a morning: one line, `GF_DEFAULT` false (app.js). (Not needed:
+  A0's trial of the 22 real-page gates on -5 against L40M's tree found no new failing check, 24 Nov 09:35.)
+- THE SLIDERS (PERF-SLIDERS): `claude/ready/perf-sliders-1b` = e5d01deaa is ON L40M (its release rules, the derived
+  updates and `CAGE_CHAIN.over`, merged with L40K). Its four gates on that merged tree, 24 Nov morning: INSTANTREL 18 rows,
+  INSTANT 26 rows, PANELGEAR, DERIVED on all 30 - pass. On L40K the Chinook (the user's benchmark) ran its crew layer in 2-3
+  of every 3 slider ticks; with `over` it is 0 of 3, the aeroplane the same. NOT DONE: row 1 has not been re-measured in a
+  browser since these cuts (0 of 30 before them); the Pawnee, the sailplane and the twin boom still rebuild their cowl on
+  every tick (cause found: the cowl's own slider sync read while the chain records; a few lines, first on its list); the
+  drag budget is a switch, never measured on a phone with the model following. Its notes: PERF-SLIDERS.md (the shared
+  notes folder) and `flyDiy/reports/PERF-SLIDERS-HANDOVER.md` on its ready.
 
 MEASURED, quiet box, headed 5120x1440.
 
