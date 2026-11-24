@@ -488,6 +488,7 @@ function runGpuPass(ok) {
     R.gpuMark('clouds overlay'); gpu.spent += 1.5;
     R.gpuMark('aa resolve'); renderer.shadowCost = 0; renderer.render({ cost: 4, calls: 1, tris: 2 });
     R.gpuMark('post'); gpu.spent += 0.5;
+    for (let i = 0; i < (o.posts || 0); i++) { renderer.shadowCost = 0; renderer.render({ cost: 0, calls: 1, tris: 2, shadows: true }); }   // (the post chain's own renders: each one goes through the shadow map's wrapper)
     R.lap(S.render); gpu.spent += 0.25;
     T.now += 33; R.end(true, [0, 0, 0]); };
   { // 10a
@@ -524,6 +525,19 @@ function runGpuPass(ok) {
     const G = JSON.parse(P.R.logParts().join('')).gpuPasses, H = P.R.header();
     ok(G.lost === 1 && H.gpuTimer.rogue >= 1, '10c another module\'s timer on a pass frame spoils that frame (counted: lost, rogue), the chain is closed first', 'lost ' + G.lost + ', rogue ' + H.gpuTimer.rogue + ', nested ' + P.gpu.nested);
     ok(G.rows.every(r => r.slice(2, 2 + G.labels.length).every(v => v === null || v >= 0)), '10c no row of a spoiled frame is kept');
+    ok(G.lostBy && G.lostBy.foreign === 1 && G.lostBy.segments === 0, '10c the lost frame says why (lostBy.foreign)', JSON.stringify(G.lostBy));
+  }
+  { // 10e (9c, the first real rows of 24 Nov: 60-70 % of the pass frames lost, the heavy ones): a frame with MANY renders is kept
+    const P = rig({ make: { gpuPass: 4 } }); for (let i = 0; i < 40; i++) frame(P, { posts: 70 });
+    const G = JSON.parse(P.R.logParts().join('')).gpuPasses, L = G.labels.length, row = G.rows[G.rows.length - 1], ms = n => row[2 + G.labels.indexOf(n)], draws = n => row[2 + L + G.labels.indexOf(n)];
+    ok(G.lost === 0 && G.frames >= 8 && P.gpu.nested === 0, '10e seventy renders under the post mark lose no frame (the shadow map\'s wrapper splits a segment only inside the scene pass and the unmarked laps)', 'lost ' + G.lost + ', kept ' + G.frames + ', the most segments in a frame ' + G.segMax + ' of ' + G.segCap);
+    ok(G.segMax < 40 && G.segCap >= 128, '10e those renders add no segment, and the cap is far above a frame\'s count', G.segMax + ' of ' + G.segCap);
+    ok(Math.abs(ms('shadow') - 3) < 1e-6 && Math.abs(ms('scene pass') - 14) < 1e-6 && Math.abs(ms('mirror') - 6) < 1e-6 && draws('post') === 70, '10e the shadow maps of the scene pass keep their own segment (3), the mirror its 6, the post mark its seventy draws', 'shadow ' + ms('shadow') + ', scene pass ' + ms('scene pass') + ', post draws ' + draws('post'));
+    // and a frame over the cap is lost SAYING SO: marks are segments too
+    const Q = rig({ make: { gpuPass: 4 } }), { R, T, gpu, S } = Q;
+    for (let i = 0; i < 12; i++) { R.begin(T.now, { steps: 0 }); for (let k = 0; k < 200; k++) R.gpuMark('m' + (k % 3)); gpu.spent += 1; R.lap(S.render); T.now += 33; R.end(true, [0, 0, 0]); }
+    const G2 = JSON.parse(R.logParts().join('')).gpuPasses;
+    ok(G2.lost >= 2 && G2.lostBy.segments === G2.lost && Q.gpu.nested === 0, '10e a frame over the cap is dropped whole and counted under lostBy.segments', JSON.stringify(G2.lostBy));
   }
   { // the switch itself
     const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flight_recorder.js'), 'utf8'), aa = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aa_resolve.js'), 'utf8');
