@@ -177,6 +177,19 @@ const TW_STEERS = ['steerable', 'steerable', 'lockable', 'fixed', 'skid'];
 // the bench's own group + the new sidewall bulge.
 // MONOWHEEL: the bicycle wheel (3) draws its own spokes, rim and hub - the aircraft wheel's rows step aside for it
 const notCycle = { when: P => Math.round(+P.whProfile || 0) !== 3 };
+// LAZAIR: THE V HUNG DOWN - a single body's stab canted at -20 or below (on twin booms the stab layer reads no negative
+// cant: the booms' own inverted V is mount 4) - and its tip wheels' rows, read with their absent defaults
+const vDownOf = P => !!P && !+P.boomTwin && Math.round(P.stOn === undefined ? 1 : +P.stOn) !== 0 && +P.stCant <= -20;
+const vtModeOf = P => { const m = Math.round(+(P && P.vtWheels) || 0); return m === 1 || m === 2 ? m : 0; };
+// the tip wheels as drawn and flown (null: none): mode, radius (m), tyre width (x the carcass's, 0 its own), the fork
+// (the hub's drop past the tyre under the tip, m), castoring (the extra wheels' only)
+const vTipOf = P => {
+  const mode = vDownOf(P) ? vtModeOf(P) : 0;
+  if (!mode) return null;
+  const cl = (v, a, b, d) => { const x = v == null || !isFinite(+v) ? d : +v; return Math.max(a, Math.min(b, x)); };
+  return { mode, R: 0.5 * cl(P.vtD, 0.06, 0.50, 0.20), wide: cl(P.vtWide, 0, 1.5, 0), fork: cl(P.vtFork, 0, 0.40, 0.03),
+           castor: !Math.round(+P.vtCastor || 0) };
+};
 const WHEEL_ROWS = [
   ['whProfile', 'carcass', 0, 4, 1, ['standard', 'tundra balloon', 'slim', 'bicycle (light)', 'military lug (1940s)']],
   // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
@@ -235,6 +248,15 @@ const WHEEL_ROWS = [
   ['spareStrap', 'spare wheel strap (leather, buckled)', 0, 1, 1, { when: P => +P.spareOn, absent: 1 }],
   // CAR-4: the twin booms' wheels outboard of the booms (m; absent 0 = under the boom)
   ['twBoomOut', 'boom wheels outboard of the booms (m)', 0, 0.8, 0.005, { when: P => +P.boomTwin }],
+  // LAZAIR (24 Nov, the user: "the tip wheels are an option with their own parameters"): A V HUNG DOWN (a single body's
+  // tail canted below -20, the stab layer's) carries a wheel under each panel's tip - 1 as the tail wheel (a taildragger's
+  // tail contact moves to the tips; its kind - steerable, lockable, fixed, skid - is the third wheel's own row), 2 extra
+  // wheels (beside any gear: a tricycle's tail-strike wheels; castoring or fixed). Every row ABSENT AT ITS DEFAULT
+  ['vtWheels', 'V tip wheels (the V hangs down)', 0, 2, 1, ['off', 'as the tail wheel', 'extra wheels'], { when: P => vDownOf(P), absent: 0 }],
+  ['vtD', 'V tip wheel diameter (m)', 0.06, 0.50, 0.005, { when: P => vDownOf(P) && vtModeOf(P) > 0, absent: 0.20 }],
+  ['vtWide', 'V tip tyre width (x the carcass\'s; 0 = its own)', 0, 1.5, 0.01, { when: P => vDownOf(P) && vtModeOf(P) > 0, absent: 0 }],
+  ['vtFork', 'V tip fork: the hub below the tip, past the tyre (m)', 0, 0.40, 0.005, { when: P => vDownOf(P) && vtModeOf(P) > 0, absent: 0.03 }],
+  ['vtCastor', 'V tip extra wheels', 0, 1, 1, ['castoring', 'fixed (straight ahead)'], { when: P => vDownOf(P) && vtModeOf(P) === 2, absent: 0 }],
   // CAR-3/4: the bumpers and the hitch (absent = none)
   ['bumpF', 'front bumper', 0, 1, 1, { when: P => +P.isCar || +P.bumpF }],
   ['bumpR', 'rear bumper', 0, 1, 1, { when: P => +P.isCar || +P.bumpR }],
@@ -333,5 +355,5 @@ const gearStations = P => {
 };
 
 window.GEAR_PAGE = { DEF, LEG_ROWS, LEG_KEYS, LEGS, STEERS, TW_STEERS, WHEEL_ROWS,
-                     PRESETS, gearDefaults, gearLegP, gearStations };
+                     PRESETS, gearDefaults, gearLegP, gearStations, vDownOf, vTipOf };
 })();

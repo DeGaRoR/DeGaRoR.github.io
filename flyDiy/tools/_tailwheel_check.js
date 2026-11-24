@@ -95,6 +95,7 @@ async function pool(jobs, n) {
     ivOut: ['--build', 'twiniv', '--cage', 'stIvDir=1', '--case', 'stand,pivot,circuit'],     // G3801
     bvIn: ['--build', 'twiniv', '--cage', 'stIvDir=2', '--case', 'stand,pivot,circuit'],
     bvOut: ['--build', 'twiniv', '--cage', 'stIvDir=3', '--case', 'stand,pivot,circuit'],
+    lazair: ['--build', 'lazair', '--case', 'stand,pivot,circuit'],                              // LAZAIR (K)
   };
   const keys = Object.keys(JOBS);
   const res = await pool(keys.map(k => JOBS[k]), +(process.env.TW_JOBS || 4));
@@ -265,6 +266,100 @@ async function pool(jobs, n) {
          `H ${['down & in', 'down & out', 'up & in', 'up & out'][dirI]} ${path.basename(f, '.json')}: the links ${rows.map(r => r.len == null ? '-' : r.len.toFixed(2)).join(' / ')} m (< 0.3), the straps on their panels ${rows.map(r => r.on).join(' / ')}, the hinge ${rows.map(r => r.from).join(' / ')}, the TE to port on dr > 0 ${rows.map(r => r.port == null ? '-' : (1000 * r.port).toFixed(0) + ' mm').join(' / ')}`);
     }
   }
+
+  // K. LAZAIR (24 Nov, the user: "an inverted V tail with a little wheel at each panel tip, on a single boom ... the
+  // controls accurate whatever the angle ... the tip wheels an option with their own parameters")
+  console.log('K. THE V HUNG DOWN ON A SINGLE BOOM (LAZAIR)');
+  { const SH = require(path.join(T, '_scene_headless.js')), LB = require(path.join(T, '_load_build.js'));
+    const CHN = 'builds/chinook_2026-09-21_corrected.json', C172 = 'builds/cessna172r_2026-11-08.json';
+    const VW = { stCant: -35, stMount: 1, stX: 0, stY: 0, stZ: 0, finOn: 0 };   // the V-tail tile's writes, the cant below 0
+    // K1 THE DRAWING (the Chinook's single rod): the panels hang from under the rod, mirrored; a wheel contact under each tip
+    // (the tail unit's, as the tail wheel), below the boom; the fin stood down; the flown V's area the drawn panels'
+    const fx = SH.loadFixture(path.join(T, '..', CHN));
+    const S = SH.sceneBuild(fx.spec || fx, { over: Object.assign({ vtWheels: 1 }, VW) }), W = S.W, THREE = SH.context().THREE;
+    S.scene.updateMatrixWorld(true);
+    const obj = {}; let finN = 0; S.scene.traverse(o => { if (o.name) obj[o.name] = obj[o.name] || o; if (o.name === 'cageLayer:fin') finN++; });
+    const box = n => obj[n] ? new THREE.Box3().setFromObject(obj[n]) : null;
+    const bR = box('edStabSkinR'), bL = box('edStabSkinL'), SB = W.CAGE_STAB, GW = W.CAGE_GEAR;
+    const tips = GW && GW.vtTips, cs = (GW && GW.contacts || []).filter(c => c.st && c.st.id === 2);
+    const mir = !!(bR && bL) && Math.abs(bR.min.x + bL.max.x) < 1e-3 && Math.abs(bR.max.x + bL.min.x) < 1e-3
+      && Math.abs(bR.min.y - bL.min.y) < 1e-3 && Math.abs(bR.max.y - bL.max.y) < 1e-3 && Math.abs(bR.min.z - bL.min.z) < 1e-3;
+    const rootY = bR && bL ? Math.max(bR.max.y, bL.max.y) : null;
+    const under = !!tips && tips.length === 2 && cs.length === 2 && cs.every(c => { const q = tips.find(p => Math.sign(p[0]) === Math.sign(c.p[0]));
+      return q && Math.abs(c.p[0] - q[0]) < 1e-3 && Math.abs(c.p[2] - q[2]) < 1e-3 && c.p[1] < q[1] - c.R && c.p[1] + c.R < rootY - 0.1; });
+    ok(SB && SB.cant === -35 && mir && under && tips[0][1] < rootY - 0.3 && finN === 0 && GW.vtMode === 'tail',
+       `K1 the drawn V at ${SB && SB.cant} deg: the panels mirrored ${mir}, the tips ${tips ? tips.map(q => q.map(v => v.toFixed(3)).join(',')).join(' / ') : '-'} under the root (${rootY == null ? '-' : rootY.toFixed(3)}), a wheel contact under each ${under} (${cs.map(c => c.p.map(v => v.toFixed(3)).join(',')).join(' / ')}), the fin layer ${finN ? 'drawn' : 'stood down'}`);
+    const L1 = LB.loadBuild(CHN, { patch: j => { const sp = j.spec || j; sp.cage = Object.assign({}, sp.cage, VW, { vtWheels: 1 }); return j; } }), s1 = L1.spec;
+    ok(s1.tail.type === 'v' && s1.tail.vAngle === -35 && SB && SB.measure && Math.abs(s1.tail.Svt - 2 * SB.measure.areaTail) < 1e-9 && !(L1.errors || []).length,
+       `K1 the join: tail.type ${s1.tail.type}, vAngle ${s1.tail.vAngle}, Svt ${s1.tail.Svt && s1.tail.Svt.toFixed(4)} m2 = the drawn panels' ${SB && SB.measure ? (2 * SB.measure.areaTail).toFixed(4) : '-'} m2 ${(L1.errors || []).join(' | ')}`);
+    // K1b the drawn ruddervators on a nose-left pedal: both trailing edges swing to PORT (the join's sgn2 by the hinge's lean)
+    { const PH = require(path.join(T, '_pose_headless.js')), H = PH.surfHinges(S, PH.collect(S, THREE, {}));
+      const port = ['R', 'L'].map(sd => { const h = H['elev' + sd], sv = obj['edSurf_elev' + sd]; let te = null;
+        if (sv) sv.traverse(o => { if (!o.isMesh) return; const pa = o.geometry.getAttribute('position');
+          for (let i = 0; i < pa.count; i++) { const v = new THREE.Vector3(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(o.matrixWorld); if (!te || v.z < te[2]) te = [v.x, v.y, v.z]; } });
+        if (!(h && te && h.drive2 === 'dr')) return null;
+        const a = h.sgn2 * 0.1, ax = h.axis, v = [0, 1, 2].map(k => te[k] - h.pivot[k]), c = Math.cos(a), s = Math.sin(a), dt = ax[0] * v[0] + ax[1] * v[1] + ax[2] * v[2];
+        return h.pivot[0] + v[0] * c + (ax[1] * v[2] - ax[2] * v[1]) * s + ax[0] * dt * (1 - c) - te[0]; });
+      ok(port.every(p => p != null && p > 0), `K1 the drawn ruddervators' trailing edges to port on dr > 0: ${port.map(p => p == null ? '-' : (1000 * p).toFixed(0) + ' mm').join(' / ')}`); }
+    // K2 THE CONTROLS AT ANY ANGLE (the generator's default made a V, up and down, the probe at cruise): the elevator's
+    // up pitches nose-up, the rudder's left yaws nose-left; the tail's own sideslip roll couple flips with the V (a V hung
+    // down rolls the other way - real); nothing at zero input in symmetric flight
+    const au = (d, tailOnly) => {
+      if (tailOnly) d = Object.assign({}, d, { strips: d.strips.filter(q => q.kind === 'vtail') });
+      const sim = C.makeSim(d, null); sim.reset(0); const V = d.params.ap.VCruise;
+      const at = (de, dr, vz) => { sim.ctl.de = de; sim.ctl.dr = dr; return sim.probe([-V, 0, vz || 0]); };
+      const b0 = at(0, 0), r = at(0, 0.2), e = at(0.2, 0), sb = at(0, 0, 0.05 * V);
+      return { Ydr: (r.yawLeft - b0.yawLeft) / 0.2, Pde: (e.pitchUp - b0.pitchUp) / 0.2, Pdr: (r.pitchUp - b0.pitchUp) / 0.2,
+               Rb: sb.rollLeft - b0.rollLeft, y0: b0.yawLeft, r0: b0.rollLeft }; };
+    const vOf = a => { const s = JSON.parse(JSON.stringify(C.GEN_DEFAULT)); s.tail.type = 'v'; s.tail.vAngle = a; return C.buildGen(s); };
+    for (const ang of [30, 55]) {
+      const dU = vOf(ang), dD = vOf(-ang), U = au(dU), Dn = au(dD), Ut = au(dU, true), Dt = au(dD, true);
+      for (const [nm, x, d] of [['+' + ang, U, dU], ['-' + ang, Dn, dD]])
+        ok(d.spec.tail.type === 'v' && x.Pde > 0 && x.Ydr > 0 && Math.abs(x.Pdr) < 0.02 * x.Pde && Math.abs(x.y0) < 1e-3 * x.Ydr && Math.abs(x.r0) < 1e-3 * x.Ydr,
+           `K2 the V at ${nm} deg: dPitchUp/de ${x.Pde.toFixed(0)} (> 0), dYawLeft/dr ${x.Ydr.toFixed(0)} (> 0), the rudder's pitch ${(100 * Math.abs(x.Pdr / x.Pde)).toFixed(1)} % (< 2), at zero input yaw ${x.y0.toExponential(1)} roll ${x.r0.toExponential(1)}`);
+      ok(Math.sign(Ut.Rb) === -Math.sign(Dt.Rb) && Ut.Rb !== 0,
+         `K2 the tail's sideslip roll couple at ${ang} deg: up ${Ut.Rb.toFixed(1)}, hung down ${Dt.Rb.toFixed(1)} N m (opposite signs)`);
+    }
+    // K3 THE TIP WHEELS' THREE MODES (the game's load path, the drawn and the flown together)
+    const ld = (file, cage) => LB.loadBuild(file, { patch: j => { const sp = j.spec || j; sp.cage = Object.assign({}, sp.cage, cage); return j; } });
+    const nodeP = (d, i) => d.nodes[i].p;
+    const tw0 = C.buildGen(JSON.parse(JSON.stringify(ld(CHN, Object.assign({ vtWheels: 0 }, VW)).spec)));
+    ok(!tw0.spec.gear.vTip && !(tw0.refs.tw2 >= 0) && !tw0.refs.xw && Math.abs(nodeP(tw0, tw0.refs.tw)[2]) < 1e-9,
+       `K3 off: no tip contact - the Chinook's one tailwheel on the centreline (z ${nodeP(tw0, tw0.refs.tw)[2].toFixed(3)}), no vTip, no tw2, no extra wheels`);
+    const d1 = C.buildGen(JSON.parse(JSON.stringify(s1))), tpp = s1.gear.vTip;
+    const isTW = i => i != null && i >= 0 && d1.nodes[i].tag === 'TW', twN = d1.nodes.filter(n => n.tag === 'TW').length;
+    ok(!!tpp && tpp.mode === 'tail' && twN === 2 && isTW(d1.refs.tw) && isTW(d1.refs.tw2) && !d1.refs.xw && cs.length === 2
+       && Math.abs(Math.abs(nodeP(d1, d1.refs.tw)[2]) - Math.abs(cs[0].p[0])) < 2e-3 && Math.abs(nodeP(d1, d1.refs.tw)[2] + nodeP(d1, d1.refs.tw2)[2]) < 1e-9,
+       `K3 as the tail wheel: the tail contacts are the two tips (z ${isTW(d1.refs.tw) ? nodeP(d1, d1.refs.tw)[2].toFixed(3) : '-'} / ${isTW(d1.refs.tw2) ? nodeP(d1, d1.refs.tw2)[2].toFixed(3) : '-'}, drawn x ${cs.map(c => c.p[0].toFixed(3)).join(' / ')}), ${twN} tail nodes, no other`);
+    { const sim = C.makeSim(d1, null); sim.reset(0); for (let f = 0; f < 600; f++) sim.step(1 / 60);
+      const clr = i => sim.p[i * 3 + 1] - sim.r[i], all = [...d1.refs.mains, d1.refs.tw, d1.refs.tw2].map(clr);
+      ok(all.every(v => Math.abs(v) < 0.03) && !(sim.damage && sim.damage().crashed),
+         `K3 as the tail wheel: it stands on its mains and both tip wheels, clear ${all.map(v => v.toFixed(3)).join(' / ')} m (< 0.03)`); }
+    const c0 = C.buildGen(JSON.parse(JSON.stringify(ld(C172, Object.assign({ vtWheels: 0 }, VW)).spec)));
+    const L2 = ld(C172, Object.assign({ vtWheels: 2 }, VW)), c2 = C.buildGen(JSON.parse(JSON.stringify(L2.spec)));
+    const same = (a, b) => a.every((v, k) => Math.abs(v - b[k]) < 1e-9);
+    ok(c2.spec.gear.type === 'tricycle' && !!c2.refs.xw && c2.refs.xw.length === 2 && !(c2.refs.tw2 >= 0) && c2.refs.xwFree === 1
+       && same(nodeP(c2, c2.refs.tw), nodeP(c0, c0.refs.tw)) && c2.refs.mains.every((m, k) => same(nodeP(c2, m), nodeP(c0, c0.refs.mains[k])))
+       && c2.refs.xw.every(i => nodeP(c2, i)[0] > nodeP(c2, c2.refs.mains[0])[0] + 2),
+       `K3 extra wheels on the Cessna's tricycle: two more contacts at the tips (${c2.refs.xw ? c2.refs.xw.map(i => nodeP(c2, i).map(v => v.toFixed(2)).join(',')).join(' / ') : '-'}), castoring, the nose wheel and the mains where they were`);
+    // K4 THE ROWS MOVE THE DRAWN WHEEL AND THE CONTACT TOGETHER: a 0.30 m wheel on a 0.10 m fork (+0.05 m radius, +0.07 m fork)
+    const SZ = { vtWheels: 1, vtD: 0.30, vtFork: 0.10 };
+    const S4 = SH.sceneBuild(fx.spec || fx, { over: Object.assign({}, VW, SZ) }), cs4 = (S4.W.CAGE_GEAR.contacts || []).filter(c => c.st && c.st.id === 2);
+    const L4 = ld(CHN, Object.assign({}, VW, SZ)), d4 = C.buildGen(JSON.parse(JSON.stringify(L4.spec)));
+    const c1 = cs4.length && cs.find(c => Math.sign(c.p[0]) === Math.sign(cs4[0].p[0]));
+    const dyDrawn = c1 ? cs4[0].p[1] - c1.p[1] : null;
+    const dyFlown = nodeP(d4, d4.refs.tw)[1] - nodeP(d1, d1.refs.tw)[1];
+    ok(cs4.length === 2 && cs4.every(c => Math.abs(c.R - 0.15) < 1e-9) && d4.nodes[d4.refs.tw].r === 0.15 && d4.spec.gear.vTip.fork === 0.1
+       && dyDrawn != null && Math.abs(dyDrawn - (-0.05 - 0.07)) < 2e-3 && Math.abs(dyFlown - dyDrawn) < 2e-3,
+       `K4 vtD 0.30 / vtFork 0.10: the drawn wheel R ${cs4.map(c => c.R).join(' / ')}, its hub ${dyDrawn == null ? '-' : (1000 * dyDrawn).toFixed(0)} mm, the flown contact R ${d4.nodes[d4.refs.tw].r}, ${(1000 * dyFlown).toFixed(0)} mm (-120 each)`);
+  }
+  { const st = g('lazair', 'stand'), p = g('lazair', 'pivot'), c = g('lazair', 'circuit');
+    ok(st.vAngle === -35 && st.tailContacts === 2 && st.tailClear && st.tailClear.every(v => v < 0.03) && st.deckDeg > 0,
+       `K5 the Chinook as a Lazair: it stands on its two tip wheels (the V at ${st.vAngle} deg, clear ${JSON.stringify(st.tailClear)} m), deck ${st.deckDeg} deg tail-down`);
+    ok(p.t180 != null && p.withinSpans <= 2 && !p.crashed, `K5 it turns 180 deg on the brake in ${p.t180} s within ${p.withinSpans} spans`);
+    ok(/LIFTOFF/.test(c.phases || '') && /STOPPED/.test(c.phases || '') && !c.crashed && c.touchdowns && c.touchdowns.length
+       && c.touchdowns[0].sink < 3 && c.rolloutHdgMaxDeg < 20,
+       `K5 it takes off, flies HOME's circuit and lands (${c.touchdowns && c.touchdowns[0] ? c.touchdowns[0].sink : '-'} m/s), the roll-out ${c.rolloutHdgMaxDeg} deg (< 20)`); }
 
   console.log(`(${((Date.now() - t0) / 1000).toFixed(0)} s)`);
   console.log('GATE TAILWHEEL: ' + (fails.length ? 'FAIL (' + fails.length + ')' : 'PASS'));

@@ -3594,8 +3594,12 @@ function makeSim(def, world) {
         // laterals add. (2026-09-04 wrote MINUS here against an outward-
         // leaning normal; the same yaw, measured again at G209: d(yawLeft)/
         // d(dr) unchanged on the V-tail archetype.)
+        // LAZAIR (24 Nov): A V HUNG DOWN (sinV < 0: 62_gen_aero's strips off a negative tail.vG) leans its normals
+        // OUTWARD, so the same lift asked of the port panel pushes the tail to PORT: the rudder's share is the other
+        // panel's - the mix's sign is the lean's (the join's drawn ruddervators read it off the hinge axis, G3801).
+        // sinV >= 0 on every V before it: the old line, to the bit
         al = (DWM === 'vortex' ? al : (1 - P_.downwash) * al) + P_.stabTrim - P_.elevTau * ctl.de
-             + P_.rudTau * ctl.dr * PAR.rudderSign * st.side;
+             + P_.rudTau * ctl.dr * PAR.rudderSign * (st.sinV < 0 ? -st.side : st.side);
         P = P_.polarTail;
       } else {
         al += P_.rudTau * ctl.dr * PAR.rudderSign;
@@ -3834,6 +3838,11 @@ function makeSim(def, world) {
   // scar, no scuff). Absent on every aeroplane without them: the array is all zeros, the branch the bytes it was
   const SKD = new Uint8Array(n);
   if (def.refs && Array.isArray(def.refs.skids)) for (const i of def.refs.skids) if (i >= 0 && i < n) SKD[i] = 1;
+  // LAZAIR (61_gen_frame refs.xw): THE V TIPS' EXTRA WHEELS roll as a main does without its brakes (1, fixed: the body's
+  // heading, the tyre's side force) or castor freely (2, refs.xwFree: the rolling drag alone, no side force). Absent on
+  // every aeroplane without them: the array is all zeros, the branch the bytes it was
+  const XWK = new Uint8Array(n);
+  if (def.refs && Array.isArray(def.refs.xw)) for (const i of def.refs.xw) if (i >= 0 && i < n) XWK[i] = def.refs.xwFree ? 2 : 1;
   const TW_ARC = TW_SCOTT.arc;
   // (MONOWHEEL: a NOSE skid flies the skid's law too - twMode 4 on a nose unit; a nose wheel stays the rudder's, 0)
   const TWM = (TW1 >= 0 && (P_.twSteer > 0 || P_.twMode === 4)) ? (P_.twMode || 1) : 0;
@@ -4539,7 +4548,7 @@ function makeSim(def, world) {
       }
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
-      if ((isMain || (isTW && TWM !== 4)) && (GR === null || (isTW && RET.fixedTw) || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
+      if (XWK[i] !== 0 || ((isMain || (isTW && TWM !== 4)) && (GR === null || (isTW && RET.fixedTw) || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02)))) {   // (LAZAIR: the V tips' extra wheels roll whatever the gear's travel)   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
@@ -4618,7 +4627,7 @@ function makeSim(def, world) {
         // fork's only, TWL.k: flown in series with the tyre (1/C_eff = 1/C_alpha + trail/k), a give of 0.06 rad at full grip
         // tightened the Jodel's taxi turn at 0.2 of rudder from 31.8 to 25.1 m (GATE DMGTYRE: x0.62 of the old law) and the
         // arc's breakout does not need it)
-        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
+        const kL = XWK[i] === 2 ? 0 : Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);   // (LAZAIR: a castoring extra wheel takes no side force)
         if (flat) {
         if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
