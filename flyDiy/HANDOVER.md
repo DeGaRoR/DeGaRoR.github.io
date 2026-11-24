@@ -319254,3 +319254,28 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
   tail: two tail contacts at the drawn tips, standing on them and nothing else; extra: the Cessna's nose wheel and mains to the bit, two
   castoring contacts aft), K4 vtD / vtFork move the drawn wheel and the flown contact together, K5 the Lazair stands on its
   tips, turns on the brake and flies HOME's circuit (tw_probe --build lazair).
+
+## READY small-engines-2 (FLAGSHIP, Tue 24 Nov 2026; on master 896877867) - claude/ready/small-engines-2
+THE USER (via A0, 24 Nov): the small end of the engine list (the Lazair's Rotax 185 and Pioneer chainsaw, the E-Lazair's
+Joby JM1, the Minimax 1100R's Hirth F-33 / Polini Thor 202-250-303 / Simonini Mini 3), "built using the rows" and set by
+"something matching an engine on power and weight targets"; the Minimax's strut to the main wheels' centre.
+- THE ENGINES: eight POWERPLANTS rows (00_registry.js, the sources and the estimates in their comments) with their garage
+  presets after the custom engine (no saved index moves), each a POINT ON THE DIALS - GATE ENGINEDIALS --emit, the matcher:
+  the row's preset, the tune bmepK and the build massK solved exactly onto the published kW and kg (engine_dial_points.json,
+  53 points, none of the 45 before moved). ROW LIMITS WIDENED, NO ROW ADDED: the tune from 0.35 (the Rotax 185 fire-pump
+  single at 0.41 of the two-stroke law, the Pioneer at 0.47), the bore from 40 mm, the rpm to 10 000 (the Thors).
+- STRUT-AXLE: wgStrutAxle (absent 0; lift struts + the mains' cross axle): each lift strut's foot on its side's main axle,
+  outboard of the wheel (the frame makes the axle pair before the wings, the gear takes it; the brace measured wing to
+  axle, so a mid wing's struts fly) and drawn as a lug pair on the axle's end. real_refs: the 1100R and the Lazair (trail).
+- FLOWN (tools/real_check.js on derived copies of the user's two builds, kept OUT of git in tools/perf/real_check_se/;
+  the bands are min .. MTOW load): MINIMAX on its 582 (the user's: 48 kW) climbs 7.9-8.4 m/s, 177 km/h - the "10 m/s".
+  Thor 303: 4.1-6.0 m/s (ref 650-1000 fpm = 3.3-5.1: inside), 151 km/h (ref 113-121: 25 % over); F-33: 2.5-3.9 m/s
+  (inside), 137 km/h; F-33 + axle struts (the card's ROUND tubes): 1.5-2.6 m/s, 102-105 km/h - the tubes' drag. Take-off
+  50-140 m against the brochure's "< 100 ft": the airframe's (empty 157-167 kg against 104-121). The card's static margin
+  goes to ~0 % with a light engine (the CG walks aft) - worth trimming on the user's side. LAZAIR (the user's: 154 kg empty
+  against 83-95, L/D 7.9 against 12-13): 2 x Rotax 185 0.8 m/s (ref 250-500 fpm: under - the airframe); 2 x Pioneer: no
+  climb; E-LAZAIR 2 x JM1 on 0.47 kWh in the wing roots: 2.1-2.7 m/s and 27-52 m (inside), ~4 min of level flight on the
+  packs (the honest check). The Lazair's pilot flights wait on a0/lazair-twin-fix (the spawn).
+- GATES on the tip: ENGID ENGINEDIALS AUDIOENG TECH RPM PROPS PROCURE PARTS REALREFS SPECFIX FRAMES KNIFE STRUT COMMITHYGIENE
+  PASS; ENGINE and ENGCONFIG red as on master (the same rows, the same hashes). small-engines-1 (c0ff676de) is this
+  without the note - superseded.
