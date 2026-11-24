@@ -100,18 +100,6 @@ const PRESETS = {
     exStyle: 3, bore: 0.072, stroke: 0.068, rpm: 6250, finR: 1.5 },
   'rotax 582': { arch: 'inline', cyl: 2, twoStroke: 1, geared: 1,
     liquid: 1, exStyle: 3, bore: 0.076, stroke: 0.064, rpm: 6500 },
-  // SMALL-ENGINES (24 Nov, the registry's small end - its sources there): the singles. Bore x stroke published for the
-  // Rotax 185 (62 x 61), the Hirth F-33 (76 x 69) and the Thor 202 (66 x 60); the others are their published
-  // displacements over a near-square single (estimates: the Thor 250 244 cc, the 303 281 cc, the Mini 3 270 cc, the
-  // Pioneer ~75 cc). The two Lazair engines turn their props direct.
-  'rotax 185': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 0, exStyle: 3, bore: 0.062, stroke: 0.061, rpm: 5800, finR: 1.5 },
-  'Pioneer chainsaw 5.5 hp': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 0, exStyle: 3, bore: 0.048, stroke: 0.041, rpm: 7500,
-    finR: 1.6 },
-  'Hirth F-33': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 1, exStyle: 3, bore: 0.076, stroke: 0.069, rpm: 6500, finR: 1.5 },
-  'Polini Thor 202': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 1, exStyle: 3, bore: 0.066, stroke: 0.060, rpm: 9000, finR: 1.5 },
-  'Polini Thor 250': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 1, liquid: 1, exStyle: 3, bore: 0.072, stroke: 0.060, rpm: 8500 },
-  'Polini Thor 303': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 1, liquid: 1, exStyle: 3, bore: 0.076, stroke: 0.062, rpm: 8000 },
-  'Simonini Mini 3': { arch: 'inline', cyl: 1, twoStroke: 1, geared: 1, exStyle: 3, bore: 0.072, stroke: 0.066, rpm: 7000, finR: 1.5 },
   // the 50 hp two-stroke (2026-09-05, the coverage fill): 72 x 72 = 497 cc
   'rotax 503': { arch: 'inline', cyl: 2, twoStroke: 1, geared: 1,
     exStyle: 3, bore: 0.072, stroke: 0.072, rpm: 6800 },
@@ -210,8 +198,6 @@ const PRESETS = {
     rpm: 2600, volts: 88.8, fwW: 0.42, fwH: 0.42 },
   'FES sustainer': { arch: 'electric', eStyle: 0, canD: 0.20, canL: 0.09,
     rpm: 4500, volts: 116, fwW: 0.32, fwH: 0.32 },
-  // SMALL-ENGINES (24 Nov): the E-Lazair's Joby JM1 - an outer-rotor can (~0.13 x 0.06 m, an ESTIMATE), 16S at 63 V
-  'Joby JM1': { arch: 'electric', eStyle: 0, canD: 0.13, canL: 0.06, rpm: 4550, volts: 63, fwW: 0.20, fwH: 0.20 },
   'EMRAX 228': { arch: 'electric', eStyle: 1, canD: 0.228, canL: 0.086,
     rpm: 5000, volts: 400, fwW: 0.60, fwH: 0.55 },
   'pipistrel E-811': { arch: 'electric', eStyle: 2, canD: 0.268, canL: 0.19,
@@ -508,10 +494,7 @@ const CUSTOM_ENGINE = 'custom engine';
 // THE SAVED ORDER, ONE KEEPER (NEW-SHAPES-1): the names engPreset indexes - the catalogue as it stood when the custom
 // engine took slot 41, the custom engine, then every preset added since (PRESETS_AFTER_CUSTOM, in the order added).
 // Every list that turns an index into an engine or back reads this, never Object.keys(PRESETS) on its own.
-// SMALL-ENGINES (24 Nov): the small end, after the custom engine and every older one - no saved index moves
-const PRESETS_SMALL = ['rotax 185', 'Pioneer chainsaw 5.5 hp', 'Hirth F-33', 'Polini Thor 202', 'Polini Thor 250',
-  'Polini Thor 303', 'Simonini Mini 3', 'Joby JM1'];
-const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS', 'rotax 912 iS', 'P&W PT6A-27'].concat(PRESETS_SMALL);
+const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS', 'rotax 912 iS', 'P&W PT6A-27'];
 function presetNames() {
   const all = Object.keys(PRESETS).filter(n => n !== 'bare engine');
   return all.filter(n => !PRESETS_AFTER_CUSTOM.includes(n)).concat([CUSTOM_ENGINE],
