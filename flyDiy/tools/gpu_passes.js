@@ -48,7 +48,7 @@ function analyse(log, opt) {
   const canvas = H.canvas || null, mp = canvas && canvas.w && canvas.h ? canvas.w * canvas.h / 1e6 : null;
   const R = { kind: 'flydiy-gpu-passes', v: 1, build: H.build || null, gpu: (H.gpu || {}).unmaskedRenderer || null, canvas: canvas ? canvas.w + 'x' + canvas.h : null, megapixels: r2(mp), gfx: H.gfx || null,
     window: { how, seconds: W.length ? r1((W[W.length - 1].t - W[0].t) / 1000) : 0, frames: W.length, fromS: W.length ? r1((W[0].t - reveal) / 1000) : null, toS: W.length ? r1((W[W.length - 1].t - reveal) / 1000) : null },
-    recorded: !!G, every: G ? G.every : null, lost: G ? G.lost : null, disjoint: G ? G.disjoint : null, frames: 0, passes: [], sumMed: null, sumP90: null };
+    recorded: !!G, every: G ? G.every : null, lost: G ? G.lost : null, disjoint: G ? G.disjoint : null, lostBy: G ? G.lostBy || null : null, segMax: G ? G.segMax || null : null, segCap: G ? G.segCap || null : null, tableFrames: G ? G.frames : null, frames: 0, passes: [], sumMed: null, sumP90: null };
   // the whole-frame GPU time of the window (every timed frame; and the ones that are NOT pass frames, for the check)
   const passF = new Set(), L = G ? G.labels.length : 0;
   const PR = G ? G.rows.filter(r => { const fr = frameAt(r[0]); if (fr) passF.add(fr); return !!fr; }) : [];
@@ -71,10 +71,13 @@ function analyse(log, opt) {
   // the render scale: its changes, and the GPU's time at each
   const sc = events.filter(e => e.kind === 'aascale' && e.d && e.d.scale != null), spans = [];
   if (W.length) { let cur = null; for (const e of sc) if (e.t <= W[0].t) cur = e; const inside = sc.filter(e => e.t > W[0].t && e.t <= W[W.length - 1].t);
-    let t0 = W[0].t; for (const e of inside.concat([null])) { const t1 = e ? e.t : W[W.length - 1].t; spans.push({ scale: cur ? cur.d.scale : null, auto: cur ? cur.d.auto : null, target: cur && cur.d.w ? cur.d.w + 'x' + cur.d.h : null, t0, t1 }); t0 = t1; cur = e; } }
+    let t0 = W[0].t; for (const e of inside.concat([null])) { const t1 = e ? e.t : W[W.length - 1].t; spans.push({ scale: cur ? cur.d.scale : null, auto: cur ? cur.d.auto : null, target: cur && cur.d.w ? cur.d.w + 'x' + cur.d.h : null, aim: cur && cur.d.targetMs != null ? cur.d.targetMs : null, t0, t1 }); t0 = t1; cur = e; } }
   const byScale = new Map(); for (const s of spans) { const k = s.scale == null ? 'not logged' : String(s.scale); let g = byScale.get(k); if (!g) byScale.set(k, g = { scale: k, auto: s.auto, target: s.target, seconds: 0, gpu: [], dt: [] }); g.seconds += (s.t1 - s.t0) / 1000;
     for (const r of W) if (r.t >= s.t0 && r.t < s.t1) { if (r.gpu === r.gpu) g.gpu.push(r.gpu); if (r.dt === r.dt) g.dt.push(r.dt); } }
-  R.scale = { changes: sc.length, inWindow: spans.length - 1, by: [...byScale.values()].map(g => ({ scale: g.scale, auto: g.auto, target: g.target, seconds: r1(g.seconds), gpuMed: r1(q(g.gpu, 0.5)), gpuP90: r1(q(g.gpu, 0.9)), frameMed: r1(q(g.dt, 0.5)) })).sort((x, y) => y.seconds - x.seconds) };
+  // (in time order too: a scale's GPU ms depends on WHEN it was held - the heavy stretch is what pushed the scale down)
+  const inOrder = spans.map(s => { const g = [], d = []; for (const r of W) if (r.t >= s.t0 && r.t < s.t1) { if (r.gpu === r.gpu) g.push(r.gpu); if (r.dt === r.dt) d.push(r.dt); }
+    return { fromS: r1((s.t0 - reveal) / 1000), seconds: r1((s.t1 - s.t0) / 1000), scale: s.scale, auto: s.auto, aimMs: s.aim, gpuMed: r1(q(g, 0.5)), gpuP90: r1(q(g, 0.9)), frameMed: r1(q(d, 0.5)) }; });
+  R.scale = { changes: sc.length, inWindow: spans.length - 1, inOrder, aimMs: (sc.filter(e => e.d.targetMs != null).pop() || { d: {} }).d.targetMs || null, by: [...byScale.values()].map(g => ({ scale: g.scale, auto: g.auto, target: g.target, seconds: r1(g.seconds), gpuMed: r1(q(g.gpu, 0.5)), gpuP90: r1(q(g.gpu, 0.9)), frameMed: r1(q(g.dt, 0.5)) })).sort((x, y) => y.seconds - x.seconds) };
   return R;
 }
 
@@ -86,13 +89,18 @@ function text(R, B, la, lb) {
   L.push('  THE WHOLE FRAME: GPU ' + w.med + ' ms median, ' + w.p90 + ' at the 90th percentile over ' + w.frames + ' timed frames; ' + w.over33Pct + ' % of them over 33.3 ms, ' + w.over30Pct + ' % over 30; the loop ' + w.workMed + ' ms, the frame ' + w.dtMed + ' ms (' + w.fpsMed + ' a second); ' + w.callsMed + ' draw calls, ' + (w.trisMed != null ? r1(w.trisMed / 1e6) + ' M triangles' : '-'));
   if (R.gfx) L.push('  the settings: ' + JSON.stringify(R.gfx).slice(0, 420));
   if (!R.recorded) { L.push(''); L.push('  NO PASS TABLE IN THIS LOG: run the page with ?recgpu=pass (one frame in 4; ?recgpu=pass:1 every frame the recorder owns).'); }
-  else { L.push(''); L.push('  BY PASS (' + R.frames + ' frames timed pass by pass, one in ' + R.every + '; ' + R.lost + ' lost to another timer or a broken frame, ' + R.disjoint + ' disjoint)');
+  else { L.push(''); L.push('  BY PASS (' + R.frames + ' frames of the window timed pass by pass, one in ' + R.every + '; over the whole log ' + R.tableFrames + ' kept, ' + R.lost + ' LOST' +
+      (R.lostBy ? ' (' + (Object.keys(R.lostBy).filter(k => R.lostBy[k]).map(k => R.lostBy[k] + ' ' + ({ segments: 'over the ' + R.segCap + ' segments a frame', noQuery: 'no query object', open: 'a segment left open', broken: 'a broken frame', empty: 'no segment', ring: 'results late', foreign: 'another module\'s timer' })[k]).join(', ') || 'none') + '; the most segments in a frame ' + R.segMax + ')' : ' (a build before 9c: the reason is not counted - most were frames over its 48 segments, the HEAVY ones: the tail is under-read)') +
+      ', ' + R.disjoint + ' disjoint)');
+    if (R.lost && R.tableFrames != null && R.lost > 0.2 * (R.lost + R.tableFrames)) L.push('  <- MORE THAN A FIFTH OF THE PASS FRAMES ARE LOST: the split below is of the frames that survived; trust the shares, and the whole-frame figures above for the tail');
     L.push('  ' + lp('median', 9) + lp('p90', 8) + lp('max', 8) + lp('mean', 8) + lp('share', 8) + lp('ms/MP', 8) + lp('draws', 8) + lp('tris M', 8) + '  pass');
     for (const p of R.passes) L.push('  ' + lp(p.med, 9) + lp(p.p90, 8) + lp(p.max, 8) + lp(p.mean, 8) + lp(p.sharePct + ' %', 8) + lp(p.msPerMP, 8) + lp(p.draws, 8) + lp(p.tris ? r1(p.tris / 1e6) : 0, 8) + '  ' + p.name);
     L.push('  ' + lp(R.sumMed, 9) + lp(R.sumP90, 8) + lp('', 8) + lp(R.sumMean, 8) + '  THE PASSES\' SUM a frame - against the whole-frame timer on the OTHER frames of the window: ' + w.otherMed + ' median, ' + w.otherP90 + ' p90 (' + w.otherFrames + ' frames)' +
       (R.sumMed != null && w.otherMed != null ? (Math.abs(R.sumMed - w.otherMed) <= Math.max(1.5, 0.08 * w.otherMed) ? '  - they agree' : '  <- THEY DIFFER BY ' + r1(R.sumMed - w.otherMed) + ' ms: read the split as shares, not as absolute ms') : '')); }
   L.push(''); L.push('  THE RENDER SCALE: ' + (R.scale.changes ? R.scale.changes + ' change(s) in the log, ' + R.scale.inWindow + ' inside the window' : 'no change logged (a build before PERF-TRACE 9, or the scale never moved: the settings above say what it was)'));
   for (const s of R.scale.by) L.push('  ' + lp(s.scale, 12) + (s.auto != null ? (s.auto ? '  auto' : '  set ') : '      ') + lp(s.target, 12) + lp(s.seconds, 8) + ' s   GPU ' + lp(s.gpuMed, 6) + ' ms median, ' + lp(s.gpuP90, 6) + ' p90   frame ' + lp(s.frameMed, 6) + ' ms');
+  if (R.scale.inOrder && R.scale.inOrder.length > 1) { L.push('  IN TIME ORDER' + (R.scale.aimMs ? ' (the automatic scale aims at a frame of ' + R.scale.aimMs + ' ms)' : '') + ':');
+    for (const s of R.scale.inOrder) L.push('  ' + lp(s.fromS, 10) + ' s' + lp(s.seconds, 8) + ' s at ' + lp(s.scale, 5) + '   GPU ' + lp(s.gpuMed, 6) + ' ms median, ' + lp(s.gpuP90, 6) + ' p90   frame ' + lp(s.frameMed, 6) + ' ms'); }
   if (B) { L.push(''); L.push('  SIDE BY SIDE: ' + (la || 'A') + ' (this log) | ' + (lb || 'B') + '  build ' + (B.build || '?') + ', ' + B.window.frames + ' frames, ' + B.window.seconds + ' s');
     L.push('  ' + lp(la || 'A', 10) + lp(lb || 'B', 10) + lp('B - A', 10) + '  median ms');
     const names = [...new Set(R.passes.map(p => p.name).concat(B.passes.map(p => p.name)))], m = (X, n) => { const p = X.passes.find(p => p.name === n); return p ? p.med : null; };

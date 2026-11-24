@@ -488,7 +488,7 @@
     // setScale(k): the render scale, 0.5..1 - the scene drawn at k x the canvas and enlarged by the resolve
     function setScale(k) { k = Math.max(0.5, Math.min(1, +k || 1)); if (Math.abs(k - S.scale) < 1e-3) return S.scale; S.scale = k; buildRT();
       // (PERF-TRACE 9: the render scale in the flight log when it CHANGES - the automatic scale's steps were never seen in a flight)
-      try { if (typeof FLIGHT_REC !== 'undefined' && FLIGHT_REC.event) FLIGHT_REC.event('aascale', null, { scale: k, auto: AUTO.on ? 1 : 0, w: S.rt ? S.rt.width : null, h: S.rt ? S.rt.height : null }); } catch (e) {}
+      try { if (typeof FLIGHT_REC !== 'undefined' && FLIGHT_REC.event) FLIGHT_REC.event('aascale', null, { scale: k, auto: AUTO.on ? 1 : 0, w: S.rt ? S.rt.width : null, h: S.rt ? S.rt.height : null, targetMs: Math.round(AUTO.T * 10) / 10 }); } catch (e) {}   // (targetMs: the frame time the automatic scale aims at - the frame cap's, app.js tellScale)
       return S.scale; }
     // THE AUTO SCALE (PERF 2026-09-23, G528): the render scale held to the frame budget - a new player's machine is not
     // known, and a big screen or a small GPU is exactly what the scale buys back. Every 30 frames the median frame is

@@ -244,7 +244,9 @@
     // ---- the frame's clock --------------------------------------------------------------------------------
     function push(s) {
       if (!open) return;
-      if (PASS && PASS.on && s === S.shadow && !PASS.spoiled) { pEndSeg(-1); pBeginSeg(S.shadow); }   // (the shadow maps: their own GPU segment)
+      // (the shadow maps: their own GPU segment - inside the scene pass and the unmarked laps only. The wrapper pushes on EVERY
+      //  renderer.render: under the post chain's, the resolve's and the clouds' marks a full-screen quad has no shadow map to draw)
+      if (PASS && PASS.on && s === S.shadow && !PASS.spoiled && depth < 8 && (PASS.mark === -1 || PASS.mark === PASS.sceneId)) { PASS.sp[depth] = 1; pEndSeg(-1); pBeginSeg(S.shadow); }
       if (depth < 8) { stT[depth] = clock(); stSlot[depth] = s; stChild[depth] = 0; }
       depth++;
       if (s === 1) taken++;                          // a solver step taken
@@ -254,7 +256,7 @@
       if (!open || depth <= 0) return;
       depth--;
       if (depth >= 8) return;
-      if (PASS && PASS.on && stSlot[depth] === S.shadow && !PASS.spoiled) { pEndSeg(S.shadow); pBeginSeg(PASS.mark); }
+      if (PASS && PASS.sp[depth]) { PASS.sp[depth] = 0; if (PASS.on && !PASS.spoiled) { pEndSeg(S.shadow); pBeginSeg(PASS.mark); } }
       const tp = clock(), d = tp - stT[depth];
       acc[stSlot[depth]] += d - stChild[depth];
       if (depth > 0) stChild[depth - 1] += d; else V[NESTED] += d;
@@ -460,7 +462,7 @@
       if (fi - G.rogueF < 120) return;                // a timer that does not ask ran on our frame in the last 2 s: not ours to open
       G.req++;
       if (PASS && fi % PASS.every === 0 && PASS.head - PASS.tail < PFR) {   // this frame is timed pass by pass: its `gpu` is their sum
-        PASS.on = true; PASS.k = 0; PASS.spoiled = false; PASS.ending = false; PASS.mark = -1; pBeginSeg(-1); return; }
+        PASS.on = true; PASS.k = 0; PASS.spoiled = false; PASS.why = -1; PASS.ending = false; PASS.mark = -1; pBeginSeg(-1); return; }
       const qy = G.pool.length ? G.pool.pop() : (G.pend.length < 16 ? G.gl.createQuery() : null);
       if (!qy) return;
       G.active = qy; G.activeF = fi; G.spoiled = false;
@@ -493,7 +495,7 @@
       if (G.open > 0) G.nest++;                       // inside another module's open query: GL refuses it (counted, never fixed here)
       G.open++;
       if (G.active && !G.spoiled) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.spoiled = true; G.rogue++; G.rogueF = fi; }
-      if (PASS && PASS.cur) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.pool.push(PASS.cur); PASS.cur = null; PASS.spoiled = true; G.rogue++; G.rogueF = fi; }   // (a pass frame's chain: spoiled the same way)
+      if (PASS && PASS.cur) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.pool.push(PASS.cur); PASS.cur = null; PASS.spoiled = true; PASS.why = WHY_ROGUE; G.rogue++; G.rogueF = fi; }   // (a pass frame's chain: spoiled the same way)
     }
 
     // ---- THE GPU'S TIME BY PASS (?recgpu=pass[:N]; PERF-TRACE 9, 24 Nov) -------------------------------------------
@@ -516,18 +518,21 @@
     // spoils it (counted with the rogues). Typed arrays allocated once, and only under the switch.
     // The log's table: gpuPasses { every, labels, frames, rows: [t, frame, ms a label..., draws a label..., triangles a
     // label...] } - only the labels that carried something. tools/gpu_passes.js reads it.
-    const PSEG = 48, PFR = 8, PLAB = 28, PW = 2 + 3 * PLAB;
-    const PASS = PASS_EVERY ? { every: PASS_EVERY, labels: SLOTS.slice(), ids: new Map(), on: false, cur: null, over: -1, mark: -1, spoiled: false, ending: false, k: 0,
+    // (9c, the first real rows, 24 Nov 07:36: 60-70 % of the pass frames were LOST with no rogue timer - a frame of the game has
+    //  more renders than the 48 segments allowed, and the heavy frames, the tail the split is wanted for, were the ones dropped.
+    //  128 now, the shadow maps split only where they can work, and every lost frame is counted by its reason: lostBy.)
+    const PSEG = 128, PFR = 8, PLAB = 28, PW = 2 + 3 * PLAB, WHY_SEG = 0, WHY_NOQ = 1, WHY_OPEN = 2, WHY_BROKEN = 3, WHY_EMPTY = 4, WHY_RING = 5, WHY_ROGUE = 6;
+    const PASS = PASS_EVERY ? { every: PASS_EVERY, labels: SLOTS.slice(), ids: new Map(), on: false, cur: null, over: -1, mark: -1, sceneId: -2, sp: new Uint8Array(9), why: -1, lostBy: [0, 0, 0, 0, 0, 0, 0], segMax: 0, spoiled: false, ending: false, k: 0,
       segQ: new Array(PSEG).fill(null), segL: new Int16Array(PSEG), segC: new Float64Array(PSEG), segT: new Float64Array(PSEG), v: new Float64Array(2),
       flQ: new Array(PFR * PSEG).fill(null), flL: new Int16Array(PFR * PSEG), flC: new Float64Array(PFR * PSEG), flT: new Float64Array(PFR * PSEG), flN: new Int16Array(PFR), flF: new Float64Array(PFR), flTs: new Float64Array(PFR), head: 0, tail: 0,
       cap: opt.gpuPassRows || 4096, rows: null, n: 0, ok: 0, lost: 0, bad: 0 } : null;
     if (PASS) PASS.rows = new Float64Array(PASS.cap * PW);
-    function pId(name) { let i = PASS.ids.get(name); if (i === undefined) { if (PASS.labels.length >= PLAB) return S.other; i = PASS.labels.length; PASS.labels.push(String(name)); PASS.ids.set(name, i); } return i; }
+    function pId(name) { let i = PASS.ids.get(name); if (i === undefined) { if (PASS.labels.length >= PLAB) return S.other; i = PASS.labels.length; PASS.labels.push(String(name)); PASS.ids.set(name, i); if (name === 'scene pass') PASS.sceneId = i; } return i; }
     function pBeginSeg(over) {
       const G = rec.gpu;
-      if (PASS.k >= PSEG) { PASS.spoiled = true; return; }
+      if (PASS.k >= PSEG) { PASS.spoiled = true; PASS.why = WHY_SEG; return; }
       const qy = G.pool.length ? G.pool.pop() : G.gl.createQuery();
-      if (!qy) { PASS.spoiled = true; return; }
+      if (!qy) { PASS.spoiled = true; PASS.why = WHY_NOQ; return; }
       PASS.cur = qy; PASS.over = over; PASS.v[0] = calls; PASS.v[1] = tris;
       G.begin.call(G.gl, G.ext.TIME_ELAPSED_EXT, qy);
     }
@@ -550,9 +555,10 @@
     }
     function pClose(broken) {
       const G = rec.gpu;
-      if (PASS.cur) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.pool.push(PASS.cur); PASS.cur = null; PASS.spoiled = true; }   // the frame never reached its end
-      PASS.on = false;
-      if (PASS.spoiled || broken || !PASS.k || PASS.head - PASS.tail >= PFR) { for (let i = 0; i < PASS.k; i++) G.pool.push(PASS.segQ[i]); PASS.k = 0; PASS.lost++; return; }
+      if (PASS.cur) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.pool.push(PASS.cur); PASS.cur = null; if (!PASS.spoiled) PASS.why = WHY_OPEN; PASS.spoiled = true; }   // the frame never reached its end
+      PASS.on = false; if (PASS.k > PASS.segMax) PASS.segMax = PASS.k;
+      if (PASS.spoiled || broken || !PASS.k || PASS.head - PASS.tail >= PFR) { for (let i = 0; i < PASS.k; i++) G.pool.push(PASS.segQ[i]);
+        PASS.lostBy[PASS.spoiled && PASS.why >= 0 ? PASS.why : broken ? WHY_BROKEN : !PASS.k ? WHY_EMPTY : WHY_RING]++; PASS.k = 0; PASS.lost++; return; }
       const o = PASS.head % PFR, b = o * PSEG;
       for (let i = 0; i < PASS.k; i++) { PASS.flQ[b + i] = PASS.segQ[i]; PASS.flL[b + i] = PASS.segL[i]; PASS.flC[b + i] = PASS.segC[i]; PASS.flT[b + i] = PASS.segT[i]; }
       PASS.flN[o] = PASS.k; PASS.flF[o] = fi; PASS.flTs[o] = ringT[fi & (N - 1)]; PASS.head++; PASS.k = 0;
@@ -589,7 +595,9 @@
       for (let k = 0; k < n; k++) { const o = ((first + k) % PASS.cap) * PW, row = [r2(PASS.rows[o]), PASS.rows[o + 1]];
         for (let j = 0; j < 3; j++) for (const L of used) row.push(j ? (PASS.rows[o + 2 + j * PLAB + L] === PASS.rows[o + 2 + j * PLAB + L] ? PASS.rows[o + 2 + j * PLAB + L] : null) : r2(PASS.rows[o + 2 + L]));
         rows.push(row); }
-      return { every: PASS.every, labels: used.map(L => PASS.labels[L]), frames: PASS.n, kept: n, lost: PASS.lost, disjoint: PASS.bad, rows };
+      const B = PASS.lostBy;
+      return { every: PASS.every, labels: used.map(L => PASS.labels[L]), frames: PASS.n, kept: n, lost: PASS.lost, disjoint: PASS.bad, segMax: PASS.segMax, segCap: PSEG,
+        lostBy: { segments: B[WHY_SEG], noQuery: B[WHY_NOQ], open: B[WHY_OPEN], broken: B[WHY_BROKEN], empty: B[WHY_EMPTY], ring: B[WHY_RING], foreign: B[WHY_ROGUE] }, rows };
     }
 
     // ---- the renderer's wrappers: the same calls, counted and timed ------------------------------------------
@@ -755,7 +763,7 @@
           endUsMean: selfN ? +(V[SELF_US] / selfN).toFixed(2) : null, endUsMax: +V[SELF_MAX].toFixed(1), frames: selfN },
         gpuTimer: rec.gpu.ext ? { ok: rec.gpu.ok, disjoint: rec.gpu.bad, foreignFrames: rec.gpu.foreign,
           requested: rec.gpu.req, coverage: rec.gpu.req ? +(rec.gpu.ok / rec.gpu.req).toFixed(3) : null, subsystemFrames: rec.gpu.subF, rogue: rec.gpu.rogue, nested: rec.gpu.nest,
-          byPass: PASS ? { every: PASS.every, frames: PASS.ok, lost: PASS.lost, disjoint: PASS.bad } : null } : null,
+          byPass: PASS ? { every: PASS.every, frames: PASS.ok, lost: PASS.lost, disjoint: PASS.bad, segMax: PASS.segMax, lostBy: PASS.lostBy.slice() } : null } : null,
         programs: rec.pid ? rec.pid.summary() : null,   // PERF-TRACE: the program registry's count (owned / unowned / seen ready / drawn) and its own cost
         // PERF-TRACE: the GPU data of the whole run - the frames (and gaps) that made or updated any, and the totals
         gpuData: { frames: UPT[0], texCalls: UPT[1], texMs: Math.round(UPT[2]), megapixels: Math.round(UPT[3]), compressedMB: Math.round(UPT[4] / 1048576), bufferCalls: UPT[5], bufferMs: Math.round(UPT[6]),
