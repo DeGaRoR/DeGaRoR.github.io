@@ -3749,7 +3749,14 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "crashed: the damage ended the flight: a fus member broke",
+    "sim": "L40K",
+    "sig": "05d0610a"
+   }
   },
   {
    "id": "home.11",

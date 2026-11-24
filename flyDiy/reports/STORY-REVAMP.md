@@ -122,7 +122,7 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 ### The feasibility state
 
 <!-- feas-state -->
-ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 58 FEASIBLE, 20 red or waiting for a plane the player builds, 5 not flown yet on this sim (1 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
+ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 58 FEASIBLE, 21 red or waiting for a plane the player builds, 4 not flown yet on this sim (1 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
 The feasible ones, by the aeroplane that flew them: 27 Piper Cub, 8 STOL Cub, 7 light metal Cessna with the STOL kit (test build), 4 PC-6 Turbo Porter, 4 Cessna 172 floats (career), 4 Jodel D112, 2 Cessna 172, 1 PA-18 on floats, 1 PC-6 on Wiplines.
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
@@ -135,6 +135,7 @@ Those, by cause:
 - clients.n2: no official plane can carry it (a 175 kg load with its long item): a named class, not flown
 - home.06: no official plane can carry it (450 kg into the 383 m Cabin Strip): a STOL hauler the player builds - a named class, not flown
 - home.08: Cabin Lake names no landing direction (the island's aerodrome record); its 150 kg is also over what a float plane of the pool loads
+- home.10: Cabin Lake names no landing direction (the island's aerodrome record)
 - home.13: 280 kg to the Cabin Strip: the capability rule says the Cessna's cabin takes 280 kg, its loading card takes 140 kg of it (flown with the pilot alone); the PC-6's card takes none - the rule against the card, or a hauler the player builds
 - community.09, community.10, community.11: heavy cargo (300 kg and more): the Cessna's cabin takes 280 kg, and the loading cards of the PC-6 and the DC-3-alike take none - a hauler the player builds, or those two cards
 - club.tour: the stop at w5 (Cannery Runway, 310 m, a 10 m obstacle 25 m from its end): the test pilot lands off the strip or cannot line up to leave - the listed pilot / field gap (on L40J the Cub flew the whole tour; on L40K the Cub and the Jodel land off the end, the STOL Cub lands and cannot taxi out)
