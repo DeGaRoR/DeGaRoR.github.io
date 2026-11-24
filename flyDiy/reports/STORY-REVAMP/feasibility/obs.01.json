@@ -55,10 +55,95 @@
    "events": []
   }
  ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1426,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Jolene AFB 13/31",
+      "taxi-in: taxiing in to the stand, 451 m"
+     ],
+     "landing": {
+      "run": 173,
+      "sink": 0.93,
+      "V": 17,
+      "offCentre": 0.2,
+      "pastAim": 43,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 557,
+      "stopLeft": 1595
+     }
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1798,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Jolene AFB 13/31",
+      "taxi-in: taxiing in to the stand, 457 m"
+     ],
+     "landing": {
+      "run": 170,
+      "sink": 0.81,
+      "V": 16.9,
+      "offCentre": 0.3,
+      "pastAim": 40,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 554,
+      "stopLeft": 1601
+     }
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 617,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 94 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear",
+      "taxi-in: taxiing in to the stand, 451 m"
+     ],
+     "landing": {
+      "run": 178,
+      "sink": 0.67,
+      "V": 17.2,
+      "offCentre": 0.3,
+      "pastAim": 38,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 552,
+      "stopLeft": 1595
+     }
+    }
+   ]
+  }
+ ],
  "notes": [],
  "untested": false,
  "key": "c3cb1a93548f",
  "where": "observatory:1",
- "pool": "validated",
- "wallS": 2065
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40J",
+ "wallS": 1452
 }

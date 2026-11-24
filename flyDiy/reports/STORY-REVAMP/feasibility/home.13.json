@@ -1,0 +1,101 @@
+{
+ "id": "home.13",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 1144,
+ "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 280 kg / 0 pax",
+ "tried": [
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible",
+  "PC-6 Turbo Porter:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w1",
+   "t": 1144,
+   "how": "stopped",
+   "at": "w1",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 140 kg / 1 pax, the job is 280 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 949,
+     "how": "stopped",
+     "kg": 140,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+9.0 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 22.4 m/s at this power — flying the approach faster",
+      "slope: stopped on a 10.0 % grade — rolling 110 m on to the level part"
+     ],
+     "landing": {
+      "run": 119,
+      "sink": 0.75,
+      "V": 25.7,
+      "offCentre": -14.2,
+      "pastAim": 34,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 44,
+      "stopLeft": 219
+     },
+     "stop": "aboard 140 kg / 1 pax, the job is 280 kg / 0 pax"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 280 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 1144,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "protocol-overridden: the left-hand circuit declared at w1 is flown right-hand — the terrain on that side",
+      "terrain-react: the ground ahead stands within 42 m of the plan on ENROUTE - climbing to 775 m",
+      "slope: stopped on a 9.8 % grade — rolling 110 m on to the level part"
+     ],
+     "landing": {
+      "run": 143,
+      "sink": 1.45,
+      "V": 24.1,
+      "offCentre": 0.2,
+      "pastAim": -4,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 19,
+      "stopLeft": 220
+     },
+     "stop": "aboard 0 kg / 0 pax, the job is 280 kg / 0 pax"
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "9a2e4f51b7ef",
+ "where": "home:7",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 1756
+}

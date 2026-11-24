@@ -25,7 +25,40 @@
    "pax": 0,
    "faults": [],
    "events": [
-    "stol:ld=197.8"
+    "stol:ld=197.6"
+   ]
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "xw_rough",
+     "t": 489,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 106 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear"
+     ],
+     "landing": {
+      "run": 82,
+      "sink": 1.14,
+      "V": 15.3,
+      "offCentre": 0.1,
+      "pastAim": 13,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 196,
+      "stopLeft": 722
+     }
+    }
    ]
   }
  ],
@@ -35,6 +68,7 @@
  "untested": false,
  "key": "98e5096d686a",
  "where": "contract",
- "pool": "validated",
- "wallS": 341
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 1536
 }

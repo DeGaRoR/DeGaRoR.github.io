@@ -1,0 +1,70 @@
+{
+ "id": "community.08",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 986,
+ "why": "",
+ "tried": [
+  "PC-6 Turbo Porter:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w7",
+   "t": 986,
+   "how": "stopped",
+   "at": "w7",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w7",
+     "t": 986,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 93 deg that the wheels (16.4 m) cannot steer on the route - turning on the spot"
+     ],
+     "landing": {
+      "run": 310,
+      "sink": 1.38,
+      "V": 26.4,
+      "offCentre": 0.3,
+      "pastAim": 32,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 220,
+      "stopLeft": 491
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats filled as the job asks: PC-6 Turbo Porter flown with 5 aboard (the garage's seat-fill)"
+ ],
+ "untested": false,
+ "key": "ef5fdf43a7a4",
+ "where": "community:5",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 786
+}

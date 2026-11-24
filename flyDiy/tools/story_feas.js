@@ -13,13 +13,22 @@
 //   node tools/story_feas.js --check     every mission of the pack: a current row and feasible, or one of the named
 //                             classes (an aircraft order; a delivery no official plane can fly); prints what is missing.
 //                             Exit 1 while a mission is not flown, stale, broken or infeasible outside those classes
-//   options: --rows=<dir> (default reports/STORY-REVAMP/feasibility)  --quiet
+//   node tools/story_feas.js --stamp     VALIDATED WITH (the user, 23 Nov): every mission of src/missions/story.json gets its
+//                             flag from its current row - validated { with: <aeroplane> | null, sim, flownS | verdict + why,
+//                             sig } - and loses it when it has none (never flown on this sim). The file stays in the
+//                             editor's save format; the editor shows the flag (tools/mission_editor.html, flownOf)
+//   options: --rows=<dir> (default reports/STORY-REVAMP/feasibility)  --tries=3 (aeroplanes tried)  --tmax=3600 (a leg, sim s)  --quiet
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), cp = require('child_process'), crypto = require('crypto');
 const T = __dirname, ROOT = path.join(T, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const has = k => argv.includes('--' + k);
+const BUILDS = 'tools/fixtures/storyfeas/cessna172_stol_kit.json,tools/fixtures/storyfeas/cessna172r_stol_kit.json';   // two test builds: the light metal Cessna (the retired list:40) and the Cessna 172 (list:50), each with the garage's STOL kit
+// THE SIM A ROW WAS FLOWN ON. A row's key is its mission's record; the aeroplanes and the pilot change under it at a train.
+// Bumped BY HAND when master is merged in (the pilot, the career's designs): every row flown before is stale and flown again
+const SIM = 'L40K';   // (23 Nov: L40K builds the Cub, the Jodel and the Cessna 172 differently - their defs and shakedowns differ from L40J's)
+const ALSO = '57,58';   // builds/lists/plane_lists.json: the PC-6 Turbo Porter, the PC-6 on Wiplines (the wip list)
 const ROWS = path.resolve(ROOT, opt('rows', 'reports/STORY-REVAMP/feasibility'));
 const PACK = path.join(ROOT, 'src', 'missions', 'story.json');
 
@@ -44,7 +53,10 @@ function load() {
 }
 const rowFile = id => path.join(ROWS, id + '.json');
 const rowOf = id => { try { return JSON.parse(fs.readFileSync(rowFile(id), 'utf8')); } catch (e) { return null; } };
-const current = m => { const r = rowOf(m.id); return r && r.key === m.key ? r : null; };
+// a row is CURRENT when it is this mission's record flown - and, when it is not feasible, flown with the pool of today (a
+// "no" from the career's designs alone is not a "no" from every official plane, the PC-6 and the test builds)
+const POOL = m => m.order ? 'validated' : 'official+' + opt('also', ALSO) + '+test builds, the seats filled';
+const current = m => { const r = rowOf(m.id); return r && r.key === m.key && r.sim === SIM && (r.verdict === 'feasible' || r.pool === POOL(m)) ? r : null; };
 
 async function fly() {
   const { list } = load();
@@ -52,7 +64,8 @@ async function fly() {
   // --again (with --only): fly the named missions even when their row is current - a row is keyed by the mission's record,
   // and a change of the HARNESS (how a kind of mission is flown) leaves the key as it was
   let todo = list.filter(m => (!current(m) || (only && has('again'))) && (!only || only.includes(m.id)));
-  todo.sort((a, b) => { const ia = FIRST.indexOf(a.id), ib = FIRST.indexOf(b.id); return (ia < 0 ? 1e6 : ia) - (ib < 0 ? 1e6 : ib); });
+  const ORD = only || FIRST;   // (--only names its own order: the list as given)
+  todo.sort((a, b) => { const ia = ORD.indexOf(a.id), ib = ORD.indexOf(b.id); return (ia < 0 ? 1e6 : ia) - (ib < 0 ? 1e6 : ib); });
   todo = todo.slice(0, max);
   console.log('story_feas: ' + todo.length + ' mission(s) to fly of ' + list.length + ' (' + (list.length - list.filter(m => !current(m)).length) + ' rows current), ' + workers + ' at a time');
   const packs = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy-storyfeas-packs-'));
@@ -63,15 +76,18 @@ async function fly() {
     const m = todo[next++];
     if (!m) return res(false);
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy-storyfeas-out-')), t0 = Date.now();
-    const args = [path.join(T, 'mission_feas.js'), '--only=' + m.id, '--rerun', '--packs=' + packs, '--out=' + out, '--quiet', '--tries=' + opt('tries', '2')];
-    if (!m.validated && !m.order) args.push('--official');
+    const args = [path.join(T, 'mission_feas.js'), '--only=' + m.id, '--rerun', '--packs=' + packs, '--out=' + out, '--quiet', '--tries=' + opt('tries', '3'), '--tmax=' + opt('tmax', '3600')];   // (--tmax: a leg's limit in sim seconds - a red mission costs up to tries x legs x tmax)
+    // (the user 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK ... the
+    // players will not be limited to existing planes, they will modify them, and that's the point") EVERY mission is flown
+    // with the wider pool: the career's designs first, then every official plane and the PC-6 (ALSO), the shortest take-off first
+    if (!m.order) args.push('--official', '--also=' + opt('also', ALSO), '--builds=' + opt('builds', BUILDS));
     const ch = cp.spawn(process.execPath, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     let err = ''; ch.stderr.on('data', d => { err += d; }); ch.stdout.on('data', () => {});
     ch.on('close', code => {
       let R = null;
       try { R = JSON.parse(fs.readFileSync(path.join(out, 'reruns', 'rerun_' + m.id + '.json'), 'utf8')).rows.find(x => x.id === m.id); } catch (e) { R = null; }
       const row = R ? slim(R) : { id: m.id, verdict: 'broken', why: 'the rig ended with no row (exit ' + code + '): ' + err.slice(-300) };
-      Object.assign(row, { key: m.key, where: m.where, pool: !m.validated && !m.order ? 'official' : 'validated', wallS: Math.round((Date.now() - t0) / 1000) });
+      Object.assign(row, { key: m.key, where: m.where, pool: POOL(m), sim: SIM, wallS: Math.round((Date.now() - t0) / 1000) });
       fs.writeFileSync(rowFile(m.id), JSON.stringify(row, null, 1) + '\n');
       done++;
       console.log('  ' + String(done).padStart(3) + '/' + todo.length + ' ' + row.verdict.toUpperCase().padEnd(10) + ' ' + m.id.padEnd(15) + ' ' + (row.plane || '-').padEnd(24) + ' ' + String(row.timeS || 0).padStart(5) + ' s flown, ' + row.wallS + ' s wall' + (row.verdict === 'feasible' ? '' : '  ' + (row.why || '').slice(0, 160)));
@@ -89,15 +105,46 @@ function slim(R) {
     stop: L.stop ? (L.stop.events || []).slice() : [], kg: L.load ? L.load.kg : 0, pax: L.load ? L.load.pax : 0,
     faults: (L.faults || []).map(f => f.k), events: (L.events || []).map(e => e.k + ':' + e.key + (e.m != null ? '=' + e.m : '')) })) : [];
   return { id: R.id, kind: R.kind || null, verdict: R.verdict, plane: R.plane || null, timeS: Math.round(R.timeS || 0), why: R.verdict === 'feasible' ? '' : String(R.why || '').slice(0, 600),
-    tried: (R.attempts || []).map(a => a.plane + ':' + a.verdict), legs, notes: [...new Set((R.notes || []).concat(...(R.attempts || []).map(x => x.notes || [])))].slice(0, 6), untested: !!R.untested };
+    tried: (R.attempts || []).map(a => a.plane + ':' + a.verdict), legs,
+    // every aeroplane tried, with its own reason and where each of its flights ended (the pilot's last words, each gate's
+    // closest pass): a "no" is read from its row, not from a second flight
+    attempts: (R.attempts || []).map(a => ({ plane: a.plane, verdict: a.verdict, why: String(a.why || '').slice(0, 300),
+      legs: (a.legs || []).map(L => Object.assign({ from: L.from || null, to: L.to || null, t: Math.round(L.t || 0), how: L.how || null, kg: L.load ? L.load.kg : 0, pax: L.load ? L.load.pax : 0,
+        said: (L.verdicts || []).slice(-3).map(v => String(v).slice(0, 140)) }, L.near ? { near: L.near } : {}, L.landing ? { landing: L.landing } : {}, L.stop && L.stop.why ? { stop: String(L.stop.why).slice(0, 160) } : {})) })), notes: [...new Set((R.notes || []).concat(...(R.attempts || []).map(x => x.notes || [])))].slice(0, 6), untested: !!R.untested };
 }
 
 // the classes a mission may be in without a feasible flight (named, counted, never hidden)
 function classOf(m, r) {
   if (m.order) return 'order';
   if (r && r.verdict === 'feasible') return 'feasible';
-  if (r && r.verdict === 'infeasible' && r.pool === 'official' && /no official plane can do it/.test(r.why || '')) return 'player-built';
+  if (r && r.verdict === 'infeasible' && /^official/.test(r.pool || '') && /no official plane can do it/.test(r.why || '')) return 'player-built';
   return null;
+}
+// VALIDATED WITH: the flag on the mission itself (the editor's own definition of what a mission asks of a flight)
+function flightSigFn() {
+  const src = fs.readFileSync(path.join(T, 'mission_editor.html'), 'utf8'), m = src.match(/\/\/ <flight-sig>\n([\s\S]*?)\/\/ <\/flight-sig>/);
+  if (!m) throw new Error('tools/mission_editor.html: the flight-sig marks are gone');
+  return new Function(m[1] + '\nreturn flightSig;')();
+}
+function stamp() {
+  const { C, SP, list } = load();
+  const sig = flightSigFn(), N = C.missionPackNormalise(SP), by = {};
+  const n = { validated: 0, red: 0, cleared: 0, none: 0, order: 0 };
+  for (const q of list) by[q.id] = q;
+  for (const m of N.missions) {
+    const q = by[m.id];
+    if (!q) continue;                                            // a tutorial listing: no flag
+    const had = m.validated != null, r = q.order ? null : current(q);
+    delete m.validated;
+    if (q.order) { n.order++; continue; }
+    if (!r) { if (had) n.cleared++; else n.none++; continue; }
+    const s8 = sig(m);
+    if (r.verdict === 'feasible') { m.validated = { with: r.plane, sim: r.sim, flownS: r.timeS, sig: s8 }; n.validated++; }
+    else { m.validated = { with: null, verdict: classOf(q, r) === 'player-built' ? 'no official plane' : r.verdict, why: classOf(q, r) === 'player-built' ? 'no official plane can carry it: a plane the player builds' : String(r.why || '').replace(/\s+/g, ' ').slice(0, 160), sim: r.sim, sig: s8 }; n.red++; }
+  }
+  const txt = JSON.stringify(C.missionPackNormalise(N), null, 1) + '\n';
+  if (txt !== fs.readFileSync(PACK, 'utf8')) { fs.writeFileSync(PACK + '.tmp', txt); fs.renameSync(PACK + '.tmp', PACK); }   // (in one move: a flight may be reading the pack)
+  console.log('story_feas --stamp: ' + n.validated + ' validated with an aeroplane, ' + n.red + ' flown and not validated, ' + (n.none + n.cleared) + ' with no flag (not flown on ' + SIM + (n.cleared ? '; ' + n.cleared + ' flag(s) taken off' : '') + '), ' + n.order + ' aircraft orders');
 }
 function table() {
   const { list } = load();
@@ -132,5 +179,6 @@ function check() {
 }
 if (has('fly')) fly().catch(e => { console.error(e); process.exit(2); });
 else if (has('table')) table();
+else if (has('stamp')) stamp();
 else if (has('check')) check();
 else console.log('story_feas.js --fly | --table | --check (see the header)');

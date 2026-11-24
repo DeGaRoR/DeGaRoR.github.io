@@ -1,6 +1,7 @@
 # STORY-REVAMP - progress (structure only)
 
-Cloud session [CLOUD] STORY-REVAMP, branch `claude/story-revamp` (base `origin/master` 9349a62c = train L40H).
+Cloud session [CLOUD] STORY-REVAMP, branch `claude/story-revamp` (`origin/master` 56047b34e = train L40K merged in on
+23 Nov, 20c8f846f; before that L40J 089297693, e82422d65, and L40H 9349a62c).
 Readies: `claude/ready/story-<n>`, each with its gate results. This file shows STRUCTURE (counts, steps, systems, what
 is wired, what is tested). It carries no dialogue and no twists.
 
@@ -8,6 +9,171 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 (`flyDiy/reports/story-revamp-inputs/`, five notes, 13-17 Nov), and the user's four backbone stories for the large
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
+
+## Status for A0 (Mon 23 Nov, sixth note, 20:45 UTC) - story-9
+
+- **`claude/ready/story-9`** = story-8 + (1) THE VALIDATED-WITH FLAG on the missions and its display in the mission
+  editor (the user asked for it this evening), (2) the cargo seating correction of the harness, (3) the rows flown on
+  L40K's sim so far and their flags, (4) `story_feas --only` in the order given. It CONTAINS story-8: take the latest
+  ready. Under `src/` only `src/missions/story.json` moves (the flags); the built files move with the editor (its
+  (built) commit: index.html, dev.html, sw.js, version.json - flight_core.js and the chunks byte for byte).
+- GATES ON IT: STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS; MISSIONS red on 8 checks, the same 8
+  lines on the tree without these changes (the bush run: master's, named in L40K's note); MISSIONFEAS passed on the
+  merged tree before the seating correction, whose path it does not use (run again when the flights end); CONTRACTS
+  master's four. The editor was read in a headless page: no page error, the flag's states on the missions.
+- The flights go on overnight; rows and flags are pushed to `claude/story-revamp` as they land.
+
+## HANDOVER (A0 asked, Mon 23 Nov: "what's done, what's left, the feasibility state, how to run" - then this session stands down)
+
+Whoever takes this on needs this section, the table "Where it stands" and the table "Gaps"; the rest is the detail.
+
+### What is done
+
+- THE GAME LAYER IS ON THE MISSION SYSTEM. A player's career reads the story pack `src/missions/story.json` with no
+  flag: no drawn job, contracts in any order, projects as ordered steps tied to a site, each step moving its world
+  track and giving machinery (never bought), the ladder as three lines of the pack. Readies story-1 to story-7 carry it
+  (the table below names each); story-7 and the two-line `story-fields` ready ride L40K.
+- THE PACK IS THE MISSION EDITOR'S FILE (the user, 22 Nov: "Yes"): saved in the editor's format, no generator; the
+  editor edits rules, clients, starting kits, projects and steps. GATE STORYPACK holds the rules and the byte round trip.
+- THE USER'S FOUR LARGE MISSION STORIES are four projects of the pack (8, 7, 6 and 2 steps) with short draft words;
+  their verbatim text is NOT committed (the user, 22 Nov: "no").
+- THE TUTORIAL (v2) IS PLAYED START TO END ON NODE: `tools/story_run.js`, GATE TUTORWALK (core) and TUTORFLY (full).
+- THE AERO CLUB: five scored events (speed pylons, a regularity run, a multi-leg tour, a short-landing event, a spot
+  landing) and one contract; the measurements are wired on the page and in the rig; results are kept on the career.
+  All six flew start to end on L40J's sim (re-flown on L40K: the state below). GLIDERS AND THE TOW: L40K lands the
+  LS4-alike, the Archaeopteryx-alike, a winch and a van tow - the club's glider and tow events can be authored on
+  them now; none is authored here.
+- VALIDATED WITH (the user, 23 Nov: "add a flag on the missions, possibly direct in editor, like validated with XXX
+  plane"): every mission of `src/missions/story.json` carries the test pilot's flight of it - `validated { with:
+  <aeroplane> | null, sim, flownS | verdict + why, sig }` - written from the kept rows by `node tools/story_feas.js
+  --stamp`. THE MISSION EDITOR SHOWS IT: on a mission "Validated with: <aeroplane> - time flown - sim", or why it is
+  not, or that it was never flown; a mark and the aeroplane in the mission list; the count by aeroplane on the pack.
+  `sig` is what the mission asks of a flight as written (kind, legs and steps, order, timers, course, landing lines):
+  edit a step in the editor and the flag reads "edited since the test pilot flew it" until it is flown and stamped
+  again. The contract record does not carry the flag (the career and the page are untouched).
+- THE FEASIBILITY HARNESS: `tools/mission_feas_lib.js` flies a mission the game's way (the stand, the pilot, the
+  career's stops) with the seats filled through the garage's own door, a course entered on a base turn and left without
+  a climb; `tools/story_feas.js` keeps one row a mission.
+
+### How to run it (from `flyDiy/`, after `node tools/build.js` if `src/` changed)
+
+| what | command | time |
+|---|---|---|
+| the story gates | `node tools/run_gates.js --only=STORYPACK,TUTORWALK,MISSIONLIVE --jobs=3 --no-build` | minutes |
+| the feasibility gate (the built-in pack) | `node tools/run_gates.js --only=MISSIONFEAS --no-build` - ALONE: it times out beside other work | 7-8 min |
+| the tutorial, walked | `node tools/story_run.js --dry` | seconds |
+| the tutorial, every flight flown | `node tools/story_run.js` (GATE TUTORFLY is the same, as a full-tier gate) | ~50 min |
+| the pack's flights still missing | `node tools/story_feas.js --fly --workers=4 --tmax=2400 --rows=reports/STORY-REVAMP/feasibility` (`--only=<ids>` for a group, `--max=N` for a batch) | ~25 min of one core a feasible mission; a red one up to 3 aeroplanes x its legs x tmax |
+| chosen missions again | `node tools/story_feas.js --fly --only=<id>,<id> --again --rows=reports/STORY-REVAMP/feasibility` | |
+| the table from the rows | `node tools/story_feas.js --table --rows=reports/STORY-REVAMP/feasibility` (writes feasibility.json + .md) | seconds |
+| the flags on the missions | `node tools/story_feas.js --stamp` (writes `validated` into story.json from the current rows; then GATE STORYPACK) - open `tools/mission_editor.html`, "Open story pack", to read them | seconds |
+| is the pack covered | `node tools/story_feas.js --check` (exit 1 while a mission is not flown, stale or red outside the named classes) | seconds |
+| one mission, the legs printed | `node tools/mission_feas.js --only=<id> --rerun --packs=src/missions --out=<a scratch dir> --official --also=57,58 --builds=<the two files in story_feas.js BUILDS>` | |
+| a flight with no mission | `node tools/flight_script.js reports/STORY-REVAMP/repro/<file>.json --out <dir>` | minutes |
+
+- A ROW IS CURRENT only for its mission's own record (`key`) AND the sim it was flown on (`sim`, the constant `SIM` in
+  story_feas.js). `SIM` is bumped BY HAND when a merge of master changes the pilot, the flight model or the career's
+  aeroplanes: every row is then stale and flown again. Read a red from its row's `attempts` (each aeroplane tried, the
+  pilot's own words, the landing), never from the one-line verdict.
+- THE POOL (the user, 23 Nov: "you can really try any of the official planes ... maybe you can even build a quick one"):
+  the validated designs first, then every official plane, the two PC-6 of the wip list, and two test builds in
+  `tools/fixtures/storyfeas/` (a Cessna with the STOL kit, on the retired light airframe and on today's).
+  THE CABIN IS SEATED AS THE JOB ASKS, both ways, through the garage's seat door: its passengers aboard, and the
+  pilot alone for freight (the Cessnas and the DC-3-alike are SAVED with two aboard: a cargo job flew with that seat
+  taken and half the loading card's room until 23 Nov evening; feasible rows flown the heavier way stand).
+- IN A CLOUD CONTAINER: a tracked background task is killed at two hours WITH its flights (finished rows are kept), and
+  a detached process dies when the turn ends (the container sleeps). What works: the run detached in its own session
+  (`setsid nohup`), and a tracked task that only waits on it (`while pgrep -f <the run>; do sleep 60; done`), started
+  again each time it is cut. Do not rebuild the tree while flights run (each mission is a new process on
+  `tools/flight_core.js`); a flight has no wall-clock limit, so the run can be paused (SIGSTOP / SIGCONT) for a gate
+  that must run alone. A mission that ends red costs up to three aeroplanes of an hour of flight each.
+
+### What is left
+
+1. THE FLIGHTS: see "the feasibility state" just below; `--check` is not green yet, so GATE STORYFEAS is not registered.
+2. FIVE MISSIONS LAND ON CABIN LAKE, whose record names no landing direction (the island's aerodrome record: the
+   user's document). They stay red until it does; the flight with the direction named lands.
+   WATER CARGO OVER ABOUT 100 kg HAS NO FLOAT PLANE IN THE POOL: the float Cessna's loading card takes 98 kg (the
+   capability rule counts its seats and says 250), and the PC-6 on Wiplines of the wip list does not line up at HOME
+   (it is started there as an amphibian and gives up in the taxi). lumber.04 (250 kg) is red on it; a float hauler is
+   a plane the player builds.
+3. THE GAPS TABLE at the end of this file: scenery for 18 of the 31 world stages, two scenery readies not on master,
+   the clear-day rule, the planes no official list has (a glider, a tow plane, a ski hauler, a STOL hauler), the
+   Projects board and "restart this flight" on the page, portraits, the economy pass.
+4. THE LADDER is a proposal (three lines of the pack): who gives what is the user's and Game's call.
+5. THE WORDS: every mission and step carries short draft words; the stories' own text is the user's to place (the
+   mission editor edits them in the page).
+
+### The feasibility state
+
+<!-- feas-state -->
+ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 33 FEASIBLE, 7 red or waiting for a plane the player builds, 43 not flown yet on this sim (7 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
+The feasible ones, by the aeroplane that flew them: 20 Piper Cub, 6 light metal Cessna with the STOL kit (test build), 4 STOL Cub, 2 PC-6 Turbo Porter, 1 Jodel D112.
+Those, by cause:
+- heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
+- home.06: no official plane can carry it (450 kg into the 383 m Cabin Strip): a STOL hauler the player builds - a named class, not flown
+- home.13: 280 kg, the Cessna's cabin limit: flown before the seating correction (a passenger seat taken, 140 kg aboard) - being flown again with the pilot alone
+- community.09, community.10, community.11: heavy cargo (300 kg and more): the Cessna's cabin takes 280 kg, and the loading cards of the PC-6 and the DC-3-alike take none - a hauler the player builds, or those two cards
+- club.tour: the stop at w5 (Cannery Runway, 310 m, a 10 m obstacle 25 m from its end): the test pilot lands off the strip or cannot line up to leave - the listed pilot / field gap (on L40J the Cub flew the whole tour; on L40K the Cub and the Jodel land off the end, the STOL Cub lands and cannot taxi out)
+AS FLOWN ON L40J (23 Nov, before the train changed the Cub, the Jodel and the Cessna): 26 flown, 24 feasible, 2 red - home.08 (Cabin Lake's landing direction) and lumber.04 (250 kg on water: no float plane of the pool carries it).
+<!-- /feas-state -->
+
+## Status for A0 (Mon 23 Nov, fifth note, 15:40 UTC) - story-8
+
+- **`claude/ready/story-8`** = origin/master 56047b34e (L40K) + this branch (the merge 20c8f846f: source clean, the
+  tree is master's plus this branch's own delta; HANDOVER = master's bytes + block 10 and 11; built files master's,
+  byte for byte - the build leaves them unchanged). WHAT IT ADDS TO story-7: the harness's three corrections (the seat
+  fill through the garage's door, a course entered on a base turn, a course left without a climb), two test builds
+  (a Cessna with the STOL kit on the retired and on today's airframe), the pack's corrections (the tour's mirrored
+  gates, the club contract's limit from the measured flight: 14 -> 20 min), a row's `sim` tag, `--tmax`, the rows
+  and this file's handover section. No change under `src/` but `src/missions/story.json` (30 lines).
+- GATES ON IT (the merged tree, this container): STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS;
+  MISSIONFEAS PASS (427 s, run alone); CONTRACTS 4 red of 2 585, master's own four by name (minedock.02 / .03 and
+  resort.05 "stage 0 is flyable by a validated design", "the C172 takes two into the mine street": L40K's note names
+  them). Not run here: the full tier (TUTORFLY last passed at 89d00aa76, before L40J).
+- THE ROWS START AGAIN ON L40K: the train builds the Cub, the Jodel, the Cessna 172 and the STOL Cub differently (36 of
+  79 builds differ in def or shakedown, measured on both trees), so the 26 rows flown on L40J are stale. They read, on
+  L40J: 24 feasible (the club's five events and its contract among them), 2 red (home.08: Cabin Lake's direction;
+  lumber.04: 250 kg on water, no float plane of the pool carries it). The re-flight runs now, the club and the four
+  projects first; rows are pushed to `claude/story-revamp` as they land (a later ready would differ from story-8 by
+  report files only).
+- THE HANDOVER is the section just below (what is done, how to run, what is left, the feasibility state).
+
+## Status for A0 (Mon 23 Nov, fourth note, 10:50 UTC)
+
+- THE FLIGHTS ON L40J's SIM, SO FAR: 17 flown, 16 feasible, 1 red (table: `reports/STORY-REVAMP/feasibility.md`).
+  THE AERO CLUB'S FIVE SCORED EVENTS ARE ALL FLOWN start to end by the Piper Cub on the merged tree (the STOL event,
+  the spot landing, the regularity run, the pylons, the multi-leg tour with its corrected gates and its two field
+  stops); the club's sixth mission is a contract, in the next batch. The tour's third leg, which did not leave w5
+  before the merge, flies on L40J.
+- The one red is home.08 (a 150 kg job onto Cabin Lake): the gap already listed (the lane names no landing direction),
+  flown again with three float planes - two break up on the closed final, the third lands long and its hold is 39 kg.
+  The four other missions that land there will read the same until the island's record names the direction.
+- The rest of the pack is in the air in batches of 14 (a tracked task dies at two hours here); rows are pushed as each
+  batch ends. Nothing else changed since the third note: the story-fields ready and story-8's plan stand.
+
+## Status for A0 (Mon 23 Nov, third note, 08:40 UTC)
+
+- L40J IS MERGED INTO THIS BRANCH (e82422d65), and it is green on the story gates ONLY with commit 28ef278e5: master's
+  merge `f9f813191` (one-cessna-4; inside it `7c30889ba`) took an OLDER `src/core/72_contract_data.js` for two
+  CONTRACT_FIELDS lines - `xw_rough` gone from the table (AFB-0220, the user 13 Nov), `tw_ski` back at 257 / -7707 /
+  380 m (SKYLINE-RESORT 146a752b7: 282 / -7751 / 280 m, what the world has). No message names either as meant; master's
+  own GATE CONTRACTS is red on it by name ("the 17 runways", "wheels at xw_rough", "amphibian at xw_rough").
+  **story-7 (784d85bfe) on L40K will be red on STORYPACK, TUTORWALK and MISSIONLIVE for this one cause** ("field
+  xw_rough is not a field": the aero club's short-landing event lands there) unless the train carries the two lines.
+  28ef278e5 is exactly those two lines as they were at L40H: take it, or the same edit.
+  **A READY OF ITS OWN FOR L40K: `claude/ready/story-fields` 8b35f7672** = origin/master 089297693 + those two lines +
+  its (built) commit, nothing else. Gates on it: BUILT, COMMITHYGIENE PASS; CONTRACTS 4 red of 2 549 (master: 8) - the
+  four left are the refitted Cessna's, named below; NAMES red as on master ("Alaska" in livery_marks.js / aeroskin.js).
+- Gates on the merged tree (95a4bc6c9 + harness commits): STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS;
+  CONTRACTS red on four checks, all master's (the refitted Cessna: minedock.02 / .03 and resort.05 "flyable by a
+  validated design", "the C172 takes two into the mine street"). MISSIONFEAS: PASS (438 s, run alone) with the
+  harness's new entry / exit / seat fill.
+- story-8 = this branch (a fresh ref `claude/ready/story-8`), for L40M, by Tue 07:00: the harness's three faults
+  corrected, club.tour's gates, the rows re-flown on L40J's sim (the refitted Cessna is the career's `c172` now).
+- THE USER'S FOUR LARGE MISSION STORIES ARE IN story-7 (since story-2): four projects of the pack - the remote community
+  (8 steps), home improvement (7), the observatory (6), the heritage site (2) - with short draft words. Their VERBATIM
+  text is not committed, on the user's own word (22 Nov, asked "commit the four stories verbatim?": "no").
 
 ## Where it stands
 
@@ -19,8 +185,10 @@ heritage site). Where a backbone story and an older note disagree, the backbone 
 | story-4 | THE SWITCH-OVER: a player's career reads the story pack with no flag (the career loader of both pages, app.js, the adoption at the load, the projects on the clock); the projects board's record; `mission_feas --official`; `tools/story_feas.js`; the HANDOVER entry | PUSHED `claude/ready/story-4` 7667a826b |
 | story-5 | THE MISSION EDITOR: a row on the start menu, a way back, "Try it in the game", and the story pack's own structure editable (rules, clients, starting kits, projects and steps) | PUSHED `claude/ready/story-5` a02d9d81c |
 | story-6 | story.json IS THE EDITOR'S: the file in the editor's save format, the generator deleted, GATE STORYPACK 9-13 as rules (never today's counts or names), a frozen copy of the pack for the mechanism rows | PUSHED `claude/ready/story-6` |
-| story-7 | THE FIRST FLIGHTS READ: the harness lands a scored landing the way its line names; the pylons' bronze from the measured lap; `story_feas.js --again` and a flight's notes in its row; 12 rows kept as flown | PUSHED `claude/ready/story-7` |
-| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`) | running in the background; 12 of 91 rows: 9 feasible, 3 infeasible as flown - read one by one in "The flights so far" below (the Cessna's slip: master's; Cabin Lake: a datum of the lake). Two club events were red and are corrected and re-flown |
+| story-7 | THE FIRST FLIGHTS READ: the harness lands a scored landing the way its line names; the pylons' bronze from the measured lap; `story_feas.js --again` and a flight's notes in its row; 12 rows kept as flown | PUSHED `claude/ready/story-7` 784d85bfe, on master with L40K |
+| story-fields | master's merge had lost two CONTRACT_FIELDS lines (the short-landing lane, the altiport's length): restored | PUSHED `claude/ready/story-fields` 8b35f7672, on master with L40K |
+| story-8 | L40K MERGED IN; the harness's seat fill, entry and exit; two STOL-kit test builds; the tour's gates and the club contract's limit corrected from the flights; a row knows its sim; this file's handover section | PUSHED `claude/ready/story-8` (the fifth status note has its gates) |
+| feasibility | every mission of the story pack flown on node, one a process, each row kept (`tools/story_feas.js`); a row counts only on the sim it was flown on (the `sim` tag) | the state is kept in the handover section above ("The feasibility state"): 26 flown on L40J (24 feasible, 2 red), all flown again on L40K |
 | the tutorial flown | `node tools/story_run.js`: 8 beats, 4 flights + the job's 2, 3 753 s flown. GATE TUTORFLY at 89d00aa76 with the story pack in use and adopted from the career's birth: PASS, 19 of 19 checks (49 min) | flown twice, the same times |
 
 ## The rules this work is held to
@@ -134,7 +302,29 @@ instead (neither target fails the airworthiness tier) and stand in for the bench
 The walk with the pack in use found a bug of the switch-over: the tutorial's one job sat second on a board whose
 contracts come in any order; it leads it again.
 
-## The flights so far (12 of 91)
+## The flights so far (22 of 83 flown missions have a row; 8 more are aircraft orders, not flights)
+
+THE POOL (the user, 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's
+OK ... maybe you can even build a quick one to clear these. The players will not be limited to existing planes"): a
+mission is flown by the career's designs first, then every official plane, the PC-6 (wip list rows 57 / 58) and a test
+build, the shortest take-off first, three aeroplanes at most; a row keeps EVERY aeroplane tried with its legs and the
+pilot's own words (`attempts`). `node tools/story_feas.js --fly [--only=a,b --again]`, then `--table`.
+
+What 23 Nov's rows taught, each read from its row:
+
+| found | what the row said | what was wrong | state |
+|---|---|---|---|
+| the seat fill did not take | "flown with 2 aboard" in the notes, and the stop: "aboard 0 pax, the job is 1 pax" - on five missions | MY HARNESS: it wrote the filled seats into the build FILE, and the load door rebuilds the cabin from the design. It fills them now by the garage's own door (the spec the game flies, pilots 1, pax n - 1) | corrected; mine.04 (the PC-6, two aboard), field.ridge and heritage.01 (the STOL Cub) re-flown: FEASIBLE |
+| a course's entry | club.regular: the Jodel turned back 2 km short of the entry point and joined the axis past the first gate (216 m wide) | MY HARNESS: out of a field ahead of the entry the turn onto the axis is 160 deg. A base turn on the field's side now, its corner about a right angle | corrected; club.regular flown by the Jodel: both gates within 7 m, FEASIBLE |
+| a course's exit | club.tour's second leg: both gates crossed at 373 and 498 m (150 at most) | MY HARNESS: the pilot's planner looks 1500 m past a leg's end and moves a climb earlier; the run-out pointed at the hills east of the strip (519 m asked). The run-out is chosen on the planner's own measure now (none there) | corrected; flown by the Cub: 115 and 143 m |
+| the Cub at w5 (Cannery Runway) | club.tour's third leg never leaves: "rejected take-off: will not reach Vr", after "off-the-strip: touched 187 m in, stopped 72 m past the end of 310 m" | NOT THE MISSION'S: `reports/STORY-REVAMP/repro/cub_w5_back.json` (plain HOME > w5 > leg back, no mission) ends the same - the pilot aims 144 m in over a 10 m obstacle 25 m before the threshold, runs off the end, and on the line-up back the propeller is in the water. From w5's stand (`cub_w5_stand.json`) the Cub flies home | the pilot's / the field's: listed under Gaps. club.tour stays red on it; being flown with w5 landed each way |
+| the PC-6 (wip list) | flew passenger jobs "with 0 pax" | the same seat fill (it has 8 seats); its FREIGHT card is another matter (no door named: carries no cargo as built) | passengers: fine. Cargo: listed under Gaps |
+
+THE CAREER'S CESSNA CHANGES UNDER THESE ROWS: master L40J makes list:50 (the refitted 172: 1 006 kg, take-off 357 m) the
+career's `c172`. Rows flown with the light metal Cessna (and the STOL-kit test build made from it) are flown again on
+the merged tree; a first STOL kit on list:50 measures Vs 25.8 > 21.5 m/s and the take-off run 414 > 260 m.
+
+### The first twelve (22 Nov)
 
 Every row is kept AS FLOWN (`reports/STORY-REVAMP/feasibility/<id>.json`); none is re-pinned or dropped. Nine missions
 are feasible (hangar.01, home.01, obs.01, community.02 and the club's three in the Cub; community.01 in the Cessna 172; lumber.01 on floats). Five were not, read one by one
@@ -248,9 +438,13 @@ tables.
 | the lumber camp flies to Cedar Harbour's lane: the new lane north of it does not exist | scenery | the 16 Nov note |
 | a step that waits for a clear day (the observatory's first rounds): no rule reads the weather | mission rule | the backbone story |
 | no PC-6, no ski hauler, no 5-seater, no 450 kg hauler on the official plane list: 14 missions wait for a plane the player builds | planes | the capability table |
-| no glider, no aerobatic plane on the official list; the 6 g order is out of the pack | planes | plane_lists.json |
+| no aerobatic plane on the official list (the 6 g order is out of the pack); L40K lands the LS4-alike and the Archaeopteryx-alike (reproduction list), a winch and a van tow, and no club event is authored on them yet | missions to author (the club's glider and tow events) | plane_lists.json at L40K |
 | Cabin Lake (`cb_sea`) names no landing direction: the test pilot takes the closed end and capsizes; `approach: 0` on the lane lands it (flown). Its way out is not flown | the island's aerodrome record | the feasibility flight of home.08, three times |
 | the Cessna 172 capsizes out of its slip on a short final (mn_strip, w1; master's own `minedock.02` the same) | the pilot (43_pilot.js, WINGS-LEVEL's family) | the feasibility flights of mine.04 and home.03, and master's baseline |
+| a landing at w5 (Cannery Runway) on the game's day runs off the strip's end, and the leg back never leaves (the Cub; the STOL Cub rejects its take-off there too) | the pilot (43_pilot.js: the end it picks has a 10 m obstacle 25 m out, the aim is displaced 144 m into 310 m) or the field's record | `node tools/flight_script.js reports/STORY-REVAMP/repro/cub_w5_back.json` (no mission in it) | ON L40J club.tour flew its w5 stop and left again (the Cub, 2 139 s); the scripted repro was not run again |
+| water cargo over about 100 kg: the float Cessna's loading card takes 98 kg while the capability rule says it can do 250; the PC-6 on Wiplines (wip list), started at HOME as an amphibian, does not line up there | planes (a float hauler the player builds); the capability rule against the loading card; the PC-6 on Wiplines' taxi | the feasibility flights of lumber.04 and home.08 |
+| the PC-6 Turbo Porter of the wip list carries no cargo: its loading card names no door and no seat row (passengers ride: 8 seats) | the PC-6 build (the drafting table's) | the feasibility flights of the cargo missions |
+| master L40J: `xw_rough` out of CONTRACT_FIELDS and `tw_ski` back at 380 m, by a merge (see the status at the top) | master's (the train) | the trial merge; master's own GATE CONTRACTS |
 | the two clients the pack brings wear stand-in faces (home: sophie; community: james) | portraits | 72_people.js |
 | a project's works cost nothing but at home (0 everywhere else); home's missions pay nothing | economy pass (ready 5) | the pack |
 | the machinery pop-up animation and the reveal's panning shot | local GPU work | out of scope here |
