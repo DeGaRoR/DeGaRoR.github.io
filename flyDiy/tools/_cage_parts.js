@@ -1228,7 +1228,7 @@ const CAGE_PARTS = [
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
       ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold', 'whTex', 'whTexPat', 'whTexDirt']],
       ['boom wheels outboard', ['twBoomOut']],   // CAR-4
-      ['V tip wheels', ['vtWheels', 'vtD', 'vtWide', 'vtFork', 'vtCastor']],   // LAZAIR: under a V hung down
+      ['V tip wheels', ['vtWheels', 'vtD', 'vtWide', 'vtFork', 'vtCastor', 'vtBar', 'vtBarAt']],   // LAZAIR: under a V hung down (LAZAIR-TWIN: its bar)
       ['fairing build', ['fairCons']],
     ] },
 

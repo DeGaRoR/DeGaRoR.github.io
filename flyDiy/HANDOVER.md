@@ -319530,6 +319530,70 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
   tail: two tail contacts at the drawn tips, standing on them and nothing else; extra: the Cessna's nose wheel and mains to the bit, two
   castoring contacts aft), K4 vtD / vtFork move the drawn wheel and the flown contact together, K5 the Lazair stands on its
   tips, turns on the brake and flies HOME's circuit (tw_probe --build lazair).
+
+## LAZAIR-TWIN - THE USER'S LAZAIR DIVERGED AT t 0: THE OLD RULE'S STEP IS NOW PROVED ON THE NETWORK (24 Nov 2026, A0's LAZFIX job; branch a0/lazair-twin-fix off master 896877867)
+- **The user's report.** "My Lazair model makes the sim diverge in the current build" - the plaque's flight 'sim-diverged' at
+  t 0, "the propeller struck". The build: tools/fixtures/lazair_user_2026-11-24.json (a hanging nacelle - fuselage.hang's mast,
+  rodHub - on a rod, two rotax277 pushers on the wing, the V hung down on its tip wheels, gear.vTip 'extra').
+- **The cause (measured, substep by substep).** Not the engines (their x is the station, z the lateral 0.952: mirrored by
+  index, sense +1 / -1, as the twin-floats ultralight's) and not the V. The MAST's lattice (61_gen_frame 3d: 0.15 kg nodes,
+  each on 8-12 'cabane' members at 1.54e6 N/m, 345 N s/m) has every member under its own omega dt / c dt bound at the rule's
+  167 substeps, and the NETWORK at (omega dt)^2 + 2 gamma dt = 5.44 (the dampers 4.45) against symplectic Euler's hard 4. The
+  rule checked the network only on the G580 path (springs under the dampers) and at the G2630 cap; where the springs set the
+  step it returned the per-beam step unproved. The mast blew up within 40 substeps (MST nodes to 288 m/s), NaN on the first
+  frame; the flung engines read a prop strike.
+- **The fix (62_gen_aero genSubstepsTrue, netGuard).** The step the old rule returns (the springs' step, or atCap's) is proved
+  against the hard edge, 1.05 x 4 (genNetEig's own 5 % margin: the validated Petrel reads 4.02 at 200 and flies): a Gershgorin
+  bound first (O(beams), no power iteration unless it could be over), then genNetEig. Only a network past the edge is
+  touched: its dampers cut as G2630 cuts them (the largest per-beam c dt bound that brings it to GEN_NET_MAX), the step raised
+  toward the cap only where the springs alone take more than half the margin; the rigid floats' members left out (G790).
+  Measured: every build and fixture under builds/ and tools/fixtures/ (95, raw buildGen) and the six VALIDATED builds plus the
+  twin-floats ultralight, the Chinook, the DC-3 and the twin boom JOINED (loadBuild) are bit-identical (substeps, substepsTrue,
+  every k and c); the Lazair alone moves (167 substeps kept, 112 mast/hub dampers cut, the network 3.00).
+- **GATE RADIALDIV** asks the Lazair's CONSTRUCTION and REST (its REST strain the airframe's: its bungee legs stand 5-7 % into
+  their stroke at rest), and its selftest catches the old rule on it (5.44, NaN at 0 s). The selftest's mosquito pair reads
+  MISSED on master's core too (their REST does not go red on the old rule any more): not this change's.
+- **Not yet (the next step of the job).** With the divergence gone the Lazair rolls (tw_probe roll: 25 m/s in 8.9 s, straight),
+  but at HOME a full-power start pitches it onto its nose leg (the high thrust line, 1.27 m, the pod's keel 3 cm over the
+  grass) and the pilot rejects a nose-over at V 3; the V tips' four 'fus' ties to the rod (the rod's 0.7 mm gauge) yield under
+  the tail's load at the spawn (a dent); the solver's G1470 rule strikes EVERY propeller when the nose ring touches (wrong for
+  wing and pusher engines); aid.prop and the garage marker read disc 0 only.
+
+## LAZAIR-TWIN 2 - EVERY PROP DISC WHERE IT IS DRAWN; THE V's TIP TIES ARE ITS SPARS (AND ITS BAR); TAIL-DOWN ON THE TIPS; ALUMINIUM TUBE DRAWS AS TUBE (24 Nov 2026, A0's LAZFIX job, the user's rulings of 13:30; branch a0/lazair-twin-fix)
+- **The prop check is generic (64c genDesignAids, the garage marker app.js buildAids, 66c the fiche's discs).** Every disc of
+  every build: at its engine's station plus the editor's own hub offset (genAidPropOff: [dx, dy, R, fit, why]), its radius
+  the DRAWN blade's (CAGE_ENG units[i].prop.R), its axis the drawn tilt's, a wing pair's disc on its OWN side (engAt keeps
+  |z| and a `side`: both discs had stood at +z, one circle over the other - "draws only for a single engine"). Each disc is
+  judged (ground / water / the wing and stab strips along its axis / the other discs' circles / the editor's propFitCheck
+  of the drawn skin and wing, and for an off-centre disc the body's lattice nodes, the mast, the tail tips); the aid.prop
+  row is the worst disc, named (port / starboard), its fix sized (discs: "N m apart centre to centre, each nacelle X cm out").
+  A single centreline disc reads its row's words and numbers as before. The marker draws a circle per disc in its own
+  plane (square to its axis), coloured by its own verdict.
+- **The marker's frame (app.js aidMap).** The design x was laid along the sim's nose-ring-to-tail-mid line - right only
+  where that line is level in the design frame. The Lazair's rod climbs aft 9 deg: every aid stood 9 deg off the
+  aeroplane ("even the rotation plane seems wrong"). The same line is now read off the DESIGN nodes and a point is carried
+  by its body-frame coordinates (a build whose line is level: identical).
+- **"Rejecting when too small" (_cage_eng propFitCheck).** The body test read AF.surf past the cowl's front (z1): the end
+  section held there swallowed a small tractor disc's inner rings. A tractor's sample ahead of z1 is now outside the body,
+  as a pusher's behind z0 already was. The Minimax clears at D 1.72 / 1.2 / 0.9.
+- **The V on tip wheels (61_gen_frame isV).** Its tips' four ties a side were the rod's lattice ('fus' aft of the box: the
+  rod row's section, 0.7 mm): nine yielded at the spawn under ~50 N a tip, and on every take-off. On tip wheels they are the
+  panels' spars, class 'tail'; zero yields. **The bar** (the user's ask): gear page rows vtBar / vtBarAt (ABSENT at off /
+  0.5), the join's tail.vBar, a node on each panel's line at that station tied to the tip, the post and its ring corner, the
+  two joined (0.35 kg a side, INFERRED), drawn by the stab layer as a 25 mm tube.
+- **Tail-down on the tips (30_solver stance; 64c aid.stance).** A nose wheel ahead of the mains, the CG behind them and the
+  V tips' extra wheels aft (refs.xw): the spawn pitches onto the TIPS, and the stance aid judges a taildragger whose nose
+  wheel is a bumper (the Lazair: the mains 6.9 deg ahead of the CG, 0.8 deg tail-down, the nose wheel 4 cm up: pass).
+- **The nose ring strikes only the nose's propeller (30_solver NOSE_G).** G1470 struck every engine when the nose ring
+  touched; now the nose engines (mount 'nose' or none) and each engine's own nodes for that engine. A single nose engine
+  reads as before.
+- **Aluminium tube draws as tube (_cage_gen cageSpec consG).** intCons 4 ('aluminium tube', the join's aluTube) was built
+  in the 'metal' idiom (lightened sheet frames); now the tube idiom. The Chinook's joined spec is bit-identical.
+- **Open: the Lazair's take-off at HOME.** On the flat field (tw_probe roll) it rolls straight to 25 m/s in 8.7 s. At HOME
+  the full-power start compresses its nose leg, the pod's keel (3.8 cm over the grass at rest) drags, and it pivots over
+  its nose (the tail 0.6 m up at V 3.6); the pilot's nose-over reject (th < -12 deg) saves it at V 3.3. Relaxing the
+  reject (past its -8 deg rest) lets it capsize at V 4.5 - so the rule stays master's. The cause to chase: the nose leg's
+  spring on a build whose static nose share is ~0 (the CG behind the mains), and the pod's keel height.
 - PILOT-SLOPE-POWER-3 READY NOTE (PILOT 24 Nov, claude/ready/pilot-slope-power-3 on claude/ready/pilot-slope-power-2 990f44dfd; for L40M's late merge, A0 13:05): GATE APHONEST read FLARE-LOST's new go-around reason ('flown off the flare: N m up with M m of strip left') with no player's words. src/viewer/ap_why.js GA gains it ('it flew off the end of the strip in the flare (N m up)' past the end, 'it climbed away in the flare (N m up, M m of strip left)' over the strip) and tools/_aphonest_check.js's SAMPLE its row. No flight code changed: 43_pilot.js is 990f44dfd's.
 
 ## STORY-REVAMP 13 - THE WHOLE PACK FLOWN ON L40K, story-10, THE SESSION STANDS DOWN (cloud, 24 Nov)

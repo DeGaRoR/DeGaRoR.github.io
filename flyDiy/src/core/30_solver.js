@@ -1602,9 +1602,20 @@ function makeSim(def, world) {
     }
   }
   // the nose ring and the engine's nodes: on the ground, the prop has been through it (a nose-over)
-  const NOSE_G = new Uint8Array(n);
-  if (DMG_ON) for (const i of (def.refs.noseFrame || []).concat(def.refs.engine || [])) if (i >= 0 && i < n) NOSE_G[i] = 1;
-  let noseGnd = false;
+  // LAZAIR-TWIN (24 Nov): ...THE NOSE RING STRIKES THE NOSE'S PROPELLER, AN ENGINE'S NODE ITS OWN. The rule was written for
+  // the nose tractor (every engine struck when the nose ring touched); the user's Lazair (two pushers on the wing, the
+  // pod's keel 3 cm over the grass) read 'the propeller struck' when its pod nose brushed the grass at full power, its
+  // discs 0.7 m up. NOSE_G: bit 0 the nose ring (the engines mounted at the nose, or with no mount: the old reading),
+  // bit k+1 engine k's own nodes (refs.engineOf). A single nose engine reads exactly as before
+  const NOSE_G = new Uint32Array(n), NOSE_ENG = [];
+  if (DMG_ON) {
+    const SE = (def.spec && Array.isArray(def.spec.engines)) ? def.spec.engines : [];
+    for (let k = 0; k < Math.max(SE.length, def.params.nEngines || 1); k++) { const m = SE[k] && SE[k].mount; if (!m || m === 'nose') NOSE_ENG.push(k); }
+    for (const i of (def.refs.noseFrame || [])) if (i >= 0 && i < n) NOSE_G[i] |= 1;
+    const EO = def.refs.engineOf, EN = def.refs.engine || [];
+    for (let j = 0; j < EN.length; j++) { const i = EN[j]; if (i >= 0 && i < n) NOSE_G[i] |= (EO && EO[j] != null && EO[j] < 30) ? (2 << EO[j]) : 1; }
+  }
+  let noseGnd = 0;
   // RETRACT-1 (2026-11-03, futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR - params.retract, a
   // tricycle's only (null on every other build: nothing below runs and the flight is master's to the bit). THE NODE DOES
   // NOT MOVE (the study's option A): the axle stays where the frame built it, and what the gear's position changes is
@@ -1880,7 +1891,10 @@ function makeSim(def, world) {
     const gC = dtFrame > 0 ? Math.hypot(cIx, cIy, cIz) / (totalM * 9.81 * dtFrame) : 0;
     cIx = cIy = cIz = 0;
     gF += (gC - gF) * Math.min(1, dtFrame / 0.05);
-    if (noseGnd) { noseGnd = false; for (let k = 0; k < eng.length; k++) propStrike(k, 'ground', PR.D / 2, 'soft'); }
+    if (noseGnd) {
+      const g = noseGnd; noseGnd = 0;
+      for (let k = 0; k < eng.length; k++) if (((g & 1) && NOSE_ENG.includes(k)) || (g & (2 << k))) propStrike(k, 'ground', PR.D / 2, 'soft');
+    }
     if (gF > DMG.gPeak) DMG.gPeak = gF;
     // a holed hull slice (GEAR-WATER 2's S8.br: the slam past its skin's breach pressure) is skin damage - a dent
     if (typeof WB !== 'undefined' && WB && WB.slices) { let h = 0; for (const S8 of WB.slices) if (S8.br) h++; DMG.holed = h; }
@@ -3076,11 +3090,21 @@ function makeSim(def, world) {
     simT = 0;
   }
   function stance() {
-    const M = def.refs && def.refs.mains, tw = def.refs && def.refs.tw;
+    const M = def.refs && def.refs.mains;
+    let tw = def.refs && def.refs.tw;
     if (!M || !M.length || tw == null || tw < 0) return 0;
     let ax = 0, ay = 0;
     for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
     ax /= M.length; ay /= M.length;
+    // LAZAIR-TWIN (24 Nov, the user: "The Lazair actually sits on its tail at rest, the front wheel is there for braking"):
+    // a nose wheel ahead of the mains, the CG behind them and the V tips' extra wheels aft (refs.xw): it rests on the
+    // mains and the tips - the pose is pitched onto the TIPS, the nose wheel a bumper over the ground. No refs.xw: as before
+    const XW = def.refs && def.refs.xw;
+    if (XW && XW.length && p[tw*3] < ax && p[XW[0]*3] > ax) {
+      let mx = 0, mt = 0;
+      for (let i = 0; i < n; i++) { const mi = def.nodes[i].m || 0; mx += p[i*3] * mi; mt += mi; }
+      if (mt > 0 && mx / mt > ax) tw = XW[0];
+    }
     const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = rC[tw] - rC[M[0]];
     const R = hyp2(A, B);
     if (R < 1e-6 || Math.abs(C) > R) return 0;
@@ -4586,7 +4610,7 @@ function makeSim(def, world) {
       else skiSoft = false;
       const pen = FnT !== null ? 1 : gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
-      if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
+      if (NOSE_G[i]) noseGnd |= NOSE_G[i];           // G1470: the nose on the ground - the prop has struck it (LAZAIR-TWIN: whose)
       // TOW-LAUNCH: the terrain's normal (n = (-gx, 1, -gz)/|.|); exactly flat -> the old lines, bit for bit
       let snx = 0, sny = 1, snz = 0;
       if (gH && FnT === null) {   // (a ski node: its own law, master's - SKIS)

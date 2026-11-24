@@ -9905,7 +9905,7 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 const CAGE_DEFAULT_ABSENT = { rodOn: 1, spinOn: 1,   // (CAR-1: the rod's tube and the spinner's cone, drawn - absent at 1, as every build before them)
   canClear: 0, certCat: 0, dashHood: 0, wgBrake: 0, wgBrakeAt: 0.30, wgBrakeLen: 0.16, wgBrakeH: 0.20, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
-  vtWheels: 0, vtD: 0.20, vtWide: 0, vtFork: 0.03, vtCastor: 0,   // (LAZAIR: the V hung down's tip wheels, off; their size, tyre, fork, castoring)
+  vtWheels: 0, vtD: 0.20, vtWide: 0, vtFork: 0.03, vtCastor: 0, vtBar: 0, vtBarAt: 0.5,   // (LAZAIR: the V hung down's tip wheels, off; their size, tyre, fork, castoring)
   wgBrake: 0, wgBrakeAt: 0.30, wgBrakeLen: 0.16, wgBrakeH: 0.20,   // (AIRBRAKES: none; a Standard Class's box when on)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
@@ -10566,7 +10566,10 @@ function cageSpec(P) {
     }
   }
   // (G2047: glassfibre, the sixth stop, is built as the composite is - the moulded shell's idiom)
-  const consG = ['carbon', 'tube', 'wood', 'metal', 'metal', 'carbon', 'tube'][   // (index 4 'metal': the clamp's old reading; 6 the soft shell's poles)
+  // LAZAIR-TWIN (24 Nov, the user: "This is tube construction, but still draws the frames as ajoure (lightened) aluminium
+  // frames, rather than tubes"): index 4, 'aluminium tube' (the join's aluTube), is built in the TUBE idiom - section
+  // rings, longerons and bay diagonals of tube - as the steel tube is; it read 'metal' (the clamp's old reading of 4)
+  const consG = ['carbon', 'tube', 'wood', 'metal', 'tube', 'carbon', 'tube'][   // (6 the soft shell's poles)
     Math.max(0, Math.min(6, Math.round(P.intCons || 0)))];
   const skinTv = Math.max(0, P.skinT || 0);
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,

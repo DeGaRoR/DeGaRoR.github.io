@@ -1506,11 +1506,11 @@ const GEN_CDT_MAX = 0.65;      // damping rate * dt
 // carry both: `substeps` is what flies, `substepsTrue` (only when they differ) what the actual wing
 // needs - the load test flies that one (sim.trueBox(), 30_solver.js).
 function genSubsteps(nodes, beams, clusters) {
-  const N0 = genSubstepsTrue(nodes, beams);
+  const N0 = genSubstepsTrue(nodes, beams, clusters);
   const N = genFlightBox(nodes, beams, N0, clusters);
   return N < N0 ? { substeps: N, substepsTrue: N0 } : { substeps: N0 };
 }
-function genSubstepsTrue(nodes, beams) {
+function genSubstepsTrue(nodes, beams, clusters) {
   let wMax = 0, cMax = 0;
   for (const b of beams) {
     // G121 (the review's B2): omega at DRY mass, not full-tanks mass. Fuel
@@ -1575,14 +1575,58 @@ function genSubstepsTrue(nodes, beams) {
     for (const b of beams) { const c = cap(b); if (c < b.c) { b.cSized = b.c; b.c = c; } }
     return GEN_N_CAP;
   };
-  if (byW >= legacy) return atCap();
+  // LAZAIR-TWIN (24 Nov): THE OLD RULE'S STEP IS PROVED, NOT ASSUMED. Where the old rule's step stood (the springs set
+  // it, or nothing under it held), the per-beam bounds were its only test - and a node joined to many dampers adds them
+  // (the G580 note above). The user's Lazair (a hanging nacelle: fuselage.hang's mast, a lattice of 0.15 kg nodes, each
+  // on 8-12 cabane members at 1.5e6 N/m and 345 N s/m): every member under its own bound at 167 substeps, the network
+  // at (omega dt)^2 + 2 gamma dt = 5.44 against the integrator's hard 4 - the mast exploded on the first frame and the
+  // flight read 'sim-diverged' at t 0 (the flung engines a prop strike). So the old rule's step is checked against the
+  // HARD limit (a cheap Gershgorin bound first: no power iteration unless it could be over), and only a network past it
+  // is touched: its dampers cut as G2630's are (to the largest per-beam c dt bound that brings the network to
+  // GEN_NET_MAX), the step raised toward the cap only where the springs alone leave the dampers no room. A build inside
+  // the integrator - every validated build and fixture - keeps its step and its dampers to the bit.
+  // (G790's network: the members inside a rigid float's cluster are projected every substep - no frequency, nothing for
+  // the integrator to carry - and are left out of it, as genFlightBox leaves them; their dampers are never cut here)
+  const netGuard = N0 => {
+    const hull = genRigidFloatOf(nodes, clusters), net = hull ? beams.filter(b => !hull(b)) : beams;
+    const nn = nodes.length, gk = new Float64Array(nn), gc = new Float64Array(nn);
+    for (const b of net) {
+      const ma = dry(b.a), mb = dry(b.b), x = 1 / Math.sqrt(ma * mb);
+      gk[b.a] += b.k * (1 / ma + x); gk[b.b] += b.k * (1 / mb + x);
+      gc[b.a] += b.c * (1 / ma + x); gc[b.b] += b.c * (1 / mb + x);
+    }
+    let GK = 0, GC = 0; for (let i = 0; i < nn; i++) { if (gk[i] > GK) GK = gk[i]; if (gc[i] > GC) GC = gc[i]; }
+    // (the edge as genNetEig reads it: its eigenvalues carry 5 % over what the iteration converged to - the validated
+    // Petrel's network reads 4.02 at 200 with that margin and flies; its springs alone 3.56)
+    const EDGE = 1.05 * GEN_NET_HARD;
+    const R3 = Math.sqrt(3), dt0 = 1 / (60 * N0);
+    if (R3 * GK * dt0 * dt0 + 2 * R3 * GC * dt0 <= EDGE) return N0;     // provably inside: untouched
+    const w2n = genNetEig(nodes, net, b => b.k, dry);
+    if (w2n * dt0 * dt0 + 2 * genNetEig(nodes, net, b => b.c, dry) * dt0 <= EDGE) return N0;
+    // the step: the springs' share leaves the dampers room (half the margin), up to the cap
+    let N = N0; while (N < GEN_N_CAP && w2n / ((60 * N) * (60 * N)) > 0.5 * GEN_NET_MAX) N++;
+    const dtN = 1 / (60 * N), w2N = w2n * dtN * dtN;
+    if (w2N >= GEN_NET_MAX) return N;   // the springs alone past the margin at the cap: not the dampers' to pay (G2630's floor)
+    const capA = a => b => Math.min(b.c, a * 60 * N / invOf(b));
+    const holdsA = a => w2N + 2 * genNetEig(nodes, net, capA(a), dry) * dtN <= GEN_NET_MAX;
+    let a = GEN_CDT_MAX;
+    if (!holdsA(a)) {
+      let lo = 0.01 * GEN_CDT_MAX, hi = GEN_CDT_MAX;
+      for (let it = 0; it < 24; it++) { const mid = 0.5 * (lo + hi); if (holdsA(mid)) lo = mid; else hi = mid; }
+      a = lo;
+    }
+    const cap = capA(a);
+    for (const b of net) { const c = cap(b); if (c < b.c) { b.cSized = b.c; b.c = c; } }
+    return N;
+  };
+  if (byW >= legacy) return netGuard(atCap());
   const capAt = N => b => Math.min(b.c, GEN_CDT_MAX * 60 * N / invOf(b));
   const w2 = genNetEig(nodes, beams, b => b.k, dry);
   const metric = N => { const dt = 1 / (60 * N); return w2 * dt * dt + 2 * genNetEig(nodes, beams, capAt(N), dry) * dt; };
   let N = byW;
   if (metric(N) > GEN_NET_MAX) {
     let lo = byW, hi = legacy;
-    if (metric(hi) > GEN_NET_MAX) return atCap();      // no step under the old one holds: the old rule (G2630: cut at the cap)
+    if (metric(hi) > GEN_NET_MAX) return netGuard(atCap());      // no step under the old one holds: the old rule (G2630: cut at the cap; LAZAIR-TWIN: proved)
     while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (metric(mid) <= GEN_NET_MAX) hi = mid; else lo = mid; }
     N = hi;
   }
@@ -1684,6 +1728,7 @@ function genTrueBox(def) {
 // (val = c: the damping rate), each beam along its rest direction, dry masses; power iteration from a
 // fixed start (deterministic), 600 passes, and 5 % over what it reads (it converges from below)
 const GEN_NET_MAX = 3.0;
+const GEN_NET_HARD = 4.0;      // LAZAIR-TWIN: symplectic Euler's own edge on a damped mode, (omega dt)^2 + 2 gamma dt < 4
 function genNetEig(nodes, beams, val, dry) {
   const n = nodes.length, sm = new Float64Array(n);
   for (let i = 0; i < n; i++) sm[i] = 1 / Math.sqrt(dry(i));

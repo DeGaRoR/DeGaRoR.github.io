@@ -2778,12 +2778,35 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const vtW = !VTd ? null : VTd.mode === 'tail' ? (S.gear.twX != null && S.gear.twY != null ? [S.gear.twX, S.gear.twY] : null)
             : (VTd.x != null && VTd.y != null ? [VTd.x, VTd.y] : null);
   [HTL, HTR] = vtW ? NM(vtW[0], vtW[1] + (VTd.R || 0.10) + (VTd.fork || 0), VTd.z, 'HT') : NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
+  // LAZAIR-TWIN (24 Nov): ON TIP WHEELS THE TIES ARE THE PANELS' SPARS. A V on its tip wheels stands on these four
+  // members a side; built as the rod's own lattice (class 'fus' aft of the box: the rod row's section, the user's 0.7 mm
+  // wall) nine of them yielded under the tail's 50 N a tip at the spawn and again on every take-off. They are the
+  // panel's structure - the tail's class (the stab's truss gauge), as the twin booms' V panels are. Only for the EXTRA
+  // wheels (the user's Lazair, a tricycle's tips): the tips as the tail wheel (mode 'tail', GATE TAILWHEEL K5's Chinook-
+  // Lazair) keep 'fus' - re-classed, its roll-out ground-looped (157 deg) on master 237aa5754's stance. Every other V: 'fus'
+  const VC = vtW && VTd.mode === 'extra' ? 'tail' : 'fus';
   for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
-    B(H, TPB, 'fus'); B(H, TPT, 'fus');
-    B(H, side === 'L' ? last.BL : last.BR, 'fus');
-    B(H, side === 'L' ? last.TL : last.TR, 'fus');
+    B(H, TPB, VC); B(H, TPT, VC);
+    B(H, side === 'L' ? last.BL : last.BR, VC);
+    B(H, side === 'L' ? last.TL : last.TR, VC);
   }
-  if (vtW) B(HTL, HTR, 'fus', false, 'inner');
+  if (vtW) B(HTL, HTR, VC, false, 'inner');
+  // LAZAIR-TWIN (24 Nov, the user: "an option for a stabilisation bar holding the fins together, say mid length? Should
+  // avoid the yielding"): THE V's BAR (tail.vBar, its station along the panels, 0 the root .. 1 the tip; the stab page's
+  // row, ABSENT at its default). A tube across the V at that station: a node on each panel's line from the tail post to
+  // its tip, tied to the tip, the post and its ring corner (the panel's spar carried to the bar), the two joined by the
+  // bar - a second path for the tip's load beside the tip's own four ties. The bar and its two clamps billed at
+  // GEN_RULES-free 0.35 kg a side (INFERRED: a 25 mm alloy tube, ~0.45 kg/m, and its fittings). No key: the lines above
+  const VBk = vtW && t.vBar > 0 ? Math.max(0.1, Math.min(0.9, +t.vBar)) : 0;
+  if (VBk) {
+    const pc = [0.5 * (P[TPB][0] + P[TPT][0]), 0.5 * (P[TPB][1] + P[TPT][1]), 0], VBn = [];
+    for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
+      const h = P[H], q = N(pc[0] + (h[0] - pc[0]) * VBk, pc[1] + (h[1] - pc[1]) * VBk, h[2] * VBk, 'VBAR' + side);
+      B(q, H, 'tail'); B(q, TPB, 'tail'); B(q, TPT, 'tail'); B(q, side === 'L' ? last.BL : last.BR, 'tail');
+      pt(q, 0.35); VBn.push(q);
+    }
+    B(VBn[0], VBn[1], 'tail');
+  }
   cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
   // ---- THE TAIL IN THE WING'S IDIOM (TAIL CHANTIER 2 P4) --------------------

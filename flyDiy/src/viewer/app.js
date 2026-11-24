@@ -15076,14 +15076,34 @@
     let xA = sim.axes()[0];
     // a build with no third wheel (floats) stands LEVEL on its keels in the room (_cage_float.js: pitch 0), whatever
     // attitude the sim's reset left it in: its axis is the level one
-    if (!(P.TW != null && P.TW >= 0)) { const h = Math.hypot(xA[0], xA[2]) || 1; xA = [xA[0] / h, 0, xA[2] / h]; }
+    const level = !(P.TW != null && P.TW >= 0);
+    if (level) { const h = Math.hypot(xA[0], xA[2]) || 1; xA = [xA[0] / h, 0, xA[2] / h]; }
     const sg = (nL[2] - nR[2]) >= 0 ? 1 : -1;
-    let z = [0, 1, 2].map(k => sg * (sim.p[a + k] - sim.p[c + k]));
-    const dz = z[0] * xA[0] + z[1] * xA[1] + z[2] * xA[2];
-    z = z.map((v, k) => v - dz * xA[k]);
-    const zl = Math.hypot(z[0], z[1], z[2]) || 1; z = z.map(v => v / zl);
-    const y = [z[1] * xA[2] - z[2] * xA[1], z[2] * xA[0] - z[0] * xA[2], z[0] * xA[1] - z[1] * xA[0]];
-    return q => [0, 1, 2].map(k => Ms[k] + xA[k] * (q[0] - Md[0]) + y[k] * (q[1] - Md[1]) + z[k] * (q[2] - Md[2]));
+    // the body's frame off two points sets: x the body axis, z the mains' line square to it, y = z x x
+    const frame = (x, zRaw) => {
+      const dz = zRaw[0] * x[0] + zRaw[1] * x[1] + zRaw[2] * x[2];
+      let z = zRaw.map((v, k) => v - dz * x[k]);
+      const zl = Math.hypot(z[0], z[1], z[2]) || 1; z = z.map(v => v / zl);
+      return [x, [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]], z];
+    };
+    const Fs = frame(xA, [0, 1, 2].map(k => sg * (sim.p[a + k] - sim.p[c + k])));
+    // LAZAIR-TWIN (24 Nov; the user: the prop marker "does not seem to match well, even the rotation plane seems wrong"):
+    // THE DESIGN FRAME'S OWN BODY AXIS. sim.axes() is the line from the nose ring to the tail's mid nodes, and the design
+    // x axis was laid along it - right only where that line is level in the design frame. The user's Lazair's rod climbs
+    // aft (its line 9 deg off the design x): every aid stood 9 deg nose-up off the aeroplane on the stand, the prop discs
+    // tilted out of their blades' plane. The same line read off the DESIGN nodes gives the design body frame; a point is
+    // carried by its coordinates in that frame onto the stand's (a level float build: both lines levelled, as before)
+    const Rf = def.refs, avgD = ids => { const o = [0, 0, 0]; for (const i of ids) { const q = def.nodes[i].p; o[0] += q[0]; o[1] += q[1]; o[2] += q[2]; } return o.map(v => v / ids.length); };
+    let xD = [1, 0, 0];
+    if (Rf && Rf.noseFrame && Rf.noseFrame.length && Rf.tailMid && Rf.tailMid.length) {
+      const n0 = avgD(Rf.noseFrame), t0 = avgD(Rf.tailMid);
+      xD = [t0[0] - n0[0], level ? 0 : t0[1] - n0[1], t0[2] - n0[2]];
+      const xl = Math.hypot(xD[0], xD[1], xD[2]) || 1; xD = xD.map(v => v / xl);
+    }
+    const Fd = frame(xD, [0, 1, 2].map(k => sg * (nL[k] - nR[k])));
+    const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    return q => { const v = [q[0] - Md[0], q[1] - Md[1], q[2] - Md[2]], c3 = Fd.map(e => dot(v, e));
+      return [0, 1, 2].map(k => Ms[k] + Fs[0][k] * c3[0] + Fs[1][k] * c3[1] + Fs[2][k] * c3[2]); };
   }
   // PROP-CHECK (the user 21 Nov: "the propeller check is sometimes quite different from the actual propeller; sometimes 5 cm
   // discrepancy on the station, tilting is different too"): THE DRAWN AEROPLANE'S OWN PLACEMENT - the firewall ring
@@ -15208,6 +15228,8 @@
       const r = row('aid.prop'), col = lvlC(r);
       // PROP-CHECK: the circle in the blades' own plane - square to the SHAFT (p.dir: the engine's tilt, from the
       // editor's drawn unit), not to the body axis - and placed as the aeroplane is (aidMapBody)
+      // LAZAIR-TWIN (24 Nov): ONE CIRCLE PER DISC, each where its blades are drawn (its own side of a wing pair), coloured
+      // by its own verdict, named by its side
       const MB = aidMapBody() || M;
       const segB = (p, q, col2) => { const a = MB(p), b = MB(q); V.push(a[0], a[1], a[2], b[0], b[1], b[2]); for (let i = 0; i < 2; i++) Cc.push(col2[0], col2[1], col2[2]); };
       for (const p of A.prop) {
@@ -15215,12 +15237,16 @@
         // the disc's two in-plane axes: lateral (design z) and its "up", square to the shaft
         const ul = [0, 0, 1], up0 = [d[1] * ul[2] - d[2] * ul[1], d[2] * ul[0] - d[0] * ul[2], d[0] * ul[1] - d[1] * ul[0]];
         const upL = Math.hypot(up0[0], up0[1], up0[2]) || 1, up = up0.map(v => v / upL * (up0[1] < 0 ? -1 : 1));
-        const at = a => [0, 1, 2].map(k => c[k] + p.R * (Math.cos(a) * up[k] + Math.sin(a) * ul[k]));
-        for (let i = 0; i < N; i++) segB(at(i / N * 2 * Math.PI), at((i + 1) / N * 2 * Math.PI), col);
-        if (p.hit) rod([c[0], p.hit[1], p.hit[2]], p.hit, col, 0.025, false);
-        const gy = p.ground != null ? c[1] - p.R - p.ground : p.water != null ? c[1] - p.R - p.water : null;
-        if (gy != null) segB([c[0], c[1] - p.R, c[2]], [c[0], gy, c[2]], col);
-        label([c[0], c[1] + p.R + 0.3, c[2]], 'prop ' + (p.struct != null ? Math.round(p.struct * 100) + ' cm from ' + p.who.replace(/^the /, '') : 'clear of the structure'), col,
+        const at = (a, r) => [0, 1, 2].map(k => c[k] + (r == null ? p.R : r) * (Math.cos(a) * up[k] + Math.sin(a) * ul[k]));
+        const pc = p.level ? C[p.level] || col : col;
+        for (let i = 0; i < N; i++) segB(at(i / N * 2 * Math.PI), at((i + 1) / N * 2 * Math.PI), pc);
+        if (p.hit) { const q = [p.hit[0] - c[0], p.hit[1] - c[1], p.hit[2] - c[2]], ax = q[0] * d[0] + q[1] * d[1] + q[2] * d[2];
+          rod([p.hit[0] - ax * d[0], p.hit[1] - ax * d[1], p.hit[2] - ax * d[2]], p.hit, pc, 0.025, false); }
+        const low = at(Math.PI);
+        const gy = p.ground != null ? low[1] - p.ground : p.water != null ? low[1] - p.water : null;
+        if (gy != null) segB(low, [low[0], gy, low[2]], pc);
+        const sd = A.prop.length > 1 ? (p.side < 0 ? 'port ' : p.side > 0 ? 'starboard ' : '') : '';
+        label(at(0, p.R + 0.3), sd + 'prop ' + (p.discOver != null ? 'blades meet the other disc' : p.struct != null ? Math.round(p.struct * 100) + ' cm from ' + p.who.replace(/^the /, '') : 'clear of the structure'), pc,
               p.ground != null ? Math.round(p.ground * 100) + ' cm over the ground' : p.water != null ? Math.round(p.water * 100) + ' cm over the water at gross' : '');
       }
     }

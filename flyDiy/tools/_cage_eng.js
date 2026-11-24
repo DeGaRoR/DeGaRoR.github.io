@@ -1833,6 +1833,11 @@ function engPlace(ctx, prev) {
       // push-pull's twin booms): AF.surf holds the last section past AF.z0, which read the whole disc behind a
       // blunt pod as inside it. A rod boom is part of AF (its z0 is the rod's end), so a pusher on a rod reads as before
       if (aft && isFinite(AF.z0) && z < AF.z0 - 1e-3) return false;
+      // LAZAIR-TWIN (24 Nov; the user's Minimax: "the prop check ... rejecting when too small"): the same for a TRACTOR's
+      // disc AHEAD of the body's front (the cowl's, CAGE_GEAR's withCowl): AF.surf past z1 is its end section held,
+      // which read a small disc's inner rings, turning ahead of the cowl, as inside the body - the smaller the
+      // propeller, the surer the refusal
+      if (!aft && isFinite(AF.z1) && z > AF.z1 + 1e-3) return false;
       let lo, hi;
       try { lo = AF.surf(z, 0); hi = AF.surf(z, Math.PI); } catch (e) { return false; }
       if (!lo || !hi || !isFinite(lo[1]) || !isFinite(hi[1]) || hi[1] <= lo[1] + 0.01) return false;
