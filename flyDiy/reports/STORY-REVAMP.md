@@ -10,7 +10,7 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
-## Status for A0 (Tue 24 Nov, seventh and last note, 04:45 UTC) - story-10, the session stands down
+## Status for A0 (Tue 24 Nov, seventh and last note, 04:28 UTC) - story-10 32c2f56a8, the session stands down
 
 - **`claude/ready/story-10`** = story-9 + the rows of the whole pack flown on L40K's sim, their flags on the missions
   (`validated`), the handover's "what is left" by cause, the gaps named from the flights. It CONTAINS story-8 and
