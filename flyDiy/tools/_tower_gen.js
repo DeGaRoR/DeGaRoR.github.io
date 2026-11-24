@@ -65,7 +65,7 @@ function texOf(key, mapName) {
   TEXC.set(ck, t);
   return t;
 }
-const std = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.92, metalness: 0 }, o || {}));
+const std = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ userData: { progOwner: 'town / control towers / finish slots' }, color: c, roughness: 0.92, metalness: 0 }, o || {}));
 function makeMats() {
   const M = {
     steel: std(0x6d6f70, { roughness: 0.55, metalness: 0.7 }), post: std(0x8a7358), siding: std(0xb9b2a6),

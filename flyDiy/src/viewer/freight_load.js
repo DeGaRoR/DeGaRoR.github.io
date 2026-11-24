@@ -48,7 +48,7 @@
     g.userData.frId = it.id;
     const key = modelKey(it);
     const box = new T.Mesh(new T.BoxGeometry(L[0], L[1], L[2]),
-      new T.MeshStandardMaterial({ color: lin(KIND_COL[it.kind] || 0xb0a080), roughness: 0.85, metalness: 0 }));
+      new T.MeshStandardMaterial({ userData: { progOwner: 'freight / load card / item box' }, color: lin(KIND_COL[it.kind] || 0xb0a080), roughness: 0.85, metalness: 0 }));
     box.position.y = L[1] / 2;
     box.userData.frId = it.id;
     g.add(box);
@@ -76,7 +76,7 @@
       g.userData.prop = key;
     }
     // the outline: the pick / the red of a floor over its limit
-    const e = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L[0], L[1], L[2])), new T.LineBasicMaterial({ color: 0xffb257, transparent: true, opacity: 0 }));
+    const e = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L[0], L[1], L[2])), new T.LineBasicMaterial({ userData: { progOwner: 'freight / load card / item outline' }, color: 0xffb257, transparent: true, opacity: 0 }));
     e.position.y = L[1] / 2; e.userData.edge = true;
     g.add(e); g.userData.edge = e;
     return g;
@@ -114,14 +114,14 @@
       if (!S.occ || S.i === 0) continue;
       const y = freightRestY(card, S.back - 0.45, S.back) || floorY;
       const m = new T.Mesh(new T.BoxGeometry(0.42, 1.12, Math.min(0.4, S.w * 0.8)),
-        new T.MeshStandardMaterial({ color: lin(0x63d3cc), transparent: true, opacity: 0.35, depthWrite: false }));
+        new T.MeshStandardMaterial({ userData: { progOwner: 'freight / load card / passenger figure' }, color: lin(0x63d3cc), transparent: true, opacity: 0.35, depthWrite: false }));
       m.position.set(S.back - 0.21, y + 0.56, S.z);
       m.userData.frOcc = true; grp.add(m);
     }
     for (const s of card.seats || []) H.seatVisible(s.i, !st.seatsOut.includes(s.i));
     for (const s of st.seatsOut) {
       const S = card.seats.find(q => q.i === s);
-      const m = new T.Mesh(new T.PlaneGeometry(0.5, S.w), new T.MeshBasicMaterial({ color: lin(0xd3c3ae), transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide }));  // pre-ok: the load card's seat overlay (a UI plate, not light)
+      const m = new T.Mesh(new T.PlaneGeometry(0.5, S.w), new T.MeshBasicMaterial({ userData: { progOwner: 'freight / load card / removed seat plate' }, color: lin(0xd3c3ae), transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide }));  // pre-ok: the load card's seat overlay (a UI plate, not light)
       m.rotation.x = -Math.PI / 2;
       m.position.set(S.back - 0.25, (freightRestY(card, S.back - 0.5, S.back) || floorY) + 0.005, S.z);
       m.userData.frOcc = true; grp.add(m);
@@ -184,7 +184,7 @@
     const t = freightLoadTarget(card, st, id, { x: p.x, z: p.z });
     const it = st.items.find(q => q.id === id), cur = st.placed.find(q => q.id === id);
     const L = t.ok ? dimsOf(t.row) : cur ? dimsOf(cur) : frOrients(it)[0];
-    ghost = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L[0], L[1], L[2])), new T.LineBasicMaterial({ color: t.ok ? 0x7be08a : 0xff5a4a }));
+    ghost = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L[0], L[1], L[2])), new T.LineBasicMaterial({ userData: { progOwner: 'freight / load card / drop ghost' }, color: t.ok ? 0x7be08a : 0xff5a4a }));
     if (t.ok) ghost.position.set((t.row.at.x0 + t.row.at.x1) / 2, t.row.at.y0 + L[1] / 2, (t.row.at.z0 + t.row.at.z1) / 2);
     else ghost.position.set(p.x, floorY + L[1] / 2, p.z);
     grp.add(ghost);

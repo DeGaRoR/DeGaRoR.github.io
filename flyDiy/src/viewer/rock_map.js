@@ -58,9 +58,9 @@ var ROCK_MAP = (() => {
         let m = kinds.get(key);
         // a shrub card: a picture, its SOFT alpha kept (17 Nov, the user on the far bushes: "they should fade better, they should smooth
         // out rather than looking like blotches" - a cut made every sprite a hard-edged blot)
-        if (card) { if (!m) { m = MATLIB.make(THREE, 'basic', { map: map || null, toneMapped: false, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide }); kinds.set(key, m); } return m; }
+        if (card) { if (!m) { m = MATLIB.make(THREE, 'basic', { map: map || null, toneMapped: false, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide }, 'terrain / rock map / sprite bake (shrub card)'); kinds.set(key, m); } return m; }
         if (!m) {
-          m = new THREE.MeshBasicMaterial({ map: map || null, toneMapped: false });
+          m = new THREE.MeshBasicMaterial({ userData: { progOwner: 'terrain / rock map / sprite bake' }, map: map || null, toneMapped: false });
           if (cut > 0) { const uCut = { value: cut }; m.onBeforeCompile = sh => { sh.uniforms.uCut = uCut;
             sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY;').replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockY = position.y;');
             sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY; uniform float uCut;').replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
@@ -102,10 +102,10 @@ var ROCK_MAP = (() => {
     const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
     // ONE MATERIAL FOR EVERY SPRITE OF THE MAP (G584): they were identical, made per species and disposed at every
     // rebuild - so a recentre let the program go and linked it again
-    const mapMat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
+    const mapMat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'terrain / rock map / map' }, map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
     // the bushes' sprites (17 Nov): at a partial opacity (S.bushOpacity), so a lone sprite is a faint tint and only where they gather
     // does the ground take the bushes' colour - the beds fade out as they thin, no hard patch
-    const mapMatBush = MATLIB.make(THREE, 'basic', { map: ATLAS.texture, transparent: true, opacity: S.bushOpacity, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.01 });
+    const mapMatBush = MATLIB.make(THREE, 'basic', { map: ATLAS.texture, transparent: true, opacity: S.bushOpacity, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.01 }, 'terrain / rock map / map (bushes)');
     function rebuild() {
       for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); }
       meshes = [];

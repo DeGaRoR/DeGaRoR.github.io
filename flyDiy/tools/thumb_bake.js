@@ -10,7 +10,8 @@
 // page (plane_thumb.js), never here. 'list:<n>' (THUMBS-ROUND3): a row of builds/lists/plane_lists.json that no other door
 // reaches, its `over` sections laid as the garage lays them. --keys bakes only the named 'cand:' / 'list:' keys and leaves
 // every other picture and index row as it is (--only rewrites the index with what it baked). 'arch:<key>' (PLANE-RENDERS R1): a design
-// card's plane as the new-aeroplane card bakes it, for the authored recreations' cards.
+// card's plane as the new-aeroplane card bakes it, for the authored recreations' cards. 'veh:<file>' (VAN-TOW, 22 Nov: the
+// user saw the vans as a letter in the Fleet's Vehicles tab): a garage-built vehicle of builds/vehicles/, the same profile.
 // --hero (PLANE-RENDERS R2, 8 Nov): THE HERO instead - the wider lists' picture under the studio's good light, plane_shot's
 // hero:38/-12/35 at 1000 x 800 as a take-off (--takeoff: the flown model, flaps at the take-off setting, every lamp, the
 // prop's disc), written 640 x 512 webp into media/heroes/ with media/heroes/index.json { heroes: { key: file } }, the
@@ -28,6 +29,8 @@ const SIZE = HERO ? [640, 512] : [240, 120];
 const only = opt('only', '');
 const cands = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'candidates', 'index.json'), 'utf8')).planes.map(p => p.file);
 const KEYS = opt('keys', '') ? opt('keys', '').split(',') : null;
+const VEH_DIR = path.join(ROOT, 'builds', 'vehicles');
+const vehs = fs.existsSync(VEH_DIR) ? fs.readdirSync(VEH_DIR).filter(f => /\.json$/i.test(f)) : [];   // (VAN-TOW: the garage-built vehicles)
 const want = k => !KEYS && (!only || only === k);
 const designs = vm.runInNewContext('(' + fs.readFileSync(path.join(ROOT, 'src', 'core', '72_contract_data.js'), 'utf8').match(/const CONTRACT_DESIGNS = (\{[\s\S]*?\n\});/)[1] + ')');
 const designIds = want('design') ? Object.keys(designs) : [];
@@ -56,7 +59,8 @@ for (const k of (KEYS || []).concat(PLUS)) {
     fs.writeFileSync(f, JSON.stringify({ what: 'flydiy-build', spec: s }));
     builds.push(f);
   } else if (/^arch:./.test(k)) builds.push(k);   // PLANE-RENDERS R1: a design card's plane, baked in the page (plane_shot arch:)
-  else { console.log('thumb_bake: --keys takes cand:, list: and arch: keys, not ' + k); process.exit(1); }
+  else if (k.startsWith('veh:') && vehs.includes(k.slice(4))) builds.push(path.join(VEH_DIR, k.slice(4)));   // VAN-TOW: a vehicle
+  else { console.log('thumb_bake: --keys takes cand:, list:, arch: and veh: keys, not ' + k); process.exit(1); }
 }
 const args = [path.join(__dirname, 'plane_shot.js'), '--views', VIEW, '--out', tmp, '--secs', opt('secs', '600'), '--build', builds.join(',')];
 if (flag('gpu')) args.push('--gpu');
@@ -75,13 +79,15 @@ const index = { what: 'flydiy-' + FIELD, v: 1, baked: new Date().toISOString().s
 const VEH_KEYS = (() => { try { const V = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'lists', 'vehicles.json'), 'utf8'));
   return new Set((V.vehicles || V.cars || V.rows || (Array.isArray(V) ? V : [])).map(r => r && r.thumb).filter(Boolean)); } catch (e) { return new Set(); } })();
 if (!KEYS) { let old = {}; try { old = JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8'))[FIELD] || {}; } catch (e) {}
-  for (const k in old) if ((/^(arch|list):/.test(k) || (VEH_KEYS.has(k) && fs.existsSync(path.join(OUT, old[k])))) && !(k in index[FIELD])) index[FIELD][k] = old[k]; }
+  for (const k in old) if ((/^(arch|list|veh):/.test(k) || (VEH_KEYS.has(k) && fs.existsSync(path.join(OUT, old[k])))) && !(k in index[FIELD])) index[FIELD][k] = old[k]; }
 const jobs = [];
 for (const png of fs.readdirSync(tmp).filter(f => f.endsWith(SUFFIX)).sort()) {
   const base = png.slice(0, -SUFFIX.length);
   let key = null, file = null;
   const cand = cands.find(c => c.replace(/\.json$/i, '') === base);
+  const veh = !cand && vehs.find(v => v.replace(/\.json$/i, '') === base);
   if (cand) { key = 'cand:' + cand; file = 'cand_' + base.replace(/[^\w.-]+/g, '_') + '.webp'; }
+  else if (veh) { key = 'veh:' + veh; file = 'veh_' + base.replace(/[^\w.-]+/g, '_') + '.webp'; }   // (VAN-TOW)
   else if (/^list_\d+$/.test(base)) { key = 'list:' + base.slice(5); file = base + '.webp'; }
   else if (/^design_/.test(base) && designs[base.slice(7)]) { key = 'design:' + base.slice(7); file = base + '.webp'; }
   else if (/^arch_/.test(base)) {

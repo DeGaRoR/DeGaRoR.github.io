@@ -85,7 +85,7 @@ function texOf(lib, key, mapName) {
   TEXC.set(ck, t);
   return t;
 }
-const std = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.92, metalness: 0 }, o || {}));
+const std = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ userData: { progOwner: 'town / hangars / shell finish slots' }, color: c, roughness: 0.92, metalness: 0 }, o || {}));
 function makeMats() {
   return {
     wall: std(0x8a7f74), stem: std(0x8c8a84), roof: std(0x6f7478, { roughness: 0.6, metalness: 0.3 }),
@@ -298,11 +298,11 @@ function padMesh(THREE, data, extra) {
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(data.uv, 2));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(data.col, 4));
   geo.setIndex(data.idx); geo.computeVertexNormals();
-  const o = Object.assign({ roughness: 1, metalness: 0, vertexColors: true, transparent: true, depthWrite: false,
+  const o = Object.assign({ userData: { progOwner: 'town / hangars / ground pad' }, roughness: 1, metalness: 0, vertexColors: true, transparent: true, depthWrite: false,
                             polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }, extra || {});
   const maps = typeof siteGroundMaps === 'function' ? siteGroundMaps(THREE, data.set, data.tile, (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8) : null;
   if (maps) Object.assign(o, maps); else o.color = 0x8a7a62;
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(o));
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(o));  // progOwner: in the literal above
   m.name = 'shed:pad'; m.castShadow = false; m.receiveShadow = true; m.renderOrder = 4;
   return m;
 }
@@ -665,8 +665,8 @@ function bakeShell(P, S, fy, bags, litOn, F) {
   ext.group.updateMatrixWorld(true);
   const M = ext.mats || {};
   const nameOf = new Map(); for (const k in M) nameOf.set(M[k], k);
-  if (!PANE_MAT) PANE_MAT = new THREE.MeshStandardMaterial({ color: 0x2c3a42, roughness: 0.28, metalness: 0.10 });
-  const paneMat = litOn ? new THREE.MeshStandardMaterial({ color: 0x3a2e1c, roughness: 0.4, emissive: 0xffc68a, emissiveIntensity: 0.9 }) : PANE_MAT;  // pre-ok: held x P on the next line
+  if (!PANE_MAT) PANE_MAT = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / hangars / window panes dark' }, color: 0x2c3a42, roughness: 0.28, metalness: 0.10 });
+  const paneMat = litOn ? new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / hangars / window panes lit' }, color: 0x3a2e1c, roughness: 0.4, emissive: 0xffc68a, emissiveIntensity: 0.9 }) : PANE_MAT;  // pre-ok: held x P on the next line
   if (litOn && typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.preHold) LIGHT_RIG.preHold(paneMat, 'emissiveIntensity', 0.9);   // G2620: the lit panes x P
   const shellName = SHELLS[Math.round(P.shell)];
   const lib = LIB[shellName] || (LIB[shellName] = {});
@@ -719,7 +719,7 @@ function bakeShell(P, S, fy, bags, litOn, F) {
 // pale dust on the cladding), all of the bake on the indirect light and a third on the albedo. The glass stays the pane.
 function shellClone(m, name) {
   const c = m.clone();
-  c.userData = { hangarShell: name };
+  c.userData = { hangarShell: name, progOwner: 'town / hangars / shell copy (' + name + ')' };   // (PERF-TRACE, program_id.js: the copy drops its source's userData - it says whose it is now)
   return c;
 }
 const SHELL_DIRT = { stem: [1.6, 0x453f36], door: [1.2, 0x6d6353], manDoor: [1.2, 0x6d6353], wall: [1.0, 0x6d6353], wallOut: [1.0, 0x6d6353],

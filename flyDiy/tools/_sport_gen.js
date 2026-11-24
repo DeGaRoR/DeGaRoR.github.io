@@ -37,7 +37,7 @@ const D2R = Math.PI / 180;
 const BAGS = ['turf', 'dirt', 'court', 'track', 'line', 'metal', 'post', 'net', 'seat'];
 const EXTRA = ['aoskirt'];
 const T = (typeof THREE !== 'undefined') ? THREE : null;
-const std = (col, o) => T ? new T.MeshStandardMaterial(Object.assign({ color: col, roughness: 0.95, metalness: 0.0 }, o || {})) : { color: col };
+const std = (col, o) => T ? new T.MeshStandardMaterial(Object.assign({ userData: { progOwner: 'town / sports grounds / surfaces and fittings' }, color: col, roughness: 0.95, metalness: 0.0 }, o || {})) : { color: col };
 // A FINISH OF ITS OWN (G393): the premises builds an item with the generator's
 // makeFinish / applyFinish(P, F) / build(P, lod, F), one finish per item
 function makeMats() {

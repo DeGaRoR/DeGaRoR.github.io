@@ -60,7 +60,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const T = { all: false, off: TO ? TO.drop.slice() : ['mk_'], keep: TO ? TO.keep.slice() : [], cut: null, n: 0 };
     try { const q = new URLSearchParams(location.search).get('town'); const g = window.GFX && window.GFX.get ? window.GFX.get() : null;
       // G1526 (POTATO-DEEP): the row under the build budget's cap - potato / laptop / the software rung never build Metlakatla
-      T.all = q !== null ? (q === '1' || q === 'all') : (window.GFX && window.GFX.townAll ? window.GFX.townAll() : !!(g && g.town === 'all')); } catch (e) {}
+      T.all = q !== null ? (q === '1' || q === 'all') : (window.GFX && window.GFX.townAll ? window.GFX.townAll() : !!(g && g.town === 'all'));
+      if (q === 'none') { T.off = ['mk_']; T.keep = []; } } catch (e) {}
     return T;
   })();
   let premisesPlaced = (() => {
@@ -122,6 +123,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
       document.addEventListener('load', kit, true); }
   } } catch (e) {}
+  // AFB-0220: the glider winch as a generated prop (render_premises GEN_PROPS 'gen:winch') - its generator and weathering
+  // asked for when the record places one (they carry their own load order: matlib, the gear kit and aeroweather are core)
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"gen:winch"/.test(premisesPlaced)) window.FLYDIY_LAZY(['_winch_gen', '_winch_weather']); } catch (e) {}
   // THE SCENERY KIT'S PACKS (ASSETS-OCT G2904): lazy (build.js MANIFEST.lazy, every scenery_* entry, the levels last) -
   // asked for when the record holds prop objects (the user's placed models); the premises step waits for pending ones
   try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC && /"kind":\s*"prop"/.test(premisesPlaced)) {

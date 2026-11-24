@@ -79,7 +79,7 @@ const SPLAT_GROUND = (() => {
       if (sv) { if (sv.codes) for (const k in sv.codes) R.codes[k] = Object.assign(R.codes[k] || {}, sv.codes[k]);
         if (sv.knobs) Object.assign(R.knobs, sv.knobs); if (sv.grade) R.grade = sv.grade; if (sv.on !== undefined) R.on = sv.on; } } catch (e) {}
     if (R.on === undefined) R.on = 1;
-    try { if (/[?&]rocks=0/.test(location.search)) R.knobs.rocks = 0; } catch (e) {}   // R1: the rock dial off at the load (not saved)
+    try { if (!/[?&]rocks=1(?:&|$)/.test(location.search)) R.knobs.rocks = 0; } catch (e) {}   // R1 DORMANT (the user, 21 Nov): the previous texture recipes, not saved; ?rocks=1 wakes it
     R.macroExpSaved = !!(sv0 && sv0.knobs && sv0.knobs.macroExp);   // an override sticks; else the auto value (make)
     return R;
   };

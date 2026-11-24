@@ -61,7 +61,7 @@ const D2R = Math.PI / 180;
 //   loaded the payload get the flat colours below, which is how site_ground.js
 //   and every other consumer in this repo degrades.
 const std = (c, o) => new THREE.MeshStandardMaterial(
-  Object.assign({ color: c, roughness: 0.92, metalness: 0 }, o || {}));
+  Object.assign({ userData: { progOwner: 'town / houses / finish slots' }, color: c, roughness: 0.92, metalness: 0 }, o || {}));
 // A FINISH IS AN OBJECT (G275): the materials and the uniform sets they read
 // are made by factories, so a village can dress every house its own way -
 // its own sets, its own paint, its own dirt line, its own sag. The module's
@@ -104,13 +104,13 @@ function makeMats() {
   // smoke too?"): a basic material - it is not lit, it is a haze - drawn
   // transparent and never into the depth buffer, and everything it looks like
   // is in the shader patch below (shadeSmoke)
-  smoke: new THREE.MeshBasicMaterial({ color: 0xb9b5ae, transparent: true,  // pre-ok: x uSmokeLit, which carries P (LAMPS.smoke)
+  smoke: new THREE.MeshBasicMaterial({ userData: { progOwner: 'town / houses / chimney smoke' }, color: 0xb9b5ae, transparent: true,  // pre-ok: x uSmokeLit, which carries P (LAMPS.smoke)
                                        opacity: 1.0, depthWrite: false,
                                        side: THREE.DoubleSide }),
   // THE GROUND SHADOW SKIRT (G281): black, transparent, its alpha per vertex
   // (shadeSkirt), a centimetre above the ground and offset so it never
   // fights the terrain for depth
-  aoskirt: new THREE.MeshBasicMaterial({ color: 0x0a0906, transparent: true,  // pre-ok: a near-black AO darkener (P makes it darker, as it should be)
+  aoskirt: new THREE.MeshBasicMaterial({ userData: { progOwner: 'town / houses / ground shadow skirt' }, color: 0x0a0906, transparent: true,  // pre-ok: a near-black AO darkener (P makes it darker, as it should be)
                                          opacity: 0.85, depthWrite: false,
                                          polygonOffset: true, polygonOffsetFactor: -2,
                                          polygonOffsetUnits: -2 }),
@@ -119,9 +119,9 @@ function makeMats() {
   pane:   std(0x2c3a42, { roughness: 0.28, metalness: 0.10 }),
   // THE FLAG (G309): Alaska's - eight gold stars on a blue field - on the
   // town hall's pole; cloth, so both sides
-  flag:   std(0x1b3f92, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true } }),
-  star:   std(0xf0c44a, { roughness: 0.8, side: THREE.DoubleSide, userData: { flat: true } }),
-  awning: std(0x7a2a24, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true } }),   // the storefront's canvas (G393)
+  flag:   std(0x1b3f92, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true, progOwner: 'town / houses / flag cloth' } }),
+  star:   std(0xf0c44a, { roughness: 0.8, side: THREE.DoubleSide, userData: { flat: true, progOwner: 'town / houses / flag stars' } }),
+  awning: std(0x7a2a24, { roughness: 0.95, side: THREE.DoubleSide, userData: { flat: true, progOwner: 'town / houses / storefront awning' } }),   // the storefront's canvas (G393)
 };
 }
 const MAT = makeMats();
@@ -4474,7 +4474,7 @@ function signMesh(THREE, sign) {
     if (set.img.complete && set.img.naturalWidth) ok(); else if (set.img.addEventListener) set.img.addEventListener('load', ok);
     SIGN_TEXTURES.set(sign.key, t);
   }
-  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.75, metalness: 0.0, transparent: true, alphaTest: 0.5, color: 0xffffff });
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / houses / sign board' }, map: t, roughness: 0.75, metalness: 0.0, transparent: true, alphaTest: 0.5, color: 0xffffff });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(sign.w, sign.h), m);
   mesh.position.set(sign.x, sign.y, sign.z);
   mesh.lookAt(sign.x + sign.nx, sign.y, sign.z + sign.nz);

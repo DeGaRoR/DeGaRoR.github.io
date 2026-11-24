@@ -1,0 +1,160 @@
+{
+  "protocol": "Native-player clock, same build971cc0bd2ef9, private saved Cub/full hangar5120x1271/DPR1/30fps/saved night. Approved mist B/original scuff, all seven systems, town and full runway geometry/cues; only accepted cliff/runtime-bake cuts. Two observations; driver cache not erased. Matched actual-material dry/wet screenshots and GPU patches after cold loading, excluded from timing. Prototype OFF by default. No full-world FPS acceptance.",
+  "runs": [
+    {
+      "id": "control",
+      "label": "Original runway way curves",
+      "valid": true,
+      "seconds": 122.17530000001192,
+      "build": "971cc0bd2ef9",
+      "response": {
+        "samples": 1150,
+        "p50": 16.69999999999709,
+        "p99": 16.800000000017462,
+        "max": 16.89999999999418,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "errors": []
+    },
+    {
+      "id": "candidate",
+      "label": "Baked longitudinal way curves",
+      "valid": true,
+      "seconds": 120.08969999998808,
+      "build": "971cc0bd2ef9",
+      "response": {
+        "samples": 1151,
+        "p50": 16.69999999999709,
+        "p99": 16.800000000017462,
+        "max": 17,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "errors": []
+    }
+  ],
+  "compiler": [
+    {
+      "order": 0,
+      "rows": [
+        {
+          "name": "Original complete pavement program",
+          "seconds": 29.86040000000596,
+          "ok": true,
+          "glError": 0
+        },
+        {
+          "name": "One-dimensional baked way curves",
+          "seconds": 26.037,
+          "ok": true,
+          "glError": 0
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "rows": [
+        {
+          "name": "One-dimensional baked way curves",
+          "seconds": 27.601,
+          "ok": true,
+          "glError": 0
+        },
+        {
+          "name": "Original complete pavement program",
+          "seconds": 26.6295,
+          "ok": true,
+          "glError": 0
+        }
+      ]
+    }
+  ],
+  "visual": {
+    "scope": "Controlled actual rough-runway material row on identical synthetic patch geometry, fixed lighting/camera; dry and wet. Negative control removes only ways. Not a full-world screenshot, FPS result or physical relief geometry check.",
+    "cache": {
+      "enabled": true,
+      "reference": false,
+      "fields": 12,
+      "texels": 157668,
+      "bytes": 2097152,
+      "bakeMs": 17.100000023841858,
+      "step": 0.125,
+      "approximation": "Half-float longitudinal curve samples at 0.125m; transverse track shape stays analytic. Visual acceptance pending."
+    },
+    "row": 240,
+    "pk": [
+      3,
+      14.054054260253906,
+      10.5,
+      155.75
+    ],
+    "micro": [
+      48527,
+      0.23100000619888306,
+      0.136,
+      0,
+      0.012574091710301341,
+      3,
+      0.36,
+      1.24,
+      0.09600000000000002,
+      0.064,
+      2,
+      0.55
+    ],
+    "gpu": {
+      "reference": [
+        13.495296,
+        11.561984,
+        11.588608,
+        11.543552,
+        11.452416,
+        11.134976
+      ],
+      "cached": [
+        13.770752,
+        13.78304,
+        11.84768,
+        11.800576,
+        11.782144,
+        11.849728
+      ]
+    },
+    "glError": 0,
+    "cases": [
+      {
+        "wet": 0,
+        "coveredPixels": 262144,
+        "meanReference": 8.247514088948568,
+        "meanByteError": 0.0006993611653645834,
+        "p99ByteError": 0,
+        "maxByteError": 1,
+        "negativeControlMean": 0.43618138631184894,
+        "images": {
+          "reference": "way-0-reference.png",
+          "cached": "way-0-cached.png",
+          "noCues": "way-0-noCues.png"
+        }
+      },
+      {
+        "wet": 0.8,
+        "coveredPixels": 262144,
+        "meanReference": 7.965773264567058,
+        "meanByteError": 0.0008150736490885416,
+        "p99ByteError": 0,
+        "maxByteError": 1,
+        "negativeControlMean": 0.4619789123535156,
+        "images": {
+          "reference": "way-0.8-reference.png",
+          "cached": "way-0.8-cached.png",
+          "noCues": "way-0.8-noCues.png"
+        }
+      }
+    ]
+  },
+  "visualError": null,
+  "decision": "Prototype OFF. No isolated compiler improvement established in opposite orders. Integrated observations and image/GPU diagnostics must be assessed before further work."
+}

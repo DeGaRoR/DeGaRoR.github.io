@@ -405,7 +405,7 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       return Promise.all([Promise.all(A.map(bm)), Promise.all(N.map(p => Promise.all([bm(p[0]), bm(p[1])])))]).then(([BA, BN]) => new Promise((res, rej) => {
         mk.inputs = Math.round(now() - t0); if (mk.here) { mk.hereMs = Math.round(mk.hereMs); mk.hereMax = +mk.hereMax.toFixed(1); }
         const url = URL.createObjectURL(new Blob([PACK_WORKER_SRC()], { type: 'text/javascript' }));
-        const w = new Worker(url);
+        const w = new Worker(url, { name: 'town / houses / texture array pack' });
         const done = () => { try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); };
         w.onmessage = e => { mk.recv = Math.round(now() - t0); done(); if (e.data && e.data.dA) res(e.data); else rej(new Error(e.data && e.data.err || 'no stacks')); };
         w.onerror = e => { done(); rej(new Error(e && e.message || 'worker error')); };
@@ -434,7 +434,7 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     function hooks() {
       if (baseHooks) return baseHooks;
       const H = HG(); if (!H || !H.shadeHouse || !H.cloudWeather) return null;
-      const dp = ML().make(THREE, 'house', {}); H.shadeHouse(dp, H.makeShadeU()); H.cloudWeather(dp, 0, 0);
+      const dp = ML().make(THREE, 'house', {}, 'town / houses / hook probe (never drawn)'); H.shadeHouse(dp, H.makeShadeU()); H.cloudWeather(dp, 0, 0);
       const F = H.makeFinish(); H.applyFinish(Object.assign({}, H.DEF), F);
       baseHooks = { plain: rawHook(dp), glass: rawHook(F.MAT.glass) };
       return baseHooks;
@@ -467,7 +467,7 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       const band = !!o.lod && !bare, fr = band && !!far && !!o.lod.far, k = kind + ':' + side + ':' + (dith ? 1 : 0) + (band ? (fr ? ':lodfar' : ':lod') : '');
       if (MATS.has(k)) return MATS.get(k);
       const H = hook(kind); if (!H) return null;
-      const m = ML().make(THREE, 'house', { side: side === 2 ? THREE.DoubleSide : THREE.FrontSide, dithering: !!dith });
+      const m = ML().make(THREE, 'house', { side: side === 2 ? THREE.DoubleSide : THREE.FrontSide, dithering: !!dith }, 'town / houses / texture-array walls');
       m.onBeforeCompile = sh => {
         H(sh);
         if (band) {

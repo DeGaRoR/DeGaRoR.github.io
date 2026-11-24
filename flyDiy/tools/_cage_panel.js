@@ -486,7 +486,7 @@ function renderPanel() {
         pair && k === 'gps2' ? 'the MFD: the moving map with the engine strip down its left, on the avionics bus behind its breaker'
           : 'the moving map: the island, your track, the next waypoint and the ground speed, alive on the avionics bus behind its breaker');
       const line = S && S.line === 'centre' ? 'beside the PFD' : S && S.line === 'copilot' ? 'in front of the passenger' : 'in front of the pilot';
-      d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : 'on the panel, ' + line)
+      d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : S.side ? 'on a side arm, on the right wall' : 'on the panel, ' + line)
         : (lay2 ? 'no room on this dash — not fitted, not billed' : '…')));
       if (lay2 && !S) d.lastChild.style.color = '#e08a5a';
     }
@@ -602,7 +602,7 @@ function matFor(name) {
       // G371: the old bezel is the trim finish dialled — rougher, its grain
       // up, ageing 2.4x so the ring's edge chips under the wear macros
       ...(name === 'bezelOld' ? { roughK: 1.8, nrmK: 1.4, wearK: 2.4 } : {}) });
-  if (!m) m = new THREE.MeshStandardMaterial({ color: MAT[name].col, roughness: MAT[name].rough,
+  if (!m) m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / hardware fallback' }, color: MAT[name].col, roughness: MAT[name].rough,
                                                metalness: MAT[name].metal, side: THREE.FrontSide });
   return (matCache[name] = m);
 }
@@ -633,7 +633,7 @@ function facesMaterial() {
   // before by the editor's faceDim and the flight's CK.glow) in the warm
   // colour of a tungsten post. Module-level hook: its source is r128's
   // program cache key.
-  facesMat = new THREE.MeshStandardMaterial({
+  facesMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / gauge faces' },
     map: atlasTex, color: 0xffffff, roughness: 0.85, metalness: 0,
     emissive: new THREE.Color(0xffc47a), emissiveIntensity: 0,  // pre-ok: 0 here; CK.glow drives it x P
     side: THREE.FrontSide });
@@ -654,7 +654,7 @@ function facesMaterial() {
 let needleMat = null;
 function needleMaterial() {
   if (needleMat) return needleMat;
-  needleMat = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: 0.55, metalness: 0,
+  needleMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / needles' }, color: 0xf2efe6, roughness: 0.55, metalness: 0,
     emissive: new THREE.Color(0xffc47a), emissiveIntensity: 0, side: THREE.FrontSide });  // pre-ok: 0 here; cockpit.js drives it x P
   needleMat.userData.aeroskin = 1;
   needleMat.userData.panelSet = 'needle';
@@ -743,7 +743,7 @@ function labelMaterial() {
   // at the magnification the seat sees it at; the sheet's edge is feathered
   // and carries a soft shadow now, and the quad is a hair proud of the
   // plate at renderOrder 3, so it blends over it
-  labelMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+  labelMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / label tapes' }, map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
     transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
   labelMat.userData.aeroskin = 1;
   labelMat.userData.panelSet = 'label';
@@ -785,7 +785,7 @@ function regMaterial() {
   if (regCv) { regCv.width = 512; regCv.height = 160; }
   regTex = regCv ? new THREE.CanvasTexture(regCv) : null;
   if (regTex) { regTex.colorSpace = THREE.SRGBColorSpace; regTex.anisotropy = 8; }
-  regMat = new THREE.MeshStandardMaterial({ map: regTex, color: 0xffffff, roughness: 0.92, metalness: 0,
+  regMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / registration tape' }, map: regTex, color: 0xffffff, roughness: 0.92, metalness: 0,
     transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });   // blended (G320)
   regMat.userData.aeroskin = 1;
   regMat.userData.panelSet = 'reg';
@@ -826,7 +826,7 @@ function keyTapeMaterial() {
   if (cv) { cv.width = 512; cv.height = 160; }
   const tex = cv ? new THREE.CanvasTexture(cv) : null;
   if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
-  keyTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+  keyTapeMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / key tape' }, map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
     transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
   keyTapeMat.userData.aeroskin = 1;
   keyTapeMat.userData.panelSet = 'keytape';
@@ -863,7 +863,7 @@ function wordTapeMaterial() {
   if (cv) { cv.width = 512; cv.height = 160 * n; }
   const tex = cv ? new THREE.CanvasTexture(cv) : null;
   if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
-  wordTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+  wordTapeMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / word tapes' }, map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
     transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
   wordTapeMat.userData.aeroskin = 1;
   wordTapeMat.userData.panelSet = 'wordtape';
@@ -923,7 +923,7 @@ function aoMaterial() {
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     tex = new THREE.CanvasTexture(cv);
   }
-  aoMat = new THREE.MeshBasicMaterial({ map: tex, color: 0x000000, transparent: true, opacity: 1,  // pre-ok: a black AO overlay (a darkener)
+  aoMat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / instrument panel / contact shadow overlay' }, map: tex, color: 0x000000, transparent: true, opacity: 1,  // pre-ok: a black AO overlay (a darkener)
     depthWrite: false, side: THREE.FrontSide, toneMapped: false });
   aoMat.userData.aeroskin = 1;
   aoMat.userData.panelSet = 'ao';
@@ -1556,7 +1556,7 @@ function skiAddonAt(parent) {
     cap.mesh(parent, matFor(col));
     const lg = gaugeAt(parent, 'edGauge_' + drv, on(u, vC, 0.0030), [1, 0, 0], drv, 'skiLamp', { k: 0 });
     K.revolve(lit, [0, 0, 0], nrmOut, prof.map(([r, h]) => [r * 1.02, h * 1.01]), 24, true);
-    lit.mesh(lg, new THREE.MeshBasicMaterial({ color: colLit }));   // pre-ok: a lit lamp's cap (self-lit, as the dash's own)
+    lit.mesh(lg, new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / instrument panel / ski lamp lit cap' }, color: colLit }));   // pre-ok: a lit lamp's cap (self-lit, as the dash's own)
     lg.visible = false;
   }
   // the pump's breaker (the Klixon's): its nut, its bushing, its black button with the rating's white face
@@ -1603,7 +1603,7 @@ function gearTapeMaterial() {
   if (cv) { cv.width = 512; cv.height = 160 * n; }
   const tex = cv ? new THREE.CanvasTexture(cv) : null;
   if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
-  gearTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+  gearTapeMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / gear tape' }, map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
     transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
   gearTapeMat.userData.aeroskin = 1;
   gearTapeMat.userData.panelSet = 'geartape';        // the join buckets it, the flight rebuilds it (material('geartape'))
@@ -1812,7 +1812,7 @@ function cbTapeMaterial(rows) {
     if (cbCv) { cbCv.width = 1024; cbCv.height = 96; }
     cbTex = cbCv ? new THREE.CanvasTexture(cbCv) : null;
     if (cbTex) { cbTex.colorSpace = THREE.SRGBColorSpace; cbTex.anisotropy = 8; }
-    cbMat = new THREE.MeshStandardMaterial({ map: cbTex, color: 0xffffff, roughness: 0.92, metalness: 0,
+    cbMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / breaker tape' }, map: cbTex, color: 0xffffff, roughness: 0.92, metalness: 0,
       transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
     cbMat.userData.aeroskin = 1;
     cbMat.userData.panelSet = 'cbtape';
@@ -1868,12 +1868,12 @@ function gpsMaterial(aspect, kind, ui) {
   // garage; a flight's bind darkens it and the bus lights it; while a flight holds it, this call changes nothing)
   if (G && typeof G.material === 'function') { const m = G.material(aspect, kind, ui || 0); if (m) return m; }
   if (ui) {                                         // (G2815: a pair's second display, on a page without the module)
-    if (!gpsFallback2) { gpsFallback2 = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
+    if (!gpsFallback2) { gpsFallback2 = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / gps second screen fallback' }, color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
       gpsFallback2.userData.aeroskin = 1; gpsFallback2.userData.panelSet = 'gps2'; gpsFallback2.userData.inside = 1; }
     return gpsFallback2;
   }
   if (!gpsFallback) {
-    gpsFallback = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
+    gpsFallback = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / instrument panel / gps screen fallback' }, color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
     gpsFallback.userData.aeroskin = 1; gpsFallback.userData.panelSet = 'gps'; gpsFallback.userData.inside = 1;
   }
   return gpsFallback;
@@ -2546,6 +2546,17 @@ function build(parent, A, P, pilotX) {
       bevelBlockInto(foot, S.cx, S.top + 0.003, S.z + 0.02, S.z - 0.02, 0.022, 0.003, 0.001);
       K.revolve(foot, [S.cx, S.top, S.z + 0.006], [0, 1, 0], [[0.006, 0], [0.006, 0.014], [0, 0.014]], 16, false);
       foot.mesh(grp, matFor('plate'));
+    } else if (S.side) {
+      // THE SIDE ARM (16 Nov 2026, _panel_gen's side mount): a clamp on the wall, a rod inboard to the unit's back,
+      // the unit turned (S.yaw) toward the pilot and leaning back 8 deg, in the panel's own (unrotated) frame
+      sg = new THREE.Group();
+      sg.position.set(S.cx, S.cy, S.z);
+      sg.rotation.set(0.14, S.yaw, 0, 'YXZ');
+      grp.add(sg);
+      const K = KIT(), arm = K.Bag(), xw = S.wallX, xb = S.cx - S.sd * 0.012;
+      K.boxIn(arm, [xw - S.sd * 0.004, S.cy, S.z], [0.004, 0.028, 0.018], [1, 0, 0], [0, 1, 0], [0, 0, 1]);   // the clamp on the wall
+      K.revolve(arm, [xw - S.sd * 0.008, S.cy, S.z], [-S.sd, 0, 0], [[0.006, 0], [0.006, Math.abs(xw - xb) - 0.008], [0, Math.abs(xw - xb) - 0.008]], 14, false);   // the rod
+      arm.mesh(grp, matFor('plate'));
     } else sg = standOn(S.cx, S.cy, Math.min(S.w, S.h) * 0.4);
     sg.name = S.k === 'gps2' ? 'edGps2' : 'edGps';
     gpsUnitAt(sg, S, R.avionics.gps, S.k === 'gps2' ? 1 : 0);

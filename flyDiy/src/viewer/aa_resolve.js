@@ -455,7 +455,7 @@
     }
     function blitMat(fs) {
       const k = (fs === AA_FS_TENT ? 'tent' : fs === AA_FS_UP ? 'up' : 'blit') + (S.linear ? ':lin' : '');
-      return S.mats[k] || (S.mats[k] = new THREE.ShaderMaterial({
+      return S.mats[k] || (S.mats[k] = new THREE.ShaderMaterial({ userData: { progOwner: 'post / AA resolve / blit' },
         uniforms: blitUniforms(),
         vertexShader: AA_VS,
         fragmentShader: fs(),   // G2600: the text built at the material, when light_rig's night eye is loaded

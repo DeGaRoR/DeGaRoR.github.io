@@ -347,14 +347,14 @@ const KEEL = {};
 const BUILDS = [
   { name: 'stock', over: { ...KEEL } },
   { name: 'rod', over: { boomStyle: 1, ...KEEL } },
-  { name: 'twin', spec: FIX('build_v8_twin-boom_2026-09-11.json') },
+  { name: 'twin', spec: FIX('test_copies/build_v8_twin-boom_2026-09-11.json') },
   { name: 'stock+ifr', garage: IFR, over: { ...KEEL } },
   // G3xx: the door inner panel on — the wall controls must stand off it
   { name: 'stock+panel', over: { doorPanelOn: 1, ...KEEL } },
   // C172-CLIP (9 Nov 2026, AVIONICS-PFD-LAND via A0): THE Cessna, the corrected 172, through the load door. Given as
   // BOTH spec and garage: the spec alone draws its body without GARAGE_SPEC (its radio aerials drop), the garage alone
   // draws the stock body. When the V2-172 (builds/cessna172r_2026-11-08.json) is official, this entry swaps to it.
-  { name: 'c172', file: 'builds/cessna172_2026-09-20_corrected.json' },
+  { name: 'c172', file: 'builds/cessna172r_2026-11-08.json' },
 ];
 for (const B of BUILDS) if (B.file) { B.spec = B.garage = LB.loadBuild(B.file).spec; }
 
@@ -363,9 +363,20 @@ for (const B of BUILDS) if (B.file) { B.spec = B.garage = LB.loadBuild(B.file).s
 // written reason, said in HANDOVER. It prints GAP with the reason and is not counted; deeper than its depth, or any
 // fitting not listed, is red as before. The honest fix of each is a garage row (REF_MATCH.md section 7).
 const DECLARED = {
-  'c172|edLegT [gear]|INTO fuselage': { mm: 20.0,
-    why: 'the 172\'s nose strut enters the lower cowl, as on the type; physics-bound (only s2AxZ, the nosewheel\'s station, ' +
-         'clears it); the honest fix is a strut boot where a leg passes the skin (garage gap)' },
+  // ONE-CESSNA (18 Nov): 20.0 -> 22.0 mm, the refit took the strut 1.1 mm deeper (21.1 mm at every pose). The user, 18 Nov:
+  // realistic - the oleo rides up into the cowl for travel, anchored high on the firewall; a skin opening is the perfect fix
+  'c172|edLegT [gear]|INTO fuselage': { mm: 22.0,
+    why: 'the 172\'s nose strut enters the lower cowl, as on the type (the oleo rides up into it, anchored high on the ' +
+         'firewall); physics-bound (only s2AxZ, the nosewheel\'s station, clears it); the honest fix is a strut boot where a ' +
+         'leg passes the skin (garage gap)' },
+  // ONE-CESSNA (18 Nov): the refit tip buries the wingtip pod 35.7 mm (about half its height) at every pose. The user,
+  // 18 Nov, on the picture: half-sunk wing lights look good and are probably realistic - kept as they are
+  'c172|lamp nav [light]|INTO cageLayer:wing': { mm: 36.5,
+    why: 'the wingtip pod sits half sunk in the refit tip; the user judged it on the picture (18 Nov): looks good, realistic' },
+  // CESSNA-REFIT (16 Nov, A0): the same strut, now inside the refit cowl's lower bowl (434.9 mm at every pose on 01f713078)
+  'c172|edLegT [gear]|INTO cageLayer:cowl': { mm: 436.0,
+    why: 'the 172\'s nose strut enters the lower cowl, as on the type; the refit cowl now encloses the strut; physics-bound ' +
+         '(only s2AxZ, the nosewheel\'s station, clears it); the honest fix is a strut boot where a leg passes the skin (garage gap)' },
 };
 const declKey = f => f.build + '|' + f.label + '|' + (f.cross ? 'INSIDE ' : 'INTO ') + f.skin;
 
@@ -499,7 +510,7 @@ function selftest() {
   }
   // 4. a static tail fitting on the twin must be flagged at tail+ (a box glued to the fin, unnamed => static)
   {
-    const S3 = SH.sceneBuild(FIX('build_v8_twin-boom_2026-09-11.json'), {});
+    const S3 = SH.sceneBuild(FIX('test_copies/build_v8_twin-boom_2026-09-11.json'), {});
     const fin = S3.scene.getObjectByName('edFinSkin');
     check(!!fin && !!S3.W.CAGE_BOOMS, 'twin fixture has edFinSkin and CAGE_BOOMS');
     const objs = PH.collect(S3, THREE);

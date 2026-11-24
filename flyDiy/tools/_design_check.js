@@ -94,7 +94,9 @@ const CORE = require(path.join(T, 'flight_core.js'));
 // see PATHS above. EMPTY — meta.role and meta.class, the two it once
 // carried, are retired (G292); the mechanism stays for the next field born
 // while 60_gen_spec.js is another session's hot file.
-const NEW_SPEC_FIELDS = [];
+// (WATER TANKS, 15 Nov: spec.water is absent by design - a build without a water tank carries no key, genWaterClamp
+//  takes an empty list off - so GEN_DEFAULT names no water section; the Archaeopteryx's card carries one)
+const NEW_SPEC_FIELDS = ['water.vessels'];
 
 const fail = [];
 const check = (ok, label, extra) => {
@@ -134,7 +136,11 @@ const PAGE_BASE = Object.assign({}, G.CAGE_PARAMS,
 // T2.1: a retired row (the ring editor's offsets, the lean, taperW) is a
 // legal seed/override input — cageLiftLegacy converts it at every door
 const LEGACY = new Set((G.CAGE_LEGACY_FRAME && Object.keys(G.CAGE_LEGACY_FRAME)) || []);
-const KNOWN_KEY = k => RENDERED.has(k) || (k in PAGE_BASE) || LEGACY.has(k);
+// (15 Nov, the LS4-alike: THE HINGE LAYER'S OWN ROWS - hgHorn, hgFamily - are page rows the layer adds to the defaults
+//  when it loads (_cage_hinge.js hgDef); this panel does not load it, so its table is read off the file)
+const HINGE_KEYS = (() => { try { const src = require('fs').readFileSync(require('path').join(__dirname, '_cage_hinge.js'), 'utf8');
+  const m = /const hgDef = \{([\s\S]*?)\n\};/.exec(src); return new Set(m ? (m[1].match(/\b(hg[A-Za-z]+|doorStop)\s*:/g) || []).map(x => x.replace(/\s*:$/, '')) : []); } catch (e) { return new Set(); } })();
+const KNOWN_KEY = k => RENDERED.has(k) || (k in PAGE_BASE) || LEGACY.has(k) || HINGE_KEYS.has(k);
 
 // one real shakedown, for the target key names (ledger on, so the split's
 // two keys are present the way §5.1 declares targets against them)
@@ -406,14 +412,14 @@ function checkWingRows(A, R) {
   }
   // the notes: said where the resolver moved the row, silent where it did not
   const cases = [
-    ['wgChordTip', { wgChord: 2.10, wgChordTip: 0.55 }, /^flies 0\.7[34] m/],   // §9's own case: 0.945 m at the old 0.45 floor; 0.735 at the sailplane's 0.35 (the LS4)
+    ['wgChordTip', { wgChord: 2.10, wgChordTip: 0.55 }, /^flies 0\.9[45] m/],   // §9's own case: 0.945 m (a slender wing's 0.35 floor is a sailplane's: genTaperLo)
     ['wgChordTip', { wgChord: 1.70, wgChordTip: 1.75 }, /^flies 1\.70 m/],      // the ceiling: tip over root
     ['wgChordTip', { wgChord: 1.60, wgChordTip: 1.10 }, /^$/],
     ['wgSpan', { wgChord: 2.10, wgSpan: 6.5 }, /^flies 8\.40 m/],               // 4 x chord
     ['wgSpan', { wgChord: 0.80, wgSpan: 18 }, /^flies 16\.00 m/],               // 20 x chord
     ['wgSpan', { wgChord: 1.00, wgSpan: 15 }, /^$/],                             // the sail seed
     // the second plane's copy reads its own rows and plane 1's resolve
-    ['w2ChordTip', { w2On: 1, wgChord: 1.60, wgChordTip: 1.10, w2Chord: 2.10, w2ChordTip: 0.55 }, /^flies 0\.7[34] m/],
+    ['w2ChordTip', { w2On: 1, wgChord: 1.60, wgChordTip: 1.10, w2Chord: 2.10, w2ChordTip: 0.55 }, /^flies 0\.9[45] m/],
     ['w2ChordTip', { w2On: 1, wgChord: 2.10, wgChordTip: 0.55, w2Chord: 1.60, w2ChordTip: 1.10 }, /^$/],
   ];
   for (const [k, over, re] of cases) {

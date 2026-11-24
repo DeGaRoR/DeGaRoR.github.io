@@ -91,7 +91,7 @@
     if (A.setUsage && THREE.DynamicDrawUsage) A.setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('aS', A);
     const m = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false,
-      fog: false, toneMapped: false });
+      fog: false, toneMapped: false }, 'fx / contact shadow / blobs');
     const mesh = new THREE.InstancedMesh(g, m, N);
     mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
     mesh.renderOrder = 4; mesh.name = 'contact:blobs'; mesh.matrixAutoUpdate = false;

@@ -215,6 +215,9 @@
     new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
+  const groundCache = typeof GROUND_MATERIAL_CACHE !== 'undefined' && typeof location !== 'undefined' && /[?&]groundcache=[12](&|$)/.test(location.search || '')
+    ? GROUND_MATERIAL_CACHE.install(THREE, renderer, { packed: /[?&]groundcache=2(&|$)/.test(location.search || '') }) : null;
+  if (typeof window !== 'undefined') window.FLYDIY_GROUND_CACHE = groundCache;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   // G1460 (SOFT-GPU) NO ANISOTROPY ON A SOFTWARE RENDERER: SwiftShader filters on the CPU, an anisotropic fetch up to 16
   // bilinear taps - and the ground, the pavement and the props ask for 8-16. three clamps every texture's anisotropy to
@@ -611,13 +614,22 @@
   // src/missions/<id>.json (fetched by index.html's career loader: window.FLYDIY_PACK_TEXT) over the contract tables,
   // ?pack=draft the mission editor's draft (flydiy.missionEditor.draft, the same origin) - once, before the first offers
   // (73b_missions.js missionPackUse: a pack that does not validate changes nothing, said in the console)
+  // THE SWITCH-OVER (STORY-REVAMP, 22 Nov; the user 13 Nov: "the switch-over to the mission system"): A PLAYER'S CAREER
+  // READS THE STORY PACK with no flag - the career loader names it (window.FLYDIY_PACK_ID, build.js CAREER_PACK_DEFAULT:
+  // a career of the welcome menu, never the dev career ?career=1 that the gates' fixtures ride) and fetches it; its
+  // text is kept (flydiy.pack.<id>) so a career starts on its own pack with no network. The career adopts it once
+  // (73b careerPackAdopt, playerLoad below).
   const CAREER_PACK = (() => {
     if (!CAREER_DEV || typeof missionPackUse !== 'function') return null;
     let id = null; try { id = (/[?&]pack=([\w.-]+)/.exec(window.location.search || '') || [])[1] || null; } catch (e) { id = null; }
+    if (!id && !CAREER_DEVFLAG) try { id = window.FLYDIY_PACK_ID || null; } catch (e) { id = null; }
     if (!id) return null;
     let txt = null;
     try { txt = id === 'draft' ? window.localStorage.getItem('flydiy.missionEditor.draft') : (window.FLYDIY_PACK_TEXT || null); } catch (e) { txt = null; }
-    if (!txt) { console.warn('flyDiy (missions): ?pack=' + id + ' - no pack text (not fetched, or no editor draft)'); return { id, ok: false }; }
+    if (id !== 'draft') try { if (txt) window.localStorage.setItem('flydiy.pack.' + id, txt); else txt = window.localStorage.getItem('flydiy.pack.' + id) || null; } catch (e) {}
+    // (the editor keeps its draft as { file, pack }: the pack is what the game reads - before this the draft was never a pack)
+    else try { const j = JSON.parse(txt); if (j && j.pack && !j.what) txt = JSON.stringify(j.pack); } catch (e) {}
+    if (!txt) { console.warn('flyDiy (missions): pack ' + id + ' - no pack text (not fetched, none kept, or no editor draft)'); return { id, ok: false }; }
     try {
       const r = missionPackUse(JSON.parse(txt));
       if (r.ok) console.info('flyDiy (missions): pack ' + id + ' in use - ' + r.n + ' missions' + (r.held.length ? ', ' + r.held.length + ' held (' + r.held.slice(0, 3).map(h => h.id + ': ' + h.why).join('; ') + ')' : ''));
@@ -631,9 +643,25 @@
     const P = (CAREER_PACK && CAREER_PACK.projects || []).find(p => p.id === e.project), name = (P && P.name) || e.project;
     if (e.k === 'works') return name + ': the works started - ready in ' + Math.round((e.ready - (+now || 0)) / 86400) + ' days' + (e.cost ? ' (' + Math.round(e.cost).toLocaleString('en-GB') + ' paid)' : '');
     if (e.k === 'step') return name + ': a step done';
-    if (e.k === 'projectDone') return name + ': done' + (e.abilities && e.abilities.length ? ' - the hangar gains: ' + e.abilities.join(', ') : '');
+    if (e.k === 'projectDone') return name + ': done';
+    // (STORY-REVAMP) what a step or a project gives: the machinery (a kit's name, the machine shop's segment)
+    if (e.k === 'gives') { const m = /^(tech|kit):(.+)$/.exec(e.what || '');
+      const w = m && m[1] === 'kit' && typeof HANGAR_KITS !== 'undefined' && HANGAR_KITS[m[2]] ? 'the ' + HANGAR_KITS[m[2]].name.toLowerCase() : m && m[1] === 'tech' && typeof techName === 'function' && techName(+m[2]) ? 'the machine shop: ' + techName(+m[2]) : null;
+      return w ? 'Given: ' + w : null; }
     return null;
   }
+  // (STORY-REVAMP) THE PROJECTS MEET THE CLOCK: a step's missions done start its works, works ready finish the step - its
+  // world stage noted for the next composition (stageNote), its machinery given. At a flight's end, at the load and
+  // when the clock is saved on the ground with works due (a wait). -> the events' lines (the caller shows them or not)
+  function projectsNow(d) {
+    if (!d || !d.career || !CAREER_PACK || !CAREER_PACK.ok || !CAREER_PACK.projects || !CAREER_PACK.projects.length) return { doc: d, lines: [] };
+    if (!CAREER_DEV) return { doc: d, lines: [] }; const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now), lines = [];
+    for (const e of pj.events) { const L = projectLine(e, now); if (L) lines.push(L); }
+    // (at the load the stages' queue does not exist yet - it is made further down: the note is owed, paid there)
+    if (pj.events.some(e => e.k === 'unlock')) try { stageNote(pj.doc); } catch (e) { projStageOwed = true; }
+    return { doc: pj.events.length ? pj.doc : d, lines };
+  }
+  let projStageOwed = false;
   // G3380 (STORY-INTRO): the opening's arm - set by a NEW career's story start (playerLoad), once; Continue never sets it
   let stIntroArm = false;
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
@@ -676,6 +704,14 @@
       const r = CAREER_DEV ? (skip ? storySkip(player, args) : storyNewCareer(player, args)) : { ok: false, why: 'not a career' };
       if (r.ok) { player = r.doc; stIntroArm = !skip; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
     } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
+    // THE SWITCH-OVER (STORY-REVAMP): the career ADOPTS the pack in use, once (73b careerPackAdopt: the hangars' starting
+    // kits, an accepted mission the pack no longer holds dropped), then its projects meet the clock (works that came
+    // ready while away)
+    if (CAREER_DEV && STORY_PAGE && CAREER_PACK && CAREER_PACK.ok && typeof careerPackAdopt === 'function') try {
+      const a = CAREER_DEV ? careerPackAdopt(player, CAREER_PACK) : { doc: player, notes: [] };
+      if (a.doc !== player) { player = a.doc; for (const n of a.notes) console.info('flyDiy (missions): ' + n); }
+      player = projectsNow(player).doc;
+    } catch (e) { console.warn('flyDiy (missions): the career did not adopt its pack -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
     // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
@@ -720,6 +756,9 @@
     DAY_CLOCK.career({
       get: () => (CAREER_DEV ? careerDay(playerLoad()) : null),
       put: o => { const r = CAREER_DEV ? careerDaySet(playerLoad(), o) : null; if (r && r.ok && r.dt > 0) { player.career.day = r.doc.career.day;
+        // (STORY-REVAMP) a wait on the ground past a project's works: the step is done now (never in flight: the flight's end ticks)
+        try { if (inGarage && CAREER_PACK && CAREER_PACK.ok && player.career.projects) { const nowS = dayAbs(player.career.day);
+          if (Object.keys(player.career.projects).some(k => { const W = player.career.projects[k].works; return W && W.ready <= nowS; })) player = projectsNow(player).doc; } } catch (e) {}
         // G2665 (NIGHT-OPS): the sky it saw rides beside the day (an overcast hides the moon from the next offers)
         try { const cv = CAREER_DEV && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') player.career.cover = Math.round(cv * 100) / 100; } catch (e) {}   // WEATHER-FIXES F7: the effective cover
         playerSave(); } },
@@ -1078,16 +1117,47 @@
   // The cube excludes the subjects (and their lights), while the visible garage
   // includes them. Light counts key every lit program. Dress each compile task
   // exactly like the cube draw, then restore before yielding to another task.
+  const probePadPool = { point: [], spot: [] };
+  function probeLightPadding(subjects) {
+    const enabled = typeof window !== 'undefined' && (window.FLYDIY_PROBE_PAD === true ||
+      (window.FLYDIY_PROBE_PAD !== false && /[?&]probepad=1(&|$)/.test(location.search)));
+    if (!enabled || craftInProbe || !hangarScene) return () => {};
+    const count = { point: 0, spot: 0 }, seen = new Set();
+    for (const subject of subjects) {
+      if (!subject || !subject.traverseVisible) continue;
+      let parent = subject; while (parent && parent !== hangarScene && parent.visible !== false) parent = parent.parent;
+      if (parent !== hangarScene) continue;
+      subject.traverseVisible(light => {
+        if (!light.isLight || seen.has(light) || light.castShadow || !(light.layers.mask & 1)) return;
+        seen.add(light);
+        if (light.isPointLight) count.point++; else if (light.isSpotLight) count.spot++;
+      });
+    }
+    const added = [];
+    for (const kind of ['point', 'spot']) for (let i = 0; i < count[kind]; i++) {
+      let light = probePadPool[kind][i];
+      if (!light) {
+        light = kind === 'point' ? new THREE.PointLight(0, 0, 1) : new THREE.SpotLight(0, 0, 1);   // pre-ok: a ZERO-intensity padding light, in the garage's own scene (it adds no light: nothing for P to scale; ?probepad=1 only)
+        light.position.set(0, 1000000, 0); light.name = 'probe:zero:' + kind + i;
+        probePadPool[kind][i] = light;
+      }
+      hangarScene.add(light); added.push(light);
+    }
+    return () => { for (const light of added) hangarScene.remove(light); };
+  }
   function probeCompileDress(fn) {
     const subjects = [craft, edSit, refSit, bpSit], was = subjects.map(o => o && o.visible);
     const shafts = hangar && hangar.shafts, shWas = shafts && shafts.visible;
     const mask = camera.layers.mask;
+    let unpad = () => {};
     try {
       camera.layers.mask = 1;   // a CubeCamera's default layer; no UI or shadow helper layers
       if (shafts) shafts.visible = false;
+      unpad = probeLightPadding(subjects);
       if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
       return fn();
     } finally {
+      unpad();
       camera.layers.mask = mask;
       if (shafts) shafts.visible = shWas;
       subjects.forEach((o, i) => { if (o) o.visible = was[i]; });
@@ -1219,6 +1289,7 @@
       // subject, and a subject that lights itself is a mirror.
       const subjects = [craft, edSit, refSit, bpSit];
       const subWas = subjects.map(o => o && o.visible);
+      const unpad = probeLightPadding(subjects);
       if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
       // THE GROUND BOUNCE IS OCCLUDED (user: "the plane is lit from the
       // bottom"). This camera sits at 3.2 m in an empty middle of the floor,
@@ -1251,13 +1322,13 @@
         gWas.push([m, m.color.clone()]);
         m.color.multiplyScalar(gb);
       }
-      if (part === 'face') {
+      try { if (part === 'face') {
         // G2662: ONE FACE - the CubeCamera's own update (its targets, its faces' order, the mip rule on the last), the other
         // five renders skipped; the subjects hidden and the ground scaled around this face exactly as around all six
         const rr = renderer.render, want = cam.children[o.face];
         renderer.render = function (sc, c) { if (c === want) return rr.apply(this, arguments); };
         try { cam.update(renderer, hangarScene); } finally { renderer.render = rr; }
-      } else cam.update(renderer, hangarScene);
+      } else cam.update(renderer, hangarScene); } finally { unpad(); }
       for (const [m, c0] of gWas) m.color.copy(c0);
       hangar.shafts.visible = shWas;
       subjects.forEach((o, i) => { if (o) o.visible = subWas[i]; });
@@ -1419,7 +1490,7 @@
       }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome, aprons: hoAprons(),   // HANGAR-OUTDOORS: the world's aprons (the premises' paved surface polygons) for the room's wide apron
-          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
+          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shedOmit(shed), workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
       hviewAttach();   // G3630 (HANGAR-VIEW): the world's view out of the door, if one of this room stands
       hangarScene.background = hangar.background;
@@ -1522,6 +1593,14 @@
   // the live sky and clouds; ?hview=1 keeps the capture as an opt-in for tests only
   // HANGAR-OUTDOORS (the user 17 Nov via A0): the room's outdoors take the world's aprons (the island record's paved surface
   // polygons, world metres) and, once the world's trees are baked, its impostor sheets as tree cards (hangar.treesFrom)
+  // GARAGE-FIXES (21 Nov): the props / recipes a shed leaves out - its own record's AND its plot's offer today (BASE_OFFERS), so
+  // a plot's newer omit (the Shed's wings, the user 21 Nov) reaches a shed bought before it, with no save migration
+  function shedOmit(shed) {
+    const out = new Set(shed && Array.isArray(shed.omit) ? shed.omit : []);
+    try { const id = roomId(), base = shed && typeof shed.base === 'string' ? shed.base : 'HOME', P = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[base] ? BASE_OFFERS[base].plots[id] : null;
+      if (P && Array.isArray(P.omit) && P.shells && P.shells.includes(shed.shell)) for (const k of P.omit) out.add(k); } catch (e) {}
+    return out.size ? [...out] : undefined;
+  }
   function hoAprons() {
     try { const L = world && world.premises && world.premises.rec && world.premises.rec.layers;
       return ((L && L.surface) || []).filter(e => e && (e.apron || e.surface === 5) && Array.isArray(e.poly) && e.poly.length > 2).map(e => e.poly); } catch (e) { return []; }
@@ -1859,7 +1938,9 @@
     const max = Math.max(0, (S && isFinite(S.parked)) ? S.parked : 2);
     // G2690: the INSIDE slots, in slot order (then the floor's aeroplane when the stand holds another build) - a
     // long-term airframe is never drawn; a storage move re-plans from here, the props decoded from their bakes
-    const names = typeof playerResidentsShown === 'function' ? playerResidentsShown(d, id, stand, max)
+    // PERF-SIMPLIFY (the user 22 Nov: the based planes and the storage ON HOLD): no resident drawn unless ?based=1
+    const names = (window.PARKED.based && !window.PARKED.based()) ? []
+      : typeof playerResidentsShown === 'function' ? playerResidentsShown(d, id, stand, max)
       : playerResidents(d, id).filter(n => n !== stand).slice(0, max);
     const q = v => Math.round(v * 4) / 4, clr = typeof PARK_CLR === 'number' ? PARK_CLR : 0.5;
     const has = !!(bb && isFinite(bb.min.x) && bb.max.x > bb.min.x);
@@ -2348,7 +2429,7 @@
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
     const mesh = new THREE.Mesh(geo, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', {  // pre-ok: colorWrite false (the next line)
-      colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
+      colorWrite: false, depthWrite: false, side: THREE.DoubleSide }, 'aircraft / shadow proxy / planform'));
     mesh.castShadow = true; mesh.frustumCulled = false;
     craft.add(mesh);
     proxy = { ids, pos, attr: geo.attributes.position, mesh };
@@ -2908,7 +2989,9 @@
       const k = kind || (m.userData && m.userData.aeroFinish === 'glass' ? 'glass' : 'live');
       const ud = m.userData; m.userData = {};
       let c; try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
-      c.userData = Object.assign({}, ud, { scuff: k, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U, SCUFF.W) });
+      const scClass = SCUFF.S.OPT.specialize && k === 'live' ? SCUFF.S.clsOf(ud && ud.aeroFinish || '') : -1;
+      c.userData = Object.assign({}, ud, { scuff: k, scuffClass: scClass, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U, SCUFF.W, scClass),
+        progOwner: [].concat(ud.progOwner || 'aircraft / skin / undeclared').map(o => o + ' + scuff') });   // PERF-TRACE: the scuffed copy says so (program_id.js)
       if (m.defines) c.defines = Object.assign({}, m.defines);
       for (const q of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[q] !== undefined && c[q] !== undefined) c[q] = m[q];
       // the glass's blend follows the pooled pane's (aeroSetGlassBlend flips the pool's, live)
@@ -2917,7 +3000,8 @@
       // hook in _atmoHook and serves it wrapped (atmo.js install; flown_bake.js hookOf) - an own-property test alone found
       // none, and the copy drew without AEROSKIN's hook (its programs failed to compile: the soft-still run, 2026-10-06)
       const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
-      c.onBeforeCompile = SCUFF.wrap(own, k, SCUFF.U, SCUFF.W);   // (asleep until the first damage: the plain program)
+      c.userData.scuffBase = own;
+      c.onBeforeCompile = SCUFF.wrap(own, k, SCUFF.U, SCUFF.W, scClass);   // (asleep until the first damage: the plain program)
       c.name = (m.name || 'aeroskin') + ':scuff';
       c.needsUpdate = true;
       return c;
@@ -3072,6 +3156,16 @@
       // A BAKED PIECE'S OWN MATERIAL (session 4d): the key from the hardware
       // kit keeps its textures — the props registry rebuilds the very
       // material the editor drew it with
+      // WHEEL-TEX (CAR-3): a textured tyre or rim - its maps redrawn by the very factory the garage drew it with
+      // CAR-TEX (16 Nov): the plate's and the tow sign's faces, redrawn by the factory the garage drew them with
+      if (data.cage && m.carTex && window.CAGE_CARTEX) {
+        const cm = window.CAGE_CARTEX.material(m.carTex);
+        if (cm) return matCache[mn] = cm;
+      }
+      if (data.cage && m.tyreTex && window.CAGE_WHEELTEX) {
+        const tm = window.CAGE_WHEELTEX.material(m.tyreTex);
+        if (tm) return matCache[mn] = tm;
+      }
       if (data.cage && m.propMat && typeof propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');
@@ -3151,6 +3245,7 @@
         // flat-colour groups: opaque unless the payload asks for opacity < 1
         // (the c172 interior is all flat colour and must write depth)
         : Object.assign({ color: m.color !== undefined ? m.color : 0xaad4ea }, common));
+      std.userData.progOwner = 'aircraft / model / body groups';   // PERF-TRACE (program_id.js): whose programs these are
       // G206.1: a bucket the join marked as inside (the crew, a liner that
       // is not AEROSKIN's) takes the cabin's darkness through the small hook
       if (m.inside && typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroCabinHook)
@@ -3769,7 +3864,7 @@
             picks.push({ obj: pg, key: mp[1] === 'throttle' ? 'thr' : mp[1] });
             if (mp[1] !== 'throttle') {
               const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
-                (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
+                (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false }, 'aircraft / cockpit / pick pad'));  // pre-ok: colorWrite false
               pad.userData.pickPad = 1;
               pad.visible = false;     // C4b (G875): the ray answers it unshown (cockpit.js padSwitches says why)
               if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
@@ -4298,6 +4393,26 @@
     // G2004 (DMG-SCUFF): the baked exterior on its wrapped copy, and the record attributes on every geometry a wrapped
     // material draws - now, while the hybrid's views are still in the graph (they park below)
     const scuffAt = SCUFF ? scuffAttach(grp, FBK, scuffMat, SCUFF.W) : null;
+    if (SCUFF && SCUFF.S.OPT.specialize) {
+      // A material may be reused on merged/fold geometry. Specialize ONLY if every
+      // geometry it draws has the same authoritative class used to build damage records.
+      const seen = new Set(), unsafe = new Set();
+      grp.traverse(o => {
+        if (!o.isMesh || !o.geometry) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (!m || !m.userData || m.userData.scuffClass < 0 || m.userData.scuff !== 'live') continue;
+          seen.add(m);
+          if (!wreckBuild.finOf.has(o.geometry) || SCUFF.S.clsOf(wreckBuild.finOf.get(o.geometry)) !== m.userData.scuffClass) unsafe.add(m);
+        }
+      });
+      for (const m of unsafe) {
+        m.userData.scuffClass = -1;
+        m.onBeforeCompile = SCUFF.wrap(m.userData.scuffBase, 'live', SCUFF.U, SCUFF.W, -1);
+        m.userData.scuffRe = h => SCUFF.wrap(h, 'live', SCUFF.U, SCUFF.W, -1);
+        m.needsUpdate = true;
+      }
+      SCUFF.W.classAudit = { checkedMaterials: seen.size, specialized: seen.size - unsafe.size, generalFallback: unsafe.size };
+    }
     // G1121: the kept live meshes (the cabin's; the hybrid's exterior) out of the graph until they are drawn
     for (const F of [fold, foldIn, foldEye]) if (F && F.park) F.park();
     wreckBuild.folds = [fold, foldIn, foldEye].filter(F => F && F.live);   // (DMG-D4b: the hybrid's folds - GATE DMGUPLOAD reads their members' visibility)
@@ -5873,7 +5988,7 @@
     // drew sky only once a Cub parted. And the material's OWN hook, not ATMO's accessor's wrapped one: wrapped twice)
     const ud = m.userData; m.userData = {};
     try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
-    c.userData = Object.assign({}, ud); c.name = (m.name || '') + ':cut';
+    c.userData = Object.assign({}, ud, { progOwner: [].concat(ud.progOwner || 'aircraft / skin / undeclared').map(o => o + ' + cutaway') }); c.name = (m.name || '') + ':cut';   // (PERF-TRACE: the cut copy says so)
     if (m.defines) c.defines = Object.assign({}, m.defines);
     const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
     const f = function (sh, r) { if (own) own.call(this, sh, r); brkCutInject(sh); };
@@ -7023,7 +7138,7 @@
     for (const R of at.recs) { const r = R.sc.rec; for (let v = 0; v < R.nv; v++) { cnt.verts++; if (R.sc.cls === 4) continue; if (r[v * 4]) cnt.crush++; if (r[v * 4 + 1]) cnt.scrape++; if (r[v * 4 + 2]) cnt.torn++; } }
     return { on: true, recs: at.recs.length, attrVerts: at.verts, passes: st.passes, places: st.places, frameMs: +at.frameMax.toFixed(2), tickMs: +st.ms.frameMax.toFixed(2),
              tornMs: +st.ms.torn.toFixed(2), mkMs: +at.mkMs.toFixed(1), bound: at.bound, uploads: at.uploads, bytes: at.bytes, any: at.any, uOn: SCUFF_U().uDmgOn.value,
-             awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre, premade: at.premade == null ? null : at.premade, made: at.made,
+             awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre, premade: at.premade == null ? null : at.premade, made: at.made, optimization: SKIN_SCUFF.OPT, classAudit: at.W.classAudit || null,
              phases: Object.fromEntries(Object.entries(at.ms).map(([k, v]) => [k, +v.toFixed(2)])), bindUs: +at.bindUs.toFixed(2),
              panes: st.panes.map(P => ({ sev: +P.sev.toFixed(3), slot: P.slot })), counts: cnt, busy: S_busy(st) };
   };
@@ -7208,6 +7323,7 @@
   // crack everywhere a mark reaches); a sampler swap links no program
   const CRK = { tex: {}, ready: {}, want: null };
   function glassSheet(U, look) {   // (look: FLYDIY_GLASS_TEST's third argument, 'acrylic' | 'laminated' - a sheet by hand)
+    if (typeof location !== 'undefined' && /[?&]cracks=0(?:&|$)/.test(location.search)) return;
     if (typeof CRACK_SHEET === 'undefined' || !CRACK_SHEET || !U.tCrack) return;
     const gm = def && def.spec && def.spec.cabin && def.spec.cabin.glazingMat, sh = CRACK_SHEET[look] ? look : DMG_GLASS.sheetOf(gm);
     CRK.want = sh; U.uCrackMat.value = DMG_GLASS.matIndex(sh);
@@ -7545,8 +7661,14 @@
     // run down the lane, the circuit, the landing back onto it
     // G1375: the lane the route names (any water aerodrome: Jolene has two), the old SEA when it names land
     const wet = typeof stripSurface === 'function' ? (a => a && stripSurface(a).cls === 'water') : (a => a && a.kind === 'water');
-    if (sim.hydro && (wet(from) || gearNow === 'floats')) {
-      const sea = wet(from) ? from : (world.aerodromes.find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
+    // WATER-START (SEAPLANES 22 Nov, in game: the Petrel - a hull on a retractable tricycle, an AMPHIBIAN to stripGear -
+    // launched with "Start from: On the water" stood on HOME's asphalt apron): the roll-out's own choice, ON THE WATER, puts
+    // any floating build (an amphibian too) on the water lane, as it says ("the base's water lane"); floats always did
+    if (sim.hydro && (wet(from) || gearNow === 'floats' || (START_WATER && gearNow === 'amphibian'))) {
+      // (WATER-START: an amphibian put on the water by the player's choice takes the NEAREST water lane to its field; floats as before)
+      const near = (START_WATER && gearNow === 'amphibian' && !wet(from) && Array.isArray(from.spawn)) ? world.aerodromes.filter(wet).filter(a => Array.isArray(a.spawn))
+        .sort((p, q) => Math.hypot(p.spawn[0] - from.spawn[0], p.spawn[1] - from.spawn[1]) - Math.hypot(q.spawn[0] - from.spawn[0], q.spawn[1] - from.spawn[1]))[0] : null;
+      const sea = wet(from) ? from : (near || world.aerodromes.find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
       placeAtAerodrome(sim, sea);
       patternVisFor(sea, null);
       ap.setRoute(sea, did === 'CIRCUIT' || to === from ? sea : to);
@@ -7830,7 +7952,7 @@
       const F = fx.F, n = F.panels.length;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 9), 3));
-      const m = new THREE.Mesh(g, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', { color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }));
+      const m = new THREE.Mesh(g, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', { color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }, 'aircraft / floats / hull panels'));
       m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
       m.userData.fx = fx;
       craft.add(m); floatMeshes.push(m);
@@ -7862,12 +7984,14 @@
   const WET_N = 1500;
   let wetPool = null;
   function wetPoolGet() {
+    if (typeof location !== 'undefined' && /[?&]waterfx=0(?:&|$)/.test(location.search)) return null;
     if (wetPool || !window.SPRAY || !THREE.InstancedBufferGeometry) return wetPool;
     wetPool = SPRAY.make(THREE, WET_N); wetPool.mesh.visible = false;
     scene.add(wetPool.mesh);
     return wetPool;
   }
   function buildWaterFx() {
+    if (typeof location !== 'undefined' && /[?&]waterfx=0(?:&|$)/.test(location.search)) return;
     if (waterFx) { for (const o of [waterFx.pts, ...waterFx.ribbons]) { if (waterFx.shared && o === waterFx.pts) { o.visible = false; continue; } craft.remove(o); if (waterFx.drops.spray && o === waterFx.pts) waterFx.drops.spray.dispose(); else o.geometry.dispose(); }
       if (waterFx.drops.sheets) { craft.remove(waterFx.drops.sheets.mesh); waterFx.drops.sheets.dispose(); } waterFx = null; }
     const HY = sim && sim.hydro;
@@ -7890,7 +8014,7 @@
     else {
       const pg = new THREE.BufferGeometry();
       pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 3), 3));
-      pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+      pts2 = new THREE.Points(pg, new THREE.PointsMaterial({ userData: { progOwner: 'fx / water spray / points (fallback)' }, color: 0xe8f2ff, size: 0.10, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
       pts2.frustumCulled = false; pts2.renderOrder = 4;
     }
     craft.add(pts2);
@@ -8219,6 +8343,77 @@
     for (let j = 0; j < Math.round(n / 5); j++) { const a = Math.random() * 6.2832, rr = 1.2 * Math.random();
       sprayEmit(D, 1, x + Math.cos(a) * rr, h + 0.15, z + Math.sin(a) * rr, Math.cos(a) * 0.8 * Math.min(2, vy), 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy)); }
     return n; }, get fx() { return waterFx; } };
+  // ---- WATER TANKS: THE SHOWER (the user, 15 Nov: "they will have a release mechanism, and a particle animation when it
+  // releases (water shower). There will be a release point, by default a simple downwards opening") -------------------
+  // The solver drains the tanks while the valve is open (ctl.dump, the 'water dump' key) and says how fast
+  // (out.waterFlow, kg/s - carried whole by the physics worker's snapshot); the outlets are the frame's (sim.water.outlets:
+  // node weights and the drop under the skin). Here, once a frame, each outlet throws droplets - the aeroplane's own
+  // velocity plus the jet out of the hole (Torricelli's ~2.2 m/s down) and a little spread - in proportion to the flow;
+  // in the air they slow toward the air they are in (the wind too) and fall, a curtain trailing behind and down, with a
+  // faint mist hanging in it; a droplet dies on the ground or the water. spray.js's sprites (the floats' look): one pool,
+  // made the first time water leaves, in the world scene; nothing flowing and nothing alive: hidden, nothing integrated.
+  const DUMP_N = 1200, DUMP_DROP = { life: [1.1, 2.0], size: [0.006, 0.016], drag: 1.5 }, DUMP_MIST = { life: [1.2, 2.2], size: [0.22, 0.42], drag: 2.4, grow: 1.4, gravity: 0.12 };
+  let dumpFx = null;
+  function dumpFxGet() {
+    if (dumpFx || !window.SPRAY || !THREE.InstancedBufferGeometry) return dumpFx;
+    const pool = SPRAY.make(THREE, DUMP_N); pool.mesh.visible = false; scene.add(pool.mesh);
+    dumpFx = { pool, p: new Float32Array(DUMP_N * 3), v: new Float32Array(DUMP_N * 3), age: new Float32Array(DUMP_N).fill(9),
+               life: new Float32Array(DUMP_N).fill(1), size: new Float32Array(DUMP_N), seed: new Float32Array(DUMP_N),
+               kind: new Uint8Array(DUMP_N), next: 0, live: 0, acc: 0 };
+    return dumpFx;
+  }
+  function dumpEmit(F, kind, x, y, z, vx, vy, vz) {
+    const q = F.next, K = kind === 2 ? DUMP_MIST : DUMP_DROP;
+    F.next = (F.next + 1) % DUMP_N;
+    F.p[q * 3] = x; F.p[q * 3 + 1] = y; F.p[q * 3 + 2] = z; F.v[q * 3] = vx; F.v[q * 3 + 1] = vy; F.v[q * 3 + 2] = vz;
+    F.age[q] = 0; F.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
+    F.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); F.seed[q] = Math.random(); F.kind[q] = kind; F.live++;
+  }
+  function syncDumpFx(dt) {
+    const W = sim && sim.water, flow = sim && sim.out ? +sim.out.waterFlow || 0 : 0;
+    if ((!W || !(flow > 0)) && !(dumpFx && dumpFx.live)) { if (dumpFx && dumpFx.pool.mesh.visible) dumpFx.pool.mesh.visible = false; return; }
+    const F = dumpFxGet(); if (!F || !(dt > 0)) return;
+    const G = 9.81, P = sim.p;
+    if (W && flow > 0 && W.outlets && W.outlets.length) {
+      const vc = sim.cgVel ? sim.cgVel() : [0, 0, 0];
+      F.acc += 240 * Math.min(3, flow / 1.6) * dt;            // ~240 droplets a second for one tank's full jet
+      while (F.acc >= 1) {
+        F.acc -= 1;
+        const o = W.outlets[(Math.random() * W.outlets.length) | 0];
+        let x = 0, y = 0, z = 0, ws = 0;
+        for (const [i, w] of o.pts) { x += w * P[i * 3]; y += w * P[i * 3 + 1]; z += w * P[i * 3 + 2]; ws += w; }
+        if (!(ws > 0)) continue;
+        x /= ws; y = y / ws - (o.dy || 0.03); z /= ws;
+        const sx = (Math.random() - 0.5) * 0.8, sz = (Math.random() - 0.5) * 0.8;
+        dumpEmit(F, Math.random() < 0.12 ? 2 : 0, x + sx * 0.03, y, z + sz * 0.03, vc[0] + sx, vc[1] - 2.2 - Math.random() * 0.6, vc[2] + sz);
+      }
+    }
+    const S = F.pool, wv = LKW(), ax = wv ? wv[0] : 0, az = wv ? wv[1] : 0;
+    const floor = (x, z) => { const t = world.terrainH ? world.terrainH(x, z) : 0, h = world.waterH ? world.waterH(x, z) : -1e9;
+                              return Math.max(Number.isFinite(t) ? t : -1e9, Number.isFinite(h) ? h : -1e9); };
+    let live = 0;
+    for (let q = 0; q < DUMP_N; q++) {
+      if (F.age[q] >= F.life[q]) { S.hide(q); continue; }
+      live++;
+      const K = F.kind[q] === 2 ? DUMP_MIST : DUMP_DROP;
+      F.age[q] += dt;
+      const dr = Math.max(0, 1 - K.drag * dt);
+      F.v[q * 3] = ax + (F.v[q * 3] - ax) * dr;
+      F.v[q * 3 + 2] = az + (F.v[q * 3 + 2] - az) * dr;
+      F.v[q * 3 + 1] = F.v[q * 3 + 1] * (F.kind[q] === 2 ? dr : 1) - G * (K.gravity != null ? K.gravity : 1) * dt;
+      F.p[q * 3] += F.v[q * 3] * dt; F.p[q * 3 + 1] += F.v[q * 3 + 1] * dt; F.p[q * 3 + 2] += F.v[q * 3 + 2] * dt;
+      if (F.p[q * 3 + 1] < floor(F.p[q * 3], F.p[q * 3 + 2])) { F.age[q] = F.life[q]; S.hide(q); continue; }
+      const a01 = F.age[q] / F.life[q];
+      S.set(q, [F.p[q * 3], F.p[q * 3 + 1], F.p[q * 3 + 2]], [F.v[q * 3], F.v[q * 3 + 1], F.v[q * 3 + 2]], a01,
+            F.size[q] * (1 + ((K.grow || 1) - 1) * a01), F.seed[q], F.kind[q]);
+    }
+    F.live = live;
+    S.mesh.visible = live > 0;
+    S.commit();
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity);
+      skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity); S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
+  }
+  if (typeof window !== 'undefined') window.DUMP_FX = { get fx() { return dumpFx; }, sync: dt => syncDumpFx(dt) };
   // ---- DIRT-DUST (2026-11-09): THE DUST A DRY STRIP THROWS - dust.js's system fed the aeroplane's own numbers --------------
   // The user (9 Nov): "when it's really dry, there are huge puffs of dirt clouds ... at every take-off and landing ... they
   // tend to stay a long time ... and diffuse slowly". dust.js holds the laws (the sources, the puffs, the draw); here, once a
@@ -8589,13 +8784,13 @@
     bPos = new Float32Array(nb * 6); bCol = new Float32Array(nb * 6);
     bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
     bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
-    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true }));   // G2750: see applySkinVis
+    lines = new THREE.LineSegments(bGeo, new THREE.LineBasicMaterial({ userData: { progOwner: 'aircraft / flex cage / beams' }, vertexColors: true, transparent: true }));   // G2750: see applySkinVis
     lines.frustumCulled = false;
     craft.add(lines);
     pGeo = new THREE.BufferGeometry();
     pPos = new Float32Array(sim.n * 3);
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-    pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xc8d8ea,
+    pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ userData: { progOwner: 'aircraft / flex cage / nodes' }, color: 0xc8d8ea,
       size: 0.06, transparent: true }));
     pts.frustumCulled = false;
     craft.add(pts);
@@ -9024,7 +9219,7 @@
     if (n === resHoverName) return;
     resHoverName = n;
     if (resBox) { if (resBox.parent) resBox.parent.remove(resBox); resBox.geometry.dispose(); resBox.material.dispose(); resBox = null; }
-    if (h && THREE.BoxHelper) { resBox = new THREE.BoxHelper(h.grp, 0xffc070); resBox.name = 'residentHover'; hangarScene.add(resBox); }
+    if (h && THREE.BoxHelper) { resBox = new THREE.BoxHelper(h.grp, 0xffc070); resBox.material.userData.progOwner = 'garage / residents / hover box'; resBox.name = 'residentHover'; hangarScene.add(resBox); }
     canvas.style.cursor = h ? 'pointer' : '';
     canvas.title = h ? 'Work on ' + h.name : '';
   }
@@ -9549,10 +9744,31 @@
     if (skiHandSeen !== null && h !== skiHandSeen) sim.ctl.ski = h === null ? null : h;
     skiHandSeen = h;
   }
+  // WATER TANKS: THE DUMP KEY WHOEVER FLIES. The valve is the pilot's whatever the autopilot does with the stick (a
+  // dump is a utility, not a flight control): under the AP the hand is not written (INP.write), so the key's state is
+  // written through sim.ctl when it CHANGES (the worker's ctl patch under ?simw=1) - a reset that shuts the valve is then
+  // not re-opened by a stale hand. A build without water has no dump key and nothing runs.
+  let dumpHandSeen = null;
+  function dumpKeyUnderAP() {
+    if (manual || !INP || typeof INP.dump !== 'function' || !sim.ctl || !('dump' in sim.ctl)) { dumpHandSeen = null; return; }
+    const h = INP.dump();
+    if (dumpHandSeen !== null && h !== dumpHandSeen) sim.ctl.dump = h;
+    dumpHandSeen = h;
+  }
+  // AIRBRAKES: the handle the same way - the pilot's, whoever flies (written when it changes)
+  let abHandSeen = null;
+  function airbrakeKeyUnderAP() {
+    if (manual || !INP || typeof INP.airbrake !== 'function' || !sim.ctl || !('airbrake' in sim.ctl)) { abHandSeen = null; return; }
+    const h = INP.airbrake();
+    if (abHandSeen !== null && h !== abHandSeen) sim.ctl.airbrake = h;
+    abHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
     gearKeyUnderAP();
     skiKeyUnderAP();
+    dumpKeyUnderAP();
+    airbrakeKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -10172,7 +10388,7 @@
       if (out.moved && out.moved.kind === 'in' && out.moved.hangar && out.moved.hangar !== d.here && !out.room) { const g = playerGoTo(d, out.moved.hangar); if (g.ok) { d = g.doc; out.room = out.moved.hangar; } }
       // PROJECTS (13 Nov): the pack's projects meet the stop - a step's missions done start its works, works ready finish
       // the step and set its site's state, the last step grants its abilities (73b careerProjectsTick, the career's day)
-      if (CAREER_DEV && d.career && CAREER_PACK && CAREER_PACK.projects && CAREER_PACK.projects.length) { const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now); d = pj.doc; if (out.career) for (const e of pj.events) { const L = projectLine(e, now); if (L) out.career.lines.push({ k: 'project', ok: true, text: L }); } }
+      { const pj = projectsNow(d); d = pj.doc; if (out.career) for (const L of pj.lines) out.career.lines.push({ k: 'project', ok: true, text: L }); }
       if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
@@ -10376,6 +10592,7 @@
   const STAGE_Q = (CAREER_DEV && typeof stageHost === 'function' && WB.STAGE && WB.STAGE.view) ? stageHost({ tracks: WB.STAGE.tracks }) : null;
   let stageRevealNext = [];
   function stageNote(doc) { if (STAGE_Q && typeof stageTracksOf === 'function') try { STAGE_Q.note(stageTracksOf(doc), 'flight'); } catch (e) { console.warn('stages:', e && e.message); } }
+  if (projStageOwed) { projStageOwed = false; try { stageNote(playerLoad()); } catch (e) {} }   // (STORY-REVAMP: a project's stage that came due at the load)
   const stageWantKey = () => (STAGE_Q ? stageKey(STAGE_Q.pending || STAGE_Q.composed) : '');
   function stageCompose(phase) {
     if (!STAGE_Q) return null;
@@ -10453,7 +10670,8 @@
   function missionLiveWanted(d) {
     const C = d && d.career && d.career.contracts;
     if (!C || typeof careerContract !== 'function' || typeof contractSubsOf !== 'function') return false;
-    return (C.accepted || []).some(id => { const r = careerContract(d, id); return r && contractSubsOf(r).some(s => s && s.place && typeof s.place === 'object'); });
+    // (STORY-REVAMP, COMPETE) ...or a scored event (a STOL line, a course): a landing with a line has no place of its own
+    return (C.accepted || []).some(id => { const r = careerContract(d, id); return r && (contractSubsOf(r).some(s => s && s.place && typeof s.place === 'object') || (typeof missionScored === 'function' && missionScored(r))); });
   }
   function missionLiveArm() {
     const gen = ++MSL.gen;
@@ -10478,7 +10696,15 @@
   function missionLiveFrame(cg) {
     const ML = window.MISSION_LIVE, t = ap ? ap.t : 0;
     if (ML.due(t)) {
-      const ev = ML.tick(t, cg[0], cg[1], cg[2], cg[1] - surfH(cg[0], cg[2]));
+      // (STORY-REVAMP, COMPETE's seam 2) what a STOL line and a gate's attitude are judged on: the wheels on the ground,
+      // the ground speed, the heading / pitch / roll in 73c's convention (compass degrees; nose up +; right wing down +)
+      let more = null;
+      try {
+        const v = sim.cgVel(), [xA, yU] = sim.axes(), zLy = xA[2] * yU[0] - xA[0] * yU[2], R2D = 180 / Math.PI;   // (x aft, y up, z LEFT = x cross y)
+        more = { gnd: sim.wheelsOnGround() > 0, v: Math.hypot(v[0], v[2]), hdg: ((Math.atan2(-xA[0], xA[2]) * R2D) + 360) % 360,
+                 pitch: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * R2D, roll: Math.atan2(zLy, yU[1]) * R2D };
+      } catch (e) { more = null; }
+      const ev = ML.tick(t, cg[0], cg[1], cg[2], cg[1] - surfH(cg[0], cg[2]), more);
       if (ev) for (const e of ev) if (e.k === 'photo') try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now(), mission: e.id } })); } catch (x) {}
     }
     ML.frame(camera, performance.now());
@@ -12337,6 +12563,11 @@
     if (!r.ok) return Promise.resolve({ ok: false, why: r.why, stand: null });
     player = r.doc; playerSave();
     baseId = player.sheds[player.here].base;
+    // PERF-TRACE (22 Nov): THE USER'S OBJECTIVES 5 AND 4, MARKED. The click and the arrival as 'act' events in the flight
+    // log: tools/freeze_ledger.js reads click -> first frame -> the last frame over 100 ms it caused, against the table
+    // (change garage < 5 s with no frame over 100 ms; world -> garage 3 s). Two events, nothing else.
+    const actFR = window.FLIGHT_REC && window.FLIGHT_REC.event ? window.FLIGHT_REC : null, actA = inGarage ? 'garage-change' : 'world-to-garage', actT = actFR ? performance.now() : 0;
+    if (actFR) actFR.event('act', null, { a: actA, s: 1, to: id });
     return new Promise(res => {
       const arrive = () => {
         try {
@@ -12350,6 +12581,7 @@
           } else if (!n) standEmptySet(standEmptyAt(playerLoad(), id));   // EMPTY-STAND: nothing in there - the stand empty
           storeChanged(); try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}   // (the base line follows)
         } catch (e) { console.warn('flyDiy: the garage could not take its plane -', e && e.message); }
+        if (actFR) actFR.event('act', performance.now() - actT, { a: actA, s: 0, to: id });
         res({ ok: true, why: '', stand: slotOnStand() || null });
       };
       if (inGarage) arrive();
@@ -13718,6 +13950,13 @@
     R('cruise', n1(s.VCruise * 3.6, 0) + ' km/h');
     R('climb', n1(s.climbRate, 2) + ' m/s', judge('climb', s.climbRate || 0));
     R('take-off run', n1(s.TORun, 0) + ' m', judge('take-off run', s.TORun || 0));
+    // FLAGSHIP 13 Nov (FLAPLESS-SAID): HOW IT LANDS, when genTrim could not land it as built (genShakedown.landing)
+    if (s.landing) {
+      const Lg = s.landing;
+      if (Lg.flapless) R('landing flaps', 'none: its flap will not trim or flare, it lands at the clean stall', 'bad');
+      else if (Lg.partial != null) R('landing flaps', Math.round(Lg.partial * 100) + ' % of its flap: more will not trim', 'warn');
+      if (Lg.trimFail != null) R('approach trim', 'out of reach: the elevator cannot hold the approach (' + n1(Lg.trimFail, 2) + ')', 'bad');
+    }
     // IN THIN AIR (G72) — only when its own bench test has been run on THIS
     // build, so the section is earned the same way the plaque is.
     const da = densAltIfRun();
@@ -14029,7 +14268,7 @@
     }
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ userData: { progOwner: 'ui / garage labels / sprite' },
       map: tex, transparent: true, depthTest: false, sizeAttenuation: false }));
     sp.scale.set(0.220, 0.028, 1);
     sp.renderOrder = 999;
@@ -14196,7 +14435,7 @@
       const a = new THREE.Vector3().fromArray(M(p)), b = new THREE.Vector3().fromArray(M(q));
       const d = new THREE.Vector3().subVectors(b, a), L = d.length();
       if (!(L > 1e-4)) return;
-      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });  // pre-ok: the garage's design aid (P = 1 there)
+      const mat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / design aids / arrows' }, color: new THREE.Color(col[0], col[1], col[2]), depthTest: false, transparent: true, opacity: 0.92 });  // pre-ok: the garage's design aid (P = 1 there)
       const hl = head ? Math.min(0.35 * L, r * 7) : 0;
       const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L - hl, 8), mat);
       m.position.copy(a).addScaledVector(d, (L - hl) / 2 / L);
@@ -14315,7 +14554,7 @@
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V), 3));
       g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(Cc), 3));
-      const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true }));
+      const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / design aids / lines' }, vertexColors: true, depthTest: false, transparent: true }));
       ls.frustumCulled = false; ls.renderOrder = 997;
       gGrp.add(UIL ? UIL.claim(ls) : ls); gAid.push(ls);
     }
@@ -14479,10 +14718,10 @@
       // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
       // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
       // next build - G1027's trap; one link on the first build is the phone's cost)
-      gIndMeshMat = gIndMeshMat || (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { vertexColors: true, side: THREE.DoubleSide });  // pre-ok: the garage's design aid (P = 1 there)
+      gIndMeshMat = gIndMeshMat || (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { vertexColors: true, side: THREE.DoubleSide }, 'editor / design aids / indicator prisms');  // pre-ok: the garage's design aid (P = 1 there)
       gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
       g.dispose();
-    } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
+    } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ userData: { progOwner: 'editor / design aids / indicator lines' }, vertexColors: true }));
     gInd.frustumCulled = false;
     gGrp.add(UIL ? UIL.claim(gInd) : gInd);
     // DESIGN-AIDS: the other aids, off the same balance the posts stand on (b: the balance job's, else the sheet's)
@@ -14619,7 +14858,7 @@
     // near-black 0x2a2016 came back 255,252,246, so the colour was doing
     // nothing at all. Standard is the family the hangar was lit for and reads
     // ~191,175,144 here, with real per-bag shading.
-    const bagMat = new THREE.MeshStandardMaterial({ color: 0x8a6f4a, roughness: 0.95,
+    const bagMat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / load test / sandbags' }, color: 0x8a6f4a, roughness: 0.95,
                                                     metalness: 0 });
     const bags = rg.bags.map(b => {
       const s = 0.11 + 0.20 * Math.sqrt(b[1] / maxF);
@@ -14638,14 +14877,14 @@
     // disappearing inside the covering.
     const bar = (col, order) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));  // pre-ok: the load test's debug bars (not light)
+        new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / load test / debug bars' }, color: col, depthTest: false }));  // pre-ok: the load test's debug bars (not light)
       m.frustumCulled = false; m.renderOrder = order; m.visible = false;
       grp.add(m); return m;
     };
     // THE RED FLAG is a marker, not a recoloured member: the covering is
     // normally on during a test, and a red line under fabric is no flag at all.
     const flag = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8),
-      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));  // pre-ok: the load test's debug flag (not light)
+      new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / load test / debug flag' }, color: 0xff2a1e, depthTest: false }));  // pre-ok: the load test's debug flag (not light)
     flag.frustumCulled = false; flag.visible = false; flag.renderOrder = 1000;
     grp.add(flag);
     craft.add(grp);
@@ -15548,8 +15787,14 @@
     } catch (e) { return []; }
   };
   const fleetCtx = () => { const d = playerLoad(); return { world, doc: d, flown: slotOnStand(), from: (CAREER_DEV && STORY_PAGE && storyFleetFrom()) || (inGarage ? rollFromId() : fromId),   // (G3585: the Cub waiting at HOME)
-                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6, inside: fleetInside(d) }; };
-  const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(); };
+                            cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6, inside: fleetInside(d), only: fleetOnly(d) }; };
+  // PERF-SIMPLIFY (the user 22 Nov: "We can still load the client cub"): with the based planes on hold the apron stands the
+  // story's client Cub alone (an offline prop, parked.js's static Cub) -> its slot, or null (the based planes drawn: no filter)
+  function fleetOnly(d) {
+    if (!(window.PARKED && PARKED.based) || PARKED.based()) return null;
+    try { const s = CAREER_DEV && STORY_PAGE ? storyOf(d) : null, c = s && s.planes && s.planes.client; return c && d.fleet && d.fleet[c] ? [c] : []; } catch (e) { return []; }
+  }
+  const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(fleetCtx()); };   // (PERF-SIMPLIFY: the context carries `only`, the client Cub)
   const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };
   const fleetStand = () => {
     if (!FS_ON()) return null;
@@ -15602,6 +15847,7 @@
   // G1122: ...and their first draws and buffers under the craft step's screen, in the world's lights (the craft dressed in
   // the world per slice, as the compiles are) - the band's first crossing in flight then draws what is already resident
   function hybridWarm() {
+    if (!window.FLOWN_BAKE) return null;
     if (window.FLOWN_BAKE && FLOWN_BAKE.FB.noWarmDraw) return null;   // (the isolation's ?fbake=nowarmdraw)
     const L = keptGroup().KEPT;
     window.__hyWarm = { n: L.length, model: model, at: performance.now() };   // (GATE FRAMECOST reads it at the crossing)
@@ -15698,9 +15944,28 @@
       .then(() => compileDepthVariants(gs, true, inS))
       .catch(e => console.warn('craft shed compile:', e && e.message)), 'garage', 60000);
   }
+  // The village pool exists before its first update but can still be unarmed.
+  // Key prelinks with the count that the flight will use, then restore the
+  // scene immediately. Otherwise a night boot pays for both 2- and 10-point
+  // ground/pavement programs. ?prelinklamps=0 retains the old timing for A/B.
+  function withWorldLampSignature(fn) {
+    if (typeof location !== 'undefined' && /[?&]prelinklamps=0(&|$)/.test(location.search || '')) return fn();
+    const lamps = WF && WF.premises && WF.premises.lamps;
+    if (!lamps || !WF.lampsWant || !WF.lampsArm) return fn();
+    const was = !!lamps.armed, want = !!WF.lampsWant();
+    if (was === want) return fn();
+    const intensities = lamps.pool.map(l => l.intensity);
+    WF.lampsArm(want);
+    try { return fn(); }
+    finally {
+      WF.lampsArm(was);
+      for (let i = 0; i < intensities.length; i++) lamps.pool[i].intensity = intensities[i];
+    }
+  }
+  const worldPrelinkDress = fn => craftInWorldNow(() => craftLightsGuess(() => withWorldLampSignature(fn)));
   function worldPrelinkSettled() {
     if (!WF || typeof renderer.compileAsync !== 'function' || tripKeys.worldCompile !== undefined) return;
-    const dress = f => craftInWorldNow(() => craftLightsGuess(f));
+    const dress = worldPrelinkDress;
     compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
       .then(() => compileDepthVariants(scene, true, dress))
       .catch(e => console.warn('world prelink (settled):', e && e.message));
@@ -15718,7 +15983,7 @@
     const S = TRIP_BY.worldCompile; let k = null; try { k = S.key(); } catch (e) { k = null; }
     if (k === null || k === tripKeys.worldCompile || k === worldPrelinkGfxK) return worldPrelinkGfxP;   // nothing re-keyed, or on its way
     worldPrelinkGfxK = k;
-    const dress = f => craftInWorldNow(() => craftLightsGuess(f));
+    const dress = worldPrelinkDress;
     const run = () => compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
       .then(() => compileDepthVariants(scene, true, dress))
       .catch(e => console.warn('world prelink (settings):', e && e.message));
@@ -15732,6 +15997,26 @@
   // The material is made here (the game's path makes it with no load callback too: render_premises' turf) and keyed
   // through a one-triangle stand-in with the lot mesh's own layout (position, uv, normal, aSplat, aTone, aAlpha,
   // indexed; receives shadows, casts none), in the world's lights with the craft's, beside the town's prelink
+  // The fine material exists before its streamed tiles do. Submit its exact
+  // layout now, without creating terrain or adding anything to the scene.
+  // Experimental until total-readiness measurements justify enabling it.
+  function fineGroundPrelink() {
+    if (typeof location === 'undefined' || !/[?&]fineprelink=1(&|$)/.test(location.search || '')) return;
+    const fine = WF && WF.ground && WF.ground.fine && WF.ground.fine();
+    if (!fine || !fine.on || fine.off || !fine.mat) return;
+    let geo;
+    try {
+      geo = new THREE.BufferGeometry();
+      for (const [name, size] of [['position', 3], ['normal', 3], ['uv', 2], ['aCoarse', 1], ['aCoarseN', 3]])
+        geo.setAttribute(name, new THREE.BufferAttribute(new Float32Array(3 * size), size));
+      geo.setIndex([0, 1, 2]);
+      const m = new THREE.Mesh(geo, fine.mat);
+      m.receiveShadow = true; m.frustumCulled = true; m.renderOrder = -0.4;
+      const g = new THREE.Group(); g.add(m);
+      compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, worldPrelinkDress)
+        .then(() => geo.dispose(), e => { geo.dispose(); console.warn('fine ground prelink:', e && e.message); });
+    } catch (e) { if (geo) geo.dispose(); console.warn('fine ground prelink:', e && e.message); }
+  }
   function lotGroundPrelink() {
     if (typeof LOT_GROUND === 'undefined' || !LOT_GROUND || typeof LOT_GROUND.material !== 'function') return;
     try {
@@ -15745,7 +16030,7 @@
       const m = new THREE.Mesh(geo, LOT_GROUND.material(THREE, null));
       m.renderOrder = 3; m.receiveShadow = true; m.castShadow = false;
       const g = new THREE.Group(); g.add(m);
-      compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, f => craftInWorldNow(() => craftLightsGuess(f)))
+      compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, worldPrelinkDress)
         .then(() => geo.dispose(), e => { geo.dispose(); console.warn('lot ground prelink:', e && e.message); });
     } catch (e) { console.warn('lot ground prelink:', e && e.message); }
   }
@@ -16126,8 +16411,9 @@
       // binary). Its sources are made here, a group a task (compileSliced), not awaited; the compile step then finds
       // them known (their key) and mostly linked, and compiles what the town added.
       if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function' && !worldPrelink)
-        worldPrelink = compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, f => craftInWorldNow(() => craftLightsGuess(f))).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights - G1085: a task at a time)
+        worldPrelink = compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, worldPrelinkDress).catch(e => console.warn('world prelink:', e && e.message));   // (B9: keyed with the craft's lights - G1085: a task at a time)
       if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function') lotGroundPrelink();
+      if (tripKeys.worldCompile === undefined && WF && typeof renderer.compileAsync === 'function') fineGroundPrelink();
       if (PK_ASYNC()) window.PARKED.async = true;
       if (!WF || !WF.premisesPrewarm || typeof renderer.compileAsync !== 'function') return;
       const cg = tripCg();
@@ -16399,10 +16685,11 @@
       uni(m.uniforms);
       const pr = renderer.properties && renderer.properties.has && renderer.properties.has(m) ? renderer.properties.get(m) : null;
       if (pr && pr.uniforms && pr.uniforms !== m.uniforms) uni(pr.uniforms); };
-    sc.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(grab); });
+    sc.traverse(o => { if (o.material) for (const material of (Array.isArray(o.material) ? o.material : [o.material]))
+      (groundCache ? groundCache.materials(material) : [material]).forEach(grab); });
     if (sc.environment) texs.add(sc.environment);
     if (sc.background && sc.background.isTexture) texs.add(sc.background);
-    const list = [...texs].filter(t => t.image || t.isDataTexture || t.isCanvasTexture);
+    const list = [...texs].filter(t => !(groundCache && groundCache.ownsTexture(t)) && (t.image || t.isDataTexture || t.isCanvasTexture));
     let i = 0;
     return new Promise(res => {
       const tick = () => {
@@ -16453,6 +16740,7 @@
       return;
     }
     if (inGarage && launchAsk()) return;   // TOW-LAUNCH: a float or hull build - on the water, or from the trailer
+    if (inGarage && carBuild()) { DRIVE.enter(); return; }   // CAR: a car rolls out to DRIVE (its own sheet and meshes)
     if (inGarage) {
       // ROLL OUT & FLY flies WHAT YOU DESIGNED (G47.1, user: "roll out
       // and fly still gives the old yellow plane"). Since G65 that is not a
@@ -17350,7 +17638,7 @@
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','abrk','abrkU','wtr','wtrU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
   // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
@@ -17428,6 +17716,20 @@
     for (const s of R.gear.children || []) s.className = 'gl' + (lamp ? ' ' + lamp : '');
     if (R.gearU) R.gearU.textContent = lab;
     if (RD.gear) RD.gear.classList.toggle('warn', (!locked && !up) || /landing$/.test(lab));
+  }
+  // AIRBRAKES AND WATER (the user 15 Nov): two cells beside the gear's, each only on a build that has the thing - the
+  // blue handle's travel (the solver's ctl.airbrake), and the water aboard with DUMPING while the valve runs
+  // (out.waterKg / out.waterFlow: the worker's snapshot carries out whole). Written only when they change
+  let hudAbOn = false, hudAbK = '', hudWtOn = false, hudWtK = '';
+  function hudBrakeWater() {
+    const c = sim && sim.ctl, o = sim && sim.out;
+    const abOn = !!(c && 'airbrake' in c), wtOn = !!(o && typeof o.waterKg === 'number');
+    if (abOn !== hudAbOn || wtOn !== hudWtOn) { hudAbOn = abOn; hudWtOn = wtOn; hudAbK = hudWtK = ''; flInstApply(); }
+    if (abOn && R.abrk) { const e = Math.round(100 * (+c.airbrake || 0)), k = String(e);
+      if (k !== hudAbK) { hudAbK = k; R.abrk.textContent = e + ' %'; if (R.abrkU) R.abrkU.textContent = e > 0 ? 'airbrakes OUT' : 'airbrakes in';
+        if (RD.abrk) RD.abrk.classList.toggle('warn', e > 0); } }
+    if (wtOn && R.wtr) { const kg = Math.round(o.waterKg || 0), run = (o.waterFlow || 0) > 0, k = kg + '|' + run;
+      if (k !== hudWtK) { hudWtK = k; R.wtr.textContent = kg + ' kg'; if (R.wtrU) R.wtrU.textContent = run ? 'water DUMPING' : 'water'; } }
   }
   // THE CONTROLS STRIP (CONTROLS-STRIP, the user 16 Nov: variant A of flydiy design 4AziskHN - "it is instructive to watch
   // what the autopilot does with the stick"). What the hands are doing, from sim.ctl as the solver takes it: the stick
@@ -17548,6 +17850,7 @@
     hudEnergy();
     hudWind();
     hudGear();
+    hudBrakeWater();                       // AIRBRAKES / WATER TANKS: their cells
     ctlStrip();                 // CONTROLS-STRIP: the hands, bottom centre (10 Hz, transforms only)
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
@@ -18700,6 +19003,9 @@
     if (on) { try { flyOpenSet(null); } catch (e) {} }
     if (typeof placeIndicators === 'function') placeIndicators();
     if (photoHook) try { photoHook(on); } catch (e) { console.warn('flyDiy: photo mode -', e && e.message); }   // G3742
+    // PHOTO-ONE (the user 21 Nov: "ensure all UI elements are hidden like the cursor and the back button"): with the photo bar
+    // up (its Done, and Esc) the faint back button is not on the screen
+    shotBack.hidden = !on || photoOn;
     // the canvas re-insets through its CSS transition; measure at both ends
     setTimeout(resize, 0); setTimeout(resize, 220);
   }
@@ -19218,7 +19524,7 @@
     if (p) p.classList.toggle('small', small);
     for (const d0 in RD) {
       if (!RD[d0]) continue;
-      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : small ? PFD_SMALL.indexOf(d0) < 0
+      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : d0 === 'abrk' ? !hudAbOn : d0 === 'wtr' ? !hudWtOn : small ? PFD_SMALL.indexOf(d0) < 0
                             : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' || d0 === 'wind' ||
                                 instOn[d0]);
     }
@@ -19682,6 +19988,9 @@
                     eP: new THREE.Vector3(), eF: new THREE.Vector3() };
   const HEAD_LEVEL_K = 0.10;                                 // the head's tenth toward level
   const HEAD_BOX = { fwd: 0.28, aft: 0.14, up: 0.10, dn: 0.08, side: 0.22 };
+  // PHOTO-ONE (the user 21 Nov: "more camera freedom in interior view for screenshots"): in photo mode the head leans a metre
+  // and more (the cabin's length, its width, standing up) - a framing, not a flight's head
+  const HEAD_BOX_PHOTO = { fwd: 1.4, aft: 1.6, up: 0.7, dn: 0.45, side: 0.9 };
   const HEAD_SPEED = 0.45;                                    // m/s, a head leaning
   const HEADCAM_KEYS = new Set(['KeyZ', 'KeyW', 'KeyS', 'KeyQ', 'KeyD', 'KeyR', 'KeyF']);
   // in flight in the cockpit view, or in the shed's interior preset
@@ -19722,9 +20031,10 @@
     // the box: along the pilot's own axes (forward is -x on every build
     // the join has made, but it is measured, not assumed)
     const along = o.dot(headCam.f), across = o.dot(headCam.r);
-    const alongC = Math.max(-HEAD_BOX.aft, Math.min(HEAD_BOX.fwd, along));
-    const acrossC = Math.max(-HEAD_BOX.side, Math.min(HEAD_BOX.side, across));
-    const yC = Math.max(-HEAD_BOX.dn, Math.min(HEAD_BOX.up, o.y));
+    const HB = (typeof photoOn !== 'undefined' && photoOn && typeof HEAD_BOX_PHOTO !== 'undefined') ? HEAD_BOX_PHOTO : HEAD_BOX;   // (PHOTO-ONE; typeof: a gate's extract of the head has no photo mode)
+    const alongC = Math.max(-HB.aft, Math.min(HB.fwd, along));
+    const acrossC = Math.max(-HB.side, Math.min(HB.side, across));
+    const yC = Math.max(-HB.dn, Math.min(HB.up, o.y));
     o.copy(headCam.f).multiplyScalar(alongC).addScaledVector(headCam.r, acrossC);
     o.y = yC;
     // the look: yaw about the model's up, then pitch about the turned right
@@ -20652,8 +20962,11 @@
     // it), downloads it as flydiy-<date>-<time>.png and brings the interface back. Esc leaves without a picture; a drag
     // frames the shot (the camera's, as always)
     const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: the flight paused, the camera free, a shutter');
-    const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0');
-      return 'flydiy-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
+    // PHOTO-ONE (the user 21 Nov: "the automatic saving and naming"): the picture is named after the aeroplane and the moment
+    const photoPlane = () => { let n = ''; try { n = (def && def.spec && def.spec.meta && (def.spec.meta.name || def.spec.meta.reg)) || (def && def.spec && def.spec.name) || ''; } catch (e) {}
+      return String(n).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32); };
+    const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0'), pl = photoPlane();
+      return 'flydiy-' + (pl ? pl + '-' : '') + (inGarage ? 'shed-' : '') + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
     const photoSave = blob => { if (!blob) return; const a = document.createElement('a'), u = URL.createObjectURL(blob);
       a.href = u; a.download = photoName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
     const flash = mk('div', 'photoFlash');
@@ -20674,17 +20987,40 @@
       '<div class="phActs"><button type="button" id="photoDone">Done</button><button type="button" id="photoShutter" aria-label="Take the picture" title="Take the picture"><i></i></button></div>';
     document.body.appendChild(pBar);
     let photoWas = null;
+    // PHOTO-ONE (the user 21 Nov: "could we integrate the garage screenshot mode and the world screenshot mode? I miss the ability to
+    // set FOV and to have a shutter in the garage mode"): ONE photo mode, the shed's and the flight's - the same bar, the same
+    // shutter, the same named picture. In the shed its rows are the shed's camera: the field of view (the shed's own, given back
+    // at Done) and the two framings, the room (drag to turn, the wheel to come closer) and inside (the crew's eye: WASD to lean,
+    // drag to look - a metre and more of room in photo mode)
+    const phRow = (body, label) => { const r = document.createElement('div'); r.className = 'phRow'; const l = document.createElement('span'); l.textContent = label; r.appendChild(l); body.appendChild(r); return r; };
+    const photoBuildShed = body => {
+      const rf = phRow(body, 'Field of view'), sl = document.createElement('input'), out = document.createElement('b');
+      sl.type = 'range'; sl.min = '15'; sl.max = '90'; sl.step = '1'; sl.value = String(Math.round(camera.fov)); out.textContent = Math.round(camera.fov) + '\u00b0';
+      sl.oninput = () => { camera.fov = +sl.value; camera.updateProjectionMatrix(); out.textContent = sl.value + '\u00b0'; };
+      rf.appendChild(sl); rf.appendChild(out);
+      const rv = phRow(body, 'View');
+      const vb = (t, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.className = 'phPick' + (on ? ' on' : ''); b.onclick = () => { fn(); photoBuild(); }; rv.appendChild(b); };
+      vb('The room', !edEye, () => { if (edEye) { const f = camera.fov; garageCamera(); camera.fov = f; camera.updateProjectionMatrix(); } });
+      vb('Inside', !!edEye, () => { if (!edEye) { const f = camera.fov; enterInterior(); camera.fov = f; camera.updateProjectionMatrix(); } });
+      flNote(body, edEye ? 'Inside: WASD / ZQSD to lean (a metre and more in photo mode), R / F up and down, drag to look.' : 'The room: drag to turn round the aeroplane, the wheel to come closer.');
+    };
     const photoBuild = () => {
       const body = $('photoBody'), keep = body.scrollTop;
       while (body.firstChild) body.removeChild(body.firstChild);
-      FL_BUILD.camera(body);
-      if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
+      if (inGarage) photoBuildShed(body);
+      else {
+        FL_BUILD.camera(body);
+        if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
+        if (cam.mode === 'cockpit') flNote(body, 'Inside: WASD / ZQSD to lean (a metre and more in photo mode), drag to look.');
+      }
+      flNote(body, 'Space takes the picture; H hides this bar (and shows it again).');
       body.scrollTop = keep;
     };
     const photoBegin = () => {
-      if (photoOn || inGarage) return;
-      photoOn = true; photoWas = { mode: cam.mode, fov: cam.fov, held: running };
-      if (running) gmHold(true);
+      if (photoOn) return;
+      photoOn = true; photoWas = { mode: cam.mode, fov: cam.fov, held: running, shed: inGarage, shedFov: camera.fov };
+      if (running && !inGarage) gmHold(true);
+      shotBack.hidden = true; photoIdleArm();
       photoBuild(); pBar.hidden = false;
       if (window.FLYDIY_DRAG) window.FLYDIY_DRAG.register('#photoBar', 'photo', { handle: '.phHead' });
     };
@@ -20692,7 +21028,9 @@
       if (!photoOn) return;
       photoOn = false; pBar.hidden = true;
       const w = photoWas; photoWas = null;
-      if (w) {
+      pBar.classList.remove('phHide'); document.body.classList.remove('phIdle'); clearTimeout(photoIdleT);
+      if (w && w.shed) { if (inGarage) { camera.fov = garageFov; camera.updateProjectionMatrix(); } }   // (the shed's own field of view back)
+      else if (w) {
         if (cam.mode !== w.mode) flCamMode(w.mode);
         if (cam.fov !== w.fov) { cam.fov = w.fov; flSave('Cam', cam); flApplyFov(); }
         if (w.held && !running && !inGarage) gmHold(false);
@@ -20701,6 +21039,17 @@
     photoHook = on => { if (on) photoBegin(); else photoEnd(); };
     const hook0 = flPageHook; flPageHook = () => { if (hook0) hook0(); if (photoOn) photoBuild(); };   // (a pick rebuilds it, as the flyout)
     $('photoShutter').onclick = () => photoTake();
+    // PHOTO-ONE: Space takes the picture, H hides the bar (an OS capture sees the frame alone); the cursor leaves the screen after
+    // a second and a half without moving (the user: "all UI elements are hidden like the cursor")
+    let photoIdleT = 0;
+    function photoIdleArm() { document.body.classList.remove('phIdle'); clearTimeout(photoIdleT); if (photoOn) photoIdleT = setTimeout(() => { if (photoOn) document.body.classList.add('phIdle'); }, 1500); }
+    window.addEventListener('mousemove', () => { if (photoOn) photoIdleArm(); }, { passive: true });
+    window.addEventListener('keydown', e => {
+      if (!photoOn || e.ctrlKey || e.metaKey || e.altKey) return;
+      const tg = e.target && e.target.tagName; if (tg === 'INPUT' && e.target.type !== 'range' || tg === 'TEXTAREA' || tg === 'SELECT') return;
+      if (e.code === 'Space') { e.preventDefault(); e.stopPropagation(); photoTake(); }
+      else if (e.code === 'KeyH') { e.preventDefault(); e.stopPropagation(); pBar.classList.toggle('phHide'); }
+    }, true);
     $('photoDone').onclick = () => shotSet(false);
     bShot.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v10.6H3.5Z"/><circle cx="12" cy="13.2" r="3.4"/></svg>';
     bShot.onclick = () => { gmOpen(false); shotSet(true); };   // photo mode (photoHook): the bar has the shutter and Done
@@ -20885,7 +21234,7 @@
     // later (under load, after the roll-out screen has lifted) - it used to rebuild the aeroplane and
     // walk the flight back into the shed. Measured on Jolene headless: every roll-out ended in the
     // garage 5 s after it began. A late spec waits for the next visit to the garage.
-    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
+    apply(spec) { genSpec = spec; LAST_BAL = null; if (typeof carPreload === 'function') carPreload(); $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     ledger: () => (curKey === 'gen' && def && def.parts ? def.parts.ledger : null),   // G2806: the bill by section
     shake: () => shakeOf(),
@@ -21772,6 +22121,7 @@
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
+    if (!inGarage) syncDumpFx(running ? fdt : 0);                // WATER TANKS: the dump's shower (nothing flowing, nothing alive: nothing)
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
@@ -22296,7 +22646,8 @@
         if (!m) continue;
         const k = m.uuid + '|' + ok + '|' + gk;
         if (seen.has(k)) continue;
-        seen.add(k); reps.push([o, m]); mats.add(m);
+        seen.add(k); reps.push([o, m]);
+        for (const linkedMaterial of (groundCache ? groundCache.materials(m) : [m])) mats.add(linkedMaterial);
       }
     }));
     let job = null;
@@ -22331,8 +22682,16 @@
         // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
         // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
         // per key, and the ones still linking made the settings screen's first frame wait 1.1 s in getProgramInfoLog)
-        const ready = p => !p || !p.isReady || p.isReady();
         const poll = () => {
+          // Many materials share a program. Query each pending program once
+          // per tick, including currentProgram's duplicate in programs. Keep
+          // this cache local to the tick: a false result must be polled again.
+          const readiness = new Map();
+          const ready = p => {
+            if (!p || !p.isReady) return true;
+            if (!readiness.has(p)) readiness.set(p, p.isReady());
+            return readiness.get(p);
+          };
           for (const m of mats) { const pr = renderer.properties.get(m); let ok = ready(pr.currentProgram);
             if (ok && pr.programs) for (const p of pr.programs.values()) if (!ready(p)) { ok = false; break; }
             if (ok) mats.delete(m); }
@@ -22435,7 +22794,7 @@
     const shadowLs = shadowW ? lights.filter(L => L.castShadow && L.shadow && L.shadow.mapSize) : [], scratch = new Map();
     if (shadowW) SHADOW_WARM_LIGHTS = shadowLs.length;
     if (shadowW && !shadowLs.length) return Promise.resolve(0);
-    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial())) : null;  // pre-ok: a warm draw's stand-in, never on screen
+    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial({ userData: { progOwner: 'engine / warm draw / stand-in (never visible)' } }))) : null;  // pre-ok: a warm draw's stand-in, never on screen
     const shadowSwap = () => shadowLs.map(L => {
       const S = L.shadow, C = S.camera;
       const k = [S.map, S.mapSize.x, S.mapSize.y, S.autoUpdate, S.needsUpdate, S.matrix.clone(),
@@ -22708,18 +23067,25 @@
   // TOW-LAUNCH phase 3: THE GLIDER TOW - the car on the line ahead of an engineless aeroplane (drive_mode.js DM.tow*, tow.js).
   // towOn(): the tow's module while its car stands / runs, else null. towWanted(): the flight is a tow - the build has no
   // engine (def.params.nEngines 0: the engineless card), its card's motor is off (genSpec.motorOff), or ?tow=1 (the test)
-  function towOn() { const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.tow && D.tow.active ? D : null; }
+  // (WINCH: the winch launch's module answers first while its cable is laid out - winch_mode.js, the same tow hooks)
+  function towOn() {
+    const Wm = typeof window !== 'undefined' && window.WINCH_MODE; if (Wm && Wm.tow && Wm.tow.active) return Wm;
+    const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.tow && D.tow.active ? D : null;
+  }
   function towWanted() {
     if (curKey !== 'gen' || !def) return false;
     if (def.params && def.params.nEngines === 0) return true;
     if (genSpec && genSpec.motorOff === true) return true;
-    if (START.mode === 'cartow') return true;   // (the sandbox's start chooser: the car tow picked)
+    if (START.mode === 'cartow' || START.mode === 'winch') return true;   // (the sandbox's start chooser: the car tow or the winch picked)
     try { return /[?&]tow(=1|=on|&|$)/.test(location.search); } catch (e) { return false; }
   }
   // TOW-LAUNCH phase 4: THE LAUNCH TRAILER - a float or hull build carried down the runway on a trailer behind the car and
   // flown off it (drive_mode.js DM.trailerStart, trailer.js, trailer_model.js): the menu's "Launch from the trailer" (or
   // ?trailer=1) - an exception to the floats-start-on-water rule, the player's choice, until "Back to the water".
   // trailerWanted(): the build floats (its hydro carries a float or a hull) and the trailer is asked for
+  // WATER-START: the roll-out's choice ON THE WATER (launchAsk below) - an amphibian starts on the water lane, not its stand.
+  // A var (hoisted): applyRoute reads it before this line has run
+  var START_WATER = false;
   const TRAILER = { want: (() => { try { return /[?&]trailer(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })() };
   function trailerAble() { return curKey === 'gen' && !!def && !!(sim && sim.hydro && sim.hydro.floats && sim.hydro.floats.some(f => !f.rec.tip)); }
   function trailerWanted() { return TRAILER.want && trailerAble(); }
@@ -22738,7 +23104,7 @@
         '<button type="button" class="verb" data-k="trailer">From the trailer<span>behind the car on Jolene AFB 13/31</span></button>';
       el.addEventListener('click', e => {
         const b = e.target.closest('button[data-k]'); if (!b) return;
-        TRAILER.want = b.dataset.k === 'trailer'; TOWS.failed = null; el.hidden = true;
+        TRAILER.want = b.dataset.k === 'trailer'; START_WATER = b.dataset.k === 'water'; TOWS.failed = null; el.hidden = true;
         LASK.go = true; try { $('bGo').onclick(); } finally { LASK.go = false; }
       });
       document.addEventListener('keydown', e => { if (e.key === 'Escape' && LASK.el && !LASK.el.hidden) LASK.el.hidden = true; });
@@ -22797,6 +23163,17 @@
     if (TOWS.busy || TOWS.failed || !towWanted() || !window.FLYDIY_LAZY || !sim || sim.wheelsOnGround() === 0) return;
     TOWS.busy = true;
     if (skipAble()) skipToLineup();
+    // WINCH: the winch launch - lined up, the motor off, the winch and its cable laid out at the runway's far end
+    if (START.mode === 'winch') {
+      if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+      const byAp = launchArm();
+      setManual(true, 'tow');
+      window.FLYDIY_LAZY(['tow', 'winch', '_winch_gen', '_winch_weather', 'winch_mode'])
+        .then(() => window.WINCH_MODE.winchStart({ THREE, scene, world, sim, def, hands: byAp }))
+        .then(to => { TOWS.busy = false; console.info('flyDiy winch: on the cable, ' + to); })
+        .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the winch launch could not start -', TOWS.failed); });
+      return;
+    }
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
     const byAp = launchArm();
     setManual(true, 'tow');
@@ -22806,10 +23183,10 @@
       .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the tow could not start -', TOWS.failed); });
   }
   function towHud() {
-    const T = towOn(), tr = T ? T.tow.kind === 'trailer' : trailerWanted();
-    const w = T ? T.towWords() : (TOWS.failed && started && (towWanted() || trailerWanted()) ? 'no ' + (tr ? 'trailer' : 'tow') + ': ' + TOWS.failed : null), n = $('flNotice');
+    const T = towOn(), tr = T ? T.tow.kind === 'trailer' : trailerWanted(), wi = T ? T.tow.kind === 'winch' : START.mode === 'winch';
+    const w = T ? T.towWords() : (TOWS.failed && started && (towWanted() || trailerWanted()) ? 'no ' + (tr ? 'trailer' : wi ? 'winch' : 'tow') + ': ' + TOWS.failed : null), n = $('flNotice');
     if (!n) return;
-    if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
+    if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : wi ? 'winch launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
     else if (n.dataset.tow) { delete n.dataset.tow; $('flNoticeK').textContent = 'not certified'; n.hidden = true; flRender(); }
   }
   // ---- THE SANDBOX'S START CHOOSER (the user, 13 Nov via A0: in sandbox the garage's button is "Fly" (a plane) / "Drive" (a
@@ -22819,7 +23196,7 @@
   //   vehicle()              'plane' | 'car' (window.VEHICLE_KIND of the garage's build)
   //   powered()              a plane with an engine and its motor on
   //   starts()               Promise<[{ id, mode, label, sub, ok, why? }]> - mode 'field' | 'water' | 'trailer' (powered) |
-  //                          'push' | 'cartow' | 'winch' (unpowered; the winch not built yet) | 'place' (a car)
+  //                          'push' | 'cartow' | 'winch' (unpowered: winch_mode.js) | 'place' (a car)
   //   destinations(startId)  Promise<[{ id, label, ok, why? }]> - a plane: the aerodromes its gear may land on (and the
   //                          circuit); a car: 'random' (Surprise me: a reachable place picked at go()), 'LOOP' (out to one
   //                          and back here), then the places its roads reach from that start
@@ -22864,7 +23241,7 @@
       return [
         { id: 'cartow:HOME', mode: 'cartow', label: 'The car tow', sub: 'on a line behind the car down Jolene AFB 13/31, released at height', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
         { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
-        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'the cable and its drum on Jolene AFB 13/31', ok: false, why: 'not built yet' },
+        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'on the cable to the club winch at the far end of Jolene AFB 13/31, released at the top', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
       ];
     },
     async destinations(startId) {
@@ -22913,10 +23290,9 @@
           return DRIVE.enter(to === 'CIRCUIT' ? null : dest, { at: [P.x, P.y, P.z], car, loop });
         });
       }
-      if (mode === 'winch') return Promise.reject(new Error('the winch launch is not built yet'));
       const where = mode === 'field' || mode === 'water' ? id : mode === 'push' ? 'tw_ski' : 'HOME';
       if (!startAero(where)) return Promise.reject(new Error('no such field: ' + where));
-      START.mode = mode === 'push' || mode === 'cartow' ? mode : null; START.push = null;
+      START.mode = mode === 'push' || mode === 'cartow' || mode === 'winch' ? mode : null; START.push = null;
       TRAILER.want = mode === 'trailer'; TOWS.failed = null;
       if (START.spawnBack === undefined) START.spawnBack = spawnId;   // (this roll-out's start only: put back once it rolled out)
       spawnId = where !== baseAeroId() ? where : null;
@@ -23018,6 +23394,28 @@
   // and distance, hud(), drawMap(), flTrip(), planSet() (the To picker), gmHold() (Pause), fullReset() (Restart), the
   // view key. The menu's "Drive the pickup" / "Back to the aeroplane" row; ?drive=1 drives once the boot lifts.
   const DRIVE_Q = (() => { try { return /[?&]drive(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
+  // CAR (13 Nov; the user's must-land list: "put the car in the garage, roll out, pick a destination, drive there"): a
+  // garage build whose car switch is on (window.VEHICLE_KIND, garage.js) rolls out to DRIVE, not to fly - measured on the
+  // stand first (src/vehicle/car_sheet_core.js carFromGarage: its sheet, its tune, a rig of its own meshes), then rolled
+  // out, then handed to the drive mode as its vehicle (DRIVE_MODE.vehicleSource); any other build drives the pickup
+  function carBuild() { try { return curKey === 'gen' && !!genSpec && typeof window.VEHICLE_KIND === 'function' && window.VEHICLE_KIND(genSpec) === 'car'; } catch (e) { return false; } }
+  // the car's measure and its shell fetched as soon as a car stands in the garage (so a synchronous ask - the start
+  // chooser's FLYDIY_GARAGE_CAR - finds them loaded)
+  function carPreload() { try { if (window.FLYDIY_LAZY && typeof window.VEHICLE_KIND === 'function' && genSpec && window.VEHICLE_KIND(genSpec) === 'car') window.FLYDIY_LAZY(['vehicle', 'car_sheet_core']); } catch (e) {} }
+  // TOW-LAUNCH's start chooser (window.FLYDIY_START, its go() without a car) asks the garage for THE CAR ON THE STAND:
+  // { sheet (with its tune), mesh (the body, in the sheet's frame), wheels { <sheet wheel id>: Object3D about its hub },
+  // name } - carFromGarage's own pieces (a fresh rig each call: the drive owns what it is handed); null when the stand
+  // holds no car or its measure is not loaded yet
+  window.FLYDIY_GARAGE_CAR = () => {
+    if (!carBuild()) return null;
+    const C = window.CAR_SHEET; if (!C || typeof vehicleDef !== 'function') { carPreload(); return null; }
+    try {
+      const src = C.carFromGarage(window), def = vehicleDef(src.sheet, src.tune), rig = src.buildRig(THREE, def), wheels = {};
+      def.wheels.forEach((w, i) => { wheels[w.id] = rig.wheels[i]; rig.g.remove(rig.wheels[i]); });
+      const mesh = rig.g.children[0]; rig.g.remove(mesh);
+      return { sheet: Object.assign({}, src.sheet, { tune: src.tune }), mesh, wheels, name: src.name };
+    } catch (e) { console.warn('flyDiy: the car on the stand cannot drive -', e && e.message); return null; }
+  };
   const DRIVE = { busy: false,
     // o (FLYDIY_START, the sandbox's start chooser): { at: [x, y, z] the start (a place's), car: { sheet | sheetUrl, mesh,
     // meshMatrix, wheels, name } the garage's car (drive_mode useCar; absent: the stock pickup) } - returns the promise
@@ -23025,10 +23423,13 @@
       if (driveOn() || DRIVE.busy || !window.FLYDIY_LAZY) return Promise.reject(new Error(driveOn() ? 'already driving' : 'busy'));
       DRIVE.busy = true;
       let done = null, fail = null; const P = new Promise((a, b) => { done = a; fail = b; });
+      // (CAR: the car - the chooser's o.car, else, from the garage, THE CAR ON THE STAND measured before the roll-out
+      //  takes the garage away: FLYDIY_GARAGE_CAR; else the stock pickup)
+      let car = (o && o.car) || null;
       const go = () => {
         const cg = sim.cgPos(), at = o && o.at ? o.at : [cg[0], cg[1], cg[2]];
         window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'drive_mode'])
-          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, (o && o.car) || {}, o && o.loop ? { loop: true } : {})))
+          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, car || {}, o && o.loop ? { loop: true } : {})))
           .then(() => {
             DRIVE.busy = false; running = false; started = false;
             if (craft && craft.parent) craft.parent.remove(craft);
@@ -23041,6 +23442,12 @@
           })
           .catch(e => { DRIVE.busy = false; if (window.DRIVE_MODE && window.DRIVE_MODE.on) window.DRIVE_MODE.leave(); console.warn('flyDiy: the drive mode could not start -', e && e.message); fail(e); });
       };
+      if (inGarage && !car && carBuild()) {
+        window.FLYDIY_LAZY(['vehicle', 'car_sheet_core'])
+          .then(() => { car = window.FLYDIY_GARAGE_CAR(); if (!car) throw new Error('the car on the stand could not be measured'); DRIVE.car = car; rollOut(go); })
+          .catch(e => { DRIVE.busy = false; DRIVE.car = null; alert('This car cannot drive yet: ' + ((e && e.message) || e)); fail(e); });
+        return P;
+      }
       if (inGarage) rollOut(go); else go();
       return P;
     },
@@ -23057,7 +23464,8 @@
     menu() {
       if (!window.FLYDIY_MENU) return;
       const on = !!driveOn();
-      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive the pickup', when: () => !inGarage || on,
+      const nm = DRIVE.car && carBuild() ? DRIVE.car.name : 'the pickup';
+      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive ' + nm, when: () => !inGarage || on,
         act: () => { window.FLYDIY_MENU.close(); if (driveOn()) DRIVE.leave(); else DRIVE.enter(); }, before: 'contracts' });
     } };
   if (typeof window !== 'undefined') window.DRIVE = DRIVE;

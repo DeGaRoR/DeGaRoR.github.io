@@ -43,7 +43,7 @@
   function studioEnvOf(T, R) {
     if (studioEnv) return studioEnv;
     const sc = new T.Scene(), made = [];
-    const add = (geo, c, side) => { const m = new T.MeshBasicMaterial({ color: new T.Color(c, c, c), side }); const o = new T.Mesh(geo, m); made.push(geo, m); sc.add(o); return o; };
+    const add = (geo, c, side) => { const m = new T.MeshBasicMaterial({ userData: { progOwner: 'garage / plane fiche / photo studio env panels' }, color: new T.Color(c, c, c), side }); const o = new T.Mesh(geo, m); made.push(geo, m); sc.add(o); return o; };
     add(new T.BoxGeometry(20, 12, 20), 0.30, T.BackSide);                                   // the walls, a mid grey
     add(new T.PlaneGeometry(20, 20), 0.05, T.DoubleSide).position.set(0, -5.9, 0);         // the floor, dark (a sheen, not a mirror)
     const panel = (w, h, c, x, y, z) => { const o = add(new T.PlaneGeometry(w, h), c, T.DoubleSide); o.position.set(x, y, z); o.lookAt(0, 0, 0); };
@@ -419,6 +419,12 @@
       let s = null; try { s = window.FLYDIY_POD && FLYDIY_POD.shake ? FLYDIY_POD.shake() : null; } catch (e) { s = null; }
       if (!s) s = genShakedown(buildGen(genMigrateSpec(spec)), { corners: false });
       data.specs = { empty: s.empty, allUp: s.mass, Vs: s.Vs, VCruise: s.VCruise, climb: s.climbRate, TORun: s.TORun, engine: s.engineName, propD: s.propD, propBlades: s.propBlades };
+      // FLAGSHIP 13 Nov (FLAPLESS-SAID): how it lands, when genTrim could not land it as built (the shakedown's landing key)
+      if (s.landing) {
+        if (s.landing.flapless) data.specs.landing = 'without its flap (the flap will not trim)';
+        else if (s.landing.partial != null) data.specs.landing = Math.round(s.landing.partial * 100) + ' % flap (more will not trim)';
+        if (s.landing.trimFail != null) data.specs.trimFail = 'out of reach';
+      }
       // FLAGSHIP 10 Nov (A0: the Twin's fiche said 1151 m): A SEAPLANE'S TAKE-OFF IS ITS WATER RUN. TORun is the analytic
       // LAND roll, the floats rolled as wheels (800-1557 m on every float card), so on floats or a hull the row is the
       // bench's Hydroplane test: its lift-off distance when settled and ok, its verdict when not, never the land figure

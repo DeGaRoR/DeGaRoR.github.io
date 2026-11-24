@@ -1,0 +1,30 @@
+{
+  "input": "flyDiy/reports/evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/control/programs-cold.json.gz",
+  "scope": "Compiler screen: complete captured night programs, only unshadowed point-light loop compacted. Same lights, order and RE_Direct calls. No padding, skipped lights, appearance or runtime acceptance. Shadowed-point-light path excluded.",
+  "rows": [
+    {
+      "name": "Coarse ground / original unrolled lights",
+      "chars": 187879
+    },
+    {
+      "name": "Coarse ground / compact point-light loop",
+      "chars": 180787
+    },
+    {
+      "name": "Coarse ground / uniform-bound compact loop",
+      "chars": 180842
+    },
+    {
+      "name": "Road/runway pavement / original unrolled lights",
+      "chars": 192413
+    },
+    {
+      "name": "Road/runway pavement / compact point-light loop",
+      "chars": 185321
+    },
+    {
+      "name": "Road/runway pavement / uniform-bound compact loop",
+      "chars": 185376
+    }
+  ]
+}

@@ -883,6 +883,11 @@ const AERO_SEC = {
   // cage section this table never had, and fell back to bare white)
   boomSkin: { parent: 'body',     role: 'skin', label: 'the twin booms',
               layer: 'boom', noDec: true },
+  // CAR-3 (the user, 13 Nov: "just give it exactly the same material as the fuselage, then it can be reached by the
+  // livery, it can be reached by the weathering system"): the mud guards and the step are the BODY'S skin - its paint,
+  // its finish, its wear, its markings - until repainted
+  fenderSkin: { parent: 'body',   role: 'skin', label: 'the mud guards and step',
+              layer: 'gear' },
   // the wing radiators (27 Oct, the Spitfire's): the wing's paint until repainted
   radSkin:  { parent: 'wingSkin', role: 'skin', label: 'the wing radiators',
               layer: 'rad', noDec: true },
@@ -2839,6 +2844,59 @@ const AERO_KIT = [
         g.lineWidth = Math.max(1, w * wk[i]); aeroKitInk(g, ink[i]); g.stroke();
       }
     } },
+  // ---- CAR-3 (12 Nov, the user: "adding shapes to the livery editor, particularly the mountain shapes ... with colors
+  // which are a little happier"): MOUNTAINS - one to three ranges rising from the layer's bottom edge, the far one
+  // tallest and drawn first, each ridge a run of peaks and saddles (seeded: the same every time), rounded at the tops,
+  // with finer crags as the roughness rises. A: the near range, B: the middle, D: the far. Above the ridges the page is
+  // left empty, so the paint shows. LAST IN THE LIST: a saved layer's pattern is its index (14: after the sweep stripes, 13 - the merge onto master, 22 Nov).
+  { name: 'mountains', cn: ['near range', 'middle range', 'far range'],
+    help: 'layered mountain ranges rising from the layer’s bottom edge - the near range lowest, the far one tallest ' +
+          '(1 to 3 ranges). Peaks count along the layer; height is the far range’s, of the layer’s depth; roughness ' +
+          'adds crags to the ridges. Above the ridges the paint shows',
+    k: [{ n: 'peaks', lo: 2, hi: 16, st: 1, def: 5 },
+        { n: 'height (of the depth)', lo: 0.2, hi: 1, st: 0.01, def: 0.8 },
+        { n: 'ranges', lo: 1, hi: 3, st: 1, def: 3 },
+        { n: 'roughness', lo: 0, hi: 1, st: 0.01, def: 0.35 }],
+    draw(g, P, o) {
+      const n = Math.max(2, Math.round(o.p)), H = Math.max(0.05, Math.min(1, o.q || 0.8));
+      const nr = Math.max(1, Math.min(3, Math.round(o.r || 3))), rough = Math.max(0, Math.min(1, o.s || 0));
+      // a hash, not Math.random: the same layer draws the same ridge on every page and every reload
+      const rnd = (i, j, k) => { const x = Math.sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453; return x - Math.floor(x); };
+      const cols = [o.d, o.b, o.a].slice(3 - nr);            // far first; one range = the near colour alone
+      const tops = [1, 0.72, 0.46].slice(3 - nr);
+      for (let j = 0; j < nr; j++) {
+        const top = H * tops[j], np = n + j * 2, base = top * 0.42, span = top - base;
+        // the ridge: a saddle, a peak, a saddle ... from overhang to overhang
+        const pts = [];
+        for (let i = -1; i <= np; i++) {
+          const xp = (i + 0.5 + (rnd(i, j, 1) - 0.5) * 0.5) / np, xs = (i + 1 + (rnd(i, j, 2) - 0.5) * 0.3) / np;
+          pts.push([xp, base + span * (0.55 + 0.45 * rnd(i, j, 3))]);
+          pts.push([xs, base + span * (0.05 + 0.3 * rnd(i, j, 4))]);
+        }
+        // the crags: each slope split, its points pushed up or down by the roughness
+        const fine = [];
+        for (let i = 0; i + 1 < pts.length; i++) {
+          const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+          fine.push([x0, y0]);
+          if (rough > 0) for (let k = 1; k < 4; k++) {
+            const t = k / 4;
+            fine.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + (rnd(i, j, 10 + k) - 0.5) * rough * span * 0.35]);
+          }
+        }
+        fine.push(pts[pts.length - 1]);
+        const X = q => q[0] * P, Y = q => P - q[1] * P;
+        g.beginPath(); g.moveTo(-2, P + 4); g.lineTo(X(fine[0]), Y(fine[0]));
+        // rounded tops: a quadratic through the midpoints, each point its control (sharper as the points crowd)
+        for (let i = 1; i + 1 < fine.length; i++) {
+          const mx = (X(fine[i]) + X(fine[i + 1])) / 2, my = (Y(fine[i]) + Y(fine[i + 1])) / 2;
+          g.quadraticCurveTo(X(fine[i]), Y(fine[i]), mx, my);
+        }
+        const last = fine[fine.length - 1];
+        g.lineTo(X(last), Y(last)); g.lineTo(P + 2, P + 4); g.closePath();
+        aeroKitInk(g, cols[j]); g.fill();
+      }
+      g.globalCompositeOperation = 'source-over';
+    } },
 ];
 
 // ---- LIVERY-5: the pattern generator's lattice and shapes ----------------------------------------------------------
@@ -4351,7 +4409,12 @@ const AERO_ALBEDO_FS = `
       vec2 dd = boxC;
       if (mode < 0.5) onMe = 0.0;
     #endif
-    float cr = cos(uDecC[di].x), sr = sin(uDecC[di].x);
+    // REG-TURN-MIRROR (the user 21 Nov: "For the 2 sides registration, the turn parameter should be applied the other
+    // direction to the other face, otherwise they drift in orientation"): a mirrored face (the far flank, the underside)
+    // lays the letters along a negated axis, so the same turn tilts them the other way in space - one rising aft, the
+    // other fore. The turn takes the face's own mirror sign (the one its coordinate used); paint (noMirror) keeps 1.
+    float dsg = mix(mix(mir, smir, step(0.5, mode)), pmir, step(1.5, mode));
+    float cr = cos(uDecC[di].x), sr = sin(uDecC[di].x) * dsg;
     dd = vec2(dd.x * cr - dd.y * sr, dd.x * sr + dd.y * cr);
     vec2 q = dd / uDecA[di].zw * 0.5 + 0.5;
     vec2 ib = step(vec2(0.0), q) * step(q, vec2(1.0));
@@ -5016,7 +5079,7 @@ function aeroGlassTint(THREE, o) {
     const col = o.tintLin != null ? new THREE.Color(o.tintLin)
               : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
     const uTint = T.uniform(col), uA = T.uniform(G('opacity')), uFres = T.uniform(G('fresnel'));
-    const m = new THREE.MeshBasicNodeMaterial();
+    const m = new THREE.MeshBasicNodeMaterial({ userData: { progOwner: 'aircraft / glass / pane (TSL)' } });
     const nv = T.clamp(T.dot(T.normalView, T.positionViewDirection), 0.0, 1.0);
     const fr = T.pow(T.oneMinus(nv), 5.0).mul(uFres);
     const pass = T.mix(T.vec3(1.0), uTint, T.clamp(uA.mul(2.0), 0.0, 1.0));
@@ -5038,7 +5101,7 @@ function aeroGlassTint(THREE, o) {
   const col = o.tintLin != null ? new THREE.Color(o.tintLin)
             : aeroLinear(THREE, o.tint != null ? o.tint : GLASS_DEF.tint);
   const W = aeroWx();
-  const m = new THREE.ShaderMaterial({
+  const m = new THREE.ShaderMaterial({ userData: { progOwner: 'aircraft / glass / pane (shader)' },
     uniforms: Object.assign({ uTint: { value: col }, uA: { value: G('opacity') },
                 uFres: { value: G('fresnel') },
                 uWearK: { value: o.wear != null ? Math.max(0, Math.min(1, +o.wear)) : 1 } },
@@ -5068,7 +5131,7 @@ function aeroGlassTint(THREE, o) {
 let AERO_GNONE = null;
 function aeroGlassNone(THREE) {
   if (!AERO_GNONE) {
-    AERO_GNONE = new THREE.MeshBasicMaterial({ visible: false });  // pre-ok: invisible (visible: false)
+    AERO_GNONE = new THREE.MeshBasicMaterial({ userData: { progOwner: 'aircraft / skin / hidden group (never drawn)' }, visible: false });  // pre-ok: invisible (visible: false)
     AERO_GNONE.userData.aeroskin = 1;
   }
   return AERO_GNONE;
@@ -5382,6 +5445,8 @@ function aeroMaterial(THREE, o) {
     m.clearcoatRoughness = row.ccR != null ? row.ccR : 0.2;
     m.transmission = 0;
   }
+  // PERF-TRACE (program_id.js): whose programs these are - the aeroplane's skin, by what it is and its finish
+  m.userData.progOwner = 'aircraft / skin / ' + (o.struct ? 'structure' : o.inside ? 'cabin liner' : 'surface') + ' (' + (o.finish || 'plain') + ')';
   m.userData.aeroU = U;
   m.userData.aeroD = aeroDecUniforms(THREE);
   m.userData.aeroskin = 1;             // the G38 understudy must skip this
@@ -5487,7 +5552,7 @@ function aeroGlass(THREE, o) {
     uGlassE: { value: new THREE.Vector4(ext[0], ext[1], ext[2], ext[3]) },
     uGlassB: { value: new THREE.Vector4(G('fresnel'), G('diffuse'), 0, 0) },
   };
-  const m = new THREE.MeshPhysicalMaterial({
+  const m = new THREE.MeshPhysicalMaterial({ userData: { progOwner: 'aircraft / glass / pane (physical)' },
     color: o.tintLin != null ? new THREE.Color(o.tintLin)
          : aeroLinear(THREE, o.tint != null ? o.tint : 0xaec9d8),
     // G206: the bulk is nearly a mirror and the clear layer carries the

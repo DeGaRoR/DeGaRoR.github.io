@@ -202,11 +202,12 @@ function careerMapRecord(doc, world, opts) {
   const C = c.contracts;
   const providers = Object.keys(CONTRACT_PROVIDERS).map(id => {
     const P = CONTRACT_PROVIDERS[id];
-    return { id, name: contractText(P.name), short: contractText('prov.' + id + '.short'), colour: CAREER_MAP_LOOK[id] || '#888',
+    const who = P.person || (typeof peopleClientOf === 'function' ? peopleClientOf(id) : null);   // (STORY-REVAMP: a pack's client names its person)
+    return { id, name: contractText(P.name), short: contractText('prov.' + id + '.short'), colour: P.colour || CAREER_MAP_LOOK[id] || '#888',
              home: (P.fields && P.fields[0]) || null, line: contractText(P.desc),
              rep: (c.providers[id] || {}).rep || 0, track: (c.tracks || {})[P.track] || 0,
-             client: typeof peopleClientOf === 'function' && peopleClientOf(id)
-               ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256), bg: peopleBg(peopleClientOf(id)) } : null };
+             client: who && typeof peopleName === 'function'
+               ? { id: who, name: peopleName(who), face: peopleFace(who, 128), faceBig: peopleFace(who, 256), bg: peopleBg(who) } : null };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
   const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : careerSkyCover(world && world.day) };

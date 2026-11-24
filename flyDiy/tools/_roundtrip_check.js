@@ -6,7 +6,7 @@
 // THE USER (2026-09-28): "ONE LOADING FOR THE WHOLE GAME, THEN INSTANT ROUND TRIPS ... no impact on performance below
 // 30 fps. Maybe a slightly longer loading upfront is the way to go." and "THE LOADING SCREEN IS A SETUP SCREEN".
 //
-// CHILD `trips`, TWICE - the default Cub (a first boot) and the metal Cessna (bugReports/cessnaMetal (1).json in the
+// CHILD `trips`, TWICE - the default Cub (a first boot) and the metal Cessna (builds/cessna172r_2026-11-08.json in the
 // working slot: a saved build, the player's usual case), the loading untouched:
 //   boot -> roll out -> back to the shed -> change the build (a slider of the editor) -> roll out -> back -> roll out
 //   with no change. For every trip: which steps RAN and which were SKIPPED (the page's own log, window.FLYDIY_TRIPS,
@@ -295,7 +295,7 @@ async function childSetup() {
 }
 
 // ---- the parent -----------------------------------------------------------------------------------------------------
-const BUILDS = { cub: null, cessna: 'bugReports/cessnaMetal (1).json' };   // FRAMECOST's two: the first boot, a saved metal build
+const BUILDS = { cub: null, cessna: 'builds/cessna172r_2026-11-08.json' };   // FRAMECOST's two: the first boot, a saved metal build
 function child(kind, build) {
   return new Promise(res => {
     const env = Object.assign({}, process.env); if (build && BUILDS[build]) env.ROUNDTRIP_BUILD = path.join(__dirname, '..', BUILDS[build]); else delete env.ROUNDTRIP_BUILD;
