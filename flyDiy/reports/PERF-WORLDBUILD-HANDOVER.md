@@ -83,15 +83,7 @@ site 82, forest mist 79, far terrain patch 77, the shelves 74, houses 74, houses
 `perf-worldbuild-6` in the browser (PERF-LEAD, 24 Nov 07:30, quiet, build 70425113286a): ITS TREE BLOCK DID NOT FIRE
 (scene.userData.treeWarm absent) and the bake is still one task (worst 677 ms; 783 ms between two frames). Totals 53 tasks
 of 50 ms+, 11 over 100 ms, 5.7 s; garage 37.0 s, world ready 92.6 s. Why, and the fix: `claude/ready/perf-worldbuild-7`
-(section 5, step 0).
-
-`perf-worldbuild-7` in the browser (PERF-LEAD, 24 Nov 10:48, a BUSY box - a battery beside it, times ~1.2x; build
-2ffc3f148aba): IT FIRED - treeWarm = { via: 'after', packs: 57, tex: 27, geo: 93, bytes: 11 323 158, done: true }. The
-bake's worst task 549 ms (677-752 on quiet rows), its total unchanged (5 tasks, 3 over 100 ms, 1 449 ms; two gaps between
-frames of 550 and 566 ms): the uploads left the task, the bake's own draws and links stayed. Settle 21 tasks / 5 over 100 /
-worst 387 (busy); town 3 / 1 / 191; after the world step 139. No error. `claude/ready/perf-worldbuild-8` (the bakes one a
-task, deferred in the queued replant) has NO row yet and lands only if its row shows no bake task over ~200 ms and no
-'impostor bake: ... sheet EMPTY / BLACK' in the page's errors.
+(section 5, step 0). `perf-worldbuild-7` has NO row yet.
 
 ## 2. The world build's steps, as they stand
 
