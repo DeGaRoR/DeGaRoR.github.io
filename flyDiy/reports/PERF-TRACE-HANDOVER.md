@@ -92,13 +92,20 @@ WHAT THE FIRST REAL ROWS SAID (24 Nov 07:36, RTX 3080, 5120x1271, the 75 s en ro
   32.9 / 45.1 without them. 899 draw calls and 14.8 M triangles a frame (on the ground: 2 009 draws, 28.5 M, GPU 40 ms).
 - By pass (median ms, the base): scene pass 28.6 (87 %), clouds march 2.55, shadow maps 0.58, post 0.26, AA resolve 0.16,
   uploads 0.1, the mirror 0 over land. The sums agree with the whole-frame timer (32.6 against 33.1; 30.0 against 30).
-- THE SCENE PASS IS MOSTLY NOT PIXELS: with the automatic scale at 0.5 (a quarter of the pixels) the GPU still takes 21 ms,
-  the scene pass about 16. Roughly a fixed 13 ms (the triangles and the draws) plus 1.9 ms a megapixel. Resolution alone
-  does not reach "below 30"; geometry (far terrain, forest density and detail, the cover) is the larger lever.
-- THE AUTOMATIC SCALE GOT STUCK LOW: a heavy stretch (the ground, the first climb) pushes it down; its way back up asked
-  g x k^2 < 0.8 T, the GPU's time as if all of it were pixels, so from 0.5 it predicted 37.7 ms at 0.67 where the same row
-  measured 20.3. PERF-LEAD changed the rule the same morning (the lab, aaAutoDecide: the part that does not scale is
-  learnt). Its target follows the frame cap (app.js tellScale) - I first wrote that it chased 60 whatever the cap: wrong.
+- THE GPU'S TIME IS PIXELS PLUS TRIANGLES, read over THE SAME SECONDS of two rows (full scale against the automatic
+  scale): about 1.9 ms a megapixel (12 ms of a full-scale cruise frame), and a part that does not scale with resolution and
+  FOLLOWS THE TRIANGLE COUNT - 12 ms at 12 M triangles, 18 at 15 M, 31 at 38 M, roughly 0.75 ms a million.
+  So THE FRAMES OVER 33.3 ms ARE THE LOW ONES: in the first 77 s after the reveal (the ground, the climb) the card takes
+  37-39 ms median with 37-38 M triangles a frame whatever the scale; at altitude the same build cruises at 24-30 ms.
+  "Below 30 ms" is met at altitude and missed near the ground, where resolution buys almost nothing: geometry (the
+  cover, forest density and detail, the far terrain) is the lever.
+  (I first compared different seconds and wrote "a fixed 13 ms": the scene's load changes too much along a flight for
+  that. COMPARE THE SAME SECONDS - `--from / --to`, or the same script step.)
+- THE AUTOMATIC SCALE WAS HELD LOW LONGER THAN NEEDED: the climb pushes it down (1 -> 0.85 -> 0.75 -> 0.67 -> 0.5); its
+  way back up asked g x k^2 < 0.8 T, the GPU's time as if all of it were pixels, so at 0.5 it waited 37.6 s (until g fell
+  under 14.8 ms) before climbing to 0.67 by itself. PERF-LEAD changed the rule the same morning (the lab, aaAutoDecide: the
+  part that does not scale is learnt). That part is not a constant - it runs from 12 to 31 ms with the scene. The
+  controller's target follows the frame cap (app.js tellScale) - I first wrote that it chased 60 whatever the cap: wrong.
 
 WHAT THE TOOL DOES NOT DO, learnt the same morning:
 - IT CANNOT SPLIT ONE PASS. Cover ring, far terrain, trees, the aeroplane are drawn interleaved in the scene pass. A
