@@ -267,3 +267,51 @@ NEXT, IN ORDER, for whoever takes this on.
 6. The user has NOT yet looked at: the mirror's pacing; the strip drawn coarse for a moment and the stand-in cards for
    longer past 1.5 km under garage first; the side sheds appearing a moment after the world; the tree cards outside the
    hangar appearing a moment after the garage. Each has its switch (`?mirpace=0`, `?nearfirst=0`, `?settle=0`).
+
+## 10. 24 Nov, 14:40: the afternoon - the final readies, the levers, what is left
+
+THE FINAL READIES.
+- L40M: `claude/ready/perf-lead-2d` = cd61dc202 (perf-lead-2 + GATE WATER + GATE UISMOKE + GATE UILAYER fixes), with Deform's crash trio
+  and `claude/ready/perf-sliders-1b`. The crash measured on L40M's own build: met.
+- L40N: `claude/ready/perf-lead-7` = dabcbfb9b. It supersedes -3, -4, -5 and -6 and contains perf-worldbuild-7's code. 23 gates pass on it.
+  A0's trial of the 22 real-page gates on -5 (garage first as the default) found no new failing check.
+- NOT IN: perf-worldbuild-8 (the impostor bakes one a task). Its first deferred tick linked three programs at once (bark 354 ms, branch
+  27 ms, the impostor bake's normals 1 077 ms): a 1.47 s task in the 14:01 quiet row, worse than -7's 0.55 s. The picture was right (57 of
+  57 bakes, far trees present). The fix is named in PERF-WORLDBUILD's report: link the bake's programs before the first deferred tick.
+
+FOUR REDS OF THIS ROUND REACHED READIES because the gate was not in the lab's set: WATER (a pinned line of the mirror rewritten), GFX (a
+device test in a module), UISMOKE (a bare `performance.now()` in the loop; misfiled on 23 Nov as the train's own without reading the
+stack), UILAYER (a line put before the flight UI's hand-back at the reveal). All four are fixed and in the set. Read a red's stack before
+calling it someone else's.
+
+THE GRAPHICS CARD'S LEVERS (PERF-TRACE, 24 Nov 13:00, each against a base of the same hour over the same script step; base: climb 38.1 /
+49.8 ms median / 90th, cruise 30.1 / 42.8; noise about 0.6 ms on a median).
+
+| lever | climb median / p90 | cruise median / p90 | picture |
+|---|---|---|---|
+| render scale 0.75 | -5.9 / -3.6 | -3.9 / -5.7 | sharpness |
+| ground blend 'lean' | -4.9 / -4.3 | -2.8 / -4.9 | the material patchwork near the ground gone, its colour stays |
+| shadows off | -4.6 / -8.9 | (not valid) | shadows |
+| msaa one step down | -3.1 / -2.9 | -1.8 / -2.1 | edges |
+| ground cover off | -2.5 / -10.8 | +0.5 / -3.4 | grass, rocks |
+| forest bands minimum | -1.4 / -4.7 | 0 | far forest |
+| forest density 100 | 0 | 0 | - |
+
+The typical frame is bought by pixels and the ground shader (ground 'lean' takes the cruise to about 27 ms with no resolution lost). The
+worst frames near the ground are bought by the ground cover and the shadows - the cover drawn again into the shadow maps is about half of
+the climb's 38 M triangles - and near the ground the CPU loop is over budget too (36.8 ms; cover off -6.7, shadows off -8). Clouds off was
+not measured (setting it mid-flight restarts the flight: put it in the page's query next time). The automatic scale with the learnt G0
+tried to climb back twice (the old rule never did) and ended a short cruise at 0.5, most likely its 60 s hold after a failed trial: a
+longer cruise is needed to judge it.
+ASKED OF THE USER, NOT DONE: ground 'lean' as the default (a look change). THE NEXT LEVER TO BUILD: the ground cover casting no shadow (or
+a nearer shadow cut-off for it) near the ground - the 90th percentile without losing the cover.
+
+WHAT IS LEFT, IN ORDER (updates section 9's list).
+1. The garage while the world loads: worst 0.55 s (the impostors' bake: link its programs first, then perf-worldbuild-8), the settle's
+   three atomic units, about 3.7 s of freezes a minute against the user's 2.
+2. The cover's shadow copies near the ground; ground 'lean' if the user agrees.
+3. The world in 60 s behind the garage (the pavement's program first, alone).
+4. The sliders: the Pawnee, the sailplane and the twin boom's cowl on every tick; row 1 re-measured in a browser.
+5. The user has not yet looked at: the mirror's pacing, the strip coarse for a moment and the stand-in cards for longer while the world
+   loads, the side sheds and the hangar's tree cards appearing a moment late.
+
