@@ -71,11 +71,11 @@
      "said": [
       "route-done: the drawn route flown - on to the destination",
       "route-arrival: arriving at Jolene AFB 13/31",
-      "taxi-in: taxiing in to the stand, 451 m"
+      "taxi-in: taxiing in to the stand, 452 m"
      ],
      "landing": {
-      "run": 173,
-      "sink": 0.93,
+      "run": 172,
+      "sink": 0.95,
       "V": 17,
       "offCentre": 0.2,
       "pastAim": 43,
@@ -83,7 +83,7 @@
       "three": false,
       "onStrip": true,
       "tdIn": 557,
-      "stopLeft": 1595
+      "stopLeft": 1596
      }
     },
     {
@@ -125,7 +125,7 @@
      ],
      "landing": {
       "run": 178,
-      "sink": 0.67,
+      "sink": 0.66,
       "V": 17.2,
       "offCentre": 0.3,
       "pastAim": 38,
@@ -144,6 +144,6 @@
  "key": "c3cb1a93548f",
  "where": "observatory:1",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 1452
+ "sim": "L40K",
+ "wallS": 1576
 }

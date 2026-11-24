@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 52,
+  "feasible": 53,
   "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
   "not flown": 11,
   "infeasible": 12,
-  "stale": 5
+  "stale": 4
  },
- "flownS": 98172,
+ "flownS": 102013,
  "rows": [
   {
    "id": "field.01",
@@ -1563,8 +1563,59 @@
    "id": "obs.01",
    "where": "observatory:1",
    "kind": "survey",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 3841,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1426,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1798,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:1@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 617,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "obs.02",

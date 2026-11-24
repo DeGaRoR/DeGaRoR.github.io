@@ -2422,7 +2422,13 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 3841,
+    "sig": "1cd0a2b1"
+   }
   },
   {
    "id": "obs.02",

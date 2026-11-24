@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 12 infeasible; 3 no official plane can fly it (the player builds one); 11 not flown; 5 stale. Time flown: 1636 min 12 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 53 feasible; 12 infeasible; 3 no official plane can fly it (the player builds one); 11 not flown; 4 stale. Time flown: 1700 min 13 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -49,7 +49,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 12 infea
 | survey.03 | contract | feasible | Piper Cub | 66 min 50 s | HOME > HOME 1650; HOME > HOME 1744; HOME > HOME 616 |  |
 | survey.05 | contract | feasible | Cessna 172 | 20 min 59 s | HOME > w3 547; w3 > HOME 711 |  |
 | survey.04 | contract | order | - | - | - |  |
-| obs.01 | observatory:1 | stale | - | - | - |  |
+| obs.01 | observatory:1 | feasible | Piper Cub | 64 min 01 s | HOME > HOME 1426; HOME > HOME 1798; HOME > HOME 617 |  |
 | obs.02 | observatory:2 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 11 min 18 s | HOME > mt_strip 678 | the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax |
 | obs.03 | observatory:2 | stale | - | - | - |  |
 | obs.04 | observatory:3 | infeasible | PC-6 Turbo Porter | - | HOME > HOME 0; HOME > HOME 0; HOME > HOME 0 | no progress: already loaded [declined] |
