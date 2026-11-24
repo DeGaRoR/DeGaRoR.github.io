@@ -229,14 +229,23 @@ function genDesignAids(def, bal, opts) {
     // behind (a pusher) by the engine's length and the spinner - the editor's own measure (CAGE_ENG.units: each unit's
     // mount point and its prop hub, the join's frame), handed in as opts.propOff [[dx, dy] per unit, design frame]
     const PO = Array.isArray(o.propOff) ? o.propOff : null;
+    // LAZAIR-TWIN (24 Nov): EACH DISC WHERE IT IS DRAWN. engAt keeps a wing pair's lateral station unsigned (|z|, the
+    // frame mirrors by `side`): both discs stood on the starboard station, one drawn over the other (the user: "the prop
+    // clearance marker draws only for a single engine"). The disc is now on its own side (side -1 port: -z, the frame's
+    // NL), its radius the DRAWN blade's (propOff's third number, the editor's own CW propD) where the editor measured
+    // it, and its axis the drawn thrust line's (engines[i].tilt, downthrust +: the disc's plane is square to it)
+    const SE = Array.isArray(S.engines) ? S.engines : [];
     out.thrust = at.map((e0, i) => {
       const off = PO && PO[i] ? PO[i] : null;
       const e = off ? Object.assign({}, e0, { x: e0.x + off[0], y: e0.y + off[1] }) : e0;
       const dy = e.y - cg[1];
       // thrust forward (-x): about the CG the moment's nose-up part is -dy * T (a line above the CG pitches nose-down)
       const Mup = -dy * T;
-      return { at: [e.x, e.y, e.z || 0], dir: [-1, 0, 0], T, R, mount: e.mount || 'nose', dy, Mup, drawn: !!off,
-               elev: Mde ? Math.abs(Mup) / Mde : null };
+      const z = (e0.side < 0 ? -1 : 1) * (e.z || 0), Ri = off && off[2] > 0 ? off[2] : R;
+      const tl = (SE[i] && +SE[i].tilt || 0) * Math.PI / 180;
+      return { at: [e.x, e.y, z], dir: tl ? [-CORE_MATH.cos(tl), -CORE_MATH.sin(tl), 0] : [-1, 0, 0], T, R: Ri, mount: e.mount || 'nose',
+               side: e0.side || 0, dy, Mup, drawn: !!off, elev: Mde ? Math.abs(Mup) / Mde : null,
+               ...(off && off[3] === 0 ? { skinHit: off[4] || 'the drawn skin' } : {}) };
     });
     const sumM = out.thrust.reduce((s, t) => s + t.Mup, 0), share = Mde ? Math.abs(sumM) / Mde : null;
     const t0 = out.thrust[0];
@@ -341,9 +350,17 @@ function genDesignAids(def, bal, opts) {
     const fDeg = typeof GEN_FLAP_TRAVEL !== 'undefined' && GEN_FLAP_TRAVEL[flapK] != null ? GEN_FLAP_TRAVEL[flapK] : 40;
     const fc = (S.controls && S.controls.flap && S.controls.flap.chord) || 0.2;
     const ground = def.nodes.reduce((m, n) => Math.min(m, n.p[1] - (n.r || 0)), Infinity);
-    out.prop = pr.map(t => {
+    // a point against a disc: its gap along the axis and its distance from the axis
+    const vsDisc = (t, p) => { const a = t.dir || [-1, 0, 0], d = [p[0] - t.at[0], p[1] - t.at[1], p[2] - t.at[2]];
+      const ax = d[0] * a[0] + d[1] * a[1] + d[2] * a[2];
+      return { gap: Math.abs(ax), rad: Math.hypot(d[0] - ax * a[0], d[1] - ax * a[1], d[2] - ax * a[2]) }; };
+    // LAZAIR-TWIN: the body against an OFF-CENTRE disc (a wing pair's): the fuselage's and the rod's lattice, the mast,
+    // the tail's tip nodes - any of their nodes in the disc's swept circle. A centreline disc turns ahead of (or behind)
+    // its own cowl and spinner by construction: the editor's propFitCheck reads that one against the drawn skin
+    const bodyNode = n => /^(S\d+[BT][LR]|TP[BT]|KEEL[BTLR]|MST|HT[LR])$/.test(n.tag || '');
+    out.prop = pr.map((t, ti) => {
       const R = t.R, c0 = t.at;
-      const o2 = { at: c0, R, ground: null, groundLevel: null, water: null, struct: null, who: null, flapsDown: false, hit: null, drawn: t.drawn };
+      const o2 = { at: c0, R, dir: t.dir, side: t.side, ground: null, groundLevel: null, water: null, struct: null, who: null, flapsDown: false, hit: null, drawn: t.drawn };
       if (!(FL && FL.length)) {
         // on its wheels: a tricycle sits level (the taxi attitude); a taildragger on its three points - the disc's
         // lowest point rotated about the main contact by the deck angle - and its level (tail-up) figure beside it
@@ -358,6 +375,13 @@ function genDesignAids(def, bal, opts) {
         }
       }
       else if (out.floats && out.floats.waterY != null) o2.water = c0[1] - R - out.floats.waterY;
+      // THE OTHER DISCS (LAZAIR-TWIN): two discs whose circles reach each other (side by side within the structure's
+      // gap along the axis, their centres nearer than the two radii) - the blades meet
+      for (let tj = 0; tj < pr.length; tj++) {
+        if (tj === ti) continue;
+        const q = vsDisc(t, pr[tj].at), over = q.rad - (R + pr[tj].R);
+        if (q.gap < 2 * GEN_AIDS.propStruct && over < 0 && (o2.discOver == null || over < o2.discOver)) { o2.discOver = over; o2.discWith = tj; }
+      }
       if (!t.drawn) return o2;          // the structure: only against the disc the editor drew
       // the structure in the disc's swept circle: each wing / stab strip's trailing edge (flaps down where it has one)
       // and its leading edge, the gap ALONG the axis from the disc's plane
@@ -372,35 +396,74 @@ function genDesignAids(def, bal, opts) {
           pts.push(['flap', [hx + sl + fcl * CORE_MATH.cos(d), q[1] - dr - fcl * CORE_MATH.sin(d), q[2]]]);
         }
         for (const [nm, p] of pts) {
-          const rad = Math.hypot(p[1] - c0[1], p[2] - c0[2]);
-          if (rad > R) continue;
-          const gap = Math.abs(p[0] - c0[0]);
-          if (gap < best) { best = gap; o2.who = st.kind === 'stab' ? 'the stabiliser' : nm === 'flap' ? 'the flap, down ' + fDeg + ' deg' : nm === 'TE' ? 'the wing\'s trailing edge' : 'the wing\'s leading edge'; o2.flapsDown = nm === 'flap'; o2.hit = p; }
+          const q2 = vsDisc(t, p);
+          if (q2.rad > R) continue;
+          if (q2.gap < best) { best = q2.gap; o2.who = st.kind === 'stab' ? 'the stabiliser' : nm === 'flap' ? 'the flap, down ' + fDeg + ' deg' : nm === 'TE' ? 'the wing\'s trailing edge' : 'the wing\'s leading edge'; o2.flapsDown = nm === 'flap'; o2.hit = p; }
         }
       }
+      if (Math.abs(c0[2]) > 0.1) {
+        let bodyIn = 0;
+        for (const n of def.nodes) {
+          if (!bodyNode(n)) continue;
+          const q2 = vsDisc(t, n.p);
+          if (q2.rad > R) continue;
+          if (q2.gap < GEN_AIDS.propStruct) bodyIn = Math.max(bodyIn, R - q2.rad);
+          if (q2.gap < best) { best = q2.gap; o2.who = n.tag === 'MST' ? 'the wing\'s mast' : /^HT/.test(n.tag) ? 'the tail' : 'the fuselage'; o2.flapsDown = false; o2.hit = n.p.slice(); }
+        }
+        // how far out the disc must go to clear the body by the structure's gap (its lateral station)
+        if (bodyIn > 0) o2.bodyOut = bodyIn + GEN_AIDS.propStruct;
+      }
       o2.struct = isFinite(best) ? best : null;
+      // THE DRAWN SKIN (LAZAIR-TWIN): the editor's own fit of this disc against the body's and the wing's drawn surfaces
+      // (propFitCheck - a cowl, a pod, a rod the lattice's nodes do not stand for): a hit there is a strike, said in its words
+      if (t.skinHit) { o2.struct = 0; o2.who = t.skinHit.replace(/^through /, '').replace(/ \(.*$/, ''); o2.skinHit = t.skinHit; o2.flapsDown = false; }
       return o2;
     });
-    const p0 = out.prop[0];
-    if (p0) {
-      const gV = p0.ground != null ? p0.ground : p0.water, gLim = p0.ground != null ? GEN_AIDS.propGround : GEN_AIDS.propWater;
+    // EVERY DISC IS JUDGED (LAZAIR-TWIN: the row read disc 0 alone); the row says the worst one's case, naming its side
+    const R2c = v => Math.ceil(v * 100 - 1e-9) / 100;
+    const sideName = p => p.side < 0 ? 'the port disc' : p.side > 0 ? 'the starboard disc' : 'the disc';
+    const cm = v => Math.round(v * 100) + ' cm';
+    const judge = p => {
+      const gV = p.ground != null ? p.ground : p.water, gLim = p.ground != null ? GEN_AIDS.propGround : GEN_AIDS.propWater;
       let lvlG = gV == null ? 'pass' : gV < 0 ? 'fail' : gV < gLim ? 'warn' : 'pass';
       // a taildragger lifted level (the tail-up run, FAR 23.925's 'level' attitude) is a warning, never more: how far
       // the tail is raised is the pilot's
-      if (lvlG === 'pass' && p0.deckDeg != null && p0.groundLevel != null && p0.groundLevel < GEN_AIDS.propGround) lvlG = 'warn';
-      const lvlS = p0.struct == null ? 'pass' : p0.struct < GEN_AIDS.propStruct ? 'fail' : p0.struct < 2 * GEN_AIDS.propStruct ? 'warn' : 'pass';
-      const cm = v => Math.round(v * 100) + ' cm';
-      const lvl = lvlG === 'fail' || lvlS === 'fail' ? 'fail' : lvlG === 'warn' || lvlS === 'warn' ? 'warn' : 'pass';
+      if (lvlG === 'pass' && p.deckDeg != null && p.groundLevel != null && p.groundLevel < GEN_AIDS.propGround) lvlG = 'warn';
+      const lvlS = p.struct == null ? 'pass' : p.struct < GEN_AIDS.propStruct ? 'fail' : p.struct < 2 * GEN_AIDS.propStruct ? 'warn' : 'pass';
+      const lvlD = p.discOver != null ? 'fail' : 'pass';
+      const L3 = [lvlG, lvlS, lvlD], lvl = L3.includes('fail') ? 'fail' : L3.includes('warn') ? 'warn' : 'pass';
+      return { gV, gLim, lvlG, lvlS, lvlD, lvl, value: Math.min(gV != null ? gV : 9, p.struct != null ? p.struct : 9, p.discOver != null ? p.discOver : 9) };
+    };
+    const J = out.prop.map(judge), RANK = { fail: 2, warn: 1, pass: 0 };
+    for (let i = 0; i < out.prop.length; i++) out.prop[i].level = J[i].lvl;
+    let wi = 0;
+    for (let i = 1; i < J.length; i++) if (RANK[J[i].lvl] > RANK[J[wi].lvl] || (RANK[J[i].lvl] === RANK[J[wi].lvl] && J[i].value < J[wi].value)) wi = i;
+    const p0 = out.prop[wi], j0 = J[wi];
+    if (p0) {
+      const { gV, gLim, lvlG, lvlS, lvlD, lvl } = j0;
+      const many = out.prop.length > 1, who = many ? sideName(p0) : 'the disc';
       const parts = [];
       if (gV != null) parts.push(r2(gV) + ' m over the ' + (p0.ground != null ? 'ground' + (p0.deckDeg != null ? ' on its three points (' + r2(p0.groundLevel) + ' m tail up, level)' : '') : 'water at gross'));
       if (p0.struct != null) parts.push(r2(p0.struct) + ' m from ' + p0.who);
+      if (p0.discOver != null) parts.push('its blades ' + cm(-p0.discOver) + ' into ' + sideName(out.prop[p0.discWith]) + '\'s circle');
+      const fixes = [];
+      if (lvlD !== 'pass') {
+        // the pair's lateral stations apart by the two radii and the gap: each nacelle out by half the shortfall
+        const o = out.prop[p0.discWith], need = R2c(p0.R + o.R + GEN_AIDS.propStruct), now = Math.abs(p0.at[2] - o.at[2]);
+        fixes.push('the discs ' + need + ' m apart centre to centre (now ' + r2(now) + ' m): each nacelle ' + cm((need - now) / 2 + 0.005) + ' further out, or a smaller propeller');
+      }
+      if (lvlS !== 'pass' && p0.skinHit) fixes.push(who + ' ' + p0.skinHit + ' as drawn: the engine moved clear of it, or a smaller propeller');
+      else if (lvlS !== 'pass') fixes.push(p0.bodyOut != null && /fuselage|mast|tail/.test(p0.who)
+        ? who + ' ' + cm(p0.bodyOut + 0.005) + ' further out from ' + p0.who + ' (the nacelles\' station), or a smaller propeller'
+        : who + ' ' + cm(2 * GEN_AIDS.propStruct - p0.struct + 0.005) + ' further from ' + p0.who + ' (the engine aft, a smaller disc, or shorter flaps)');
+      if (lvlG !== 'pass') fixes.push('raise ' + who + ' ' + cm(gLim - Math.min(gV, p0.groundLevel != null ? p0.groundLevel : gV) + 0.005) + ' (or a smaller propeller, or longer legs)');
       row({ id: 'aid.prop', group: 'power', tier: 'safe', label: 'Propeller clearance (ground / water / structure, flaps down)',
-            value: r2(Math.min(gV != null ? gV : 9, p0.struct != null ? p0.struct : 9)), unit: 'm', level: lvl,
+            value: r2(j0.value), unit: 'm', level: lvl,
             limit: 'the disc ' + GEN_AIDS.propGround + ' m over the ground (FAR 23.925), ' + GEN_AIDS.propWater + ' m over the water at gross (the spray), ' +
-                   GEN_AIDS.propStruct + ' m from any structure in its circle, the flaps fully down (warn under ' + 2 * GEN_AIDS.propStruct + ' m: the blades flex, the mount and the wing move)',
-            why: (parts.length ? 'the disc is ' + parts.join(', ') : 'nothing in the disc\'s circle') + (p0.drawn ? '' : ' (the structure is measured against the drawn disc: the editor\'s)'),
-            fix: lvl === 'pass' ? '' : (lvlS !== 'pass' ? 'the disc ' + cm(2 * GEN_AIDS.propStruct - p0.struct + 0.005) + ' further from ' + p0.who + ' (the engine aft, a smaller disc, or shorter flaps)' : '') +
-                 (lvlS !== 'pass' && lvlG !== 'pass' ? '; ' : '') + (lvlG !== 'pass' ? 'raise the disc ' + cm(gLim - Math.min(gV, p0.groundLevel != null ? p0.groundLevel : gV) + 0.005) + ' (or a smaller propeller, or longer legs)' : '') });
+                   GEN_AIDS.propStruct + ' m from any structure in its circle, the flaps fully down (warn under ' + 2 * GEN_AIDS.propStruct + ' m: the blades flex, the mount and the wing move)' +
+                   (many ? '; every disc, and no two discs\' circles meeting' : ''),
+            why: (parts.length ? (many ? who + ' (the worst of ' + out.prop.length + ')' : 'the disc') + ' is ' + parts.join(', ') : 'nothing in the disc\'s circle') + (p0.drawn ? '' : ' (the structure is measured against the drawn disc: the editor\'s)'),
+            fix: lvl === 'pass' ? '' : fixes.join('; ') });
     }
   }
 
@@ -409,20 +472,34 @@ function genDesignAids(def, bal, opts) {
     const nM = def.nodes[P.GAL], yG = nM.p[1] - (nM.r || 0);
     const xM = nM.p[0], h = Math.max(0.2, cg[1] - yG);
     const tw = P.TW != null && P.TW >= 0 ? def.nodes[P.TW] : null;
-    const trike = !!(tw && tw.p[0] < xM);
+    // LAZAIR-TWIN (24 Nov, the user: "The Lazair actually sits on its tail at rest, the front wheel is there for braking"):
+    // A NOSE WHEEL WITH TAIL CONTACTS BEHIND THE CG IS A BUMPER. A tricycle that carries extra wheels aft (refs.xw: the V
+    // tips' 'extra' wheels) and its CG behind the mains rests on the mains and those tips, its nose wheel off the ground:
+    // pitched about the mains until the tips touch, the nose wheel's contact stands over the ground. It is judged as the
+    // taildragger it is (the mains ahead of the CG), the nose wheel named a bumper. Every other build: the lines below
+    const XWn = def.refs && Array.isArray(def.refs.xw) && def.refs.xw.length ? def.nodes[def.refs.xw[0]] : null;
+    let bumper = null;
+    if (tw && XWn && tw.p[0] < xM && XWn.p[0] > xM && cgX > xM) {
+      const yT = XWn.p[1] - (XWn.r || 0), th = Math.atan2(yT - yG, XWn.p[0] - xM);
+      const yN = yG + ((tw.p[1] - (tw.r || 0)) - yG) * CORE_MATH.cos(th) - (tw.p[0] - xM) * CORE_MATH.sin(th);
+      if (yN - yG > 0) bumper = { gap: yN - yG, deckDeg: th * 180 / Math.PI, tailX: XWn.p[0] };
+    }
+    const trike = !!(tw && tw.p[0] < xM) && !bumper;
     const ang = Math.atan2(trike ? xM - cgX : cgX - xM, h) * 180 / Math.PI;   // + = the right side of the CG
-    const share = tw ? (trike ? (xM - cgX) / Math.max(0.1, xM - tw.p[0]) : (xM - cgX) / Math.max(0.1, xM - tw.p[0])) : null;
-    out.stance = { trike, mainX: xM, groundY: yG, tailX: tw ? tw.p[0] : null, ang, share: share != null ? Math.abs(share) : null,
-                   want: trike ? GEN_AIDS.tipBack : GEN_AIDS.tailDragger };
+    const share = bumper ? null : tw ? (trike ? (xM - cgX) / Math.max(0.1, xM - tw.p[0]) : (xM - cgX) / Math.max(0.1, xM - tw.p[0])) : null;
+    out.stance = { trike, mainX: xM, groundY: yG, tailX: bumper ? bumper.tailX : tw ? tw.p[0] : null, ang, share: share != null ? Math.abs(share) : null,
+                   want: trike ? GEN_AIDS.tipBack : GEN_AIDS.tailDragger, ...(bumper ? { bumper } : {}) };
     const W = out.stance.want, sh2 = out.stance.share;
-    const lvl = ang < 0 ? 'fail' : (ang < W[0] || ang > W[1]) ? 'warn'
+    // (a bumper's nose wheel stops the nose-over the taildragger's lower bound guards: under it is no warning there)
+    const lvl = ang < 0 ? 'fail' : ((ang < W[0] && !bumper) || ang > W[1]) ? 'warn'
       : trike && sh2 != null && (sh2 < GEN_AIDS.noseShare[0] || sh2 > GEN_AIDS.noseShare[1]) ? 'warn' : 'pass';
     const moveM = Math.tan(W[0] * Math.PI / 180) * h - (trike ? xM - cgX : cgX - xM);
     row({ id: 'aid.stance', group: 'ground', tier: 'comm', label: trike ? 'Ground stance: tip-back angle and nose wheel share' : 'Ground stance: the mains ahead of the CG',
           value: r2(ang), unit: 'deg', level: lvl,
           limit: trike ? 'the mains ' + W[0] + '-' + W[1] + ' deg behind the CG\'s vertical (it sits on its tail when loaded aft under ' + W[0] + '), the nose wheel ' + Math.round(GEN_AIDS.noseShare[0] * 100) + '-' + Math.round(GEN_AIDS.noseShare[1] * 100) + ' % of the weight'
                        : 'the mains ' + W[0] + '-' + W[1] + ' deg ahead of the CG\'s vertical (nose-over under ' + W[0] + ', a heavy tail over ' + W[1] + ')',
-          why: (trike ? 'tip-back ' : 'the mains ') + r2(ang) + ' deg' + (sh2 != null && trike ? ', nose wheel ' + Math.round(sh2 * 100) + ' %' : ''),
+          why: (trike ? 'tip-back ' : 'the mains ') + r2(ang) + ' deg' + (sh2 != null && trike ? ', nose wheel ' + Math.round(sh2 * 100) + ' %' : '') +
+               (bumper ? '; it rests on the mains and the tail\'s tip wheels, ' + r2(-bumper.deckDeg) + ' deg tail-down, the nose wheel a bumper ' + Math.round(bumper.gap * 100) + ' cm off the ground' : ''),
           fix: lvl === 'pass' ? '' : ang < W[0] ? 'the mains ' + r2(Math.abs(moveM)) + ' m ' + (trike ? 'aft' : 'forward') : ang > W[1] ? 'the mains a little ' + (trike ? 'forward' : 'aft') : 'the mains ' + (sh2 < GEN_AIDS.noseShare[0] ? 'forward' : 'aft') + ' to share the weight' });
   }
   // ---- ENGINE COOLING (ENGINE-COOLING, 12 Nov; the user via A0: "the cooling requirements will need to be part of the
@@ -524,9 +601,14 @@ function genKeyIssues(def, sh, aids, opts) {
 }
 
 // the editor's engine record (CAGE_ENG: units[i].at, the mount, and .propAt, the drawn hub, both in the join's model
-// frame - x aft of the firewall is -z there, y up) -> the disc's offset from each engine station, design frame
+// frame - x aft of the firewall is -z there, y up) -> the disc's offset from each engine station, design frame, and (LAZAIR-TWIN) the DRAWN
+// disc: its radius (the blade the editor built, u.prop.R: the cowl page's propD) and the editor's own fit of it against the
+// drawn skin and wing (u.propFit, _cage_eng propFitCheck: 1 clear, 0 a hit, -1 not measured) and its words -
+// [dx, dy, R, fit, why]. Readers of [dx, dy] read what they always read
 function genAidPropOff(CE) {
   const U = CE && Array.isArray(CE.units) ? CE.units : null;
   if (!U || !U.length) return null;
-  return U.map(u => (u && u.at && u.propAt) ? [-(u.propAt[2] - u.at[2]), u.propAt[1] - u.at[1]] : null);
+  return U.map(u => (u && u.at && u.propAt) ? [-(u.propAt[2] - u.at[2]), u.propAt[1] - u.at[1],
+    u.prop && u.prop.R > 0 ? u.prop.R : 0, u.propFit ? (u.propFit.ok ? 1 : 0) : -1,
+    u.propFit && !u.propFit.ok && Array.isArray(u.propFit.why) ? u.propFit.why.join(', ') : ''] : null);
 }

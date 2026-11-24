@@ -59,7 +59,8 @@ function genFicheModel(def, opts) {
             // measure of its hub (64c genAidPropOff off CAGE_ENG, handed in as opts.propOff); [x, y, z, drawn 1|0] - a
             // disc without that measure stays at its flange (drawn 0)
             discs: engAt.map((e, i) => { if (!e) return null; const PO = opts && Array.isArray(opts.propOff) ? opts.propOff : null, off = PO && PO[i];
-              return [genFicheR(e.x + (off ? off[0] : 0)), genFicheR(e.y + (off ? off[1] : 0)), genFicheR(e.z || 0), off ? 1 : 0]; }).filter(Boolean) },
+              // (LAZAIR-TWIN: a wing pair's lateral station on its own side - engAt keeps it unsigned, the frame mirrors by side)
+              return [genFicheR(e.x + (off ? off[0] : 0)), genFicheR(e.y + (off ? off[1] : 0)), genFicheR((e.side < 0 ? -1 : 1) * (e.z || 0)), off ? 1 : 0]; }).filter(Boolean) },
     engineKg: genFicheR(engI.reduce((a, i) => a + def.nodes[i].m, 0) + def.nodes.filter(n => n.tag === 'CGE').reduce((a, n) => a + n.m, 0), 1),
     contacts: [].concat((def.refs && def.refs.mains) || [], def.refs && def.refs.tw >= 0 ? [def.refs.tw] : []),
     floats: !!(def.parts && def.parts.floats),

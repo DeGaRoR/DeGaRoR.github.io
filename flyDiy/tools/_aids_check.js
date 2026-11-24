@@ -15,6 +15,11 @@
 //   TIERS           a tail-volume fail alone no longer withholds the airworthiness certificate (commercial); the
 //                   elevator and the flare are commercial (D3); the promoted rows refuse (D1); a float build's circuit is
 //                   its climb (D5: benchCircuit)
+//   PROP DISCS      (LAZAIR-TWIN, 24 Nov) the user's Lazair (two engines on the wing): two discs mirrored at the frame's
+//                   engines, each the drawn blade's radius, square to its axis, every disc judged; moved in until they
+//                   meet, a fail that sizes the spacing; its nose wheel a bumper (it rests on the V tips). The user's
+//                   Minimax (one nose tractor): the disc at the drawn hub and radius, clear as built, a smaller drawn prop
+//                   never fails, a disc grown into the ground fails
 //   UI              the quick bar has the indicators' button and no reference-cut button; the menu carries the nine aids
 //                   and the reference item; the bench's key-issue card renders the remedy
 //
@@ -81,6 +86,86 @@ console.log('CORNERS: the ledger against the envelope');
   const s4b = { climbRate: 5.68, TORun: 1134, flyableCircuit: false };
   ok(B0.benchCircuit(s4b, true).flies && !B0.benchCircuit(s4b, false).flies && !B0.benchCircuit({ climbRate: 0.2, TORun: 400, flyableCircuit: false }, true).flies,
      'D5: _4b\'s sheet (climb 5.68 m/s, take-off 1134 m) flies a circuit on floats (the hydroplane test judges the take-off), not on wheels');
+}
+console.log('PROP DISCS: every disc where it is drawn, in its own plane (LAZAIR-TWIN, 24 Nov)');
+{
+  // THE RULE, ON EVERY KIND (the user: "The prop check fix should be generic"): a nose tractor (the Cub, the metal
+  // Cessna), the twin on floats (a wing pair), the twin-boom pusher on floats (_2), the user's Lazair (a pair on a hung
+  // wing) and Minimax (a nose tractor) - one disc per powered engine, each at its engine's drawn hub (the station + the
+  // editor's own hub offset), its radius the drawn blade's, square to its axis, a wing pair on its own sides (at the
+  // frame's engine nodes), every disc judged and the row the worst
+  const CASES = [['the Cub', 'builds/cub_2026-09-20_corrected.json'], ['the metal Cessna', null],
+                 ['the twin on floats', null], ['the twin-boom pusher (_2)', 'tools/fixtures/test_copies/Twin_busher_floats_2.json'],
+                 ['the Lazair', 'tools/fixtures/lazair_user_2026-11-24.json'], ['the Minimax', 'tools/fixtures/minimax_derived_2026-11-24.json']];
+  const LBv = require('./_load_build.js').VALIDATED;
+  CASES[1][1] = LBv.metal && LBv.metal.build; CASES[2][1] = LBv.twinFloats && LBv.twinFloats.build;
+  for (const [lab, file] of CASES) {
+    if (!file) { ok(false, lab + ': no build file'); continue; }
+    const J = joined(file), Pd = PO, d = C.buildGen(J), A = C.genDesignAids(d, C.genShakedown(d, { corners: false, slim: true }), { propOff: Pd });
+    const live = (J.engines || []).filter(e => !e.none).length, at = d.spec.engAt || [];
+    const engZ = k => { const I = d.refs.engine || [], K = d.refs.engineOf || I.map(() => 0); let z = 0, n = 0; for (let j = 0; j < I.length; j++) if (K[j] === k) { z += d.nodes[I[j]].p[2]; n++; } return n ? z / n : NaN; };
+    const bad = [];
+    A.prop.forEach((q, i) => {
+      const o = Pd && Pd[i], e = at[i] || {};
+      if (!o) bad.push(i + ': not drawn');
+      else {
+        if (Math.abs(q.at[0] - (e.x + o[0])) > 1e-9 || Math.abs(q.at[1] - (e.y + o[1])) > 1e-9) bad.push(i + ': off the drawn hub');
+        if (o[2] > 0 && Math.abs(q.R - o[2]) > 1e-9) bad.push(i + ': not the drawn radius');
+      }
+      if (Math.abs(Math.hypot(...q.dir) - 1) > 1e-9) bad.push(i + ': no axis');
+      if (e.mount === 'wing' && !(Math.sign(q.at[2]) === Math.sign(engZ(i)) && Math.abs(q.at[2] - engZ(i)) < 0.25)) bad.push(i + ': not on its own side (z ' + r2(q.at[2]) + ', its engine ' + r2(engZ(i)) + ')');
+      if (!q.level) bad.push(i + ': not judged');
+    });
+    const pr = row(A.rows, 'aid.prop'), RK = { pass: 0, warn: 1, fail: 2 }, worst = A.prop.reduce((w, q) => RK[q.level] > RK[w] ? q.level : w, 'pass');
+    ok(A.prop.length === live && !bad.length && pr.level === worst,
+       `${lab}: ${A.prop.length} disc(s) for ${live} engine(s), ${A.prop.map(q => (q.side < 0 ? 'port ' : q.side > 0 ? 'stbd ' : '') + 'R ' + r2(q.R) + ' at [' + q.at.map(r2).join(', ') + '] ' + q.level).join('; ')} -> aid.prop ${pr.level}${bad.length ? ' - ' + bad.join(', ') : ''}`);
+  }
+}
+{
+  // THE USER'S LAZAIR (tools/fixtures/lazair_user_2026-11-24.json): two pushers' engines on the wing (engines[] stores
+  // both at |z| 0.952, the frame mirrors them by side). The marker drew one disc over the other: both stood at +z
+  const J = joined('tools/fixtures/lazair_user_2026-11-24.json'), PL = PO, d = C.buildGen(J);
+  const A = C.genDesignAids(d, C.genShakedown(d, { corners: false, slim: true }), { propOff: PL });
+  const eL = d.nodes.find(n => n.tag === 'ENGL'), eR = d.nodes.find(n => n.tag === 'ENGR');
+  const D0 = A.prop[0] || {}, D1 = A.prop[1] || {};
+  ok(A.prop.length === 2 && D0.at && D1.at && Math.abs(D0.at[2] + D1.at[2]) < 1e-9 && Math.abs(D0.at[0] - D1.at[0]) < 1e-9 && Math.abs(D0.at[1] - D1.at[1]) < 1e-9 &&
+     eL && eR && Math.abs(D0.at[2] - eL.p[2]) < 1e-6 && Math.abs(D1.at[2] - eR.p[2]) < 1e-6,
+     `the Lazair: two discs, mirrored at the frame's engines (port z ${r2(D0.at && D0.at[2])} at ENGL ${r2(eL && eL.p[2])}, starboard ${r2(D1.at && D1.at[2])} at ENGR ${r2(eR && eR.p[2])})`);
+  ok(PL && PL.length === 2 && PL.every(o => o && o[2] > 0) && Math.abs(D0.R - PL[0][2]) < 1e-9 && Math.abs(D1.R - PL[1][2]) < 1e-9 && D0.drawn && D1.drawn,
+     `the Lazair: each disc's radius the drawn blade's (${r2(D0.R)} / ${r2(D1.R)} m, the editor's ${PL ? PL.map(o => o && r2(o[2])).join(' / ') : 'none'})`);
+  ok([D0, D1].every(q => q.dir && q.dir[0] === -1 && q.dir[1] === 0 && q.dir[2] === 0),
+     'the Lazair: each disc square to its own thrust axis (no tilt: the y-z plane)');
+  const pr = row(A.rows, 'aid.prop'), worst = A.prop.reduce((w, q) => (q.level === 'fail' || (q.level === 'warn' && w !== 'fail')) ? q.level : w, 'pass');
+  ok(pr.level === worst && A.prop.every(q => q.level), `the Lazair: aid.prop judges every disc (${A.prop.map(q => q.level).join(', ')} -> ${pr.level}): ${pr.why}`);
+  // the stance: the user's nose wheel is a bumper - the Lazair rests on its mains and the V tips' wheels
+  const sr = row(A.rows, 'aid.stance');
+  ok(A.stance && A.stance.bumper && !A.stance.trike && sr.level !== 'fail' && /bumper/.test(sr.why || ''),
+     `the Lazair: the stance a taildragger's on its tips, the nose wheel a bumper (${sr.level}: ${sr.why})`);
+  // the pair moved in until the discs' circles meet (0.4 m either side of the centreline, 1.05 m discs): a fail that
+  // names the other disc and sizes the spacing
+  const S2 = JSON.parse(JSON.stringify(J)); for (const e of S2.engines) e.z = 0.4;
+  const d2 = C.buildGen(S2), A3 = C.genDesignAids(d2, C.genShakedown(d2, { corners: false, slim: true }), { propOff: PL }), p3 = row(A3.rows, 'aid.prop');
+  ok(p3.level === 'fail' && A3.prop.every(q => q.discOver != null) && /apart centre to centre/.test(p3.fix) && /disc/.test(p3.why),
+     `the Lazair, the nacelles 0.4 m out: the discs meet (fail) -> ${p3.fix}`);
+  // the pair moved out to 0.62 m: the discs clear each other; the fuselage in the disc's circle is said with its own fix
+  const S3 = JSON.parse(JSON.stringify(J)); for (const e of S3.engines) e.z = 0.62;
+  const d3 = C.buildGen(S3), A4 = C.genDesignAids(d3, C.genShakedown(d3, { corners: false, slim: true }), { propOff: PL });
+  ok(A4.prop.every(q => q.discOver == null), `the Lazair, the nacelles 0.62 m out: the discs clear each other (${A4.prop.map(q => q.level + (q.who ? ' ' + q.who : '')).join(', ')})`);
+}
+{
+  // THE USER'S MINIMAX (tools/fixtures/minimax_derived_2026-11-24.json, the spec of the user's 24 Nov build): one nose
+  // tractor, the drawn prop the cowl page's (cw_propD 1.72) - the disc at the drawn hub, its radius the drawn one
+  const J = joined('tools/fixtures/minimax_derived_2026-11-24.json'), PM = PO, d = C.buildGen(J);
+  const sh = C.genShakedown(d, { corners: false, slim: true });
+  const A = C.genDesignAids(d, sh, { propOff: PM }), D0 = A.prop[0] || {}, pr = row(A.rows, 'aid.prop');
+  ok(A.prop.length === 1 && D0.drawn && PM && PM[0] && Math.abs(D0.R - PM[0][2]) < 1e-9 && Math.abs(D0.R - 0.86) < 0.01 && D0.at[2] === 0,
+     `the Minimax: one disc on the centreline at the drawn hub (x ${r2(D0.at && D0.at[0])}, y ${r2(D0.at && D0.at[1])}), its radius the drawn ${r2(D0.R)} m`);
+  ok(pr.level !== 'fail', `the Minimax as built: the prop clears (${pr.level}: ${pr.why})`);
+  // a smaller drawn propeller never fails where the larger one cleared; a disc grown into the ground fails
+  const small = C.genDesignAids(d, sh, { propOff: PM.map(o => o && [o[0], o[1], 0.5]) }), ps = row(small.rows, 'aid.prop');
+  ok(ps.level === 'pass' || (ps.level === pr.level && pr.level !== 'fail'), `the Minimax, a 1.0 m drawn propeller: ${ps.level} (${ps.why})`);
+  const gH = D0.ground != null ? D0.ground : 0, big = C.genDesignAids(d, sh, { propOff: PM.map(o => o && [o[0], o[1], D0.R + gH + 0.1]) }), pb = row(big.rows, 'aid.prop');
+  ok(pb.level === 'fail' && big.prop[0].ground < 0 && /raise the disc/.test(pb.fix), `the Minimax, the drawn disc 10 cm into the ground: fail -> ${pb.fix}`);
 }
 console.log('UI');
 {

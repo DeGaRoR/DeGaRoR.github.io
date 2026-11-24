@@ -14403,14 +14403,34 @@
     let xA = sim.axes()[0];
     // a build with no third wheel (floats) stands LEVEL on its keels in the room (_cage_float.js: pitch 0), whatever
     // attitude the sim's reset left it in: its axis is the level one
-    if (!(P.TW != null && P.TW >= 0)) { const h = Math.hypot(xA[0], xA[2]) || 1; xA = [xA[0] / h, 0, xA[2] / h]; }
+    const level = !(P.TW != null && P.TW >= 0);
+    if (level) { const h = Math.hypot(xA[0], xA[2]) || 1; xA = [xA[0] / h, 0, xA[2] / h]; }
     const sg = (nL[2] - nR[2]) >= 0 ? 1 : -1;
-    let z = [0, 1, 2].map(k => sg * (sim.p[a + k] - sim.p[c + k]));
-    const dz = z[0] * xA[0] + z[1] * xA[1] + z[2] * xA[2];
-    z = z.map((v, k) => v - dz * xA[k]);
-    const zl = Math.hypot(z[0], z[1], z[2]) || 1; z = z.map(v => v / zl);
-    const y = [z[1] * xA[2] - z[2] * xA[1], z[2] * xA[0] - z[0] * xA[2], z[0] * xA[1] - z[1] * xA[0]];
-    return q => [0, 1, 2].map(k => Ms[k] + xA[k] * (q[0] - Md[0]) + y[k] * (q[1] - Md[1]) + z[k] * (q[2] - Md[2]));
+    // the body's frame off two points sets: x the body axis, z the mains' line square to it, y = z x x
+    const frame = (x, zRaw) => {
+      const dz = zRaw[0] * x[0] + zRaw[1] * x[1] + zRaw[2] * x[2];
+      let z = zRaw.map((v, k) => v - dz * x[k]);
+      const zl = Math.hypot(z[0], z[1], z[2]) || 1; z = z.map(v => v / zl);
+      return [x, [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]], z];
+    };
+    const Fs = frame(xA, [0, 1, 2].map(k => sg * (sim.p[a + k] - sim.p[c + k])));
+    // LAZAIR-TWIN (24 Nov; the user: the prop marker "does not seem to match well, even the rotation plane seems wrong"):
+    // THE DESIGN FRAME'S OWN BODY AXIS. sim.axes() is the line from the nose ring to the tail's mid nodes, and the design
+    // x axis was laid along it - right only where that line is level in the design frame. The user's Lazair's rod climbs
+    // aft (its line 9 deg off the design x): every aid stood 9 deg nose-up off the aeroplane on the stand, the prop discs
+    // tilted out of their blades' plane. The same line read off the DESIGN nodes gives the design body frame; a point is
+    // carried by its coordinates in that frame onto the stand's (a level float build: both lines levelled, as before)
+    const Rf = def.refs, avgD = ids => { const o = [0, 0, 0]; for (const i of ids) { const q = def.nodes[i].p; o[0] += q[0]; o[1] += q[1]; o[2] += q[2]; } return o.map(v => v / ids.length); };
+    let xD = [1, 0, 0];
+    if (Rf && Rf.noseFrame && Rf.noseFrame.length && Rf.tailMid && Rf.tailMid.length) {
+      const n0 = avgD(Rf.noseFrame), t0 = avgD(Rf.tailMid);
+      xD = [t0[0] - n0[0], level ? 0 : t0[1] - n0[1], t0[2] - n0[2]];
+      const xl = Math.hypot(xD[0], xD[1], xD[2]) || 1; xD = xD.map(v => v / xl);
+    }
+    const Fd = frame(xD, [0, 1, 2].map(k => sg * (nL[k] - nR[k])));
+    const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    return q => { const v = [q[0] - Md[0], q[1] - Md[1], q[2] - Md[2]], c3 = Fd.map(e => dot(v, e));
+      return [0, 1, 2].map(k => Ms[k] + Fs[0][k] * c3[0] + Fs[1][k] * c3[1] + Fs[2][k] * c3[2]); };
   }
   function buildAids(bal, lin) {
     if (!AID_KEYS) return;
@@ -14519,16 +14539,25 @@
     }
     if (want.indexOf('prop') >= 0 && A.prop) {
       const r = row('aid.prop'), col = lvlC(r);
+      // LAZAIR-TWIN (24 Nov): ONE CIRCLE PER DISC, each where its blades are drawn (its own side of a wing pair), in its
+      // own plane - square to its thrust axis (p.dir: the drawn tilt) - and coloured by its own verdict
       for (const p of A.prop) {
-        const c = p.at, N = 36;
-        for (let i = 0; i < N; i++) {
-          const a0 = i / N * 2 * Math.PI, a1 = (i + 1) / N * 2 * Math.PI;
-          seg([c[0], c[1] + p.R * Math.cos(a0), c[2] + p.R * Math.sin(a0)], [c[0], c[1] + p.R * Math.cos(a1), c[2] + p.R * Math.sin(a1)], col);
+        const c = p.at, N = 36, a = p.dir || [-1, 0, 0];
+        // the plane's two axes: u lateral, v = a x u (the disc's 'up'; a tilted axis tilts it)
+        const u = [0, 0, 1], vv = [a[1] * u[2] - a[2] * u[1], a[2] * u[0] - a[0] * u[2], a[0] * u[1] - a[1] * u[0]];
+        const vl = Math.hypot(vv[0], vv[1], vv[2]) || 1, v = [vv[0] / vl, vv[1] / vl, vv[2] / vl];
+        const at = (r, t) => [c[0] + r * (v[0] * Math.cos(t) + u[0] * Math.sin(t)), c[1] + r * (v[1] * Math.cos(t) + u[1] * Math.sin(t)), c[2] + r * (v[2] * Math.cos(t) + u[2] * Math.sin(t))];
+        const pc = p.level ? C[p.level] || col : col;
+        for (let i = 0; i < N; i++) seg(at(p.R, i / N * 2 * Math.PI), at(p.R, (i + 1) / N * 2 * Math.PI), pc);
+        if (p.hit) {
+          const d = [p.hit[0] - c[0], p.hit[1] - c[1], p.hit[2] - c[2]], ax = d[0] * a[0] + d[1] * a[1] + d[2] * a[2];
+          rod([p.hit[0] - ax * a[0], p.hit[1] - ax * a[1], p.hit[2] - ax * a[2]], p.hit, pc, 0.025, false);
         }
-        if (p.hit) rod([c[0], p.hit[1], p.hit[2]], p.hit, col, 0.025, false);
-        const gy = p.ground != null ? c[1] - p.R - p.ground : p.water != null ? c[1] - p.R - p.water : null;
-        if (gy != null) seg([c[0], c[1] - p.R, c[2]], [c[0], gy, c[2]], col);
-        label([c[0], c[1] + p.R + 0.3, c[2]], 'prop ' + (p.struct != null ? Math.round(p.struct * 100) + ' cm from ' + p.who.replace(/^the /, '') : 'clear of the structure'), col,
+        const low = at(p.R, Math.PI);
+        const gy = p.ground != null ? low[1] - p.ground : p.water != null ? low[1] - p.water : null;
+        if (gy != null) seg(low, [low[0], gy, low[2]], pc);
+        const sd = A.prop.length > 1 ? (p.side < 0 ? 'port ' : p.side > 0 ? 'starboard ' : '') : '';
+        label(at(p.R + 0.3, 0), sd + 'prop ' + (p.discOver != null ? 'blades meet the other disc' : p.struct != null ? Math.round(p.struct * 100) + ' cm from ' + p.who.replace(/^the /, '') : 'clear of the structure'), pc,
               p.ground != null ? Math.round(p.ground * 100) + ' cm over the ground' : p.water != null ? Math.round(p.water * 100) + ' cm over the water at gross' : '');
       }
     }
