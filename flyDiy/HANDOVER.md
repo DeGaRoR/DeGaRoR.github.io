@@ -319349,3 +319349,56 @@ BASE VS BRANCH (by check name, the night set):
 OPEN (FLAGSHIP): the tail item (DMGCERT's fin side-pull breaks 16 fin:attach members on base and branch alike; a fin-root fittings
 row is drafted, not landed: flydiy-notes/fin-root-row-WIP-2026-11-24.patch), DMGDRIVE overspeed, WATERDAMP, MISSIONS bush run,
 ROUTE fly:metal, CLIP aerial, SAVE skiPos; TAILWHEEL I (Pilot's finding: the E-811 pusher's thrust moment).
+
+## NIGHT-SUN - THE LIGHT SEEN: one visibility for the sky's two lights; no red "sun" on the night sea, no red halo (21-22 Nov 2026, claude/ready/night-sun off master 9349a62c1 = L40H)
+THE USER (21 Nov): "In the midst of an aurora night (preset), I can still see crazy red reflections in the sea of a sun
+which is not there, and the horizon keeps showing a huge red halo ... the fix we applied for disabling reflections when
+hidden by the terrain would deserve more focus to be really generic and physically correct."
+THE CAUSE (seen in game, stills page https://claude.ai/artifact/6zky4z9Fq7HyAwb4KvsH5K): the preset is 22 Aug 23:00 at
+55 N - the sun at -19.7 deg, and a 78 % MOON 2.6 deg up, red through the air. Three things, none of them the sun's disc:
+- the red band on the horizon = the sky model's single-scatter twilight tail (R/B 60-300), a few 1e-6 of daylight, under
+  the night's exposure (x 2e5). The model has no ozone-deep / multiple-scatter night, so the tail is pure red and lasts
+  to -18 deg (all night in June at 55 N).
+- the orange block on the OPEN sea = the low moon's disc in the reflection probe, read by the water's wide GGX lobe
+  (near a shore the planar mirror carries the reflection: no block there). LOOK-HALO skipped the moon and LOOK-GLINT
+  was day-only, so nothing hid or weighed it.
+- the white column = the moon key's own glitter path (right, kept).
+WHAT IS BUILT (atmo.js "THE LIGHT SEEN"; ?nightsun=0 = master's picture, every branch below has its OFF arm):
+- discOver(sinEl, altKm, rad): the share of a disc over the model sphere's horizon (the dip included, a circular
+  segment); twilight(elDeg): 1 above -12 deg, 0 under -18 deg (TWILIGHT.from / .to), the weight of the SUN's sky light;
+  SEEN = { sun, moon: { hor, ter, eye }, keyMoon, tw } written each frame; the terrain's share is the KEY light's
+  (the moon at night: app.js sunHiddenEye runs for it too) and ATMO.sunHidden(eased, raw) takes both.
+- THE READERS (one answer, every sun-derived term): the sky-view and aerial tables (uESun = twilight), the dome
+  (uSeen: the discs x the share over the horizon, the coronas on it instead of the old smoothstep; the PROBE's dome
+  takes the eye's terrain share once it has held 600 ms and re-bakes, seenMoved()), the hemisphere and the clouds'
+  ambient (skyIrradiance(alt, sun, out, E) - E left out = bit-identical), the mist's colour and forward peak (the key
+  light's), the ground irradiance, the flare (sky_glare `seen`), forest_mist's beam, the moon key's ramp (falls
+  through the horizon on the sun's ramp, 0 under -1.5 deg), and the water's direct highlight at EVERY hour (wGV; a key
+  under the water's horizon draws no glitter path).
+- water.js A DISC IS REFLECTED ONCE (uWDisc, night only, while the moon is the key): the probe's lookup round the moon
+  is held to the sky's beside it (min, never raised); the direct highlight carries the disc. By day w = 0: the branch
+  is not taken.
+- NO ADDED SHADER PROGRAM: every change is a uniform or a branch inside an existing program (GATE PROGRAMS green);
+  the aurora's mirror sphere below is a second mesh of the aurora's own program.
+THE USER'S STEER (22 Nov, on the page) AND PICKS ("go with the defaults"):
+- the twilight fade STAYS -12..-18 (the 22:00 glow is wanted); the orange glow round a low moon stays.
+- "a little too blue there ... this big blue carpet ... make it darker": WATER.nightSea.k 0.38 -> 0.266 (the sheen at
+  70 %) and farK 0.5 (uWNight2: far water takes half of it, fading 150 m -> 1.5 km from the eye: near, the mirror's
+  reflections carry the surface; far, the sheen was all of it). Level B (k 0.19, farK 0.35) was shown and not taken.
+- "a bit bothered with the moonlight level": ATMO.MOON_PROBE = { k: 'own', white: 1 } - the probe's moon disc at the
+  moonlight's own level and colour (moonProbeOwn: LIGHT_RIG.moonE over the dome disc's own illuminance; the disc was
+  2.6x the key's moonlight at the full moon and 5.6x at this gibbous one, in the air's orange when low). Measured on
+  the full-moon night's stills: the land 7 to 11 % lower; the orange streaks on metal under a low moon gone.
+- "really at the water level, so that it's very mirrory": the lake was a flat blue with no aurora in it - the aurora
+  rides the MAIN camera, the planar mirror's capture never held it. aurora.js mirror() hands water.js mirrorRender a
+  second sphere (same program) for the capture's sky pass; AURORA.mirrorK.k is its dial.
+LIVE DIALS (console / a rig): ATMO.TWILIGHT, ATMO.MOON_PROBE { k: number | 'own', white 0..1 }, WATER.nightSea
+{ k, col, farK, far, disc }, AURORA.mirrorK.k; ATMO.seen() reads the frame's answer.
+GATES: ATMO section 9 (the light seen: 20-odd checks, the picks pinned). GATE CLOUD pins the probe's re-bake line by
+text: seenMoved() sits on its OWN line under it. Red on master 9349a62c1 itself, not this work: SHADOWSKY, MEDIA, ASSETS.
+EVIDENCE: D:/Dev/flydiy-notes/evidence/night-sun-2026-11-22/ (before = master; final, final2 = this build; r2, r3 =
+the variants shown). Dusk (19:30, 20:30) and noon are unchanged within 0.2/255 by the visibility work.
+LEFT, NAMED (not done, a later round if the user wants it): the night water's reflection stops short of the far
+shore and the mountains are not in it (the mirror's reach at night); the clouds keep their own sun gate at dusk
+(uSun.y > -0.1); the model still has no true deep-twilight colour (the fade removes the red tail, it does not paint
+the blue hour's last glow).

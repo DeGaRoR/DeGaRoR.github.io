@@ -856,7 +856,8 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     sunEl = keyDir[1];
     U.uSun.value.set(sun[0], sun[1], sun[2], 0);
     if (A) {
-      A.sunTransmittance(midKm, sun[1], _T); A.skyIrradiance(topKm, sun, _E);
+      const tw = A.twilight ? A.twilight(day.sunEl) : 1;   // NIGHT-SUN (atmo.js THE LIGHT SEEN): the sun's sky light through the astronomical twilight
+      A.sunTransmittance(midKm, sun[1], _T); A.skyIrradiance(topKm, sun, _E, tw);
       const sy = Math.max(0, sun[1]);
       U.uSunCol.value.set(_T[0] * S.sunK, _T[1] * S.sunK, _T[2] * S.sunK);
       const mE = A.U.eMoon.value;
@@ -879,7 +880,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
       const VEIL_K = { st: 0.55, sc: 0.4, cu: 0.35, cb: 0.7 };
       const vc = Math.max(0, Math.min(1, day.cloudCover * (VEIL_K[lay.type] || 0.35) * S.veil)) * (S.mode !== 'off' ? 1 : 0);
       const km = S.veilKm, vT = _Tv, vE = _Ev;
-      A.sunTransmittance(km, sun[1], vT); A.skyIrradiance(km, sun, vE);
+      A.sunTransmittance(km, sun[1], vT); A.skyIrradiance(km, sun, vE, A.twilight ? A.twilight(day.sunEl) : 1);
       const sy = Math.max(0, sun[1]), mE = A.U.eMoon.value;
       if (mE > 0 && moon[1] > 0) { A.skyIrradiance(km, moon, _Egv); vE[0] += _Egv[0] * mE; vE[1] += _Egv[1] * mE; vE[2] += _Egv[2] * mE; }
       const v = A.U.veil.value; v[0] = vc; v[1] = -wz * 2.2 * secs * S.driftK; v[2] = wx * 2.2 * secs * S.driftK; v[3] = km * 1000;
