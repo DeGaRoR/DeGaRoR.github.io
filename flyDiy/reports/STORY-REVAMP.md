@@ -122,7 +122,7 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 ### The feasibility state
 
 <!-- feas-state -->
-ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 58 FEASIBLE, 22 red or waiting for a plane the player builds, 3 not flown yet on this sim (1 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
+ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 58 FEASIBLE, 23 red or waiting for a plane the player builds, 2 not flown yet on this sim (0 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
 The feasible ones, by the aeroplane that flew them: 27 Piper Cub, 8 STOL Cub, 7 light metal Cessna with the STOL kit (test build), 4 PC-6 Turbo Porter, 4 Cessna 172 floats (career), 4 Jodel D112, 2 Cessna 172, 1 PA-18 on floats, 1 PC-6 on Wiplines.
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
@@ -130,6 +130,7 @@ Those, by cause:
 - resort.03, clients.03: the altiport (tw_ski, 280 m on a 20 % grade), flown light: the Cub and the STOL Cub touch about 100 m in, stop off the strip's end on the slope and cannot taxi back; the Jodel alone goes on its back in the rollout (with a passenger it lands it: club.breakfast, resort.01, resort.guests). The built-in pack's own mission - the pilot's or the field's
 - resort.05: two passengers to the altiport (tw_ski): with three aboard the STOL-kit Cessna goes around until its fuel is out and the PC-6 gives up in the flare - the altiport again, flown heavy; master's own GATE CONTRACTS names this mission red ("stage 0 is flyable by a validated design")
 - obs.02: 200 kg and a passenger into the 210 m mountain strip: the STOL-kit Cessna lands there, its loading card takes 140 kg beside the passenger - a hauler the player builds
+- obs.03: NOT READ YET
 - obs.04, obs.07: two passengers into the 210 m mountain strip: with three aboard the test pilot will not go (the STOL-kit Cessna needs 277 m, the PC-6 246 m) - a three-seat STOL plane the player builds
 - obs.06, obs.08, obs.09: 150 to 250 kg into the 210 m mountain strip: the STOL-kit Cessna lands there but its loading card takes 50 kg for that strip, and the PC-6 will not go (a 226 m landing run) - the observatory's hauler, a plane the player builds (the class named before any flight)
 - clients.n2: no official plane can carry it (a 175 kg load with its long item): a named class, not flown

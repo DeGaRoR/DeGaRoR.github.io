@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 58 feasible; 19 infeasible; 3 no official plane can fly it (the player builds one); 2 not flown; 1 stale. Time flown: 1878 min 46 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 58 feasible; 20 infeasible; 3 no official plane can fly it (the player builds one); 2 not flown. Time flown: 1903 min 38 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -51,7 +51,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 58 feasible; 19 infea
 | survey.04 | contract | order | - | - | - |  |
 | obs.01 | observatory:1 | feasible | Piper Cub | 64 min 01 s | HOME > HOME 1426; HOME > HOME 1798; HOME > HOME 617 |  |
 | obs.02 | observatory:2 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 11 min 18 s | HOME > mt_strip 678 | the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax |
-| obs.03 | observatory:2 | stale | - | - | - |  |
+| obs.03 | observatory:2 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 24 min 52 s | HOME > mt_strip 669; mt_strip > mt_strip 411; mt_strip > mt_strip 411 | no progress: already loaded |
 | obs.04 | observatory:3 | infeasible | PC-6 Turbo Porter | - | HOME > HOME 0; HOME > HOME 0; HOME > HOME 0 | no progress: already loaded [declined] |
 | obs.05 | observatory:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 16 min 39 s | HOME > w3 467; w3 > mt_strip 531 |  |
 | obs.06 | observatory:4 | infeasible | PC-6 Turbo Porter | - | HOME > HOME 0 | the stop refuses the load: aboard 0 kg / 0 pax, the job is 150 kg / 0 pax |

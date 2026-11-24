@@ -2520,7 +2520,14 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "no progress: already loaded",
+    "sim": "L40K",
+    "sig": "6a3c875f"
+   }
   },
   {
    "id": "obs.04",
