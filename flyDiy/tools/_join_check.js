@@ -524,7 +524,12 @@ try {
     ok(Math.abs(P1[1] - 0.5 * P1[0]) < 1e-6 * Math.max(1, P1[0]),
        'starboard lever at 50 %: half the port thrust (' + P1[0].toFixed(0) + ' / ' + P1[1].toFixed(0) + ' N)');
     simW.ctl.eng = [{ on: 1, thr: 1 }, { on: 0, thr: 1 }]; simW.step(1 / 60);
-    ok(simW.out.thrustPer[1] === 0 && simW.out.thrust > 0, 'a cut engine makes no thrust, the other still does');
+    // (PHYSICS-AUDIT 1d, 24 Nov: a cut lever leaves its engine idling, and since step 4 an idling propeller is a brake -
+    //  its thrust is minus its share of the idle drag, never positive, and no more than sim.idleDragAt reads at the
+    //  airspeed (the solver's term reads the speed along the thrust line, a little less on the ground); it was exactly 0)
+    const cutD = simW.idleDragAt(simW.out.V) / 2, cutT = simW.out.thrustPer[1];
+    ok(cutT <= 0 && -cutT <= cutD * (1 + 1e-9) && simW.out.thrust > 0,
+       'a cut engine makes no thrust (its idling propeller\'s drag, ' + cutT.toExponential(1) + ' N), the other still does');
     // the yaw couple: with the starboard engine cut, the port thrust at -z is
     // a moment about the CG — exact off the node position — and the nose
     // swings within three seconds

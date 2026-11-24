@@ -2091,7 +2091,8 @@
     "plan": "list_26/plan.webp",
     "front": "list_26/front.webp",
     "cutaway": "list_26/cutaway.webp"
-   }
+   },
+   "physicsAt": "design_cub/physics.json"
   },
   "cand:stearman_2026-10.json": {
    "name": "Stearman-alike",
