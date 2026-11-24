@@ -1754,7 +1754,12 @@
    "id": "clients.b1",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "untested",
+   "plane": null,
+   "timeS": 0,
+   "why": "no criterion fails on Ruckus Solo 103, Electric trainer, Rufus, pusherLight, twinBoomFail, Ultralight twin on floats, Archaeopteryx-alike, LS4-alike (not a career design: untested here - tankL, enduranceMin)",
+   "legs": [],
+   "pool": "validated",
    "cls": "order"
   },
   {
