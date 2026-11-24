@@ -722,6 +722,7 @@ const AERO_HARD = {
     grip: 'rubberGrip', boot: 'rubberGrip', plated: 'chrome', cast: 'castAlu', hide: 'hide', ptt: 'plasticScr',
     seatAlu: 'bareAlu',           // G345: the seats' tube frame, drawn alloy
     ball: 'plasticScr', tread: 'rubberGrip', plateAl: 'panelMetal',
+    brk: 'plasticScr',            // (MASTER-GREEN 23 Nov, GATE SKINMAT on L40K: the LS4's airbrake handle, its moulded blue grip - as the ball and the ptt)
   },
 };
 // the propeller's material is a CHOICE on the cowl bench (COWL_GEN.MATERIALS),
