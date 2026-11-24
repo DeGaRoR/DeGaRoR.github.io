@@ -1793,6 +1793,9 @@
   function gviewTick() {
     if (!gviewOn() || !hangar || !hangar.gviewFrom || gviewFor === hangar || typeof GARAGE_VIEW === 'undefined') return;
     if (++gviewTicks < GVIEW_WAIT) return;   // (the session's first scene: after the garage has run; later rooms find the count long past)
+    // NEVER DURING A ROLL-OUT (A0 / the user's rule, no freezes, 24 Nov): while the roll-out shot plays, the room is about to be
+    // left - the scene's fetch, build and program links wait for the shed again (ROUNDTRIP: roll-out 1 linked them, +8)
+    if (typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) return;
     gviewFor = hangar; const H = hangar, tFind = performance.now(); GARAGE_VIEW.ready = false;
     gviewJob = GARAGE_VIEW.find(window.FLYDIY_WORLD, roomBase(), roomId()).then(row => { if (!row || hangar !== H) return null;
       if (!gviewPacks.has(row.base)) gviewPacks.set(row.base, GARAGE_VIEW.load(((typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '') + row.base, THREE));
