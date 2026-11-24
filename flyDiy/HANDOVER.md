@@ -319360,3 +319360,10 @@ worst 0.68 s (the tree impostors' bake: perf-worldbuild-7), 3.7 s of freezes a m
 The loop's 'still' recorder read `performance.now()` bare (since perf-lead-1); tools/test_ui_smoke.js runs app.js with no `performance` and GATE
 UISMOKE / UISMOKE-PHONE crashed at the loop. It reads the page's guarded clock (perfNow). The red had been filed on 23 Nov as "L40J's own by check
 name" without reading its stack: it was this line. UISMOKE and UISMOKE-PHONE are in the perf lab's gate set from here.
+
+## PERF-LEAD 7 - GATE UILAYER GREEN; PERF-WORLDBUILD 7 (24 Nov 2026, claude/ready/perf-lead-7 = perf-lead-6 + this + claude/ready/perf-worldbuild-7; it supersedes -6. For L40M the same one line is claude/ready/perf-lead-2d)
+- flRevealStart hands the flight UI back FIRST (rollShotUi(false)); the lab's cover-budget line had been put before it since perf-lead-1 (GATE UILAYER U5).
+- perf-worldbuild-7: the tree pool's packs handed up a task each before the queued replant (57 packs, 27 maps, 93 geometry batches): the garage's
+  worst freeze while the world loads 0.68-0.75 s -> 0.55 s (busy box, 24 Nov 10:48). perf-worldbuild-8 (the bakes one a task) is NOT in: its first
+  deferred tick links three programs at once - a 1.47 s task in the 14:01 quiet row; its picture was right (far trees present, 57 of 57 bakes).
+- The lab's gate set from here also has UILAYER (four reds of this round reached readies through gates outside the set: WATER, GFX, UISMOKE, UILAYER).
