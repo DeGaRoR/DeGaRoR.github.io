@@ -51,7 +51,7 @@ async function child(side, out) {
           else if (label === AFTER) STEPS.push(['the renderer (make)', +d.toFixed(2)]);
           else if (label === 'premises' || label === 'premises: the generators') { if (inlineMs === null || d > inlineMs) inlineMs = +d.toFixed(1); }
           if (!r.done && r.value !== undefined) label = r.value;
-          if (!r.done && /^(sky|ground|island ground|far terrain|water|roads|houses|ring): /.test(String(r.value))) SKYL.add(String(r.value));   // (the labels only a host's budget asks for)
+          if (!r.done && /^(sky|ground|island ground|far terrain|water|roads|houses|ring|trees): /.test(String(r.value))) SKYL.add(String(r.value));   // (the labels only a host's budget asks for)
           // between two of the composition's steps: the premises of BEFORE stand, whole
           if (!r.done && OURS.test(String(r.value)) && world && world.premises) {
             const ov = world.premises.overlay; if (!O0) O0 = ov; HELD.looks++;
