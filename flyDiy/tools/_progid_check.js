@@ -450,5 +450,87 @@ function runWorkers(ok) {
     ok(SO.notRecorded.indexOf('workers') >= 0 && SO.steps.find(s => s.id === 'settle').bound === 'not proven' && /workers not recorded/.test(SO.steps.find(s => s.id === 'settle').why), '9c a log without the table still says "workers not recorded", and proves nothing');
   }
 }
-module.exports = { run, runSites, runCensus, runWorkers, boot, world, warm };
+// ---- 10. THE GPU'S TIME BY PASS (?recgpu=pass; PERF-TRACE 9) -----------------------------------------------------
+// The recorder on a fake GPU whose "time" is a number the test adds between the frame's boundaries: a query's result
+// is what was added while it was open. 10a nothing without the switch (no query beyond the whole frame's, no table);
+// 10b a pass frame is a chain that never nests, each pass gets what was spent in it, the shadow maps their own
+// segment, the frame's gpu column is the sum; 10c a rogue timer spoils the frame and says so; 10d the reader.
+function runGpuPass(ok) {
+  const rig = opt => {
+    const T = { now: 1000 }, gpu = { spent: 0, open: null, nested: 0, begun: 0, made: 0, disjoint: false };
+    const ctx = { console, performance: { now: () => T.now, timeOrigin: 0 }, setTimeout, clearTimeout, requestAnimationFrame: () => 0, cancelAnimationFrame: () => {},
+      navigator: { userAgent: 'node' }, location: { search: opt.search || '', pathname: '/gate' } };
+    ctx.globalThis = ctx; ctx.window = ctx; ctx.self = ctx; vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flight_recorder.js'), 'utf8').replace(/^'use strict';/m, ''), ctx, { filename: 'flight_recorder.js' });
+    const EXT = { TIME_ELAPSED_EXT: 0x88BF, GPU_DISJOINT_EXT: 0x8FBB };
+    const gl = { QUERY_RESULT: 0x8866, QUERY_RESULT_AVAILABLE: 0x8867, LINK_STATUS: 0x8B82, VENDOR: 1, RENDERER: 2, VERSION: 3, MAX_TEXTURE_SIZE: 4,
+      linkProgram() {}, getProgramInfoLog: () => '', getProgramParameter: () => true, getParameter: p => p === EXT.GPU_DISJOINT_EXT ? gpu.disjoint : 'x',
+      getExtension: n => n === 'EXT_disjoint_timer_query_webgl2' ? EXT : null,
+      createQuery: () => ({ id: ++gpu.made, res: null, at: 0 }),
+      beginQuery(t, qy) { if (gpu.open) gpu.nested++; gpu.open = qy; qy.at = gpu.spent; qy.res = null; gpu.begun++; },
+      endQuery(t) { if (gpu.open) { gpu.open.res = (gpu.spent - gpu.open.at) * 1e6; gpu.open = null; } },
+      getQueryParameter: (qy, p) => p === 0x8867 ? qy.res !== null : qy.res };
+    const info = { render: { calls: 0, triangles: 0 }, programs: [] };
+    const renderer = { info, getContext: () => gl, shadowMap: { render() { gpu.spent += renderer.shadowCost || 0; } },
+      render(scene) { if (scene && scene.shadows) this.shadowMap.render(); gpu.spent += (scene && scene.cost) || 0; info.render.calls = (scene && scene.calls) || 0; info.render.triangles = (scene && scene.tris) || 0; } };
+    const R = ctx.FLIGHT_REC.make(Object.assign({ frames: 256, chunk: 32, now: () => T.now }, opt.make || {}));
+    R.attach(renderer, null);
+    return { R, T, gpu, gl, renderer, S: R.S };
+  };
+  // one frame of the game's shape: other | world | scene | hud | mirror | render (clouds march, scene pass with shadows, overlay, resolve, post) | other
+  const frame = (P, o) => { const { R, T, gpu, renderer, S } = P; o = o || {};
+    R.begin(T.now, { steps: 0 }); gpu.spent += 0.1; R.lap(S.other);
+    gpu.spent += 0.4; R.lap(S.world); R.lap(S.scene); R.lap(S.hud);
+    renderer.shadowCost = 0; renderer.render({ cost: 6, calls: 300, tris: 9e6 }); R.lap(S.mirror);
+    R.gpuMark('clouds march'); gpu.spent += 2;
+    R.gpuMark('scene pass'); if (o.rogue) P.gl.beginQuery(0x88BF, P.gl.createQuery()), P.gl.endQuery(0x88BF);
+    renderer.shadowCost = 3; renderer.render({ cost: 14, calls: 1300, tris: 30e6, shadows: true });
+    R.gpuMark('clouds overlay'); gpu.spent += 1.5;
+    R.gpuMark('aa resolve'); renderer.shadowCost = 0; renderer.render({ cost: 4, calls: 1, tris: 2 });
+    R.gpuMark('post'); gpu.spent += 0.5;
+    R.lap(S.render); gpu.spent += 0.25;
+    T.now += 33; R.end(true, [0, 0, 0]); };
+  { // 10a
+    const P = rig({}); for (let i = 0; i < 40; i++) frame(P);
+    const log = JSON.parse(P.R.logParts().join(''));
+    ok(log.gpuPasses === undefined && log.header.gpuTimer.byPass === null && P.gpu.nested === 0, '10a without the switch: no table, no chain',
+       P.gpu.begun + ' queries for 40 frames (the whole frame\'s, 3 frames in 4)');
+    ok(P.gpu.begun <= 30, '10a without the switch a frame opens at most one query', P.gpu.begun);
+  }
+  { // 10b
+    const P = rig({ make: { gpuPass: 4 } }); for (let i = 0; i < 80; i++) frame(P);
+    const log = JSON.parse(P.R.logParts().join('')), G = log.gpuPasses;
+    ok(P.gpu.nested === 0, '10b the chain never nests a query (each ends before the next begins)', P.gpu.begun + ' queries begun');
+    ok(G && G.every === 4 && G.frames >= 15 && G.rows.length === G.kept && G.lost === 0, '10b one frame in 4 is timed pass by pass and its row is kept', G ? G.frames + ' frames, labels: ' + G.labels.join(' | ') : 'no table');
+    const L = G.labels.length, col = n => G.labels.indexOf(n), row = G.rows[G.rows.length - 1], ms = n => row[2 + col(n)], draws = n => row[2 + L + col(n)], near = (a, b) => Math.abs(a - b) < 1e-6;
+    ok(near(ms('mirror'), 6) && near(ms('clouds march'), 2) && near(ms('scene pass'), 14) && near(ms('shadow'), 3) && near(ms('clouds overlay'), 1.5) && near(ms('aa resolve'), 4) && near(ms('post'), 0.5),
+       '10b each pass gets the GPU time spent between its boundaries (the mirror 6, the clouds\' march 2, the scene pass 14 with the shadow maps\' 3 apart, overlay 1.5, resolve 4, post 0.5)',
+       G.labels.map(n => n + ' ' + ms(n)).join(', '));
+    ok(near(ms('world'), 0.4) && near(ms('other'), 0.35) && ms('scene') === 0 && ms('hud') === 0 && col('solver') < 0, '10b the laps without a mark are their slot\'s (world 0.4, other 0.1 + 0.25, scene and hud 0); a slot that never had a segment is not a column', G.labels.join(' | '));
+    ok(draws('mirror') === 300 && draws('scene pass') === 1300 && draws('aa resolve') === 1, '10b each segment keeps the draw calls of the render that returned in it');
+    const sum = G.labels.reduce((a, n) => a + (ms(n) || 0), 0), fr = log.frames, gcol = log.header.cols.indexOf('gpu');
+    const rows = (fr.f || fr.rows || []), f = row[1];
+    ok(near(sum, 31.75), '10b the passes sum to the frame (31.75)', sum);
+    const H = P.R.header(); ok(H.gpuTimer.byPass && H.gpuTimer.byPass.frames === G.frames && H.gpuTimer.coverage > 0.9, '10b the header counts them, and the whole-frame coverage does not drop (a pass frame\'s gpu is its sum)', JSON.stringify(H.gpuTimer.byPass) + ' coverage ' + H.gpuTimer.coverage);
+    // 10d the reader
+    const GP = require('./gpu_passes.js'), A = GP.analyse(log, {});
+    const sp = A.passes.find(p => p.name === 'scene pass');
+    ok(A.frames >= 15 && sp && near(sp.med, 14) && near(sp.p90, 14) && A.passes[0].name === 'scene pass' && near(A.sumMed, 31.75), '10d tools/gpu_passes.js: the passes by median, the largest first, their sum beside the whole frame\'s', A.passes.map(p => p.name + ' ' + p.med).join(', '));
+    ok(/scene pass/.test(GP.text(A)) && /THE GPU BY PASS/.test(GP.text(A)), '10d its text names the passes');
+  }
+  { // 10c
+    const P = rig({ make: { gpuPass: 4 } }); for (let i = 0; i < 9; i++) frame(P, { rogue: i === 4 });
+    for (let i = 0; i < 12; i++) frame(P);
+    const G = JSON.parse(P.R.logParts().join('')).gpuPasses, H = P.R.header();
+    ok(G.lost === 1 && H.gpuTimer.rogue >= 1, '10c another module\'s timer on a pass frame spoils that frame (counted: lost, rogue), the chain is closed first', 'lost ' + G.lost + ', rogue ' + H.gpuTimer.rogue + ', nested ' + P.gpu.nested);
+    ok(G.rows.every(r => r.slice(2, 2 + G.labels.length).every(v => v === null || v >= 0)), '10c no row of a spoiled frame is kept');
+  }
+  { // the switch itself
+    const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flight_recorder.js'), 'utf8'), aa = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aa_resolve.js'), 'utf8');
+    ok(/recgpu=pass\(\?::\(\\d\+\)\)\?/.test(src) && /const PASS = PASS_EVERY \?/.test(src), '10 the switch is ?recgpu=pass[:N] and the chain\'s state exists only under it');
+    ok(['clouds march', 'scene pass', 'clouds overlay', 'aa resolve', 'post', 'frame tap'].every(n => aa.indexOf("GM('" + n + "')") >= 0), '10 aa_resolve.js marks its six passes');
+  }
+}
+
+module.exports = { run, runSites, runCensus, runWorkers, runGpuPass, boot, world, warm };
 if (require.main === module) { let fails = 0; runWorkers((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); runSites((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); run((c, msg, extra) => { console.log((c ? '  ok   ' : '  FAIL ') + msg + (extra !== undefined ? '  (' + extra + ')' : '')); if (!c) fails++; }); process.exit(fails ? 1 : 0); }

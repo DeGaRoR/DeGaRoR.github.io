@@ -64,3 +64,11 @@ naming walk), `?reclaps=N`, `?recgpu=0`, `?recwk=0`, `?progid=0`. A capture on t
   the rock ring does not report itself in the cover slot's split; a new material whose program already exists still costs
   one held frame in the draw guard (shader_warm.js: `props.get(material).programs === undefined`) - PERF-LEAD's to decide.
 - Evidence, by window: `D:/Dev/flydiy-notes/evidence/perf-*/trace/`.
+
+## Added 24 Nov: the GPU's time by pass
+
+`?recgpu=pass` on the page (one frame in 4; `?recgpu=pass:1` for every frame the recorder owns), then
+`tools/gpu_passes.js <log> [--from S --to S | --mark step] [--against other.json]`: the GPU's milliseconds by pass (mirror,
+shadow maps, clouds march, scene pass, clouds overlay, AA resolve, post), their sum against the whole-frame timer, and the
+render scale as it moved. A family inside the scene pass (cover ring, far terrain, trees) is read by flying the same
+seconds with it off and comparing the two logs with `--against`. Nothing is timed by pass without the switch.
