@@ -1803,6 +1803,11 @@
     // THE SCENE'S PROGRAMS LINK OFF THE FRAME: built held down, compileSliced (paced slices) over its group, then shown - never a link in the frame that shows it
     .then(pack => { if (!pack || hangar !== H) return null; const t0 = performance.now(), B = H.gviewFrom(pack, true); if (!B) return null; const tB = performance.now();
       return Promise.resolve(typeof compileSliced === 'function' ? compileSliced(B.group, aa && aa.target ? aa.target() : null, hangarScene) : null).catch(() => {})
+        // ...AND AS THE ROLL-OUT SHOT DRESSES THE SHED (the craft and its lights in the room re-key every program there): the
+        // craft step links the room's own that way, never this later scene - without it the first shot after the scene stood
+        // linked its programs (ROUNDTRIP, 24 Nov: +8 in the shot / the craft step)
+        .then(() => (hangar === H && model && garageScene() === hangarScene && RA_Q !== '0' && typeof ROLLANIM !== 'undefined')
+          ? compileSliced(B.group, aa && aa.target ? aa.target() : null, hangarScene, false, f => craftInShed(hangarScene, f)) : null).catch(() => {})
         .then(() => { if (hangar !== H) return null; H.gviewShow(); GARAGE_VIEW.ready = true;
           // (loadMs: asked -> fetched, decoded, uploaded, 0 for a room whose scene was already loaded; linkMs: the programs, off the frame)
           window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(tB - t0).toFixed(1), linkMs: +(performance.now() - tB).toFixed(0), loadMs: +(t0 - tFind).toFixed(0), scene: B }; return B; }); })
