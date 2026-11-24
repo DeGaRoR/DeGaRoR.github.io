@@ -4781,7 +4781,7 @@ return {
   // species, the world's own impostor bakes) - one InstancedMesh a species over the places the outdoors planted, each card
   // facing the room's centre (the eye stays in the room; the trees stand 50-200 m out: real geometry, right from any eye),
   // its normal tipped toward the sky so the sun and the sky light it as the field is lit. -> true when stood
-  treesFrom: S => {
+  treesFrom: (S, hold) => {   // (hold: stood but not shown until treesShow - the page links their program first, 24 Nov)
     const T = HO_TREES;
     if (!T || T.built || !S || !S.tex || !Array.isArray(S.list) || !S.list.length || !T.list.length) return false;
     const grp = new THREE.Group(); grp.name = 'room:trees'; grp.userData.outdoor = true;
@@ -4807,9 +4807,14 @@ return {
       im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = false; im.frustumCulled = false;
       grp.add(im);
     });
-    grp.visible = !viewOut && !GVIEW; G.add(grp); T.built = grp;
+    grp.visible = !viewOut && !GVIEW && !hold; G.add(grp); T.built = grp; T.held = !!hold;   // (GARAGE-VIEW's cooked scene AND the page's link first: both)
     return true;
   },
+  // (24 Nov, PERF-TRACE's read of the 03:00 row: the tree cards were added to a scene the garage draws with no program for
+  //  their material - three made and linked it INSIDE that frame's draw, 155-234 ms of the garage's picture in every load.
+  //  The page now links it first: treesGroup for its compile, treesShow when the link is in)
+  treesGroup: () => (HO_TREES && HO_TREES.built) || null,
+  treesShow: () => { const T = HO_TREES; if (T && T.built && T.held) { T.held = false; T.built.visible = !viewOut && !GVIEW; } },   // (GARAGE-VIEW's cooked scene stands in for them while it is up)
   treesPlanned: () => (HO_TREES ? HO_TREES.list.length : 0),
   // GARAGE-VIEW (the user 22 Nov: the world out of the door "recreate as accurately as possible the real world ... the accurate
   // distances for everything ... without costing much on the garage"): THE COOKED SCENE STANDS IN FOR THE HAND-DRAWN OUTDOORS.
@@ -4835,7 +4840,7 @@ return {
   gviewShow: () => gvShow(),
   outdoorsShow: (on, keepSky) => {
     viewOut = on === false; skyLive = viewOut && !!keepSky;
-    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut && (!GVIEW || o === GVIEW.group || o === GVIEW.shadow);   // (GARAGE-VIEW: the cooked scene alone while it stands)
+    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut && (!GVIEW || o === GVIEW.group || o === GVIEW.shadow) && !(HO_TREES && HO_TREES.held && o === HO_TREES.built);   // (GARAGE-VIEW: the cooked scene alone while it stands)
     // HANGAR-VIEW C (the 9 Nov sheet: a red-brown band past the Shed's door over the world's grass): the plot's pad hangs under
     // room:polish, which stays, and reaches 14 m out of the door - it is outdoors, the world's view draws the real ground there
     if (ROOM_PAD) ROOM_PAD.visible = !viewOut && !GVIEW;

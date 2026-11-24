@@ -322,13 +322,23 @@
         A.holdDown = t + Math.min(300000, 30000 * Math.pow(2, A.reverts - 1));
         return A.i - 1;
       }
+      // THE PART OF THE CARD'S TIME THAT DOES NOT SCALE WITH THE PIXELS, LEARNT FROM THIS STEP (24 Nov 2026, PERF-TRACE's row
+      // C: at half scale - a quarter of the pixels - the card still took 21 ms of its 30: about 13 ms are triangles and draw
+      // calls). Two points - the time before the step at its scale, the time after at this one - give it: g = G0 + P x scale^2
+      if (p.g != null && g != null && p.s > 0) { const r = Math.pow(ST[A.i] / p.s, 2);
+        if (r < 0.95) { const G0 = p.g - (p.g - g) / (1 - r); if (isFinite(G0)) A.G0 = Math.max(0, Math.min(G0, g)); } }
       A.reverts = 0; return A.i;
     }
     if (A.up) { A.up = null; if (f > T * 1.08) { A.holdUp = t + 60000; return A.i + 1; } return A.i; }
-    if (f > T * 1.08 && A.i < ST.length - 1 && t > A.holdDown && t - A.since > 2000) { A.probe = { f }; return A.i + 1; }
+    if (f > T * 1.08 && A.i < ST.length - 1 && t > A.holdDown && t - A.since > 2000) { A.probe = { f, g, s: ST[A.i] }; return A.i + 1; }
     if (f <= T * 1.05 && A.i > 0 && t > A.holdUp && t - A.since > 4000) {
       const k = ST[A.i - 1] / ST[A.i];
-      if (g == null || g * k * k < T * 0.8) { A.up = { f }; return A.i - 1; }
+      // (the way back up asks whether the card would hold 0.8 T at the larger scale. It multiplied ALL of g by the pixels'
+      //  ratio: with 13 of 21 ms fixed it predicted 37.7 ms for a step that measures 20.3, and a cruise that holds 0.85 sat
+      //  at 0.5 for ever once a heavy stretch had pushed it down. Only the pixels' part is scaled now; G0 is 0 until learnt,
+      //  i.e. the rule as it was)
+      const G0 = A.G0 > 0 && g != null ? Math.min(A.G0, g) : 0;
+      if (g == null || G0 + (g - G0) * k * k < T * 0.8) { A.up = { f }; return A.i - 1; }
     }
     return A.i;
   }
@@ -476,7 +486,10 @@
     }
 
     // setScale(k): the render scale, 0.5..1 - the scene drawn at k x the canvas and enlarged by the resolve
-    function setScale(k) { k = Math.max(0.5, Math.min(1, +k || 1)); if (Math.abs(k - S.scale) < 1e-3) return S.scale; S.scale = k; buildRT(); return S.scale; }
+    function setScale(k) { k = Math.max(0.5, Math.min(1, +k || 1)); if (Math.abs(k - S.scale) < 1e-3) return S.scale; S.scale = k; buildRT();
+      // (PERF-TRACE 9: the render scale in the flight log when it CHANGES - the automatic scale's steps were never seen in a flight)
+      try { if (typeof FLIGHT_REC !== 'undefined' && FLIGHT_REC.event) FLIGHT_REC.event('aascale', null, { scale: k, auto: AUTO.on ? 1 : 0, w: S.rt ? S.rt.width : null, h: S.rt ? S.rt.height : null, targetMs: Math.round(AUTO.T * 10) / 10 }); } catch (e) {}   // (targetMs: the frame time the automatic scale aims at - the frame cap's, app.js tellScale)
+      return S.scale; }
     // THE AUTO SCALE (PERF 2026-09-23, G528): the render scale held to the frame budget - a new player's machine is not
     // known, and a big screen or a small GPU is exactly what the scale buys back. Every 30 frames the median frame is
     // read: over 1.08 x the budget (60 fps) the scale steps DOWN one of the menu's own steps (1 / .85 / .75 / .67 / .5,
@@ -485,7 +498,7 @@
     // the scale left alone for 30 s (doubling on each repeat, 5 min at most) - the picture is never blurred for nothing.
     // It steps UP when the frame holds the budget and the scene's own GPU time (the timer query round the scene pass)
     // says the next step's pixels fit in 80 % of it; an up step that then misses holds the ups for a minute.
-    const AUTO = { on: false, T: 1000 / 60, steps: [1, 0.85, 0.75, 0.67, 0.5], i: 0, fr: [], gpu: [], q: [], last: 0, since: 0,
+    const AUTO = { on: false, T: 1000 / 60, steps: [1, 0.85, 0.75, 0.67, 0.5], i: 0, G0: 0, fr: [], gpu: [], q: [], last: 0, since: 0,
                    probe: null, up: null, holdDown: 0, holdUp: 0, reverts: 0, ext: null, stats: { down: 0, up: 0, reverts: 0 } };
     function autoScale(on) {
       on = !!on;
@@ -541,7 +554,11 @@
       // turns, not after, and renderer.render (which would) comes next. So the clouds were marched with this frame's
       // eye position and LAST frame's rotation: they slid against the world while orbiting, more as the fps fell, and
       // snapped back on a mirror-capture frame (the mirror refreshes the camera). The matrix is made current first.
+      // PERF-TRACE 9 (?recgpu=pass): the passes of this function, each its own GPU timer segment (FLIGHT_REC.gpuMark returns at once without the switch)
+      const GM = (typeof FLIGHT_REC !== 'undefined' && FLIGHT_REC.gpuMark) || null;
+      if (GM && S.pre) GM('clouds march');
       if (S.pre) { if (camera.updateWorldMatrix) camera.updateWorldMatrix(true, false); S.pre(renderer, camera, S.rt, scene); }
+      if (GM) GM('scene pass');
       renderer.setRenderTarget(S.rt);
       // the auto scale's GPU reading: the scene pass alone (the clouds' and the post passes' own timers are outside it)
       let aq = null;
@@ -549,20 +566,24 @@
         const gl = renderer.getContext(); aq = gl.createQuery(); gl.beginQuery(AUTO.ext.TIME_ELAPSED_EXT, aq); }
       renderer.render(scene, camera);
       if (aq) { renderer.getContext().endQuery(AUTO.ext.TIME_ELAPSED_EXT); AUTO.q.push(aq); }
+      if (GM && S.overlay) GM('clouds overlay');
       if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds' march (reads the target's depth)
       renderer.setRenderTarget(prevTarget);
       // G1340 (SHADER-GUARD) A HELD FRAME IS NEVER PRESENTED: when the draw guard held a draw in this scene pass (its
       // program still linking), the resolve and the post hook are skipped - nothing reaches the canvas this frame, so the
       // page keeps showing the last whole frame (never a partial one: a ground missing for a frame is the sky's colour)
       if (S.hold && S.hold()) { S.held = (S.held || 0) + 1; return 'held'; }   // (23 Nov, PERF-TRACE: S has no `held` to start with - `S.held++` made it NaN and held() read 0 for ever)
+      if (GM) GM('aa resolve');
       renderer.render(S.fsScene, S.fsCam);
       // THE POST HOOK (CLOUDS C2): the clouds composite onto the RESOLVED frame, not into the
       // multisampled target - three resolves the whole 8x target at the end of every render()
       // into it, and one more fullscreen draw there cost a second resolve (7 ms on a 3080 under
       // ANGLE, measured with the GPU timer; the march itself is 0.3 ms)
+      if (GM && S.post) GM('post');
       if (S.post) S.post(renderer, camera, S.rt);
       // THE TAP (G1357): the flight recorder's frame catcher sees the frame's target once the post chain is done (a small
       // copy into its own target, read back asynchronously - nothing here waits on it)
+      if (GM && S.tap) GM('frame tap');
       if (S.tap) S.tap(renderer, camera, S.rt);
       return true;
     }

@@ -700,6 +700,7 @@ const MANIFEST = {
     // gfx_settings.js (G286) before editor.js and app.js: both rails host its
     // menu and app.js applies its saved choice the moment the world exists
               'input.js', 'input_panel.js', 'gfx_settings.js', 'editor.js',
+              'hangar_switch.js',   // HANGAR-SWITCH (the user 22 Nov): the top bar's hangar icon and its compact list
               'phone.js',   // G2101 (MOBILE-GARAGE 1): the phone garage's touch layer - returns at once on the desktop profile
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot

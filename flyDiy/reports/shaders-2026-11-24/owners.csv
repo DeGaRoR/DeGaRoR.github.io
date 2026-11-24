@@ -1,0 +1,78 @@
+family,programs,materials,distinct_shader_sources,link_ms_total,first_use_wait_ms_total
+aircraft / skin,112,26,112,454012,34648
+props / prop library,82,7,82,30365,5534
+garage / shed,42,12,40,16575,4534
+town / houses,41,8,39,240586,315
+aircraft / glass,28,5,20,22377,1091
+aircraft / instrument panel,23,9,21,17239,902
+sky / atmosphere,23,7,9,2546,1042
+sky / clouds,22,8,14,14864,5041
+garage / outdoors,18,5,18,3438,945
+shadow pass / depth <- aircraft,18,4,6,1718,124
+aircraft / characters,16,4,16,12206,706
+aircraft / propeller,14,2,14,8723,556
+town / big buildings,14,4,14,7542,6
+town / hangars,14,8,14,10733,115
+post / frame catcher,13,3,7,209,70
+aircraft / flex cage,12,2,8,1228,0
+aircraft / lights,12,3,12,23856,304
+post / bloom,12,4,4,220,105
+shadow pass / depth <- garage,12,5,4,501,1312
+aircraft / fuel tanks and batteries,11,3,11,3918,325
+forest / impostor bake,11,3,4,1157,1156
+forest / tree library,10,8,10,5845,503
+aircraft / cockpit,9,2,5,2081,15
+post / AA resolve,9,1,6,327,58
+shadow pass / depth <- town,9,7,6,497,91
+aircraft / model,8,2,8,3037,542
+fx / contact shadow,8,1,1,719,34
+shadow pass / depth <- props,7,5,7,614,84
+aircraft / shadow proxy,6,1,4,676,0
+editor / part highlight,6,2,3,195,72
+engine / warm draw,6,1,6,392,392
+garage / room,6,1,2,345,37
+props / marine kit,6,1,6,3965,0
+three / PMREM,6,3,3,724,357
+garage / floor contact shadow,5,4,3,141,43
+water / interaction field,5,2,2,625,0
+aircraft / lamps,4,1,1,1608,0
+cover / ring,4,2,4,5370,70
+forest / impostors,4,2,4,2217,52
+forest / near trees,4,1,2,33,30
+ui / garage labels,4,1,1,265,33
+water / sea,4,1,4,5920,2
+editor / build mesh,3,1,3,2244,68
+editor / character pick body,3,1,1,1770,0
+fx / water spray,3,1,1,696,0
+garage / shed shadow cache,3,1,1,82,82
+garage / sky,3,1,1,320,0
+garage / workshop pieces,3,1,3,996,282
+shadow pass / depth <- editor,3,1,1,232,0
+shadow pass / depth <- forest,3,3,3,469,52
+terrain / island ground,3,3,3,56327,62
+three / shadow pass,3,1,3,3,1
+ui / pattern display,3,2,3,264,0
+editor / design aids,2,1,2,189,51
+editor / workbench,2,1,1,170,33
+fx / dust,2,1,1,1726,0
+pavement / runway lights,2,2,2,470,26
+props / winch,2,2,2,1776,1
+terrain / strip stones,2,2,2,2346,1
+town / life,2,2,2,2589,0
+town / tram cabin,2,2,2,642,6
+world / plain lambert,2,1,2,377,33
+assets / geometry upload flush,1,1,1,4,4
+fleet / parked aircraft,1,1,1,646,14
+fx / ground scars,1,1,1,1815,16
+pavement / runways and aprons,1,1,1,75070,11
+shadow pass / depth <- terrain,1,1,1,178,20
+sky / glare,1,1,1,6,6
+terrain / premises patch,1,1,1,14307,15
+town / car prints,1,1,1,110,0
+town / city lots,1,1,1,281,0
+town / far lod,1,1,1,652,6
+town / guard rails,1,1,1,280,17
+town / hangar shell,1,1,1,313,0
+town / lots,1,1,1,419,16
+water / buoys,1,1,1,277,17
+water / wakes,1,1,1,302,0

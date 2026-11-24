@@ -255,7 +255,17 @@
   // while the pointer or a key moves: ?gfrest=N, ?gfbusy=N). Go joins the load where it stands (gfJoin: the roll-out's
   // screen names the steps left, which then run at full speed). gfS is the rig's read (FLYDIY_LAB.gfS).
   const GFN = (k, d) => { try { const m = new RegExp('[?&]' + k + '=(\\d+(?:\\.\\d+)?)(&|$)').exec(location.search || ''); return m ? +m[1] : d; } catch (e) { return d; } };
-  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), cloudEarly: !LABQ('gfcloud=late'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
+  // THE DEFAULT SINCE 23 Nov 2026 (the user, 21:05, after the day's rows: "Make it default"): a real page boots garage first;
+  // ?boot=loadfirst is the one loading screen as it was (the world before the garage). The node page (tools/_page_node.js: its user agent says flydiy-node) and a page without a real renderer (the node
+  // harness: no compileAsync) keeps the old boot - its steps are synchronous and nothing would run the world behind
+  // (REAL_PAGE: not tools/_page_node.js. The ONE place that asks: the modules read window.FLYDIY_REAL_PAGE - GATE GFX allows no
+  //  device test outside welcome.js, and render_world.js / water.js each had one for a night, 24 Nov)
+  const REAL_PAGE = typeof location !== 'undefined' && typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '');
+  if (typeof window !== 'undefined') window.FLYDIY_REAL_PAGE = REAL_PAGE;
+  // ?mirpace ON BY DEFAULT ON A REAL PAGE (the user, 23 Nov 22:10: "turn on all switches leading to good results"): ?mirpace=0 off
+  if (REAL_PAGE && typeof window !== 'undefined' && window.WATER && window.WATER.mirror && !LABQ('mirpace=0') && !/[?&]mirpace=/.test(location.search || '')) window.WATER.mirror.pace = true;
+  const GF_DEFAULT = REAL_PAGE && !!renderer && typeof renderer.compileAsync === 'function' && !LABQ('boot=loadfirst');
+  const LAB = { gf: LABQ('boot=garagefirst') || GF_DEFAULT, gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), cloudEarly: !LABQ('gfcloud=late'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
       inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
     coverK: GFN('coverbudget', 0), coverSet: null,   // (?coverbudget=K: see labCoverBudget)
     noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
@@ -742,6 +752,8 @@
       doc = playerLift(dims, parts);
     }
     player = CAREER_DEV ? careerNormalise(doc) : playerNormalise(playerMigrate(doc));
+    // HANGAR-SWITCH (the user 22 Nov): the sandbox holds the game's three hangars, built and restored (71_player_bases.js)
+    if (!CAREER_DEV && typeof playerSandboxHangars === 'function') try { player = playerSandboxHangars(player); } catch (e) { console.warn('flyDiy: the sandbox hangars -', e && e.message); }
     // HANGAR-OUTDOORS (the user 17 Nov via A0: "I launched the sandbox mode, and it put me into the new big garage ... I want to
     // keep in the club hangar"): the SANDBOX opens in the club at HOME at every start - a saved `here` (the last "go there", a
     // restored HOME.2) is not where the game starts; a career keeps its own (the story moves it)
@@ -1573,9 +1585,14 @@
     if (envSlice) { if (envSlice.step > 0) envSlice.again = true; return; }   // nothing shot yet: this job already sees it
     envSlice = { step: 0, again: false };
   }
+  var ENV_T = { steps: 0, ms: 0, maxMs: 0, jobs: 0 };   // (HANGAR-SWITCH ROOMS 4: the sliced re-bake timed, GARAGE_ROOMS.env)
   function envSliceStep() {
     const J = envSlice;
     if (!J) return;
+    const tE = perfNow(), st = J.step;
+    try { envSliceStep0(J); } finally { const dt = perfNow() - tE; ENV_T.steps++; (ENV_T.byStep = ENV_T.byStep || []).push([st < 6 ? 'face' + st : st === 6 ? 'room' : 'outdoors', Math.round(dt)]); if (ENV_T.byStep.length > 24) ENV_T.byStep.shift(); ENV_T.ms = Math.round(ENV_T.ms + dt); ENV_T.maxMs = Math.max(ENV_T.maxMs, Math.round(dt)); if (!envSlice) ENV_T.jobs++; }
+  }
+  function envSliceStep0(J) {
     if (envDeferred || envAway || !hangar) { envSlice = null; envDirty = true; return; }
     if (J.step === 0 && hangar.renderSky) hangar.renderSky(renderer);
     bakeHangarEnv(J.step < 6 ? { part: 'face', face: J.step } : { part: J.step === 6 ? 'room' : 'outdoors' });
@@ -1633,9 +1650,12 @@
         catch (e) { console.error('studio: could not be built -', e && e.message); }
       return null;
     }
-    if (hangarTried && hangarRoom !== roomId()) { if (hangar) disposeHangar(); else hangarTried = false; }
+    if (hangarTried && hangarRoom !== roomId()) { if (hangar) { if (ROOM_CACHE_ON()) roomPark(); else disposeHangar(); } else hangarTried = false; }
     if (hangarTried) return hangar;
+    // HANGAR-SWITCH (the official table, row 5: "Change garage < 5 s, no UI freeze"): a room built before comes back as it was
+    if (ROOM_CACHE_ON() && ROOMS.has(roomId())) return roomUnpark(roomId());
     hangarTried = true;
+    const roomT0 = perfNow();
     if (typeof genHangarBuild !== 'function' ||
         !genHangarSupported(THREE)) return null;
     try {
@@ -1657,9 +1677,11 @@
         roomHome = A && A.kind !== 'water' && !A.water ? A : null;
         roomSite = ps.plot ? ps.site : undefined;
       }
+      const tGen = perfNow();
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome, aprons: hoAprons(),   // HANGAR-OUTDOORS: the world's aprons (the premises' paved surface polygons) for the room's wide apron
           kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shedOmit(shed), workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
+      ROOM_T.genMs = Math.round(perfNow() - tGen);
       hangarScene.add(hangar.group);
       hviewAttach();   // G3630 (HANGAR-VIEW): the world's view out of the door, if one of this room stands
       hangarScene.background = hangar.background;
@@ -1694,8 +1716,10 @@
       // G3536: a prop that lands after the floor print (the WIP fuselage on its trestles, a scan on the wire) prints too -
       // now if the room is shown, else when it is next entered (applyEnv bakes it then anyway)
       if (hangar.onFurnLanded) { const h0 = hangar; hangar.onFurnLanded(() => { if (hangar === h0 && inGarage && !envAway && h0.bakeGroundShadow) h0.bakeGroundShadow(renderer, hangarScene); }); }
-      bakeHangarEnv();
-      if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
+      const tBake = perfNow();
+      if (ROOM_PREP) envDirty = true;   // (HANGAR-SWITCH prepare: the env bake waits for the swap's sliced re-bake; the floor print is applyEnv's)
+      else { bakeHangarEnv(); if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); }
+      ROOM_T.bakeMs = Math.round(perfNow() - tBake);   // (HANGAR-SWITCH: the env + floor-shadow bakes of a first build)
       // the part system (G41, rehomed by HANGARS S1): the shell's default
       // dress first, then every part's saved dress off the player's record —
       // a class default the player's own choices always win over.
@@ -1728,8 +1752,147 @@
     }
     // G999: the editor rail's mood label reads the room's moods; it no longer builds the room to read them (below)
     if (hangar && typeof window.EDITOR_SYNC_NIGHT === 'function') try { window.EDITOR_SYNC_NIGHT(); } catch (e) {}
+    ROOM_T.buildMs = Math.round(perfNow() - roomT0); ROOM_T.room = hangarRoom; ROOM_T.how = 'built';
     return hangar;
   }
+  // ---- HANGAR-SWITCH: THE ROOMS KEPT (A0 22 Nov: "the per-room cache (no dispose) and the hidden first-visit build with
+  // compileAsync, then the swap"; the one "prepare hidden / swap" path the garage-first boot shares, agreed with PERF-LEAD).
+  // A room left is PARKED: its group out of the scene, everything it was dressed with kept (the env PMREM it lit itself with,
+  // the backdrop, the fog sentinel, its air) - never disposed; coming back UNPARKS it (attached, its dress restored, the mood
+  // set, the env re-baked SLICED over the next frames). A room changed (its dims, shell, kits: disposeHangar) is rebuilt as
+  // before. ?roomcache=0 = the old rebuild every time (the A/B). GARAGE_ROOMS.prepare(id) builds a room the player is NOT in,
+  // detached, and warms its programs with compileAsync against the garage scene (the lights match) - so the switch that
+  // follows only unparks. The build itself is still one task: ROOM_T says what it cost (genMs the generator, buildMs it all)
+  const ROOMS = new Map();          // roomId -> { hangar, env, envPM, background, fog, air, at }
+  const ROOM_T = {};
+  let ROOM_PREP = false;             // (prepare's build: no bakes in its task)                 // the last build / prepare / unpark: { room, how, genMs, buildMs, compileMs, unparkMs }
+  const ROOM_CACHE_ON = () => { try { return !/[?&]roomcache=0(?:&|$)/.test(location.search || ''); } catch (e) { return true; } };
+  function roomPark() {
+    if (!hangar) return;
+    hangarScene.remove(hangar.group);
+    ROOMS.set(hangarRoom, { hangar, env: hangarScene.environment, envPM, background: hangarScene.background, fog: hangarScene.fog,
+                            air: hangar.roomAir || null, at: Date.now(),
+                            // (ROOMS 5: its bake whole - none pending, none half-shot - and the mood it was shot under; a return re-uses it)
+                            envWhole: !!envPM && !envDirty && !envSlice, envMood: hangarMood });
+    envPM = null;                    // (the parked room keeps its PMREM: the next bake must not dispose it)
+    hangar = null; hangarTried = false;
+  }
+  function roomUnpark(id) {
+    const t0 = perfNow(), r = ROOMS.get(id);
+    if (!r) return null;
+    ROOMS.delete(id);
+    hangar = r.hangar; hangarRoom = id; hangarTried = true;
+    hangarScene.add(hangar.group);
+    hviewAttach();
+    hangarScene.background = r.background; hangarScene.fog = r.fog;
+    if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = r.air;
+    if (r.envPM) { if (envPM && envPM !== r.envPM) envPM.dispose(); envPM = r.envPM; hangarScene.environment = r.env; }
+    try { hangar.setMood(hangarMood); } catch (e) {}
+    // (ROOMS 5, PERF-LEAD: the room's own bake re-used when it is whole and the mood has not moved while it was parked - the
+    //  sun's move is the clock's to ask for (shedDayTick: this room's applyDay compares with ITS last bake); else re-baked
+    //  over the next frames)
+    const keep = !!(r.envPM && r.envWhole && r.envMood === hangarMood);
+    ROOM_T.envKept = keep;
+    if (!keep) try { bakeHangarEnvSliced(); } catch (e) {}
+    if (hangar && typeof window.EDITOR_SYNC_NIGHT === 'function') try { window.EDITOR_SYNC_NIGHT(); } catch (e) {}
+    Object.assign(ROOM_T, { room: id, how: 'unparked', unparkMs: Math.round(perfNow() - t0) });
+    return hangar;
+  }
+  // the parked rooms' weight on the GPU (the geometry's buffers + the textures they hold, counted once), for the memory line
+  function roomBytes(rec) {
+    const seenG = new Set(), seenT = new Set(); let geo = 0, tex = 0;
+    const texOf = t => { if (!t || seenT.has(t) || !t.image) return; seenT.add(t); const im = Array.isArray(t.image) ? t.image[0] : t.image;
+      const w = (im && (im.width || im.videoWidth)) || 0, h = (im && (im.height || im.videoHeight)) || 0; tex += w * h * 4 * (t.generateMipmaps === false ? 1 : 1.33) * (Array.isArray(t.image) ? t.image.length : 1); };
+    rec.hangar.group.traverse(o => {
+      if (o.geometry && !seenG.has(o.geometry)) { seenG.add(o.geometry); for (const k in o.geometry.attributes) geo += o.geometry.attributes[k].array.byteLength; if (o.geometry.index) geo += o.geometry.index.array.byteLength; }
+      if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) texOf(m[k]);
+    });
+    return { geoMB: +(geo / 1048576).toFixed(1), texMB: +(tex / 1048576).toFixed(1), envMB: rec.envPM ? 6 : 0 };
+  }
+  // THE GARAGE FRAME'S PASSES, ONE LIST (HANGAR-SWITCH ROOMS 4b, PERF-LEAD 22 Nov: prepare's hand-written list was the short one
+  // - one target where the room is drawn into two - and the swap linked ~50 programs one by one in a 28 s frame). Every target
+  // the garage draws its scene into, with the dress each needs: the probe's cube (ensureEnvRT, as the cube draws it -
+  // probeCompileDress) and the frame's (aa.target(): the composer's, the canvas only without one), each with its depth variants.
+  // `dress` (f => f() run with the scene as it will be drawn: a new room, a light set) wraps every pass. The boot's compile step
+  // and shedPrelink walk the same two by hand (GATE-pinned text): a third target added to the garage goes HERE and there
+  function garageFramePasses(dress) {
+    const d = dress || (f => f()), out = [];
+    if (ensureEnvRT()) out.push({ name: 'cube', target: ensureEnvRT(), dress: f => d(() => probeCompileDress(f)), depth: true });
+    out.push({ name: 'frame', target: aa && aa.target ? aa.target() : null, dress: d, depth: true });
+    return out;
+  }
+  // the passes compiled in order, sliced (compileSliced), each one's depth variants after it; lap(name) after each part
+  function compileFramePasses(passes, lap) {
+    return passes.reduce((p, P) => p.then(() => compileSliced(hangarScene, P.target, null, false, P.dress))
+      .then(() => { if (lap) lap(P.name + 'Ms'); return P.depth && typeof compileDepthVariants === 'function' ? compileDepthVariants(hangarScene, true, P.dress) : null; })
+      .then(() => { if (lap) lap(P.name + 'DepthMs'); }), Promise.resolve());
+  }
+  if (typeof window !== 'undefined') window.GARAGE_FRAME_PASSES = { list: garageFramePasses, compile: compileFramePasses };
+  window.GARAGE_ROOMS = {
+    // a room built DETACHED and its programs warmed; the player stays where they are. -> Promise<{ room, cached, genMs, buildMs, compileMs }>
+    prepare(id) {
+      const d = playerLoad();
+      if (!ROOM_CACHE_ON() || !d.sheds || !d.sheds[id] || !inGarage) return Promise.resolve({ room: id, cached: false, skipped: true });
+      if (ROOMS.has(id) || (hangar && hangarRoom === id)) return Promise.resolve({ room: id, cached: true });
+      const t0 = perfNow(), cur = hangar ? hangarRoom : null, here0 = d.here;
+      let rec = null;
+      try {
+        if (hangar) roomPark();
+        d.here = id;                                   // (the build reads the room's record; never saved like this)
+        ROOM_PREP = true; try { getHangar(); } finally { ROOM_PREP = false; }
+        if (hangar && hangarRoom === id) { roomPark(); rec = ROOMS.get(id); }
+      } catch (e) { console.warn('flyDiy: the room could not be prepared -', e && e.message); }
+      finally { d.here = here0; if (cur && ROOMS.has(cur)) roomUnpark(cur); }
+      const built = { room: id, cached: false, genMs: ROOM_T.genMs, bakeMs: ROOM_T.bakeMs, buildMs: Math.round(perfNow() - t0) };
+      if (!rec || typeof compileSliced !== 'function') return Promise.resolve(built);
+      // THE PROGRAMS (PERF-LEAD 22 Nov: "NOT renderer.compileAsync on a scratch scene: use app.js compileSliced ... and compile
+      // against the REAL lit scene's lights"): paced slices over the new room's materials, each slice DRESSED - the garage scene
+      // holding the NEW room in place of the shown one (its lamps, so the keys are the ones the swap will draw; no frame is drawn
+      // inside a slice, so nothing shows) - then every program's first use paid off the frame (firstUseSliced)
+      const tc = perfNow(), G = rec.hangar.group;
+      // (ROOMS 6: the new room's MOBILE KIT placed before its compile, from the aeroplane's footprint as applyEnv places it - the
+      //  sandbox's frame, the large hangar's door offset; the swap re-places it the same way, so the programs keyed here are its)
+      try { if (rec.hangar.placeMobile && craft) { const bb = new THREE.Box3().setFromObject(craft), sz = (!CAREER_DEV && rec.hangar.door && rec.hangar.door.z) ? rec.hangar.door.z : 0;
+        if (isFinite(bb.min.x) && bb.max.x > bb.min.x) built.mobile = rec.hangar.placeMobile({ x0: bb.min.x, x1: bb.max.x, z0: bb.min.z + sz, z1: bb.max.z + sz }).length; } } catch (e) { console.warn('flyDiy: the room kit -', e && e.message); }
+      // (ROOMS 4b, PERF-LEAD: the room's OUTDOORS too - the meshes through the door and the view's group, shown as hviewAttach
+      //  shows them at the unpark - put in and taken off INSIDE each task, never across tasks: a frame between draws the old room)
+      const upFor = r => !!(hview && hview.ready && hviewFor === r);
+      const dress = fn => { const cur = hangar && hangar.group, upCur = upFor(hangarRoom), upNew = upFor(id); if (cur) hangarScene.remove(cur); hangarScene.add(G);
+        try { if (rec.hangar.outdoorsShow) rec.hangar.outdoorsShow(!upNew, upNew); if (hview && upNew !== upCur) hview.on(upNew); return fn(); }
+        finally { if (hview && upNew !== upCur) hview.on(upCur); hangarScene.remove(G); if (cur) hangarScene.add(cur); } };
+      // (PERF-LEAD: the WHOLE garage scene under the new room's lights - the aircraft's skins, the editor's cage, the props: a new
+      // light count keys every lit program again, and compileSliced only gathers what is in the scene it is given)
+      const lap = k => { const n = perfNow(); built[k] = Math.round(n - lapT); lapT = n; }; let lapT = tc;
+      // ROOMS 4: EVERY TARGET THE ROOM IS DRAWN INTO (garageFramePasses: the probe's cube, the frame's), each with its depth
+      // variants, in the boot's order - one target (null) left the cube bake and the frame to link the room again (slot 3: 28 s)
+      return compileFramePasses(garageFramePasses(dress), lap)
+        .then(() => { built.compileMs = ['cubeMs', 'cubeDepthMs', 'frameMs', 'frameDepthMs'].reduce((t, k) => t + (built[k] || 0), 0); lapT = perfNow(); })
+        .then(() => Promise.resolve(typeof programsReady === 'function' ? programsReady(45000) : null).then(() => {
+          built.linkMs = Math.round(perfNow() - lapT); lapT = perfNow();
+          try { built.pending = renderer.info.programs.filter(p => p.isReady && !p.isReady()).length; } catch (e) { built.pending = null; }
+          if (built.pending) console.warn('flyDiy: the room ' + id + ' - ' + built.pending + ' program(s) still linking at the cap: not prepared'); }))
+        .then(() => { lap('depthMs'); return typeof uploadSliced === 'function' ? uploadSliced(G, 'rooms', 'the room') : null; })
+        .then(() => { lap('uploadMs'); return typeof firstUseSliced === 'function' ? firstUseSliced() : null; })
+        .then(u => { lap('firstUseMs'); built.firstUse = u || null; built.prepMs = Math.round(perfNow() - t0);
+                built.prepared = !built.pending; const rr = ROOMS.get(id); if (rr) rr.prepared = built.prepared; return built; },
+              e => { console.warn('flyDiy: the room compile -', e && e.message); return built; })
+        .then(b => { Object.assign(ROOM_T, { room: id, how: 'prepared', genMs: b.genMs, buildMs: b.buildMs, cubeMs: b.cubeMs, cubeDepthMs: b.cubeDepthMs, frameMs: b.frameMs, frameDepthMs: b.frameDepthMs, compileMs: b.compileMs, depthMs: b.depthMs, uploadMs: b.uploadMs }); return b; });
+    },
+    cached: () => [...ROOMS.keys()],
+    // PREPARED = its programs submitted, LINKED (programsReady) and first-used, for the frame's targets (ROOMS 6): a switch to it is
+    // the swap alone. PERF-LEAD's budget (garage first) reads this flag
+    isPrepared: id => { const r = ROOMS.get(id); return !!(r && r.prepared); },
+    programs: () => { try { return renderer.info.programs ? renderer.info.programs.length : null; } catch (e) { return null; } },   // (PERF-LEAD: before the swap and after its first frames)
+    env: () => Object.assign({ busy: !!envSlice }, ENV_T),   // the sliced env re-bake: steps, total and worst step (ms) since envReset
+    envReset: () => { ENV_T.steps = 0; ENV_T.ms = 0; ENV_T.maxMs = 0; ENV_T.jobs = 0; ENV_T.byStep = []; },
+    memory: () => { const out = {}; for (const [k, r] of ROOMS) out[k] = roomBytes(r);
+      try { if (performance.memory) out.heapMB = Math.round(performance.memory.usedJSHeapSize / 1048576); } catch (e) {}
+      try { out.renderer = { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; } catch (e) {}
+      return out; },
+    drop(id) { const r = ROOMS.get(id); if (!r) return false; ROOMS.delete(id); const h0 = hangar, e0 = envPM; hangar = r.hangar; envPM = null;
+      try { disposeHangar(); } finally { hangar = h0; envPM = e0; hangarTried = !!h0; } if (r.envPM) r.envPM.dispose(); return true; },
+    last: () => Object.assign({}, ROOM_T),
+  };
 
   // ================= G3630 HANGAR-VIEW: THE WORLD'S OWN VIEW OUT OF THE DOOR (hangar_view.js) =================
   // The user, 25 Oct: "making sure the outside view in the hangar matches the scenery". The room's outdoors (its sky
@@ -1803,6 +1966,9 @@
   function gviewTick() {
     if (!gviewOn() || !hangar || !hangar.gviewFrom || gviewFor === hangar || typeof GARAGE_VIEW === 'undefined') return;
     if (++gviewTicks < GVIEW_WAIT) return;   // (the session's first scene: after the garage has run; later rooms find the count long past)
+    // NEVER DURING A ROLL-OUT (A0 / the user's rule, no freezes, 24 Nov): while the roll-out shot plays, the room is about to be
+    // left - the scene's fetch, build and program links wait for the shed again (ROUNDTRIP: roll-out 1 linked them, +8)
+    if (typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) return;
     gviewFor = hangar; const H = hangar, tFind = performance.now(); GARAGE_VIEW.ready = false;
     gviewJob = GARAGE_VIEW.find(window.FLYDIY_WORLD, roomBase(), roomId()).then(row => { if (!row || hangar !== H) return null;
       if (!gviewPacks.has(row.base)) gviewPacks.set(row.base, GARAGE_VIEW.load(((typeof window !== 'undefined' && window.FLYDIY_ASSET_BASE) || '') + row.base, THREE));
@@ -1810,6 +1976,11 @@
     // THE SCENE'S PROGRAMS LINK OFF THE FRAME: built held down, compileSliced (paced slices) over its group, then shown - never a link in the frame that shows it
     .then(pack => { if (!pack || hangar !== H) return null; const t0 = performance.now(), B = H.gviewFrom(pack, true); if (!B) return null; const tB = performance.now();
       return Promise.resolve(typeof compileSliced === 'function' ? compileSliced(B.group, aa && aa.target ? aa.target() : null, hangarScene) : null).catch(() => {})
+        // ...AND AS THE ROLL-OUT SHOT DRESSES THE SHED (the craft and its lights in the room re-key every program there): the
+        // craft step links the room's own that way, never this later scene - without it the first shot after the scene stood
+        // linked its programs (ROUNDTRIP, 24 Nov: +8 in the shot / the craft step)
+        .then(() => (hangar === H && model && garageScene() === hangarScene && RA_Q !== '0' && typeof ROLLANIM !== 'undefined')
+          ? compileSliced(B.group, aa && aa.target ? aa.target() : null, hangarScene, false, f => craftInShed(hangarScene, f)) : null).catch(() => {})
         .then(() => { if (hangar !== H) return null; H.gviewShow(); GARAGE_VIEW.ready = true;
           // (loadMs: asked -> fetched, decoded, uploaded, 0 for a room whose scene was already loaded; linkMs: the programs, off the frame)
           window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(tB - t0).toFixed(1), linkMs: +(performance.now() - tB).toFixed(0), loadMs: +(t0 - tFind).toFixed(0), scene: B }; return B; }); })
@@ -1819,7 +1990,12 @@
   function hoTreesTick() {
     gviewTick();
     if (!hangar || !hangar.treesFrom || hangar.treesDone || !WF || !WF.treeSideSheet || (++hoTry % 20)) return;
-    try { const S = WF.treeSideSheet({ max: 4 }); if (S && hangar.treesFrom(S)) hangar.treesDone = true; } catch (e) { hangar.treesDone = true; console.warn('flyDiy: the room trees -', e && e.message); }
+    // (24 Nov: stood HELD, their material's program linked for the room's lights and the frame's target, then shown - the
+    //  garage's frame no longer makes and links it inside a draw: 155-234 ms in every load, garage first or not)
+    try { const S = WF.treeSideSheet({ max: 4 }), hold = !!hangar.treesShow && typeof compileSliced === 'function' && typeof renderer.compileAsync === 'function';
+      if (S && hangar.treesFrom(S, hold)) { hangar.treesDone = true;
+        if (hold) { const H = hangar; Promise.resolve().then(() => compileSliced(H.treesGroup(), aa && aa.target ? aa.target() : null, hangarScene)).catch(e => console.warn('flyDiy: the room trees, their link -', e && e.message)).then(() => H.treesShow()); } }
+    } catch (e) { hangar.treesDone = true; console.warn('flyDiy: the room trees -', e && e.message); }
   }
   const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
@@ -2087,7 +2263,7 @@
       // G1714: where the radio stands now - the garage's music leans toward it (boombox.js -> music.js)
       if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));
       // the kit moved, so its print on the floor moves with it
-      if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
+      { const tS = perfNow(); if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); ROOM_T.shadowMs = Math.round(perfNow() - tS); }
       // and the aeroplane's own print follows the aeroplane — every slider
       // comes back through here (apply -> enterGarage -> applyEnv), so this IS
       // the drag path, and it is four 256^2 draws
@@ -12888,7 +13064,7 @@
   }
   // the base select's move (the routes panel): an empty hangar empty, and out of an empty stand that hangar's aeroplane
   function standEmptyFollow() {
-    if (!CAREER_DEV || !inGarage) return;
+    if (!inGarage) return;   // (HANGAR-SWITCH: the sandbox's hangars keep their own aeroplane too)
     const d = playerLoad(), n = garageStand(d, d.here).stand;
     if (n && STAND_EMPTY) storeMove(n, { kind: 'floor' });
     else if (!n) standEmptySet(standEmptyAt(d, d.here));
@@ -12987,7 +13163,8 @@
   var STAND_EMPTY = false;
   function standEmptyAt(d, id) {
     const sh = d && d.sheds && d.sheds[id];
-    if (!CAREER_DEV || !sh || garageStand(d, id).stand) return false;
+    // (HANGAR-SWITCH, the user 22 Nov: "in the sandbox and in a career ... it keeps its own plane" - the sandbox's hangars too)
+    if (!sh || garageStand(d, id).stand) return false;
     if (STAND_EMPTY) return true;
     const S = slotOnStand(); if (!S || typeof playerStoreWhere !== 'function') return false;
     const W = playerStoreWhere(d, S), aero = typeof sh.base === 'string' ? sh.base : 'HOME';
@@ -15979,6 +16156,7 @@
     // the roll-out's own screen loads the world, as a first roll-out always could
     if (LAB.gf) { const G = LAB.gfS;
       if (G.joining) return;
+      if (!G.running && !G.done && G.armed && GF_BOOT) gfRun();   // (24 Nov: Go inside the run's start delay BEGINS it - the old path froze the garage 28 s and never linked the crash's programs)
       if (G.running) { gfJoin(() => rollOut(after, sync)); return; }
       if (!G.done) { G.done = true; G.why = 'Go before the background load began'; } }
     const reveal = () => { flRevealStart(); if (after) after(); };
@@ -17188,12 +17366,6 @@
   // armed as the boot's screen is done with: the run starts gfS.delayMs after the garage is on screen
   function gfArm() {
     const G = LAB.gfS; if (G.armed) return; G.armed = true;
-    // THE CLOUDS' FIRST DRAW, STILL UNDER THE GARAGE'S OWN LOADING SCREEN (the evening row, 23 Nov: the garage's last 1.4 s
-    // freeze, in every run at the end of first light, was cloudsWarm - the march's two-output variant is built on the GPU
-    // process's main thread at its first draw (CLOUDS.warmDraw's note) and every frame waits for it. Behind a live garage
-    // that is the garage's picture standing still; here it is the loading screen, about 1.5 s longer - A NAMED LOAD COST of
-    // ?boot=garagefirst. ?gfcloud=late: where it was)
-    if (G.cloudEarly) { const t0 = performance.now(); cloudsWarm(); G.cloudAt = [Math.round(t0), Math.round(performance.now() - t0), !!window.FLYDIY_CLOUD_WARM]; }
     try { for (const k of ['pointerdown', 'pointermove', 'wheel', 'keydown']) window.addEventListener(k, () => { G.inputAt = performance.now(); }, { capture: true, passive: true }); } catch (e) {}
     const wait = () => {
       if (G.done || G.running) return;
@@ -17216,6 +17388,9 @@
     const t = G.trip = tripOpen('gfworld'), ids = GF_IDS.filter(id => TRIP_BY[id]);
     // PERF-WORLDBUILD's builders ask this between their own yield points (agreed 23 Nov): <= 0 = yield now
     window.FLYDIY_WORLD_BUDGET = { left: () => G.deadline - performance.now() };
+    // (the user, 23 Nov 22:10: "turn them on by default" - the strips stood coarse for a moment and the settle on the near set,
+    //  PERF-WORLDBUILD's two switches with a visible state: on under the live host, ?nearfirst=0 and ?settle=0 turn each off)
+    if (!window.FLYDIY_WORLD_DEFAULTS) window.FLYDIY_WORLD_DEFAULTS = { nearfirst: true, settle: 'near' };
     let i = 0;
     const end = () => {
       G.running = false; G.done = true; G.step = null; G.ms = Math.round(performance.now() - G.t0); tripClose(t); behind(false);
@@ -17365,10 +17540,10 @@
       let list = [], i = 0, geoDone = !(typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && GPU_ONLY_GEO.pending);
       try { list = sceneTexList(sc); } catch (e) { list = []; }
       const tick = () => {
-        const t0 = performance.now(); let k = 0;
+        const t0 = perfNow(); let k = 0;
         try {
           if (!geoDone && GPU_ONLY_GEO.pending() > 0) { if (!(GPU_ONLY_GEO.flush(renderer) > 0)) geoDone = true; }
-          else { geoDone = true; while (i < list.length && (k === 0 || performance.now() - t0 < 6)) { try { renderer.initTexture(list[i]); } catch (e) {} i++; k++; } }
+          else { geoDone = true; while (i < list.length && (k === 0 || perfNow() - t0 < 6)) { try { renderer.initTexture(list[i]); } catch (e) {} i++; k++; } }
         } catch (e) { geoDone = true; i = list.length; }
         if (i >= list.length && geoDone) res(); else setTimeout(tick, 0);
       };
@@ -23036,6 +23211,18 @@
   // PERF-LEAD LAB (?boot=garagefirst): the boot runs NONE of the world's steps (the list below, as the phone's garage boot
   // leaves them out); they run behind the garage once its screen is gone (gfArm, at the boot's done)
   const GF_BOOT = LAB.gf && !GARAGE_ONLY;
+  // BEHIND A LIVE GARAGE EVERY COMPILE PUTS BACK THE PROGRAM THE GARAGE'S FRAMES WERE DRAWING (compileSliced's rule of 23 Nov,
+  // for the callers that do not go through it: the town's and the ring's prewarm, the depth variants - the garage's frame still
+  // waited 0.2-0.3 s on a link in those steps at 20:00). three's compileAsync calls this.compile, so it is covered
+  if (LAB.gf && typeof renderer.compile === 'function' && renderer.properties && !renderer.__gfKeep) { renderer.__gfKeep = true;
+    const c0 = renderer.compile.bind(renderer);
+    renderer.compile = function (obj, cam, tgt) {
+      if (!gfLive() || !obj || !obj.traverse) return c0(obj, cam, tgt);
+      const keep = [];
+      try { obj.traverse(o => { if (!o.material) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { const pp = m && renderer.properties.get(m); if (pp && pp.currentProgram) keep.push([pp, pp.currentProgram]); } }); } catch (e) {}
+      const r = c0(obj, cam, tgt);
+      for (const [pp, was] of keep) if (pp.currentProgram !== was) { pp.currentProgram = was; pp.uniformsList = null; LAB.gfS.kept = (LAB.gfS.kept || 0) + 1; }
+      return r; }; }
   const bootStep = (id, label, w, fn) => bootSteps.push({ id, label, w, fn });
   // THE WORLD SCENE IS NOT BUILT HERE ANY MORE (LOADING S3, the user's ruling):
   // the garage does not show it, so it is built under the ROLL-OUT screen the
@@ -23831,6 +24018,14 @@
   // and runs what moved, under the same screen: the first roll-out then finds nothing to do.
   bootStep('recheck', 'your aeroplane, as it settled', 2, () => {
     tripSync = null;
+    // THE CLOUDS' FIRST DRAW, UNDER THE GARAGE'S OWN LOADING SCREEN (?boot=garagefirst). The march's two-output variant is built
+    // on the GPU process's main thread at its first draw (CLOUDS.warmDraw's note) and every frame waits for it: behind the live
+    // garage that was its picture standing 1.4 s at the end of first light (23 Nov 16:34); at the boot's `done` (17:35) the wait
+    // landed 33 ms AFTER the screen had gone - 1.5 s on the garage's first frame (20:00). Here the screen is up for this whole
+    // step, and gl.finish() makes the page wait for the GPU inside it: A NAMED LOAD COST of garage first, about 1.5 s of the
+    // garage's loading screen. ?gfcloud=late: left to first light, as it was
+    if (GF_BOOT && LAB.gfS.cloudEarly) { const t0 = perfNow(); cloudsWarm(); try { renderer.getContext().finish(); } catch (e) {}
+      LAB.gfS.cloudAt = [Math.round(t0), Math.round(perfNow() - t0), !!window.FLYDIY_CLOUD_WARM]; }
     if (GARAGE_ONLY) return;   // G2100: re-planning with bake and craft out would run the flown bake here (the study, §1.3)
     const plan = tripPlan('craft'); if (!plan.length) return;
     const t = tripOpen('recheck');

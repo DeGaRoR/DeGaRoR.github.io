@@ -16,11 +16,11 @@ otherwise. Evidence folders are under `D:/Dev/flydiy-notes/evidence/` (not in gi
 | 3 | World ready behind the garage | 60 s | not applicable (one loading screen) | 80-89 s after the menu with the world-build switches (97 without); 77 s returning |
 | 3b | Go to flying, world ready | 3 s (the roll-out shot, ~11 s, not counted) | 2.5 s | 0.3 s on the screen with garage first, no loading screen; Go at 5 s joins the load (80-84 s, the same total) |
 | 5 | Change garage | under 5 s | about 20 s unprepared | 0.25 s prepared ahead (the Game coordinator's ROOMS 6) |
-| 7 | Garage freeze | none over 100 ms | 1-2 a visit | garage first, while the world loads (about 50 s): 153 tasks of 50 ms+ / 45 over 100 / worst 2.3 s at first; 62 / 19 / 1.42 s on perf-lead-1 (9 % of the time); the 1.42 s named and removed in perf-lead-2 (section 4.1) |
+| 7 | Garage freeze | none over 100 ms | 1-2 a visit | garage first, while the world loads (about 50-90 s): 153 tasks of 50 ms+ / 45 over 100 / worst 2.3 s at first; 62 / 19 / 1.42 s on perf-lead-1; on perf-lead-2 both 1.4 s freezes gone, 12-17 over 100 ms left, the worst 0.6-0.9 s right after the world step (section 4.1) |
 | 8 | World freeze, first 8 min of the journey | none over 100 ms | 25-31 frames | 7 with the flight switches |
 | 9 | Evenness | 5 % of 20-second blocks | 88-100 % | 84 % |
 | 13 | 30 fps in flight | 95 % of seconds at 29+ frames | 55 % (the GPU alone takes 33 ms a frame) | 72 % (GPU 24 ms) |
-| 14 | Crash | no wait over 250 ms for a new picture | the page shown 6.3-10.3 s | MET once on perf-lead-1 (23 Nov 14:22): no page, nothing linked after the impact, worst frame 150 ms, 10 frames over 100 ms, longest screen gap 161 ms |
+| 14 | Crash | no wait over 250 ms for a new picture | the page shown 6.3-10.3 s (6.7 s on L40K, twice) | MET on two builds (23 Nov 14:22 and 16:37): no page, nothing linked after the impact, worst frame 133-150 ms, 5-10 frames over 100 ms, longest screen gap 138-161 ms |
 | 15 | No blue screen, ever | never | at every crash; single frames in flight | none at a crash; none in 500 s of the journey (guard default `ground`, 13:00); the guard's settle patch for cache-hit materials is in perf-lead-1 |
 
 Row 11 (music during loading): PASS (109 s audible, also behind a garage-first load; AUDIO-ROBUST's rig). Rows 4, 6, 10, 12: see section 6.
@@ -143,6 +143,127 @@ row 11 music during loading: AUDIO-ROBUST's rig (`tools/audio/stall_rig.js`, ver
 - The built files (`index.html`, `dev.html`, `sw.js`, `version.json`, `tools/flight_core.js`) stay modified in a lab
   worktree; putting them back from git leaves a stale core and every rig load refuses.
 
-## 8. The other sessions' sections
+## 8. The other sessions' own handovers (read them: each is the detail of its part)
 
-(PERF-TRACE, PERF-WORLDBUILD, PERF-SLIDERS: appended below from their own files.)
+- `flyDiy/reports/PERF-TRACE-HANDOVER.md` and `flyDiy/tools/PERF_TRACE.md` (PERF-TRACE): every program named and owned,
+  the who-table of link waits (which program a frame waited on, who linked it, in which step, what else linked beside
+  it), the freeze ledger, the scene split (`?recscene=1`). The who-table is what named the garage's freezes.
+- `flyDiy/reports/PERF-WORLDBUILD-HANDOVER.md` (PERF-WORLDBUILD): the world build in workers and steps - what is under
+  which switch, the steps table, the host's contract (`window.FLYDIY_WORLD_BUDGET.left()`), its gates, its next three
+  cuts (the impostor sheets' readbacks; a station's build; the raster's tile decodes).
+- `flyDiy/reports/PERF-SLIDERS-HANDOVER.md` (PERF-SLIDERS, on its own branch until its ready lands): the sliders' table
+  on 30 aeroplanes, the release rules (landed as perf-sliders-release-1 / -2), the drag budget and the derived read
+  (not fully gated on 23 Nov: a preview build only).
+- The Deform Coordinator's crash work is in its HANDOVER.md entries (crash prelink, wreck rest, wreck clear).
+
+## 9. 24 Nov, 08:45: what the night and the morning changed (read this before sections 1-4: it supersedes them where they differ)
+
+THE USER'S DECISIONS, 23 Nov evening. 21:05, on garage first: "Make it default". 22:10: "turn them on by default. Let's ensure
+that you turn on all switches leading to good results, we can turn them off easily afterwards, when I'll have a look. [...]
+Garage freezes, in particular when doing the background loading, should be avoided. And we should try something for the
+general FPS again, try and get some headroom on the graphic card, maybe reach below 30 ms per frame?" His limits for the
+garage (row 7): no freeze over 100 ms, and at most 2 s of freezes in any minute.
+
+WHAT IS OFFERED NOW.
+- `claude/ready/perf-lead-2b` (on the L40M train): perf-lead-2 + GATE WATER green again. MEASURED ON THE TRAIN'S OWN BUILD
+  (426ff43ba7b2, quiet, 24 Nov 08:00): the crash met - no page, 0 programs linked after the impact, worst frame 133 ms,
+  longest screen gap 140 ms; a cold load 121.7 s (L40K 114-120): no load regression.
+- `claude/ready/perf-lead-5` (for L40N; it SUPERSEDES -3 and -4, which must not land): garage first is the DEFAULT on a real
+  page (`?boot=loadfirst` is the one loading screen as it was; the node page keeps the old boot); Go at any moment joins the
+  background load behind one screen; `?mirpace` and `?farslots` on by default; PERF-WORLDBUILD's six world-build switches on
+  under the live host; the hangar's tree cards linked before they are shown; the clouds' first draw inside the boot; every
+  compile behind the live garage puts the live program back; the automatic render scale's way back up; perf-trace-9.
+  21 gates pass on it. A0's trial of the 22 real-page gates on master + -5 was running at the time of writing.
+- THE FALLBACK if the default flip costs the battery more than a morning: one line, `GF_DEFAULT` false (app.js). (Not needed:
+  A0's trial of the 22 real-page gates on -5 against L40M's tree found no new failing check, 24 Nov 09:35.)
+- THE SLIDERS (PERF-SLIDERS): `claude/ready/perf-sliders-1b` = e5d01deaa is ON L40M (its release rules, the derived
+  updates and `CAGE_CHAIN.over`, merged with L40K). Its four gates on that merged tree, 24 Nov morning: INSTANTREL 18 rows,
+  INSTANT 26 rows, PANELGEAR, DERIVED on all 30 - pass. On L40K the Chinook (the user's benchmark) ran its crew layer in 2-3
+  of every 3 slider ticks; with `over` it is 0 of 3, the aeroplane the same. NOT DONE: row 1 has not been re-measured in a
+  browser since these cuts (0 of 30 before them); the Pawnee, the sailplane and the twin boom still rebuild their cowl on
+  every tick (cause found: the cowl's own slider sync read while the chain records; a few lines, first on its list); the
+  drag budget is a switch, never measured on a phone with the model following. Its notes: PERF-SLIDERS.md (the shared
+  notes folder) and `flyDiy/reports/PERF-SLIDERS-HANDOVER.md` on its ready.
+
+MEASURED, quiet box, headed 5120x1440.
+
+| | L40K (live on 23 Nov) | the lab's defaults (perf-lead-4 / -5) |
+|---|---|---|
+| The plain address: garage on screen | 114-120 s (the world first) | 32-38 s |
+| ... world ready after that | - | 90-93 s (the total from the menu is unchanged) |
+| Go once the world is ready | 2.5 s | 0.3 s |
+| Go at once | - | one screen of 84-88 s, then the flight |
+| The journey: seconds at 29+ frames | 54-55 % | 72.6 % |
+| The journey: the graphics card, median / 90th | 32.7 / 45 ms | 24.1 / 40 ms |
+| The journey: frames over 100 ms | 17-31 | 5 (worst 283 ms) |
+| The crash: the page shown | 6.7 s | never (eight crashes of eight, five builds) |
+| The garage while the world loads | - | 11-15 tasks over 100 ms, worst 0.65-0.75 s, 3.7-4.2 s of freezes a minute |
+
+WHAT WAS WRONG ON THE WAY, so nobody pays twice.
+- `?mirlean` must NOT be a default: it takes grass and cover out of a lake's reflection, and GATE WATER carries the user's
+  rule of 20 Oct that lakes keep the full mirror. The lab's first cut of it had rewritten a line that gate pins: red on
+  perf-lead-1, -2 and -3 because WATER was not in the lab's gate set. The gain (72.6 %) needs no lean.
+- A default must not be read with a device test in a module (GATE GFX: red on perf-lead-4). The page says
+  `window.FLYDIY_REAL_PAGE` once, in app.js.
+- Garage first as the default, Go inside the run's 1.5 s start delay: -3 and -4 fell to the old path (the garage frozen 28 s,
+  the crash's programs never linked ahead). Every rig clicks Go at once. Fixed in -5.
+- The node page (tools/_page_node.js) HAS compileAsync: "a renderer that can compile ahead" does not tell it from a browser.
+  Its user agent says `flydiy-node`.
+- `gf_garage.py` read long tasks only and called a row with a 1.45 s frozen picture clean; it prints the gaps between frames
+  too. It still starts at the run's own reveal mark: a freeze in the first 250 ms after the loading screen goes is not in it.
+- THE LAB'S GATE SET when a default or water.js / render_world.js / aa_resolve.js / hangar.js changes: PROGRAMS LIGHT
+  HULLWARM FLIGHTREC GARAGEFIRST BACKGUARD WATER LOOKS COMMITHYGIENE HANGAR HANGARVIEW COMPSTEPS AA POSTFX GFX COVER CLOUD
+  ROLLANIM BOOT DMGSKINGPU DMGPAGEW.
+- A slot starts ON THE CLOCK the coordinator names, never on a test of the queue file's text (a slot was lost that way).
+
+THE GARAGE'S FREEZES WHILE THE WORLD LOADS: what was found, in the order it fell.
+1. 1.4 s: the craft step's compile of the shed as the roll-out shot dresses it left the sky's materials on programs still
+   linking (a material without lights is never re-keyed by three). Fixed: a compile behind the live garage puts the live
+   program back.
+2. 1.4 s: the clouds' first draw - the march's two-output variant is built by the driver on the GPU's main thread at its
+   first draw; no link can ask for it. It is inside the boot now (under the loading screen, with gl.finish): a named load
+   cost of about 1.5 s.
+3. 0.6-0.9 s right after the world step: the world's textures uploaded at a draw. Fixed by PERF-WORLDBUILD (its -4).
+4. 0.15-0.23 s in the town step: the hangar's tree cards added with no program for their material; three linked it inside
+   the frame's draw. Fixed: stood held, linked, then shown (one wait of 0.15 s remained at 07:30: not explained).
+5. OPEN, the worst now, 0.65-0.75 s: the tree impostor atlases' bake (plantWoodland's QUEUED replant, after the build - the
+   tree models' first meeting with the GPU). PERF-WORLDBUILD's -6 put the pre-upload at the wrong step (inert on a cold
+   load); its -7 moves it before the queued replant. Never run in a browser at the time of writing: look for
+   `WORLD.scene.userData.treeWarm = { via, packs, tex, geo, bytes, done }` in a row (the row's eval prints it).
+6. OPEN, 0.13-0.39 s each: three atomic units of the world's streamers in the settle - the life's mast placement with
+   first-touch raster tile decodes, one far-town HLOD cell's merge, one parked aeroplane's hull. Each must become
+   resumable; they run in flight too. Named in PERF-WORLDBUILD's report, not cut.
+7. OPEN, about 0.26 s: first light's `worldSettle(true)` in one task; and 100-120 ms each: a station's build with its AO
+   bake, the patch's set-up.
+
+THE GRAPHICS CARD'S FRAME (PERF-TRACE's `?recgpu=pass` and `tools/gpu_passes.js`, 24 Nov 07:36, corrected 09:52 after it
+re-read the rows over the SAME seconds). By pass, a cruise over land: the scene pass 85-87 % of the frame (28.6 ms of 32.6 on
+the base, 25.3 with the defaults); the clouds' march 2.2-2.6 ms; the shadow maps 0.6-1.9; the AA resolve, post and uploads 0.5
+together. By what it scales with: about 1.9 ms a megapixel (12 ms of a full-scale frame at 5K), and THE REST FOLLOWS THE
+TRIANGLE COUNT, about 0.75 ms a million triangles - 12 ms at 12 M (cruise), 18 ms at 15 M, 31 ms at 38 M (the take-off and
+the first climb). So the frames over 33.3 ms are the LOW ones: in the first 77 s after the reveal the card takes 37-39 ms
+whatever the render scale; at altitude the same build holds 24-30 ms. The user's "below 30 ms" is met in cruise and missed
+near the ground, where resolution buys almost nothing. GEOMETRY NEAR THE GROUND IS THE LEVER: the knock-out rows of 24 Nov
+13:00 (cover, ground blend, forest density and bands, shadows, clouds, each off in turn; read on the climb as well as en
+route) put a number on each; their table is in PERF-TRACE's report. The 07:36 run's sampler lost its heaviest frames (fixed
+in perf-trace-10): its medians were right, its tail was not in the split.
+The automatic render scale (gfx 'auto'): its target follows the frame-rate cap (app.js tellScale). In its first flight it
+went down to 0.5 in the climb, was HELD there 37.6 s by its way back up (which scaled ALL of the card's time by the pixels'
+ratio), then climbed back to 0.67 by itself. aaAutoDecide now learns the part that does not scale from its own step (G0);
+its first flight is the first row of 13:00. KNOWN LIMIT: that part is not a constant - it follows the triangle count, so a
+G0 learnt in the climb is too large for the cruise and one learnt in the cruise too small near the ground (the trial step
+then pays for it). The frame's triangle count is on the page (renderer.info.render.triangles): G0 = 0.75 ms a million
+triangles would track it without learning - the next change if the 13:00 row shows the learnt one wandering.
+
+NEXT, IN ORDER, for whoever takes this on.
+1. Read A0's trial of perf-lead-5 and fix its reds by check name (a real-page gate that clicks Go now waits behind one
+   roll-out screen of up to ~90 s cold; one that reads the world without Go waits for `FLYDIY_LAB.gfS.done` or asks
+   `?boot=loadfirst`; pictures and frame-cost pins see the mirror's pacing and the far terrain's slots).
+2. One garage-first row on PERF-WORLDBUILD's -7 (`python tools/perf/gf_garage.py`), then its word to the coordinator.
+3. From the 13:00 table: the cheapest geometry lever as a default, measured on the journey.
+4. The settle's three units resumable (PERF-WORLDBUILD's report, section 5), each with its own gate.
+5. The world in 60 s behind the garage: the pavement's program (the driver takes 30 s or more to link it) first and alone,
+   then its text.
+6. The user has NOT yet looked at: the mirror's pacing; the strip drawn coarse for a moment and the stand-in cards for
+   longer past 1.5 km under garage first; the side sheds appearing a moment after the world; the tree cards outside the
+   hangar appearing a moment after the garage. Each has its switch (`?mirpace=0`, `?nearfirst=0`, `?settle=0`).

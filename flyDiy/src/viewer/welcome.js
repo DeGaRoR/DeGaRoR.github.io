@@ -563,10 +563,8 @@
     go.classList.add('wgo');
     row('garage', '✎', 'Garage only', READY.garage ? 'build without loading the island' : 'build without loading the island: not built yet', READY.garage ? '' : 'coming',
       READY.garage ? () => done('garage') : null);
-    // THE DRAFTING TABLE (tools/DRAFTING_TABLE.md, the user 11 Nov: "a button from the main menu ... build new reference
-    // plane"): a light page of its own (drafting.html), so the game is left, not loaded - nothing heavy rides along
-    row('drafting', '⌖', 'New reference plane', 'match a real aeroplane to its blueprints: the light drafting table', '',
-      () => { try { location.href = 'drafting.html'; } catch (e) {} });
+    // (THE DRAFTING TABLE moved, the user 22 Nov: "the start reference plane should actually not be its own option in the start
+    // menu" - it is the garage's plane shelf's "new from ref", garage.js gNewRef)
     // THE MISSION EDITOR (STORY-REVAMP, the user 22 Nov: "I think there should be an in-game path for having it ... a start
     // menu option even"): a light page of its own (tools/mission_editor.html), so the game is left, not loaded; its
     // "← The game" brings back here, its "Try it in the game" opens a test career on the pack being written
