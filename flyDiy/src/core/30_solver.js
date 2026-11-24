@@ -2112,6 +2112,15 @@ function makeSim(def, world) {
   // it was read (the normal is the ground's at the tyre's patch, not the substep's: 24 substeps a frame read it 24
   // times). The cache is the frame's own (snFrame, bumped by step()), so a frame's forces depend on its start state
   // only - determinism and a reset() need no bookkeeping. Typed arrays: the contact pass allocates nothing.
+  // SLOPE-FIX (24 Nov; GATE SLOPE 1 red since L40H: the free roll on tw_ski's ~9.4 % ran 7.3 % fast, Crr 0.046 down and
+  // 0.057 pushed up - a downhill push of 0.5 % g on top of the grade): THE DIFFERENCE IS TAKEN ALONG THE AEROPLANE, CENTRED.
+  // The forward difference stepped 0.25 m along world +x and +z; on the halved altiport the strip's ruts (1-2 cm, a metre
+  // either side of the centreline) put each main on a rut wall, and an x step and a z step from there read two different
+  // walls - the mains read 7.8 % and 11.7 % downhill where the ground falls 9.4 % (along the track, 0.25 m: 9.41 / 9.35 %;
+  // the CG's own path 9.36 %). Now the two steps are the aeroplane's horizontal forward and its right (xAft's, the rolling
+  // direction the wheel pass below uses), each centred over +-GROUND_SLOPE_D (four terrainH, still once a frame a
+  // contact): the rolling direction reads the grade it rolls on, a rut's cross slope stays across. Flat ground still
+  // differences to exactly zero: the old lines, master's to the bit
   const GROUND_SLOPE_D = 0.25, GROUND_SLOPE_RE2 = (GROUND_SLOPE_D / 2) * (GROUND_SLOPE_D / 2);
   const snCx = new Float64Array(n), snCz = new Float64Array(n), snCn = new Float64Array(n * 3), snCf = new Int32Array(n).fill(-1);
   let snFrame = 0;
@@ -4518,7 +4527,12 @@ function makeSim(def, world) {
       if (gH && FnT === null) {   // (a ski node: its own law, master's - SKIS)
         const cdx = p[i3] - snCx[i], cdz = p[i3+2] - snCz[i];
         if (snCf[i] !== snFrame || cdx * cdx + cdz * cdz > GROUND_SLOPE_RE2) {   // the frame's first contact, or the node ran on
-          const sgx = (gH(p[i3] + GROUND_SLOPE_D, p[i3+2]) - gy) / GROUND_SLOPE_D, sgz = (gH(p[i3], p[i3+2] + GROUND_SLOPE_D) - gy) / GROUND_SLOPE_D;
+          let fx = -xAft[0], fz = -xAft[2]; const fl = Math.hypot(fx, fz);   // SLOPE-FIX: the aeroplane's horizontal forward (a vertical nose: world x)
+          if (fl > 1e-6) { fx /= fl; fz /= fl; } else { fx = 1; fz = 0; }
+          const px = p[i3], pz = p[i3+2], D2 = 2 * GROUND_SLOPE_D;
+          const gF = (gH(px + fx * GROUND_SLOPE_D, pz + fz * GROUND_SLOPE_D) - gH(px - fx * GROUND_SLOPE_D, pz - fz * GROUND_SLOPE_D)) / D2;
+          const gR = (gH(px - fz * GROUND_SLOPE_D, pz + fx * GROUND_SLOPE_D) - gH(px + fz * GROUND_SLOPE_D, pz - fx * GROUND_SLOPE_D)) / D2;   // right = (-fz, fx)
+          const sgx = gF * fx - gR * fz, sgz = gF * fz + gR * fx;
           if (sgx !== 0 || sgz !== 0) { sny = 1 / Math.sqrt(sgx * sgx + sgz * sgz + 1); snx = -sgx * sny; snz = -sgz * sny; }
           snCf[i] = snFrame; snCx[i] = p[i3]; snCz[i] = p[i3+2]; snCn[i3] = snx; snCn[i3+1] = sny; snCn[i3+2] = snz;
         } else { snx = snCn[i3]; sny = snCn[i3+1]; snz = snCn[i3+2]; }
