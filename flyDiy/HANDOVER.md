@@ -319255,3 +319255,25 @@ the prop circle are checked headless only (face counts, boxes) - A0's in-game ro
 TAILWHEEL E + I (down & out) on master since L40H: the twin-boom fixture flies the E-811, now 53 kg installed (the user's
 "modify the existing E-811"); it falls 20 m low on the slope at 80 m and goes around twice ("unstabilised approach"), out
 of circuit time; with the old 30 kg it lands. Routed to Pilot via A0 (power up when low on the slope); not touched here.
+
+## READY user-fixes-1121-2 (FLAGSHIP, Tue 24 Nov 2026 ~06:00; on L40K 56047b34e; for L40M) - claude/ready/user-fixes-1121-2
+CARRIES: USER-FIXES (the trainer's dash, seatW, pilSitZ/Y + paxSitZ/Y, the prop check), REF-LOCK (GATE REFLOCK), TAPER-SHELL +
+TAPER-DIAG (the Chinook's aft body one shell, its skins split alike: the dark trapezoid gone, seen in game; GATE PARTS eye row),
+KNEE-SYM (the user: "right knee more inside": the IK poles in the body's frame; GATE CREWSYM new), TRICYCLE-STANCE (sim.stance
+never stood a tricycle - the refit 172 struck its tail post at every spawn; GATE CONTACT 6), STANCE-AS-GAME 1+2 (A0's decision,
+Deform no objection: the damage gates' ground stagings call stance as the game does), SKIS-REANCHOR (named).
+BASE VS BRANCH (by check name, the night set):
+- FIXED: DMGSCUFF green, DMGSKIN green, DMGSCAR 5 -> 1 (the CORE_MATH census row, master's), DMGWRECK's FAR-drop row green - the
+  refit's nine "only the wheels touch" rows.
+- MOVED, re-anchored: SKIS's three no-ski witnesses (metal Cessna + Super Petrel 300 steps: the stance; the twin floatplane def /
+  sheet / steps: the taper shell); SKIS back to base's 1 red (the Jodel witness, identical).
+- THE SAME on both trees, row for row: the 22 stance gates (TAKEOFF c172 733 m both; the tricycle crosswind roll 11.78 -> 11.91 m
+  in its 12.5 m band; RADIALDIV, TAXICLEAR, ROUTE, FRAMECOST, CONTACT's pavement 5, STORAGE, ALTIPORT, UNIFY), DMGCERT, DMGCLUSTERS,
+  DMGDETERMINISM, DMGDRIVE (overspeed), DMGFABRIC, DMGGEAR, DMGINST, DMGINTEGRITY; DMGFPS / DMGFALL / DMGCERTCOST green. DESTTO
+  hit its 1800 s wall on BOTH (box load). Taildraggers in the gates that already called stance: unchanged rows.
+- NOT RUN on base by 05:45 (branch only): DMGNOSE DMGNOSEOVER DMGMEMBERS DMGOCCUPANT DMGPOD green; DMGSETTLE DMGWALL DMGDAMP DMGTYRE
+  TREECRASH APSMOOTH STAGES red on the branch - their base side not measured: the train's battery is the judge.
+- Touched gates on the tip: PARTS REFLOCK COMMITHYGIENE AIDS DASH FRAMES KNIFE CREWSYM PASS.
+OPEN (FLAGSHIP): the tail item (DMGCERT's fin side-pull breaks 16 fin:attach members on base and branch alike; a fin-root fittings
+row is drafted, not landed: flydiy-notes/fin-root-row-WIP-2026-11-24.patch), DMGDRIVE overspeed, WATERDAMP, MISSIONS bush run,
+ROUTE fly:metal, CLIP aerial, SAVE skiPos; TAILWHEEL I (Pilot's finding: the E-811 pusher's thrust moment).
