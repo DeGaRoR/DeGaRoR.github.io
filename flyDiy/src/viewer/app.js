@@ -1809,6 +1809,8 @@
         .then(() => (hangar === H && model && garageScene() === hangarScene && RA_Q !== '0' && typeof ROLLANIM !== 'undefined')
           ? compileSliced(B.group, aa && aa.target ? aa.target() : null, hangarScene, false, f => craftInShed(hangarScene, f)) : null).catch(() => {})
         .then(() => { if (hangar !== H) return null; H.gviewShow(); GARAGE_VIEW.ready = true;
+          // the shot's shadow state too: the craft phase's own shed warm (sliced, in the shed), now that the scene stands in it
+          try { if (!SHADOW_WARM_OFF && RA_Q !== '0' && typeof ROLLANIM !== 'undefined' && inGarage && WF && typeof renderer.compileAsync === 'function') shedShadowWarm(); } catch (e) {}
           // (loadMs: asked -> fetched, decoded, uploaded, 0 for a room whose scene was already loaded; linkMs: the programs, off the frame)
           window.FLYDIY_GVIEW = { stats: B.stats, buildMs: +(tB - t0).toFixed(1), linkMs: +(performance.now() - tB).toFixed(0), loadMs: +(t0 - tFind).toFixed(0), scene: B }; return B; }); })
       .catch(e => { console.warn('flyDiy: the garage view -', e && e.message); return null; });
