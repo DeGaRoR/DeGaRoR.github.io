@@ -63,6 +63,17 @@
 </div>
 <!--__BOOT_SLOT__-->
 <canvas id="c"></canvas>
+<!-- PHONE-TESTFLIGHT-UX: THE TEST FLIGHT'S HAND-OFF SAID (app.js phoneFlyNote) - from the press until the reload's own
+     loading screen takes over, the boot's look ("Taking ... to the test field"); a hand-off that cannot go says why,
+     with an OK. The phone garage's alone (hidden everywhere else). -->
+<div id="phFlyGo" role="status" aria-live="polite" hidden>
+  <div id="phFlyWrap">
+    <span id="phFlyBrand">Test flight</span>
+    <div id="phFlyMsg"></div>
+    <div id="phFlyBar"><i></i></div>
+    <button id="phFlyOk" type="button" hidden>OK</button>
+  </div>
+</div>
 <!-- FLIGHT. Everything on this layer is about WATCHING AN AEROPLANE FLY,
      and none of it exists in the workshop (G86). One switch hides the lot —
      see setMode() in app.js — rather than a dozen rules each hiding one
@@ -372,6 +383,14 @@
     <span id="edSpec"></span>
   </header>
   <div id="edInfoBody">
+    <!-- PHONE-TESTFLIGHT-UX (the user, 24 Nov, on the phone: "the test flight might rather be an option in the plaque"):
+         THE PHONE'S TEST FLIGHT ON THE PLAQUE - the bench's own Test flight row run (bench.js BENCH_RUN, the menu's line
+         does the same), over the certificate it earns. Hidden on the desktop (its bench row is the way there); app.js
+         shows it on a phone garage whose profile has the test field (profile.js fly 'testfield'). -->
+    <div id="pqFlyRow" hidden>
+      <button id="pqFly" type="button">Test flight</button>
+      <span>a circuit on the pilot, on the flat test field</span>
+    </div>
     <!-- THE PLAQUE (P3). The aeroplane's own measured numbers. It starts empty
          on purpose — a certificate you get for free is not one — and every
          editor rebuild withdraws it. app.js owns the rows. -->

@@ -1522,12 +1522,25 @@ function benchInit(api) {
   window.BENCH_ROLLOUT = () => { outFp = fpNow(); };
   // G3791 (PHONE-TESTFLIGHT): ONE ROW RUN FROM OUTSIDE - the phone menu's Test flight line runs the bench's own row (its
   // card, its arming, its running line); false when the row is not offered here or the bench is busy
-  window.BENCH_RUN = id => {
+  // PHONE-TESTFLIGHT-UX (24 Nov): ...AND WHY, for the page to say it (app.js phoneFlyAsk): BENCH_RUN.why after a false is
+  // 'off' (the row is not offered here), 'busy' (a test or a flight is out), 'build' (the build could not be measured -
+  // BENCH_RUN.note its errors) or 'refused' (a flown row whose start did not go: the hand-off said no; startTestFlight
+  // says why on the phone). A flown row that did not go is false now (it was true with nothing flown)
+  const benchRun = id => {
     const t = BENCH_TESTS.filter(x => x.id === id)[0];
-    if (!t || !usable(t) || busyNow()) return false;
+    benchRun.why = ''; benchRun.note = '';
+    if (!t || !usable(t)) { benchRun.why = 'off'; return false; }
+    if (busyNow()) { benchRun.why = 'busy'; return false; }
     runOne(t, null);
+    if (t.kind === 'flown' && !flown) {
+      const r = results[t.id] || null;
+      benchRun.why = r && r.verdict === 'CANNOT MEASURE THIS BUILD' ? 'build' : 'refused';
+      benchRun.note = (r && r.note) || '';
+      return false;
+    }
     return true;
   };
+  window.BENCH_RUN = benchRun;
   // G2273 (ACCEPT): the fingerprint the acceptance leg and the logbook row are signed with (the roll-out's), and the
   // live one the plaque's "proved in flight" row is withdrawn against
   window.BENCH_FP_OUT = () => outFp;
