@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 49,
-  "no official plane can fly it (the player builds one)": 2,
+  "feasible": 50,
+  "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
-  "not flown": 18,
+  "not flown": 16,
   "infeasible": 9,
   "stale": 5
  },
- "flownS": 91022,
+ "flownS": 92281,
  "rows": [
   {
    "id": "field.01",
@@ -1506,8 +1506,46 @@
    "id": "survey.05",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172",
+   "timeS": 1259,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 547,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 100,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 711,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "survey.04",
@@ -1602,8 +1640,13 @@
    "id": "clients.n2",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "infeasible",
+   "plane": null,
+   "timeS": 0,
+   "why": "no official plane can do it (73_ contractCanDo): cub: Cub: 175 kg aboard, the cabin takes 90 kg; jodel: Jodel: 175 kg aboard, the cabin takes 90 kg; c172: Cessna 172: stretcher (2 x 0.6 x 0.5 m) passes no door; c172f: Cessna floats: stretcher (2 x 0.6 x 0.5 m) passes no door; L8: Chinook: 175 kg aboard, the cabin takes 90 kg; L9: Stearman-alike: 175 kg aboard, the cabin takes 120 kg; L10: Tiger Moth-alike: 175 kg aboard, the cabin takes 100 kg; L11: Camel-alike: 1 passengers, 0 seats beside the pilot; L12: DC-3-alike: stretcher (2 x 0.6 x 0.5 m) passes no door; L25: PA-18 on floats: 175 kg abo",
+   "legs": [],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "player-built"
   },
   {
    "id": "clients.03",

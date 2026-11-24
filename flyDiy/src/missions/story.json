@@ -2290,6 +2290,12 @@
    },
    "needs": {
     "rep": 1
+   },
+   "validated": {
+    "with": "Cessna 172",
+    "sim": "L40K",
+    "flownS": 1259,
+    "sig": "6bafce5d"
    }
   },
   {
@@ -2884,6 +2890,13 @@
     "after": [
      "clients.n1"
     ]
+   },
+   "validated": {
+    "with": null,
+    "verdict": "no official plane",
+    "why": "no official plane can carry it: a plane the player builds",
+    "sim": "L40K",
+    "sig": "21ef27c4"
    }
   },
   {
