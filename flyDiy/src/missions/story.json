@@ -2584,7 +2584,13 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+    "sim": "L40K",
+    "flownS": 999,
+    "sig": "4ecbacd6"
+   }
   },
   {
    "id": "obs.06",

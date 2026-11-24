@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 53,
+  "feasible": 54,
   "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
   "not flown": 11,
   "infeasible": 12,
-  "stale": 4
+  "stale": 3
  },
- "flownS": 102013,
+ "flownS": 103012,
  "rows": [
   {
    "id": "field.01",
@@ -1710,8 +1710,44 @@
    "id": "obs.05",
    "where": "observatory:3",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 999,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 467,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "mt_strip",
+     "t": 531,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "obs.06",
