@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 56,
+  "feasible": 57,
   "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
-  "not flown": 6,
   "infeasible": 16,
-  "stale": 2
+  "stale": 2,
+  "not flown": 5
  },
- "flownS": 106998,
+ "flownS": 108284,
  "rows": [
   {
    "id": "field.01",
@@ -944,8 +944,45 @@
    "id": "minedock.06",
    "where": "harbour:2",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "PA-18 on floats",
+   "timeS": 1286,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 413,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 874,
+     "how": "stopped",
+     "at": "SEA",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "lumber.01",

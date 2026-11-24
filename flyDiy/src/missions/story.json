@@ -1406,6 +1406,12 @@
      "who": "pete",
      "text": "ct.minedock.06.done"
     }
+   },
+   "validated": {
+    "with": "PA-18 on floats",
+    "sim": "L40K",
+    "flownS": 1286,
+    "sig": "4b5903f4"
    }
   },
   {

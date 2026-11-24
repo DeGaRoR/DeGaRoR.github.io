@@ -1,0 +1,168 @@
+{
+ "id": "minedock.06",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "PA-18 on floats",
+ "timeS": 1286,
+ "why": "",
+ "tried": [
+  "Cessna 172 floats (career):infeasible",
+  "PA-18 on floats:feasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "mk_sea",
+   "t": 413,
+   "how": "stopped",
+   "at": "mk_sea",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "mk_sea",
+   "to": "SEA",
+   "t": 874,
+   "how": "stopped",
+   "at": "SEA",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "infeasible",
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 431,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "vref-raised: the elevator cannot hold 30.8 m/s at this power — flying the approach faster"
+     ],
+     "landing": {
+      "run": 307,
+      "sink": 0.44,
+      "V": 32.9,
+      "offCentre": -0.6,
+      "pastAim": 117,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 424,
+      "stopLeft": 769
+     }
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 2338,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (1207 m, 317.6 m off) — planning the departure again",
+      "taxi-timeout: the route took 675 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "already loaded"
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 2400,
+     "how": "timeout",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (1364 m, 501.5 m off) — planning the departure again",
+      "taxi-timeout: the route took 557 s — stopping where it is",
+      "replan: not lined up with a run ahead (1400 m, 510.8 m off) — planning the departure again"
+     ],
+     "stop": "stopped off an aerodrome: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "PA-18 on floats",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 413,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [],
+     "landing": {
+      "run": 141,
+      "sink": 0.55,
+      "V": 23.2,
+      "offCentre": -0.2,
+      "pastAim": 85,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 392,
+      "stopLeft": 967
+     }
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 874,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "go-around: unstabilised approach at 77 m: sinking 3.1 m/s (attempt 1)",
+      "go-around: unstabilised approach at 77 m: sinking 3.1 m/s (attempt 2)",
+      "committed-unstable: unstabilised (sinking 3.2 m/s) but committed - landing it"
+     ],
+     "landing": {
+      "run": 136,
+      "sink": 1.24,
+      "V": 21.4,
+      "offCentre": 0.5,
+      "pastAim": 62,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 369,
+      "stopLeft": 994
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: Cessna 172 floats (career) flown with 1 aboard (the garage's seat door)",
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
+ "untested": false,
+ "key": "dfafba44dbb8",
+ "where": "harbour:2",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 9975
+}
