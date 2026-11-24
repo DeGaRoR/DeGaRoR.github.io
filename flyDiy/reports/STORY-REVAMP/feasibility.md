@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 48 feasible; 9 infeasible; 2 no official plane can fly it (the player builds one); 19 not flown; 5 stale. Time flown: 1450 min 12 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 49 feasible; 9 infeasible; 2 no official plane can fly it (the player builds one); 18 not flown; 5 stale. Time flown: 1517 min 02 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -46,7 +46,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 48 feasible; 9 infeas
 | resort.05 | skyline:3 | infeasible | PC-6 Turbo Porter | 40 min 00 s | HOME > tw_ski 2400 | the flight did not end (2400 s) |
 | survey.01 | contract | feasible | Piper Cub | 37 min 49 s | HOME > HOME 1650; HOME > HOME 619 |  |
 | survey.02 | contract | feasible | Cessna 172 floats (career) | 20 min 01 s | SEA > mk_sea 427; mk_sea > SEA 774 |  |
-| survey.03 | contract | not flown | - | - | - |  |
+| survey.03 | contract | feasible | Piper Cub | 66 min 50 s | HOME > HOME 1650; HOME > HOME 1744; HOME > HOME 616 |  |
 | survey.05 | contract | not flown | - | - | - |  |
 | survey.04 | contract | order | - | - | - |  |
 | obs.01 | observatory:1 | stale | - | - | - |  |

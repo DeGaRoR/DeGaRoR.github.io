@@ -2221,6 +2221,12 @@
     "after": [
      "survey.01"
     ]
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 4010,
+    "sig": "907e2b01"
    }
   },
   {
