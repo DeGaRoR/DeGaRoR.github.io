@@ -1522,7 +1522,13 @@
     "provider": "minedock",
     "gain": 0.5
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "PC-6 on Wiplines",
+    "sim": "L40K",
+    "flownS": 3365,
+    "sig": "de97feec"
+   }
   },
   {
    "id": "lumber.04",

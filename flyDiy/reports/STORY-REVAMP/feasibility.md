@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 46 feasible; 8 infeasible; 2 no official plane can fly it (the player builds one); 22 not flown; 5 stale. Time flown: 1334 min 06 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 47 feasible; 8 infeasible; 2 no official plane can fly it (the player builds one); 21 not flown; 5 stale. Time flown: 1390 min 11 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -33,7 +33,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 46 feasible; 8 infeas
 | minedock.06 | harbour:2 | not flown | - | - | - |  |
 | lumber.01 | lumber:1 | feasible | Cessna 172 floats (career) | 6 min 59 s | SEA > mk_sea 419 |  |
 | lumber.02 | lumber:2 | infeasible | Twin busher floats 4b | 6 min 37 s | SEA > mk_sea 397 | the stop refuses the load: aboard 15 kg / 0 pax, the job is 150 kg / 0 pax |
-| lumber.03 | lumber:2 | not flown | - | - | - |  |
+| lumber.03 | lumber:2 | feasible | PC-6 on Wiplines | 56 min 05 s | HOME > mk_sea 1128; mk_sea > mk_sea 993; mk_sea > SEA 1244 |  |
 | lumber.04 | lumber:3 | infeasible | PC-6 on Wiplines | 18 min 12 s | HOME > SEA 1092 | crashed: the damage ended the flight: a fus member broke |
 | lumber.run | contract | feasible | Cessna 172 floats (career) | 7 min 00 s | SEA > mk_sea 420 |  |
 | resort.01 | contract | feasible | Jodel D112 | 16 min 02 s | HOME > tw_ski 962 |  |

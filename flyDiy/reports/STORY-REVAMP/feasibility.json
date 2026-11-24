@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 46,
+  "feasible": 47,
   "no official plane can fly it (the player builds one)": 2,
   "an aircraft order (not a flight)": 8,
-  "not flown": 22,
+  "not flown": 21,
   "infeasible": 8,
   "stale": 5
  },
- "flownS": 80046,
+ "flownS": 83411,
  "rows": [
   {
    "id": "field.01",
@@ -1005,8 +1005,56 @@
    "id": "lumber.03",
    "where": "lumber:2",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "PC-6 on Wiplines",
+   "timeS": 3365,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mk_sea",
+     "t": 1128,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 993,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 1244,
+     "how": "stopped",
+     "at": "SEA",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "lumber.04",
