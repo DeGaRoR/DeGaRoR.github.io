@@ -405,10 +405,16 @@ function physics() {
     chk(tail.every(s => !(s.wash > 0)) && [0, 1, 2, 3].every(e => wing.some(s => s.washE === e)),
         `WAKES quad: no tail wash (between the nacelles), each of the four discs blows its own wing strips`); }
   { const a = ground('tri', -1), b = ground('tri', 0), c = ground('tri', 1);
-    chk(a.washE && a.washE[0] > 1 && b.washE[0] === 0 && b.wash > 1 && b.washE[1] > 1 && c.washE[1] === 0 && c.washE[0] > 1,
+    // (PHYSICS-AUDIT 1d, 24 Nov: an engine switched off windmills since step 4 - its disc a brake, its wash the small
+    //  deficit momentum theory gives a negative thrust; it was exactly 0. Held: that disc's thrust negative, its wash a
+    //  deficit under 0.5 m/s, and the running discs blow as before)
+    const mill = (g, k) => g.thr[k] < 0 && g.washE[k] <= 0 && g.washE[k] > -0.5;
+    chk(a.washE && a.washE[0] > 1 && mill(b, 0) && b.wash > 1 && b.washE[1] > 1 && mill(c, 1) && c.washE[0] > 1,
         `WAKES tri in the solver: every disc ${a.washE.slice(0, 3).map(f1).join(' / ')} m/s; the nose off ${b.washE.slice(0, 3).map(f1).join(' / ')} (the mean disc would say ${f1(b.wash)} on the tail); a wing off ${c.washE.slice(0, 3).map(f1).join(' / ')}`); }
   { const a = ground('skymaster', -1), b = ground('skymaster', 0);
-    chk(a.washE && a.washE[2] > a.washE[0] && b.washE[0] === 0 && b.washE[2] === b.washE[1] && b.washE[2] > 1,
+    // (1d: the nose windmilling, the centreline's series wake is the pusher's less the nose's small deficit - the
+    //  discs' forces summed, as the series always was; it was the pusher's own to the bit)
+    chk(a.washE && a.washE[2] > a.washE[0] && b.thr[0] < 0 && b.washE[0] <= 0 && b.washE[0] > -0.5 && b.washE[2] <= b.washE[1] && b.washE[1] - b.washE[2] < 0.5 && b.washE[2] > 1,
         `WAKES skymaster in the solver: the series wake ${f1(a.washE[2])} m/s over one disc's ${f1(a.washE[0])}; the nose off: the pusher's own ${f1(b.washE[2])}`); }
   // the break groups
   const WANT = { skymaster: ['eng', 'engAft'], tri: ['eng', 'engL', 'engR'], quad: ['engL', 'engR', 'engL2', 'engR2'] };
