@@ -1371,7 +1371,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const opposeTag = attachHi ? 'B' : 'T';
   // a strut is only a brace if its anchor is far enough from the wing — see
   // GEN_RULES.strutMinOffset. Otherwise build the box instead.
-  const strutOffset = Math.abs(wingY0 - (attachHi ? 0 : cab.h));
+  // (STRUT-AXLE: a foot on the main axle stands that far under the wing - the axle's height is the brace's, not the
+  // longeron's: a mid wing's struts to the axle are a real brace where struts to its own lower longeron are not)
+  const strutOffset = STRUT_AXLE && k === 0 ? Math.abs(wingY0 - S.gear.y) : Math.abs(wingY0 - (attachHi ? 0 : cab.h));
   // G140: A CRANKED WING CAN BE STRUT-BRACED — WHEN THE STRUT LANDS ON THE
   // CRANK. The 2026-08-11 exclusion stays true for what it measured: a fan
   // reaching PAST the crank read 22.95 deg @200 N.m at 1.34x (the worst
