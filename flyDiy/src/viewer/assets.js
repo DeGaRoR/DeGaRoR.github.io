@@ -175,6 +175,16 @@
     return list.length;
   }
   gpuOnlyGeo.stats = stats;
+  // PERF-WORLDBUILD (24 Nov 2026): A CALLER'S GEOMETRIES ON THE GPU NOW, by the flush's own stand-in draw (GPU-only or not:
+  // a plain geometry keeps its arrays). What was waiting for its flush is put back untouched. Under a host's budget a call
+  // uploads at most FLUSH_CAP: hand batches of that size. (render_world: the tree packs before the impostors' bake.)
+  function upload(renderer, geos) {
+    const mine = (geos || []).filter(g => g && g.attributes && waiting(g)); if (!mine.length) return 0;
+    const held = [...PEND]; PEND.clear(); for (const g of mine) PEND.add(g);
+    let n = 0; try { n = flush(renderer) | 0; } finally { for (const g of mine) PEND.delete(g); for (const g of held) PEND.add(g); }
+    return n;
+  }
+  gpuOnlyGeo.upload = upload;
   gpuOnlyGeo.flush = flush;
   gpuOnlyGeo.pending = () => PEND.size;
   if (typeof window !== 'undefined') window.GPU_ONLY_GEO = gpuOnlyGeo;

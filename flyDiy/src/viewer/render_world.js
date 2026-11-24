@@ -5862,6 +5862,38 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
     };
     yield 'trees';
+    // PERF-WORLDBUILD (24 Nov 2026): UNDER A HOST'S BUDGET THE TREE PACKS MEET THE GPU BEFORE THE PLANTING. plantWoodland bakes
+    // the impostors' atlases, and the bake's draws were the tree models' FIRST: three uploaded their maps (377 ms) and their
+    // buffers (115-142 ms) at those draws - the 648 ms task of the live garage, the worst left (PERF-LEAD's GF_READY profile,
+    // 23 Nov 19:57: plantWoodland < impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll). Here, a step each: every
+    // series' L0 build of the pool's packs (treeBuild's own cache: what ladderFor hands the bake), its maps initTextured one a
+    // step, its geometry uploaded 16 MB a step (assets.js GPU_ONLY_GEO.upload). The bake then only draws; its own code - its
+    // layers' order, its sheets' checks - is untouched. scene.userData.treeWarm = { packs, tex, geo, bytes } for the host's log.
+    if (HOSTB && renderer && typeof renderer.initTexture === 'function' && treesSettled() && typeof treeBuild === 'function') {
+      const tw = { packs: 0, tex: 0, geo: 0, bytes: 0 }; scene.userData.treeWarm = tw;
+      try {
+        const GUP = typeof GPU_ONLY_GEO === 'function' && typeof GPU_ONLY_GEO.upload === 'function' ? GPU_ONLY_GEO : null;
+        const seenT = new Set(), seenG = new Set(); let batch = [], bb = 0;
+        const gbytes = g => { let b = 0; for (const k in g.attributes) { const at = g.attributes[k]; if (at && at.array) b += at.array.byteLength; } if (g.index && g.index.array) b += g.index.array.byteLength; return b; };
+        for (const p of treePool()) for (const ser of SERIES) {
+          if (hostDue()) yield 'trees: a pack';
+          let B0 = null; try { B0 = treeBuild(THREE, p.key, 0, ser); } catch (e) { B0 = null; }
+          if (!B0 || !B0.parts) continue;
+          tw.packs++;
+          for (const q of B0.parts) {
+            const mt = q.mat, cand = [];
+            if (mt) { for (const k in mt) cand.push(mt[k]); if (mt.uniforms) for (const k in mt.uniforms) cand.push(mt.uniforms[k] && mt.uniforms[k].value); }
+            for (const t of cand) if (t && t.isTexture && t.image && !seenT.has(t)) { seenT.add(t); yield 'trees: a texture'; try { renderer.initTexture(t); tw.tex++; } catch (e) {} }
+            const g = q.geo;
+            if (GUP && g && g.attributes && !seenG.has(g)) { seenG.add(g); const b = gbytes(g);
+              if (batch.length && bb + b > 16777216) { yield 'trees: the geometry'; tw.geo += GUP.upload(renderer, batch) | 0; batch = []; bb = 0; }
+              batch.push(g); bb += b; tw.bytes += b; }
+          }
+        }
+        if (GUP && batch.length) { yield 'trees: the geometry'; tw.geo += GUP.upload(renderer, batch) | 0; }
+        yield 'trees: the planting';
+      } catch (e) { console.warn('trees: the packs\' early upload: ' + (e && e.message)); }
+    }
     plantWoodland();
     // ONE CALL, AND IT WAS THE WHOLE OF W0c'S LAST MILE. Everything else was
     // written and gated: the payload, the codec, the loader, the switch above.
