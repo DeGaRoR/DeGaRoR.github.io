@@ -7,8 +7,8 @@
   "feasible": 54,
   "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
-  "not flown": 10,
-  "infeasible": 13,
+  "not flown": 9,
+  "infeasible": 14,
   "stale": 3
  },
  "flownS": 103012,
@@ -1753,7 +1753,27 @@
    "id": "obs.06",
    "where": "observatory:4",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 0,
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 150 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {

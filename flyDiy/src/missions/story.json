@@ -2625,7 +2625,14 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 150 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "bae9eaa4"
+   }
   },
   {
    "id": "obs.07",

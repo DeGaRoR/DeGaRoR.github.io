@@ -107,7 +107,7 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 ### The feasibility state
 
 <!-- feas-state -->
-ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 54 FEASIBLE, 16 red or waiting for a plane the player builds, 13 not flown yet on this sim (3 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
+ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 54 FEASIBLE, 17 red or waiting for a plane the player builds, 12 not flown yet on this sim (3 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
 The feasible ones, by the aeroplane that flew them: 25 Piper Cub, 7 STOL Cub, 7 light metal Cessna with the STOL kit (test build), 4 PC-6 Turbo Porter, 4 Cessna 172 floats (career), 4 Jodel D112, 2 Cessna 172, 1 PC-6 on Wiplines.
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
@@ -116,7 +116,7 @@ Those, by cause:
 - resort.05: two passengers to the altiport (tw_ski): with three aboard the STOL-kit Cessna goes around until its fuel is out and the PC-6 gives up in the flare - the altiport again, flown heavy; master's own GATE CONTRACTS names this mission red ("stage 0 is flyable by a validated design")
 - obs.02: 200 kg and a passenger into the 210 m mountain strip: the STOL-kit Cessna lands there, its loading card takes 140 kg beside the passenger - a hauler the player builds
 - obs.04: two passengers into the 210 m mountain strip: with three aboard the test pilot will not go (the STOL-kit Cessna needs 277 m, the PC-6 246 m) - a three-seat STOL plane the player builds
-- obs.07: NOT READ YET
+- obs.06, obs.07: NOT READ YET
 - clients.n2: no official plane can carry it (a 175 kg load with its long item): a named class, not flown
 - home.06: no official plane can carry it (450 kg into the 383 m Cabin Strip): a STOL hauler the player builds - a named class, not flown
 - home.13: 280 kg to the Cabin Strip: the capability rule says the Cessna's cabin takes 280 kg, its loading card takes 140 kg of it (flown with the pilot alone); the PC-6's card takes none - the rule against the card, or a hauler the player builds
