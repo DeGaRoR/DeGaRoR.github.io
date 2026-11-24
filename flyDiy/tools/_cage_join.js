@@ -739,6 +739,14 @@ function cageJoinSpec(P, M, T) {
       try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutFoot != null); } catch (e) {}
       if (had) spec.bracing.strutFoot = null;
     }
+    // STRUT-AXLE (24 Nov, the Minimax 1100R): the lift struts' feet on the main axles - stated when the row is on (lift
+    // struts, the mains' cross axle), cleared the same way when it is off
+    if (+P.wgStrutAxle && !Math.round(+P.wgBrace || 0) && +P.s1On && Math.round(+P.s1Leg) === 1 && +P.s1_linkAxle) spec.bracing.strutAxle = 1;
+    else {
+      let had = false;
+      try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutAxle); } catch (e) {}
+      if (had) spec.bracing.strutAxle = null;
+    }
   }
   // ...and each seat's mass (SEATS, 2026-11-02), written only when a drawn seat weighs other than the outfit's row:
   // a cabin of tube & sling seats (3.0 kg, the `sling` row every save bills) keeps its spec - and its certificate -

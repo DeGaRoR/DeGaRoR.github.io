@@ -190,6 +190,33 @@ const REFS = {
       TO:    { v: [200 * FT, 250 * FT], tol: 0.05, kg: 'unknown', flaps: 0, surface: 'grass', src: '200 / 250 ft' },
       LDG:   { v: 300 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: '300 ft' },
     } },
+  // SMALL-ENGINES (FLAGSHIP, 24 Nov; the user's Minimax and Lazair on the small end's engines). Brochure figures that
+  // state no weight: bands. The sources disagree and the rows say so.
+  minimax1100r: {
+    name: 'Mini-MAX 1100R (Hirth F-33 / Polini Thor / Simonini Mini 3 class)', mtow: 254, empty: 115, fuelL: 19, S: 10.45,
+    src: 'Team Mini-Max kit page + flyminimax.com/1100r + pilotmix.com/mini-max-1100r: 25 ft span, 112.5 ft2, empty 230-267 lb, gross 560 lb, stall 28-31 mph, cruise 65 mph, top 70-75 mph, Vne 100 mph, climb 1000 fpm (the 1100F on a Hirth: 650 fpm), TO roll < 100 ft, landing roll 210 ft',
+    poh: { vr: 1.15, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0.5 },
+    rows: {
+      empty: { v: [230 * LB, 267 * LB], tol: 0.03, src: '230-267 lb (flyminimax.com kit page; teammini-max.com 267 lb)' },
+      Vs1:   { v: [28 * MPH, 31 * MPH], tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 28-31 mph' },
+      V75:   { v: 65 * MPH, tol: 0.08, kg: 'unknown', src: 'cruise ~65 mph' },
+      Vmax:  { v: [70 * MPH, 75 * MPH], tol: 0.05, kg: 'unknown', src: 'top speed 70 / 75 mph (two listings)' },
+      roc:   { v: [650 * FPM, 1000 * FPM], tol: 0.05, kg: 'unknown', src: '1000 fpm (the maker, its engine unstated); 650 fpm on the Hirth 1100F (an older listing)' },
+      TO:    { v: [70 * FT, 100 * FT], tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'take-off roll < 100 ft' },
+      LDG:   { v: 210 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'landing roll 210 ft' },
+    } },
+  lazair: {
+    name: 'Ultraflight Lazair Series II (2 x Rotax 185, 9.5 hp)', mtow: 204, empty: 90, fuelL: 10, S: 13.3,
+    src: 'en.wikipedia.org/wiki/Ultraflight_Lazair (Series II: 2 x Rotax 185 9.5 hp, 36 ft 4 in, 143 ft2, empty 210 lb, MTOW 450 lb) + all-aero.com (the Rotax 185 Lazair: empty 183 lb, ~400 fpm, TO ~100 ft, stall 17-22 mph, L/D 12-13) + planeandpilotmag.com Apr 2020 (Series 2 and 3 climbed ~450-500 fpm; an owner: 200-250 fpm on 185s); pilotmix.com/lazair: stall 25 mph, cruise 40 mph, Vne 65 mph',
+    poh: { vr: 1.15, vy: 1.35, flapTO: 0, flapLDG: 0, brake: 0.4 },
+    rows: {
+      empty: { v: [183 * LB, 210 * LB], tol: 0.03, src: '183 lb (all-aero) - 210 lb (wikipedia)' },
+      Vs1:   { v: [20 * MPH, 25 * MPH], tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 17-22 mph (all-aero), 25 mph (pilotmix)' },
+      V75:   { v: [35 * MPH, 45 * MPH], tol: 0.08, kg: 'unknown', src: 'cruise ~40 mph (pilotmix)' },
+      roc:   { v: [250 * FPM, 500 * FPM], tol: 0.05, kg: 'unknown', src: '~400 fpm (all-aero), 450-500 fpm (Plane & Pilot), 200-250 fpm (an owner on 185s)' },
+      LD:    { v: [12, 13], tol: 0.10, kg: 'unknown', src: 'best glide 12-13:1 (all-aero)' },
+      TO:    { v: [80 * FT, 120 * FT], tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'take-off ~100 ft (all-aero)' },
+    } },
   // PILATUS PC-6/B2-H4 TURBO PORTER (FIT-PROCEDURE, the drafting table 11-16 Nov; tools/drafting/refs/pc6.json - the type
   // certificate prevails). The factsheet's figures are ISA, the STOL technique; its TO50 / LDG50 state no weight.
   // Vs0 (96 km/h, 52 KEAS at gross, full flap) is the factsheet's too - no indicator for it here: it is the card's note
