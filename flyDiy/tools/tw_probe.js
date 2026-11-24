@@ -24,14 +24,20 @@ const r2 = v => v == null || !isFinite(v) ? null : Math.round(v * 100) / 100;
 const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 
 const FILES = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  rufus: 'builds/rufus_2026-10-18_certified.json', dc3: 'tools/fixtures/dc3_2026-10.json',
-  tiger: 'tools/fixtures/tigermoth_2026-10.json', camel: 'tools/fixtures/camel_2026-10.json',
-  twin: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json' };
+  rufus: 'builds/rufus_2026-10-18_certified.json', dc3: 'tools/fixtures/test_copies/dc3_2026-10.json',
+  tiger: 'tools/fixtures/test_copies/tigermoth_2026-10.json', camel: 'builds/candidates/camel_2026-10.json',
+  twin: 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json' };
 // the twin-boom fixture made a taildragger by the Undercarriage tile's own writes (a tailwheel a boom), and that one
 // with the Empennage tile's inverted V (here at 30 deg, the tips 0.6 m apart: its tail sits tail-down on them)
 const TD = { s2On: 1, s2Leg: 3, s2Z: 0.06, s2X: 0, s2R: 0.07, s2Steer: 1, s2Brake: 0, s1Z: 2.00, s1Steer: 0, s1On: 1, gearFloats: 0 };
 const PRESET = { twintd: TD, twiniv: Object.assign({}, TD, { stMount: 4, stCant: 30, stX: 0, stY: 0, stZ: 0, stIvGap: 0.6, finOn: 0 }) };
 FILES.twintd = FILES.twiniv = FILES.twin;
+// LAZAIR (24 Nov): the Chinook's single rod made a V hung down (the V-tail tile's writes, its cant -25, the panels at
+// 0.7 of the drawn span: the tips stand just over the mains' ground line, a small tail-down stance, and the V's span
+// inside the flown tail envelope) on its two
+// tip wheels as the tail wheel (the gear page's 'V tip wheels' row) - the Lazair's layout
+PRESET.lazair = { stCant: -25, stSpan: 0.7, stMount: 1, stX: 0, stY: 0, stZ: 0, finOn: 0, vtWheels: 1 };
+FILES.lazair = 'builds/chinook_2026-09-21_corrected.json';
 const BUILD = opt('build', 'cub'), FILE = FILES[BUILD] || BUILD;
 // raw:tb / raw:iv / raw:tbpush - the generator's own default as a twin boom (a tailwheel a boom), as the inverted V on
 // twin booms (its tip wheels), or as a twin-boom pusher on its tailwheels - no drawing, no join (the spec as the
@@ -210,7 +216,7 @@ function stand() {
   const deck = (ang(i => def.nodes[i].p) - ang(i => [sim.p[i * 3], sim.p[i * 3 + 1], sim.p[i * 3 + 2]])) * 57.3;
   return { case: 'stand', build: BUILD, tailContacts: tw.length, tailClear: clr, deckDeg: r2(deck),
            contacts: sim.wheelContacts(), smaxPct: r2(sim.stats().smax * 100), mode: def.params.twMode || 1, tailType: def.spec.tail.type,
-           iv: def.spec.tail.ivAngle != null ? def.spec.tail.ivAngle : null };
+           iv: def.spec.tail.ivAngle != null ? def.spec.tail.ivAngle : null, vAngle: def.spec.tail.vAngle != null ? def.spec.tail.vAngle : null };
 }
 const CASES = { pivot, rudder, roll, stop, circuit, stand };
 const out = [];

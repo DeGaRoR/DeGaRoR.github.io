@@ -1,0 +1,21 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
+const {patchShadowArray}=require('./three_shadow_fallback');
+const deps=process.env.FLYDIY_NODE_MODULES||path.resolve(__dirname,'../node_modules');
+const original=fs.readFileSync(path.join(deps,'three/build/three.module.js'),'utf8');
+const patched=patchShadowArray(original);
+assert.throws(()=>patchShadowArray(patched),/already fixed/);
+const start=patched.indexOf('function setValueT1Array('),end=patched.indexOf('function setValueT3DArray(',start);
+let reversed=false,updates=0;const bound=[],shadow={compareFunction:null};
+Object.defineProperty(shadow,'needsUpdate',{set(v){if(v)updates++;}});
+const ctx={emptyShadowTexture:shadow,emptyTexture:{plain:true},GreaterEqualCompare:9,LessEqualCompare:3,
+ allocTexUnits:(_,n)=>Array.from({length:n},(_,i)=>i),arraysEqual:()=>false,copyArray:()=>{}};
+vm.runInNewContext(patched.slice(start,end),ctx);
+const gl={SAMPLER_2D_SHADOW:35682,uniform1iv(){}},textures={isReversedDepthBuffer:()=>reversed,setTexture2D:(t,u)=>bound.push([t,u])};
+const setter=ctx.setValueT1Array,uniform={cache:[],addr:1,type:35682};
+setter.call(uniform,gl,[null,null],textures);assert.equal(shadow.compareFunction,3);assert.equal(updates,1);assert(bound.every(([t])=>t===shadow));
+setter.call(uniform,gl,[null],textures);assert.equal(updates,1);
+reversed=true;setter.call(uniform,gl,[null],textures);assert.equal(shadow.compareFunction,9);assert.equal(updates,2);
+const real={real:true};setter.call(uniform,gl,[real],textures);assert.equal(bound.at(-1)[0],real);
+setter.call({cache:[],addr:2,type:35678},gl,[null],textures);assert.equal(bound.at(-1)[0],ctx.emptyTexture);
+console.log('SHADOW FALLBACK: PASS (array comparison mode, cached texture refresh, reversed depth, real maps and plain textures)');

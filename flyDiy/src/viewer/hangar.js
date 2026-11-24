@@ -822,41 +822,41 @@ const floorTex = (img, srgb) => {
 
 const M = {
   floor: FLOOR_IMG
-    ? new THREE.MeshStandardMaterial({ map: floorTex(FLOOR_IMG.diff, true),
+    ? new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / floor slab' }, map: floorTex(FLOOR_IMG.diff, true),
         roughnessMap: floorTex(FLOOR_IMG.rough),
         normalMap: floorTex(FLOOR_IMG.nor),
         normalScale: new THREE.Vector2(1, 1),
         roughness: 1, metalness: 0.06, envMapIntensity: 1.7 })
-    : new THREE.MeshStandardMaterial({ map: floorAlb, roughnessMap: floorRgh,
+    : new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / floor slab' }, map: floorAlb, roughnessMap: floorRgh,
         normalMap: slabNrm, normalScale: new THREE.Vector2(0.35, 0.35),
         roughness: 1, metalness: 0.12, envMapIntensity: 1.7 }),
-  wall: new THREE.MeshStandardMaterial({ map: wallAlb, normalMap: corrNrm,
+  wall: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / corrugated wall' }, map: wallAlb, normalMap: corrNrm,
     normalScale: new THREE.Vector2(0.8, 0.8), roughnessMap: wallRgh,
     roughness: 0.70, metalness: 0.14, side: THREE.DoubleSide }),
   // roofAlb re-based (G41): the quad's old uvScale 6 became metric uv
-  roofIn: new THREE.MeshStandardMaterial({ map: roofAlb, normalMap: corrNrm,
+  roofIn: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / roof inside' }, map: roofAlb, normalMap: corrNrm,
     normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.80, metalness: 0.10,
     side: THREE.FrontSide }),
-  roofOut: new THREE.MeshStandardMaterial({ map: wallOutAlb, roughness: 0.86,
+  roofOut: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / roof outside' }, map: wallOutAlb, roughness: 0.86,
     metalness: 0.10, side: THREE.FrontSide }),
-  wallOut: new THREE.MeshStandardMaterial({ map: wallOutAlb, roughness: 0.85,
+  wallOut: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / wall outside' }, map: wallOutAlb, roughness: 0.85,
     metalness: 0.10, side: THREE.BackSide }),
-  stem: new THREE.MeshStandardMaterial({ map: blockAlb, roughness: 0.94 }),
+  stem: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / blockwork stem wall' }, map: blockAlb, roughness: 0.94 }),
   // the doors: corrugation running VERTICALLY, and a coat of paint that has
   // been in the weather since somebody's father hung them
-  door: new THREE.MeshStandardMaterial({ map: doorAlb, normalMap: doorNrm,
+  door: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / main door leaf' }, map: doorAlb, normalMap: doorNrm,
     normalScale: new THREE.Vector2(0.9, 0.9), roughnessMap: doorRgh,
     roughness: 1, metalness: 0.20 }),
-  doorTrim: new THREE.MeshStandardMaterial({ color: 0x2f4436, roughness: 0.62,
+  doorTrim: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / door trim' }, color: 0x2f4436, roughness: 0.62,
     metalness: 0.35 }),
-  steel: new THREE.MeshStandardMaterial({ color: 0x565c63, roughness: 0.44, metalness: 0.85 }),
-  steelDark: new THREE.MeshStandardMaterial({ color: 0x33383e, roughness: 0.55, metalness: 0.70 }),
-  paintGreen: new THREE.MeshStandardMaterial({ color: 0x3c5a4a, roughness: 0.52, metalness: 0.18 }),
-  paintRed: new THREE.MeshStandardMaterial({ color: 0x9a2f26, roughness: 0.42, metalness: 0.22 }),
-  paintBlue: new THREE.MeshStandardMaterial({ color: 0x27455e, roughness: 0.48, metalness: 0.20 }),
-  wood: new THREE.MeshStandardMaterial({ map: woodAlb, roughness: 0.74, metalness: 0 }),
-  woodPale: new THREE.MeshStandardMaterial({ color: 0xc2a276, roughness: 0.80 }),
-  glass: new THREE.MeshPhysicalMaterial({ color: 0xdce8f0, roughness: 0.06, metalness: 0,
+  steel: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / steel' }, color: 0x565c63, roughness: 0.44, metalness: 0.85 }),
+  steelDark: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / dark steel' }, color: 0x33383e, roughness: 0.55, metalness: 0.70 }),
+  paintGreen: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / green paint' }, color: 0x3c5a4a, roughness: 0.52, metalness: 0.18 }),
+  paintRed: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / red paint' }, color: 0x9a2f26, roughness: 0.42, metalness: 0.22 }),
+  paintBlue: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / blue paint' }, color: 0x27455e, roughness: 0.48, metalness: 0.20 }),
+  wood: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / wood' }, map: woodAlb, roughness: 0.74, metalness: 0 }),
+  woodPale: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / pale wood' }, color: 0xc2a276, roughness: 0.80 }),
+  glass: new THREE.MeshPhysicalMaterial({ userData: { progOwner: 'garage / shed / window glass' }, color: 0xdce8f0, roughness: 0.06, metalness: 0,
     // `thickness` is r132+ and this build is r128: transmission alone, with
     // the opacity carrying what the refraction slab would have.
     // G1460 (SOFT-GPU): on the software rung the panes are plain see-through glass - three's transmission pass (the
@@ -865,15 +865,15 @@ const M = {
     // live after the build (gfx_settings.js apply, FLYDIY_SHED)
     transmission: ((typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) || shedGlassOff()) ? 0 : 0.90, transparent: true, opacity: 0.5,
     envMapIntensity: 1.4, side: THREE.DoubleSide }),
-  rubber: new THREE.MeshStandardMaterial({ color: 0x22242a, roughness: 0.95 }),
+  rubber: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / rubber' }, color: 0x22242a, roughness: 0.95 }),
   // the filament itself: emissive, unlit by anything else, and scaled with the
   // moods like every other material in here
-  bulb: new THREE.MeshStandardMaterial({ color: 0x1a1206, roughness: 0.35,
+  bulb: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed lamps / bulb filament' }, color: 0x1a1206, roughness: 0.35,
     emissive: 0xffcc7a, emissiveIntensity: 2.2 }),
-  brass: new THREE.MeshStandardMaterial({ color: 0xb08d4a, roughness: 0.32, metalness: 0.9 }),
-  alu: new THREE.MeshStandardMaterial({ color: 0xa8adb3, roughness: 0.30, metalness: 0.92 }),
-  canvasM: new THREE.MeshStandardMaterial({ color: 0xa89a80, roughness: 0.95 }),
-  lampWarm: new THREE.MeshStandardMaterial({ color: 0xffe6b8, emissive: 0xffcf87,
+  brass: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / brass' }, color: 0xb08d4a, roughness: 0.32, metalness: 0.9 }),
+  alu: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / aluminium' }, color: 0xa8adb3, roughness: 0.30, metalness: 0.92 }),
+  canvasM: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / canvas' }, color: 0xa89a80, roughness: 0.95 }),
+  lampWarm: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed lamps / warm lamp face' }, color: 0xffe6b8, emissive: 0xffcf87,
     emissiveIntensity: 3.2, roughness: 0.6 }),
   // THE ROOF PANE IS GLAZING, not a lit panel (G56, user: "I can't see the HDRI
   // through the roof windows, did you remove the mesh?"). The mesh was never
@@ -887,10 +887,10 @@ const M = {
   // weathering?"): the glow is the GRP sheet's own (skyAlb drives it, so the streaks, the grime and the valleys show
   // dark against the light; skyNrm gives it the roof's ribs), warmer than the old blue card, and milkier - the sky
   // still shows through faintly, as through a dirty translucent sheet (the user's earlier ask, kept).
-  skyPanel: new THREE.MeshStandardMaterial({ color: 0xffffff, map: skyAlb, emissive: 0xf4ecd8, emissiveMap: skyAlb,
+  skyPanel: new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed / rooflight sheet' }, color: 0xffffff, map: skyAlb, emissive: 0xf4ecd8, emissiveMap: skyAlb,
     emissiveIntensity: 2.1, normalMap: skyNrm, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.85,
     side: THREE.DoubleSide, transparent: true, opacity: 0.6, depthWrite: false }),
-  daylight: new THREE.MeshBasicMaterial({ color: 0xf2ecdc, side: THREE.FrontSide }),
+  daylight: new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / shed / daylight card' }, color: 0xf2ecdc, side: THREE.FrontSide }),
 };
 // G604 (A1-STAND, playtest 2026-09-26): THE EXTERIOR'S GLASS TRANSMITS NOTHING. `transmission` above is not a
 // property of one pane: while ANY transmissive mesh is in view, three (r186) draws every opaque object of the
@@ -899,7 +899,7 @@ const M = {
 // the band is a pane seen from outside over a dark interior, so it is glass by opacity and reflection: the same
 // finish and envMap, a darker colour and a lower opacity standing in for the transmitted share (compared from four
 // fixed eyes against the transmissive pane: the same read, a hair darker).
-if (EXT) M.glass = new THREE.MeshStandardMaterial({ color: 0x56626c, roughness: 0.06, metalness: 0,
+if (EXT) M.glass = new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed exterior / window glass' }, color: 0x56626c, roughness: 0.06, metalness: 0,
   transparent: true, opacity: 0.3, envMapIntensity: 1.4, side: THREE.DoubleSide });
 // the slab is the biggest single thing the probe sees under itself
 ground(M.floor);
@@ -962,7 +962,7 @@ if (FRAME === 'timber') {
     }
   }, 1.6);
   plankNrm.repeat.set(1 / 3.5, 1 / 3.5);
-  M.wall = new THREE.MeshStandardMaterial({ map: plankAlb,
+  M.wall = new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / timber shed / plank wall' }, map: plankAlb,
     normalMap: plankNrm, normalScale: new THREE.Vector2(0.7, 0.7),
     roughnessMap: wallRgh, roughness: 0.88, metalness: 0,
     side: THREE.DoubleSide });
@@ -970,7 +970,7 @@ if (FRAME === 'timber') {
   const out = M.wall.clone(); out.side = THREE.FrontSide;
   M.wallOut = out;                    // the coarse LOD's outer skin
   // the leaf is vertical boards with a painted frame — the trim family stays
-  M.door = new THREE.MeshStandardMaterial({ map: plankAlbV,
+  M.door = new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / timber shed / plank door leaf' }, map: plankAlbV,
     roughness: 0.85, metalness: 0 });
   // the beam families are TIMBER here, and they stay the part system's
   // 'beams' rows — a dressable post is a dressable truss
@@ -1549,7 +1549,7 @@ function makeGradeMaterial(forTarget) {
   const frag = 'varying vec2 vUv;' + NLc + SKY_GRADE.glsl + NLc +
     'void main() {' + NLc + '  vec3 c = fdSkyGrade(vUv, gl_FragCoord.xy);' + NLc +
     '  ' + tail + NLc + '}';
-  return new THREE.ShaderMaterial({
+  return new THREE.ShaderMaterial({ userData: { progOwner: 'garage / sky grade / backdrop sphere and probe target' },
     uniforms: u, side: forTarget ? THREE.FrontSide : THREE.BackSide,
     fog: false, depthWrite: !forTarget,
     vertexShader: vert, fragmentShader: frag,
@@ -1647,7 +1647,7 @@ let skyMode = 'gpu';
 let skyMatBaked = null, skyMat = null, skyMesh = null, skyOnReady = null;
 let viewOut = false;   // (G3630 HANGAR-VIEW: outdoorsShow(false) - the world's view out of the door is up)
 if (!EXT && SKY_ROWS && THREE.MeshBasicMaterial && THREE.SphereGeometry) {
-  skyMatBaked = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false });
+  skyMatBaked = new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / sky / baked backdrop sphere' }, side: THREE.BackSide, fog: false });
   skyMat = gradeTextures() ? gradeMat.sphere : skyMatBaked;
   // radius 600 (G44): far enough that the field and strip below never
   // poke through; the 4k equirect carries the extra screen coverage
@@ -1774,12 +1774,12 @@ if (!EXT) {
   // sky's own ground". It is not closed here; it is stopped from being loud.
   const ENV_OUT = 0.45;
   const gmat = (key, tile, fallback, extra) => {
-    const o = Object.assign({ roughness: 1, metalness: 0, fog: false,
+    const o = Object.assign({ userData: { progOwner: 'garage / outdoors / ground surface' }, roughness: 1, metalness: 0, fog: false,
                               envMapIntensity: ENV_OUT }, extra || {});
     const maps = siteGroundMaps(THREE, key, tile, ANISO);
     if (maps) Object.assign(o, maps);
     else if (fallback) { o.map = fallback; }
-    return outdoor(new THREE.MeshStandardMaterial(o));
+    return outdoor(new THREE.MeshStandardMaterial(o));   // progOwner: 'garage / outdoors / ground surface', declared in the literal `o` above (gmat: grass, strip, apron, taxiway, dirt, hill)
   };
 
   // canvas fallbacks, kept from G44 so a payload-less build still stands
@@ -1900,7 +1900,7 @@ if (!EXT) {
   let paintOrder = 40;
   const paint = (x0, z0, x1, z1, col, y, op) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(x1 - x0), Math.abs(z1 - z0)),
-      new THREE.MeshLambertMaterial({ color: col, transparent: op !== undefined,   // lit (A6): the apron's paint takes the night
+      new THREE.MeshLambertMaterial({ userData: { progOwner: 'garage / outdoors / apron paint lines' }, color: col, transparent: op !== undefined,   // lit (A6): the apron's paint takes the night
         opacity: op === undefined ? 1 : op, depthWrite: false, fog: false }));
     m.receiveShadow = true;
     m.rotation.x = -Math.PI / 2;
@@ -1997,15 +1997,15 @@ if (!EXT) {
       const cols = [0x8c2b22, 0x2f4a6b, 0xd8d4c8, 0x3d4a3a, 0x6b6660];
       const bodyG = new THREE.BoxGeometry(4.3, 0.72, 1.76), cabG = new THREE.BoxGeometry(2.3, 0.62, 1.56), sillG = new THREE.BoxGeometry(4.0, 0.34, 1.66);
       cabG.translate(-0.25, 0, 0);
-      const dark = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0x1d1c1b), roughness: 0.8, metalness: 0.1 }, 'hoCar');
-      const glass = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0x2b3238), roughness: 0.15, metalness: 0.4 }, 'hoCar');
+      const dark = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0x1d1c1b), roughness: 0.8, metalness: 0.1 }, 'hoCar', 'garage / outdoors / parked car sill');
+      const glass = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0x2b3238), roughness: 0.15, metalness: 0.4 }, 'hoCar', 'garage / outdoors / parked car cabin glass');
       for (const m of [dark, glass]) outdoor(m);
       // the far edge: the apron's farthest out of the door (the most negative x), 10 m back from it
       let fx = -HD - 120; for (const P of APR) for (const [x] of P) fx = Math.min(fx, x);
       const ex = Math.max(fx + 10, -HD - 170);
       for (let i = 0; i < 5; i++) {
         const z = -34 + i * 15 + (hr() - 0.5) * 5, x = ex + (hr() - 0.5) * 4, yaw = Math.PI / 2 + (hr() - 0.5) * 0.5, y = Y_AW + yRoll(x, z);
-        const paint = MATLIB.shared(THREE, 'std', { color: new THREE.Color(cols[i]), roughness: 0.45, metalness: 0.35 }, 'hoCar'); outdoor(paint);
+        const paint = MATLIB.shared(THREE, 'std', { color: new THREE.Color(cols[i]), roughness: 0.45, metalness: 0.35 }, 'hoCar', 'garage / outdoors / parked car body paint'); outdoor(paint);
         // three plain meshes, each placed itself (the room's merge bakes its direct meshes: no group in between)
         for (const [g, m, dy] of [[bodyG, paint, 0.70], [cabG, glass, 1.39], [sillG, dark, 0.17]]) {
           const o = new THREE.Mesh(g, m); o.name = 'room:car'; o.position.set(x, y + dy, z); o.rotation.y = yaw;
@@ -2040,7 +2040,7 @@ if (!EXT) {
       const dm = new THREE.Mesh(g, M.dirtOut); dm.name = 'room:dirt'; dm.receiveShadow = true; dm.renderOrder = 2; put(dm);
       // the tyre marks: two dark ribbons a track apart, out of the door with a slight bend, fading out
       const tyre = MATLIB.make(THREE, 'std', { color: new THREE.Color(0x2e261e), roughness: 1, metalness: 0, transparent: true, opacity: 0.42, depthWrite: false,
-        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, vertexColors: true });
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, vertexColors: true }, 'garage / outdoors / tyre marks');
       outdoor(tyre);
       for (const off of [-1.0, 1.0]) {
         const P = [], C = [], I = [], N = 30;
@@ -2054,8 +2054,9 @@ if (!EXT) {
         const tm = new THREE.Mesh(tg, tyre); tm.name = 'room:tyres'; tm.receiveShadow = true; tm.renderOrder = 3; put(tm);
       }
       // the wooded hill: a polar grid over the hemicircle out of the door, the field's grass a shade darker
-      M.hill = gmat('grass005', 2, grassAlb, { roughness: 0.97, color: 0x7d8b6e });
-      macroise(M.hill, 70, 0.5);
+      // (GARAGE-FIXES 21 Nov: the user's picture showed the hill as a flat bright green - a forest floor's darker, broken tone)
+      M.hill = gmat('grass005', 2, grassAlb, { roughness: 0.98, color: 0x5c6a4c });
+      macroise(M.hill, 45, 0.62);
       const HR = 32, HA = 66, hp = [], hu = [], hi = [];
       for (let j = 0; j <= HR; j++) for (let i = 0; i <= HA; i++) {
         const r = HILL.r0 - 6 + (HILL.r1 - HILL.r0 + 6) * j / HR, a = -HILL.a + 2 * HILL.a * i / HA;
@@ -2076,12 +2077,13 @@ if (!EXT) {
       T.list.push({ x, z, y, s: sc, k: Math.floor(hr() * 97), yaw: Math.atan2(-x, -z) });
     };
     if (HOK === 'shed') {
-      for (let r = HILL.r0 + 6; r <= HILL.r1 - 12; r += 9) {
+      // (GARAGE-FIXES, the user 21 Nov: "they need to be further away": from 95 m - the door at 11 m, so ~84 m out of it - was 66 m)
+      for (let r = HILL.r0 + 35; r <= HILL.r1 - 10; r += 10) {
         const n = Math.ceil(2 * HILL.a * r / 6.5);
         for (let i = 0; i < n; i++) {
           const a = -HILL.a + 0.15 + (2 * HILL.a - 0.3) * (i + hr() * 0.8) / n, rr2 = r + (hr() - 0.5) * 5;
           const h = hillH(rr2, a); if (h <= 0.5 && rr2 > HILL.r0 + 10) continue;
-          plant(-rr2 * Math.cos(a), rr2 * Math.sin(a), Y_FIELD + h - 0.3, 0.85 + hr() * 0.5);
+          plant(-rr2 * Math.cos(a), rr2 * Math.sin(a), Y_FIELD + h - 0.3, 0.8 + hr() * 0.65);
         }
       }
     } else {
@@ -2168,7 +2170,7 @@ if (!EXT) {
     stex.wrapS = stex.wrapT = THREE.ClampToEdgeWrapping;
     // LIT (A6, 2026-09-20 - the playtest: "the hangar's runway material and the yellow lines lit at
     // night"): an unlit paint keeps its day brightness under the night's exposure
-    const marks = new THREE.Mesh(sMark, new THREE.MeshLambertMaterial({
+    const marks = new THREE.Mesh(sMark, new THREE.MeshLambertMaterial({ userData: { progOwner: 'garage / outdoors / runway strip marks' },
       map: stex, transparent: true, depthWrite: false, fog: false }));
     marks.receiveShadow = true;
     marks.position.set(SCX, Y_STRIP + 0.01, SCZ);
@@ -2219,7 +2221,7 @@ if (!EXT) {
   // All of it from the declaration, so the middle distance out of this door is
   // the middle distance you taxi through. (A premises field declares none: G434.)
   if (SITE && !PLAIN) {
-    const lam = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85,
+    const lam = c => new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / outdoors / airfield furniture' }, color: c, roughness: 0.85,
       metalness: 0, fog: false });
     const wallM = lam(0xcbb79a), roofM = lam(0x9c5f43), trimM = lam(0x6d5744);
     for (const b of SITE.buildings) {
@@ -2304,7 +2306,7 @@ if (!EXT) {
   // round the same apron — see render_world.js. What is decided here is only
   // what belongs to this room: where a tuft may not stand, and how it is lit.
   if (THREE.InstancedMesh && SITE) {
-    const tuftMat = outdoor(new THREE.MeshStandardMaterial({
+    const tuftMat = outdoor(new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / outdoors / grass tufts' },
       map: siteBladeTexture(THREE, rand, ANISO),
       alphaTest: 0.42, side: THREE.FrontSide,
       roughness: 0.92, metalness: 0, fog: false, envMapIntensity: ENV_OUT }));
@@ -2549,7 +2551,7 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     // it, rough, the roof's ribs in it, nearly opaque (the sheet's alpha ~0.87, thicker where it is dirty), so from
     // above it reads as a panel in the roof and never as the dark hole the clear blue glass made over the interior.
     if (EXT && !M.skyPanelExt)
-      M.skyPanelExt = new THREE.MeshStandardMaterial({
+      M.skyPanelExt = new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / shed exterior / rooflight sheet' },
         color: 0xf2f0e6, map: skyAlb, normalMap: skyNrm, normalScale: new THREE.Vector2(0.8, 0.8),
         roughness: 0.6, metalness: 0.0, transparent: true, opacity: 1 });
     const PM = EXT ? M.skyPanelExt : M.skyPanel;
@@ -2561,6 +2563,9 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     const faceDown = EXT ? s < 0 : s > 0;
     const p = faceDown ? quad(a, b, c, d, PM) : quad(b, a, d, c, PM);
     p.castShadow = false;
+    // GARAGE-FIXES (the user 21 Nov: "doing something strange with the clouds too"): the room's panes draw AFTER the sky (0) and
+    // the room's cloud layer (1) - two transparent sheets sorted by their centres, the cloud dome's at the room's, painted over them
+    if (!EXT) p.renderOrder = 2;
     put(p);
     // THE KERB: a flat band inside the opening's edge, all four sides. Drawn as
     // quads in the slope's own plane rather than as boxes, because a box on a
@@ -3058,10 +3063,10 @@ function planTable(x, z, ry) {
   const plan = PROPS_OK ? prop('plan_wall', 0, 0, 0, T / 2 + 0.002, top) : null;
   if (plan) { plan.rotation.x = -Math.PI / 2; plan.position.z = -0.455; plan.scale.setScalar(0.85); }
   else top.add(box(1.2, 0.006, 0.82,
-    new THREE.MeshStandardMaterial({ color: 0xe8e3d6, roughness: 0.95 }), 0, T / 2 + 0.003, 0.02));
+    new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / plan table / drawing sheet' }, color: 0xe8e3d6, roughness: 0.95 }), 0, T / 2 + 0.003, 0.02));
   // the rolls, in the trough above the lip, lying on the board
   for (let k = 0; k < 3; k++) {
-    const r = cyl(0.035, 0.035, 0.9, new THREE.MeshStandardMaterial({ color: 0xded7c6, roughness: 0.95 }),
+    const r = cyl(0.035, 0.035, 0.9, new THREE.MeshStandardMaterial({ userData: { progOwner: 'garage / plan table / paper rolls' }, color: 0xded7c6, roughness: 0.95 }),
                   0.4 + k * 0.09, T / 2 + 0.035, -0.30, 10);
     r.rotation.z = Math.PI / 2; r.rotation.y = 0.1; top.add(r);
   }
@@ -3367,7 +3372,7 @@ const FOOT_MESH = (() => {
   geo.setIndex(idx);
   const ML = typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js');
   const mat = ML.make(THREE, 'basic', { color: 0x0a0906, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-                                        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+                                        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }, 'garage / room / prop foot shadows');
   const m = new THREE.Mesh(geo, mat);
   m.name = 'room:propFoot'; m.renderOrder = 5; m.castShadow = false; m.receiveShadow = false; m.userData.footProps = occ.length;
   G.add(m);
@@ -3737,7 +3742,7 @@ const shaftTex = sheet(4, 128, (g, W, H) => {
   grd.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = grd; g.fillRect(0, 0, W, H);
 }, true);
-const shaftMat = new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true,
+const shaftMat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / shed / light shafts' }, map: shaftTex, transparent: true,
   opacity: 0.055, depthWrite: false, blending: THREE.AdditiveBlending,
   side: THREE.DoubleSide, color: 0xffe9c8 });
 const shafts = new THREE.Group();
@@ -4045,6 +4050,12 @@ function setLights(pick) {
 const SHED_FRAME_YAW = -Math.PI / 2;
 const LAMP_EX_CAP = 1.4;
 let skyPhys = false, skyBakedSun = null, cloudMesh = null;
+// GARAGE-FIXES (the user 21 Nov, the club at night: "severe shading issues with the ceiling windows ... they sort of light up in
+// the dark"): THE PANES' GLOW IS THE DAY'S LIGHT through a milky sheet. The mood row's `panel` kept 0.40 at night (0.43 at dusk)
+// and the sheet's own milky-yellow map glowed at it under the night's exposure; it is scaled now by the sun's height (none
+// under -6 deg, civil dusk; full from 6 deg) and a little by the cloud cover's transmittance, a 2 % floor (the night sky's own)
+let panelK = 1;
+const panelOfDay = (el, cloudT) => { if (!Number.isFinite(el)) return 1; const t = Math.max(0, Math.min(1, (el + 6) / 12)); return Math.max(0.02, t * t * (3 - 2 * t) * (0.55 + 0.45 * (Number.isFinite(cloudT) ? cloudT : 1))); };
 // HANGAR-VIEW C (the 8 Nov redesign): THE ROOM'S SKY IS THE WORLD'S AT THE HANGAR. The frame was one fixed quarter turn for every
 // room (SHED_FRAME_YAW) and the clouds were marched from the world's origin, so the sun and the clouds through the door lined up
 // with no real shed. app.js hands the room's node here (setSkyFrame): its yaw turns the dome, the cloud layer, the key and the
@@ -4160,6 +4171,8 @@ function applyDay(day, renderer) {
   // GARAGE-VIEW: the WORLD's light for this day, asked BEFORE the room's own (which writes the dome's scale and the night grade back for the room)
   const WL = (GVIEW && typeof window !== 'undefined' && window.WORLD_RIG && window.WORLD_RIG.lightFor) ? window.WORLD_RIG.lightFor(day, cloudT) : null;
   const r = SKY_LIGHT.applyDay(day, { key, renderer, unit: 1, roomGain: 1, keyGain: cloudT, altM: 0, exposureCap: LAMP_EX_CAP });
+  panelK = panelOfDay(day.sunEl, cloudT);
+  if (MOODS[Math.max(0, moodI)] && !muted.panels) M.skyPanel.emissiveIntensity = MOODS[Math.max(0, moodI)].panel * panelK;
   // aim the key from the shed's frame, the frustum floor kept (see aimKey)
   const g = SKY_LIGHT.isMoon ? day.moon : day.sun, s = toShed(g);
   dayDirShed[0] = s[0]; dayDirShed[1] = s[1]; dayDirShed[2] = s[2];
@@ -4245,7 +4258,7 @@ const setMood = i => {
   for (const [mat, e0] of ENV0) mat.envMapIntensity = e0 * (m.env / 0.55);
   BG.setHex(m.bg); FOG.color.setHex(m.bg);
   M.daylight.color.setHex(m.card);
-  M.skyPanel.emissiveIntensity = m.panel;
+  M.skyPanel.emissiveIntensity = m.panel * panelK;   // (the day's light: applyDay's panelK)
   // the registered emitters. The shop lamps' own shades follow the power knob,
   // because a shade that stays white-hot while its lamp is turned down is the
   // same lie the bulb used to tell.
@@ -4422,7 +4435,7 @@ const CS = { on: true };   // the aeroplane's own print, below
     minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
     format: THREE.RGBAFormat });
   GS.rtA = mk(); GS.rtB = mk();
-  GS.depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.BasicDepthPacking });
+  GS.depthMat = new THREE.MeshDepthMaterial({ userData: { progOwner: 'garage / floor contact shadow / depth from below' }, depthPacking: THREE.BasicDepthPacking });
   GS.depthMat.side = THREE.DoubleSide;      // undersides face the camera
   GS.cam = new THREE.OrthographicCamera(-HD, HD, HW, -HW, 0.02, CUT);
   GS.cam.up.set(0, 0, 1);
@@ -4431,7 +4444,7 @@ const CS = { on: true };   // the aeroplane's own print, below
   // BasicDepthPacking writes 1 - fragCoordZ, and an ortho camera's depth is
   // LINEAR — so the sample IS (1 - height/CUT), and the shaping curve turns it
   // into an intensity. pow on the first pass only; the second just blurs.
-  GS.blur = new THREE.ShaderMaterial({
+  GS.blur = new THREE.ShaderMaterial({ userData: { progOwner: 'garage / floor contact shadow / blur pass' },
     uniforms: { tSrc: { value: null }, uTexel: { value: new THREE.Vector2(1 / SIZE, 1 / SIZE) },
                 uDir: { value: new THREE.Vector2(1, 0) }, uPow: { value: 1 } },
     vertexShader: VERT,
@@ -4460,7 +4473,7 @@ const CS = { on: true };   // the aeroplane's own print, below
     const uv = geo.attributes.uv;
     for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i));
   }
-  GS.quad = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+  GS.quad = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / floor contact shadow / furniture print quad' },
     color: 0x000000, alphaMap: GS.rtA.texture, transparent: true,
     opacity: 0.9, depthWrite: false, fog: false }));
   GS.quad.rotation.x = -Math.PI / 2;
@@ -4554,7 +4567,7 @@ const CS = { on: true };   // the aeroplane's own print, below
     const geo = new THREE.PlaneGeometry(1, 1);
     { const uv = geo.attributes.uv;
       for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i)); }
-    CS.quad = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    CS.quad = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ userData: { progOwner: 'garage / floor contact shadow / aeroplane print quad' },
       color: 0x000000, alphaMap: CS.rtA.texture, transparent: true,
       opacity: 0.9, depthWrite: false, fog: false }));
     CS.quad.rotation.x = -Math.PI / 2;
@@ -4770,7 +4783,7 @@ return {
     const T = HO_TREES;
     if (!T || T.built || !S || !S.tex || !Array.isArray(S.list) || !S.list.length || !T.list.length) return false;
     const grp = new THREE.Group(); grp.name = 'room:trees'; grp.userData.outdoor = true;
-    const mat = MATLIB.make(THREE, 'std', { map: S.tex, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 1, metalness: 0, envMapIntensity: 0.45, fog: false });
+    const mat = MATLIB.make(THREE, 'std', { map: S.tex, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 1, metalness: 0, envMapIntensity: 0.45, fog: false }, 'garage / outdoors / tree cards');
     outdoor(mat);
     const byK = S.list.map(() => []);
     for (const t of T.list) byK[t.k % S.list.length].push(t);
@@ -4779,6 +4792,13 @@ return {
       const L = byK[k]; if (!L.length || !(sp.diam > 0)) return;
       const geo = new THREE.PlaneGeometry(sp.diam, sp.diam); geo.translate(0, sp.cy, 0);
       const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, sp.u0 + uv.getX(i) * (sp.u1 - sp.u0));
+      // GARAGE-FIXES (the user 21 Nov: "the trees all show their roots"): the sheet's level view shows each tree's root flare at its
+      // ground line - the card's foot is CUT 8 % of its height above that line (its bottom vertices raised, their v with them) and
+      // the card set down by the cut and 2 % more, so the trunk goes into the ground (a hillside's too) and no root is drawn
+      // (the 22 Nov in-game still: at 4 % the nearest trees still showed their flare)
+      { const cut = 0.08 * sp.diam, sink = 0.02 * sp.diam, bot = sp.cy - sp.diam / 2, ps = geo.attributes.position;
+        for (let i = 0; i < ps.count; i++) if (ps.getY(i) < sp.cy && bot < cut) { ps.setY(i, cut); uv.setY(i, (cut - bot) / sp.diam); }
+        geo.translate(0, -cut - sink, 0); ps.needsUpdate = true; uv.needsUpdate = true; }
       const nr = geo.attributes.normal; for (let i = 0; i < nr.count; i++) nr.setXYZ(i, 0, 0.72, 0.69);
       const im = new THREE.InstancedMesh(geo, mat, L.length); im.name = 'room:trees:' + (sp.key || k);
       L.forEach((t, i) => { e.set(0, t.yaw, 0); q.setFromEuler(e); p.set(t.x, t.y, t.z); sc.setScalar(t.s); M4.compose(p, q, sc); im.setMatrixAt(i, M4); });

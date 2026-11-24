@@ -14,8 +14,6 @@
     {"file": "ruckus_2026-11-09.json", "name": "Ruckus Back-Country", "note": "the backcountry Ruckus: the Rotax 582, 26-inch bush wheels, Beringer brakes, a locking tailwheel, two tanks - REAL-FIGURES", "from": "RUCKUS (builds/edits/ruckus_2026-11-09.edits.json)"},
     { "file": "ugly_bi.json", "name": "ugly bi", "note": "the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone; first flown 11 Nov (UGLYB-FLIGHT): as drawn it flew the circuit but nosed over on every take-off from the stand (the mains under the CG, 8 cm prop clearance tail up); the mains moved 0.27 m forward and 14 cm lower (s1Z 1.91->2.18, s1Drop 0.33->0.47) and the stabiliser 8 % wider (stSpan 1.2->1.3, Vh 0.29 warn cleared) - every design row passes, it departs from the stand and its crosswind limit went from 5 to > 10 m/s", "from": "the user" },
     { "file": "mosquito.json", "name": "mosquito", "note": "B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)", "from": "the user (\"you may also add the mosquito\"; tools/fixtures/repro/)" },
-    { "file": "birdman.json", "hide": "legacy", "name": "Birdman", "note": "found in the repo (bugReports/); the user kept it, 4 Nov", "from": "review/, the user 4 Nov" },
-    { "file": "build_v7_twin_2026-09-04.json", "hide": "legacy", "name": "Twin ultralight", "note": "a v7 file, 4 Sep; the user kept it, 4 Nov", "from": "review/, the user 4 Nov" },
     { "file": "build_v8_pusher_2026-09-11.json", "name": "pusherLight", "note": "a light pusher, a v8 file, 11 Sep; the user kept it, 4 Nov", "from": "review/, the user 4 Nov" },
     { "file": "flydiy-build (4).json", "name": "twinBoomFail", "note": "twin boom, experimental, the latest of its three saves; the user kept it, 4 Nov", "from": "review/, the user 4 Nov" },
     { "file": "B-ITES.json", "name": "B-ITES", "note": "the user's export (evidence 2026-11-04/candidates-user/)", "from": "the user" },
@@ -27,8 +25,7 @@
     { "file": "sailPlane.json", "name": "Sailplane", "note": "the user's export - work in progress (PLANE-LIST, the user 10 Nov); moved from review/", "from": "the user" },
     { "file": "pc6_drafting_2026-11-11.json", "name": "PC-6 Turbo Porter", "note": "the Pilatus PC-6/B2-H4 fitted on the drafting table (DRAFTING_TABLE.md, rounds 1-15) on its oleo tailwheel (twStyle 1, PC6-OLEO) - work in progress, REAL-FIGURES pending", "from": "FIT-PROCEDURE" },
     { "file": "pc6_floats_2026-11-13.json", "name": "PC-6 on Wipline 6100", "note": "the PC-6 on Wipline 6100 amphibious floats (+407 kg, the 30 cm tail end) - work in progress", "from": "FIT-PROCEDURE" },
-    { "file": "pc6_livery_alpengluehn_2026-11-13.json", "hide": "next", "name": "PC-6 (Alpengluehn)", "note": "a PC-6 livery study (paint only)", "from": "FIT-PROCEDURE" },
-    { "file": "pc6_livery_nordwind_2026-11-13.json", "hide": "next", "name": "PC-6 (Nordwind)", "note": "a PC-6 livery study (paint only)", "from": "FIT-PROCEDURE" },
+    { "file": "ls4_2026-11.json", "name": "LS4-alike", "note": "Standard Class sailplane, 15 m: engineless, 170 L water ballast, airbrakes, retracting monowheel, CS-22 strength - ref-matched to the factory sheet 1U-87; open: the drag (L/D ~19 against 40.5), ~7 kg light", "from": "the LS4 fit (tools/ref_match/refs/ls4/, the LS4-alike card)" },
     { "file": "electric_trainer.json", "name": "Electric trainer", "note": "the official Electric trainer (plane list row 61; the user 17 Nov): a Virus-type electric two-seater", "from": "FLAGSHIP" }
   ]
 }

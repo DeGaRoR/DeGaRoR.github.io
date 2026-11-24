@@ -518,7 +518,11 @@ const GEN_DMG_GROUP = { rel: 1 / 3 };
 //   - a laminate (carbon, etu 0, not wood): crushed is delaminated - no tether.
 // While it holds, its two ends are ONE piece (pieces(): the verdict, the strips, the drawing's unparted kink); its tear is
 // a parting (the piece event again).
-const GEN_DMG_TETHER = { on: true, rFold: 1, rDuct: 0.5, eDuct: 0.5, rWood: 0.25 };
+// (G4104, the user 18 Nov on the electric trainer's nose-down: "a wing exploding into panels that end up perfectly cut ...
+// these things are really getting torn" - the real composite wrecks keep their wings, a spar broken and the skin torn round
+// it: a cracked laminate still holds by its FIBRES, rComp x its strength, torn once stretched eComp past its length at the
+// crack - the fibres pulled out of the matrix)
+const GEN_DMG_TETHER = { on: true, rFold: 1, rDuct: 0.5, eDuct: 0.5, rWood: 0.25, rComp: 0.2, eComp: 0.04 };
 // G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
 // once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is
 // a MEMBRANE: tension only, no compression, no bending; slack until stretched past the length the covering has between
@@ -1742,6 +1746,7 @@ const GEN_TRAVEL = {                       // degrees, each way
   elevator: 28,
   rudder:   27,
   flap:     40,                            // 0 -> full, one way only
+  airbrake: 0.0001,                        // AIRBRAKES: no turn - the plate SLIDES up (its slide, 63_gen_wing)
 };
 // the flap's own travel is the type's, where the type has an opinion: a
 // Fowler runs out further than it turns down, and a split flap goes further
@@ -1989,6 +1994,18 @@ function genFurnK(S) {
 //   glass   3 mm acrylic, which is what a light aeroplane's screen is
 const GEN_OUTFIT = {
   panelKgM2: 6.0,
+  // THE BUBBLE CANOPY'S FRAME AND HINGE (the user, 16 Nov, the LS4: "maybe you should count a frame for the canopy, and an
+  // opening hinge"): a bubble's sheet stands in its own frame - a moulded glass / alloy channel round its edge (~0.55 kg a
+  // metre with its bonding, INFERRED: a Standard Class's ~4.2 m of frame ~2.3 kg) - and opens on a hinge with a latch,
+  // a gas strut and its jettison pins (canopyHingeKg). The edge is the glazed area's: a half-cylinder over the cabin's
+  // width, so length = area / (pi x halfW) and the edge 2 (length + width). Every bubble canopy (the canopy row's 3);
+  // a framed cabin's windows are its pillars'
+  canopyFrameKgM: 0.55, canopyHingeKg: 0.5,
+  // THE INSTRUMENT HOOD (the LS4, the user 16 Nov: "make the dashboard bigger, like the real LS4 hood"): a sailplane's
+  // panel and its glareshield moulded as one deep glass hood (the cage's dashHood row) - billed from the drawn rows as a
+  // shell (the cabin's width x (the dash's depth x 1.25 for its crown + a 0.22 m face)) at hoodKgM2 (a glass-epoxy hood
+  // with its instrument mounting ring, ~5 kg/m2, INFERRED), in place of the flat board's panelKgM2
+  hoodKgM2: 5.0,
   cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6, glass: 2.4, softShell: 1.6 },
   glassKgM2: 3.6,
   // THE GLAZING MATERIAL (T2.2, 2026-09-22): acrylic is the 3 mm sheet above;
@@ -2042,6 +2059,27 @@ const GEN_OUTFIT = {
 // (GEN_LOAD_LIMIT) and cancels in the ratio; a category field enters as
 // (Nz / 3.8)^e when it exists. The clamp keeps a foam trainer from
 // vanishing and a Twin Wasp from building itself of bridge steel.
+// THE CONSTRUCTION'S STRENGTH (the user, 15 Nov, the LS4: "By increasing the strength, we should also get heavier"; then
+// "it should be a choice in the airplane construction ... not be able to specify the G. We should have very light,
+// normal, heavy/sail planes, and aerobatic ... a category of rigidity the player should choose ... clear options"):
+// the positive limit load factor the structure is built and certified to, chosen as one of four words. The gauge above
+// takes it as (Nz / 3.8)^e on the classes Nz sizes - the fuselage, the wing, the tail; the gear is sized by its landing
+// load, not by Nz (Raymer's Nl) - and the certificate (66_gen_cert) flies its corners at it, the ultimate at 1.5 x.
+// spec.category, absent = 'normal' (every build before it: the bytes kept).
+//   normal     most light aircraft: CS-23 / FAR 23.337(a) normal, CS-VLA, +3.8
+//   light      VERY LIGHT - an ultralight's own choice: no certification standard asks less than +3.8 of a light
+//              aeroplane (the microlight codes ask ~+4: BCAR-S, ASTM F2245; FAR 103 sets none at all), so this is the
+//              builder's risk - +3.0, INFERRED; only the airliners' FAR 25 goes lower (+2.5), and they are not light
+//   sailplane  STRONG - the sailplanes (CS-22.337 utility, +5.3 at VA); a utility aeroplane's +4.4 sits under it
+//   aerobatic  CS-23 aerobatic, +6.0
+const GEN_CATEGORY = {
+  normal:    { nz: 3.8, name: 'normal' },
+  light:     { nz: 3.0, name: 'very light' },
+  sailplane: { nz: 5.3, name: 'strong (sailplanes)' },
+  aerobatic: { nz: 6.0, name: 'aerobatic' },
+};
+const GEN_CATEGORY_KEYS = ['normal', 'light', 'sailplane', 'aerobatic'];   // the cage's certCat row, in its order
+function genCatNz(S) { return (GEN_CATEGORY[S && S.category] || GEN_CATEGORY.normal).nz; }
 // THE DRAG BUILD-UP'S CONSTANTS (PERF STUDY chantier 2, 2026-09-15; read by
 // 62_gen_aero genFusCdA). Every number is a flat-plate drag AREA in m2 or
 // a factor, with where it comes from. The skin's own coefficient per m2 of
@@ -3020,6 +3058,11 @@ const GEN_BRAKES = {
             note: 'Cleveland 30-9 class, one caliper a wheel' },
   double: { name: 'double-caliper heavy discs',  perWheelN: 2600, kg: 5.4, price: 3200,
             note: 'Beringer / Grove class, two pucks a wheel: the bush builds' },
+  // (the LS4-alike, 15 Nov, the user: "what about our wheel ... Is this billed accurately?"): A SAILPLANE'S WHEEL DRUM - one
+  // small drum in a 5 in glider wheel (Tost class), pulled by the airbrake handle's end of travel or a lever on the stick;
+  // INFERRED ~1 kg with its cable, a gentle hold (a glider stops on its skid and its wingtip as much as on its brake)
+  sailplane: { name: 'sailplane wheel drum', perWheelN: 450, kg: 1.0, price: 300,
+               note: 'one small drum in the main wheel (Tost class), on the airbrake handle\'s end of travel' },
 };
 // the build's brake row, or null (absent / unknown: the surface's friction, as it always was)
 function genBrakeOf(S) { const k = S && S.gear && S.gear.brakes; return (k && GEN_BRAKES[k]) || null; }
@@ -3445,7 +3488,9 @@ function genEngPropD0(S, e0, PP0) {
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0, wgStrutSec: 0, wgJury: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
+                               brkHold: 0, wgStrutSec: 0, wgJury: 0, certCat: 0, wgBrake: 0, dashHood: 0, rodOn: 1, spinOn: 1,
+                               vtWheels: 0, vtD: 0.2, vtWide: 0, vtFork: 0.03, vtCastor: 0 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
+                               // (LAZAIR, 24 Nov: the V hung down's tip wheels' rows, off - the vt* keys)
 // STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S OPTIONS - the figures the frame (61_gen_frame, the jury strut's members)
 // and the aero (62_gen_aero genStrutOptCdA, the drag of a round strut and of the jury) read. None is read by a build
 // without bracing.section / bracing.jury.
@@ -4064,7 +4109,23 @@ const GEN_RULES = {
   // light too, no need for a user choice"): a glider's - the pilot's lever, a push rod to an over-centre link, a gas strut,
   // two doors on hinges and springs - retractKg on the axle (not GEN_RULES.retractKg's powered kit, 12 kg at the least),
   // retractPrice; the tail wheel stays down. INFERRED: a 15 m sailplane's gear retraction weighs well under a kilogram
-  ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4, retractKg: 0.6, retractPrice: 600 },
+  // (retractKg 0.6 -> 2.0, 15 Nov, the user: "what about our wheel retraction system? Is this billed accurately?" - 0.6
+  //  counted the lever alone: a Standard Class's manual retraction is the steel swing frame the fork hangs in, the
+  //  over-centre link, the handle and its push-rod down the cockpit, the gas strut, the two doors and their springs and
+  //  the well's own moulded box - INFERRED ~2 kg, the wheel and its fork apart)
+  ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4, retractKg: 2.0, retractPrice: 600 },
+  // AIRBRAKES (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a sailplane's
+  // Schempp-Hirth plates - a pair of boxes in the wing behind the spar, each a plate that rises out of the upper skin
+  // on a parallelogram when the blue handle is pulled. Unlike a flap (which cambers the section: more lift at a given
+  // speed, a lower stall, some drag) a brake SPOILS the lift behind it and stands a plate in the stream: a steeper
+  // glide at the same speed, the approach's path control, and a speed limiter in a dive. wings[0].airbrake {z0, z1: the
+  // span's fractions of the semispan, h: the plate's height over the local chord}. On the strips it covers (62_gen_aero
+  // `ab`), at the handle's e (ctl.airbrake 0..1): Cl x (1 - spoil e), Cd + cdPlate x h x e (a plate across the flow,
+  // Cd ~1.2 on its frontal height - Hoerner). INFERRED: spoil 0.6 (the wake behind a full-out brake carries ~40 % of
+  // the clean lift); a Standard Class's pair at 1.2 m each, 0.2 c high takes the glide from ~40 to ~8 (the LS4 manual's
+  // approach with full brakes, as recalled ~7-9). kgPerM / pricePerM a side, per metre of box (the cassette, two plates'
+  // linkage, the springs, the cover strips: ~1.4 kg a metre)
+  airbrake: { spoil: 0.6, cdPlate: 1.2, kgPerM: 1.4, pricePerM: 900, z: [0.12, 0.92], h: [0.05, 0.35] },
   // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
   // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
   // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release
@@ -4073,6 +4134,15 @@ const GEN_RULES = {
   // recalled: ~0.4 / ~0.6 kg with the ring and the cable). 61_gen_frame builds the hook's node on the hard structure and
   // names it refs.towHook - what TOW-LAUNCH's line (src/vehicle/tow.js makeTowLine, `o.hook`) pulls on
   towHook: { nose: { kg: 0.4, price: 450 }, cg: { kg: 0.6, ahead: 0.25, price: 650 } },
+  // WATER TANKS (the user, 15 Nov: "remove the ballast option and replace with the tanks ... We need to be able to put
+  // tanks, and fill them with water ... they will have a release mechanism, and a particle animation when it releases
+  // (water shower). There will be a release point, by default a simple downwards opening"): spec.water.vessels, the
+  // fuel tank's list again (a bay, a capacity in litres, a station and a level) plus `fill` (0..1, the garage's). The
+  // vessel is GEN_VESSELS.waterPoly, the contents GEN_WATER; the OUTLET is a round hole `outletD` m across in the tank's
+  // floor, straight down through the skin (not cut yet: the garage checks the run is clear - "little checks regarding
+  // collision"), emptying by Torricelli: Q = Cd x A x sqrt(2 g head), `head` the water's mean height over it. maxL a
+  // ceiling a tank. INFERRED: a 40 mm dump valve, Cd 0.6 (a sharp-edged hole), a 0.25 m head -> ~1.6 L/s
+  water: { maxL: 400, outletD: 0.04, Cd: 0.6, head: 0.25 },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -5327,8 +5397,12 @@ function genPlanePair(pos0, pos1) {
 // the DC-3 sits inside the old big box, so nothing it flies moves; the small box is unchanged.
 const GEN_WING_ENVELOPE = {
   chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
-  // (the LS4, 13 Nov: a sailplane's outer panel to 0.40 of the root - 0.36 m on 0.90; 0.45 held it at 0.405)
-  taper: [0.35, 1.0], xLE: [-1.20, 3.00],
+  taper: [0.45, 1.0], xLE: [-1.20, 3.00],
+  // THE SLENDER WING'S TAPER (the LS4, 13 Nov; re-pinned for L40c's WINGROWS 15 Nov): a sailplane's outer panel runs
+  // to 0.40 of its root (0.36 m on 0.90) where the 0.45 floor held it at 0.405 - so a wing whose span is at least
+  // `spanPerChord` root chords (the LS4's 16.7; every validated card's under 10) tapers to `taper`; every other wing
+  // keeps the 0.45 floor, its rows to the bit (genTaperLo)
+  slender: { spanPerChord: 14, taper: 0.35 },
   placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
   // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
   // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
@@ -5338,6 +5412,11 @@ const GEN_WING_ENVELOPE = {
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
 function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
+// the taper's floor for a wing of this span and root chord in envelope E (GEN_WING_ENVELOPE.slender)
+function genTaperLo(E, span, chord) {
+  const SL = GEN_WING_ENVELOPE.slender;
+  return SL && +chord > 0 && +span / +chord >= SL.spanPerChord ? Math.min(E.taper[0], SL.taper) : E.taper[0];
+}
 function genWingEnv(span) { return genEnvBig(span) ? Object.assign({}, GEN_WING_ENVELOPE, GEN_WING_ENVELOPE.big) : GEN_WING_ENVELOPE; }
 function genBig(S) {
   const w = S && (Array.isArray(S.wings) ? S.wings[0] : S.wing);
@@ -5396,7 +5475,7 @@ function clampWing(w, S, k) {
   const Z = genWingSize(w, k);
   let E = Z.E;
   w.chord = Z.chord; w.span = Z.span;
-  w.taper = genClamp(w.taper, ...E.taper);
+  w.taper = genClamp(w.taper, genTaperLo(E, w.span, w.chord), E.taper[1]);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
   // sweep buys nothing aerodynamically — it is a compressibility device — so it
@@ -5441,6 +5520,15 @@ function clampWing(w, S, k) {
   if ('tipSkid' in w) {
     const h = +w.tipSkid;
     if (k === 0 && Number.isFinite(h) && h > 0) w.tipSkid = genClamp(h, GEN_TIP_SKID.h[0], GEN_TIP_SKID.h[1]); else delete w.tipSkid;
+  }
+  // AIRBRAKES (GEN_RULES.airbrake): the first plane's only - its span's two fractions (at least 4 % of the semispan
+  // apart) and its plate's height; anything else, or another plane's, the key gone
+  if ('airbrake' in w) {
+    const A = w.airbrake, R = GEN_RULES.airbrake;
+    if (k === 0 && A && typeof A === 'object' && Number.isFinite(+A.z0) && Number.isFinite(+A.z1) && Number.isFinite(+A.h)) {
+      const z0 = genClamp(+A.z0, R.z[0], R.z[1] - 0.04), z1 = genClamp(+A.z1, z0 + 0.04, R.z[1]);
+      w.airbrake = { z0, z1, h: genClamp(+A.h, R.h[0], R.h[1]) };
+    } else delete w.airbrake;
   }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
@@ -5726,6 +5814,36 @@ function genEngLayoutEngines(layout, type, base) {
     sense: (layout === 'pushPull' && i === 1) ? -1 : 1 }));
 }
 
+// WATER TANKS, CLAMPED (GEN_RULES.water; the list the garage's energy layer draws beside the fuel's): each tank a bay
+// the aeroplane can have (no strut pod), its litres, its fill, its station and level and turn, its form and its own
+// look - the fuel vessel's rules; the list gone when it is empty
+function genWaterClamp(S) {
+  const Wt = S.water;
+  if (!Wt || typeof Wt !== 'object' || !Array.isArray(Wt.vessels)) { delete S.water; return; }
+  const out = [];
+  for (const v0 of Wt.vessels) {
+    if (!v0 || typeof v0 !== 'object') continue;
+    const v = Object.assign({}, v0);
+    if (!GEN_BAYS[v.bay] || GEN_BAYS[v.bay].on === 'strut') v.bay = 'cabin';
+    v.capacity = genClamp(+v.capacity || 0, 0, GEN_RULES.water.maxL);
+    if (!(v.capacity > 0)) continue;
+    v.fill = v.fill == null ? 1 : genClamp(+v.fill || 0, 0, 1);
+    v.along = v.along == null ? null : genClamp(+v.along, -1, 12);
+    v.lv = v.lv == null ? null : genClamp(+v.lv, 0, 1);
+    v.rot = genClamp(+v.rot || 0, -90, 90);
+    // THE OUTLET'S OWN SIZE (the LS4: a sailplane's dump valves let its 170 L go in ~3-4 minutes, a 40 mm hole in under
+    // one): metres across, absent the rule's (GEN_RULES.water.outletD)
+    if (v.outletD != null) { if (+v.outletD > 0) v.outletD = genClamp(+v.outletD, 0.006, 0.08); else delete v.outletD; }
+    if (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2 && v.dims.profile.length <= 33)
+      v.dims.profile = v.dims.profile.map(x => genClamp(+x || 0, 0, 1));
+    else v.form = v.form === 'cyl' ? 'cyl' : 'box';
+    if (v.finish != null && !['paint', 'alu', 'plastic', 'rubber', 'bluePoly'].includes(v.finish)) v.finish = null;
+    v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
+    if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint))) v.tint = null;
+    out.push(v);
+  }
+  if (out.length) S.water = { vessels: out }; else delete S.water;
+}
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
   genNullToDefault(S, GEN_DEFAULT);                  // B13 (above)
@@ -6037,6 +6155,9 @@ function clampSpec(spec) {
   // had) and its jury strut ('wing' | 'cabin'; absent = none). Anything else, null included (the join STATES a row back
   // at its default as null, so the garage's merge can take it off), is deleted: absent is the old bytes
   if (S.bracing.section !== 'tube') delete S.bracing.section;
+  // STRUT-FOOT (16 Nov, the 172): the lift strut's foot at its own station, metres aft of the firewall (absent: its ring)
+  if (S.bracing.strutFoot != null && Number.isFinite(+S.bracing.strutFoot) && +S.bracing.strutFoot > 0)
+    S.bracing.strutFoot = genClamp(+S.bracing.strutFoot, 0.05, 8); else delete S.bracing.strutFoot;
   if (S.bracing.jury !== 'wing' && S.bracing.jury !== 'cabin') delete S.bracing.jury;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
@@ -6083,6 +6204,9 @@ function clampSpec(spec) {
         !['paint', 'alu', 'plastic', 'rubber'].includes(E.finish)) E.finish = null;
     E.hue = genClamp(E.hue || 0, 0, 359);
     if (E.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(E.tint))) E.tint = null;
+    // WATER TANKS (GEN_RULES.water): the fuel tank's own fields, clamped the same way, plus the fill; a body or wing
+    // bay (not a strut pod); the key only while a tank is listed (a build without one is the bytes it was)
+    genWaterClamp(S);
     // THE VESSELS ARE THE CAPACITY (G99). Each one is clamped on its own, and
     // the section's total is their sum — so `fuel.litres` and `energy.kWh`
     // stop being settable facts and become readings, which is what stops a
@@ -6225,7 +6349,13 @@ function clampSpec(spec) {
   S.tail.boomOval = genClampN(S.tail.boomOval, 1, 2);
   // the V's dihedral. Too shallow and it cannot make yaw at any sane area; too
   // steep and it cannot make pitch. The Bonanza's is about 33.
-  S.tail.vAngle = genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // LAZAIR (24 Nov, the user: an inverted V-tail on a single boom): THE SIGN IS THE WAY - a negative vAngle is the
+  // classic V hung DOWN from the tail (the same 20-55 bounds on its size); every V before it is positive, to the bit
+  S.tail.vAngle = S.tail.vAngle < 0 ? -genClamp(-S.tail.vAngle, 20, 55)
+                                    : genClamp(S.tail.vAngle == null ? 33 : S.tail.vAngle, 20, 55);
+  // ...and its drawn root's height (vRootY, m over the keel datum: the join's), the key only on a V hung down
+  if (S.tail.type === 'v' && S.tail.vAngle < 0 && S.tail.vRootY != null && isFinite(+S.tail.vRootY)) S.tail.vRootY = genClamp(+S.tail.vRootY, -2, 4);
+  else delete S.tail.vRootY;
   // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame's T.vee: a panel down and inboard from each boom, the
   // tail's wheels at the tips). Its own keys - a twin boom states the V's vAngle / Svt null (GEN_FIELDS 'tail.type').
   // ivAngle (deg, the panels' cant below the horizontal; the key's presence IS the layout), ivGap (m, the gap between
@@ -6264,6 +6394,9 @@ function clampSpec(spec) {
   //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
   if (S.gear.towHook == null && S.cage && Math.round(+S.cage.towHook || 0) > 0) S.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+S.cage.towHook)) - 1];
   if (!((S.gear.towHook === 'nose' || S.gear.towHook === 'cg') && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))) delete S.gear.towHook;
+  // (THE CATEGORY, GEN_CATEGORY: the key only off 'normal'; a design bake reads the cage's certCat row, as the tow hook)
+  if (S.category == null && S.cage && Math.round(+S.cage.certCat || 0) > 0) S.category = GEN_CATEGORY_KEYS[Math.min(3, Math.round(+S.cage.certCat))];
+  if (!GEN_CATEGORY[S.category] || S.category === 'normal') delete S.category;
   // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
   // drag counts the rest, no leg in the stream. Absent at 0
   if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;
@@ -6438,6 +6571,20 @@ function clampSpec(spec) {
   if (S.gear.twSwivel === true && S.gear.twMode == null) S.gear.twMode = 'lock';
   delete S.gear.twSwivel;
   if (!['lock', 'fixed', 'skid'].includes(S.gear.twMode)) delete S.gear.twMode;
+  // LAZAIR (24 Nov): THE V TIPS' WHEELS (the join's gear.vTip, a single body's V hung down: tail.type 'v', vAngle < 0) -
+  // mode 'tail' (the tail contact is the two tips: a taildragger's), 'extra' (two more rolling contacts, castoring or
+  // fixed); R the wheel's radius, fork the hub's drop past the tyre under the tip, z the tips' lateral place, x / y an
+  // extra pair's station and height (the join's measure; absent: under the frame's V tips). Anything else: no key
+  { const VT = S.gear.vTip, fin = v => v != null && isFinite(+v);
+    if (VT && typeof VT === 'object' && S.tail && S.tail.type === 'v' && S.tail.vAngle < 0
+        && ((VT.mode === 'extra' && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))
+            || (VT.mode === 'tail' && S.gear.type === 'taildragger'))) {
+      const o = { mode: VT.mode, R: genClamp(fin(VT.R) ? +VT.R : 0.10, 0.03, 0.25), fork: genClamp(fin(VT.fork) ? +VT.fork : 0.03, 0, 0.40) };
+      if (fin(VT.z) && +VT.z > 0) o.z = genClamp(+VT.z, 0.05, 4);
+      if (VT.mode === 'extra' && fin(VT.x) && fin(VT.y)) { o.x = +VT.x; o.y = +VT.y; }
+      if (VT.mode === 'extra' && VT.castor === true) o.castor = true;
+      S.gear.vTip = o;
+    } else delete S.gear.vTip; }
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';
@@ -7115,7 +7262,8 @@ function resolveSpec(spec) {
     S.tail.Svt = Svt; S.tail.vG = G;
     S.tail.hSpan = bVt * cG;                          // horizontal projection
     S.tail.hChord = cVt;
-    S.tail.vHeight = 0.5 * bVt * sG;
+    // (LAZAIR: a height - the downward V's is its depth under the tail, the frame lays it by vAngle's sign)
+    S.tail.vHeight = 0.5 * bVt * Math.abs(sG);
     S.tail.vChord = cVt;
     S.tail.Sh = Svt * cG * cG;                        // effective, for reporting
     S.tail.Sv = Svt * sG * sG;

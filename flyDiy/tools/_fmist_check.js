@@ -28,8 +28,10 @@ yes(/uniform vec4 uMist\[7\];/.test(offG), 'the mist GLSL off declares the 7 lan
 yes(ATMO.apUniforms.uMist.value.length === 28, 'the lanes array off is 28 floats (' + ATMO.apUniforms.uMist.value.length + ')');
 for (const f of ['atmo.js', 'clouds.js']) {
   const s = fs.readFileSync(path.join(SRC, f), 'utf8');
-  const uses = s.split('\n').filter(l => /\bFM_(ON|A)\b/.test(l) && !/^\s*\/\//.test(l) && !/const FM_(ON|A|MARCH)\b/.test(l));
-  const bad = uses.filter(l => !/FM_(ON|A)\s*\?[^:]*:\s*('[^']*'|\d+|lastCover|[^)]*\))/.test(l) && !/\(FM_A && fmLive\(\)\)/.test(l) && !/FM_A \? `/.test(l));
+  const uses = s.split('\n').filter(l => /\bFM_(ON|A)\b/.test(l) && !/^\s*\/\//.test(l) && !/const FM_(ON|A|MARCH|VEIL)\b/.test(l));
+  const bad = uses.filter(l => !/FM_(ON|A)\s*\?[^:]*:\s*('[^']*'|\d+|lastCover|[^)]*\))/.test(l) && !/\(FM_A && fmLive\(\)\)/.test(l) && !/FM_A \? `/.test(l)
+    // the cloud-pass default (the user 21 Nov): the march's GLSL is a compound ternary whose off arm is the plain MIST_GLSL
+    && !/MIST_CLOUD: FM_ON && FMIST\.A && !FM_VEIL \? MIST_GLSL \+ [^:]*: MIST_GLSL,/.test(l));
   yes(bad.length === 0, f + ': every pocket switch is a ternary whose off arm is what was there (' + uses.length + ' sites)' + (bad.length ? ' - ' + bad.join(' | ') : ''));
 }
 
@@ -96,9 +98,15 @@ console.log('5. the GRAPHICS row');
   yes(/rows: \['clouds', 'mist', 'fmist', 'glare'\]/.test(G), 'it sits in the sky group');
   global.location = { search: '' }; global.localStorage = { getItem: k => (k === 'flydiy.fmist' ? '1' : null) };
   const F2 = fresh(path.join(SRC, 'forest_mist.js'));
-  yes(F2.ON && F2.C && !F2.A && !F2.B, 'the stored choice compiles the veil alone (the cards and the march stay behind ?fmist=)');
+  // THE DEFAULT METHOD (the user 21 Nov approved Codex's cloud-pass mist): with the clouds on, the pockets ride the cloud
+  // march alone (A); a cloudless preset (laptop / potato / retro, or clouds stored off) keeps the surface veil alone (C)
+  yes(F2.ON && F2.A && !F2.B && !F2.C, 'the stored choice on a cloud preset compiles the cloud-pass march alone (the user 21 Nov; the cards stay behind ?fmist=)');
   global.localStorage = { getItem: () => null };
-  { const F3 = fresh(path.join(SRC, 'forest_mist.js')); yes(F3.ON && F3.C && !F3.A && !F3.B, 'nothing stored, no flag: ON - the veil alone (the user 10 Nov: on by default)'); }
+  { const F3 = fresh(path.join(SRC, 'forest_mist.js')); yes(F3.ON && F3.A && !F3.B && !F3.C, 'nothing stored, no flag: ON - the cloud-pass march (the user 10 Nov: on by default; 21 Nov: the cloud pass)'); }
+  global.localStorage = { getItem: k => (k === 'flydiy.gfx' ? JSON.stringify({ preset: 'laptop' }) : null) };
+  { const F4 = fresh(path.join(SRC, 'forest_mist.js')); yes(F4.ON && F4.C && !F4.A && !F4.B, 'a cloudless preset (laptop): ON - the veil alone (no cloud pass to ride)'); }
+  global.localStorage = { getItem: k => (k === 'flydiy.gfx' ? JSON.stringify({ preset: 'gamer', clouds: 'off' }) : null) };
+  { const F5 = fresh(path.join(SRC, 'forest_mist.js')); yes(F5.ON && F5.C && !F5.A, 'the clouds stored off: the veil alone'); }
   global.localStorage = { getItem: k => (k === 'flydiy.fmist' ? '0' : null) };
   yes(!fresh(path.join(SRC, 'forest_mist.js')).ON, 'the row stored off: off');
   delete global.localStorage;

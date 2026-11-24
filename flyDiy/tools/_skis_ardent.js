@@ -14,7 +14,7 @@
 // world.surface - the hook's switch, ahead of the record's; `snow: 'record'` reads the record as it is.
 // CASES: the PC-6 (FIT-PROCEDURE's validated card, its flight figures as landed) on its wheels on today's gravel (the
 // datum), on its wheels on snow (why the skis), and on its hydraulic wheel-skis + tail ski (the real Porter's factory
-// option, tools/fixtures/skis/pc6_skis.json) on packed snow (a rolled altiport) and on powder (a fresh fall).
+// option, tools/fixtures/test_copies/pc6_skis.json) on packed snow (a rolled altiport) and on powder (a fresh fall).
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname, ROOT = path.join(T, '..');

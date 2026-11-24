@@ -34,6 +34,8 @@ const MARGIN = 3.0;
 
 // ---- the props' boxes (bb: x0 y0 z0 x1 y1 z1 in the prop's frame) -----------------------------------------------
 let PROPBB = null;
+// [x0, y0, z0, x1, y1, z1] in the prop's own frame (a pack prop's bb): the winch with its cable wound in, its beacon on top
+const GEN_BB = { 'gen:winch': [-1.46, 0, -2.98, 1.19, 4.26, 4.25] };
 function propBoxes(C) {
   if (PROPBB) return PROPBB;
   PROPBB = new Map();
@@ -47,6 +49,10 @@ function propBoxes(C) {
     }
   }
   for (const k of Object.keys(C.PROP_REG.props)) { const p = C.PROP_REG.props[k]; if (p.bb) PROPBB.set(k, p.bb); }
+  // THE GENERATED PROPS (render_premises GEN_PROPS: built by their generator, no pack): their box by hand, from the built
+  // model (WINCH-LAND 22 Nov: without it the census stood the 2.6 x 7.2 m glider winch in as an unknown key's 0.6 m disc;
+  // GATE WINCH PLACED holds this box to WINCH_GEN.build's own Box3)
+  for (const k in GEN_BB) if (!PROPBB.has(k)) PROPBB.set(k, GEN_BB[k]);
   return PROPBB;
 }
 
@@ -285,7 +291,7 @@ function nodesInside(C, W, sim) {
 // (keys, not specs: the callers fly them through pilot_trace.js specOf - tools/_load_build.js, the game's aeroplane)
 const BUILDS = [
   { key: 'stock', name: 'stock build' },
-  { key: path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json'), name: 'Cessna 172 (F-HCSN)' },   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
+  { key: path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json'), name: 'Cessna 172 (F-HCSN)' },   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture bugReports/cessnaMetal (1).json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
   { key: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub" },
 ];
 // a build's plan box off its own nodes (the parked footprint's rule, GP_PARKED_FOOT): half-span, nose + 0.3 m of
@@ -536,4 +542,4 @@ function spotPack(C, SC, island, variant) {
   } catch (e) { places = null; }
   return { v: 1, island, variant, rules: JSON.stringify(C.FLEET_SPOT), places, aero };
 }
-module.exports = { spotPack, paveOf, spotInputs, spotCensus, BUILDS, buildDims, parkedClear, census, flyOut, intoWorld, nodesInside, MARGIN, propBoxes, islandObstacles, obstaclesOfThings, treeTrunks, registryObstacles, index, routesOf, censusSite, gridShape, boxShape, discShape, fmtWhat, flyTurn, planAt, placeAt };
+module.exports = { GEN_BB, spotPack, paveOf, spotInputs, spotCensus, BUILDS, buildDims, parkedClear, census, flyOut, intoWorld, nodesInside, MARGIN, propBoxes, islandObstacles, obstaclesOfThings, treeTrunks, registryObstacles, index, routesOf, censusSite, gridShape, boxShape, discShape, fmtWhat, flyTurn, planAt, placeAt };

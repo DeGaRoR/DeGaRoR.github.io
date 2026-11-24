@@ -232,6 +232,8 @@ const GATES = [
   { id: 'RODROW', file: '_rodrow_check.js', tier: 'core', wall: 300 },
   { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
   { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
+  { id: 'WATERTANK', file: '_watertank_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: water tanks - spec.water, the blue tank, the fill, the dump valve, the outlet's checked run)
+  { id: 'SAILPLANE', file: '_sailplane_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: the category's load factor, the airbrakes, the LS4-alike card)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)
@@ -261,6 +263,12 @@ const GATES = [
   // the release at the top, the glide; the pilot's key; a weak link that breaks; the line's cost a frame; ~1 min
   { id: 'TOW', file: '_tow_check.js', tier: 'core', wall: 900 },
   { id: 'TRAILER', file: '_trailer_check.js', tier: 'core', wall: 140 },
+  // WINCH (2026-11-13): THE GLIDER WINCH LAUNCH - the motorglider (motor off) on 1000 m of cable to a fixed drum at the far
+  // end of Jolene AFB 13/31 (src/vehicle/winch.js: tow.js's line with the far end fixed and its rest length reeled in, the
+  // drum's engine and driver, the CG hook): lift-off, the climb at the speed the driver holds, the back-release at the
+  // top; the glide; the pilot's key; the weak link; the guillotine; 600 m; the autopilot's handover; the circuit to a
+  // landing; the line's cost; the page's wiring (winch_mode.js, the start chooser); ~6 min
+  { id: 'WINCH', file: '_winch_check.js', tier: 'core', wall: 600 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },
@@ -524,7 +532,7 @@ const GATES = [
   // its strain at break, torn by strain; the Cub's struck wing held; the page's batching changes no bit; damage off and the
   // ties off = the base's bytes; the hop carries the ties. --selftest: red with the ties disabled. Three children at once
   { id: 'DMGFABRIC', file: '_dmg_fabric_check.js', tier: 'core', weight: 3, wall: 600 },
-  // G2047-G2049 (DMG-COMPOSITE): the composite build (builds/composite_jodel_2026-10-07.json: the Jodel in E-glass) certifies
+  // G2047-G2049 (DMG-COMPOSITE): the composite build (tools/fixtures/test_copies/composite_jodel_2026-10-07.json: the Jodel in E-glass) certifies
   // (BROKE AT in the band, no set) and flies a circuit; it breaks brittle - no laminate member set in DMG-TUNE's standard
   // crashes, pieces off at 30 m/s, the shell cracked (never past 5 % + 1 cm) on more than one piece; damage OFF on the
   // base's bytes for the Cub, the Jodel and the metal Cessna. Three children at once. Carries --selftest
@@ -577,6 +585,10 @@ const GATES = [
   { id: 'FRAMECOST', file: '_framecost_check.js', tier: 'core', weight: 2, wall: 180 },
   { id: 'ROUNDTRIP', file: '_roundtrip_check.js', tier: 'core', wall: 800 },
   { id: 'HOUSEWORKER', file: '_houseworker_check.js', tier: 'core', wall: 520 },   // C2a G830-G833: the houses generated in a worker, bit-identical to the inline build; no generation on the page's thread in the town step; a warm IndexedDB cache builds 0   // B8/B9 G1020-G1026: the one loading, the round trips keyed on their inputs, the setup screen from the rail's registry
+  // PERF-WORLDBUILD (22 Nov 2026): Codex's two exact pavement short-cuts (the polygon bound, the refinement's height reuse) are
+  // the default; the island built with them and without (?pavepolybound=0&pavereuse=0) is the same patch, strips, roads, aprons,
+  // rails, poles and far terrain byte for byte. Two page processes one after the other
+  { id: 'PAVEXACT', file: '_pavexact_check.js', tier: 'core', wall: 300 },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
@@ -1243,6 +1255,9 @@ const GATES = [
   // scenario library, the trace's keys; --selftest breaks each rule
   { id: 'PERFBENCH', file: '_perfbench_check.js', argv: ['--selftest'], tier: 'core', wall: 5 },
   { id: 'PROJECTS', file: '_projects_check.js', tier: 'core', wall: 15 },   // PROJECTS (13 Nov): a pack's projects - steps, works, site states, abilities (73b_missions.js, 74_career.js)
+  { id: 'STORYPACK', file: '_storypack_check.js', tier: 'core', wall: 15 },   // STORY-REVAMP (22 Nov): the career's rules on the pack - no drawn job, repeats, a step's world stage, what is given (73b_missions.js, 74_career.js)
+  { id: 'TUTORWALK', file: '_tutorfly_check.js', argv: ['--dry'], tier: 'core', wall: 120 },   // STORY-REVAMP (22 Nov): the tutorial walked T0 -> the checkpoint on node, the page's events, the builds' rows, the hand-over to the story pack (tools/story_run.js --dry)
+  { id: 'TUTORFLY', file: '_tutorfly_check.js', tier: 'full', weight: 1, wall: 2400, timeout: 5400_000 },   // ...and PLAYED: its four flights and its one job flown through the game's host (the stand, the taxi, the pilot, the load)
   // MISSION-FEASIBILITY: the harness that flies every mission the game's way (tools/mission_feas.js, mission_feas_lib.js:
   // the career stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop) held on three demo
   // missions (tools/fixtures/missionfeas/demo.json): one feasible - flown, stand to stand -, one infeasible on purpose

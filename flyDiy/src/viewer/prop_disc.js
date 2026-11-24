@@ -200,7 +200,7 @@ const PROP_DISC = (() => {
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     geo.setIndex(idx);
     const mat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'glass', { map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-                                                 roughness: 0.75, metalness: 0, opacity: 0 });
+                                                 roughness: 0.75, metalness: 0, opacity: 0 }, 'aircraft / propeller / blur disc');
     const mesh = new THREE.Mesh(geo, mat);
     mesh.name = 'propDisc'; mesh.castShadow = false; mesh.receiveShadow = false; mesh.frustumCulled = false;
     mesh.visible = false; mesh.userData.propDisc = true;

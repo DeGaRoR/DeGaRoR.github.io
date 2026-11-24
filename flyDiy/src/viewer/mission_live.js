@@ -8,10 +8,13 @@
 //     arm(doc, o)         a tracker (73c missionTrackNew) per accepted contract whose current leg has in-flight
 //                         objectives, and the markers (73c missionMarkers) of every accepted contract with places.
 //                         o: { reach (half-span m), fields, spots (FLEET_SPOTS_PACK.aero), from (departure aerodrome) }
-//     tick(t, x, y, z, agl)  EVERY FRAME is fine: it returns at once (no allocation) until RATE s of t have passed, then
-//                         feeds ONE sample to every tracker (missionTrackStep tests the whole segment, so 4 Hz still
+//     tick(t, x, y, z, agl, more)  EVERY FRAME is fine: it returns at once (no allocation) until RATE s of t have passed,
+//                         then feeds ONE sample to every tracker (missionTrackStep tests the whole segment, so 4 Hz still
 //                         catches a gate a fast aeroplane crosses between two samples) -> the events of that sample
-//                         (null between samples); a hit moves the markers' states (done / next / later)
+//                         (null between samples); a hit moves the markers' states (done / next / later).
+//                         more (STORY-REVAMP, COMPETE's seam 2): { gnd (wheels on the ground), v (ground speed m/s), hdg,
+//                         pitch, roll (73c's convention) } - what the STOL lines and a gate's attitude are judged on; a
+//                         flight with a STOL line open samples at RATE_STOL (a touchdown is placed to a metre or two)
 //     evidence()          { <contract id>: missionTrackEvidence } for the stop record's `tracks` (null: nothing tracked)
 //     aboard()            the named people the flight carries (the accepted steps' load / embark ids, boarded at `from`)
 //     end()               nothing tracked, nothing drawn
@@ -32,9 +35,11 @@
 'use strict';
 const W = typeof window !== 'undefined' ? window : globalThis;
 const RATE = 0.25;                     // s of flight between two tracker samples
+const RATE_STOL = 1 / 30;              // ...while a STOL line is open (COMPETE: the lift-off and the touchdown are measured in metres)
 const FLIGHT = { pt: 1, gate: 1, ring: 1 };
 const num = v => typeof v === 'number' && isFinite(v);
-const S = { runs: [], tNext: -Infinity, smp: { t: 0, x: 0, z: 0, y: 0, agl: 0 }, aboard: [], from: null, opts: null, rev: 0, last: null, lastAt: 0 };
+const S = { runs: [], tNext: -Infinity, smp: { t: 0, x: 0, z: 0, y: 0, agl: 0 }, aboard: [], from: null, opts: null, rev: 0, last: null, lastAt: 0, rate: RATE };
+const MORE = ['gnd', 'v', 'hdg', 'pitch', 'roll'];
 
 // ---- THE TRACKER ------------------------------------------------------------------------------------------------------
 function liveOf(doc, id) {
@@ -53,10 +58,13 @@ function arm(doc, o) {
     const L = liveOf(doc, id);
     const O = missionObjectives(rec, L);
     const markers = missionMarkers(rec, L, { fields: o.fields, spots: o.spots }).filter(m => m.state !== 'done' && m.kind !== 'field');   // an aerodrome is in the world already
-    if (!O.objs.length && !markers.length) continue;
-    const T = O.objs.length ? missionTrackNew(rec, L, { reach: o.reach }) : null;
+    // (COMPETE) a STOL line open on this leg is tracked too, objectives or not (a STOL event is a landing with a line)
+    const T0 = missionTrackNew(rec, L, { reach: o.reach }), stol = !!(T0.stol && T0.stol.length);
+    if (!O.objs.length && !markers.length && !stol) continue;
+    const T = O.objs.length || stol ? T0 : null;
     S.runs.push({ id, rec, L, T, markers, missed: {}, tracked: id === C.tracked });
   }
+  S.rate = S.runs.some(R => R.T && R.T.stol && R.T.stol.length) ? RATE_STOL : RATE;
   // the tracked one first (its next objective is the arrow's)
   S.runs.sort((a, b) => (b.tracked ? 1 : 0) - (a.tracked ? 1 : 0));
   S.aboard = aboardOf(doc, S.from);
@@ -81,15 +89,16 @@ function aboardOf(doc, from) {
 }
 // is a sample due at t (the page computes the height over the ground only then)
 const due = t => S.runs.length > 0 && (t >= S.tNext || t < S.smp.t);
-function tick(t, x, y, z, agl) {
+function tick(t, x, y, z, agl, more) {
   if (!due(t)) return null;
   // a clock that went BACK (a new leg's pilot restarts at 0 without an arm): the segment starts again here
   if (t < S.smp.t) for (const R of S.runs) if (R.T) R.T.last = null;
   // a fixed rate, not "RATE after the last frame": the next sample is due RATE after this one was (a frame late is not
   // carried into the next), and a clock that jumped starts again from now
-  S.tNext = S.tNext > -Infinity && t - S.tNext < RATE && t >= S.smp.t ? S.tNext + RATE : t + RATE;
+  S.tNext = S.tNext > -Infinity && t - S.tNext < S.rate && t >= S.smp.t ? S.tNext + S.rate : t + S.rate;
   const q = S.smp;
   q.t = t; q.x = x; q.z = z; q.y = y; q.agl = num(agl) ? agl : undefined;
+  for (const k of MORE) q[k] = more && more[k] != null ? more[k] : undefined;
   let out = null;
   for (const R of S.runs) {
     if (!R.T) continue;
@@ -149,7 +158,7 @@ function timers() {
   return out;
 }
 function end() {
-  S.runs = []; S.tNext = -Infinity; S.smp.t = 0; S.aboard = []; S.last = null; S.rev++;
+  S.runs = []; S.tNext = -Infinity; S.smp.t = 0; S.aboard = []; S.last = null; S.rate = RATE; S.rev++;
   unmount();
 }
 
@@ -173,7 +182,7 @@ function propOf(m, THREE) {
     return grp.clone();
   }
   // stand-ins (the generator not in): plain shapes in the obstacle orange
-  const mat = D.standMat || (D.standMat = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0xe0652a), roughness: 0.7 }, 'mslive'));   // (MATLIB's: GATE ASSETS; lit, no P)
+  const mat = D.standMat || (D.standMat = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0xe0652a), roughness: 0.7 }, 'mslive', 'missions / live markers / stand-in shape'));   // (MATLIB's: GATE ASSETS; lit, no P)
   if (m.kind === 'gate') { const h = (m.alt && m.alt.max) || 25; const g = new THREE.CylinderGeometry(0.4, 2.2, h, 12); g.translate(0, h / 2, 0); grp.add(new THREE.Mesh(g, mat)); }
   else if (m.kind === 'ring') grp.add(new THREE.Mesh(new THREE.TorusGeometry(m.r || 8, 1.2, 10, 40), mat));
   else if (m.kind === 'pt') { const g = new THREE.CylinderGeometry(0.15, 0.15, 12, 6); g.translate(0, 6, 0); grp.add(new THREE.Mesh(g, mat)); }
@@ -190,7 +199,7 @@ function place(m, THREE) {
     const [a, b] = m.posts, top = (m.alt && num(m.alt.max)) ? m.alt.max : 60;
     const ya = m.alt && m.alt.ref === 'msl' ? top : gy(a[0], a[1]) + top, yb = m.alt && m.alt.ref === 'msl' ? top : gy(b[0], b[1]) + top;
     const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(a[0], ya, a[1]), new THREE.Vector3(b[0], yb, b[1])]);
-    const line = new THREE.Line(lg, D.lineMat || (D.lineMat = holdP(MATLIB.make(THREE, 'line', { color: new THREE.Color(0xf4efe6), transparent: true, opacity: 0.45, depthWrite: false }))));   // an unlit colour, held x P (holdP)
+    const line = new THREE.Line(lg, D.lineMat || (D.lineMat = holdP(MATLIB.make(THREE, 'line', { color: new THREE.Color(0xf4efe6), transparent: true, opacity: 0.45, depthWrite: false }, 'missions / live markers / gate band line'))));   // an unlit colour, held x P (holdP)
     out.push(line);
   } else if (m.kind === 'ring') {
     const o = propOf(m, THREE); if (o) { o.position.set(m.x, num(m.y) ? m.y : gy(m.x, m.z) + 60, m.z); if (num(m.dir)) o.rotation.y = -m.dir * Math.PI / 180; out.push(o); }
@@ -216,7 +225,7 @@ function mount(scene, o) {
     D.group.add(g); D.byKey.set(R.id + '|' + m.key, { g, m });
   }
   // THE BEACON: one tall translucent column, moved onto the next objective (its centre between a gate's posts)
-  D.beaconMat = holdP(MATLIB.make(THREE, 'basic', { color: new THREE.Color(0xffd27a), transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));  // pre-ok: its colour held x P (holdP); its own (the pulse writes its opacity)
+  D.beaconMat = holdP(MATLIB.make(THREE, 'basic', { color: new THREE.Color(0xffd27a), transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }, 'missions / live markers / objective beacon'));  // pre-ok: its colour held x P (holdP); its own (the pulse writes its opacity)
   const bg = new THREE.CylinderGeometry(1, 1, 1, 24, 1, true); bg.translate(0, 0.5, 0);
   D.beacon = new THREE.Mesh(bg, D.beaconMat); D.beacon.name = 'missionBeacon'; D.beacon.renderOrder = 5; D.beacon.frustumCulled = false;
   D.group.add(D.beacon);
@@ -318,7 +327,7 @@ function unmount() {
 }
 
 W.MISSION_LIVE = {
-  RATE, arm, due, tick, evidence, timers, next, end, mount, frame, unmount, aboard: () => S.aboard.slice(),
+  RATE, RATE_STOL, rate: () => S.rate, arm, due, tick, evidence, timers, next, end, mount, frame, unmount, aboard: () => S.aboard.slice(),
   runs: () => S.runs.map(R => ({ id: R.id, tracked: R.tracked, seq: !!(R.T && R.T.seq), objs: R.T ? R.T.objs.map(o => o.key) : [], hits: R.T ? Object.assign({}, R.T.hits) : {},
                                  missed: Object.keys(R.missed), markers: R.markers.map(m => ({ key: m.key, kind: m.kind, state: m.state, x: m.x, z: m.z })) })),
   drawn: () => (D.group ? { meshes: D.byKey.size, beacon: !!(D.beacon && D.beacon.visible), arrow: !!(D.arrow && !D.arrow.hidden), hud: !!(D.el && !D.el.hidden) } : null),

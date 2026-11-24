@@ -127,7 +127,7 @@ function propMaterial(THREE, rec, scope) {
     if (rec.emisMap) o.emissiveMap = propTexture(THREE, rec.emisMap, true, 'color');
   }
   if (rec.blend) { o.transparent = true; o.opacity = rec.opacity; }
-  const m = MATLIB.shared(THREE, rec.blend ? 'glass' : rec.emis ? 'glow' : 'std', o, scope);
+  const m = MATLIB.shared(THREE, rec.blend ? 'glass' : rec.emis ? 'glow' : 'std', o, scope, 'props / prop library / baked record');
   m.userData.env0 = 1.0;
   return m;
 }
@@ -287,7 +287,7 @@ function propDraws(THREE, b) {
   b.dgeos = []; b.dmats = [];
   for (const G of order) {
     if (G.arr) {
-      const m = MATLIB.arr.material(THREE, { side: G.side, flat: G.flat, pages: G.pages });
+      const m = MATLIB.arr.material(THREE, { owner: 'props / prop library / texture array', side: G.side, flat: G.flat, pages: G.pages });
       m.envMapIntensity = m.userData.env0 * PROP_ENV;
       b.arrMats.push(m); b.dmats.push(m);
       const g = propMerge(THREE, G.list, G.rows);

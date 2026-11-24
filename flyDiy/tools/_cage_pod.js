@@ -185,12 +185,12 @@ function draw(ctx) {
   // the livery's `pod` section: moulded trim in the body's colour (the spats' rule); the hardware the hinges & horns'
   // steel (`ctlHinge`); the fallbacks for a page slice with no livery (the node rigs, the material view off)
   const mat = (SM && SM('pod', { surf: 0, fieldM: 1, tint0: 0xd8d4c8 }))
-    || new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.5, metalness: 0.05 });
+    || new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / belly pod / shell fallback' }, color: 0xd8d4c8, roughness: 0.5, metalness: 0.05 });
   // G3470: the hardware is hardware (aeroskin AERO_HARD.pod: the stainless - straps, hinge, latches, rivets, the vent - and
   // the black rubber - the joint's seal, the traps' screws, the keyway), never paintwork and never marked
   const A = window.AEROSKIN, hard = (n, tint, fb) => (A && A.aeroHardMat && A.aeroHardMat(THREE, 'pod', n, tint, {})) || fb;
-  const hwMat = hard('steel', 0xc3c8cd, new THREE.MeshStandardMaterial({ color: 0xc3c8cd, roughness: 0.32, metalness: 0.9 }));
-  const rbMat = hard('rubber', 0x1b1c1f, new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.85, metalness: 0 }));
+  const hwMat = hard('steel', 0xc3c8cd, new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / belly pod / steel hardware fallback' }, color: 0xc3c8cd, roughness: 0.32, metalness: 0.9 }));
+  const rbMat = hard('rubber', 0x1b1c1f, new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / belly pod / rubber fallback' }, color: 0x1b1c1f, roughness: 0.85, metalness: 0 }));
   const multi = g.groups.length > 1;
   const mesh = new THREE.Mesh(g, multi ? [mat, hwMat, rbMat] : mat);
   mesh.name = 'edPod';

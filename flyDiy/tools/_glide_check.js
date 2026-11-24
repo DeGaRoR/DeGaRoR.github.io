@@ -28,7 +28,12 @@ const row = (id, ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + id.padEnd(
 const f = (x, n = 1) => (+x).toFixed(n);
 const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8') });
 const AD = id => W.aerodromes.find(a => a.id === id);
-const defOf = key => { const A = DS.ARCHETYPES.find(x => x.key === key); return C.buildGen(DS.designBake(A.sel, A.over)); };
+// (the card AS THE GAME FLIES IT - through the join, as the shed births it: L40c, 15 Nov. designBake alone leaves out what
+// only the join measures - the Archaeopteryx's mast (fuse.hang): baked bare its wing rides the soft shell's poles and
+// the glide fell apart, 2.1 to 1, capsized. LB.gameSpecFull is the birth the other flying gates use)
+const LB = require('./_load_build.js');
+const defOf = key => { const A = DS.ARCHETYPES.find(x => x.key === key), s0 = DS.designBake(A.sel, A.over);
+  return C.buildGen(LB.gameSpecFull({ v: s0.v, birth: 1, spec: s0 }).spec); };
 
 // a glider in the air: settled at `a`'s line-up, then moved to (x, z) at h m over the ground there, heading hdg, at V
 function airborne(def, a, x, z, h, hdg, V) {

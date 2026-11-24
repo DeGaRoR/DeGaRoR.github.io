@@ -9,6 +9,8 @@
 //   node tools/mission_feas.js --only=field.01,demo.photo   those missions only
 //   node tools/mission_feas.js --static              the static read and the plane choice, nothing flown (~1 min)
 //   node tools/mission_feas.js --only=<ids> --rerun  those missions again -> reruns/ (--merge puts them over the shards' rows)
+//   node tools/mission_feas.js --official            EVERY official plane in the pool (mission_feas_lib widePool), not only the
+//                                                    career's validated designs: who can fly what the validated ones cannot
 //   options: --packs=<dir> (default src/missions)  --out=<dir> (default reports/MISSION-FEASIBILITY)  --tries=N (planes
 //            tried per mission, default 2)  --tmax=<s> (a flight's limit, default 3600)  --quiet
 // Deterministic: the same tree gives the same table; every mission gets a fresh world, career, sim and pilot, so a shard's
@@ -96,9 +98,9 @@ function main() {
     const env = Object.assign(F.makeEnv(), { spots });
     let R;
     if (has('static')) {
-      R = F.judgeMission(env, P, m, { tries: 0, staticOnly: true, fly: false, log: null, tmax: null, maxFlights: 0, dry: true });
+      R = F.judgeMission(env, P, m, { tries: 0, staticOnly: true, fly: false, log: null, tmax: null, maxFlights: 0, dry: true, official: has('official') });
     } else {
-      R = F.judgeMission(env, P, m, { tries: +opt('tries', 2), tMax: +opt('tmax', 3600), log: quiet ? null : L => console.log('      ' + F.legLine(L)) });
+      R = F.judgeMission(env, P, m, { tries: +opt('tries', 2), tMax: +opt('tmax', 3600), official: has('official'), log: quiet ? null : L => console.log('      ' + F.legLine(L)) });
     }
     R.wallS = Math.round((Date.now() - t1) / 1000);
     rows.push(R);

@@ -208,7 +208,7 @@ const CAGE_PARTS = [
   { key: 'design', name: 'Design & construction', parent: null, layer: 'cage',
     groups: [
       ['construction', ['intCons']],
-      ['configuration', ['boomStyle', 'mirror', 'canopy']],
+      ['configuration', ['boomStyle', 'mirror', 'canopy', 'canClear', 'certCat']],
       ['wing', ['wgPos', 'wgBrace', 'w2On']],
       ['what it has', ['wingOn', 'gearOn', 'crewOn']],
     ] },
@@ -372,7 +372,7 @@ const CAGE_PARTS = [
       // "the bubble sliders should be part of the windshield selection")
       // (the window ring and cabin pillar offsets, and the cabin pillar's
       // lean, are the door-post and cabin FRAMES' rows under Fuselage, T2.1)
-      ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
+      ['pillars', ['pillarW', 'cabPillarW', 'pillarFollow'], EXPERT],
       // G3511: THE PILOT'S SECTION OPEN AT THE TOP, and the rows every
       // opening shares (the coaming is the window joints' strip, the screens
       // are glazing: their sections stay those parts')
@@ -417,17 +417,17 @@ const CAGE_PARTS = [
     groups: [
       ['row 1', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch', 'paxWinY', 'paxWinW',
                  'paxWinH', 'paxWinTopK', 'paxWinSkew', 'paxWinR', 'paxWinR1', 'paxWinR2',
-                 'paxWinR3', 'paxWinR4', 'paxWinDepth', 'paxWinBulge',
+                 'paxWinR3', 'paxWinR4', 'paxWinDepth', 'paxWinBulge', 'paxWinProj',
                  'paxWinQ1Z', 'paxWinQ1Y', 'paxWinQ2Z', 'paxWinQ2Y', 'paxWinQ3Z', 'paxWinQ3Y', 'paxWinQ4Z', 'paxWinQ4Y', 'paxWinQ5On', 'paxWinQ5Z', 'paxWinQ5Y', 'paxWinR5']],
       ['row 2', ['win2N', 'win2Shape', 'win2Z', 'win2Pitch', 'win2Y', 'win2W', 'win2H',
-                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth', 'win2Bulge',
+                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth', 'win2Bulge', 'win2Proj',
                  'win2Q1Z', 'win2Q1Y', 'win2Q2Z', 'win2Q2Y', 'win2Q3Z', 'win2Q3Y', 'win2Q4Z', 'win2Q4Y', 'win2Q5On', 'win2Q5Z', 'win2Q5Y', 'win2R5']],
       ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
-                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth', 'win3Bulge',
+                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth', 'win3Bulge', 'win3Proj',
                  'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y', 'win3Q5On', 'win3Q5Z', 'win3Q5Y', 'win3R5']],
       // (11 Nov: rows 4-6, win4*-win6*, row 3's controls)
       ...[4, 5, 6].map(n => ['row ' + n, ['N', 'Shape', 'Z', 'Pitch', 'Y', 'W', 'H', 'TopK', 'Skew', 'R', 'R1', 'R2', 'R3', 'R4',
-        'Depth', 'Bulge', 'Q1Z', 'Q1Y', 'Q2Z', 'Q2Y', 'Q3Z', 'Q3Y', 'Q4Z', 'Q4Y', 'Q5On', 'Q5Z', 'Q5Y', 'R5'].map(k => 'win' + n + k)]),
+        'Depth', 'Bulge', 'Proj', 'Q1Z', 'Q1Y', 'Q2Z', 'Q2Y', 'Q3Z', 'Q3Y', 'Q4Z', 'Q4Y', 'Q5On', 'Q5Z', 'Q5Y', 'R5'].map(k => 'win' + n + k)]),
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
@@ -578,7 +578,7 @@ const CAGE_PARTS = [
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
       ['boom frame', ['aftRoofY', 'frBoomWaistW', 'aftKeelY']],
-      ['boom frame, detail', ['frBoomWaistY', 'frBoomTopW', 'frBoomBotW',
+      ['boom frame, detail', ['frBoomWaistY', 'aftFloorDy', 'frBoomTopW', 'frBoomBotW',
                               'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ'], EXPERT],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch', 'boomMidPinchW']],
     ] },
@@ -647,7 +647,7 @@ const CAGE_PARTS = [
       ['covering', ['skinOn', 'skinT', 'shellT']],
       // G214: the skin's screws along the rings and rails
       ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
-      ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
+      ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ', 'bulkAt']],
       // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
       ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
       // CAR-3/4: the rear wall seen from OUTSIDE - its cut windows and its bas-relief (rear doors included)
@@ -680,7 +680,7 @@ const CAGE_PARTS = [
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
                     'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis', 'wgTipBow', 'wgTipDroop', 'wgTipFull',
-                    'wgTipSkid', 'wgTipSkidH']],
+                    'wgTipSkid', 'wgTipSkidH', 'wgBrake', 'wgBrakeAt', 'wgBrakeLen', 'wgBrakeH']],
       // wgPos -> `design`
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
@@ -955,7 +955,7 @@ const CAGE_PARTS = [
       // rendered twice
       ['turbine', ['eng_tStyle', 'eng_tCanD', 'eng_tCanL', 'eng_gearK',
                    'eng_flatK', 'eng_tRpm', 'eng_stackStyle', 'eng_stackOut', 'eng_stackLen', 'eng_stackFlat', 'eng_stackR', 'eng_stackDrop', 'eng_stackSplit']],
-      ['cylinder dress', ['eng_finN', 'eng_finR', 'eng_headFins',
+      ['cylinder dress', ['eng_finN', 'eng_finR', 'eng_cylK', 'eng_headFins',
                           'eng_rockerW', 'eng_rockerH', 'eng_rockerR',
                           'eng_rockerBoss', 'eng_rockerBossW',
                           'eng_rodPos', 'eng_finShape', 'eng_rockerSpan',
@@ -1006,10 +1006,10 @@ const CAGE_PARTS = [
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
       ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillY', 'cw_gillL', 'cw_gillUp', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
       ['grille & radiator cap', ['cw_grilleOn', 'cw_grilleN', 'cw_grilleBar', 'cw_grilleSet', 'cw_grilleHBar', 'cw_grilleRows', 'cw_grilleNum', 'cw_grilleNumH', 'cw_capOn', 'cw_capR', 'cw_capBack',
-                                 'cw_lampOn', 'cw_lampR', 'cw_lampGap', 'cw_lampY', 'cw_lampBack', 'cw_lampIn']],   // CAR-1
+                                 'cw_lampOn', 'cw_lampR', 'cw_lampGap', 'cw_lampY', 'cw_lampBack', 'cw_lampIn', 'cw_blinkOn', 'cw_blinkY']],   // CAR-1
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
-                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
+                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_keelLevel', 'cw_deckLevel', 'cw_deckFall', 'cw_deckShoulder', 'cw_deckRound',   // (KEEL/DECK-LEVEL, DECK-FALL: the 172's lines, 16 Nov)
                      'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap', 'cw_lidRW', 'cw_lidRTop', 'cw_lidRBot']],
       ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
                   'cw_taperH', 'cw_lidRise']],
@@ -1111,12 +1111,16 @@ const CAGE_PARTS = [
   // part's rows show with it on. What a car only is lives here; what a plane can use too (rear windows, the outside
   // relief, wingless booms, the tyres and rims) stays with its own part
   { key: 'car', name: 'Car', parent: null, layer: 'gear',
+    // (13 Nov: the mud guards and the step wear the body's skin as their own section - clicking one selects the Car)
+    sections: ['fenderSkin'],
     groups: [
       ['this build is a car', ['isCar']],
-      ['drive', ['carDrive', 'carChassisKg']],
+      ['drive', ['carDrive', 'carChassisKg', 'carBeamR']],
       ['wheel arches', ['archOn', 'archGap']],
+      ['lamps', ['carTail', 'carTailAt', 'carPlate', 'carTowSign', 'carBeacon', 'carWipers']],
+      ['mud guards and step', ['carFender', 'carFenderGap', 'carStep', 'carStepY']],
       ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],
-      ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],
+      ['spare wheel', ['spareOn', 'spareAt', 'spareZ', 'spareSide', 'spareX', 'spareY', 'spareK', 'spareStrap']],
     ] },
 
   { key: 'mains', name: 'Main gear', parent: 'gear', layer: 'gear',
@@ -1135,7 +1139,7 @@ const CAGE_PARTS = [
       ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
                    's1Steer', 's1Sink', 's1Ul', 'towHook']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
-                   's1FairW', 's1LegFair']],
+                   's1FairW', 's1FairNose', 's1FairH', 's1FairStyle', 's1FairKick', 's1LegFair', 's1LegFairTo']],
       ['blade', ['s1_beamAng', 's1_beamW', 's1_beamT', 's1_beamTaper',
                  's1_beamBow', 's1_beamRake']],
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
@@ -1194,7 +1198,7 @@ const CAGE_PARTS = [
       ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Root', 's2Brake',
                    's2Steer', 's2Sink', 's2Nose']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
-                   's2FairW', 's2LegFair']],
+                   's2FairW', 's2FairNose', 's2FairH', 's2FairStyle', 's2FairKick', 's2LegFair', 's2LegFairTo']],
       ['blade', ['s2_beamAng', 's2_beamW', 's2_beamT', 's2_beamTaper',
                  's2_beamBow', 's2_beamRake']],
       ['linkage', ['s2_linkAng', 's2_linkSwing', 's2_linkArmW',
@@ -1222,8 +1226,9 @@ const CAGE_PARTS = [
       // the radii, one per station — the wheel's own size, filed with the wheel
       ['size', ['s1R', 's2R']],
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
-      ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold']],
+      ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold', 'whTex', 'whTexPat', 'whTexDirt']],
       ['boom wheels outboard', ['twBoomOut']],   // CAR-4
+      ['V tip wheels', ['vtWheels', 'vtD', 'vtWide', 'vtFork', 'vtCastor']],   // LAZAIR: under a V hung down
       ['fairing build', ['fairCons']],
     ] },
 
@@ -1246,14 +1251,14 @@ const CAGE_PARTS = [
       ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
                    'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
-      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
+      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'paxGap', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
     when: P => +P.crewOn,
     sections: ['cabFloor'],                 // G2795: the floor's boards (its rows are here)
     groups: [
-      ['pitch & roll', ['ctlRuns', 'ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
+      ['pitch & roll', ['ctlRuns', 'ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank', 'steerD', 'steerRake', 'steerReach']],
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
       ['rudder', ['ctlPed', 'pedalZ', 'pedalH', 'pedalSpread', 'pedalAngle']],
       ['console', ['consoleOn']],
@@ -1272,7 +1277,7 @@ const CAGE_PARTS = [
     place: { on: 'intDash', fore: 'dashBack', len: 'dashDepth',
              high: 'dashLip', at: 'off the windscreen base' },
     groups: [
-      ['dashboard', ['intDash', 'instPod', 'dashBack', 'dashLip', 'dashDepth',
+      ['dashboard', ['intDash', 'instPod', 'dashHood', 'dashBack', 'dashLip', 'dashDepth',
                      'dashCrown', 'dashStyle', 'dashLegs']],
       ['crease', ['dashCrease'], EXPERT],
     ] },
@@ -1306,7 +1311,7 @@ const CAGE_PARTS = [
     when: P => +P.intOn,
     place: { on: 'hdlOn', at: 'the cabin ceiling and its walls above the sill' },
     groups: [
-      ['headliner', ['hdlOn', 'wallTrimOn', 'ohConsoleOn']],
+      ['headliner', ['hdlOn', 'hdlDepth', 'wallTrimOn', 'ohConsoleOn']],
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
@@ -1339,7 +1344,7 @@ const CAGE_PARTS = [
       ['inside (dimmers)', ['li_flood', 'li_instr', 'li_pedal', 'li_pax']],
       // the wing bay is the lights' own geometry: where it is cut, how big it
       // is, how deep the box behind it goes, and how big the lamp in it is
-      ['the wing bay', ['li_plane', 'li_bayFrac', 'li_bayHalf', 'li_bayChord',
+      ['the wing bay', ['li_plane', 'li_baySide', 'li_bayFrac', 'li_bayHalf', 'li_bayChord',
                         'li_bayDepth', 'li_lampSize']],
       ['lamp fairings', ['li_podLen', 'li_podGirth', 'li_reflect']],
       ['the navigation lights', ['li_navSpan', 'li_navChord', 'li_navRise']],

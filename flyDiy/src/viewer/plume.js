@@ -143,7 +143,7 @@ P.make = function (THREE, opts) {
               uDelay: { value: o.delay }, uRise: { value: o.rise }, uSpread: { value: o.spread },
               uR0: { value: o.r0 }, uK: { value: o.k }, uSmokeLit: { value: 1 },
               uLean: { value: new THREE.Vector2(o.lean, 0) } };
-  const mat = new THREE.MeshBasicMaterial({ color: o.colour === undefined ? P.RECIPE.colour : o.colour,  // pre-ok: x uSmokeLit, which carries P (LAMPS.smokeK)
+  const mat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'fx / plume / smoke puffs' }, color: o.colour === undefined ? P.RECIPE.colour : o.colour,  // pre-ok: x uSmokeLit, which carries P (LAMPS.smokeK)
                                             transparent: true, opacity: 1, depthWrite: false,
                                             side: THREE.DoubleSide, fog: true });
   mat.name = 'plume';
@@ -268,7 +268,7 @@ function makeMist(THREE, o) {
               uSmokeLit: { value: 1 }, uLean: { value: new THREE.Vector2(0, 0) }, uSun: { value: new THREE.Vector3(-0.4, 0.75, 0.5) } };
   // (MATLIB's basic shape, its own record: the uniforms below are this plume's alone, never a shared material's)
   const mat = MATLIB.make(THREE, 'basic', { color: o.colour === undefined ? 0xf1f4f6 : o.colour,  // pre-ok: x uSmokeLit, which carries P (LAMPS.smokeK), as the chimneys
-                                            transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, fog: true });
+                                            transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, fog: true }, 'fx / plume / lit puffs');
   mat.name = 'plume-mist';
   mat.onBeforeCompile = sh => {
     for (const k in u) sh.uniforms[k] = u[k];

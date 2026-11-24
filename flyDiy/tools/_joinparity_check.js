@@ -182,12 +182,8 @@ for (const k of KEYS) {
 // ---- 5. the census ------------------------------------------------------------------------------------------------
 console.log('== 5. every loader of a validated build goes through tools/_load_build.js ==');
 // the validated files and the metal Cessna's fixture copy (the same spec, byte for byte - checked below)
-const FILES = KEYS.map(k => LB.VALIDATED[k].build).concat(['tools/fixtures/build_v10_cessnaMetal_2026-09-26.json']);
-{
-  const a = JSON.parse(fs.readFileSync(path.join(FLY, 'bugReports', 'cessnaMetal (1).json'), 'utf8')).spec;
-  const b = JSON.parse(fs.readFileSync(path.join(FLY, 'tools', 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), 'utf8')).spec;
-  ok(JSON.stringify(a) === JSON.stringify(b), 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is the metal Cessna\'s spec to the byte (so it is held like it)');
-}
+const FILES = KEYS.map(k => LB.VALIDATED[k].build).concat(['builds/cessna172r_2026-11-08.json']);
+// (ONE-CESSNA 15 Nov: the tour's fixture copy of the metal Cessna was a copy and is gone; its byte check went with it)
 // THE DECLARED DOORS. Anything else naming a validated file must require tools/_load_build.js.
 const DOORS = {
   // the real page loads the build itself (flydiy.wip / the shelf): its own chain, nothing to align
@@ -223,7 +219,10 @@ const DOORS = {
     // (G2818 MASTER-GREEN, the census of 8 Nov: the real page with the file as its autosave (flydiy.wip) - soft_still /
     // live_driver for DMG-GLASS's and DMG-SCUFF's stills, TERRAIN-MATCH's headless still; LIVERY-5's fleet Import on the real
     // dev.html; FLOAT-DUP's GARAGE_SPEC.set in Chrome, as cowl_res_probe)
-    'dmg_glass_stills', 'dmg_scuff_evidence', 'terrain_still', 'livery5_shot', '_floatdup_check'],
+    'dmg_glass_stills', 'dmg_scuff_evidence', 'terrain_still', 'livery5_shot', '_floatdup_check',
+    // (ONE-CESSNA 15 Nov: list:50 joins the load door's validated set; the frames stills plant the file as the page's
+    // autosave (flydiy.wip) - the page's own load chain)
+    'frames_shot'],
   // through a loader that is itself on the chain: pilot_trace.js specOf (a .json key; pilot_matrix.js flies its cells
   // through it), _treecrash_lib.js defOf
   viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix',
@@ -250,7 +249,10 @@ const DOORS = {
     '_certgates_check',
     // (G2818: PLANE-LISTS lists the files (the chooser's rows, the client's storyClientSpec) - never builds them; QUADWIN's
     // old-window reference is the Cub's file through the cage generator's own geometry (cageFromSpec), never flown)
-    '_planelists_check', '_quadwin_check'],
+    '_planelists_check', '_quadwin_check',
+    // (ONE-CESSNA 15 Nov: list:50 joins the load door's validated set; PHYSICS-PAGES' reference bake names its file as
+    // the key of REAL-FIGURES' scores - never reads or builds it)
+    'fiche_reference_bake'],
   // THE DRAWING, NOT THE FLIGHT (G2799, DASH-REDESIGN's): the file seeds the editor's own layers headless
   // (_scene_headless.js sceneBuild, the load door's seeding) and what is judged is what they draw - the dash, a tank
   // through it, the stills; its physics rows bake the joined card (_bake_joined.js)

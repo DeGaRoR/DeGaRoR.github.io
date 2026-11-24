@@ -1,0 +1,2644 @@
+{
+  "updated": "2026-11-21T04:44:05.712Z",
+  "runs": [
+    {
+      "id": "control",
+      "label": "Approved mist B, original scuff",
+      "change": "",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_mesh_page.js",
+      "started": "2026-11-21T04:20:32.481Z",
+      "startC": 28,
+      "finished": "2026-11-21T04:23:30.414Z",
+      "exitCode": 0,
+      "valid": true,
+      "seconds": 141.954,
+      "build": "290bbbf690ea",
+      "peakC": 76,
+      "links": 565,
+      "awake": 8,
+      "response": {
+        "samples": 1797,
+        "p50": 10,
+        "p99": 30.29999999998836,
+        "max": 35.89999999999418,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "audit": {
+        "biomes": {
+          "subOn": true,
+          "edgeOn": true
+        },
+        "mistStats": {
+          "level": "none",
+          "rho": 0.00075,
+          "on": true,
+          "use": {
+            "a": true,
+            "b": false,
+            "c": false
+          },
+          "cards": 0,
+          "bakeMs": 441.9,
+          "noiseAtlas": false,
+          "noiseBakeMs": 0,
+          "k": [
+            0,
+            0,
+            0
+          ],
+          "hoursDry": 96,
+          "drift": [
+            0,
+            0
+          ],
+          "map": {
+            "N": 512,
+            "x0": -13824,
+            "z0": -29591,
+            "inv": 0.000025513458349279244,
+            "poolMean": 0.053743202458555656,
+            "wispMean": 0.046831098584152464
+          }
+        },
+        "dustAllocated": true,
+        "damageLook": true,
+        "scuff": true,
+        "pavementNoise": {
+          "reference": false,
+          "enabled": false,
+          "requested": false
+        },
+        "query": "?mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1",
+        "mist": {
+          "on": true,
+          "a": true,
+          "b": false,
+          "c": false
+        },
+        "town": {
+          "all": true,
+          "removed": 0,
+          "keep": [
+            "mk_sea",
+            "mk_mp_air",
+            "mk_mf_air"
+          ]
+        },
+        "premises": {
+          "animals": 64,
+          "traffic": 141,
+          "town": 1,
+          "runways": 17
+        }
+      }
+    },
+    {
+      "id": "lite",
+      "label": "Simplified scuff, two states",
+      "change": "scuffopt=lite",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=lite",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_surface_page.js",
+      "started": "2026-11-21T04:24:21.611Z",
+      "startC": 36,
+      "finished": "2026-11-21T04:27:47.143Z",
+      "exitCode": 0,
+      "valid": true,
+      "seconds": 140.71970000000297,
+      "build": "290bbbf690ea",
+      "peakC": 84,
+      "links": 566,
+      "awake": 10,
+      "response": {
+        "samples": 1932,
+        "p50": 9.60000000000582,
+        "p99": 15.39999999999418,
+        "max": 31.5,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "audit": {
+        "biomes": {
+          "subOn": true,
+          "edgeOn": true
+        },
+        "mistStats": {
+          "level": "none",
+          "rho": 0.00075,
+          "on": true,
+          "use": {
+            "a": true,
+            "b": false,
+            "c": false
+          },
+          "cards": 0,
+          "bakeMs": 446,
+          "noiseAtlas": false,
+          "noiseBakeMs": 0,
+          "k": [
+            0,
+            0,
+            0
+          ],
+          "hoursDry": 96,
+          "drift": [
+            0,
+            0
+          ],
+          "map": {
+            "N": 512,
+            "x0": -13824,
+            "z0": -29591,
+            "inv": 0.000025513458349279244,
+            "poolMean": 0.053743202458555656,
+            "wispMean": 0.046831098584152464
+          }
+        },
+        "dustAllocated": true,
+        "damageLook": true,
+        "scuff": true,
+        "pavementNoise": {
+          "reference": false,
+          "enabled": false,
+          "requested": false
+        },
+        "query": "?mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=lite",
+        "mist": {
+          "on": true,
+          "a": true,
+          "b": false,
+          "c": false
+        },
+        "town": {
+          "all": true,
+          "removed": 0,
+          "keep": [
+            "mk_sea",
+            "mk_mp_air",
+            "mk_mf_air"
+          ]
+        },
+        "premises": {
+          "animals": 64,
+          "traffic": 141,
+          "town": 1,
+          "runways": 17
+        }
+      }
+    },
+    {
+      "id": "liteone",
+      "label": "Simplified scuff, shared surface state",
+      "change": "scuffopt=liteone",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=liteone",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_mesh_page.js",
+      "started": "2026-11-21T04:28:38.589Z",
+      "startC": 37,
+      "finished": "2026-11-21T04:31:20.320Z",
+      "exitCode": 0,
+      "valid": true,
+      "seconds": 126.00659999999404,
+      "build": "290bbbf690ea",
+      "peakC": 85,
+      "links": 560,
+      "awake": 24,
+      "response": {
+        "samples": 1990,
+        "p50": 9.599999999991269,
+        "p99": 12.39999999999418,
+        "max": 16.5,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "audit": {
+        "biomes": {
+          "subOn": true,
+          "edgeOn": true
+        },
+        "mistStats": {
+          "level": "none",
+          "rho": 0.00075,
+          "on": true,
+          "use": {
+            "a": true,
+            "b": false,
+            "c": false
+          },
+          "cards": 0,
+          "bakeMs": 443.5,
+          "noiseAtlas": false,
+          "noiseBakeMs": 0,
+          "k": [
+            0,
+            0,
+            0
+          ],
+          "hoursDry": 96,
+          "drift": [
+            0,
+            0
+          ],
+          "map": {
+            "N": 512,
+            "x0": -13824,
+            "z0": -29591,
+            "inv": 0.000025513458349279244,
+            "poolMean": 0.053743202458555656,
+            "wispMean": 0.046831098584152464
+          }
+        },
+        "dustAllocated": true,
+        "damageLook": true,
+        "scuff": true,
+        "pavementNoise": {
+          "reference": false,
+          "enabled": false,
+          "requested": false
+        },
+        "query": "?mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=liteone",
+        "mist": {
+          "on": true,
+          "a": true,
+          "b": false,
+          "c": false
+        },
+        "town": {
+          "all": true,
+          "removed": 0,
+          "keep": [
+            "mk_sea",
+            "mk_mp_air",
+            "mk_mf_air"
+          ]
+        },
+        "premises": {
+          "animals": 64,
+          "traffic": 141,
+          "town": 1,
+          "runways": 17
+        }
+      }
+    },
+    {
+      "id": "control-close",
+      "label": "Repeated original-scuff reference",
+      "change": "",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_mesh_page.js",
+      "started": "2026-11-21T04:32:06.975Z",
+      "startC": 38,
+      "finished": "2026-11-21T04:34:51.024Z",
+      "exitCode": 0,
+      "valid": true,
+      "seconds": 128.125799999997,
+      "build": "290bbbf690ea",
+      "peakC": 84,
+      "links": 566,
+      "awake": 10,
+      "response": {
+        "samples": 1894,
+        "p50": 9.900000000023283,
+        "p99": 14,
+        "max": 30.79999999998836,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "audit": {
+        "biomes": {
+          "subOn": true,
+          "edgeOn": true
+        },
+        "mistStats": {
+          "level": "none",
+          "rho": 0.00075,
+          "on": true,
+          "use": {
+            "a": true,
+            "b": false,
+            "c": false
+          },
+          "cards": 0,
+          "bakeMs": 464.2,
+          "noiseAtlas": false,
+          "noiseBakeMs": 0,
+          "k": [
+            0,
+            0,
+            0
+          ],
+          "hoursDry": 96,
+          "drift": [
+            0,
+            0
+          ],
+          "map": {
+            "N": 512,
+            "x0": -13824,
+            "z0": -29591,
+            "inv": 0.000025513458349279244,
+            "poolMean": 0.053743202458555656,
+            "wispMean": 0.046831098584152464
+          }
+        },
+        "dustAllocated": true,
+        "damageLook": true,
+        "scuff": true,
+        "pavementNoise": {
+          "reference": false,
+          "enabled": false,
+          "requested": false
+        },
+        "query": "?mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1",
+        "mist": {
+          "on": true,
+          "a": true,
+          "b": false,
+          "c": false
+        },
+        "town": {
+          "all": true,
+          "removed": 0,
+          "keep": [
+            "mk_sea",
+            "mk_mp_air",
+            "mk_mf_air"
+          ]
+        },
+        "premises": {
+          "animals": 64,
+          "traffic": 141,
+          "town": 1,
+          "runways": 17
+        }
+      }
+    },
+    {
+      "id": "liteone-repeat",
+      "label": "Shared surface state — repeat after closing reference",
+      "change": "scuffopt=liteone",
+      "query": "mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=liteone",
+      "validationScope": "startup-only",
+      "coolSeconds": 45,
+      "pageDiagnostic": "flyDiy/tools/perf/scuff_mesh_page.js",
+      "started": "2026-11-21T04:36:03.082Z",
+      "startC": 37,
+      "finished": "2026-11-21T04:38:43.472Z",
+      "exitCode": 0,
+      "valid": true,
+      "seconds": 124.67729999999702,
+      "build": "290bbbf690ea",
+      "peakC": 87,
+      "links": 559,
+      "awake": 24,
+      "response": {
+        "samples": 1965,
+        "p50": 9.699999999982538,
+        "p99": 12.699999999982538,
+        "max": 30.70000000001164,
+        "over100": 0,
+        "over1000": 0,
+        "longTasks": []
+      },
+      "audit": {
+        "biomes": {
+          "subOn": true,
+          "edgeOn": true
+        },
+        "mistStats": {
+          "level": "none",
+          "rho": 0.00075,
+          "on": true,
+          "use": {
+            "a": true,
+            "b": false,
+            "c": false
+          },
+          "cards": 0,
+          "bakeMs": 476.3,
+          "noiseAtlas": false,
+          "noiseBakeMs": 0,
+          "k": [
+            0,
+            0,
+            0
+          ],
+          "hoursDry": 96,
+          "drift": [
+            0,
+            0
+          ],
+          "map": {
+            "N": 512,
+            "x0": -13824,
+            "z0": -29591,
+            "inv": 0.000025513458349279244,
+            "poolMean": 0.053743202458555656,
+            "wispMean": 0.046831098584152464
+          }
+        },
+        "dustAllocated": true,
+        "damageLook": true,
+        "scuff": true,
+        "pavementNoise": {
+          "reference": false,
+          "enabled": false,
+          "requested": false
+        },
+        "query": "?mode=sandbox&parkstock=1&groundcache=0&perftrim=1&pace=8&cracks=1&dmglook=1&scuff=1&scuffopt=liteone",
+        "mist": {
+          "on": true,
+          "a": true,
+          "b": false,
+          "c": false
+        },
+        "town": {
+          "all": true,
+          "removed": 0,
+          "keep": [
+            "mk_sea",
+            "mk_mp_air",
+            "mk_mf_air"
+          ]
+        },
+        "premises": {
+          "animals": 64,
+          "traffic": 141,
+          "town": 1,
+          "runways": 17
+        }
+      }
+    }
+  ],
+  "reportMarkdown": "## Simplified surface damage: integrated loading and controlled rendering\n\nFresh visible Chrome profiles, saved Cub/full hangar,5120x1271/DPR1. Legacy diagnostic-clock startup measurements; native-player mist/FPS circuit reported separately. Mist B, all seven scenery systems and original full runway geometry/cues retained. Accepted advanced-cliff/runtime-aircraft-bake cuts only. Experimental caches off. Original-scuff controls bracket lite candidates;20s garage soak; no world departure in loading cases. Controlled damage/deposit images and GPU patches follow cold timing and are excluded from loading. Window crack body unchanged; shared-state candidate applies only to opaque surfaces. Driver cache not erased.\n\n| Case | Garage (s) | Shorter than reference (s) | Submitted links | Damage-capable links | Peak CPU (°C) |\n| --- | ---: | ---: | ---: | ---: | ---: |\n| Approved mist B, original scuff | 141.954 | 0.000 | 565 | 8 | 76 |\n| Simplified scuff, two states | 140.720 | 1.234 | 566 | 10 | 84 |\n| Simplified scuff, shared surface state | 126.007 | 15.947 | 560 | 24 | 85 |\n| Repeated original-scuff reference | 128.126 | 13.828 | 566 | 10 | 84 |\n| Shared surface state — repeat after closing reference | 124.677 | 17.277 | 559 | 24 | 87 |\n\nThese are independent loading observations. Lite replaces fine procedural damage networks with three filtered reads of the existing grunge texture while keeping dents, directional abrasion, exposed substrate, torn edges and computed mud. Window crack body remains unchanged. Liteone additionally shares intact/damaged opaque surface programs, with a possible intact-frame overhead that requires measurement. Glass keeps the original asleep/awake paths. Candidates remain opt-in until loading, image activity and GPU costs are reviewed.\n\nDamage-capable link counts include intact surfaces in shared-state mode; they do not count actual damaged aircraft. Opening original-scuff reference141.954s and closing128.126s show13.828s drift. Shared-state126.007s is15.947s below opening but only2.119s below closing: no established16s causal saving. Repeat after closing reference is recorded separately. Ordinary two-state lite140.720s establishes no startup gain.\n\nRepeat shared-state candidate124.677s, 3.448s below the closing reference. Candidates cluster124.7–126.0s; controls128.1–142.0s. This is a modest startup signal with substantial control drift, not a clean16s saving. All five cases pass normal readiness/GL/20s garage soak; all peaks≤87°C. Main recommendation: retain the opt-in two-state lite as an active-damage rendering candidate; its intact path is unchanged. Keep shared-state mode experimental because its intact patch overhead has not been checked through a native full flight. No new default or visual acceptance is claimed.\n\n### Controlled active-damage GPU checks\n\nFour actual Cub material classes,512² offscreen patches, synthetic uniform damage and deposit records. Four alternating-order samples/profile,12 draws/query. These are isolated patch times, not whole-world FPS. Intact output is pixel-identical; damage-on/off and mud-on/off both change pixels for all four classes. No query disjoint/errors in this run.\n\n| Finish | Original active (ms/draw) | Full + shared mud | Lite + shared mud | Lite with damage off | Original intact |\n| --- | ---: | ---: | ---: | ---: | ---: |\n| fabric | 0.1484 | 0.1578 | 0.0721 | 0.0742 | 0.0569 |\n| rubber | 0.1830 | 0.1929 | 0.0876 | 0.0721 | 0.0713 |\n| steelTube | 0.0273 | 0.0297 | 0.0171 | 0.0166 | 0.0156 |\n| ply | 0.0707 | 0.0736 | 0.0370 | 0.0299 | 0.0283 |\n\nActive simplified patch cost is37–52% below original in this test, with computed mud restored. Keeping the damage code present when inactive adds~0.001–0.017ms/draw on these patches (~1–30% relative, depending finish); that is the shared-state tradeoff. Ordinary two-state lite keeps original asleep shaders for intact surfaces. Fine scratch/gouge/fray patterns are visibly simplified; images are controlled material tests, not a physical crash validation. Window crack body is unchanged by source equivalence test; glass remains two-state.\n\nControlled forced-damage panel images: [original surface](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-originalDry.png), [simplified surface](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-liteDry.png), [simplified with computed mud](evidence/PERFORMANCE-2026-11-21/scuff-lite-integrated/lite/scuff-fabric-liteMud.png).\n\n",
+  "renderProof": [
+    {
+      "finish": "fabric",
+      "class": 1,
+      "damage": {
+        "mean": 10.594712780759293,
+        "max": 113,
+        "channels": 135837
+      },
+      "mud": {
+        "mean": 31.49490933987058,
+        "max": 225,
+        "channels": 135837
+      },
+      "intactParity": {
+        "mean": 0,
+        "max": 0,
+        "channels": 135837
+      },
+      "compileMs": {
+        "intact": 874.5,
+        "original": 2149.6000000089407,
+        "full": 2373.5,
+        "lite": 1087.8999999910593
+      },
+      "gpu": [
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.4650666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.066048,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.154112,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.16477866666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.07517866666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.07628800000000001,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.165888,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.14276266666666668,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.08243199999999999,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.05707466666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.05672533333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.10664533333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.139264,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.15086933333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06912,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06912,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.150864,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.190976,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.058879999999999995,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.05597866666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.08046933333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.08541866666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06784,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06912,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.08635733333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.08029866666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.079336,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.08763733333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06876,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06894933333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.08686133333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.080896,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.097792,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.10581333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06894933333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06929066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.10641066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.095728,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.09555466666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.10436266666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06816266666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.068096,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.10624,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.060928,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.045568,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.049133333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.069632,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06852266666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.081152,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.072704,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.07253333333333332,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.08072533333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06877866666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.06869333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.08243199999999999,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.07790933333333333,
+          "disjoint": false,
+          "error": 0
+        }
+      ],
+      "images": [
+        "intact",
+        "originalDry",
+        "fullDry",
+        "liteDry",
+        "fullMud",
+        "liteMud"
+      ]
+    },
+    {
+      "finish": "rubber",
+      "class": 3,
+      "damage": {
+        "mean": 2.811250805931657,
+        "max": 24,
+        "channels": 86856
+      },
+      "mud": {
+        "mean": 3.926867458782352,
+        "max": 27,
+        "channels": 86856
+      },
+      "intactParity": {
+        "mean": 0,
+        "max": 0,
+        "channels": 86856
+      },
+      "compileMs": {
+        "intact": 653.0999999940395,
+        "original": 1816.9000000059605,
+        "full": 1946.6000000089407,
+        "lite": 876.2999999970198
+      },
+      "gpu": [
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.068608,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.07202133333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.18210133333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.19318666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.087296,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.087696,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.19199999999999998,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.18286933333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.07219199999999999,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.07057066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.07218666666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.07202133333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.18304,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.19328,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08763733333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.087552,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.19259733333333331,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.184064,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.072448,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.07202133333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.09838933333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.10598400000000001,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08823466666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.087296,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.10632533333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.09617066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.09708533333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.10606933333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.087808,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08789333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.10700799999999999,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.098304,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.11886933333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.129536,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08813066666666668,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08821333333333332,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.128,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.11946666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.11895466666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.130712,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08804000000000001,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.087808,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.12936533333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.11741866666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.089576,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.09812533333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08738133333333332,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08746666666666668,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.09736533333333335,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.08866133333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.08925866666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.09727999999999999,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08849066666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.08738133333333332,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.09777599999999999,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.08925866666666667,
+          "disjoint": false,
+          "error": 0
+        }
+      ],
+      "images": [
+        "intact",
+        "originalDry",
+        "fullDry",
+        "liteDry",
+        "fullMud",
+        "liteMud"
+      ]
+    },
+    {
+      "finish": "steelTube",
+      "class": 0,
+      "damage": {
+        "mean": 9.890590809628009,
+        "max": 86,
+        "channels": 1371
+      },
+      "mud": {
+        "mean": 20.02990517870168,
+        "max": 151,
+        "channels": 1371
+      },
+      "intactParity": {
+        "mean": 0,
+        "max": 0,
+        "channels": 1371
+      },
+      "compileMs": {
+        "intact": 22.900000005960464,
+        "original": 44.099999994039536,
+        "full": 42.80000001192093,
+        "lite": 28.19999998807907
+      },
+      "gpu": [
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.013216,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.01696,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.027221333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.029602666666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.016895999999999998,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017152,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.029610666666666664,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.027120000000000002,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.016554666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.015445333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.015701333333333335,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.016114666666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.027562666666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.030378666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017066666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017408,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.029781333333333337,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.027477333333333336,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.016554666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.015688,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.020906666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.018688,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017322666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017237333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.019968,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.018090666666666668,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.018005333333333335,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.01928533333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017213333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.016895999999999998,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.020053333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.018005333333333335,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.02304,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.02293066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.016981333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.016810666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.022613333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.021077333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.021077333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.022357333333333337,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017066666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017578666666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.022685333333333335,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.021162666666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.020650666666666668,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.018432,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017152,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.01705066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.018176,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.017664,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.017402666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.018517333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017066666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.017152,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.018346666666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.016895999999999998,
+          "disjoint": false,
+          "error": 0
+        }
+      ],
+      "images": [
+        "intact",
+        "originalDry",
+        "fullDry",
+        "liteDry",
+        "fullMud",
+        "liteMud"
+      ]
+    },
+    {
+      "finish": "ply",
+      "class": 2,
+      "damage": {
+        "mean": 3.6701077199281866,
+        "max": 46,
+        "channels": 33420
+      },
+      "mud": {
+        "mean": 11.55733093955715,
+        "max": 84,
+        "channels": 33420
+      },
+      "intactParity": {
+        "mean": 0,
+        "max": 0,
+        "channels": 33420
+      },
+      "compileMs": {
+        "intact": 670.3999999910593,
+        "original": 1909.4000000059605,
+        "full": 2074.2999999970198,
+        "lite": 931.2999999970198
+      },
+      "gpu": [
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.026349333333333332,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.03072,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.06937600000000001,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.07287466666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.037104,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.036927999999999996,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.07432533333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.07057066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.029781333333333337,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 1,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.02816,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.028501333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.029610666666666664,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.070816,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.07381333333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.037546666666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.036608,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.07338399999999999,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.071168,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "lite",
+          "on": 0,
+          "ms": 0.029936,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "all",
+          "sample": 3,
+          "mode": "intact",
+          "on": 0,
+          "ms": 0.029098666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.041301333333333336,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.042666666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.03848533333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.036693333333333335,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.04360266666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.041301333333333336,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.041301333333333336,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.043008,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.037698666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.03677866666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.043264,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "dent",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.041215999999999996,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.04853333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.051456,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.03712,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.037455999999999996,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.051712,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.04829866666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.047786666666666665,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.05137066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.036949333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.03712,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.050688000000000004,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "scrape",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.047530666666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.039509333333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.04113066666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 0,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.03720533333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.036864,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.04164266666666667,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 1,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.03848533333333334,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.03874133333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.041557333333333335,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 2,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.03746133333333333,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "lite",
+          "on": 1,
+          "ms": 0.036864,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "full",
+          "on": 1,
+          "ms": 0.04087466666666666,
+          "disjoint": false,
+          "error": 0
+        },
+        {
+          "profile": "torn",
+          "sample": 3,
+          "mode": "original",
+          "on": 1,
+          "ms": 0.03762133333333333,
+          "disjoint": false,
+          "error": 0
+        }
+      ],
+      "images": [
+        "intact",
+        "originalDry",
+        "fullDry",
+        "liteDry",
+        "fullMud",
+        "liteMud"
+      ]
+    }
+  ]
+}

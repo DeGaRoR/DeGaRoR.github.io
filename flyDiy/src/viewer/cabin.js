@@ -515,14 +515,14 @@ function plan(parts, opts) {
 let MATS = null;
 function mats(THREE, HG) {
   if (MATS) return MATS;
-  const mk = (key, col, o) => { const m = new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0.3 }); HG.dressMat(m, key, col, o || {}); return m; };
+  const mk = (key, col, o) => { const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / tram cabin / dressed steel and deck' }, roughness: 0.8, metalness: 0.3 }); HG.dressMat(m, key, col, o || {}); return m; };
   const body = mk('steelgrey', 1, { nrm: 1.1, rough: 0.75 }); body.metalness = 0.35;
   const trim = mk('steelgrey', 8, { nrm: 1.1, rough: 0.85 }); trim.metalness = 0.5;
   const floor = mk('deckwood', 0, { nrm: 1.4, rough: 1.0 });
   const hanger = mk('steelgrey', 0, { nrm: 1.2, rough: 0.7 }); hanger.metalness = 0.85;
   const detail = mk('galv', 8, { nrm: 1.0, rough: 0.6 }); detail.metalness = 0.7;
   const rail = mk('galv', 0, { nrm: 1.0, rough: 0.55 }); rail.metalness = 0.85;
-  const gasket = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.92, metalness: 0.05 });
+  const gasket = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / tram cabin / window gasket' }, color: 0x141414, roughness: 0.92, metalness: 0.05 });
   MATS = { body, trim, floor, hanger, detail, rail, gasket, decal: {} };
   return MATS;
 }
@@ -531,7 +531,7 @@ function decalMat(THREE, HG, livery) {
   const M = mats(THREE, HG);
   if (M.decal[livery]) return M.decal[livery];
   const L = (typeof CABIN_LIVERY !== 'undefined' && CABIN_LIVERY) ? CABIN_LIVERY[livery] : null;
-  const m = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.12, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / tram cabin / livery decal' }, roughness: 0.55, metalness: 0.12, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   HG.dressMat(m, 'steelgrey', 0, { nrm: 0.9 });
   m.color.setHex(0xffffff); m.roughnessMap = null; m.metalness = 0.12; m.roughness = 0.55;
   if (L) {
@@ -632,7 +632,7 @@ function build(THREE, opts) {
 // gets the banner as a lit plane facing `n`
 function signMesh(THREE, sign) {
   const L = (typeof CABIN_LIVERY !== 'undefined' && CABIN_LIVERY) ? CABIN_LIVERY[sign.livery || 'admiralty'] : null;
-  const m = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.05, color: 0xffffff });
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'town / tram station / livery sign' }, roughness: 0.55, metalness: 0.05, color: 0xffffff });
   if (L) {
     const t = new THREE.Texture(L.img);
     t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;

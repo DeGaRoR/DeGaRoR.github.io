@@ -2,7 +2,7 @@
 // http.server which randomly resets large transfers (three.min.js,
 // _cage_gen.js) under load. No caching: the browser's aggressive _cage*.js
 // cache cost a session once (stale page code vs new node code).
-// Usage: node flyDiy/tools/_serve.js [port] [root] [--fallback <dir>]
+// Usage: node flyDiy/tools/_serve.js [port] [root] [--fallback <dir>] [--localhost]
 // --fallback (several with ';'): the next roots tried in order when a path is missing under the first -
 // a WORKTREE served over the main checkout's gitignored data (bench/,
 // assets/, node_modules/) WITHOUT a junction. Junctions in a worktree are
@@ -56,4 +56,4 @@ const srv = http.createServer((req, res) => {
   }
 });
 srv.on('error', e => { console.error(`_serve.js: CANNOT SERVE ${ROOT} on port ${PORT}: ${e.code || e.message}` + (e.code === 'EADDRINUSE' ? ' - another server holds it (a leftover rig server?)' : '')); process.exit(3); });
-srv.listen(PORT, () => console.log(`_serve.js on http://localhost:${PORT}/ root=${ROOT}` + (FALLBACKS.length ? ` fallback=${FALLBACKS.join(';')}` : '')));
+srv.listen({port:PORT,host:process.argv.includes('--localhost')?'127.0.0.1':undefined}, () => console.log(`_serve.js on http://localhost:${PORT}/ root=${ROOT}` + (FALLBACKS.length ? ` fallback=${FALLBACKS.join(';')}` : '')));

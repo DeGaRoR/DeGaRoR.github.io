@@ -502,10 +502,33 @@ function placeExtras(A, o, L) {
       const cxC = Math.abs(xP) >= clr ? xP : (xP > 0 ? clr : -clr);
       const zc = (A.dashAftZ != null ? A.dashAftZ : L.zFace) + 0.015;
       const top = A.dashTopAt ? A.dashTopAt(cxC, w / 2, zc - 0.02, zc + 0.02) : (A.dashTop != null ? A.dashTop : yTop + PAN_INSET);
-      if (Math.abs(cxC) + w / 2 <= (A.halfW || xLim + 0.05) && isFinite(top)) {
+      // (16 Nov 2026, the LS4's moulded hood: a cradle that would stand through the canopy is no place - the glass
+      //  over its footprint (the crew's ceilAt), with 8 mm to spare, else the unit is named, not drawn)
+      const ceil = A.ceilAt ? A.ceilAt(cxC, w / 2 + 0.01, zc - 0.06, zc + 0.06, top) : null;
+      const under = ceil == null || top + 0.012 + h + 0.008 <= ceil;
+      if (under && Math.abs(cxC) + w / 2 <= (A.halfW || xLim + 0.05) && isFinite(top)) {
         L.screens.push({ k: S.k, cx: cxC, cy: top + 0.012 + h / 2, w, h, sw: +S.sw || w * 0.8, sh: +S.sh || h * 0.75,
                          coaming: true, z: zc, top });
         continue;
+      }
+      // A SIDE ARM (16 Nov 2026, the user: "do a side mount" - the LS4's portable found no room on the glareshield
+      // under its canopy): on the RIGHT wall (the stick's side; the free left hand has the throttle or the airbrakes),
+      // just aft of the panel's face, its middle at the sill (the waist), clamped to the wall where the crew's exact
+      // wall ray finds it and held 5 cm inboard on an arm, its screen turned 0.5 rad toward the pilot. A wall that
+      // reads no room for it (the unit's back within 3 cm of the skin, or no wall found) names it as before
+      if (A.wallIn && A.waistY != null) {
+        const sd = -1, zc = (A.dashAftZ != null ? A.dashAftZ : L.zFace) - 0.12, yc = A.waistY - 0.01;
+        const wq = [yc - h / 2, yc, yc + h / 2].map(yy => A.wallIn(sd, yy, zc));
+        if (wq.every(q => q != null)) {
+          const wall = Math.min(...wq.map(Math.abs)), arm = 0.05, dep = 0.03;
+          const cx = sd * (wall - arm - dep / 2);
+          const ceil = A.ceilAt ? A.ceilAt(cx, w / 2 + 0.02, zc - 0.08, zc + 0.08, yc - h) : null;
+          if (Math.abs(cx) - w / 2 * Math.sin(0.5) > 0.12 && (ceil == null || yc + h / 2 + 0.01 <= ceil)) {
+            L.screens.push({ k: S.k, cx, cy: yc, w, h, sw: +S.sw || w * 0.8, sh: +S.sh || h * 0.75,
+                             side: true, sd, z: zc, yaw: sd * 0.5, wallX: sd * wall, arm });
+            continue;
+          }
+        }
       }
     }
     L.extraOverflow.push(S.k);
