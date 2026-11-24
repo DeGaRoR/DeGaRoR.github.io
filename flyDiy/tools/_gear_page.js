@@ -257,6 +257,11 @@ const WHEEL_ROWS = [
   ['vtWide', 'V tip tyre width (x the carcass\'s; 0 = its own)', 0, 1.5, 0.01, { when: P => vDownOf(P) && vtModeOf(P) > 0, absent: 0 }],
   ['vtFork', 'V tip fork: the hub below the tip, past the tyre (m)', 0, 0.40, 0.005, { when: P => vDownOf(P) && vtModeOf(P) > 0, absent: 0.03 }],
   ['vtCastor', 'V tip extra wheels', 0, 1, 1, ['castoring', 'fixed (straight ahead)'], { when: P => vDownOf(P) && vtModeOf(P) === 2, absent: 0 }],
+  // LAZAIR-TWIN (24 Nov, the user: "an option for a stabilisation bar holding the fins together, say mid length? Should
+  // avoid the yielding"): a tube across the V hung down, at its station along the panels (0 the root, 1 the tip); drawn by
+  // the stab layer, flown by the frame (tail.vBar). ABSENT at its default (off)
+  ['vtBar', 'V stabilisation bar (a tube across the panels)', 0, 1, 1, ['off', 'on'], { when: P => vDownOf(P) && vtModeOf(P) > 0, absent: 0 }],
+  ['vtBarAt', 'V bar station along the panels (0 root, 1 tip)', 0.1, 0.9, 0.01, { when: P => vDownOf(P) && vtModeOf(P) > 0 && +P.vtBar, absent: 0.5 }],
   // CAR-3/4: the bumpers and the hitch (absent = none)
   ['bumpF', 'front bumper', 0, 1, 1, { when: P => +P.isCar || +P.bumpF }],
   ['bumpR', 'rear bumper', 0, 1, 1, { when: P => +P.isCar || +P.bumpR }],

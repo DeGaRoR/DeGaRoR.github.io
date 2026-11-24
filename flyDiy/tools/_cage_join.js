@@ -926,6 +926,9 @@ function cageJoinSpec(P, M, T) {
     tl.type = 'v'; tl.vAngle = M.tailCant;
     // LAZAIR: the V hung down's drawn root height (keel datum, m: 61_gen_frame hangs the panels from it); the key only then
     if (M.tailCant < 0 && typeof M.vRootY === 'number' && isFinite(M.vRootY)) tl.vRootY = +M.vRootY.toFixed(4); else delete tl.vRootY;
+    // LAZAIR-TWIN (24 Nov): the V's stabilisation bar (the stab page's vtBar / vtBarAt: its station along the panels),
+    // the key only on a V hung down with the bar on - every other build's tail as it was
+    if (M.tailCant < 0 && +P.vtBar) tl.vBar = +Math.max(0.1, Math.min(0.9, P.vtBarAt == null ? 0.5 : +P.vtBarAt)).toFixed(3); else delete tl.vBar;
     // ...and a conventional tail's areas are not a V's (the V measures Svt;
     // left stated, a V the join could not size would fly the old tailplane)
     if (M.tailJoined) { tl.Sh = null; tl.Sv = null; }

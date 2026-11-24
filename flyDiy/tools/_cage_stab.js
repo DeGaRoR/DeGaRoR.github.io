@@ -367,7 +367,7 @@ const stabBuild = (ctx, dry) => {
   const lay = { rootX: P.stX || 0, stabY: yRef + (P.stY || 0),
                 sRef: rootLine, zOff: zSeat + (P.stZ || 0), cant,
                 inc, incZ: FIN.stabIncZ(m0, rootLine) };
-  const ivTips = [];
+  const ivTips = [], vRoots = [];
   // the lay of each half (side +1 / -1), the one every layer that re-lays the stab must use (_cage_hinge's hinge lines)
   // (G3801: the four ways - an inward half is the mirror half's lay at the far boom's x, an outward one its own side's
   // at its own boom's; the cant negated for a downward one, so the upper face stays up)
@@ -385,6 +385,10 @@ const stabBuild = (ctx, dry) => {
       let sx = 0, sz = 0, n = 0; for (const p of half.V) if (p[1] < yMin + 0.02) { sx += p[0]; sz += p[2]; n++; }
       const FSt = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
       if (n) ivTips.push([sx / n * FSt, yMin * FSt, sz / n * FSt]);
+      // (LAZAIR-TWIN: the panel's root, its highest points' middle - the V's bar is laid between root and tip)
+      let yMax = -Infinity; for (const p of half.V) yMax = Math.max(yMax, p[1]);
+      let rx = 0, rz = 0, rn = 0; for (const p of half.V) if (p[1] > yMax - 0.02) { rx += p[0]; rz += p[2]; rn++; }
+      if (n && rn) vRoots.push([rx / rn * FSt, yMax * FSt, rz / rn * FSt]);
     }
     if (dry) continue;
     for (const part of cutMode ? ['fin', 'rudder'] : [null]) {
@@ -442,6 +446,17 @@ const stabBuild = (ctx, dry) => {
     const m = bag.mesh(sad, DRAW.saddleMat ? DRAW.saddleMat() : new THREE.MeshLambertMaterial({ userData: { progOwner: 'aircraft / stabiliser / saddle fallback' }, color: 0x8a9099 }));
     if (m) m.userData.edHw = 1;
     group.add(sad);
+  }
+  // LAZAIR-TWIN (24 Nov): THE V's STABILISATION BAR (the gear page's vtBar / vtBarAt, with the tip wheels on): a 25 mm
+  // tube across the two panels at that station between each panel's root and its tip - the frame's tail.vBar
+  if (vDown && +P.vtBar && Math.round(+P.vtWheels || 0) > 0 && ivTips.length === 2 && vRoots.length === 2 && window.GEAR_KIT && !wire) {
+    const K = window.GEAR_KIT, bag = K.Bag(), f = Math.max(0.1, Math.min(0.9, P.vtBarAt == null ? 0.5 : +P.vtBarAt));
+    const at = i => [0, 1, 2].map(k => vRoots[i][k] + (ivTips[i][k] - vRoots[i][k]) * f);
+    K.tube(bag, at(0), at(1), 0.0125, 12);
+    const bar = new THREE.Group(); bar.name = 'edVBar'; bar.scale.setScalar(1 / FS);
+    const m = bag.mesh(bar, DRAW.saddleMat ? DRAW.saddleMat() : new THREE.MeshLambertMaterial({ userData: { progOwner: 'aircraft / stabiliser / V bar' }, color: 0x8a9099 }));
+    if (m) m.userData.edHw = 1;
+    group.add(bar);
   }
   group.scale.setScalar(FS);
   scene.add(group);

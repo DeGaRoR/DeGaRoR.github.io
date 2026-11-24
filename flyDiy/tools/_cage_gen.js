@@ -9881,7 +9881,7 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 const CAGE_DEFAULT_ABSENT = { rodOn: 1, spinOn: 1,   // (CAR-1: the rod's tube and the spinner's cone, drawn - absent at 1, as every build before them)
   canClear: 0, certCat: 0, dashHood: 0, wgBrake: 0, wgBrakeAt: 0.30, wgBrakeLen: 0.16, wgBrakeH: 0.20, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
-  vtWheels: 0, vtD: 0.20, vtWide: 0, vtFork: 0.03, vtCastor: 0,   // (LAZAIR: the V hung down's tip wheels, off; their size, tyre, fork, castoring)
+  vtWheels: 0, vtD: 0.20, vtWide: 0, vtFork: 0.03, vtCastor: 0, vtBar: 0, vtBarAt: 0.5,   // (LAZAIR: the V hung down's tip wheels, off; their size, tyre, fork, castoring)
   wgBrake: 0, wgBrakeAt: 0.30, wgBrakeLen: 0.16, wgBrakeH: 0.20,   // (AIRBRAKES: none; a Standard Class's box when on)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)

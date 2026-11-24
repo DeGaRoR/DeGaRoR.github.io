@@ -3489,7 +3489,7 @@ const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
                                brkHold: 0, wgStrutSec: 0, wgJury: 0, certCat: 0, wgBrake: 0, dashHood: 0, rodOn: 1, spinOn: 1,
-                               vtWheels: 0, vtD: 0.2, vtWide: 0, vtFork: 0.03, vtCastor: 0 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
+                               vtWheels: 0, vtD: 0.2, vtWide: 0, vtFork: 0.03, vtCastor: 0, vtBar: 0, vtBarAt: 0.5 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
                                // (LAZAIR, 24 Nov: the V hung down's tip wheels' rows, off - the vt* keys)
 // STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S OPTIONS - the figures the frame (61_gen_frame, the jury strut's members)
 // and the aero (62_gen_aero genStrutOptCdA, the drag of a round strut and of the jury) read. None is read by a build
@@ -6356,6 +6356,9 @@ function clampSpec(spec) {
   // ...and its drawn root's height (vRootY, m over the keel datum: the join's), the key only on a V hung down
   if (S.tail.type === 'v' && S.tail.vAngle < 0 && S.tail.vRootY != null && isFinite(+S.tail.vRootY)) S.tail.vRootY = genClamp(+S.tail.vRootY, -2, 4);
   else delete S.tail.vRootY;
+  // LAZAIR-TWIN: the V's bar (its station along the panels, 0.1-0.9), the key only on a V hung down
+  if (S.tail.type === 'v' && S.tail.vAngle < 0 && +S.tail.vBar > 0) S.tail.vBar = genClamp(+S.tail.vBar, 0.1, 0.9);
+  else delete S.tail.vBar;
   // G3800 (TAILWHEELS): THE INVERTED V ON TWIN BOOMS (61_gen_frame's T.vee: a panel down and inboard from each boom, the
   // tail's wheels at the tips). Its own keys - a twin boom states the V's vAngle / Svt null (GEN_FIELDS 'tail.type').
   // ivAngle (deg, the panels' cant below the horizontal; the key's presence IS the layout), ivGap (m, the gap between
