@@ -195,27 +195,39 @@ const REFS = {
   minimax1100r: {
     name: 'Mini-MAX 1100R (Hirth F-33 / Polini Thor / Simonini Mini 3 class)', mtow: 254, empty: 115, fuelL: 19, S: 10.45,
     src: 'Team Mini-Max kit page + flyminimax.com/1100r + pilotmix.com/mini-max-1100r: 25 ft span, 112.5 ft2, empty 230-267 lb, gross 560 lb, stall 28-31 mph, cruise 65 mph, top 70-75 mph, Vne 100 mph, climb 1000 fpm (the 1100F on a Hirth: 650 fpm), TO roll < 100 ft, landing roll 210 ft',
+    variant: 'Mini-MAX 1100R, single seat, mid wing, the official small two-strokes (Hirth F-33, Polini Thor 202 / 250 / 303, Simonini Mini 3)',
+    sources: {
+      maker: { what: 'Team Mini-Max / Mini-Max USA, the 1100R kit page: span, area, empty, gross, climb, stall, speeds, distances', quality: 'maker', read: '2026-11-24', url: 'https://flyminimax.com/1100r' },
+      pilotmix: { what: 'pilotmix.com Mini-MAX 1100R: the same figures, a second listing', quality: 'thin', read: '2026-11-24', url: 'https://www.pilotmix.com/mini-max-1100r' },
+    },
     poh: { vr: 1.15, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0.5 },
     rows: {
-      empty: { v: [230 * LB, 267 * LB], tol: 0.03, src: '230-267 lb (flyminimax.com kit page; teammini-max.com 267 lb)' },
-      Vs1:   { v: [28 * MPH, 31 * MPH], tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 28-31 mph' },
-      V75:   { v: 65 * MPH, tol: 0.08, kg: 'unknown', src: 'cruise ~65 mph' },
-      Vmax:  { v: [70 * MPH, 75 * MPH], tol: 0.05, kg: 'unknown', src: 'top speed 70 / 75 mph (two listings)' },
-      roc:   { v: [650 * FPM, 1000 * FPM], tol: 0.05, kg: 'unknown', src: '1000 fpm (the maker, its engine unstated); 650 fpm on the Hirth 1100F (an older listing)' },
-      TO:    { v: [70 * FT, 100 * FT], tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'take-off roll < 100 ft' },
-      LDG:   { v: 210 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'landing roll 210 ft' },
+      empty: { v: [230 * LB, 267 * LB], tol: 0.03, src: '230-267 lb (flyminimax.com kit page; teammini-max.com 267 lb)', from: 'maker' },
+      Vs1:   { v: [28 * MPH, 31 * MPH], tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 28-31 mph', from: 'maker' },
+      V75:   { v: 65 * MPH, tol: 0.08, kg: 'unknown', src: 'cruise ~65 mph', from: 'maker' },
+      Vmax:  { v: [70 * MPH, 75 * MPH], tol: 0.05, kg: 'unknown', src: 'top speed 70 / 75 mph (two listings)', from: 'maker' },
+      roc:   { v: [650 * FPM, 1000 * FPM], tol: 0.05, kg: 'unknown', src: '1000 fpm (the maker, its engine unstated); 650 fpm on the Hirth 1100F (an older listing)', from: 'maker' },
+      TO:    { v: [70 * FT, 100 * FT], tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'take-off roll < 100 ft', from: 'maker' },
+      LDG:   { v: 210 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'landing roll 210 ft', from: 'maker' },
     } },
   lazair: {
     name: 'Ultraflight Lazair Series II (2 x Rotax 185, 9.5 hp)', mtow: 204, empty: 90, fuelL: 10, S: 13.3,
+    variant: 'Ultraflight Lazair Series II, two Rotax 185 9.5 hp on the wing, direct drive',
+    sources: {
+      wiki: { what: 'en.wikipedia.org Ultraflight Lazair, Series II specifications', quality: 'encyclopedia', read: '2026-11-24', url: 'https://en.wikipedia.org/wiki/Ultraflight_Lazair' },
+      allaero: { what: 'all-aero.com, Ultraflight Manufacturing Lazair (the Rotax 185 version)', quality: 'thin', read: '2026-11-24', url: 'https://all-aero.com/2025/04/27/ultraflight-manufacturing-lazair' },
+      pp: { what: 'Plane & Pilot, Ultralight April 2020, the vintage series: UltraFlight Lazair', quality: 'review', read: '2026-11-24', url: 'https://planeandpilotmag.com/ultralight-april-2020-sixth-in-the-vintage-series-ultraflight-lazair/' },
+      pilotmix: { what: 'pilotmix.com Lazair: stall, cruise, Vne', quality: 'thin', read: '2026-11-24', url: 'https://www.pilotmix.com/lazair' },
+    },
     src: 'en.wikipedia.org/wiki/Ultraflight_Lazair (Series II: 2 x Rotax 185 9.5 hp, 36 ft 4 in, 143 ft2, empty 210 lb, MTOW 450 lb) + all-aero.com (the Rotax 185 Lazair: empty 183 lb, ~400 fpm, TO ~100 ft, stall 17-22 mph, L/D 12-13) + planeandpilotmag.com Apr 2020 (Series 2 and 3 climbed ~450-500 fpm; an owner: 200-250 fpm on 185s); pilotmix.com/lazair: stall 25 mph, cruise 40 mph, Vne 65 mph',
     poh: { vr: 1.15, vy: 1.35, flapTO: 0, flapLDG: 0, brake: 0.4 },
     rows: {
-      empty: { v: [183 * LB, 210 * LB], tol: 0.03, src: '183 lb (all-aero) - 210 lb (wikipedia)' },
-      Vs1:   { v: [20 * MPH, 25 * MPH], tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 17-22 mph (all-aero), 25 mph (pilotmix)' },
-      V75:   { v: [35 * MPH, 45 * MPH], tol: 0.08, kg: 'unknown', src: 'cruise ~40 mph (pilotmix)' },
-      roc:   { v: [250 * FPM, 500 * FPM], tol: 0.05, kg: 'unknown', src: '~400 fpm (all-aero), 450-500 fpm (Plane & Pilot), 200-250 fpm (an owner on 185s)' },
-      LD:    { v: [12, 13], tol: 0.10, kg: 'unknown', src: 'best glide 12-13:1 (all-aero)' },
-      TO:    { v: [80 * FT, 120 * FT], tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'take-off ~100 ft (all-aero)' },
+      empty: { v: [183 * LB, 210 * LB], tol: 0.03, src: '183 lb (all-aero) - 210 lb (wikipedia)', from: 'allaero' },
+      Vs1:   { v: [20 * MPH, 25 * MPH], tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 17-22 mph (all-aero), 25 mph (pilotmix)', from: 'allaero' },
+      V75:   { v: [35 * MPH, 45 * MPH], tol: 0.08, kg: 'unknown', src: 'cruise ~40 mph (pilotmix)', from: 'pilotmix' },
+      roc:   { v: [250 * FPM, 500 * FPM], tol: 0.05, kg: 'unknown', src: '~400 fpm (all-aero), 450-500 fpm (Plane & Pilot), 200-250 fpm (an owner on 185s)', from: 'pp' },
+      LD:    { v: [12, 13], tol: 0.10, kg: 'unknown', src: 'best glide 12-13:1 (all-aero)', from: 'allaero' },
+      TO:    { v: [80 * FT, 120 * FT], tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: 'take-off ~100 ft (all-aero)', from: 'allaero' },
     } },
   // PILATUS PC-6/B2-H4 TURBO PORTER (FIT-PROCEDURE, the drafting table 11-16 Nov; tools/drafting/refs/pc6.json - the type
   // certificate prevails). The factsheet's figures are ISA, the STOL technique; its TO50 / LDG50 state no weight.
@@ -429,6 +441,10 @@ Object.assign(REFS, {
 //   specs: engine (name), hp (per engine), nE, propD (m), blades, empty, mtow (kg), fuelL, seats
 // ---------------------------------------------------------------------------------------------------------------------
 const GEO = {
+  minimax1100r: { dims: { span: 7.62, S: 10.45 },
+                  specs: { engine: 'Hirth F-33 / Polini Thor / Simonini Mini 3', hp: [28, 38], nE: 1, empty: [104, 121], mtow: 254, seats: 1 } },
+  lazair:   { dims: { span: 11.07, S: 13.3 },
+              specs: { engine: 'Rotax 185', hp: 9.5, nE: 2, empty: [83, 95], mtow: 204, seats: 1 } },
   velis:    { dims: { span: 10.71, length: 6.47, height: 2.06, S: 9.51, hSpan: 2.18, track: 1.60 },
               specs: { engine: 'Pipistrel E-811-268MVLC', hp: 77, nE: 1, propD: 1.64, blades: 3, empty: 428, mtow: 600, seats: 2 },
               src: 'EASA TCDS A.573 issue 13 section B + POH-128 rev B00 (1-5, 7-8, 7-25)', lengthNote: 'overall (TCDS SW 128)' },

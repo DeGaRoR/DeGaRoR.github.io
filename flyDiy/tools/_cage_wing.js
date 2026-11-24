@@ -432,7 +432,7 @@ const WING_ITEMS = [
 // (biplane audit, 2026-09-21: wgDy dropped too — the second plane's
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
-const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil', 'wgStrutSec', 'wgJury',   // T2.3: the strut count is the fuselage fan's
+const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil', 'wgStrutSec', 'wgJury', 'wgStrutAxle',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
                          'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',
                          'wgBrake', 'wgBrakeAt', 'wgBrakeLen', 'wgBrakeH',   // (AIRBRAKES: the first plane's) TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
