@@ -2536,7 +2536,14 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "no progress: already loaded [declined]",
+    "sim": "L40K",
+    "sig": "b43790d4"
+   }
   },
   {
    "id": "obs.05",
@@ -2978,6 +2985,13 @@
      "who": "adam",
      "text": "ct.clients.03.done"
     }
+   },
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "no progress: stopped at Skyline Altiport, not Jolene AFB 13/31",
+    "sim": "L40K",
+    "sig": "ddc3c380"
    }
   },
   {

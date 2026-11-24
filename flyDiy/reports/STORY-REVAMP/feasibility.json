@@ -7,11 +7,11 @@
   "feasible": 52,
   "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
-  "not flown": 13,
-  "infeasible": 10,
+  "not flown": 11,
+  "infeasible": 12,
   "stale": 5
  },
- "flownS": 96911,
+ "flownS": 98172,
  "rows": [
   {
    "id": "field.01",
@@ -1602,7 +1602,57 @@
    "id": "obs.04",
    "where": "observatory:3",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 0,
+   "why": "no progress: already loaded [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
@@ -1746,7 +1796,37 @@
    "id": "clients.03",
    "where": "contract",
    "kind": "challenge",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "STOL Cub",
+   "timeS": 1261,
+   "why": "no progress: stopped at Skyline Altiport, not Jolene AFB 13/31",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 572,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "tw_ski",
+     "to": "HOME",
+     "t": 689,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {

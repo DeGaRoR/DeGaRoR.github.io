@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 10 infeasible; 3 no official plane can fly it (the player builds one); 13 not flown; 5 stale. Time flown: 1615 min 11 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 12 infeasible; 3 no official plane can fly it (the player builds one); 11 not flown; 5 stale. Time flown: 1636 min 12 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -52,7 +52,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 10 infea
 | obs.01 | observatory:1 | stale | - | - | - |  |
 | obs.02 | observatory:2 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 11 min 18 s | HOME > mt_strip 678 | the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax |
 | obs.03 | observatory:2 | stale | - | - | - |  |
-| obs.04 | observatory:3 | not flown | - | - | - |  |
+| obs.04 | observatory:3 | infeasible | PC-6 Turbo Porter | - | HOME > HOME 0; HOME > HOME 0; HOME > HOME 0 | no progress: already loaded [declined] |
 | obs.05 | observatory:3 | stale | - | - | - |  |
 | obs.06 | observatory:4 | not flown | - | - | - |  |
 | obs.07 | observatory:4 | not flown | - | - | - |  |
@@ -61,7 +61,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 10 infea
 | clients.01 | contract | feasible | Jodel D112 | 34 min 08 s | HOME > w3 1191; w3 > tw_ski 857 |  |
 | clients.n1 | contract | feasible | Cessna 172 | 21 min 27 s | HOME > w3 625; w3 > HOME 663 |  |
 | clients.n2 | contract | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 175 kg aboard, the cabin takes 90 kg; jodel: Jodel: 175 kg aboard, the cabin takes 90 kg; c172: Cessna 172: stretcher (2 x 0.6 x 0.5 m) passes no door; c172f: Ce |
-| clients.03 | contract | not flown | - | - | - |  |
+| clients.03 | contract | infeasible | STOL Cub | 21 min 01 s | HOME > tw_ski 572; tw_ski > tw_ski 689 | no progress: stopped at Skyline Altiport, not Jolene AFB 13/31 |
 | clients.02 | contract | order | - | - | - |  |
 | clients.04 | contract | order | Piper Cub | 10 min 17 s | HOME > HOME 617 |  |
 | clients.b1 | contract | order | - | - | - |  |
