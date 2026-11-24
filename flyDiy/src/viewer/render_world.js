@@ -4257,6 +4257,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
       return null;
     };
+    let IMP_DEFER = null;                  // (PERF-WORLDBUILD, 24 Nov: the bakes a caller defers - bakeImpostorAtlasNow, the queued replant)
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
     let BAKE_RED = null;
     const bakeReduce = () => { if (BAKE_RED) return BAKE_RED; const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), MATLIB.make(THREE, 'shader', { uniforms: { uSrc: { value: null } },
@@ -4395,6 +4396,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           return atlas;
         }
       }
+      // PERF-WORLDBUILD (24 Nov 2026): THE BAKE'S GPU WORK IS `run`, AND A CALLER MAY DEFER IT (IMP_DEFER: the replant queued
+      // after the build, under a host's budget - every atlas of the planting was baked in ONE task: 0.55-0.75 s of a live
+      // garage's frames, PERF-LEAD's rows of 23-24 Nov). Deferred: the layer is taken HERE (the layers' order is the calls'
+      // order, as it was), the atlas is handed back naming the arrays - its cards draw nothing until its sheet is in - and
+      // `run` is queued; the caller runs the queue a bake a task. Not deferred (every other caller): run now, as it was.
+      const run = layerPre => {
       const N = IMP_G * IMP_TILE;
       // LOOK-1 2c: THE SHEET'S EDGE IS COVERAGE, NOT A STEP. A tile's leaves are a hard mask, and at one sample a texel an impostor's outline was binary at its finest level: the
       // "pixely" crown. The tile is drawn at twice the size and reduced by a box, so the alpha carries the coverage. The sheet is premultiplied (cleared to transparent black), so
@@ -4519,7 +4526,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // THE SHEET'S LAYER (PERF 2026-09-23 - see IMPA): the two targets copied into the arrays at
       // `layer`; atlas.tex / atlas.nrm name the arrays (a truthy "this atlas is drawable" for the
       // callers that asked it of the sheet), the materials read them through IMPA.U
-      const layer = IMPA.take();
+      const layer = layerPre >= 0 ? layerPre : IMPA.take();
       if (layer < 0) { atlas.refused = true; return atlas; }
       if (IMPA.stub) { atlas.layer = layer; atlas.tex = atlas.nrm = new THREE.DataTexture(null, 1, 1); return atlas; }   // headless: the loop ran, there is nothing to copy
       const at0 = new THREE.Vector3(0, 0, layer);
@@ -4534,6 +4541,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         renderer.copyTextureToTexture(T, R.texture, new THREE.Box3(new THREE.Vector3(0, 0, atlas.layer), new THREE.Vector3(N, N, atlas.layer + 1)), null);
         renderer.readRenderTargetPixels(R, 0, 0, N, N, px); return px; };
       return atlas;
+      };
+      if (IMP_DEFER && !IMPA.stub) {
+        const layer = IMPA.take(); if (layer < 0) { atlas.refused = true; return atlas; }
+        atlas.layer = layer; atlas.tex = IMPA.col; atlas.nrm = IMPA.nrm; atlas.pending = true;
+        IMP_DEFER.push(() => { try { run(layer); } finally { atlas.pending = false; } });
+        return atlas;
+      }
+      return run(-1);
     }
     // G3184 (CARD-MATCH, the one source; the user 13 Oct: "we also need a mechanism to keep them in sync"): A STAND CARD
     // COMPOSED FROM ITS SPECIES' OWN SHEETS. The card was a block of 16 trees' L1 geometry baked as one picture - measured
@@ -6002,6 +6017,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       };
       setTimeout(tick, 0);
     });
+    // (...and the replant itself, under a host's budget: plantWoodland with its impostor bakes DEFERRED - bakeImpostorAtlasNow,
+    //  IMP_DEFER - then a bake a task; the arrays' mips are made once, after the last; the after-build queue waits for the
+    //  promise. treeWarm.bakes / .baked count them.)
+    const replantBakes = () => {
+      let jobs = null; IMP_DEFER = [];
+      try { plantWoodland(); } finally { jobs = IMP_DEFER; IMP_DEFER = null; }
+      if (!jobs || !jobs.length) return null;
+      const tw = scene.userData.treeWarm || null; if (tw) { tw.bakes = jobs.length; tw.baked = 0; }
+      return new Promise(res => { let i = 0;
+        const tick = () => {
+          try { jobs[i](); } catch (e) { console.warn('trees: a deferred impostor bake: ' + (e && e.message)); }
+          i++; IMPA.dirtyMips = i >= jobs.length; if (tw) tw.baked = i;
+          if (i < jobs.length) setTimeout(tick, 0); else res();
+        };
+        setTimeout(tick, 0); });
+    };
     if (treeWarmOn()) {
       try {
         const W = treeWarmPlan('build');
@@ -6018,7 +6049,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // world drew the 14-triangle cone it has drawn since W17. A rejection is
     // the asset-absent path and already handled — the cone stays.
     if (!treesSettled())
-      treeSettle().then(() => afterBuild(HOSTB ? (() => treeWarmTicks().then(plantWoodland, plantWoodland)) : plantWoodland)).catch(() => {});
+      treeSettle().then(() => afterBuild(HOSTB ? (() => treeWarmTicks().then(replantBakes, replantBakes)) : plantWoodland)).catch(() => {});
 
     // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
     // stands render sparse even with the clump layer. This plants
