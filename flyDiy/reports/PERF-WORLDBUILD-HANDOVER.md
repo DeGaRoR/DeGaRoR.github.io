@@ -90,8 +90,12 @@ of 50 ms+, 11 over 100 ms, 5.7 s; garage 37.0 s, world ready 92.6 s. Why, and th
 bake's worst task 549 ms (677-752 on quiet rows), its total unchanged (5 tasks, 3 over 100 ms, 1 449 ms; two gaps between
 frames of 550 and 566 ms): the uploads left the task, the bake's own draws and links stayed. Settle 21 tasks / 5 over 100 /
 worst 387 (busy); town 3 / 1 / 191; after the world step 139. No error. `claude/ready/perf-worldbuild-8` (the bakes one a
-task, deferred in the queued replant) has NO row yet and lands only if its row shows no bake task over ~200 ms and no
-'impostor bake: ... sheet EMPTY / BLACK' in the page's errors.
+task, deferred in the queued replant) in the browser (PERF-LEAD, 24 Nov 14:01, quiet, build ba665452292f): THE DEFERRAL IS
+SOUND - no 'EMPTY', 'BLACK' or deferred-bake error in the page's words, bakes 57 = baked 57, the far trees after Go present,
+lit, not black. BUT IT MADE THE WORST FREEZE WORSE: one task of 1 466 ms in the first deferred tick, which links three
+programs synchronously (the tree library's M_Bark.009 354 ms, M_Branch.009 27 ms, 'forest / impostor bake / normals'
+1 077 ms); 'world: (not the build's)' 4 tasks, 2 over 100, 1 755 ms. Before, the bakes shared those link waits with the
+draws. PERF-LEAD: -8 IS OUT for L40N; `claude/ready/perf-worldbuild-7` is the last that lands.
 
 ## 2. The world build's steps, as they stand
 
@@ -203,16 +207,16 @@ LAKEBED lift the drawn lakes' closure; LOOKS quotes the fields texture's line): 
 
 ## 5. Next, in order
 
-0. THE 650-750 ms TASK IS THE TREE IMPOSTORS' BAKE (cut from `GF_READY.cpuprofile.json` at 66.4 s: plantWoodland <
-   impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll - the bake's draws are the tree models' first: maps
-   377 ms, buffers 115-142 ms, a link wait 50 ms). On a cold load it does NOT run in the build's 'trees' step (the tree
-   maps have not landed: cones) but in the replant queued after the build - so `perf-worldbuild-6`, which uploaded the
-   packs at the 'trees' step, never fired (07:30 row). `claude/ready/perf-worldbuild-7` does it before the queued replant,
-   a map or a 16 MB batch a task, and makes the after-build queue wait for it. NEVER RUN IN NODE (the tree maps do not
-   settle there): read `WORLD.scene.userData.treeWarm` in its first browser row - `via: 'after'`, `done: true`, tex > 0 -
-   and look for the bake's task gone. If the bake is still long with treeWarm done, what is left is the bake's own draws
-   and its programs' link (then: the bakes one a task - bakeImpostorAtlasNow split into its prologue, which takes the
-   layer, and its GPU body, queued; the layers' order must stay the calls' order).
+0. THE TREE IMPOSTORS' BAKE (the worst freeze left: 0.55-0.75 s with `perf-worldbuild-7`, which landed). On a cold load
+   it runs in the replant queued after the build (the tree maps land after the 'trees' step). `-7` uploads the tree packs'
+   maps and geometry a task each before it (fired: 57 packs, done). What stays in the bake's task is its own draws and the
+   LINKS of its programs. `claude/ready/perf-worldbuild-8` (pushed, NOT landed) defers the bakes one a task - sound (57 of
+   57, the picture right) but its first tick then met all the links at once: 1 466 ms (14:01 row). THE NEXT STEP, to make
+   -8 what it should be: before the first deferred tick, compileAsync the bake's programs - the tree library's materials
+   as the bake draws them (their clones in bakeImpostorAtlasNow: the same onBeforeCompile, toneMapped false, into the
+   bake's render target, TREE_LEAF.bake on for the albedo pass), the normals' materials (normalMatFor) and the reduce
+   (bakeReduce) - and wait on them through the after-build queue's promise (as the sky's link sleeps: section 3). Then
+   the ticks only draw. Proof by a browser row: no linkwait in a deferred tick, no bake task over ~200 ms. Half a day.
 0b. THE SETTLE'S LONG TASKS (evening row: 371 / 270 / 133 / 100 / 96 ms at 79.6-81.6 s; cut the same profile there).
    Every streamer honours the slice's clock (`FLYDIY_SLICE.until`) only before STARTING a unit, and the unit is atomic:
    scenery_life.js tick < place < mastLife < freeForMast < offRoad < roadDist (the life's whole stand in one call, with
