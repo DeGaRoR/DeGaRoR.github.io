@@ -319278,3 +319278,21 @@ under the loading screen (1.4 s, 1.7 s before the screen goes), no freeze at the
 NOT DONE: the world build's six switches (stripw, patchw, roadw, nearfirst, compsteps, settle=near) are still switches - the default page builds
 the world the slow way behind the garage until claude/ready/perf-worldbuild-5 flips them under the live host. THE FALLBACK is one line:
 GF_DEFAULT false. VISIBLE: the game opens in the garage; the side sheds appear a moment after the world.
+
+## PERF-LEAD 4 - THE SWITCHES THAT MEASURED WELL ARE ON BY DEFAULT; GATE WATER GREEN AGAIN (24 Nov 2026, claude/ready/perf-lead-4 on perf-lead-3 + claude/ready/perf-worldbuild-5)
+The user, 23 Nov 22:10: "turn them on by default. Let's ensure that you turn on all switches leading to good results, we can turn them off easily
+afterwards, when I'll have a look." ... "try and get some headroom on the graphic card, maybe reach below 30 ms per frame?"
+- ON BY DEFAULT ON A REAL PAGE (the node page, flydiy-node, keeps every old default - its pins stand): ?mirpace (water.js: a live mirror capture kept
+  while the eye has barely moved; ?mirpace=0), ?farslots (render_world.js: the far terrain's buffers refilled in place; ?farslots=0), and under the
+  live garage-first host PERF-WORLDBUILD's six (stripw, patchw, roadw, compsteps by its -5; nearfirst and settle=near by FLYDIY_WORLD_DEFAULTS).
+- ?mirlean STAYS A SWITCH: it takes the grass and the cover out of a lake's reflection from high up, and the user's rule of 20 Oct is that lakes keep
+  the full mirror (GATE WATER). On only with his word on that rule.
+- GATE WATER WAS RED ON perf-lead-1, -2 AND -3: the lab's ?mirlean cut of 22 Nov had rewritten the mirror's pinned skip-list line (the gate was not in
+  the lab's set). The line is restored, the lean case beside it; perf-lead-2b is perf-lead-2 with that one commit.
+- renderer.compile under a live garage-first run puts back the program the garage's frames were drawing, for every caller.
+MEASURED 24 Nov 03:00, quiet box, headed 5120x1440, build a843af6b52cf. THE JOURNEY's first 8 minutes (?boot=loadfirst): 72.6 % of seconds at 29+
+frames (54-55 % before), the graphics card 24.1 ms a frame median (32.7), 5 frames over 100 ms (17-31), worst 283 ms, 21 of 26 blocks uneven, no page,
+longest screen gap 210 ms. THE PLAIN ADDRESS: the garage at 32.0 s, the world ready 90.6 s after; the garage meanwhile 15 tasks over 100 ms, worst
+0.75 s (the tree impostor atlases' bake: PERF-WORLDBUILD's -6), 4.2 s of freezes a minute against the user's 2; no freeze at the reveal.
+VISIBLE, NOT YET LOOKED AT BY THE USER: a reflection kept a little longer; a strip drawn coarse for a moment and stand-in cards for longer past
+1.5 km while the world loads behind the garage.
