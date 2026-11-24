@@ -48,7 +48,10 @@
 // ============================================================
 var CLOUDS = (function () {
   'use strict';
-  const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
+  const S = { overcast: 1, ovcRho: 0.1,   // ovcRho (RAIN 13): a full deck's mean density for its diffuse light (tau = sigma x ovcRho x thickness); 0.1 (was 0.35): THE USER 23 Nov, "the lighter grey option definitely, maybe even less than this"
+                // THE OVERCAST (17 Nov): a deck at cover >= 0.85 - a solid base, darker under its thickness (0 = as before)
+    rainExt: 1, rainLight: 0.6, rainKm: 30, rainSteps: 6,   // RAIN step 1c (16 Nov): the shafts' density (x the 07d law), the sky light in them, their reach (km), the steps (lean 4)
+    mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
               shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, noiseMips: 0, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
@@ -67,6 +70,7 @@ var CLOUDS = (function () {
     uAmbTop: { value: null }, uAmbBot: { value: null }, uScale: { value: 1 }, uSteps: { value: null }, uFrame: { value: 0 },
     uDials: { value: null }, uCloudTex: { value: null }, uKeyTex: { value: null }, uTexel: { value: null }, uUp: { value: 1 }, uPM: { value: 0 },
     uShadowK: { value: null }, uDials2: { value: null }, uDepthK: { value: 1 }, uEye: { value: null }, uShape: { value: null },
+    uRain: { value: null }, uRainW: { value: null },   // RAIN step 1c: (the day's rain or 0, the density dial, steps, reach m) / (wind x / vFall, wind z / vFall, the sky light, 0)
   };
   // THE SHADOW'S SHARED UNIFORM: the scalars by reference through ShaderLib and inject(); the tile itself is
   // in ATMO's atlas (uApAtlas, already on every fogged program)
@@ -137,8 +141,11 @@ var CLOUDS = (function () {
     uniform vec4 uGlob;             // sigma (/m at full density), the map's span (m), detail period (m), the deck count
     uniform vec4 uLayerA[MAXL];     // per deck: base (m), thickness (m), on (1 / 0), the base noise's period (m)
     uniform vec4 uProfA[MAXL];      // per deck: bot, top, erode (the worley fbm's share subtracted from the base), coverage gain
-    uniform vec4 uDriftA[MAXL];     // per deck: drift x, drift z (m, the wind at the deck x the clock), 0, 0
-    uniform vec4 uShape;            // detail strength, curl, 0, 0
+    uniform vec4 uDriftA[MAXL];     // per deck: drift x, drift z (m, the wind at the deck x the clock), the deck's cover (THE OVERCAST, 17 Nov), 0
+    uniform vec4 uShape;            // detail strength, curl, the overcast's strength (17 Nov), 0
+    // THE OVERCAST (17 Nov; the user: "the cloud coverage is not there" - a storm's cb 98 % drew a wispy, pale-blue base that read as
+    // cirrus over a blue sky): how overcast deck li is, 0 below cover 0.85 (fair and broken skies untouched), x the dial
+    float ovcOf(int li) { return smoothstep(0.70, 0.90, uDriftA[li].z) * uShape.z; }   // (RAIN 15, 23 Nov: from 70 % cover - an ordinary 86 % stratus day kept the clear sky's blue deck under 0.85 - 1.0)
     // THE NOISE'S LEVELS (LOOK-1 2a, the study's C4): both 3D textures carry mips, and a ray has no useful derivatives, so every read names its
     // level. The main march sets these from the pixel's footprint; the shadow, the sky fit and the probes stay at level 0, as they were
     float gLodB = 0.0, gLodD = 0.0;
@@ -164,7 +171,7 @@ var CLOUDS = (function () {
       float hf = dn.r * 0.625 + dn.g * 0.25 + dn.b * 0.125;
       hf = mix(hf, 1.0 - hf, clamp(h * 8.0, 0.0, 1.0));           // wispy at the bottom, billowy above
       hf = mix(hf, 0.5, smoothstep(0.5, 2.5, gLodD));             // beyond the texel the erosion goes to its mean (what the levels converge on): the far cloud keeps its mass and loses the alias
-      return remap(base, hf * uShape.x, 1.0, 0.0, 1.0);
+      return remap(base, hf * uShape.x * (1.0 - 0.85 * ovcOf(li)), 1.0, 0.0, 1.0);   // (an overcast's base stays solid: the erosion fades out)
     }`;
 
   // ---- the march --------------------------------------------------------------
@@ -195,11 +202,14 @@ var CLOUDS = (function () {
   const MARCH_GLSL = () => `
     uniform vec4 uSun, uMoon;   // direction xyz, w: the moon lit?
     uniform vec3 uSunCol, uMoonCol, uAmbTop, uAmbBot;   // sun units
+    uniform vec4 uRain, uRainW;   // RAIN step 1c: x the day's rain (0 = dry: the march is what it was), y the density dial, z steps, w reach (m) / the slant per metre of fall, the sky light
     uniform float uScale, uFrame; uniform vec2 uSteps; uniform vec4 uDials, uDials2;   // dials: powder, g, ms decay, maxKm | jitter, the upper decks' shadow softness, the ambient's depth fall-off, 0
     // set by the screen march's main() only: the angle of a march texel (rad, 0 = the dome and the sky fit: level 0, as they were)
     float gPix = 0.0, gFullJ = 0.0, gTm = 0.0;   // gFullJ: the history is on: a whole step's jitter, per frame, at every distance; gTm: out: the cloud's mean distance (m)
     ${DENSITY_GLSL}
     ${ATMO_GLSL()}
+    // RAIN 13: the light falling on a full deck's top, as a grey (the sun x its height / pi + the sky); x 1 / (1 + 0.75 tau (1 - g)) below it
+    float ovcTop() { vec3 E = uSunCol * (max(uSun.y, 0.0) * 0.3183099) + uAmbTop; return dot(E, vec3(0.2126, 0.7152, 0.0722)); }
     float hg(float c, float g) { float g2 = g * g; return (1.0 - g2) / (12.5663706 * pow(1.0 + g2 - 2.0 * g * c, 1.5)); }
     float phase(float c, float g) { return 0.7 * hg(c, g) + 0.3 * hg(c, -0.3 * g); }
     // the light march: optical depth toward the sun from p, within deck li (its self-shadow)
@@ -250,6 +260,33 @@ var CLOUDS = (function () {
       }
       return tIn;
     }
+    // RAIN SHAFTS AND THE VEIL (RAIN step 1c, LOOK-1, 16 Nov 2026; RAIN-STUDY-2026-11-16 section 3 (a)). The ray's stretch BELOW the
+    // lowest live deck's base, to the scene or the reach, in uRain.z steps: each reads the decks' rain potential (the weather map's
+    // A) up-wind by the fall from each base (the shafts slant), x the day's rain; the extinction is the game's own law (07d: R =
+    // 12 rain^1.5 mm/h, 0.25 R^0.63 per km) x a dial; lit by the sky's light and the sun the raining deck lets through. Seen from
+    // afar it is the shaft under the shower; from inside it, the grey of the near distance (the veil) - the same integral, clipped
+    // at the scene's depth. The screen march only (gPix > 0): the dome and the sky's fit never see it.
+    void rainSeg(vec3 o, vec3 d, float r0, float r1, float j, float cosT, inout vec3 col, inout float T, inout float tw, inout float tsum) {
+      float ns = uRain.z, dt = (r1 - r0) / ns;
+      for (int i = 0; i < 8; i++) {
+        if (float(i) >= ns || T < 0.01) break;
+        float t = r0 + (float(i) + j) * dt;
+        vec3 p = o + d * t;
+        float A = 0.0, cov = 0.0, ovR = 0.0, thR = 0.0;
+        for (int li = 0; li < MAXL; li++) {
+          if (uLayerA[li].z < 0.5 || p.y >= uLayerA[li].x) continue;
+          vec3 ps = p - vec3(uRainW.x, 0.0, uRainW.y) * (uLayerA[li].x - p.y);
+          vec4 w = weather(li, ps);
+          if (w.w > A) { A = w.w; cov = w.x; ovR = ovcOf(li); thR = uLayerA[li].y; }
+        }
+        if (A <= 0.0) continue;
+        float R = 12.0 * pow(A * uRain.x, 1.5), ext = 0.00025 * pow(R, 0.63) * uRain.y;
+        float Tstep = exp(-ext * dt), a = 1.0 - Tstep;
+        vec3 Ls = mix(uAmbBot, uAmbTop, 0.5) * uRainW.z + uSunCol * phase(cosT, 0.5) * exp(-cov * 3.0) * step(-0.05, uSun.y);
+        if (ovR > 0.0) Ls = mix(Ls, vec3(ovcTop() / (1.0 + 0.1125 * uGlob.x * uShape.w * thR)), ovR);   // RAIN 13b: under a full deck the veil is lit by its diffused light
+        col += T * Ls * a; tw += T * a * t; tsum += T * a; T *= Tstep;
+      }
+    }
     vec4 march(vec3 o, vec3 d, float tScene, float jitterK) {
       float tMax = min(tScene, uDials.w * 1000.0);
       float s0[MAXL], s1[MAXL]; int ord[MAXL]; int n = 0;
@@ -265,14 +302,23 @@ var CLOUDS = (function () {
         for (; k > 0; k--) { if (s0[k - 1] <= t0) break; s0[k] = s0[k - 1]; s1[k] = s1[k - 1]; ord[k] = ord[k - 1]; }
         s0[k] = t0; s1[k] = t1; ord[k] = li; n++;
       }
-      ${FM_A ? '' : 'if (n == 0) return vec4(0.0);'}
+      float r0 = 0.0, r1 = -1.0;
+      if (uRain.x > 0.0 && gPix > 0.0) {
+        float yb = 1e9; for (int li = 0; li < MAXL; li++) if (uLayerA[li].z > 0.5) yb = min(yb, uLayerA[li].x);
+        float rEnd = min(tScene, uRain.w);
+        if (o.y < yb) { r1 = d.y > 1e-5 ? min(rEnd, (yb - o.y) / d.y) : rEnd; }
+        else if (d.y < -1e-5) { r0 = (yb - o.y) / d.y; r1 = rEnd; }
+      }
+      bool rainOn = r1 > r0 + 1.0;
+      ${FM_A ? '' : 'if (n == 0 && !rainOn) return vec4(0.0);'}
       vec3 col = vec3(0.0); float T = 1.0, tw = 0.0, tsum = 0.0;
       vec3 L = uSun.xyz; float cosT = dot(d, L), cosM = dot(d, uMoon.xyz);
       float N = uSteps.x, budget = N * 4.0 + 64.0, used = 0.0;   // the step budget, shared by the decks
       // a jitter per PIXEL (interleaved gradient noise) breaks the banding. Without a history it is frozen to the screen (uFrame 0): the
       // clouds slide under a fixed grain, the "smoke pattern" (the study's C1). With one (the main view) it moves per frame and the history averages it
       float j = fract(52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y) + uFrame * 0.618034);
-${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
+${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o, d, r0, r1, j, cosT, col, T, tw, tsum); rainOn = false; }
+      for (int s = 0; s < MAXL; s++) {
         if (s >= n || T < 0.01) break;
         int li = ord[s]; float t0 = s0[s], t1 = s1[s];
         // THE STEP: N steps over the slab when the path is short; a floor and a ceiling on the step so a
@@ -308,7 +354,20 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
           // the sky's light: dimmed under a deck above (to half at most - the sides see round it), and inside the
           // cloud by the depth toward the sun (the sun's march, a proxy for the depth under the top: a core is
           // darker than a fringe - the flat grey underside had no such gradation), never below a third
-          Ls += mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z));
+          // THE OVERCAST'S LIGHT (RAIN 13, 21 Nov; the 18 Nov shoot read the march itself: the storm deck's radiance ~0.01, blue, the same
+          // with the sky's light off or the sun off - the deck was nearly BLACK and the thin haze before it was all the eye saw). The
+          // march carries the sun's light only along near-straight paths (the octaves: exp(-od a)), which 4 km of cloud kills; a real
+          // overcast is bright because the light DIFFUSES down through it - a plane-parallel cloud of optical depth tau passes
+          // ~1 / (1 + 0.75 tau (1 - g)) of what falls on its top (the two-stream result; g 0.85 for droplets), and the many scatterings
+          // mix the hues: neutral. So on a full deck (ovcOf) the sky light term is that diffuse light: the sun and the sky on the top
+          // (uSunCol x the sun's height / pi + uAmbTop), through the cloud ABOVE the sample (tau x (1 - h): brighter toward the top),
+          // grey. tau = sigma x the column's mean density (S.ovcRho, 0.1 since the user's look) x the deck's thickness: a 300 m stratus passes 0.79, a 4 km
+          // storm ~7 %. A fair or broken sky (ovcOf 0) is exactly as it was. No new program: two lines in the march.
+          float ovG = ovcOf(li);
+          vec3 ambL = mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z));
+          if (ovG > 0.0) { float tauA = uGlob.x * uShape.w * uLayerA[li].y * (1.0 - h);
+            ambL = mix(ambL, vec3(ovcTop() / (1.0 + 0.1125 * tauA)), ovG); }
+          Ls += ambL;
           float a = 1.0 - Tstep;
           col += T * Ls * a;
           tw += T * a * t; tsum += T * a;
@@ -316,13 +375,23 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
           t += dt;
         }
       }
+      if (rainOn) rainSeg(o, d, r0, r1, j, cosT, col, T, tw, tsum);
       float alpha = 1.0 - T;
       if (alpha < 0.002) return vec4(0.0);
       // the aerial perspective and the mist at the cloud's transmittance-weighted mean distance
       float tm = tsum > 0.0 ? tw / tsum : s0[0];
       gTm = tm;
       vec3 c = col / max(alpha, 1e-4);
-      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001)); c = c * ap.a + ap.rgb; c = mistApply(c * uScale, d, tm, o.y) / uScale; }
+      // THE OVERCAST'S AIR (RAIN 12b, 17 Nov; the 18:05 shoot: the storm deck OPAQUE at the screen's centre, alpha 0.997, and still blue):
+      // the haze was taken at the cloud's MEAN distance - kilometres deep in a 4 km deck whose thin base lets the eye in - so the clear
+      // sky's blue in-scatter of kilometres of air was laid over a cloud that IS that air. The clear air ends at the deck: on a full deck
+      // (ovcOf) the haze is taken at the first deck's entry (after gTm: the history keeps the cloud's mean distance). Every fair and
+      // broken sky keeps the mean distance, exactly as it was
+      float ovA = 0.0;
+      if (n > 0) { ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }
+      // (RAIN 13b) and the air under a full deck is lit by the deck, not by the sun and the blue dome: there the haze's in-scatter takes
+      // the cloud's own neutral light (its transmittance kept) - the 18 Nov read: the blue the eye saw was this in-scatter
+      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001)); c = c * ap.a + mix(ap.rgb, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))) * (1.0 - ap.a), ovA); c = mistApply(c * uScale, d, tm, o.y) / uScale; }
       return vec4(c * uScale, alpha);
     }`;
   // the fullscreen march: the ray from the inverse projection, the scene's depth from the resolve target
@@ -649,6 +718,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     U.uSteps.value = new THREE.Vector2(S.steps, S.lightSteps); U.uDials.value = new THREE.Vector4(S.powder, S.g, S.ms, S.maxKm); U.uTexel.value = new THREE.Vector2();
     U.uShadowK.value = new THREE.Vector2(S.shadowSteps, 1); U.uDials2.value = new THREE.Vector4(S.jitter, 0, 0, 0); U.uEye.value = new THREE.Vector3();
     U.uShape.value = new THREE.Vector4(S.detail, S.curl, 0, 0); U.uDZ.value = new THREE.Vector3(0, 0.5, 1e5);
+    U.uRain.value = new THREE.Vector4(0, 1, 6, 30000); U.uRainW.value = new THREE.Vector4(0, 0, 0.6, 0);
     const uni = Object.assign({}, U);
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
     else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
@@ -838,7 +908,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
       const per = q => map.span / Math.max(1, Math.round(map.span / q));
       LA[o] = l.base; LA[o + 1] = l.thick; LA[o + 2] = l.cover > 0.003 ? 1 : 0; LA[o + 3] = per(S.period > 0 ? S.period : T.period);
       PA[o] = T.bot; PA[o + 1] = T.top; PA[o + 2] = T.erode * S.erodeK; PA[o + 3] = S.calCover ? coverGain[i] : S.covGain;
-      DA[o] = wrapSpan(drifts[i][0], map.span); DA[o + 1] = wrapSpan(drifts[i][1], map.span); DA[o + 2] = 0; DA[o + 3] = 0;   // G1050: wrapped (below)
+      DA[o] = wrapSpan(drifts[i][0], map.span); DA[o + 1] = wrapSpan(drifts[i][1], map.span); DA[o + 2] = l.cover; DA[o + 3] = 0;   // G1050: wrapped (below); z the deck's cover (THE OVERCAST)
     }
     U.uGlob.value.set(S.sigma, map.span, map.span / Math.max(1, Math.round(map.span / S.detailPeriod)), L.length);   // the detail's period divides the span too
     // the clock's seconds for the drift: the day's UT seconds plus a per-date offset (97 days' worth wraps) - a
@@ -846,6 +916,8 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     // 11 m detail jittered); continuous through a day, a jump at the date's roll
     drift[0] = drifts[0][0]; drift[1] = drifts[0][1];
     const wx = winds[0][0], wz = winds[0][1];   // the first deck's wind (the veil's is scaled from it)
+    // RAIN (step 1, 16 Nov): the local rain at the eye - what the near rain, the glass, the sound and the airframe's wash read
+    if (camera && camera.position) rainEye = rainAt(camera.position.x, camera.position.z, camera.position.y); else rainEye = rainAt(0, 0, 0);
     // the light: the sun's transmittance at the layer's middle, the sky's irradiance at its top, the ground's light below
     const midKm = (lay.base + lay.thick * 0.5) / 1000, topKm = lay.top / 1000;
     const sun = day.sun, moon = day.moon, A = (typeof ATMO !== 'undefined') ? ATMO : null;
@@ -871,7 +943,14 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
       U.uScale.value = A.U.scale.value;
     } else { U.uSunCol.value.set(1, 1, 1); U.uAmbTop.value.set(0.2, 0.25, 0.35); U.uAmbBot.value.set(0.1, 0.1, 0.1); }
     U.uSteps.value.set(S.steps, S.lightSteps); U.uDials.value.set(S.powder, S.g, S.ms, S.maxKm); U.uDials2.value.set(S.jitter, S.shadowSoft, S.ambDepth, 0);
-    U.uShape.value.set(S.detail, S.curl, 0, 0);
+    U.uShape.value.set(S.detail, S.curl, S.overcast, S.ovcRho);
+    if (U.uRain.value) {
+      const G = typeof window !== 'undefined' && window.GFX && window.GFX.get ? window.GFX.get() : null, q = typeof location !== 'undefined' && /[?&]rain=0(?![.0-9]*[1-9])/.test(location.search || '');
+      const tier = G && G.rain === 'off' ? 'off' : (G && (G.rain === 'lean' || (G.rain !== 'full' && /^(laptop|potato|retro)$/.test(G.preset || ''))) ? 'lean' : 'full');
+      const r = !q && tier !== 'off' && dayRef && +dayRef.rain > 0 ? Math.min(1, +dayRef.rain) : 0, vF = (typeof CLOUD_FIELD !== 'undefined' && CLOUD_FIELD.VFALL) || 6.5;
+      U.uRain.value.set(r, S.rainExt, tier === 'lean' ? Math.min(4, S.rainSteps) : S.rainSteps, S.rainKm * 1000);
+      U.uRainW.value.set(winds[0][0] / 1.5 / vF, winds[0][1] / 1.5 / vF, S.rainLight, 0);
+    }
     lastCover = L.reduce((m, l) => Math.max(m, l.cover), 0);   // any deck with cover keeps the pass live
     // THE VEIL (C4): cirrus over the low layer - a share of the cover by type (a cumulus day carries a thin
     // one, an overcast a fuller), drifted by the upper wind (twice the surface's, veered), lit by the sun's
@@ -1137,7 +1216,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     if (!ready || !renderer) return null;
     const out = {};
     if (rt) { const px = new Uint16Array(4 * 16 * 16); renderer.readRenderTargetPixels(rt, (rtW >> 1) - 8, (rtH >> 1) - 8, 16, 16, px);
-      let a = 0, c = 0; for (let i = 0; i < 256; i++) { a += px[i * 4 + 3]; c += px[i * 4]; } out.marchA = a / 256; out.marchR = c / 256; }
+      let a = 0, c = 0, g = 0, b = 0; for (let i = 0; i < 256; i++) { a += px[i * 4 + 3]; c += px[i * 4]; g += px[i * 4 + 1]; b += px[i * 4 + 2]; } out.marchA = a / 256; out.marchR = c / 256; out.marchG = g / 256; out.marchB = b / 256; }   // (RAIN 12c: G and B - the overcast's hue, read straight from the march)
     const px = new Float32Array(4 * PROBE_N * PROBE_N);
     for (const [k, w] of [['noise', 0], ['detail', 1], ['weather', 2], ['depth', 3], ['shadow', 4]]) {
       probeRead(renderer, w, px);
@@ -1175,7 +1254,26 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     try { r.setRenderTarget(t); quad.material = marchMat; r.render(fsScene, fsCam); } finally { r.setRenderTarget(prev); t.dispose(); }
     return true;
   }
-  const API = { S, init, install, inject, update, draw, composite, warmList, warmDraw, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
+  // RAIN (step 1, LOOK-1, 16 Nov 2026; RAIN-STUDY-2026-11-16 section 3.0): the rain rate 0..1 at (x, z, h) from the DRAWN decks -
+  // the same fitted maps and drifts the march samples, so you fly into the shower you saw. Each deck's A channel (its rain
+  // potential) x the day's rain, read up-wind below the base (the shafts slant: the wind at the base, not the 1.5 x the
+  // clouds ride); the wettest deck wins. A dry day reads nothing and returns 0. With the cloud pass off (a phone tier) there
+  // is no drawn deck to rain from: the day's rain, uniform.
+  let rainEye = 0;
+  const _rw = [0, 0];
+  function rainAt(x, z, h) {
+    const r = dayRef && +dayRef.rain > 0 ? Math.min(1, +dayRef.rain) : 0;
+    if (!r) return 0;
+    if (S.mode === 'off' || !maps.length || typeof CLOUD_FIELD === 'undefined' || !CLOUD_FIELD.rainAt) return r;
+    let best = 0;
+    for (let i = 0; i < lays.length && i < maps.length; i++) {
+      const l = lays[i]; if (!(l.cover > 0.003)) continue;
+      _rw[0] = winds[i][0] / 1.5; _rw[1] = winds[i][1] / 1.5;
+      const v = CLOUD_FIELD.rainAt(maps[i], l, x, z, h, { rain: r, drift: drifts[i], wind: _rw }); if (v > best) best = v;
+    }
+    return best;
+  }
+  const API = { S, init, rainAt, get rain() { return rainEye; }, install, inject, update, draw, composite, warmList, warmDraw, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();

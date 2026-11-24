@@ -8937,6 +8937,72 @@
     F.ms = performance.now() - t0;
   }
   if (typeof window !== 'undefined') window.DUST_FX = { get fx() { return dustFx; }, make: () => dustMake() };
+  // RAIN AROUND YOU (RAIN step 1b, LOOK-1, 16 Nov; src/viewer/rain.js): the streaks round the eye, fed by the clouds' local rain
+  // (CLOUDS.rain: the drawn decks' rain potential x the day's rain, read up-wind under the base). MADE LAZILY: nothing is built or
+  // compiled until it first rains near the eye - a dry day never pays the program. ?rain=0 switches it off (no program ever);
+  // the GRAPHICS row 'rain' picks the tier (off / lean / full). The eye's velocity is the camera's own (any view: a parked
+  // chase, the cockpit at 50 m/s, the free eye), smoothed; in the cockpit the box round the head is dry and the density falls
+  // with airspeed (the windscreen carries the rest). Not yet: roofs (setRoofs is there, the premises' list is not wired) and
+  // the landing light's cone - the next steps.
+  const RAIN_Q = (() => { try { const m = /[?&]rain=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
+  let rainFx = null;
+  const RAIN_ST = { t: 0, last: null, vel: [0, 0, 0], vp: null, cabInv: null, light: null, why: 'dry' };
+  // RAIN ON THE GLASS (step 2 prototype, 17 Nov): the glass's wetness rises in rain (~6 s) and dries out of it (~60 s), handed to the glass
+  // program with the airspeed, the clock and gravity in craft space (world down through the shared uCraftInv) - the drops' flow
+  let glassWet = 0;
+  const _gDown = [0, 0, -1];
+  function glassRainFrame(dt, R, off) {
+    if (typeof AEROWX === 'undefined' || !AEROWX.aeroWxSetRain) return;
+    const target = off ? 0 : (R > 0 ? R : 0);
+    if (dt > 0) { glassWet += (target - glassWet) * Math.min(1, dt / (target > glassWet ? 6 : 60)); if (target === 0 && glassWet < 0.002) glassWet = 0; }
+    if (!(glassWet > 0) && !(target > 0)) { AEROWX.aeroWxSetRain(THREE, 0, 0, 0, null); return; }
+    let g = null;
+    try { const U = window.AEROSKIN && AEROSKIN.aeroSharedU ? AEROSKIN.aeroSharedU(THREE) : null;
+      if (U && U.uCraftInv) { const e = U.uCraftInv.value.elements, x = -e[4], y = -e[5], z = -e[6], n = Math.hypot(x, y, z) || 1; _gDown[0] = x / n; _gDown[1] = y / n; _gDown[2] = z / n; g = _gDown; } } catch (err) {}
+    const V = sim && sim.cgVel ? Math.hypot.apply(null, sim.cgVel()) : 0;
+    AEROWX.aeroWxSetRain(THREE, glassWet, V, RAIN_ST.t, g);
+  }
+  function syncRainFx(dt) {
+    const R = typeof CLOUDS !== 'undefined' && CLOUDS.ready ? CLOUDS.rain : 0, G = window.GFX && window.GFX.get ? window.GFX.get() : null;
+    const pick = RAIN_Q === 0 ? 'off' : ((G && G.rain) || 'auto');
+    const tier = pick === 'auto' ? (G && /^(laptop|potato|retro)$/.test(G.preset || '') ? 'lean' : 'full') : pick;   // auto: lean on the light presets
+    glassRainFrame(dt, R, RAIN_Q === 0);   // the drops on the glass (the streaks' tier does not switch them; ?rain=0 does)
+    // NO FREEZE WHEN THE FIRST SHOWER COMES (RAIN, 21 Nov; the user's table rows 8-9: no frame over 100 ms in flight): the streaks'
+    // one program is made on a day that RAINS SOMEWHERE (the day's rain > 0, ~23 % of the plan's days) while it is still dry here, and
+    // linked off the frame (renderer.compileAsync, the prop disc's way); a dry day never makes it. Until the link lands the streaks
+    // stay hidden (a shower's first fraction of a second without them) - a draw would have linked it synchronously in the frame
+    const dayRains = !!(world && world.day && +world.day.rain > 0);
+    if (!rainFx) {
+      if (!(R > 0 || dayRains) || tier === 'off' || typeof RAIN_FX === 'undefined' || !THREE.InstancedBufferGeometry) { RAIN_ST.why = R > 0 ? 'off (' + tier + ')' : 'dry'; return; }
+      rainFx = RAIN_FX.make(THREE); scene.add(rainFx.mesh);
+      RAIN_ST.vp = new THREE.Vector2(); RAIN_ST.cabInv = new THREE.Matrix4();
+      RAIN_ST.light = { sunCol: new THREE.Color(), skyCol: new THREE.Color() };
+      rainFx.linked = typeof renderer.compileAsync !== 'function';
+      if (!rainFx.linked) { const fx = rainFx; RAIN_ST.linkT0 = performance.now(); fx.mesh.visible = true;
+        renderer.compileAsync(fx.mesh, camera, scene).then(() => { fx.linked = true; RAIN_ST.linkMs = performance.now() - RAIN_ST.linkT0; }, () => { fx.linked = true; });
+        fx.mesh.visible = false; }
+    }
+    if (!rainFx.linked) { rainFx.mesh.visible = false; RAIN_ST.why = 'linking'; return; }
+    camera.updateMatrixWorld();
+    const me = camera.matrixWorld.elements, p = [me[12], me[13], me[14]], S = RAIN_ST;
+    if (dt > 0) {
+      S.t += dt;
+      if (S.last) { const k = Math.min(1, dt * 6); for (let i = 0; i < 3; i++) { const v = (p[i] - S.last[i]) / dt; S.vel[i] += ((Math.abs(v) < 400 ? v : 0) - S.vel[i]) * k; } }
+      S.last = p;
+    }
+    const W = LKW(), L = S.light;
+    let sun = null;
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; sun = [sd.x, sd.y, sd.z];
+      L.sunCol.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); L.skyCol.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity); }
+    renderer.getDrawingBufferSize(S.vp);
+    const cockpit = cam.mode === 'cockpit';
+    if (cockpit) S.cabInv.copy(camera.matrixWorldInverse);
+    const V = sim && sim.cgVel ? Math.hypot.apply(null, sim.cgVel()) : Math.hypot(S.vel[0], S.vel[1], S.vel[2]);
+    rainFx.sync(camera, { rain: R, t: S.t, wind: W ? [W[0], W[1]] : [0, 0], eyeVel: S.vel, cockpit, V, tier, sun, sunCol: L.sunCol, skyCol: L.skyCol,
+      viewport: [S.vp.x, S.vp.y], cabin: cockpit ? { inv: S.cabInv, half: RAIN_FX.LOOK.cabinHalf } : null });
+    S.why = rainFx.drawn ? 'drawn' : (R > 0 ? 'off (' + tier + ')' : 'dry');
+  }
+  if (typeof window !== 'undefined') window.RAIN_LIVE = { get fx() { return rainFx; }, get st() { return RAIN_ST; }, get q() { return RAIN_Q; }, get glassWet() { return glassWet; } };
   // ---- GROUND-FX (16 Nov 2026): THE MUD ON THE AEROPLANE, COMPUTED FROM ITS GEOMETRY, live (ground_deposit.js; the design
   // futureDesigns/GROUND-FX-2026-11-15.md sections 3 and 7). THE USER, 15 Nov: "projecting on the right places, as a function
   // of the actual plane geometry". THE GRID: the flown aeroplane's own meshes in craft space (uCraftInv x each mesh's world),
@@ -22732,6 +22798,7 @@
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
     gdFrame(running ? fdt : 0);                                    // GROUND-FX: the mud computed from the geometry, the dust film, the rain on the skin
+    if (!inGarage) syncRainFx(running ? fdt : 0); else if (rainFx) rainFx.mesh.visible = false;   // RAIN: the streaks round the eye (made the first time it rains)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets

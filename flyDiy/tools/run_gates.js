@@ -123,6 +123,7 @@ const GATES = [
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
   { id: 'FMIST', file: '_fmist_check.js', tier: 'core' },   // FOREST-MIST (2026-11-10): off is identical, the map, the weather's law, the row
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
+  { id: 'RAIN', file: '_rain_check.js', tier: 'core' },   // RAIN step 1 (LOOK-1, 16 Nov): the rain field - the weather map's A channel, rainAt, a dry day dry
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
   // G2820 (STOL-WING): slats / slots, VGs, fences, cuffs, endplates, drooped tips, drooping ailerons, Fowler area

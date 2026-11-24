@@ -134,7 +134,7 @@
   const pretty = name => name.replace(/\.glb$/, '').replace(/_trees_pack_lods_gameready|realistic_|_-_free_download/g, '').replace(/_/g, ' ');
 
   // ---- THE DEFAULTS, for the diff (taken at load, before any look is put back) ------------------
-  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, lawn: null, gsides: null, ladder: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null, bioKnobs: null, shrubCards: null };
+  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, lawn: null, gsides: null, ladder: null, env: null, cliffs: null, rain: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null, bioKnobs: null, shrubCards: null };
   const tintsNow = () => { const L = W.TREE_LEAF, o = {}; if (L && L.collections) for (const col of L.collections()) o[col.name] = clone(col.tint || {}); return o; };
   // G1385 (EDITOR-VEG): the grass's and the bushes' own masters (trees.js KIND_MASTER: cover, shrub)
   const kindTintNow = () => { const L = W.TREE_LEAF; if (!L || !L.kinds) return null; const o = {}; for (const k of L.kinds()) o[k] = L.kindMaster(k); return o; };
@@ -151,6 +151,7 @@
     if (GSD() && !DEF.gsides) DEF.gsides = clone(GSD().GRASS_SIDES_DEF);
     if (GWX() && !DEF.ladder) DEF.ladder = clone(GWX().LADDER_DEF);
     const c = CLF(); if (c && !DEF.cliffs) DEF.cliffs = clone(c.get());
+    if (W.RAIN_FX && !DEF.rain) DEF.rain = rainNow();   // RAIN (16 Nov): the streaks' look
     if (WF() && WF().envAlbedo && DEF.env === null) DEF.env = WF().envAlbedo();
     const L = W.TREE_LEAF; if (L && L.collections && !DEF.tints) { DEF.tints = tintsNow(); if (L.master) DEF.leafMaster = clone(L.master()); }
     if (L && L.kinds && !DEF.kindTint) DEF.kindTint = kindTintNow();
@@ -184,6 +185,7 @@
     if (GSD()) o.gsides = GSD().grassSides();
     if (GWX()) o.ladder = GWX().ladder();
     const c = CLF(); if (c) o.cliffs = c.get();
+    if (W.RAIN_FX) o.rain = rainNow();
     const L = W.TREE_LEAF; if (L && L.collections) { o.tints = tintsNow(); if (L.master) o.leafMaster = clone(L.master()); }
     if (L && L.kinds) o.kindTint = kindTintNow();
     if (W.TREE_MIX) o.treeMix = { furnished: W.TREE_MIX.furnished, spread: W.TREE_MIX.spread };
@@ -201,7 +203,7 @@
     if (N.thin && !same(N.thin, DEF.thin)) o.thin = N.thin;
     if (N.biomes && DEF.biomes) { const map = same(N.biomes.map, DEF.biomes.map) ? null : N.biomes.map, mixes = deltaOf(N.biomes.mixes, DEF.biomes.mixes);
       if (map || mixes) o.biomes = Object.assign({}, map ? { map } : {}, mixes ? { mixes } : {}); }
-    put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs));
+    put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs)); put('rain', deltaOf(N.rain, DEF.rain));
     put('bioKnobs', deltaOf(N.bioKnobs, DEF.bioKnobs)); put('shrubCards', deltaOf(N.shrubCards, DEF.shrubCards));
     put('grass', deltaOf(N.grass, DEF.grass)); put('gsides', deltaOf(N.gsides, DEF.gsides)); put('ladder', deltaOf(N.ladder, DEF.ladder));
     if (N.grassOn !== undefined && DEF.grassOn !== undefined && N.grassOn !== DEF.grassOn) o.grassOn = N.grassOn;
@@ -261,6 +263,7 @@
     if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { gsSet(d); replantGrass(); } }
     if (GWX() && (o.ladder || full)) { const cur = GWX().ladder(), want = Object.assign({}, full ? DEF.ladder || GWX().LADDER_DEF : cur, o.ladder || {}), d = deltaOf(want, cur); if (d) ladderSet(d); }   // (SNOW-MUD LADDER)
     const c = CLF(); if (c && o.cliffs) { const d = deltaOf(Object.assign({}, c.get(), o.cliffs), c.get()); if (d) c.set(d); }
+    if (W.RAIN_FX && o.rain) rainSet(o.rain);
     const L = W.TREE_LEAF;
     if (L && o.tints && L.tintOf) { const cur = tintsNow(); for (const n in o.tints) if (!same(Object.assign({}, cur[n], o.tints[n]), cur[n])) L.tintOf(n, o.tints[n]); }
     if (L && o.leafMaster && L.tint && L.master && !same(Object.assign({}, L.master(), o.leafMaster), L.master())) L.tint(o.leafMaster);
@@ -295,7 +298,7 @@
         splat: 'src/core/28b_ground_fields.js RECIPE (codes, knobs, grade)',
         biomes: 'tools/_trees_tuning.json { biomes, mixes }, then python tools/tree_prep.py',
         stack: 'src/viewer/render_world.js STACK', ground: 'src/viewer/render_world.js GROUND',
-        island: 'src/viewer/render_world.js FILL.island', ring: 'src/viewer/cover_ring.js defaults', cliffs: 'src/viewer/cliffs.js S',
+        island: 'src/viewer/render_world.js FILL.island', ring: 'src/viewer/cover_ring.js defaults', cliffs: 'src/viewer/cliffs.js S', rain: 'src/viewer/rain.js LOOK',
         speciesSize: 'render_world.js SP_SIZE (new)',
         bioKnobs: 'src/core/28c_biomes.js KNOBS (sub*: the subalpine, edge*: the forest edge); subOn / edgeOn: the dials (?subalpine=0, ?forestedge=0)',
         shrubCards: "tools/_trees_tuning.json the species' place (size, bend, lean, tilt, upright) and tint.alpha, then python tools/tree_prep.py", tints: 'tools/_trees_tuning.json per-collection tint',
@@ -327,6 +330,7 @@
     if (DEF.gsides && out.gsides) ch.push(...diff(DEF.gsides, out.gsides, 'gsides'));
     if (DEF.ladder && out.ladder) ch.push(...diff(DEF.ladder, out.ladder, 'ladder'));
     if (DEF.cliffs && out.cliffs) ch.push(...diff(DEF.cliffs, out.cliffs, 'cliffs'));
+    if (DEF.rain && out.rain) ch.push(...diff(DEF.rain, out.rain, 'rain'));
     if (DEF.bioKnobs && out.bioKnobs) ch.push(...diff(DEF.bioKnobs, out.bioKnobs, 'bioKnobs'));
     if (DEF.shrubCards && out.shrubCards) ch.push(...diff(DEF.shrubCards, out.shrubCards, 'shrubCards'));
     if (DEF.env !== null && out.envAlbedo !== undefined && Math.abs(DEF.env - out.envAlbedo) > 1e-9) ch.push({ path: 'envAlbedo', was: DEF.env, now: out.envAlbedo });
@@ -1517,12 +1521,54 @@
     const FR = W.FLYDIY_RAIL;
     if (FR) button(S, 'open DEV on the left rail', () => FR.open('dev'));
     airCard(body);
+    rainCard(body);
     if (Array.isArray(W.FLYDIY_WORLDS) && W.FLYDIY_WORLDS.length) {
       const Mp = sec(body, 'the map', false);
       const cur = W.FLYDIY_WORLD || 'none';
       pills(Mp, W.FLYDIY_WORLDS.map(w => ({ label: w.name, v: w.id })), o => o.v === cur, o => { if (o.v === cur) return; try { localStorage.setItem('flydiy.world', o.v); } catch (e) {} location.reload(); });
       note(Mp, 'picking a map reloads the page; each map keeps its own saved scenery');
     }
+  }
+
+  // THE RAIN (RAIN step 1, LOOK-1, 16 Nov; the user: every new world setting in the world editor): the streaks round the eye
+  // (src/viewer/rain.js LOOK) - numbers only, live (the next frame reads them), kept in THE LOOK, exported, reset with it.
+  // Where it rains is the day's (the left rail's WEATHER: the rain and the clouds); the readout says what the eye has now.
+  const RAIN_KEYS = ['opacity', 'exposure', 'maxLen', 'maxNdc', 'width', 'minPx', 'ambient', 'back', 'backPow', 'vFall', 'nearFade', 'cockpitK', 'cockpitV'];
+  const SHAFT_KEYS = { shaftExt: 'rainExt', shaftLight: 'rainLight', shaftKm: 'rainKm', shaftSteps: 'rainSteps', overcast: 'overcast', ovcRho: 'ovcRho' };   // the shafts' dials: CLOUDS.S (the march)
+  function rainNow() { const L = W.RAIN_FX && W.RAIN_FX.LOOK, C = W.CLOUDS && W.CLOUDS.S, o = {}; if (L) for (const k of RAIN_KEYS) o[k] = L[k];
+    if (C) for (const k in SHAFT_KEYS) if (typeof C[SHAFT_KEYS[k]] === 'number') o[k] = C[SHAFT_KEYS[k]]; return o; }
+  function rainSet(o) { const L = W.RAIN_FX && W.RAIN_FX.LOOK, C = W.CLOUDS && W.CLOUDS.S; if (!o) return;
+    if (L) for (const k of RAIN_KEYS) if (typeof o[k] === 'number' && isFinite(o[k])) L[k] = o[k];
+    if (C) for (const k in SHAFT_KEYS) if (typeof o[k] === 'number' && isFinite(o[k])) C[SHAFT_KEYS[k]] = o[k]; }
+  function rainCard(body) {
+    const R = sec(body, 'the rain', false, 'the streaks round you');
+    if (!W.RAIN_FX) { note(R, 'no rain module on this page'); return; }
+    const L = W.RAIN_FX.LOOK, D = DEF.rain || {}, rs = k => v => { L[k] = v; };
+    range(R, 'opacity', 0, 1, 0.01, () => L.opacity, rs('opacity'), null, D.opacity);
+    range(R, 'streak: exposure', 0.005, 0.2, 0.005, () => L.exposure, rs('exposure'), v => (v * 1000).toFixed(0) + ' ms', D.exposure);
+    range(R, 'streak: longest', 0.1, 6, 0.1, () => L.maxLen, rs('maxLen'), v => v.toFixed(1) + ' m', D.maxLen);
+    range(R, 'streak: longest on screen', 0.01, 0.5, 0.01, () => L.maxNdc, rs('maxNdc'), null, D.maxNdc);
+    range(R, 'drop width', 0.0005, 0.01, 0.0005, () => L.width, rs('width'), v => (v * 1000).toFixed(1) + ' mm', D.width);
+    range(R, 'thinnest on screen', 0.5, 3, 0.1, () => L.minPx, rs('minPx'), v => v.toFixed(1) + ' px', D.minPx);
+    range(R, 'sky light', 0, 2, 0.05, () => L.ambient, rs('ambient'), null, D.ambient);
+    range(R, 'backlit glow', 0, 10, 0.1, () => L.back, rs('back'), null, D.back);
+    range(R, 'backlit tightness', 1, 40, 1, () => L.backPow, rs('backPow'), v => v.toFixed(0), D.backPow);
+    range(R, 'fall speed', 2, 10, 0.1, () => L.vFall, rs('vFall'), v => v.toFixed(1) + ' m/s', D.vFall);
+    range(R, 'none closer than', 0.2, 4, 0.1, () => L.nearFade, rs('nearFade'), v => v.toFixed(1) + ' m', D.nearFade);
+    range(R, 'cockpit at speed: density', 0, 1, 0.05, () => L.cockpitK, rs('cockpitK'), null, D.cockpitK);
+    range(R, 'cockpit: full speed at', 5, 100, 1, () => L.cockpitV, rs('cockpitV'), v => v.toFixed(0) + ' m/s', D.cockpitV);
+    const CS = W.CLOUDS && W.CLOUDS.S;
+    if (CS) {
+      const cs = k => v => { CS[k] = v; };
+      range(R, 'shafts: density', 0, 4, 0.05, () => CS.rainExt, cs('rainExt'), v => 'x ' + v.toFixed(2), D.shaftExt);
+      range(R, 'shafts: sky light', 0, 2, 0.05, () => CS.rainLight, cs('rainLight'), null, D.shaftLight);
+      range(R, 'shafts: reach', 2, 60, 1, () => CS.rainKm, cs('rainKm'), v => v.toFixed(0) + ' km', D.shaftKm);
+      range(R, 'shafts: steps', 2, 8, 1, () => CS.rainSteps, cs('rainSteps'), v => v.toFixed(0), D.shaftSteps);
+      range(R, 'overcast: solid, dark base', 0, 1, 0.05, () => CS.overcast, cs('overcast'), null, D.overcast);
+      range(R, 'overcast: how dark (deck density)', 0, 0.5, 0.01, () => CS.ovcRho, cs('ovcRho'), v => v.toFixed(2) + (v <= 0.12 ? ' light grey' : v >= 0.3 ? ' dark storm' : ''), D.ovcRho);   // (THE USER 23 Nov: lighter grey, 0.1)
+    }
+    liveNote(R, () => { const Q = W.RAIN_LIVE, C = W.CLOUDS; const fx = Q && Q.fx; return 'here: rain ' + (C && C.ready ? C.rain.toFixed(2) : '-') + ', ' + (Q ? Q.st.why : '-') + (fx ? ', ' + fx.drawn + ' drops (' + fx.tier + ')' : ''); });
+    note(R, 'where and how hard it rains is the day\u2019s: the left rail\u2019s WEATHER. The tier is GRAPHICS > sky > rain; ?rain=0 switches the streaks off.');
   }
 
   // THE AIR WHILE YOU WORK (the user, 2026-09-25: "check the fog/cloud settings too"): the mist and the clouds are

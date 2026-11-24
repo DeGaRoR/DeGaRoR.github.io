@@ -4992,6 +4992,12 @@ const AEROGLASS_HOOK = function (shader) {
   // DIRT AT THE FRAME IS A PALE FILM, not only a rough patch: grime scatters,
   // so it lightens what you see through it. Same reason the wear system
   // lightens rather than darkens on the airframe.
+  // RAIN ON THE GLASS (step 2 prototype): no refraction copy - a bead is a darker rim (it bends the darker world below into view) and a
+  // touch of pale water, its gloss (roughness, above) catching the sky and the sun
+  if (aeroRainD > 0.0) {
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.35, aeroRainR * 0.8);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.78, 0.84), aeroRainD * 0.15);
+  }
   if (aeroGDirt > 0.0)
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.60, 0.56),
                            aeroGDirt * 0.55);

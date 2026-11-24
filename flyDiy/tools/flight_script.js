@@ -404,6 +404,7 @@ async function runPage(S, opt) {
       else if (st.do === 'start' || st.do === 'rollout') { rig.flying = false; await rig.fly(); s = await rig.J(ST); }
       else if (st.do === 'skip') say('  skip: ' + await rig.ev(`(() => { const b = document.getElementById('bSkip'); if (b && !b.hidden && !b.disabled) { b.click(); return 'skipped'; } return 'no skip offered'; })()`));
       else if (st.do === 'camera') { await rig.ev(`window.__FSB.sweep(${JSON.stringify(st.view || 'chase')}, ${+(st.sweep || 0)}, ${+(st.s || 5)}, ${st.dist == null ? 'null' : +st.dist})`, ((+(st.s || 5)) + 30) * 1000); }
+      else if (st.do === 'weather' && st.day && typeof st.day === 'object') say('  weather (a given day): ' + await rig.ev(`(() => { try { window.FLIGHT_PROBE.world().day.set(${JSON.stringify(st.day)}); return 'ok'; } catch (e) { return String(e); } })()`));   // (LOOK-1, RAIN 21 Nov: a given day, as the node runner takes - the storm day for the rain-vs-dry frames)
       else if (st.do === 'weather') say('  weather ' + st.cond + ': ' + await setSel('selCond', st.cond));
       else if (st.do === 'time') say('  time ' + st.hour + ' h: ' + await rig.ev(`(() => { try { window.DAY_CLOCK.set({ localHours: ${+st.hour} }); return 'ok'; } catch (e) { return String(e); } })()`));
       else if (st.do === 'dest') say('  destination ' + st.to + ': ' + await setSel('selDest', st.to));
