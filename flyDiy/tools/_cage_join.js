@@ -30,6 +30,15 @@ const CAGE_JOIN_ENGINES = {
   'rotax 912 (flat)': 'rotax912_warp',
   'rotax 277': 'rotax277_pusher',
   'rotax 582': 'rotax582_ivo',
+  // SMALL-ENGINES (24 Nov): the small end (00_registry.js, its sources there)
+  'rotax 185': 'rotax185_direct',
+  'Pioneer chainsaw 5.5 hp': 'pioneer55_chainsaw',
+  'Hirth F-33': 'hirthf33_belt',
+  'Polini Thor 202': 'thor202_belt',
+  'Polini Thor 250': 'thor250_belt',
+  'Polini Thor 303': 'thor303_belt',
+  'Simonini Mini 3': 'simonini_mini3',
+  'Joby JM1': 'jobyjm1_direct',
   'Verner Scarlett 7U': 'verner7u_wood',
   'Rotec R3600': 'rotec3600_std',
   'Clerget 9B': 'clerget9b_wood',          // NEW-SHAPES-1: the Camel's rotary

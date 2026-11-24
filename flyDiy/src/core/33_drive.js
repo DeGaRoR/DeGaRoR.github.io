@@ -52,6 +52,9 @@ const GEN_DRIVE = {
     hirth508_wood: { cyl: 8 }, argus10c_wood: { cyl: 8 },
     rotax912_warp: { cyl: 4 }, rotax912is_warp: { cyl: 4 }, rotax915_carbon: { cyl: 4 }, rotax916_carbon: { cyl: 4 },
     rotax582_ivo: { cyl: 2, rpmMax: 6800 }, rotax503_wood: { cyl: 2 }, rotax277_pusher: { cyl: 1 },
+    // SMALL-ENGINES (24 Nov): the small end's singles (the Thors and the Mini 3 are singles too)
+    rotax185_direct: { cyl: 1 }, pioneer55_chainsaw: { cyl: 1 }, hirthf33_belt: { cyl: 1 }, thor202_belt: { cyl: 1 },
+    thor250_belt: { cyl: 1 }, thor303_belt: { cyl: 1 }, simonini_mini3: { cyl: 1 },
     r1830_hs23e50: { cyl: 14 }, r985_hs2b20: { cyl: 9 }, r1340_hs12d40: { cyl: 9 }, r755_hs2b: { cyl: 7 }, w670_hs2b: { cyl: 7 },
     m14p_v530: { cyl: 9 }, verner7u_wood: { cyl: 7 }, rotec3600_std: { cyl: 9 }, clerget9b_wood: { cyl: 9 },
     merlin66_rotol4: { cyl: 12 },
