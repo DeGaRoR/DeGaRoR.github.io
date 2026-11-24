@@ -487,7 +487,7 @@
     const cov = W.TREE_FILL && W.TREE_FILL.cover ? W.TREE_FILL.cover() : null;
     if (cov && cov.set && applied.cover !== S.cover) {
       // (DEBRIS-SHADOW 26 Oct: castMinDebris - the debris's own shadow floor, the user's "no shadows on small ones")
-      const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35, castMinDebris: 1.0 }, lean: { on: true, reach: 120, density: 1, castMinH: 1, castMinDebris: 1.0 }, off: { on: false } }[S.cover];
+      const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35, castMinDebris: 1.0, castMinShrub: 1.0 }, lean: { on: true, reach: 120, density: 1, castMinH: 1, castMinDebris: 1.0, castMinShrub: 1.2 }, off: { on: false } }[S.cover];   // (castMinShrub, FOREST-SHADOW 24 Nov: the undergrowth casts no shadow)
       if (C) { cov.set(C); applied.cover = S.cover; }
     }
     // THE GRASS FIELD's column (GRASS-DENSE G2563/G2564/G2567, GRASS-STUDY §4.7): full = the gamer row (near 15 m, gone at 90, the AGL

@@ -8791,7 +8791,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // day's cloud base, by its cover.
   const SUN_MIN_Y = Math.sin(2 * Math.PI / 180);
   const SUNW = { on: true, dirty: false, EMPTY: 31 };   // G655: the world's sun map on (the tiers full / ultra) or empty ('near': the craft's map alone)
-  const SHADOW_RATE = { every: 2, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
+  // (FOREST-SHADOW 24 Nov: every 3rd frame - the big map holds the still world (the forest, the ground, the houses) and its lookup
+  //  matrix is the one it was drawn with, so a shadow never slides; the craft's own shadow is the near map's, every frame. At 30 fps
+  //  the world's shadows are re-drawn 10 times a second instead of 15: a third fewer frames carry the forest's shadow draws. ?shrate=2 the old cadence)
+  const SHADOW_RATE = { every: (typeof location !== 'undefined' && /[?&]shrate=(\d)(&|$)/.exec(location.search || '') || [])[1] | 0 || 3, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
   const groundAt = (x, z) => world.terrainH(x, z);   // G1080: the ground under the drawn aeroplane (shadow_near.js follow)
   if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
