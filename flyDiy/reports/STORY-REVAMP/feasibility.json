@@ -11,7 +11,7 @@
   "infeasible": 9,
   "stale": 5
  },
- "flownS": 95616,
+ "flownS": 96233,
  "rows": [
   {
    "id": "field.01",
@@ -1747,7 +1747,30 @@
    "id": "clients.04",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 617,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 617,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
    "cls": "order"
   },
   {
