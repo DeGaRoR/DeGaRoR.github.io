@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 51 feasible; 9 infeasible; 3 no official plane can fly it (the player builds one); 15 not flown; 5 stale. Time flown: 1559 min 28 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 9 infeasible; 3 no official plane can fly it (the player builds one); 14 not flown; 5 stale. Time flown: 1593 min 36 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -58,7 +58,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 51 feasible; 9 infeas
 | obs.07 | observatory:4 | not flown | - | - | - |  |
 | obs.08 | observatory:5 | not flown | - | - | - |  |
 | obs.09 | observatory:6 | not flown | - | - | - |  |
-| clients.01 | contract | not flown | - | - | - |  |
+| clients.01 | contract | feasible | Jodel D112 | 34 min 08 s | HOME > w3 1191; w3 > tw_ski 857 |  |
 | clients.n1 | contract | feasible | Cessna 172 | 21 min 27 s | HOME > w3 625; w3 > HOME 663 |  |
 | clients.n2 | contract | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 175 kg aboard, the cabin takes 90 kg; jodel: Jodel: 175 kg aboard, the cabin takes 90 kg; c172: Cessna 172: stretcher (2 x 0.6 x 0.5 m) passes no door; c172f: Ce |
 | clients.03 | contract | not flown | - | - | - |  |

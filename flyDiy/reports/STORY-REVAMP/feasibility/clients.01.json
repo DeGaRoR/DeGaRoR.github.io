@@ -1,0 +1,160 @@
+{
+ "id": "clients.01",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Jodel D112",
+ "timeS": 2048,
+ "why": "",
+ "tried": [
+  "Piper Cub:infeasible",
+  "Jodel D112:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 1191,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "sub:0@0",
+    "stage@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "tw_ski",
+   "t": 857,
+   "how": "stopped",
+   "at": "tw_ski",
+   "stop": [
+    "sub:0@1",
+    "stage@1",
+    "say",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a wing member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 606,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 96 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 23.0 m/s until clear"
+     ],
+     "landing": {
+      "run": 117,
+      "sink": 1.29,
+      "V": 18.2,
+      "offCentre": 0.2,
+      "pastAim": 3,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 69,
+      "stopLeft": 358
+     }
+    },
+    {
+     "from": "w3",
+     "to": "tw_ski",
+     "t": 1290,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "wings-level: the rudder eased off: the aileron on its stop against 10 deg of bank (13 deg of sideslip)",
+      "capsized: on its back in ROLLOUT at 10.7 m/s (bank -90 deg) - after \"gave-up\"",
+      "out-of-energy: the engine seized at t=1288 s — engines stopped"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Jodel D112",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 1191,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "go-around: unstabilised approach at 61 m: 44 m off the centreline (attempt 2)",
+      "held-speed-short-field: the approach flies 24.0 m/s on this final (25.6 over the ground: 1.6 m/s behind): the stop from it needs 357 m, 401 ",
+      "committed-unstable: unstabilised (41 m off the centreline) but committed - landing it"
+     ],
+     "landing": {
+      "run": 180,
+      "sink": 1.39,
+      "V": 20.5,
+      "offCentre": 5.4,
+      "pastAim": 122,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 154,
+      "stopLeft": 209
+     }
+    },
+    {
+     "from": "w3",
+     "to": "tw_ski",
+     "t": 857,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 459 m (planned 456)",
+      "ceiling-accepted: still climbing 0.40 m/s — flying the circuit at 157 m",
+      "off-the-strip: touched 168 m in, stopped -6 m past the end of 280 m (30 m off the centreline)"
+     ],
+     "landing": {
+      "run": 106,
+      "sink": 0.78,
+      "V": 16.4,
+      "offCentre": 3.3,
+      "pastAim": 151,
+      "k": 1,
+      "three": true,
+      "onStrip": false,
+      "tdIn": 168,
+      "stopLeft": 6
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: Piper Cub flown with 2 aboard (the garage's seat door)",
+  "the seats as the job asks: Jodel D112 flown with 2 aboard (the garage's seat door)"
+ ],
+ "untested": false,
+ "key": "152b60f35629",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 3646
+}

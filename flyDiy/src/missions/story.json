@@ -2766,6 +2766,12 @@
      "who": "adam",
      "text": "ct.clients.01.done"
     }
+   },
+   "validated": {
+    "with": "Jodel D112",
+    "sim": "L40K",
+    "flownS": 2048,
+    "sig": "41b1f396"
    }
   },
   {
