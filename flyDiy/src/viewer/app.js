@@ -22817,7 +22817,7 @@
     // a frozen picture) or not (the page shows). One branch a frame; the log's reader counts it as ONE frame of that length.
     if (typeof window !== 'undefined') {
       const ST = window.FLYDIY_STILL || (window.FLYDIY_STILL = { shownAt: 0, frames: 0, runs: 0, heldFrames: 0, worstMs: 0, lastMs: 0 });
-      const tS = performance.now();
+      const tS = perfNow();   // (the UI smoke harness has no `performance`: the page's own clock, as the rest of the loop - GATE UISMOKE, 24 Nov)
       if (!framePresented) { ST.frames++; ST.heldFrames++; }
       else {
         if (ST.frames && ST.shownAt) {

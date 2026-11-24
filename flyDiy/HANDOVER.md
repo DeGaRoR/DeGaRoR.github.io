@@ -319214,6 +319214,47 @@ L40J. Cold 114-120 s / 453-463 programs (L40J 119-127 s / 451), returning 103 s,
 first 8 min: 54.9 % of seconds at 29+ fps, 17 frames over 100 ms (L40J 31), the page never shown. The crash: the page 6.7 s
 (unchanged: the fix is L40M's perf-lead-1 + Deform's wreck-clear).
 
+## LAZAIR - THE CLASSIC V HUNG DOWN ON A SINGLE BOOM, ITS TIP WHEELS AN OPTION (24 Nov 2026, A0's LAZAIR job; branch a0/lazair-iv-single off master 56047b34e)
+The user, building a Lazair: "an inverted V tail with a little wheel at each panel tip, on a single boom", then (via A0)
+"extend the classic V-tail's angle row so it can go down", "the controls accurate whatever the angle", "the tip wheels are
+an option with their own parameters". The twin booms' inverted V (stMount 4, G3800/G3801) is untouched.
+- **THE ROW:** stCant runs -55..55 (was 0..55). On a single body (a fuselage or one boom; twin booms read no negative cant)
+  a negative cant lays the classic V's two panels DOWN from their seat - finToStab's rotation with the cant's sign, so each
+  panel's upper face stays up and the winding is the upright V's. On a rod (boomStyle) a V canted down hangs UNDER the
+  tube: the saddle's plate on the belly, the root's upper face against it (a pedestal where stY holds it lower). The
+  design's tail-type read says 'v' for |cant| >= 20 (no new tile: the V-tail tile, then the slider below 0).
+- **THE JOIN / SPEC / FRAME:** tail.type 'v', tail.vAngle SIGNED (clampSpec keeps the sign, 20-55 on its size), Svt the
+  drawn panels' (as every V); tail.vRootY (keel datum, the key only on a V hung down) is the drawing's root height - the
+  frame hangs HTL/HTR vHeight under it (absent: under the tail's keel). vHeight stays a height (|sin|). With tip wheels
+  the frame's tip nodes stand AT the drawn tips (right over the wheels: a wheel hung off a node 0.4 m ahead swung up
+  about its leg) and the two tips are tied (internal): a single rod's ring is too narrow to hold a tip against rotation
+  about the boom's axis. MEASURED: a V whose tips hang well under the mains' ground line (the Chinook at -35 on its full
+  span: the tips 0.40 m under it) stands on its tail and folds it - a stance no aeroplane has; tune the cant / span /
+  stY so the tips sit near the mains' line (the gate's Lazair: -25 on 0.7 of the span, 1.4 deg tail-down; half the span
+  drew a V under the flown envelope's 1.5 m hSpan, which the join reports as an error - the drawn tail is not flown).
+- **THE CONTROLS:** 62_gen_aero's 'vtail' strips carry sinV < 0, so the solver's normal leans OUTWARD; the rudder's mix
+  sign is the lean's (30_solver: `st.sinV < 0 ? -side : side`, the old line for every V before it). Measured on the
+  generator's default at +-30 / +-55: the elevator's up pitches nose-up and the rudder's left yaws nose-left at all four, the
+  rudder's pitch under 2 %, nothing at zero input; the tail's own sideslip roll couple and the rudder's roll flip sign hung
+  down (proverse - real). The drawn ruddervators: the join's second drive engages on |cant| >= 20, its sign the hinge axis's
+  (G3801), both trailing edges to port on a nose-left pedal.
+- **THE TIP WHEELS (the gear page's 'V tip wheels' rows, shown only while the V hangs down past -20; every row ABSENT AT ITS
+  DEFAULT: CAGE_DEFAULT_ABSENT + GEN_CAGE_ROW_NEUTRAL):** vtWheels 0 off / 1 as the tail wheel / 2 extra wheels; vtD the
+  wheel's diameter (0.20), vtWide the tyre's width x the carcass's (0 its own), vtFork the hub's drop past the tyre under the
+  tip (0.03, the twin V's), vtCastor (extra wheels: castoring / fixed). The tips are THIS build's: the stab layer's build is
+  a function (stabBuild), and window.CAGE_STAB_TIPS(P, mesh) runs it dry for the gear layer, which draws first.
+  'As the tail wheel': station 2's leg 3 drawn at the two tips by tipMount + legTipWheel (the twin V's own), its kind the
+  third wheel's row (steerable, lockable, fixed, skid); the join measures it (twX / twY, gear.vTip.z), the frame makes TW +
+  TW2 there (refs.tw / tw2: the solver's two tail contacts, G3800). On a build with no tail unit (a tricycle) the tips take
+  'extra wheels': drawn with the airframe (no unit), CAGE_GEAR.vtExtra; gear.vTip { mode 'extra', x, y, z, R, fork,
+  castor }; the frame's refs.xw (+ xwFree): the solver rolls them as an unbraked main, a castoring one with no side force.
+- **GATE TAILWHEEL K** (the Chinook's rod as a Lazair at -25 on 0.7 of its span, the Cessna's tricycle, the generator's default): K1 the drawing (the
+  panels mirrored, a wheel contact under each tip below the root, the fin layer stood down, Svt = the drawn panels', the
+  ruddervators' TE to port), K2 the controls at +-30 / +-55, K3 the three modes (off: one centreline tailwheel; as the
+  tail: two tail contacts at the drawn tips, standing on them and nothing else; extra: the Cessna's nose wheel and mains to the bit, two
+  castoring contacts aft), K4 vtD / vtFork move the drawn wheel and the flown contact together, K5 the Lazair stands on its
+  tips, turns on the brake and flies HOME's circuit (tw_probe --build lazair).
+
 
 ## PERF-LEAD 1 - NO BLUE SCREEN AT A CRASH, THE SCREEN IS THE MEASURE, GARAGE FIRST AS A SWITCH (23 Nov 2026, claude/ready/perf-lead-1 on master L40J 089297693)
 The user, 22-23 Nov: "No blue screen, not in the garage, not in the world, not when crashing, ever"; "the 200 ms quoted before are rubbish, it
@@ -319314,3 +319355,8 @@ VISIBLE, NOT YET LOOKED AT BY THE USER: a reflection kept a little longer; a str
   load - its block does not fire; -7 replaces it).
 MEASURED 24 Nov 07:30, quiet, the plain address: garage 37.0 s, world ready 92.6 s after; the garage meanwhile 11 tasks over 100 ms (15 before),
 worst 0.68 s (the tree impostors' bake: perf-worldbuild-7), 3.7 s of freezes a minute against the user's 2.
+
+## PERF-LEAD 6 - GATE UISMOKE GREEN (24 Nov 2026, claude/ready/perf-lead-6 = perf-lead-5 + this + claude/ready/perf-trace-10; it supersedes -5. For L40M the same one line is claude/ready/perf-lead-2c)
+The loop's 'still' recorder read `performance.now()` bare (since perf-lead-1); tools/test_ui_smoke.js runs app.js with no `performance` and GATE
+UISMOKE / UISMOKE-PHONE crashed at the loop. It reads the page's guarded clock (perfNow). The red had been filed on 23 Nov as "L40J's own by check
+name" without reading its stack: it was this line. UISMOKE and UISMOKE-PHONE are in the perf lab's gate set from here.
