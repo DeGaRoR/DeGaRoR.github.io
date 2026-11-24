@@ -449,7 +449,50 @@ const GEN_BAYS = {
     serves: 'a pod on each front lift strut, the pair sharing the litres',
     span: [0.25, 0.80], feed: 'pumped',
   },
+  // TANK-BAYS (the user 24 Nov, building a Lazair: "I would want the fuel tanks to be able to stick to the back face of a
+  // pod, where the aft aero pod goes. There's a lot of place there and the software prevents me from putting it there.
+  // Anywhere in the boom, attached to the aft pod, inside an aft cowl or aero pods is fine"). FOUR MOUNTED BAYS, each a
+  // body bay to the frame (billed by bodyRing at its `along`, metres aft of the firewall, and `lv`, so the burn drains
+  // it where it is drawn) and each placed by the editor off what is DRAWN there (`mount`, _cage_energy.js mountBay):
+  //   podAft   OUTSIDE, its face against the pod's aft face, upright, on the centreline, strapped to a cradle on the
+  //            face (the Lazair's jug behind the seat back, in the open frame between the pod and the boom)
+  //   boom     on a rod: slung under the tube on two clamps; on a lofted boom: inside it, aft of the cabin
+  //   aeroAft  inside the aft aero fairing (aeroAftOn), under the rod that runs through it
+  //   aeroNose inside the aero nose (a nose with no engine), ahead of the windscreen
+  // `ext` bays hold what the editor's clearance lets them (their litres here are the slider's top, `room`); the two
+  // fairings' are swept as any body bay. Only offered where the drawing has the thing (the editor); a saved tank in a
+  // bay the aeroplane lost is kept, billed at its station and drawn red with the reason, as a body tank past the body.
+  // Appended: the bays above keep their order, and a build that names none of these is the same aeroplane to the bit.
+  podAft: {
+    name: 'Behind the pod (on its aft face)', on: 'body', mount: 'aftFace', ext: true, room: 60,
+    serves: 'outside the pod, strapped upright to its aft face under the boom (the Lazair’s jug)',
+    feed: 'pumped', lv: [0, 1],
+    range: S => { const a = genPodAftX(S); return [a, a + 0.6]; },
+  },
+  boom: {
+    name: 'On the boom', on: 'body', mount: 'boom', ext: true, room: 40,
+    serves: 'slung under a tail rod on two clamps, or inside a lofted boom aft of the cabin',
+    feed: 'pumped', lv: [0, 1],
+    range: S => { const a = genPodAftX(S); return [a + 0.15, Math.max(a + 0.6, 0.8 * S.fuse.tailArm)]; },
+  },
+  aeroAft: {
+    name: 'Inside the aft fairing', on: 'body', mount: 'aeroAft',
+    serves: 'inside the aero aft fairing behind the pod, under the rod that runs through it',
+    feed: 'pumped', lv: [0, 1],
+    range: S => { const a = genPodAftX(S); return [a, a + 1.5]; },
+  },
+  aeroNose: {
+    name: 'Inside the aero nose', on: 'body', mount: 'aeroNose',
+    serves: 'inside the aero nose ahead of the windscreen, clear of the pilot’s feet',
+    feed: 'gravity', lv: [0, 1],
+    range: S => [-Math.max(0.3, (S.fuse.cowlDeck || 0.6)) - 0.6, -0.05],
+  },
 };
+// TANK-BAYS: the pod's aft end the rules above start from - the cabin's aft bulkhead and the cargo bay behind it, the
+// station `aftCabin` starts at (the editor measures the drawn face and writes the tank's own station)
+function genPodAftX(S) {
+  return S.fuse && S.fuse.boxRear != null ? +S.fuse.boxRear : S.cab.noseGap + S.cab.len + ((S.fuse && S.fuse.cargoLen) || 0);
+}
 
 // THE BAYS OF THIS AEROPLANE, measured. Body bays get their station range from
 // the rule above and their VOLUME from the fuselage's own station table — the
@@ -510,6 +553,11 @@ function genBayResolve(S, key, ST) {
              zFrac: 0.5 * (B.span[0] + B.span[1]) };
   }
   const [x0, x1] = B.range(S);
+  // TANK-BAYS: a bay OUTSIDE the skin (behind the pod, under the rod) holds no section's litres: its room is the rule's
+  // own top (`room`), and the editor's clearance decides what fits there
+  if (B.ext)
+    return { key, name: B.name, on: 'body', mount: B.mount, ext: true, feed: B.feed, free: !!B.free,
+             x0, x1, lv: (B.lv || [0, 1]).slice(), litres: B.room, xMid: 0.5 * (x0 + x1) };
   // THE SECTIONS COME FROM WHOEVER HAS THEM. The body's shape is 60b's loft
   // and the frame is what samples it, so core does not rebuild that here — it
   // is handed the station table it already exists in (`def.parts.ST`, or the
@@ -551,7 +599,7 @@ function genBayResolve(S, key, ST) {
   }
   const wellL = genBayWellL(S, B, x0, x1);                  // G3: the gear's wells in this bay
   if (wellL > 0) litres = Math.max(0, litres - wellL);
-  return { key, name: B.name, on: 'body', feed: B.feed, free: !!B.free,
+  return { key, name: B.name, on: 'body', feed: B.feed, free: !!B.free, ...(B.mount ? { mount: B.mount } : {}),
            x0, x1, lv: (B.lv || [0, 1]).slice(), litres, ...(wellL > 0 ? { wellL } : {}),
            // where its mass acts by default: the middle of the bay
            xMid: 0.5 * (x0 + x1) };
