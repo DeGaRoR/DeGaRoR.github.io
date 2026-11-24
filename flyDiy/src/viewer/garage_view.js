@@ -156,7 +156,7 @@ var GARAGE_VIEW = (() => {
     // the door's opening (the plane the lamps' light leaves by) and the scene's place in the room's frame (the group's own matrix)
     { const dm = o.dims || {}, dr = o.door || {}; U.door.value.set(-(dm.HD || 12.5), (dr.w || 12) / 2, dr.h || 5, dr.z || 0); U.room.value.copy(group.matrix); }
     const arr = a => a.t === 'f32' ? new Float32Array(pack.buf, a.at, a.n) : a.t === 'u32' ? new Uint32Array(pack.buf, a.at, a.n) : a.t === 'i8' ? new Int8Array(pack.buf, a.at, a.n) : new Uint16Array(pack.buf, a.at, a.n);
-    const std = (p, nrm) => { const m = lit(THREE, MATLIB.make(THREE, 'basic', Object.assign({ fog: false }, p)), nrm || null); mats.push(m); return m; };   // pre-ok: the garage's scene - the shed has no pre-exposure (hangar.js applyDay: LIGHT_RIG.setPre(1)); its light and exposure arrive by uGvSun / uGvSky / uGvEx
+    const std = (p, nrm) => { const m = lit(THREE, MATLIB.make(THREE, 'basic', Object.assign({ fog: false }, p), 'garage / door view / scene'), nrm || null); mats.push(m); return m; };   // pre-ok: the garage's scene - the shed has no pre-exposure (hangar.js applyDay: LIGHT_RIG.setPre(1)); its light and exposure arrive by uGvSun / uGvSky / uGvEx
     let tris = 0;
     for (const M of J.meshes) {
       if (M.at && Math.hypot(M.at[0] - sh.x, M.at[1] - sh.z) < 12) continue;   // this room's own shed, as the world shows it from outside: not round the room itself
@@ -184,7 +184,7 @@ var GARAGE_VIEW = (() => {
     // when the light has moved; under the room's floor inside the walls, so only the apron wears it
     let shadow = null, shDir = null; const D = o.dims;
     if (D) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12 * 3), 3)); g.setIndex([0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 7, 0, 7, 8, 0, 8, 9, 0, 9, 10, 0, 10, 11]);
-      shadow = new THREE.Mesh(g, MATLIB.make(THREE, 'basic', {   /* pre-ok: a multiply by what is left of the light (a ratio, no radiance of its own) */ color: 0xffffff, transparent: true, blending: THREE.CustomBlending, blendSrc: THREE.ZeroFactor, blendDst: THREE.SrcColorFactor, toneMapped: false, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+      shadow = new THREE.Mesh(g, MATLIB.make(THREE, 'basic', {   /* pre-ok: a multiply by what is left of the light (a ratio, no radiance of its own) */ color: 0xffffff, transparent: true, blending: THREE.CustomBlending, blendSrc: THREE.ZeroFactor, blendDst: THREE.SrcColorFactor, toneMapped: false, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }, 'garage / door view / shadow'));
       shadow.name = 'gview:shadow'; shadow.renderOrder = 4; shadow.frustumCulled = false; shadow.userData.outdoor = true; shadow.visible = false; mats.push(shadow.material); }
     // (f: what is LEFT of the light in the shadow, channel by channel - the sky's share; without it, 1 - k on all three)
     const throwShadow = (d, k, f) => { if (!shadow) return; if (!(d[1] > 0.035) || !(k > 0.01)) { shadow.material.color.setRGB(1, 1, 1); return; }

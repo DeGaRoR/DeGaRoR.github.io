@@ -161,3 +161,58 @@ put the side by side on a page for the user: a look lands whole, judged in the g
 - **jolene_home** (Jolene AFB 13/31: the club hangar HOME, the large hangar HOME.2), 22 Nov 2026: the first site. Both
   doors bear 41 deg (north-east), 197 m from runway 13/31; 86 148 trees drawn within 1.5 km, 12 463 within 700 m, the
   nearest 62 m from the club door, median height 6 m; the skyline's highest summit 875 m at 7 km.
+- **jolene_cabin** (the Cabin Strip, field w1: the Shed), 22 Nov 2026: a steep valley (the ground runs 161 to 409 m
+  within 420 m), 254 trees within 100 m. Its site file carries what a slope needs: `far { low -9, top 36 }`,
+  `card { out 18 }`, `ground { cover true, gain [1.5, 1.5, 1.6] }`, its own `slices`.
+
+## 7. Handover, 23 Nov 2026 (the session stood down; what a next one takes up)
+
+**Where it stands.** Ready `claude/ready/garage-view-1` (7222af929) rides train L40M; the door view is ON by default
+(`?gview=0` turns it off). The branch `claude/garage-view` is that ready plus tool-only commits (capture.js boots a
+visible window by default; `--headless` is the old way). Evidence (captures, cooked scenes, shoots) is under
+`D:/Dev/flydiy-notes/evidence/GARAGE-VIEW/` (home: `measure`, `capture2`, `capture3`, `scene8`, shoots `garage12`,
+`garage13`, `garage13_5k`; cabin: `cabin/measure`, `cabin/capture2`, `cabin/scene6`, shoots `cabin/garage6`,
+`cabin/garage7`). The user's pages are built by `compare.py` from those folders.
+
+**One round, as it was run** (EV = the evidence folder; every node / Chrome run through `cpu_token.sh run GARAGE-VIEW`,
+the capture and the shoot inside one `--gpu` slot whose script takes and drops `boxlock.sh take/drop gpu GARAGE-VIEW`):
+
+    node tools/garage_view/measure.js --site <pack> --out EV/measure                     # CPU; the world round the sheds
+    node tools/garage_view/capture.js --measure EV/measure --out EV/captureN --do refs,card,ground,props,slices,far,trees \
+         --times now,noon,golden,night --cap <s> --page dev.html                          # GPU; the game itself
+    node tools/garage_view/ground_merge.js --cap EV/captureN --measure EV/measure --out EV/captureN
+    node tools/garage_view/cook.js --measure EV/measure --cap EV/captureN --ground EV/captureN --layers EV/captureN \
+         --props EV/captureN --out EV/sceneN                                              # CPU, about 6 GB
+    node tools/garage_view/ktx2.js --scene EV/sceneN ; python tools/garage_view/textures.py --scene EV/sceneN --max 4096
+    node tools/garage_view/install.js --scene EV/sceneN ; node tools/build.js             # never build while a slot boots
+    node tools/garage_view/capture.js --measure EV/measure --out EV/garageN --do garage --tag today,gview \
+         --times noon,golden,night [--rooms HOME] --perf --cap <s> --page dev.html        # GPU; the garage, same eyes
+                                                                                          # (every shed of the site unless --rooms)
+    python tools/garage_view/gv_measure.py EV/garageN EV/captureN sheet.jpg club HOME     # garage / game, 1.00 = the game
+    python tools/garage_view/compare.py --refs EV/captureN --garage EV/garageN --today EV/garageM --sheds '<id:shell:title:views>'
+    node tools/run_gates.js --no-build --jobs=1 --only=GARAGEVIEW,HANGARVIEW,HANGAR,ROOMMERGE,UISMOKE,WORLDRENDER,STORY,INTROSCENE,LIGHT,PROGRAMS,CLOUD,ASSETBUDGET
+
+A change of look only (the settings `S` in `src/viewer/garage_view.js`) needs the build and the shoot, not a capture.
+Master's own reds at the time (not this work's): FRAMECOST, MEDIA (thumbs), ASSETS (dupes), STORAGE.
+
+**Open, none of it started** (each needs a GPU shoot and a look by the user, so none was squeezed in before the train):
+
+1. *Small props by the doors* (the picnic table, the planter: the world's `propInstances`). They are in no export:
+   `capture.js --do props` takes the things of the record, not the instances. Add them to the props step (real
+   triangles + the door-direction photo, as the cars), then cook with `--props`.
+2. *The step of brightness at the sill.* The room is lit at unit 1 under the lamps' exposure cap, the outdoors at the
+   game's exposure (`uGvEx`); the sun's patch on the room's floor keeps the room's level, so the floor inside the door
+   is darker than the apron outside it. A cheap try: fade `uGvEx` over the first metres past the sill (by `vGvP.x`),
+   or lift the room's floor patch; judge at noon and golden hour from `door_out`.
+3. *The Cabin Strip's far summits read dark and blue* (the top rows of the far band), its golden hour and night sit at
+   97 to 140 % of the game, the tower's glass is black, the Shed's shadow is heavy (`S.shadow` 0.92). The far band is
+   game pixels past 700 m through the calibration LUT: check the LUT at the dark end and the scene's haze (`S.hazeK`)
+   against the references before touching the capture.
+4. *Not tested with the scene standing:* the HANGAR-VIEW mode and the photo mode; the night-eye grade is not applied
+   outdoors.
+5. *Cost on a 5K window in a visible browser* is the performance lab's to confirm. Headless that night: 3.4 ms today,
+   4.0 ms with the scene and the game's cloud pass, 3.3 ms with the scene and the old cloud sphere; single frames of
+   29 to 61 ms in all three states, today's garage included, each with a burst of about 800 draw calls (the probe's
+   bake is the suspect, unproven).
+6. *The plain fallbacks* (about half of the 49 MB of media): if the user drops them, take `textures.py`'s output out of
+   `install.js`'s file list; the runtime's fallback branch may stay.
