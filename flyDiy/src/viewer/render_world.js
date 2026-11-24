@@ -87,7 +87,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // ROCK-STUDY R1: the rock's terrain bias, in a worker from here (the 'island ground' step waits for it): null = made on the
   // main thread there (no Worker), or not at all (?rocks=0, no island, no hydrology)
   const rockBiasJob = rockBiasStart(world, BUD);
-  const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
+  // (PERF-WORLDBUILD, 24 Nov 2026: a callback may hand back a promise - the trees' early upload before the replant - and
+  //  what comes after it waits for it, in the queue below and here once the build is done: the order of the callbacks stays)
+  const afterBuild = fn => {
+    if (!BUILT.done) { BUILT.q.push(fn); return; }
+    if (BUILT.wait) { BUILT.wait.then(() => afterBuild(fn)); return; }
+    const r = fn();
+    if (r && typeof r.then === 'function') { const clear = () => { BUILT.wait = null; }; BUILT.wait = r.then(clear, clear); }
+  };
   // (12 Nov, FIT-PROCEDURE: under r186's MANAGED colour, Color(hex) already decodes sRGB - the second conversion drew
   // every world colour twice decoded; convert only when management is off, the 'as authored' step: once in either mode)
   const C = h => { const c = new THREE.Color(h); return THREE.ColorManagement && THREE.ColorManagement.enabled ? c : c.convertSRGBToLinear(); };
@@ -584,9 +591,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // 167 MB a second time in the first seconds of the flight. The wheels never read a mesh (world.terrainH), so a coarse strip
   // changes no take-off; what differs for those seconds is the drawn surface between its 6 m rows.
   // FLYDIY_STRIPW_HOLD (a gate's): every strip but the stand's is stood coarse and landed after, whenever its answer came.
-  const STRIPW = { on: typeof location !== 'undefined' && /[?&](?:stripw|nearfirst)=1(?:&|$)/.test(location.search || ''), jobs: new Map(), seq: 0, asked: 0, used: 0, inline: 0, missed: 0,
+  // PERF-WORLDBUILD (23 Nov 2026, the user to PERF-LEAD 21:05 on garage first: "Make it default"): A WORLD-BUILD SWITCH'S WORD.
+  // The URL first (?name=1 on, ?name=0 off); then a host's (window.FLYDIY_WORLD_DEFAULTS = { name: true|false }); then, for the
+  // switches whose output is the page's own bytes by a gate (stripw: STRIPWORKER; patchw, roadw: PATCHWORKER; compsteps:
+  // COMPSTEPS), ON WHEN A HOST'S BUDGET IS ARMED (window.FLYDIY_WORLD_BUDGET: the world built behind a live garage) - a page
+  // with no host (the one loading screen, node, a gate) keeps them off, as they were. The two switches with a VISIBLE state
+  // (nearfirst: a coarse strip for a moment; settle=near: stand-in cards for longer past 1.5 km) stay off until asked: the
+  // user sees them in game before they are a default - a host turns them on with FLYDIY_WORLD_DEFAULTS when that is said.
+  const wbSwitch = (name, underHost) => { const q = typeof location !== 'undefined' ? (location.search || '') : ''; if (new RegExp('[?&]' + name + '=1(?:&|$)').test(q)) return true; if (new RegExp('[?&]' + name + '=0(?:&|$)').test(q)) return false; const D = typeof window !== 'undefined' ? window.FLYDIY_WORLD_DEFAULTS : null; if (D && D[name] !== undefined) return !!D[name]; return !!(underHost && typeof window !== 'undefined' && window.FLYDIY_WORLD_BUDGET); };
+  const STRIPW = { on: wbSwitch('stripw', true) || wbSwitch('nearfirst', false), jobs: new Map(), seq: 0, asked: 0, used: 0, inline: 0, missed: 0,
     workerMs: 0, waitMs: 0, patience: 120000, why: null,
-    near: typeof location !== 'undefined' && /[?&]nearfirst=1(?:&|$)/.test(location.search || ''), at: null, late: new Map(), coarse: 0, landed: 0, lost: 0, reasked: 0, landing: false, land: null, pumpT: 0, landMs: 0, landMax: 0, t0: 0, lastLandS: 0 };
+    near: wbSwitch('nearfirst', false), at: null, late: new Map(), coarse: 0, landed: 0, lost: 0, reasked: 0, landing: false, land: null, pumpT: 0, landMs: 0, landMax: 0, t0: 0, lastLandS: 0 };
   if (typeof window !== 'undefined') window.FLYDIY_STRIPW = STRIPW;
   const stripwHost = () => (typeof window !== 'undefined' && window.HOUSE_WORKER && window.HOUSE_WORKER.ok() ? window.HOUSE_WORKER : null);
   // a pavement strip's builder options, as standStrip resolves them (null: not a pavement strip). `data` is numbers only -
@@ -5936,6 +5951,62 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
     };
     yield 'trees';
+    // PERF-WORLDBUILD (24 Nov 2026): UNDER A HOST'S BUDGET THE TREE PACKS MEET THE GPU BEFORE THE PLANTING THAT BAKES THEM.
+    // plantWoodland bakes the impostors' atlases, and the bake's draws were the tree models' FIRST: three uploaded their maps
+    // (377 ms) and their buffers (115-142 ms) at those draws - a 650-750 ms task of the live garage, the worst left (PERF-LEAD's
+    // profiles, 23-24 Nov: plantWoodland < impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll). treeWarmPlan lists
+    // what the bakes will draw - every series' L0 build of the pool's packs (treeBuild's own cache: what ladderFor hands the
+    // bake): its maps, its geometry in batches of 16 MB - and each is handed to the GPU alone (a map: initTexture; a batch:
+    // assets.js GPU_ONLY_GEO.upload). The bake then only draws; its own code - its layers' order, its sheets' checks - is
+    // untouched. WHERE: the tree maps land by a promise (treeSettle), and on a cold load that is AFTER this step - the first
+    // planting below stands cones and the real one is the replant queued after the build (afterBuild(plantWoodland)): that
+    // is where the bake ran in every row, and where round eight's first form (here only) never fired. So: here a step each
+    // when the maps are already in (a warm cache), and before the queued replant a tick each otherwise (treeWarmTicks; the
+    // after-build queue waits for it, so what is queued behind the replant still runs after it).
+    // scene.userData.treeWarm = { via: 'build' | 'after', packs, tex, geo, bytes, done } for a host's log.
+    const treeWarmOn = () => HOSTB && !!renderer && typeof renderer.initTexture === 'function' && treesSettled() && typeof treeBuild === 'function';
+    const treeWarmPlan = via => {
+      const tw = { via, packs: 0, tex: 0, geo: 0, bytes: 0, done: false }, texs = [], batches = [];
+      const seenT = new Set(), seenG = new Set(); let batch = [], bb = 0;
+      const gbytes = g => { let b = 0; for (const k in g.attributes) { const at = g.attributes[k]; if (at && at.array) b += at.array.byteLength; } if (g.index && g.index.array) b += g.index.array.byteLength; return b; };
+      for (const p of treePool()) for (const ser of SERIES) {
+        let B0 = null; try { B0 = treeBuild(THREE, p.key, 0, ser); } catch (e) { B0 = null; }
+        if (!B0 || !B0.parts) continue;
+        tw.packs++;
+        for (const q of B0.parts) {
+          const mt = q.mat, cand = [];
+          if (mt) { for (const k in mt) cand.push(mt[k]); if (mt.uniforms) for (const k in mt.uniforms) cand.push(mt.uniforms[k] && mt.uniforms[k].value); }
+          for (const t of cand) if (t && t.isTexture && t.image && !seenT.has(t)) { seenT.add(t); texs.push(t); }
+          const g = q.geo;
+          if (g && g.attributes && !seenG.has(g)) { seenG.add(g); const b = gbytes(g); if (batch.length && bb + b > 16777216) { batches.push(batch); batch = []; bb = 0; } batch.push(g); bb += b; tw.bytes += b; }
+        }
+      }
+      if (batch.length) batches.push(batch);
+      scene.userData.treeWarm = tw;
+      return { tw, texs, batches };
+    };
+    const treeWarmTex = (W, t) => { try { renderer.initTexture(t); W.tw.tex++; } catch (e) {} };
+    const treeWarmGeo = (W, b) => { try { const GUP = typeof GPU_ONLY_GEO === 'function' && typeof GPU_ONLY_GEO.upload === 'function' ? GPU_ONLY_GEO : null; if (GUP) W.tw.geo += GUP.upload(renderer, b) | 0; } catch (e) {} };
+    // (the after-build form: a map or a batch a task, then `then`; with no host budget, or on any failure, `then` at once)
+    const treeWarmTicks = () => new Promise(res => {
+      let W = null; try { W = treeWarmOn() ? treeWarmPlan('after') : null; } catch (e) { W = null; console.warn('trees: the packs\' early upload: ' + (e && e.message)); }
+      if (!W) { res(); return; }
+      let i = 0, j = 0;
+      const tick = () => {
+        if (i < W.texs.length) treeWarmTex(W, W.texs[i++]); else if (j < W.batches.length) treeWarmGeo(W, W.batches[j++]);
+        if (i < W.texs.length || j < W.batches.length) setTimeout(tick, 0); else { W.tw.done = true; res(); }
+      };
+      setTimeout(tick, 0);
+    });
+    if (treeWarmOn()) {
+      try {
+        const W = treeWarmPlan('build');
+        for (const t of W.texs) { yield 'trees: a texture'; treeWarmTex(W, t); }
+        for (const b of W.batches) { yield 'trees: the geometry'; treeWarmGeo(W, b); }
+        W.tw.done = true;
+        yield 'trees: the planting';
+      } catch (e) { console.warn('trees: the packs\' early upload: ' + (e && e.message)); }
+    }
     plantWoodland();
     // ONE CALL, AND IT WAS THE WHOLE OF W0c'S LAST MILE. Everything else was
     // written and gated: the payload, the codec, the loader, the switch above.
@@ -5943,7 +6014,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // world drew the 14-triangle cone it has drawn since W17. A rejection is
     // the asset-absent path and already handled — the cone stays.
     if (!treesSettled())
-      treeSettle().then(() => afterBuild(plantWoodland)).catch(() => {});
+      treeSettle().then(() => afterBuild(HOSTB ? (() => treeWarmTicks().then(plantWoodland, plantWoodland)) : plantWoodland)).catch(() => {});
 
     // ---- W13 dense fill: the collidable set is a 64 m stage-2 grid, so
     // stands render sparse even with the clump layer. This plants
@@ -8015,7 +8086,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   yield 'props';
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
-  const COMPSTEPS = typeof location !== 'undefined' && /[?&]compsteps=1(?:&|$)/.test(location.search || '');   // (PERF-WORLDBUILD: the composition in steps, below)
+  const COMPSTEPS = wbSwitch('compsteps', true);   // (PERF-WORLDBUILD: the composition in steps, below)
   // G1340: the premises lamps' level by the day (0..1: on below a 2 deg sun) and the host's compile of the pool's other
   // count (app.js lampsPrep: the lit programs keyed and linked in the background before the pool arms / disarms)
   const lampsOn = day => Math.max(0, Math.min(1, (2 - day.sunEl) / 4));
@@ -9167,7 +9238,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // G680: the callbacks held while the build was in slices (only a sliced build holds any: a synchronous one runs no
   // .then before it returns), each in a task of its own after the last slice - the cover ring's make, a rock job
   BUILT.done = true;
-  if (BUILT.q.length) { const q = BUILT.q.splice(0); const next = () => { const f = q.shift(); if (!f) return; try { f(); } catch (e) { console.warn('world: after the build', e); } if (q.length) setTimeout(next, 0); }; setTimeout(next, 0); }
+  if (BUILT.q.length) { const q = BUILT.q.splice(0); const next = () => { const f = q.shift(); if (!f) return; let r = null; try { r = f(); } catch (e) { console.warn('world: after the build', e); }
+      const on = () => { if (q.length) setTimeout(next, 0); };
+      if (r && typeof r.then === 'function') { const clear = () => { BUILT.wait = null; }; BUILT.wait = r.then(clear, clear); BUILT.wait.then(on); } else on(); };   // (PERF-WORLDBUILD, 24 Nov: a callback that hands back a promise is waited for - the trees' early upload before the replant)
+    setTimeout(next, 0); }
   return { worldUpdate, vis: VIS, sunw: SUNW,   // (G1080: the SHADOW-EYES A/B's handle)
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier

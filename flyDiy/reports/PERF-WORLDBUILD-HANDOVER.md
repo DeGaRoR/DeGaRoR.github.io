@@ -1,8 +1,10 @@
 # PERF-WORLDBUILD - handover (23 Nov 2026)
 
 Branch `claude/perf-worldbuild-next`. Landed ref for L40M: `claude/ready/perf-worldbuild-2` = 43f58e871 (off
-`claude/perf-codex` 4421e5416, on `claude/ready/perf-worldbuild-1`). After it, on the branch: round three = 72d9aa4db
-(gated), round four = b49b8a4cd (gated), round five = the commit that carries this file (gated: the far terrain's measure in steps). The canonical entry is HANDOVER.md "PERF-WORLDBUILD 2"; this file is the working picture for
+`claude/perf-codex` 4421e5416, on `claude/ready/perf-worldbuild-1`). For L40N: `claude/ready/perf-worldbuild-5` (the defaults under
+the garage-first host; its row is in section 1) and, on PERF-LEAD's word after a row, `claude/ready/perf-worldbuild-7`. After it, on the branch: round three = 72d9aa4db
+(gated), round four = b49b8a4cd, round five = 369ad0ec9 (`claude/ready/perf-worldbuild-3` = a226782a7 carries both), round six = 55fcb24fb
+(`claude/ready/perf-worldbuild-4`; its browser row is below). The canonical entry is HANDOVER.md "PERF-WORLDBUILD 2"; this file is the working picture for
 whoever takes the world build next.
 
 The mission: no main-thread task over 50 ms while the world is built, no visible change. The architecture PERF-LEAD chose
@@ -11,8 +13,12 @@ frame. The user's word on it (23 Nov, 12:45): the garage must not freeze - no ta
 
 ## 1. What landed, and under which switch
 
-Everything is OFF by default. A page with no switch and no host budget builds the world it built before, in the steps it
-had (the loading screen's text and bar are the build's yields, so a new yield on the default path would move them).
+WITH NO HOST everything is off: a page with no switch and no host budget (`?boot=loadfirst`, node, every gate) builds the
+world it built before, in the steps it had (the loading screen's text and bar are the build's yields, so a new yield on
+that path would move them). UNDER THE GARAGE-FIRST HOST (the default boot since the user's word of 23 Nov 21:05), since
+`claude/ready/perf-worldbuild-5`: stripw, patchw, roadw and compsteps are ON by default (each off with `?name=0`); nearfirst
+and settle=near are on by the host's word (`window.FLYDIY_WORLD_DEFAULTS = { nearfirst: true, settle: 'near' }`, the
+user 22:10: "turn them on by default ... we can turn them off easily afterwards"; off with `?nearfirst=0`, `?settle=0`).
 
 | Switch | What it does | Gate |
 |---|---|---|
@@ -44,7 +50,40 @@ Measured in the browser so far (PERF-LEAD, quiet box, six switches, tasks of 50 
 no switch at all - the world step 35.6 -> 25.4 s, the settle 20.8 -> 8.6 s, the garage's tasks over 100 ms 57 -> 35, the
 worst world-build slice 2.0 -> 0.38 s; round three against the same build without it (16:00) - trees 296 -> 64 ms, far
 terrain: a quadrant 142 -> 114 + 72, ring 122 / ground albedo 102 / island ground: the types 65 -> under 50, 61 tasks
-with 16 over 100 (70 and 17 without). ROUNDS FOUR AND FIVE HAVE NO BROWSER ROW YET.
+with 16 over 100 (70 and 17 without). Rounds four and five (17:42, 369ad0ec9, a BUSY box: times ~1.2-1.3x) - the far
+terrain's cut and quadrant, the ring, the albedo and the island's types gone from the list; the one unlabelled slice
+left (194 ms) is a cabin's preparation and an asset load, not the build; patch ground 83, its fields 113, roads 92, the
+built links 116, a site 83, houses 79, forest mist 84. AND ROUND FOUR'S UPLOAD CUTS DID NOT WORK: right after the world
+step two tasks of 902 + 566 ms (622 + 207 before) - three uploads the world's textures (516 ms) and buffers (177 ms) AT
+THE DRAW of the garage's first frame that meets them (renderBufferDirect). The sheds' textures "one a tick" lost the
+race with that frame, and the capped flush left buffers pending for it. Round six answers it (below); it has no row yet.
+
+Round six (under the budget): when the generator ends and BEFORE worldBuilt hands the world over, app.js
+buildWorldSliced drains the waiting geometry (24 MB a tick) and initTextures every texture the scene's materials hold
+(worldPreUpload: the boot's 'upload' list, a texture a tick at least, 6 ms a tick); the side sheds, made inside
+worldBuilt, are hidden while their textures go up one a tick, then shown - in garage first they appear a moment after
+the world: THE ONE VISIBLE EFFECT of these rounds, only under the host (PERF-LEAD tells the user).
+
+Round six in the browser (PERF-LEAD, 19:57, a quiet box, the evening build 79648c6c155f): after the world step the
+freeze is gone - one task of 87 ms between the steps (622 + 207 quiet, 902 + 566 busy before). OPEN: one task of 648 ms
+INSIDE the world step under no label (texture calls 432 ms, bufferData 118 ms; a 750 ms gap between frames) - see
+section 5, step 0. Totals: 55 tasks of 50 ms+ behind the garage, 14 over 100 ms, the worst 648 (61 / 16 / 1 419 at
+16:00; 104 tasks and a worst of 3 456 ms on the morning's builds). The world step 26.9 s, ready at 90.3 s: no cost seen.
+
+The defaults in the browser (PERF-LEAD, 24 Nov 03:00, a quiet box, `claude/ready/perf-worldbuild-5` in build
+a843af6b52cf, THE PLAIN ADDRESS - garage first and all six switches by default, no query): the garage shown at 32.0 s,
+the world ready 90.6 s after the run began (world 28.5 | town 5.1 | ring 6.5 | settle 7.9 with settle=near | worldCompile
+18.8 | craft 19.4). Behind the garage: 59 tasks of 50 ms+, 15 over 100 ms, the worst 752 ms, 6.5 s in all - no
+regression from the defaults, the four workers' switches on and used. By label: the impostors' bake 752 (6 tasks not the
+build's own slices, 1 538 ms: `perf-worldbuild-6`'s target); the settle 16 tasks / 3 over 100 / worst 389; town 4 / 3 /
+203; frames 8 / 2 / 261; the built links 118; patch ground: its fields 109; roads 102; under 100: patch ground 83, a
+site 82, forest mist 79, far terrain patch 77, the shelves 74, houses 74, houses: the kit 72, trees 64, ground material
+61, far terrain: a quadrant 53. After the world step: 98 ms.
+
+`perf-worldbuild-6` in the browser (PERF-LEAD, 24 Nov 07:30, quiet, build 70425113286a): ITS TREE BLOCK DID NOT FIRE
+(scene.userData.treeWarm absent) and the bake is still one task (worst 677 ms; 783 ms between two frames). Totals 53 tasks
+of 50 ms+, 11 over 100 ms, 5.7 s; garage 37.0 s, world ready 92.6 s. Why, and the fix: `claude/ready/perf-worldbuild-7`
+(section 5, step 0). `perf-worldbuild-7` has NO row yet.
 
 ## 2. The world build's steps, as they stand
 
@@ -78,8 +117,8 @@ step), 11:49 and 14:19 on builds that carry a9fa841d6 (the ready). Rows on round
 | The material map's raster | ~0 with the worker | 'lots' 903 | - | WORKER (`?patchw=1`) |
 | Trams, traffic, animals | 69 | - | 'houses' 78-102 | one task |
 | The town's host (decode, mirrors, geometry, batch, far cells) | 390 (390) | 'trees' 306 | 'trees' 305-386 | SLICE (round three): townkit.js hostSteps / townSteps |
-| Geometry uploads after a slice (GPU_ONLY_GEO.flush) | not seen in node | - | two unlabelled slices 290 + 203 (my reading); 522 buffers, 244 MB in the task after the build | SLICE (round four): 24 MB a call, drained a tick at a time after the build. Browser-only proof |
-| The side sheds' textures (worldBuilt, shedTexWarm) | not seen in node | - | most of a 622 ms task right after the world step (304 texture calls) | SLICE (round four): one a tick. Browser-only proof |
+| Geometry uploads after a slice (GPU_ONLY_GEO.flush) | not seen in node | - | two unlabelled slices 290 + 203 (my reading); 522 buffers, 244 MB in the task after the build | Round four's cap alone made it WORSE at the first draw (17:42); round six drains it BEFORE the world is handed over: the after-world freeze is gone (19:57) |
+| The side sheds' textures (worldBuilt, shedTexWarm) | not seen in node | - | most of a 622 ms task right after the world step (304 texture calls) | Round four's "one a tick" lost the race with the frame (17:42); round six uploads the scene's textures before the hand-over and hides the sheds until theirs are up: 87 ms after the world step (19:57); one 648 ms task of the hand-over itself is open |
 
 Not the build's generator, named by PERF-LEAD's 14:19 profile and NOT cut:
 - The tree impostor sheets' readbacks (render_world.js sheetCheckAsync: three's readRenderTargetPixelsAsync 164 + 279 ms,
@@ -156,6 +195,23 @@ LAKEBED lift the drawn lakes' closure; LOOKS quotes the fields texture's line): 
 
 ## 5. Next, in order
 
+0. THE 650-750 ms TASK IS THE TREE IMPOSTORS' BAKE (cut from `GF_READY.cpuprofile.json` at 66.4 s: plantWoodland <
+   impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll - the bake's draws are the tree models' first: maps
+   377 ms, buffers 115-142 ms, a link wait 50 ms). On a cold load it does NOT run in the build's 'trees' step (the tree
+   maps have not landed: cones) but in the replant queued after the build - so `perf-worldbuild-6`, which uploaded the
+   packs at the 'trees' step, never fired (07:30 row). `claude/ready/perf-worldbuild-7` does it before the queued replant,
+   a map or a 16 MB batch a task, and makes the after-build queue wait for it. NEVER RUN IN NODE (the tree maps do not
+   settle there): read `WORLD.scene.userData.treeWarm` in its first browser row - `via: 'after'`, `done: true`, tex > 0 -
+   and look for the bake's task gone. If the bake is still long with treeWarm done, what is left is the bake's own draws
+   and its programs' link (then: the bakes one a task - bakeImpostorAtlasNow split into its prologue, which takes the
+   layer, and its GPU body, queued; the layers' order must stay the calls' order).
+0b. THE SETTLE'S LONG TASKS (evening row: 371 / 270 / 133 / 100 / 96 ms at 79.6-81.6 s; cut the same profile there).
+   Every streamer honours the slice's clock (`FLYDIY_SLICE.until`) only before STARTING a unit, and the unit is atomic:
+   scenery_life.js tick < place < mastLife < freeForMast < offRoad < roadDist (the life's whole stand in one call, with
+   ground reads that decode raster tiles on first touch); render_premises hlodTick < hlodCell < hlodBake (one far-town
+   cell's merge; three's getDataURL under bandOf); render_premises hitPendingStep < aircraftOf < 29_obstacles
+   aircraftShape < hull (one parked aeroplane). Each has to become resumable - its loop keeping its place across calls -
+   and each runs in flight too: a day each with its own gate, in that order by size.
 1. THE IMPOSTOR SHEETS' READBACKS (section 2, "not cut"): 164 + 279 ms on the garage's frames right after the world
    step. A small copy to read back instead of the whole sheet. Estimate: half a day, with a browser row to prove it (a
    GPU path: node cannot see it).

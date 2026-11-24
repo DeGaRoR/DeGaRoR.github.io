@@ -895,7 +895,10 @@ function make(THREE, scene, world, rec0, opts) {
   // was. A batch not in yet is waited for through the host's sleep (app.js FLYDIY_WORLD_WAIT); a miss, a stale answer (the
   // soil's scales moved), the worker gone: the rest of the list is sampled here. A part build (an edit, the town later), a
   // build no host sleeps for and a page without the worker sample here, as before. GATE PATCHWORKER: the patch byte for byte.
-  const PATCHW = { on: typeof location !== 'undefined' && /[?&]patchw=1(?:&|$)/.test(location.search || ''), seq: 0, asked: 0, used: 0, here: 0, batches: 0, workerMs: 0, waitMs: 0, why: null };
+  // (PERF-WORLDBUILD, 23 Nov 2026: a world-build switch's word - render_world.js has the rule: the URL, a host's
+  //  FLYDIY_WORLD_DEFAULTS, then on under a host's budget for the switches a gate holds to the page's own bytes)
+  const wbSwitch = (name, underHost) => { const q = typeof location !== 'undefined' ? (location.search || '') : ''; if (new RegExp('[?&]' + name + '=1(?:&|$)').test(q)) return true; if (new RegExp('[?&]' + name + '=0(?:&|$)').test(q)) return false; const D = typeof window !== 'undefined' ? window.FLYDIY_WORLD_DEFAULTS : null; if (D && D[name] !== undefined) return !!D[name]; return !!(underHost && typeof window !== 'undefined' && window.FLYDIY_WORLD_BUDGET); };
+  const PATCHW = { on: wbSwitch('patchw', true), seq: 0, asked: 0, used: 0, here: 0, batches: 0, workerMs: 0, waitMs: 0, why: null };
   if (typeof window !== 'undefined' && o.game) window.FLYDIY_PATCHW = PATCHW;
   function patchFieldsAsk(list, RES, n, sink) {
     if (!PATCHW.on) { PATCHW.why = 'off'; return null; }
@@ -1340,7 +1343,7 @@ function make(THREE, scene, world, rec0, opts) {
   // here (roadSpec / polySpec: numbers only); buildRoadsSteps and buildPolysSteps stand PAVEMENT.pavUnpack's arrays,
   // sleeping on the worker through the host for one not in yet. The rails, the power lines, the marks, the materials and the
   // merges stay here. A miss, a stale answer, the editor's rebuilds, a part build: built here, as before. GATE PATCHWORKER.
-  const ROADW = { on: typeof location !== 'undefined' && /[?&]roadw=1(?:&|$)/.test(location.search || ''), jobs: new Map(), seq: 0, epoch: -1, asked: 0, used: 0, here: 0, missed: 0, workerMs: 0, waitMs: 0, why: null };
+  const ROADW = { on: wbSwitch('roadw', true), jobs: new Map(), seq: 0, epoch: -1, asked: 0, used: 0, here: 0, missed: 0, workerMs: 0, waitMs: 0, why: null };
   if (typeof window !== 'undefined' && o.game) window.FLYDIY_ROADW = ROADW;
   const roadSpec = (rd, RS) => ({ w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6),
     sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road') : null,   // the patch is sunk under it (G660)

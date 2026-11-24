@@ -31,6 +31,7 @@ const AFTER = 'premises: the renderer';   // (render_world.js: yielded after the
 async function child(side, out) {
   const { openPage } = require('./_page_node.js');
   const STEPS = [], HELD = { looks: 0, bad: [] }, SKYL = new Set(), UP = [];
+  let built = false;   // (the build's own uploads only: what a host hands the GPU after the generator has ended is not the build's)
   let world = null, O0 = null, inlineMs = null;
   const hooks = { afterScript(n, P) { const W = P.win;
     if (typeof W.GPU_ONLY_GEO === 'function' && !W.GPU_ONLY_GEO.__keep) { W.GPU_ONLY_GEO = function () {}; W.GPU_ONLY_GEO.__keep = true; }   // the arrays kept for the digest
@@ -42,15 +43,15 @@ async function child(side, out) {
       // the build's big data textures as they go up (renderer.initTexture: the island ground's - the albedo, the tint, the
       // fields, the types with their one-code flags; the bytes are dropped at the upload, so they are hashed on the way)
       { const rdr = arguments[2]; if (rdr && typeof rdr.initTexture === 'function' && !rdr.__cs) { const it = rdr.initTexture.bind(rdr); rdr.__cs = true;
-          rdr.initTexture = t => { const d = t && t.image && t.image.data; if (d && d.buffer && d.length >= 1e6) UP.push(t.image.width + 'x' + t.image.height + ' ' + d.length + ' ' + crypto.createHash('sha256').update(Buffer.from(d.buffer, d.byteOffset, d.byteLength)).digest('hex').slice(0, 16)); return it(t); }; } }
+          rdr.initTexture = t => { const d = t && t.image && t.image.data; if (!built && d && d.buffer && d.length >= 1e6) UP.push(t.image.width + 'x' + t.image.height + ' ' + d.length + ' ' + crypto.createHash('sha256').update(Buffer.from(d.buffer, d.byteOffset, d.byteLength)).digest('hex').slice(0, 16)); return it(t); }; } }
       const g = orig.apply(this, arguments); world = arguments[1]; let label = 'setup';
-      return { next(v) { const t = now(), r = g.next(v), d = now() - t;
+      return { next(v) { const t = now(), r = g.next(v), d = now() - t; if (r.done) built = true;
           // the work just done was opened by `label`: the composition's steps by their own labels, the inline child's one task by 'premises'
           if (OURS.test(String(label))) STEPS.push([String(label).slice(10), +d.toFixed(2)]);
           else if (label === AFTER) STEPS.push(['the renderer (make)', +d.toFixed(2)]);
           else if (label === 'premises' || label === 'premises: the generators') { if (inlineMs === null || d > inlineMs) inlineMs = +d.toFixed(1); }
           if (!r.done && r.value !== undefined) label = r.value;
-          if (!r.done && /^(sky|ground|island ground|far terrain|water|roads|houses|ring): /.test(String(r.value))) SKYL.add(String(r.value));   // (the labels only a host's budget asks for)
+          if (!r.done && /^(sky|ground|island ground|far terrain|water|roads|houses|ring|trees): /.test(String(r.value))) SKYL.add(String(r.value));   // (the labels only a host's budget asks for)
           // between two of the composition's steps: the premises of BEFORE stand, whole
           if (!r.done && OURS.test(String(r.value)) && world && world.premises) {
             const ov = world.premises.overlay; if (!O0) O0 = ov; HELD.looks++;
@@ -87,7 +88,7 @@ async function child(side, out) {
       for (const k of ['aerodromes', 'runways']) { try { full[k] = JSON.parse(plain(O[k])); } catch (e) { full[k] = null; } } }
     fs.writeFileSync(out.replace(/\.json$/, '.rec.json'), JSON.stringify(full)); }
   const aero = w.aerodromes.map(a => [a.id, a.kind || '', !!a.premises, +a.x, +a.z, +a.len, +a.wid, +a.hdg]);
-  fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, labels: [...SKYL], flag: W.FLYDIY_COMPSTEPS || null, census, uploads: UP, rec, aero: { n: aero.length, sha: sha(JSON.stringify(aero)) },
+  fs.writeFileSync(out, JSON.stringify({ side, build: W.FLYDIY_BUILD, labels: [...SKYL], sw: (() => { const g = o => (o ? { on: !!o.on, asked: o.asked | 0, used: o.used | 0, near: !!o.near } : null); return { stripw: g(W.FLYDIY_STRIPW), patchw: g(W.FLYDIY_PATCHW), roadw: g(W.FLYDIY_ROADW) }; })(), flag: W.FLYDIY_COMPSTEPS || null, census, uploads: UP, rec, aero: { n: aero.length, sha: sha(JSON.stringify(aero)) },
     zoneMemo: O && O.zoneMemo || null, swapped: !!(O0 && O && O !== O0), held: HELD, steps: STEPS, inlineMs,
     warns: P.errors.concat(P.logs || []).filter(e => /compsteps|premises: the swap|world build:/i.test(String(e))) }));
   process.exit(0);
@@ -105,6 +106,13 @@ async function child(side, out) {
   const A = R.inline, B = R.steps;
   console.log('GATE COMPSTEPS - build ' + B.build + '; inline ' + JSON.stringify(A.flag) + ', steps ' + JSON.stringify(B.flag) + (process.env.COMPSTEPS_QUERY ? ' - THE STEPS SIDE ALSO WITH ' + process.env.COMPSTEPS_QUERY + ' (COMPSTEPS_QUERY: a set of switches against the default world)' : '')
     + (process.env.COMPSTEPS_BUDGET !== undefined ? ' - UNDER A HOST BUDGET THAT ALWAYS ANSWERS ' + process.env.COMPSTEPS_BUDGET + ' ms (COMPSTEPS_BUDGET; the labels seen: ' + [...new Set(B.labels || [])].join(', ') + ')' : ''));
+  // ---- 0. the workers' switches (23 Nov: on by default under a host's budget, off without a host - render_world wbSwitch)
+  { const f = S => ['stripw', 'patchw', 'roadw'].map(k => k + ' ' + (S && S[k] ? (S[k].on ? 'on ' + S[k].used + '/' + S[k].asked : 'off') : '-')).join(', ');
+    console.log('0. the workers\' switches: inline ' + f(A.sw) + ' | steps ' + f(B.sw) + (B.sw && B.sw.stripw && B.sw.stripw.near ? ' (near first)' : ''));
+    for (const k of ['stripw', 'patchw', 'roadw']) if (A.sw && A.sw[k] && A.sw[k].on) bad.push('the inline child (no host, no switch) has ' + k + ' on: a page without a host must keep it off');
+    if (process.env.COMPSTEPS_BUDGET !== undefined && !process.env.COMPSTEPS_QUERY) {
+      for (const k of ['stripw', 'patchw', 'roadw']) if (!(B.sw && B.sw[k] && B.sw[k].on && B.sw[k].used > 0)) bad.push('under a host\'s budget ' + k + ' is not on and used by default (' + JSON.stringify(B.sw && B.sw[k]) + ')');
+      if (B.sw && B.sw.stripw && B.sw.stripw.near) bad.push('near first is on by default under a host\'s budget: it has a visible state and stays a switch'); } }
   // ---- 1. who composed how
   if (!(A.flag && A.flag.on === false && A.flag.used === false)) bad.push('the inline child composed in steps (' + JSON.stringify(A.flag) + ')');
   if (!(B.flag && B.flag.on === true && B.flag.used === true)) bad.push('the steps child did not compose in steps (' + JSON.stringify(B.flag) + ')');
