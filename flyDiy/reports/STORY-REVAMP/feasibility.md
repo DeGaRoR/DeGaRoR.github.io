@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 9 infeasible; 3 no official plane can fly it (the player builds one); 14 not flown; 5 stale. Time flown: 1603 min 53 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 10 infeasible; 3 no official plane can fly it (the player builds one); 13 not flown; 5 stale. Time flown: 1615 min 11 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -50,7 +50,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 52 feasible; 9 infeas
 | survey.05 | contract | feasible | Cessna 172 | 20 min 59 s | HOME > w3 547; w3 > HOME 711 |  |
 | survey.04 | contract | order | - | - | - |  |
 | obs.01 | observatory:1 | stale | - | - | - |  |
-| obs.02 | observatory:2 | not flown | - | - | - |  |
+| obs.02 | observatory:2 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 11 min 18 s | HOME > mt_strip 678 | the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax |
 | obs.03 | observatory:2 | stale | - | - | - |  |
 | obs.04 | observatory:3 | not flown | - | - | - |  |
 | obs.05 | observatory:3 | stale | - | - | - |  |
