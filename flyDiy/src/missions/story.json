@@ -2145,6 +2145,12 @@
      "who": "kate",
      "text": "ct.survey.02.done"
     }
+   },
+   "validated": {
+    "with": "Cessna 172 floats (career)",
+    "sim": "L40K",
+    "flownS": 1201,
+    "sig": "3c3a2c10"
    }
   },
   {
