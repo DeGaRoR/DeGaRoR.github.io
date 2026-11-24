@@ -319230,7 +319230,8 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
   about its leg) and the two tips are tied (internal): a single rod's ring is too narrow to hold a tip against rotation
   about the boom's axis. MEASURED: a V whose tips hang well under the mains' ground line (the Chinook at -35 on its full
   span: the tips 0.40 m under it) stands on its tail and folds it - a stance no aeroplane has; tune the cant / span /
-  stY so the tips sit near the mains' line (the gate's Lazair: -30 on half the span, 2.4 deg tail-down).
+  stY so the tips sit near the mains' line (the gate's Lazair: -25 on 0.7 of the span, 1.4 deg tail-down; half the span
+  drew a V under the flown envelope's 1.5 m hSpan, which the join reports as an error - the drawn tail is not flown).
 - **THE CONTROLS:** 62_gen_aero's 'vtail' strips carry sinV < 0, so the solver's normal leans OUTWARD; the rudder's mix
   sign is the lean's (30_solver: `st.sinV < 0 ? -side : side`, the old line for every V before it). Measured on the
   generator's default at +-30 / +-55: the elevator's up pitches nose-up and the rudder's left yaws nose-left at all four, the
@@ -319247,7 +319248,7 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
   TW2 there (refs.tw / tw2: the solver's two tail contacts, G3800). On a build with no tail unit (a tricycle) the tips take
   'extra wheels': drawn with the airframe (no unit), CAGE_GEAR.vtExtra; gear.vTip { mode 'extra', x, y, z, R, fork,
   castor }; the frame's refs.xw (+ xwFree): the solver rolls them as an unbraked main, a castoring one with no side force.
-- **GATE TAILWHEEL K** (the Chinook's rod as a Lazair at -30 on half its span, the Cessna's tricycle, the generator's default): K1 the drawing (the
+- **GATE TAILWHEEL K** (the Chinook's rod as a Lazair at -25 on 0.7 of its span, the Cessna's tricycle, the generator's default): K1 the drawing (the
   panels mirrored, a wheel contact under each tip below the root, the fin layer stood down, Svt = the drawn panels', the
   ruddervators' TE to port), K2 the controls at +-30 / +-55, K3 the three modes (off: one centreline tailwheel; as the
   tail: two tail contacts at the drawn tips, standing on them and nothing else; extra: the Cessna's nose wheel and mains to the bit, two
