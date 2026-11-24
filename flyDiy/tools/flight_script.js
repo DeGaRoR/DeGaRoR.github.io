@@ -51,7 +51,8 @@
 //   node tools/flight_script.js home_circuit                 a library scenario (tools/flight_scripts/<name>.json)
 //   node tools/flight_script.js path/to/scenario.json        any scenario file
 //   node tools/flight_script.js --list                       the library
-//   options: --out <dir> · --log <file.jsonl> · --quiet · --runner node (default) | page (the GPU, in A0's slot: --cap S --size WxH --repo <a tree to serve>)
+//   options: --out <dir> · --log <file.jsonl> · --quiet · --runner node (default) | page (the GPU, in A0's slot: --cap S --size WxH --repo <a tree to serve>
+//            --headed (a visible Chrome) --live (page_rig's native flight wait) --q "k=v&..." (the page's query) --boot S (seconds allowed for the load))
 //   exit 0 = every step passed, 1 = a step failed (the WHY printed and logged), 2 = a bad scenario
 // AS A MODULE: const FS = require('./flight_script.js'); const R = FS.runNode(scenario, { log: file, quiet: true });
 //   R = { ok, steps: [...], failed: { step, why } | null, t, wall, log }
@@ -312,7 +313,8 @@ async function runPage(S, opt) {
   const fd = fs.openSync(out, 'w');
   const J = obj => fs.writeSync(fd, JSON.stringify(obj) + '\n');
   const P = planeOf(S.plane);
-  let card = fs.readFileSync(P.key, 'utf8');
+  let card = (o.seed && o.seed['flydiy.wip']) || fs.readFileSync(P.key, 'utf8');
+  if(o.planeName){P.name=o.planeName;P.file='private saved fixture (not exported)';}
   // LOAD (PERF-TRACE-FORMAT: pax + cargo): a 'load' step BEFORE the start loads the seeded card as the contracts load it (ALTIPORT 5's
   // way: the seats filled, the baggage); a load later in the journey is refused, said (v1)
   const iStart = S.steps.findIndex(x => x.do === 'start'), loads = S.steps.filter((x, i) => x.do === 'load' && (iStart < 0 || i < iStart));
@@ -323,9 +325,10 @@ async function runPage(S, opt) {
     card = JSON.stringify(j); say('  load: ' + pax + ' passenger(s), ' + PR0[1] + ' kg of baggage (' + (L.preset || 'given') + ') into the seeded card'); }
   const PR = require(path.join(T, 'page_rig.js'));
   const wall0 = Date.now();
-  const rig = await PR.start(Object.assign({ cap: o.cap || 900, size: o.size || '1600x900', seed: { 'flydiy.wip': card } }, o.repo ? { repo: o.repo } : {}, { log: o.quiet ? (() => {}) : (t => say('  rig ' + t)) }));
+  const rig = await PR.start(Object.assign({ cap: o.cap || 900, size: o.size || '1600x900', seed: { ...o.seed, 'flydiy.wip': card }, headed:!!o.headed, live:!!o.live, q:o.q, init:o.init, boot:o.boot, fallback:o.fallback,onNavigate:o.onNavigate }, o.repo ? { repo: o.repo } : {}, { log: o.quiet ? (() => {}) : (t => say('  rig ' + t)) }));
   const R = { ok: false, steps: [], failed: null, t: 0, wall: 0, log: out };
   try {
+    if(o.onReady)R.metadata=await o.onReady(rig);
     J({ type: 'run', scenario: S.name, what: S.what || null, runner: 'page', plane: P.name, build: P.file, from: S.from, to: S.to || S.from,
         persona: S.persona || 'expert', seeded: 'flydiy.wip <- ' + P.file, gpu: rig.gpu, bootS: rig.bootS, sha: gitSha(), at: new Date().toISOString() });
     say('flight_script (page): ' + S.name + ' - ' + P.name + ' (seeded as the working build), ' + S.from + ' > ' + (S.to || S.from) + ' | gpu ' + rig.gpu + ', boot ' + rig.bootS + ' s | log ' + out);
@@ -347,7 +350,7 @@ async function runPage(S, opt) {
         if (view === 'orbit') P.camSet(a, 0.25, d); else if (view === 'pan360') P.devFree(c0[0], c0[1] + 8, c0[2], a, 0);
         if (k < 1) requestAnimationFrame(f); else res(1); }; requestAnimationFrame(f); }); } }; return 1; })()`);
     // the frame sampler (rAF intervals, ms), read and emptied per step
-    await rig.ev(`(() => { if (window.__FSF) return 1; const F = window.__FSF = { d: [], last: 0 }; const f = t => { if (F.last) F.d.push(t - F.last); F.last = t; requestAnimationFrame(f); }; requestAnimationFrame(f); return 1; })()`);
+    await rig.ev(`(() => { if (window.__FSF) return 1; const F = window.__FSF = { d: [], last: 0, lastRender:-1, renderedOnly:${!!o.playerFrames} }; const f = t => { const frame=window.FLYDIY_RENDERER&&FLYDIY_RENDERER.info.render.frame;if(!F.renderedOnly||frame!==F.lastRender){if(F.last)F.d.push(t-F.last);F.last=t;F.lastRender=frame;}requestAnimationFrame(f); }; requestAnimationFrame(f); return 1; })()`);
     const ST = `(() => { const P = window.FLIGHT_PROBE, ap = P && P.ap(), s = P && P.sim(); if (!ap || !s) return null; const cg = s.cgPos(), v = s.cgVel ? s.cgVel() : [0, 0, 0];
       const D = P.damage ? P.damage() : null, W = P.world ? P.world() : null;
       const w = (typeof flightWhere === 'function' && W) ? flightWhere(W, cg[0], cg[2]) : null;
@@ -360,11 +363,12 @@ async function runPage(S, opt) {
       const d = await rig.J(`(() => { const F = window.__FSF; const d = F ? F.d.splice(0) : []; return d; })()`) || [];
       if (!d.length) return null;
       const s = d.slice().sort((a, b) => a - b), q = p => s[Math.min(s.length - 1, Math.floor(p * s.length))];
-      return { n: d.length, p50: r1(q(0.5)), p99: r1(q(0.99)), max: r1(s[s.length - 1]), over50: d.filter(x => x > 50).length };
+      return { n: d.length, p50: r1(q(0.5)), p90:r1(q(.9)), p99: r1(q(0.99)), max: r1(s[s.length - 1]), deliveredFps:r1(1000*d.length/d.reduce((a,b)=>a+b,0)),over50: d.filter(x => x > 50).length,over100:d.filter(x=>x>100).length,freeze250:d.filter(x=>x>=250).length,over1000:d.filter(x=>x>1000).length };
     };
     let failed = null;
     for (let si = 0; si < S.steps.length && !failed; si++) {
       const st = S.steps[si], phases = [], w0 = Date.now();
+      if(o.beforeStep)await o.beforeStep(rig,st,si);
       let s = await rig.J(ST);
       await frames();   // (the step's frames start here)
       let t0 = s ? s.t : 0;
@@ -387,6 +391,7 @@ async function runPage(S, opt) {
         s = await rig.J(ST); t0 = s ? s.t : 0; }   // (a leg is a new pilot: its clock restarts at 0, the step's with it)
       else if (st.do === 'lift') await rig.ev(`window.FLIGHT_PROBE.place({ by: [0, ${+st.by}, 0] })`);
       else if (st.do === 'board') { if (!s) failed = { step: si, name: st.name, why: { what: 'not ready to board: no sim / pilot on the page' } }; }
+      if(o.refreshState)s=await rig.J(ST);   // opt-in ending snapshots; keep an in-progress comparison's protocol fixed
       const U = st.until || null, al = new Set(st.allow || []), cap = st.capS || 0;
       const miss = x => {
         const m = [];
@@ -422,11 +427,13 @@ async function runPage(S, opt) {
       const rec = { type: 'step', i: si, name: st.name, do: st.do || null, ok: !failed, t0: r1(t0), t1: s ? r1(s.t) : null, phases,
                     end: s ? { ph: s.ph, pos: s.cg, agl: s.agl, where: s.where } : null, said: s ? s.said : [], frames: fr, wallS: r1((Date.now() - w0) / 1000), why: failed ? failed.why : null };
       J(rec); R.steps.push(rec);
+      if(o.afterStep)await o.afterStep(rig,st,rec,R);
       say('  ' + (rec.ok ? 'ok  ' : 'FAIL') + ' ' + String(si + 1).padStart(2) + ' ' + st.name.padEnd(26) + ' t ' + rec.t0 + ' > ' + rec.t1 + ' s' + (phases.length ? '  ' + phases.join('>') : '') +
           (fr ? '  | frames ' + fr.n + ', p50 ' + fr.p50 + ' ms, p99 ' + fr.p99 + ', max ' + fr.max + ', ' + fr.over50 + ' over 50 ms' : ''));
       if (failed) { say('       WHY: ' + failed.why.what); for (const v of failed.why.said || []) say('       said ' + v); }
     }
     R.failed = failed; R.ok = !failed;
+    if(o.afterFlight)R.afterFlight=await o.afterFlight(rig,R);
     // the flight recorder's log, pulled whole (PERF-TRACE-FORMAT section 3) and the report made from it
     try {
       await rig.ev(`(() => { try { window.FLIGHT_REC.mark('seg:end'); } catch (e) {} window.__FSLOG = window.FLIGHT_REC.rec.logParts().join(''); return window.__FSLOG.length; })()`);
@@ -471,7 +478,9 @@ if (require.main === module) {
   const bad = checkScenario(S);
   if (bad.length) { console.error('flight_script: bad scenario ' + S.name + ':\n  ' + bad.join('\n  ')); process.exit(2); }
   if (runner === 'page') {   // (A GPU RUN NEEDS A0's SLOT: boxlock.sh take gpu first, RIG-PROCEDURE 1)
-    runPage(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), cap: +opt('cap', 900), size: opt('size', undefined), repo: opt('repo', undefined) })
+    // (PERF-TRACE 22 Nov: --headed --live --q --boot reach page_rig too - the user's rule: timing from a VISIBLE browser at the big screen's size)
+    runPage(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), cap: +opt('cap', 900), size: opt('size', undefined), repo: opt('repo', undefined),
+      headed: argv.includes('--headed'), live: argv.includes('--live'), q: opt('q', undefined), boot: +opt('boot', 0) || undefined })
       .then(R => process.exit(R.ok ? 0 : 1), e => { console.error('flight_script (page): ' + (e && e.message || e)); process.exit(2); });
   } else {
     const R = runNode(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), every: opt('every', undefined) });

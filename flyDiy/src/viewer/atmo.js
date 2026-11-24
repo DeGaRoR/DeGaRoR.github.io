@@ -485,6 +485,7 @@ var ATMO = (function () {
   // FOREST-MIST (prototype, futureDesigns/FOREST-MIST-STUDY-2026-11.md): only under ?fmist - off, every string below
   // and the lanes' array are exactly what they were
   const FM_ON = typeof FMIST !== 'undefined' && FMIST.ON;
+  const FM_VEIL = FM_ON && FMIST.C;
   const MIST_GLSL = `
     // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
     // below its top yTop, decaying over H above it - integrated in closed form along the ray
@@ -557,7 +558,7 @@ var ATMO = (function () {
       // change how much mist the day has - that number is the day's own (Koschmieder, SS2a).
       return mix(1.0, smoothstep(0.15, 0.85, n) * 2.0, uMist[6].w);
     }
-${FM_ON ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
+${FM_VEIL ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
     // THE MARCH: the optical depth with a top and a density that vary over the ground. Only the
     // slice of the ray inside [ground, the field's highest top + 5H] is walked; outside it the
     // layer contributes nothing and a sample there is a sample wasted.
@@ -593,9 +594,9 @@ ${FM_ON ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
                : (uMist[4].w > 1.5 ? mistODField(vec3(uMist[4].x, y0, uMist[4].z), d, D)
                                    : mistOD(y0, d.y, D));
       if (uMist[3].x > 0.0) od += uMist[3].x * slabLen(y0, d.y, D, uMist[3].y, uMist[3].z);
-${FM_ON ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od${FM_ON ? ' - odP' : ''});
+${FM_VEIL ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od${FM_VEIL ? ' - odP' : ''});
       float fwd = 1.0 + uMist[1].w * atmoFwdK * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
-${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-6, od + odP);   // two media, each its own light (the pockets: the beam, fmCol)\n      return col * T + Lin * (1.0 - T);\n' : ''}
+${FM_VEIL ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-6, od + odP);   // two media, each its own light (the pockets: the beam, fmCol)\n      return col * T + Lin * (1.0 - T);\n' : ''}
       return col * T + uMist[1].rgb * fwd * (1.0 - T);
     }`.replace(FM_ON ? 'uniform vec4 uMist[' + '7];' : '\u0000', 'uniform vec4 uMist[' + '13];');   // FOREST-MIST's lanes, only when it is on (off: the text as it was)
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
@@ -1004,7 +1005,7 @@ ${STAR_FIELD_GLSL}
     G.rtSky = new THREE.WebGLRenderTarget(192, 108, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
     G.rtSky.texture.wrapS = THREE.RepeatWrapping; G.rtSky.texture.wrapT = THREE.ClampToEdgeWrapping;
     G.atmU = atmUniforms();
-    G.skyMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uESun: U.eSun }, G.atmU),
+    G.skyMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / atmosphere / sky-view LUT' }, uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uESun: U.eSun }, G.atmU),
       vertexShader: QUAD_VERT, fragmentShader: SKYVIEW_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
     G.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), G.skyMat); G.quad.frustumCulled = false;
     G.scene = new THREE.Scene(); G.scene.add(G.quad);
@@ -1012,7 +1013,7 @@ ${STAR_FIELD_GLSL}
     // the aerial-perspective atlas and its pass
     G.rtAP = new THREE.WebGLRenderTarget(AP_N * AP_W, AP_ATLAS_H, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
     G.rtAP.texture.wrapS = THREE.ClampToEdgeWrapping; G.rtAP.texture.wrapT = THREE.ClampToEdgeWrapping;
-    G.apMat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uESun: U.eSun, uDmax: { value: AP_DMAX } }, G.atmU),
+    G.apMat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / atmosphere / aerial-perspective LUT' }, uniforms: Object.assign({ uR: U.r, uSun: U.sun, uMoon: U.moon, uEMoon: U.eMoon, uESun: U.eSun, uDmax: { value: AP_DMAX } }, G.atmU),
       vertexShader: QUAD_VERT, fragmentShader: AP_FRAG, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
     apUniforms.uApAtlas.value = G.rtAP.texture;
     G.enabled = true;
@@ -1140,7 +1141,7 @@ ${STAR_FIELD_GLSL}
     const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
     tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
     // into the atlas's own columns, the way the clouds' tile goes in: a scissored quad, no clear
-    const mat = new THREE.ShaderMaterial({ uniforms: { uSrc: { value: tex } },
+    const mat = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / atmosphere / LUT tile copy' }, uniforms: { uSrc: { value: tex } },
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
       depthTest: false, depthWrite: false });
@@ -1159,14 +1160,14 @@ ${STAR_FIELD_GLSL}
   }
   // blit(renderer, px, N, x, y): an N^2 RGBA float map drawn into the atlas's own columns at (x, y) - a scissored
   // quad, no clear, the way bakeField's field goes in. FOREST-MIST's map (forest_mist.js) is its only caller.
-  function blit(renderer, px, N, x, y) {
+  function blit(renderer, px, N, x, y, proceduralFragment) {
     if (!renderer || !G.rtAP || !G.quad || typeof MATLIB === 'undefined') return false;
-    const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
-    tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
-    const mat = MATLIB.make(THREE, 'shader', { uniforms: { uSrc: { value: tex } },
+    const tex = proceduralFragment ? null : new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
+    if (tex) { tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true; }
+    const mat = MATLIB.make(THREE, 'shader', { uniforms: tex ? { uSrc: { value: tex } } : {},
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-      fragmentShader: 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
-      depthTest: false, depthWrite: false });
+      fragmentShader: proceduralFragment || 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
+      depthTest: false, depthWrite: false }, 'sky / atmosphere / aerial-perspective tile copy');
     const prevRT = renderer.getRenderTarget(), ac = renderer.autoClear, pm = G.quad.material;
     const vp = new THREE.Vector4(), sc = new THREE.Vector4(); renderer.getViewport(vp); renderer.getScissor(sc);
     const st = renderer.getScissorTest();
@@ -1175,7 +1176,7 @@ ${STAR_FIELD_GLSL}
     renderer.render(G.scene, G.cam);
     renderer.setScissorTest(st); renderer.setViewport(vp); renderer.setScissor(sc);
     renderer.setRenderTarget(prevRT); renderer.autoClear = ac; G.quad.material = pm;
-    mat.dispose(); tex.dispose();
+    mat.dispose(); if (tex) tex.dispose();
     return true;
   }
 
@@ -1329,7 +1330,7 @@ ${STAR_FIELD_GLSL}
   // the dome material: one program serves the screen and the reflection probe
   function domeMat(extra, frameYaw, seen) {   // seen: the uSeen uniform (NIGHT-SUN) - the screen's by default, U.seenProbe for a probe's dome
     if (!G.enabled) return null;
-    const m = new THREE.ShaderMaterial(Object.assign({
+    const m = new THREE.ShaderMaterial(Object.assign({ userData: { progOwner: 'sky / atmosphere / dome' },
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
                   uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uStarM: U.starM, uStarMag: U.starMag, uStarA: U.starA, uStarPts: U.starPts, uSkyA: U.skyA, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
                   uGlare: U.glare, uEyeY: U.eyeY, uSeen: seen || U.seenEye, uMoonP: seen ? U.moonP : U.moonP0, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
@@ -1372,7 +1373,7 @@ ${STAR_FIELD_GLSL}
       fadeScene = new THREE.Scene(); fadeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
       // (made in the material library, the one place a material is made - AS4a, GATE ASSETS)
       fadeMat = MATLIB.make(THREE, 'shader', { uniforms: { tA: { value: null }, tB: { value: null }, uK: { value: 0 } }, vertexShader: FADE_VERT, fragmentShader: FADE_FRAG,
-        depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+        depthTest: false, depthWrite: false, toneMapped: false, fog: false }, 'sky / atmosphere / LUT cross-fade');
       const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fadeMat); q.frustumCulled = false; fadeScene.add(q);
     }
     fadeMat.uniforms.tA.value = a.texture; fadeMat.uniforms.tB.value = b.texture; fadeMat.uniforms.uK.value = k;
@@ -1401,7 +1402,7 @@ ${STAR_FIELD_GLSL}
     const es = new THREE.Scene();
     const domeG = new THREE.SphereGeometry(20, 32, 20);
     es.add(new THREE.Mesh(domeG, domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0, U.seenProbe)));   // NIGHT-SUN: the discs the EYE sees (no terrain stands in this scene)
-    const capMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });  // pre-ok: its colour x P at every bake (o.pre)
+    const capMat = new THREE.MeshBasicMaterial({ userData: { progOwner: 'sky / atmosphere / light probe cap' }, color: 0xffffff, side: THREE.BackSide, toneMapped: false, fog: false });  // pre-ok: its colour x P at every bake (o.pre)
     const cap0 = new THREE.Color(o.capHex != null ? o.capHex : 0x6d7a45);
     const gb = o.gb != null ? o.gb : 1;      // the occlusion every ambient-from-below carries (LIGHT_RIG.groundBounce)
     const capNow = () => { if (!o.cap) return cap0; const c = o.cap(); return cap0.setRGB(c[0], c[1], c[2]); };
@@ -1492,7 +1493,7 @@ ${STAR_FIELD_GLSL}
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
     setEyeY(y) { U.eyeY.value = y; }, getEyeY() { return U.eyeY.value; },
     PROBE_FADE, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
-    MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL, STARS: STAR_FIELD_GLSL },   // the clouds' pass shares the splice's samplers and functions
+    MIST, apUniforms, GLSL: { MIST: MIST_GLSL, MIST_CLOUD: FM_ON && FMIST.A && !FM_VEIL ? MIST_GLSL + '\n' + FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : MIST_GLSL, AP: AP_SAMPLE_GLSL, STARS: STAR_FIELD_GLSL },   // density library only in passes that use it
   };
 })();
 if (typeof window !== 'undefined') { window.ATMO = ATMO; ATMO.install(); }   // BEFORE any program compiles: the splice must be in every fogged material's chunks

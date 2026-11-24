@@ -206,7 +206,7 @@ const checks = {
     const c2 = check((a, b, c, d) => J.groundMaxRect(a, b, c, d) - 1);
     checks['a ceiling a metre low is caught (negative control)'] = c2.bad > 0;
     // the taxi, both ways
-    const sp = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v9_stock_2026-09-15.json'), 'utf8')).spec;
+    const sp = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'test_copies', 'build_v9_stock_2026-09-15.json'), 'utf8')).spec;
     const dJ = C.buildGen(C.genMigrateSpec(sp));
     const home = J.aerodromes.find(a => a.id === 'HOME'), site = C.siteOf(home.id);
     const mk = on => {

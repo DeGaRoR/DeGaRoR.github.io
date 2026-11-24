@@ -19,9 +19,9 @@
 //            switch row, the breakers, the GPS unit), the GPS screen textured with --gps (tools/gps_shots.js's picture:
 //            the game's own painter's output)
 //     px     the picture's width (default 1200; sheet: each panel's)
-//   e.g. node tools/box_render.js "bugReports/cessnaMetal (1).json" /tmp/metal.png sheet 800
+//   e.g. node tools/box_render.js "builds/cessna172r_2026-11-08.json" /tmp/metal.png sheet 800
 //        node tools/gps_shots.js /tmp/gps glass &&
-//        node tools/box_render.js "bugReports/cessnaMetal (1).json" /tmp/dash.png cockpit 1400 --fit glass --gps /tmp/gps/gps_map.png
+//        node tools/box_render.js "builds/cessna172r_2026-11-08.json" /tmp/dash.png cockpit 1400 --fit glass --gps /tmp/gps/gps_map.png
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const T = __dirname;

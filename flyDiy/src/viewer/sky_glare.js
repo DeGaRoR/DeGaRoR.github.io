@@ -41,7 +41,7 @@ var SKY_GLARE = (function () {
     scene = new THREE.Scene(); cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const geo = new THREE.PlaneGeometry(2, 2);
     const mk = (kind, col, size, t, gain) => {
-      const m = new THREE.ShaderMaterial({ uniforms: { uPos: { value: new THREE.Vector2() }, uSize: { value: new THREE.Vector2(size, size) }, uCol: { value: new THREE.Color(col) }, uI: { value: 0 }, uKind: { value: kind } },
+      const m = new THREE.ShaderMaterial({ userData: { progOwner: 'sky / glare / disc' }, uniforms: { uPos: { value: new THREE.Vector2() }, uSize: { value: new THREE.Vector2(size, size) }, uCol: { value: new THREE.Color(col) }, uI: { value: 0 }, uKind: { value: kind } },
         vertexShader: VERT, fragmentShader: FRAG, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
       const q = new THREE.Mesh(geo, m); q.frustumCulled = false; scene.add(q);
       quads.push({ q, m, kind, size, t, gain });

@@ -108,12 +108,13 @@
   "hitchOn": 1,
   "bumpY": 0.05,
   "bumpW": 0.95,
-  "ctlStick": 1,
+  "ctlStick": 4,
   "hdlOn": 1,
   "wallTrimOn": 1,
   "isCar": 1,
   "carDrive": 1,
-  "carChassisKg": 150
+  "carChassisKg": 150,
+  "ctlThr": 3
  },
  "wings": {
   "span": 2.2,
@@ -231,5 +232,6 @@
   },
   "wear": 0
  },
- "_what": "CAR-4 (the user 12 Nov: 'use the double boom to emulate a chassis ... the stabilizer ... a bed ... the cabin with a tiny engine, a nose almost non-existing'): a utility side-by-side from the Cub-alike - its cabin widened to two seats abreast, no wing (the twin booms rooted on the body: boomBodyZ / boomBodyY, the new rows), the booms the chassis rails, the stab the bed, the rear wheels on the booms, the front pair under a short cowl over the A-65; 4WD; it drives, it does not fly"
+ "_what": "CAR-4 (the user 12 Nov: 'use the double boom to emulate a chassis ... the stabilizer ... a bed ... the cabin with a tiny engine, a nose almost non-existing'): a utility side-by-side from the Cub-alike - its cabin widened to two seats abreast, no wing (the twin booms rooted on the body: boomBodyZ / boomBodyY, the new rows), the booms the chassis rails, the stab the bed, the rear wheels on the booms, the front pair under a short cowl over the A-65; 4WD; it drives, it does not fly",
+ "kind": "car"
 }

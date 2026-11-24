@@ -20,7 +20,7 @@
 //     and within 400 m of a stand's way is on that site's `parked` list
 //   3 PLANNED: every Jolene stand's routes out[0] and out[1], built for the
 //     stock build's and the aluminium C172's span (bugReports/cessnaMetal (1)
-//     .json = tools/fixtures/build_v10_cessnaMetal_2026-09-26.json), keep the
+//     .json = bugReports/cessnaMetal (1).json), keep the
 //     CG track GP_CLEAR (1.5 m) + the half-span off every footprint, and
 //     sitePatternIssues is empty
 //   4 CALIBRATION: the same site with its parked list withheld plans the old
@@ -66,7 +66,7 @@ const check = (ok, what, detail) => {
   return ok;
 };
 const FX = path.join(T, 'fixtures', 'island_jolene.json');
-const METAL = path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json');   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
+const METAL = path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json');   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture bugReports/cessnaMetal (1).json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
 const BUILDS = [{ key: 'stock', name: 'stock build' }, { key: METAL, name: 'Cessna 172 (F-HCSN)' }];
 // G3074: THE METAL CESSNA BY THE MILL'S HOUSES (house3 / house4) - its rotation swings 2.9 deg right as the nosewheel unloads
 // since JODEL-PITCH G2470 measured the Munk body couple along the body: the wing reads 1.49 m off (the base's 1.5+ was a

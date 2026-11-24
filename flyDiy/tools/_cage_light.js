@@ -185,6 +185,8 @@ const items = [
   ['the wing bay', [
     ['li_plane', 'tip lights on which wing', 0, 1, 1, ['first', 'second'],
      { when: P => +P.lightOn && !!+P.w2On }],
+    // CESSNA-REFIT (16 Nov): the bay in both wings or in one (absent 0: both, as every build before it)
+    ['li_baySide', 'cut in', 0, 2, 1, ['both wings', 'one: the port (left) wing', 'one: the starboard (right) wing']],
     ['li_bayFrac', 'station (semispan)', 0.10, 0.80, 0.01],
     // THE RANGE HAS TO REACH THE NEXT ROW. The cut snaps to the loft's own
     // spanwise rows, which on this wing are 0.735 m apart — so a slider that
@@ -252,7 +254,7 @@ function lensMat(key, level, colOver) {
   // 0x14161a, a black bead on the tip whatever the side - a nav lens is a
   // red or green dome you can tell apart from across the apron; the tint
   // is the lens colour darkened, the emissive term the lamp's as before
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / lights / lens' },
     color: new THREE.Color(col).multiplyScalar(0.32), emissive: new THREE.Color(col),
     emissiveIntensity: level * 2.4, roughness: 0.26, metalness: 0,  // pre-ok: a lens's drawn level; in flight CK.glow drives the clone x P
     side: THREE.DoubleSide });
@@ -295,7 +297,7 @@ function cupMat(level, colOver, on, key, k) {
   const id = lv.toFixed(2) + '|' + col + '|' + (key || '') + '|' + kk.toFixed(2);
   if (cupMats[id]) return cupMats[id];
   const row = MAT.lodge;
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / lights / reflector cup and socket' },
     color: row.col, roughness: row.rough, metalness: row.metal,
     emissive: new THREE.Color(col), emissiveIntensity: lv * 0.55 * kk,  // pre-ok: a cup's drawn level; in flight CK.glow drives the clone x P
     side: THREE.DoubleSide });
@@ -312,7 +314,7 @@ function hwMat(kind) {
   let m = null;
   if (A && A.aeroHardMat)
     m = A.aeroHardMat(THREE, 'light', kind, row.col, { side: THREE.DoubleSide });
-  if (!m) m = new THREE.MeshStandardMaterial({
+  if (!m) m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / lights / housing hardware fallback' },
     color: row.col, roughness: row.rough, metalness: row.metal,
     side: THREE.DoubleSide });
   return (bodyMats[kind] = m);
@@ -1035,6 +1037,8 @@ function sites(scene, group, P) {
     if (pR || pL) {
       if (pR) out.wingLampR = pR;
       if (pL) out.wingLampL = pL;
+      // ONE BAY (li_baySide 2, the starboard bay alone; the R bay is the PORT one, +x): the landing lamp - the R bay's - goes in it, and no taxi lamp
+      if (!pR && pL && Math.round(+P.li_baySide || 0) === 2) { out.wingLampR = pL; delete out.wingLampL; }
     } else {
       // NO BAY, NO LAMP (G304, the fitment study P2). The fallback put a
       // proud housing 10 mm BEHIND the leading edge, inside the D-nose —
@@ -1275,7 +1279,10 @@ function sites(scene, group, P) {
       // curved roof the lowest face of the band is its flank, at the window head, which is where the twin's and the
       // Cessnas' lamps went - "funny". So a face is the liner when nothing of the band lies under it within 4 cm
       // across; of those, flat enough and clear of glass, the one nearest over the seat)
-      const band = near.filter(q => q.y > crown - 0.06);
+      // (CAR-3, 13 Nov: a PADDED headliner, hdlDepth - its underside lies the slab's depth and the shell's under the
+      // crown; the band reaches it, or the lamp hung on the skin inside the slab and the cabin went dark)
+      const padD = (+P.hdlOn && +P.hdlDepth > 0) ? (+P.hdlDepth + Math.max(0, +P.skinT || 0)) * k : 0;
+      const band = near.filter(q => q.y > crown - 0.06 - padD);
       let best = null, bd = 1e9;
       for (const q of band) {
         if (q.flat < CEIL_FLAT) continue;
@@ -1941,7 +1948,7 @@ PAGE.post = (ctx) => {
   if (S.beacon && fit('beacon')) lamp('beacon', S.beacon);
   if (S.beacon2 && fit('beacon')) lamp('beacon', S.beacon2);         // G267: the other fin's
   if (S.wingLampR) {
-    if (fit('taxi')) lamp('taxi', S.wingLampL);
+    if (fit('taxi') && S.wingLampL) lamp('taxi', S.wingLampL);   // (one bay, li_baySide: no second lamp)
     if (fit('land')) lamp('land', S.wingLampR);
   }
   // ---- INSIDE -------------------------------------------------------------

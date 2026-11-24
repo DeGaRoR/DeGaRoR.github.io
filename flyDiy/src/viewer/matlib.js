@@ -63,6 +63,7 @@ var MATLIB = (() => {
     glow:   { cls: 'MeshStandardMaterial', base: {} },
     basic:  { cls: 'MeshBasicMaterial', base: {} },
     shader: { cls: 'ShaderMaterial', base: {} },
+    raw:    { cls: 'RawShaderMaterial', base: {} },   // (22 Nov: the ground cache's bake and reader, captured GLSL whole - GATE ASSETS MATS)
     depth:  { cls: 'MeshDepthMaterial', base: {} },
     house:  { cls: 'MeshStandardMaterial', base: { color: 0xffffff, roughness: 1, metalness: 0 } },
     points: { cls: 'PointsMaterial', base: {} },
@@ -76,12 +77,26 @@ var MATLIB = (() => {
   const ROW_OF = new Map();      // sig -> row
   const ST = { made: 0, asked: 0, hits: 0, variants: 0 };
 
+  // ---- WHOSE IT IS (PERF-TRACE, 22 Nov; src/viewer/program_id.js) -----------------------------------
+  // Every ask may say its OWNER, 'feature / system / variant' (make's 4th argument, shared's 5th): written to
+  // userData.progOwner, the tag the program registry reads when three links this material's programs. It is NOT in the
+  // signature: a shared record stays ONE material, and carries every asker's name (a string, or an array of them).
+  // Diagnostic only - never in a program's key or its source. GATE PROGRAMS holds every ask in src/ to one.
+  function own(m, owner) {
+    if (!m || !owner) return m;
+    const ud = m.userData || (m.userData = {}), cur = ud.progOwner;
+    if (cur === undefined || cur === null || cur === '') { ud.progOwner = owner; return m; }
+    const list = Array.isArray(cur) ? cur : [cur];
+    for (const o of (Array.isArray(owner) ? owner : [owner])) if (list.indexOf(o) < 0) list.push(o);
+    ud.progOwner = list.length === 1 ? list[0] : list;
+    return m;
+  }
   // ---- the only constructor site -----------------------------------------------------------------
-  function make(THREE, shape, params) {
+  function make(THREE, shape, params, owner) {
     const sh = SHAPES[shape];
     if (!sh) throw new Error('MATLIB: unknown shape ' + shape);
     ST.made++;
-    return new THREE[sh.cls](Object.assign({}, sh.base, params || {}));
+    return own(new THREE[sh.cls](Object.assign({}, sh.base, params || {})), owner);   // progOwner: the asker's (make's 4th argument)
   }
 
   // ---- the signature: exact, by identity for textures ----------------------------------------------
@@ -132,14 +147,14 @@ var MATLIB = (() => {
   }
 
   // ---- one material per record ----------------------------------------------------------------------
-  function shared(THREE, shape, params, scope) {
+  function shared(THREE, shape, params, scope, owner) {
     ST.asked++;
     const sig = sigOf(shape, params, scope);
     const r = row(sig, shape, params);
-    if (!S.share) { const m = make(THREE, shape, params); INFO.set(m, { sig, users: 1, variants: null, row: r, fresh: true }); return m; }
+    if (!S.share) { const m = make(THREE, shape, params, owner); INFO.set(m, { sig, users: 1, variants: null, row: r, fresh: true }); return m; }
     let m = BY_SIG.get(sig);
-    if (m) { ST.hits++; INFO.get(m).users++; return m; }
-    m = make(THREE, shape, params);
+    if (m) { ST.hits++; INFO.get(m).users++; if (owner) each(m, x => own(x, owner)); return m; }   // (one more asker: one more owner, on the record and its variants)
+    m = make(THREE, shape, params, owner);
     INFO.set(m, { sig, users: 1, variants: null, row: r, shape, params });
     BY_SIG.set(sig, m);
     return m;
@@ -152,10 +167,11 @@ var MATLIB = (() => {
     if (!I.variants) I.variants = new Map();
     let v = I.variants.get(kind);
     if (v) return v;
-    v = make(THREE, I.shape, I.params);
+    v = make(THREE, I.shape, I.params);   // progOwner: the record's own, copied with its userData below
     // what a caller set on the record's material after it was made (the prop library's env0, its glow and its env
     // factor) is carried over, and kept in step by `each`
     v.userData = Object.assign({}, m.userData);
+    if (Array.isArray(v.userData.progOwner)) v.userData.progOwner = v.userData.progOwner.slice();
     for (const k of ['envMapIntensity', 'emissiveIntensity', 'name']) if (m[k] !== undefined) v[k] = m[k];
     // the material's own hook: an own property on a bench, kept aside as _atmoHook where the game's ATMO serves every
     // hook wrapped (atmo.js's prototype accessor) - an array shape's hook IS the shape, so it must reach every sibling
@@ -423,11 +439,11 @@ mat3 mlFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     const pages = o.pages || {}, side = o.side || 0, flat = !!o.flat;
     const sig = 'arr|std|' + side + '|' + (flat ? 1 : 0) + '|' + ['map', 'nor', 'arm'].map(k => pages[k] ? pages[k].id : '-').join(',');
     let m = BY_SIG.get(sig);
-    if (m) { ST.hits++; INFO.get(m).users++; return m; }
+    if (m) { ST.hits++; INFO.get(m).users++; if (o.owner) each(m, x => own(x, o.owner)); return m; }   // (PERF-TRACE: one more asker, one more owner)
     rowTex(THREE, 1);
     const params = { color: new THREE.Color(1, 1, 1), roughness: 1, metalness: 0, side: side === 2 ? THREE.DoubleSide : side === 1 ? THREE.BackSide : THREE.FrontSide,
       flatShading: flat, envMapIntensity: 1, defines: { STANDARD: '', USE_UV: '' } };
-    m = make(THREE, 'std', params);
+    m = make(THREE, 'std', params, o.owner);   // progOwner: the asker's (o.owner, 'feature / system / variant')
     const U = { mlRows: RT.uniform, mlMap: pages.map ? pages.map.uniform : NO_PAGE, mlNor: pages.nor ? pages.nor.uniform : NO_PAGE, mlArm: pages.arm ? pages.arm.uniform : NO_PAGE };
     const hook = function (sh) { Object.assign(sh.uniforms, U); arrEdit(sh, []); };
     hook.toString = () => 'matlib.arr.std';   // the program key: ONE program for every page set (the samplers are uniforms)
@@ -447,7 +463,7 @@ mat3 mlFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
   const stats = () => ({ asked: ST.asked, made: ST.made, hits: ST.hits, variants: ST.variants, shared: BY_SIG.size, rows: ROWS.length, share: S.share });
 
   return {
-    SHAPES, make, shared, variant, each, users, release, sigOf, row, table, stats, arr,
+    SHAPES, make, shared, variant, each, users, release, sigOf, row, table, stats, arr, own,
     rowOf: m => { const I = m && INFO.get(m); return I ? I.row : -1; },
     get share() { return S.share; }, set share(v) { S.share = !!v; },
   };

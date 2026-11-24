@@ -89,14 +89,14 @@
       if (meshes.length) return true;
       const T = W.THREE; cam = o.camera || (W.FLIGHT_PROBE && W.FLIGHT_PROBE.camera && W.FLIGHT_PROBE.camera());
       if (!T || !cam) return false;
-      mat = new T.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, side: T.BackSide, blending: T.AdditiveBlending, transparent: false, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+      mat = new T.ShaderMaterial({ userData: { progOwner: 'sky / aurora / curtain' }, uniforms: U, vertexShader: VS, fragmentShader: FS, side: T.BackSide, blending: T.AdditiveBlending, transparent: false, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
       addTo(cam, 1.9, -999);
       const probes = (W.ATMO && W.ATMO.probes) || [], day = W.DAY_CLOCK && W.DAY_CLOCK.day ? W.DAY_CLOCK.day() : null;
       tick();
       for (const p of probes) { if (!p.scene) continue; addTo(p.scene, 18, 5); if (day) { try { p.bake(day, true); } catch (e) { console.warn('aurora bake:', e && e.message); } } }
       if (W.MATLIB && W.MATLIB.make) {   // the mirror's sphere (made in the material library, AS4a): the same shaders and uniforms - the same program
         mirMat = W.MATLIB.make(T, 'shader', { uniforms: U, vertexShader: VS, fragmentShader: FS, side: T.BackSide, blending: T.CustomBlending, blendEquation: T.AddEquation,
-          blendSrc: T.OneFactor, blendDst: T.OneFactor, blendSrcAlpha: T.ZeroFactor, blendDstAlpha: T.OneFactor, transparent: false, depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+          blendSrc: T.OneFactor, blendDst: T.OneFactor, blendSrcAlpha: T.ZeroFactor, blendDstAlpha: T.OneFactor, transparent: false, depthTest: false, depthWrite: false, toneMapped: false, fog: false }, 'sky / aurora / curtain in the water mirror');
         mirMesh = new T.Mesh(new T.SphereGeometry(1.9, 48, 24), mirMat);
         mirMesh.frustumCulled = false; mirMesh.onBeforeRender = () => { tick(); U.uK.value *= 2 * MIR.k; };
       }

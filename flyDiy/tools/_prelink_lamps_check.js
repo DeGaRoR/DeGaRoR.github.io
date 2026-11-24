@@ -1,0 +1,17 @@
+'use strict';
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
+const text=fs.readFileSync(path.join(__dirname,'../src/viewer/app.js'),'utf8');
+const start=text.indexOf('function withWorldLampSignature(fn) {'),end=text.indexOf('\n  const worldPrelinkDress',start);
+assert(start>=0&&end>start);
+let desired=true,calls=0;const lamps={armed:false,pool:[]};
+const ctx={location:{search:'?prelinklamps=1'},WF:{premises:{lamps},lampsWant:()=>desired,lampsArm(on){calls++;if(!lamps.pool.length)lamps.pool=Array.from({length:8},()=>({intensity:0}));lamps.armed=on;if(!on)for(const l of lamps.pool)l.intensity=0;}}};
+vm.runInNewContext(text.slice(start,end),ctx);const run=ctx.withWorldLampSignature;
+assert.equal(run(()=>{assert(lamps.armed);assert.equal(lamps.pool.length,8);return 7;}),7);assert.equal(lamps.armed,false);
+lamps.armed=true;lamps.pool.forEach((l,i)=>l.intensity=i+.5);const before=lamps.pool.map(l=>l.intensity);desired=false;
+assert.throws(()=>run(()=>{assert.equal(lamps.armed,false);throw Error('test');}),/test/);assert(lamps.armed);assert.deepStrictEqual(lamps.pool.map(l=>l.intensity),before);
+desired=true;const c=calls;run(()=>{});assert.equal(calls,c);
+ctx.location.search='?prelinklamps=0';desired=false;run(()=>assert(lamps.armed));assert.equal(calls,c);
+ctx.location.search='';lamps.armed=false;desired=true;run(()=>assert(lamps.armed));assert.equal(lamps.armed,false);
+const pending=Promise.resolve(5);assert.equal(run(()=>pending),pending);assert.equal(lamps.armed,false);
+ctx.WF=null;assert.equal(run(()=>3),3);
+console.log('PRELINK LAMPS: PASS (final light count, synchronous/exception restoration, exact intensities, no-op and opt-out)');

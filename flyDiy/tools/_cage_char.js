@@ -311,6 +311,7 @@ function material(c, mi) {
   // (G204.2's depthWrite fix — back faces through the face — is subsumed.)
   if (m.blend === 'BLEND' || m.blend === 'MASK') o.alphaTest = 0.5;
   const mat = new THREE.MeshStandardMaterial(o);
+  mat.userData.progOwner = 'aircraft / characters / body and clothes';
   mat.name = 'char:' + c.key + ':' + (m.name || mi);
   mat.userData.charSkin = 1;                 // the editor's passes leave it be
   // WHICH PERSON AND WHICH OF THEIR MATERIALS (G210.2): the join carries
@@ -591,7 +592,7 @@ function soleAt(inst, side, frameInv, out) {
 // shadows, the join's walk skips it). It shares the index; a rebuild re-poses
 // it in place. The bone matrices are formed once per mesh, so this is four
 // weighted transforms per vertex, not applyBoneTransform's matrix products.
-const PICK_MAT = new THREE.MeshBasicMaterial({ visible: false });
+const PICK_MAT = new THREE.MeshBasicMaterial({ userData: { progOwner: 'editor / character pick body / invisible' }, visible: false });
 // guarded: the node gates load this file under a THREE stub whose materials
 // carry no userData
 if (PICK_MAT.userData) PICK_MAT.userData.cageUni = 1;   // the editor's passes leave it be

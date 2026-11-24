@@ -225,8 +225,13 @@ function warmThenFrame(useOld) {
     const at = app.indexOf('  function probeCompileDress(fn) {'), end = app.indexOf('  // G584: THE GENERATORS ARE KEPT.', at);
     const craft = { visible: true }, edSit = { visible: true }, refSit = { visible: false }, bpSit = { visible: true };
     const hangar = { shafts: { visible: true } }, camera = { layers: { mask: 1073741825 } };
-    const state = { craft, edSit, refSit, bpSit, hangar, camera, craftInProbe: false };
-    const dress = at >= 0 && end > at ? vm.runInNewContext('(' + app.slice(at, end) + ')', state) : null;
+    const state = { craft, edSit, refSit, bpSit, hangar, camera, craftInProbe: false, hangarScene: null };
+    // (PERF-TRACE 22 Nov: perf-codex's dress calls probeLightPadding - the light-count padding, off unless ?probepad=1 -
+    //  and this context had no such function: the gate threw before its verdict. The REAL helper is run with it, from
+    //  the same source: with the padding off it must change nothing, which is what the fields below hold it to)
+    const padAt = app.indexOf('  const probePadPool = '), pad = padAt >= 0 && padAt < at ? app.slice(padAt, at) : '';
+    ok(/function probeLightPadding\(subjects\)/.test(pad), '4 probeLightPadding is found beside probeCompileDress (the dress calls it)');
+    const dress = at >= 0 && end > at ? vm.runInNewContext(pad + ';(' + app.slice(at, end) + ')', state) : null;
     let exact = false, threw = false;
     if (dress) try { dress(() => { exact = camera.layers.mask === 1 && !hangar.shafts.visible && !craft.visible && !edSit.visible && !refSit.visible && !bpSit.visible; throw new Error('test restoration'); }); } catch (e) { threw = e.message === 'test restoration'; }
     const restored = craft.visible && edSit.visible && !refSit.visible && bpSit.visible && hangar.shafts.visible && camera.layers.mask === 1073741825;
@@ -266,6 +271,13 @@ function warmThenFrame(useOld) {
     ok(B.links.length > counts[0], '5 control: releasing every pattern holder makes the same programs link again', B.links.length - counts[0]);
   } else ok(false, '5 patternVisFor function found for the real route-rebuild test');
 }
+
+// ---- 6. PROGRAM IDENTITY (PERF-TRACE, 22 Nov): every link tied to its three.js program and its declared owner ----
+// (tools/_progid_check.js: the recorder and src/viewer/program_id.js hooked as the page hooks them)
+require('./_progid_check.js').run(ok);
+require('./_progid_check.js').runSites(ok);   // 7: every material site in the game's source declares its owner
+require('./_progid_check.js').runWorkers(ok);   // 9: every Worker is named, the recorder keeps its traffic, the timeline names a step's worker
+require('./_progid_check.js').runCensus(ok);   // 8: the standard boots' census (tools/perf/program_owners.json): none unowned, a rise has its reason
 
 console.log('GATE PROGRAMS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

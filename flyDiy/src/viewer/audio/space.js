@@ -54,7 +54,7 @@ var AUDIO_SPACE = (function () {
   const grpNodes = new Array(NG).fill(null);  // per group: Int32Array of the solver's node indices
   let noseN = null, tailN = null;
   // the frame's typed state
-  const T = new Float64Array(7);              // 0 clock, 1 lag, 2 garage poll, 3 interior was, 4 garage was, 5 dt, 6 c
+  const T = new Float64Array(8);              // 0 clock, 1 lag, 2 garage poll, 3 interior was, 4 garage was, 5 dt, 6 c, 7 a stall frame (AUDIO-ROBUST)
   const L = new Float64Array(16);             // 0-2 position, 3-5 right, 6-8 up, 9-11 back, 12-14 velocity, 15 have
   const AT = new Float64Array(5), RS = new Float64Array(8), PB = new Float64Array(4), FWD = new Float64Array(3);
   const X3 = new Float64Array(4);              // the helpers' arguments (a double handed to a call V8 does not inline boxes)
@@ -249,7 +249,8 @@ var AUDIO_SPACE = (function () {
       L[3] = +me[0]; L[4] = +me[1]; L[5] = +me[2]; L[6] = +me[4]; L[7] = +me[5]; L[8] = +me[6];
       L[9] = +me[8]; L[10] = +me[9]; L[11] = +me[10];
     } else { L[3] = 1; L[4] = 0; L[5] = 0; L[6] = 0; L[7] = 1; L[8] = 0; L[9] = 0; L[10] = 0; L[11] = 1; }
-    if (L[15] > 0 && !cut && dt > 1e-4) {
+    if (T[7] > 0 && L[15] > 0 && !cut) { /* a stall frame: the velocity held (AUDIO-ROBUST) */ }
+    else if (L[15] > 0 && !cut && dt > 1e-4) {
       const k = dt / (dt + 0.15);
       L[12] += ((x - L[0]) / dt - L[12]) * k; L[13] += ((y - L[1]) / dt - L[13]) * k; L[14] += ((z - L[2]) / dt - L[14]) * k;
     } else { L[12] = L[13] = L[14] = 0; }
@@ -313,7 +314,13 @@ var AUDIO_SPACE = (function () {
     if (P.def !== def) resolve(P.def);
     stats.frames++;
     frameTaus();
-    const d0 = dt > 0 && dt < 1 ? dt : 0;
+    // AUDIO-ROBUST (22 Nov): a STALL frame (audio.js api.stall: after a main-thread block, or the pump's) is not time the
+    // aeroplane flew - PACE holds the flight across a stall - so it advances the space's clock by one frame at most and
+    // the velocities (the listener's, every emitter's ring) are HELD: the doppler and the lag stay where they were (a
+    // freeze sounds like a held note, never a pitch swoop)
+    const stl = A.stall && A.stall[0] > 0 ? 1 : 0;
+    T[7] = stl;
+    const d0 = dt > 0 && dt < 1 ? (stl && dt > 1 / 60 ? 1 / 60 : dt) : 0;
     const clk = T[0] += d0;
     const garage = s[I.inGarage] > 0 ? 1 : 0, inn = s[I.interior] > 0 ? 1 : 0;
     // a camera cut: the perspective or the shed changed, or the eye jumped
@@ -353,6 +360,10 @@ var AUDIO_SPACE = (function () {
         const R = rings[gi], h = R.n[1] * SC.RW;
         if (R.n[0] > 0) { const ex = PB[1] - R.a[h + 1], ey = PB[2] - R.a[h + 2], ez = PB[3] - R.a[h + 3]; if (ex * ex + ey * ey + ez * ez > 200 * 200) SC.ringReset(R); }
         SC.ringPush(R, PB);
+        if (T[7] > 0 && R.n[0] > 1) {   // a stall frame: the new point keeps the last velocity (AUDIO-ROBUST)
+          const hq = R.n[1] * SC.RW, pq = ((R.n[1] - 1 + R.cap) % R.cap) * SC.RW;
+          R.a[hq + 4] = R.a[pq + 4]; R.a[hq + 5] = R.a[pq + 5]; R.a[hq + 6] = R.a[pq + 6];
+        }
         AT[0] = clk; AT[1] = L[0]; AT[2] = L[1]; AT[3] = L[2]; AT[4] = c;
         SC.retardedSolve(R, AT, RS);
         dist = RS[7];

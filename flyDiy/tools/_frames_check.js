@@ -131,7 +131,8 @@ function corpus() {
   }
   const files = [].concat(listFiles('builds', /\.json$/i),
                           listFiles('bugReports', /\.json$/i),
-                          listFiles('tools/fixtures', /^build_v.*\.json$/i));
+                          listFiles('tools/fixtures', /^build_v.*\.json$/i),
+                          listFiles('tools/fixtures/test_copies', /\.json$/i));   // (CANON-CLEAN 13 Nov: the copies moved there)
   for (const f of files) {
     let raw;
     try { raw = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); }

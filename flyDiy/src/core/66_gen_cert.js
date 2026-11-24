@@ -50,6 +50,10 @@
 // bench's test to destruction takes it from there; the gates call genCertify / genCertAttach (cached by the spec's
 // hash). G1891: the page keeps it across page loads (IndexedDB, bench_worker.js certStoreGet / certStorePut).
 // ============================================================
+// THE CATEGORY'S LIMIT (GEN_CATEGORY, 60_gen_spec): the corners at its Nz, the ultimate at GEN_CERT's 1.5 x - a normal
+// build reads GEN_CERT.limit itself (3.8), to the bit
+const genCertLim = def => { const S = def && def.spec; return S && S.category && typeof genCatNz === 'function' ? genCatNz(S) : GEN_CERT.limit; };
+const genCertUlt = def => genCertLim(def) * GEN_CERT.ult / GEN_CERT.limit;
 const GEN_CERT = {
   limit: GEN_LOAD_LIMIT,     // 23.337(a), the normal category's +3.8 g
   ult: GEN_LOAD_ULT,         // 23.303: 1.5 x limit
@@ -499,7 +503,7 @@ function genCertAeroLoads(def, sim, o) {
 }
 // the design speeds (23.335): V_A = Vs sqrt(n) (the stall at the limit), V_C at least 33 sqrt(W/S) kt, V_D 1.4 x that
 function genCertSpeeds(def) {
-  const g = (def.params && def.params.gen) || {}, Vs = g.Vs || 25, L = GEN_CERT.limit;
+  const g = (def.params && def.params.gen) || {}, Vs = g.Vs || 25, L = genCertLim(def);
   const WSpsf = g.W && g.Sw ? (g.W / 4.4482) / (g.Sw * 10.7639) : 10;
   const VC = Math.max(1.3 * Vs * Math.sqrt(L), 33 * Math.sqrt(WSpsf) * 0.5144);
   return { VA: Vs * Math.sqrt(L), VC, VD: 1.4 * VC, VF: Math.max(1.4 * Vs, 1.8 * (g.VsFlap || Vs)) };
@@ -662,7 +666,7 @@ function genCertFlown(def) {
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const sim = makeSim(d2, null); sim.reset(0);
   if (sim.setAtmos) sim.setAtmos(null, 400);   // 400 m up, in its air (a sim with no world flies the declared height's)
-  const g = (def.params && def.params.gen) || {}, V = 2.6 * (g.Vs || 25), L = GEN_CERT.limit;
+  const g = (def.params && def.params.gen) || {}, V = 2.6 * (g.Vs || 25), L = genCertLim(def);
   for (let i = 0; i < sim.n; i++) { sim.p[i * 3 + 1] += 400; sim.v[i * 3] = -V; sim.v[i * 3 + 1] = 0; sim.v[i * 3 + 2] = 0; }
   sim.ctl.thr = 1;
   for (let f = 0; f < 60; f++) genCertStep(sim);
@@ -864,7 +868,7 @@ function* genCertifySteps(def, opt) {
   const cases = {};
   const put = (name, Fb) => { if (!Fb) return; const t = new Float64Array(nb), c = new Float64Array(nb);
     for (let bi = 0; bi < nb; bi++) { if (Fb[bi] > 0) t[bi] = Fb[bi]; else c[bi] = -Fb[bi]; } cases[name] = { t, c }; };
-  const L = GEN_CERT.limit;
+  const L = genCertLim(def);
   // the V-n corners and the controls (23.333, 23.337, 23.349, 23.423, 23.441), on the solver's own air
   const VS = genCertSpeeds(def), PS = genCertProbeSim(def), aero = {};
   // (a corner the probe's polar cannot reach - alpha at its 20 deg clamp - is flown 8 % faster until it can: the
@@ -1074,7 +1078,7 @@ function* genCertifySteps(def, opt) {
       const f = UG.buildKg / W0;
       def.beams.forEach((b, i) => { if (b.cls === 'gear') { Ft[i] *= f; Fc[i] *= f; } });
     } }
-  return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
+  return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: genCertUlt(def), neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
            Ft, Fc, byT, byC, names, cases, speeds: VS, aero, nw: ground && ground.nw != null ? ground.nw : null,
            ms: { flight: tF - t0, bench: tB - tF, drop: tD - tB, total: tD - t0, cases: msC, frames: GEN_CERT_HOOK.steps - s0 } };
@@ -1273,13 +1277,13 @@ function genCertPodMounts(def, cert) {
     return [m * (1 - w), m * w];
   };
   const s = lever(R.xShell, R.shellKg), l = lever(R.xLoad, R.maxKg);
-  const g = 9.81, L = GEN_CERT.limit;
+  const g = 9.81, L = genCertLim(def);   // (the category's: GEN_CATEGORY)
   const rows = [];
   for (const [k, ring] of [[0, f], [1, a]]) for (const side of ['BL', 'BR']) {
     const node = F[ring][side];
     const kg = 0.5 * (s[k] + l[k]);
     const row = { ring, side: side === 'BL' ? 'left' : 'right', node, x: ST[ring].x, kg,
-                  up: kg * g * L, down: kg * g * L * GEN_CERT.neg, ult: kg * g * GEN_CERT.ult, fwd9: kg * g * 9 };
+                  up: kg * g * L, down: kg * g * L * GEN_CERT.neg, ult: kg * g * genCertUlt(def), fwd9: kg * g * 9 };
     if (cert && cert.Ft && cert.Fc) {
       let env = 0, nb = 0;
       def.beams.forEach((b, bi) => { if (b.a === node || b.b === node) { nb++; env = Math.max(env, cert.Ft[bi] || 0, cert.Fc[bi] || 0); } });
@@ -1288,6 +1292,6 @@ function genCertPodMounts(def, cert) {
     rows.push(row);
   }
   const tot = rows.reduce((t, r) => t + r.kg, 0);
-  return { rows, kg: tot, limit: L, ult: GEN_CERT.ult, neg: GEN_CERT.neg, fwdG: 9,
+  return { rows, kg: tot, limit: L, ult: genCertUlt(def), neg: GEN_CERT.neg, fwdG: 9,
            worstUp: Math.max(...rows.map(r => r.up)), worstShare: cert ? Math.max(...rows.map(r => r.share || 0)) : null };
 }
