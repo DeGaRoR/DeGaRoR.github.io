@@ -4115,7 +4115,9 @@ function gvCloudCam(cam) {
     GV_COMP.onAfterRender = () => { GV_COMP.visible = false; if (cloudMesh && typeof CLOUDS !== 'undefined') cloudMesh.visible = !!CLOUDS.active; };
     G.add(GV_COMP); GV_CAM = new THREE.PerspectiveCamera(); GV_CAM.matrixAutoUpdate = false; GV_M = new THREE.Matrix4(); GV_MI = new THREE.Matrix4();
   }
-  G.updateMatrixWorld(); cam.updateMatrixWorld();
+  // (no cam.updateMatrixWorld(): the camera is a child of the WORLD scene (render_world) and aa_resolve has just refreshed it
+  //  by updateWorldMatrix before this hook - a tick of the world in the shed every draw, GATE ROUNDTRIP. G only, not its children)
+  G.updateWorldMatrix(false, false);
   GV_M.makeRotationY(SHED_W.ry); GV_M.setPosition(SHED_W.x, SHED_W.y, SHED_W.z); GV_MI.copy(G.matrixWorld).invert();
   GV_CAM.matrixWorld.multiplyMatrices(GV_M, GV_MI).multiply(cam.matrixWorld); GV_CAM.matrixWorldInverse.copy(GV_CAM.matrixWorld).invert();
   GV_CAM.projectionMatrix.copy(cam.projectionMatrix); GV_CAM.projectionMatrixInverse.copy(cam.projectionMatrixInverse);

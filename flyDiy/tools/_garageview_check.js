@@ -76,7 +76,8 @@ for (const P of PK.packs) {
   ok(/group\.rotation\.y = -sh\.ry/.test(gv) && !/siteToLocal/.test(gv), '5d the scene is placed by the shed\'s TRUE yaw (no siteToLocal quarter turn)');
   // (re-pinned 22 Nov WITH ITS REASON: GATE ASSETS AS4a wants every material made in matlib.js, so the unlit material is MATLIB's 'basic' shape -
   //  MeshBasicMaterial by matlib.js SHAPES; the rule held here is unchanged: unlit for three, never a Standard material)
-  ok(/fog: false/.test(gv) && /MATLIB\.make\(THREE, 'basic', Object\.assign\(\{ fog: false \}, p\)\)/.test(gv) && !/MeshStandardMaterial/.test(gv) && !/'std'|'house'|'cut'|'glass'|'glow'/.test(gv) && /customProgramCacheKey = \(\) => 'gview-lit' \+ \(nrm \? '-n' : ''\)/.test(gv),
+  // (and 24 Nov, GATE PROGRAMS 7: both material sites carry MATLIB's owner argument - the scene's and the shed's shadow)
+  ok(/fog: false/.test(gv) && /MATLIB\.make\(THREE, 'basic', Object\.assign\(\{ fog: false \}, p\), 'garage \/ door view \/ scene'\)/.test(gv) && /, 'garage \/ door view \/ shadow'\)\);/.test(gv) && !/MeshStandardMaterial/.test(gv) && !/'std'|'house'|'cut'|'glass'|'glow'/.test(gv) && /customProgramCacheKey = \(\) => 'gview-lit' \+ \(nrm \? '-n' : ''\)/.test(gv),
     '5e the scene\'s materials carry the WORLD\'s light themselves (unlit for three: no room lamp, no probe, no room fog), two program keys at most');
   ok(/GV_LAST = \[day, /.test(han) && /if \(GV_LAST && B\.update\) B\.update\(GV_LAST\[0\], GV_LAST\[1\]\)/.test(han), '5g a scene that lands takes the last day of the room at once (it stood black at the boot hour until the clock moved)');
   // THE DOOR VIEW AS THE GAME SHOWS IT (the user, 22 Nov: "why are we not just using the same method?")
