@@ -561,7 +561,9 @@ function turbResolve(P, spec) {
 // ---------------------------------------------------------------------------
 // THE DIAL PAIR'S ONE RANGE (ENGINE-DIALS): what engResolve clamps to and what
 // every panel row offers (tools/_eng_page.js), on all three kinds of engine
-const ENG_DIAL_RANGE = { bmepK: [0.5, 2.0], massK: [0.4, 2.2] };
+// (SMALL-ENGINES 24 Nov: the tune from 0.35 - an industrial single, the Lazair's Rotax 185 fire-pump engine at 0.41 of
+// the two-stroke law, and its Pioneer chainsaw at 0.47; every point above 0.5 keeps its bits)
+const ENG_DIAL_RANGE = { bmepK: [0.35, 2.0], massK: [0.4, 2.2] };
 const engDial = (P, k) => Math.max(ENG_DIAL_RANGE[k][0],
   Math.min(ENG_DIAL_RANGE[k][1], +P[k] || 1));
 function engResolve(spec) {

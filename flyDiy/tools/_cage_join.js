@@ -30,6 +30,15 @@ const CAGE_JOIN_ENGINES = {
   'rotax 912 (flat)': 'rotax912_warp',
   'rotax 277': 'rotax277_pusher',
   'rotax 582': 'rotax582_ivo',
+  // SMALL-ENGINES (24 Nov): the small end (00_registry.js, its sources there)
+  'rotax 185': 'rotax185_direct',
+  'Pioneer chainsaw 5.5 hp': 'pioneer55_chainsaw',
+  'Hirth F-33': 'hirthf33_belt',
+  'Polini Thor 202': 'thor202_belt',
+  'Polini Thor 250': 'thor250_belt',
+  'Polini Thor 303': 'thor303_belt',
+  'Simonini Mini 3': 'simonini_mini3',
+  'Joby JM1': 'jobyjm1_direct',
   'Verner Scarlett 7U': 'verner7u_wood',
   'Rotec R3600': 'rotec3600_std',
   'Clerget 9B': 'clerget9b_wood',          // NEW-SHAPES-1: the Camel's rotary
@@ -731,6 +740,14 @@ function cageJoinSpec(P, M, T) {
       let had = false;
       try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutFoot != null); } catch (e) {}
       if (had) spec.bracing.strutFoot = null;
+    }
+    // STRUT-AXLE (24 Nov, the Minimax 1100R): the lift struts' feet on the main axles - stated when the row is on (lift
+    // struts, the mains' cross axle), cleared the same way when it is off
+    if (+P.wgStrutAxle && !Math.round(+P.wgBrace || 0) && +P.s1On && Math.round(+P.s1Leg) === 1 && +P.s1_linkAxle) spec.bracing.strutAxle = 1;
+    else {
+      let had = false;
+      try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutAxle); } catch (e) {}
+      if (had) spec.bracing.strutAxle = null;
     }
   }
   // ...and each seat's mass (SEATS, 2026-11-02), written only when a drawn seat weighs other than the outfit's row:

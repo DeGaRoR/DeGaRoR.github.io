@@ -319823,3 +319823,27 @@ name" without reading its stack: it was this line. UISMOKE and UISMOKE-PHONE are
   deferred tick links three programs at once - a 1.47 s task in the 14:01 quiet row; its picture was right (far trees present, 57 of 57 bakes).
 - The lab's gate set from here also has UILAYER (four reds of this round reached readies through gates outside the set: WATER, GFX, UISMOKE, UILAYER).
 - SLOPE-FIX READY NOTE (PILOT 24 Nov, claude/ready/slope-fix on master L40K 56047b34e; for L40N; the user via A0 22 Nov: "we need slope fix for sure"): GATE SLOPE row 1 (the free roll on tw_ski's ~9.4 %) ran 7.3 % fast since L40H - the halved altiport's ruts (1-2 cm, a metre off the centreline) put each main on a rut wall, and 30_solver.js's forward difference along world x / z read 7.8 % / 11.7 % where the ground falls 9.4 %. The contact's slope is now differenced along the aeroplane's horizontal forward and right, centred over +-0.25 m (four terrainH, still once a frame a contact): the roll -2.0 %, the uphill push -1.1 %. GATE SLOPE row 5 (A0's ruling (a)): judged on its claim, the side grip = the drift across the wheels, plus a new row "it settles" (6-10 s under 3 cm); the row is UNBRAKED (run() with no brake), so its ~5 cm forward roll into a rut whose wall beats Crr is the user's "rolls as physics says", not a brake failing (row 4, braked on ~9 %, holds 0.23 cm). GATES, master 56047b34e vs the branch by check name: SLOPE FAIL (1) -> PASS; TAILWHEEL, ALTIPORT, PILOT, TAXICLEAR the same rows (TAILWHEEL I's touch 18 -> 18.43 m/s and ALTIPORT 4's damage counts move inside rows already red). BIT-IDENTITY: the exactly flat probe world is master's to the bit (cub, C172, Jodel, 40 s of power, rudder, stick and brakes); HOME on Jolene's island is not exactly flat, so its flights move a little (after 40 s: the cub 1.4 cm, the C172 ~30 cm, the Jodel at the 9th digit). Logs: D:/Dev/pilot_runs/slope_fix/ (br_*, m_*, bit_*).
+## READY small-engines-2 (FLAGSHIP, Tue 24 Nov 2026; on master 896877867) - claude/ready/small-engines-2
+THE USER (via A0, 24 Nov): the small end of the engine list (the Lazair's Rotax 185 and Pioneer chainsaw, the E-Lazair's
+Joby JM1, the Minimax 1100R's Hirth F-33 / Polini Thor 202-250-303 / Simonini Mini 3), "built using the rows" and set by
+"something matching an engine on power and weight targets"; the Minimax's strut to the main wheels' centre.
+- THE ENGINES: eight POWERPLANTS rows (00_registry.js, the sources and the estimates in their comments) with their garage
+  presets after the custom engine (no saved index moves), each a POINT ON THE DIALS - GATE ENGINEDIALS --emit, the matcher:
+  the row's preset, the tune bmepK and the build massK solved exactly onto the published kW and kg (engine_dial_points.json,
+  53 points, none of the 45 before moved). ROW LIMITS WIDENED, NO ROW ADDED: the tune from 0.35 (the Rotax 185 fire-pump
+  single at 0.41 of the two-stroke law, the Pioneer at 0.47), the bore from 40 mm, the rpm to 10 000 (the Thors).
+- STRUT-AXLE: wgStrutAxle (absent 0; lift struts + the mains' cross axle): each lift strut's foot on its side's main axle,
+  outboard of the wheel (the frame makes the axle pair before the wings, the gear takes it; the brace measured wing to
+  axle, so a mid wing's struts fly) and drawn as a lug pair on the axle's end. real_refs: the 1100R and the Lazair (trail).
+- FLOWN (tools/real_check.js on derived copies of the user's two builds, kept OUT of git in tools/perf/real_check_se/;
+  the bands are min .. MTOW load): MINIMAX on its 582 (the user's: 48 kW) climbs 7.9-8.4 m/s, 177 km/h - the "10 m/s".
+  Thor 303: 4.1-6.0 m/s (ref 650-1000 fpm = 3.3-5.1: inside), 151 km/h (ref 113-121: 25 % over); F-33: 2.5-3.9 m/s
+  (inside), 137 km/h; F-33 + axle struts (the card's ROUND tubes): 1.5-2.6 m/s, 102-105 km/h - the tubes' drag. Take-off
+  50-140 m against the brochure's "< 100 ft": the airframe's (empty 157-167 kg against 104-121). The card's static margin
+  goes to ~0 % with a light engine (the CG walks aft) - worth trimming on the user's side. LAZAIR (the user's: 154 kg empty
+  against 83-95, L/D 7.9 against 12-13): 2 x Rotax 185 0.8 m/s (ref 250-500 fpm: under - the airframe); 2 x Pioneer: no
+  climb; E-LAZAIR 2 x JM1 on 0.47 kWh in the wing roots: 2.1-2.7 m/s and 27-52 m (inside), ~4 min of level flight on the
+  packs (the honest check). The Lazair's pilot flights wait on a0/lazair-twin-fix (the spawn).
+- GATES on the tip: ENGID ENGINEDIALS AUDIOENG TECH RPM PROPS PROCURE PARTS REALREFS SPECFIX FRAMES KNIFE STRUT COMMITHYGIENE
+  PASS; ENGINE and ENGCONFIG red as on master (the same rows, the same hashes). small-engines-1 (c0ff676de) is this
+  without the note - superseded.

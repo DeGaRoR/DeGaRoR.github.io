@@ -762,6 +762,24 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // spaced to the tail. The cabin rings are pinned because the wing spars and
   // the seats attach to them.
   const cab = S.cab, fu = S.fuse;
+  // STRUT-AXLE (SMALL-ENGINES 24 Nov; the user, the Minimax 1100R: "I'd need strut connecting to the main wheels center
+  // (only available with the center rod option, so essentially fixed landing gear)"): S.bracing.strutAxle stands each
+  // lift strut's foot on its side's MAIN AXLE (outboard of the wheel - a mid-wing Mini-MAX's extended axle) instead of
+  // a fuselage ring. The axle pair is then made HERE, before the wings, at the gear's own place (the same gx / gy / track
+  // the gear block below reads), and the gear block takes this pair instead of making its own: one node per wheel, the
+  // strut and the gear meeting on it. Only on plain wheels (no retraction, no lever, no monowheel, no floats or hull);
+  // absent, nothing is made here and every node keeps its index
+  const STRUT_AXLE = !!(S.bracing && S.bracing.strutAxle) && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle')
+    && !S.gear.retract && S.gear.suspension !== 'lever' && !S.gear.mono;
+  let AXLE_PRE = null;
+  const axlePre = () => {
+    if (!AXLE_PRE) {
+      const gx0 = gearX !== null && gearX !== undefined ? gearX : cab.noseGap * 0.9;
+      const tr0 = track !== null && track !== undefined ? track : 5 * cab.halfW;
+      AXLE_PRE = NM(gx0, S.gear.y, 0.5 * tr0, 'AXLE', S.gear.contactR);
+    }
+    return AXLE_PRE;
+  };
   const SHP = GEN_SHAPES[fu.shape] || GEN_SHAPES.straight;
   const cabRear = cab.noseGap + cab.len;
   const boxRear = fu.boxRear;                 // cabin + cargo bay: full section
@@ -1353,7 +1371,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const opposeTag = attachHi ? 'B' : 'T';
   // a strut is only a brace if its anchor is far enough from the wing — see
   // GEN_RULES.strutMinOffset. Otherwise build the box instead.
-  const strutOffset = Math.abs(wingY0 - (attachHi ? 0 : cab.h));
+  // (STRUT-AXLE: a foot on the main axle stands that far under the wing - the axle's height is the brace's, not the
+  // longeron's: a mid wing's struts to the axle are a real brace where struts to its own lower longeron are not)
+  const strutOffset = STRUT_AXLE && k === 0 ? Math.abs(wingY0 - S.gear.y) : Math.abs(wingY0 - (attachHi ? 0 : cab.h));
   // G140: A CRANKED WING CAN BE STRUT-BRACED — WHEN THE STRUT LANDS ON THE
   // CRANK. The 2026-08-11 exclusion stays true for what it measured: a fan
   // reaching PAST the crank read 22.95 deg @200 N.m at 1.34x (the worst
@@ -1445,6 +1465,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         strutRoot = nf;
       }
     }
+    if (STRUT_AXLE && k === 0 && !cabane && !hangK) strutRoot = axlePre()[s > 0 ? 1 : 0];   // STRUT-AXLE: the foot on the axle
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
@@ -3178,7 +3199,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // design, the parts - reads one wheel), and refs.mains holds it once
   if (MONO) { GAL = GAR = N(gx, gy, 0, 'AXLEC', S.gear.contactR); }
   else
-  [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
+  [GAL, GAR] = AXLE_PRE || NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);   // (STRUT-AXLE: the pair the struts stand on)
   if (LEVER) {
     // THE LEG, per side, at full extension (the strut's L0 is its length as built): the pivot as two bearing nodes on
     // its axis (PI inboard, PO outboard), the strut's eyes (H on the arm, U on the leg). The ARM is the rigid triangle
