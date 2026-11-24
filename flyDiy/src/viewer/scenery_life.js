@@ -1117,7 +1117,7 @@ function make(THREE, host) {
   }
   // the stand NOW (the gate, a script): what tick does once the build queue is empty
   function standNow() { owed = false; place(); beaconSync(); return stats.items; }
-  return { root, stats, set, dirty, built, tick, standNow, draw: e => draw(e), trafficOf, dispose, items, get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(),
+  return { root, stats, set, dirty, built, tick, standNow, owedN: () => (owed ? 1 : 0) + PEND.length + (ADD || ADDED ? 1 : 0), draw: e => draw(e), trafficOf, dispose, items,   // (owedN, PERF-WORLDBUILD: the stand and the parts still owed - the settle gate's ledger) get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(),
     // G3543 (VEHICLE PRINTS): the parked cars (world x, z, yaw, L, W), their revision, and how far they are drawn (the cars' cut
     // times the record's dist and the tier) - render_premises lays a soft dark rectangle under each within that reach
     cars: () => CARS, carsRev: () => CARS_REV, carReach: () => CUT.cars * reach(), kinds: () => KINDS.map(k => ({ id: k.id, cat: k.cat, levels: k.levels.map(l => (l.prop || l.proc) + '<' + l.to) })), redraw: () => { dirtyDraw = true; } };

@@ -1,0 +1,8 @@
+# MONDAY 23 Nov 07:00, PART 2 (run with LM_AFTER=45: the background pass done before Go): the evening's best load again,
+# twice, beside the base - 89.6 s was ONE run - and the pavement first alone a second time (the shed's compile step:
+# 13.5 s on the evening's run). All with a departure watched to the flight.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+BESTM_1     ; D:/Dev/perf-lab-built ; pavefirst=1&groundfirst=1&latelinks=bg&pace=32&stripw=1&settle=near ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+BASE_M      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+BESTM_2     ; D:/Dev/perf-lab-built ; pavefirst=1&groundfirst=1&latelinks=bg&pace=32&stripw=1&settle=near ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+PAVEFIRST_M ; D:/Dev/perf-lab-built ; pavefirst=1&latelinks=bg ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js

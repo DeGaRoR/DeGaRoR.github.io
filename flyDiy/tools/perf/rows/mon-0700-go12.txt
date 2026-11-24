@@ -1,0 +1,3 @@
+# MONDAY 23 Nov 07:00 (run with LM_AFTER=12): the best load with Go 12 s after the reveal, the background pass still
+# running - the evening's BESTE_1 showed no flight inside 8.5 s; here the watch is 60 s.
+BESTM_GO12 ; D:/Dev/perf-lab-built ; pavefirst=1&groundfirst=1&latelinks=bg&pace=32&stripw=1&settle=near ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js

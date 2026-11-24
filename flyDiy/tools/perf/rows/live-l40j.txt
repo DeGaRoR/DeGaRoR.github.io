@@ -1,0 +1,7 @@
+# THE LIVE BUILD'S LOADS (L40J, master 089297693, build 4c761c8bb9af, stood from master's own built files in
+# D:/Dev/perf-live-l40j) - OWED: the L40J check's three load rows of 03:15 were served the lab build by a leftover server.
+# Run with LM_AFTER=12. Cold, the roll-out shot skipped; cold, the shot played; the second profile again = a returning player.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+LIVE_COLD1 ; D:/Dev/perf-live-l40j ; - ; new  ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+LIVE_COLD2 ; D:/Dev/perf-live-l40j ; - ; live ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+LIVE_WARM  ; D:/Dev/perf-live-l40j ; - ; live ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js

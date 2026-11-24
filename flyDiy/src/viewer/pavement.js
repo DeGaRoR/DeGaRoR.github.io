@@ -449,6 +449,51 @@ const PAVEMENT = (() => {
     return g;
   }
 
+  // PERF-WORLDBUILD (22 Nov 2026): A STRIP'S GEOMETRY ACROSS A THREAD. The strips were 11.9 s of the world step on the main
+  // thread (node), one task a strip, the dearest 4.7 s. stripGeometry is a pure function of its options and of the composed
+  // ground (heightAt, liftAt), and the house worker holds that ground bit for bit (GATE HOUSEWORKER): it builds the strip
+  // there (house_worker.js 'strips') and posts stripPack's arrays - every attribute, the normals, the index, the sphere,
+  // the rows and columns - TRANSFERRED; stripUnpack stands the same BufferGeometry from them on the page (o: the builder's
+  // own options, for the frame). GATE STRIPWORKER holds the two equal, byte for byte, on every strip and at two soil rungs.
+  const STRIP_ATTR = [['position', 3], ['aPav', 4], ['aPavK', 4], ['aPavT', 3], ['uv', 2]];
+  function stripPack(g) {
+    const s = g.boundingSphere, P = { a: {}, idx: g.index.array, nrm: g.attributes.normal.array, rows: g.userData.pav.rows, cols: g.userData.pav.cols,
+      sphere: new Float64Array([s.center.x, s.center.y, s.center.z, s.radius]) };
+    const tr = [P.idx.buffer, P.nrm.buffer, P.sphere.buffer];
+    for (const [k] of STRIP_ATTR) { P.a[k] = g.attributes[k].array; tr.push(P.a[k].buffer); }
+    return { r: P, tr };
+  }
+  function stripUnpack(THREE, o, P) {
+    const cls = CLASSES.indexOf(o.cls || 'concrete'), seed = o.seed || 0, shW = o.shoulderW !== undefined ? o.shoulderW : 12;
+    const g = new THREE.BufferGeometry();
+    for (const [k, n] of STRIP_ATTR) g.setAttribute(k, new THREE.BufferAttribute(P.a[k], n));
+    g.setIndex(new THREE.BufferAttribute(P.idx, 1));
+    g.setAttribute('normal', new THREE.BufferAttribute(P.nrm, 3));   // (after the index, where computeVertexNormals made it)
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(P.sphere[0], P.sphere[1], P.sphere[2]), P.sphere[3]);
+    g.userData.pav = { kind: 'strip', len: o.len, wid: o.wid, shoulderW: shW, cls: CLASSES[cls], seed, frame: stripFrame(o), rows: P.rows, cols: P.cols };
+    return g;
+  }
+
+  // (PERF-WORLDBUILD, 22 Nov) ANY pavement geometry across a thread - a road's, a paved polygon's: every attribute in its
+  // own order (the normal last, as computeVertexNormals made it), the index, the sphere, userData.pav's plain fields.
+  // pavUnpack stands the same BufferGeometry (GATE PATCHWORKER: the roads and the aprons byte for byte)
+  function pavPack(g) {
+    const s = g.boundingSphere, a = [], tr = [], pav = {};
+    for (const k of Object.keys(g.attributes)) { const A = g.attributes[k]; a.push([k, A.itemSize, A.array]); tr.push(A.array.buffer); }
+    for (const k of Object.keys(g.userData.pav || {})) { const v = g.userData.pav[k]; if (v === null || typeof v !== 'object') pav[k] = v; }
+    const P = { a, idx: g.index.array, sphere: new Float64Array([s.center.x, s.center.y, s.center.z, s.radius]), pav };
+    tr.push(P.idx.buffer, P.sphere.buffer);
+    return { r: P, tr };
+  }
+  function pavUnpack(THREE, P) {
+    const g = new THREE.BufferGeometry();
+    for (const [k, n, arr] of P.a) g.setAttribute(k, new THREE.BufferAttribute(arr, n));
+    g.setIndex(new THREE.BufferAttribute(P.idx, 1));
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(P.sphere[0], P.sphere[1], P.sphere[2]), P.sphere[3]);
+    g.userData.pav = Object.assign({}, P.pav);
+    return g;
+  }
+
   // ---- the attributes: road --------------------------------------------------
   // A ribbon along a polyRoad (27_premises.js: arclength s, at(t) -> { p, tg, n }), u = arclength,
   // v across on n (the right-hand side), dEdge = w/2 - |v| (exact on the straights; a mitred corner
@@ -2252,6 +2297,25 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     return (TAB.mat = m);
   }
   const isTable = m => !!(m && m.userData && m.userData.pavTable);
+  // PERF-WORLDBUILD (22 Nov 2026, with PERF-LEAD's ?pavefirst=1): THE TABLE PROGRAM'S STAND-IN. The load ended ~12 s after
+  // the pavement's program was ready, and that program (the boot's heaviest link) was first keyed at the town step, ~42 s
+  // in - yet its key holds NOTHING of the strips: this module's flags and hook, and three's part off the scene (the fog,
+  // the environment, the lights), the mesh (receiveShadow) and the geometry's attribute NAMES as make() leaves them
+  // (position, normal, aPav, aPavT, aPavId: aPavK and uv are deleted there). warmMesh is the one material on one
+  // degenerate triangle with exactly those attributes, flagged as a strip's mesh is (render_world.js: receiveShadow,
+  // renderOrder 3, not culled): what a host hands to the compiler as soon as the world's lights stand (the generator's
+  // 'pavement program' yield). Never added to a scene here; the same object on every call; null on the old per-strip path
+  // (?pave=old: a material per strip, no one program to key).
+  let WARM = null;
+  function warmMesh(THREE) {
+    if (!MODE.table || !THREE.DataTexture || THREE.FloatType === undefined) return null;
+    if (WARM) return WARM;
+    const g = new THREE.BufferGeometry();
+    for (const [k, n] of [['position', 3], ['normal', 3], ['aPav', 4], ['aPavT', 3], ['aPavId', 1]]) g.setAttribute(k, new THREE.BufferAttribute(new Float32Array(3 * n), n));
+    const m = new THREE.Mesh(g, tableMat(THREE));
+    m.name = 'pavement:warm'; m.receiveShadow = true; m.renderOrder = 3; m.frustumCulled = false;
+    return (WARM = m);
+  }
   // the hook: ONE function, its source the program's key; the uniforms ride in on sh._pavU
   const hook = sh => {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
@@ -2719,7 +2783,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   }
   function merge(THREE, parts, o) { const out = [], it = mergeSteps(THREE, parts, o, out); while (!it.next().done); return out; }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, setGroundWx, groundWxTick, groundWxMult, groundWxColor, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
+    stripGeometry, stripPack, stripUnpack, pavPack, pavUnpack, warmMesh, roadGeometry, polyGeometry, field, opaqueDepth, setGroundWx, groundWxTick, groundWxMult, groundWxColor, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
     // G925-G928: the table, the one material, the merge, the A/B
     // G1390-G1393: the runway look (per surface type), its live overlay, the alpha's CPU twin
     LOOK_GROUPS, LOOK_KEYS, LOOK_WEAR, groupOf, lookOf, look, tintRGB, alphaTwin, twinNoise: { hash: tHash, noise: tNoise, fbm: tFbm },

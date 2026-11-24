@@ -319235,3 +319235,53 @@ LEFT RED, MINE, TRUTHFUL (never weakened) - owners please:
 - the tow's owner: TOW "LAUNCH" the car's corners off the runway 0 -> 21 samples (the launch itself within 1 %).
 GATES: 109 of the core tier's 367 run on the branch, reds read against master by check name; NOT the full battery, nothing in a browser, no flights re-flown (real_check --all and real_report are stale for every moved plane). Master's own reds met: GROUNDQUERY FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT SLOPE TAILWHEEL MONOWHEEL DESTTO WINGROWS JOINPARITY SAVE PARTS DESIGN CANDIDATES, GLIDE "CIRCUIT archaeopteryx", UNIFY "STRIP the user's Cub".
 STILL OPEN IN THE MODEL: the clean end (Archaeopteryx glide 16.6 of 28, the Velis 12.8 of 15), the utility end (PC-6; the Petrel +12 %), the Stearman -11 % on top speed.
+
+## PERF-LEAD 1 - NO BLUE SCREEN AT A CRASH, THE SCREEN IS THE MEASURE, GARAGE FIRST AS A SWITCH (23 Nov 2026, claude/ready/perf-lead-1 on master L40J 089297693)
+The user, 22-23 Nov: "No blue screen, not in the garage, not in the world, not when crashing, ever"; "the 200 ms quoted before are rubbish, it
+freezes for several seconds"; "the draw guard code is rubbish, it does worse than just freezing a frame"; "I revise my target of world loading
+time to 1 minute, including the background loading (so ideally 1 minute spent in the garage)". The table is flyDiy/PERF-OBJECTIVES.md (rows 1-15,
+the bars for this week, how a frame is counted against a limit); the full handover is flyDiy/reports/PERF-HANDOVER-2026-11-24.md.
+WHAT CHANGES BY DEFAULT (one thing):
+- THE DRAW GUARD HOLDS THE WHOLE FRAME FOR THE GROUND'S FAMILY ONLY (app.js, ?holdframe=ground; ?holdframe=all is the old way, =0 none).
+  A draw whose program is still linking is still skipped; only a missing GROUND draw keeps the frame off the canvas. Measured on the screen's own
+  recording, the Cub put nose-down into the ground from 50 m: 'all' showed the PAGE for 6.3-10.3 s at every crash (six recorded crashes) while
+  the frame times read 200 ms; 'ground' in four crashes showed no page and held no frame, the worst frame 217-250 ms. Cost: a torn-edge copy
+  not yet linked is not drawn for the 2-3 s its program takes (the Deform Coordinator's crash-prelink ready removes those links altogether).
+WHAT THE LOG NOW SAYS (no behaviour change):
+- 'still' events (app.js after aa.render; window.FLYDIY_STILL): every run of frames the guard held, from the last picture PRESENTED to the next,
+  { f: frames, keep }. Rows 14 and 15 are read on them and on the screen's recording, never on frame times alone.
+SWITCHES, ALL OFF BY DEFAULT AND INERT (each measured headed at 5120x1440; the numbers are in the handover):
+- ?boot=garagefirst (LAB.gf, gfArm / gfRun / gfJoin): the boot runs none of the world's steps; they run behind the live garage on a budget
+  (?gfrest=12 ms a task at rest, ?gfbusy=3 while the pointer or a key moves; window.FLYDIY_WORLD_BUDGET.left() for the world build); Go joins
+  the load where it stands. First quiet run: the garage on screen 31 s (today 119-127), the world ready 98 s later, Go -> flying 2.6 s with no
+  loading screen. ?gfwarm=0 leaves the world's first draws to Go.
+- ?latelinks=bg (the scuff's and the see-through view's links after the reveal), ?pavefirst=1 / ?groundfirst=1 (the heavy ground programs
+  handed to the driver at their yields; the world build's own stand-ins), ?pace=N, ?settle=near: with stripw the best load 85-88 s against 120.
+- ?farslots=1, ?fartol=N, ?mirpace=1, ?mirlean=1 (the far terrain's buffers and the water mirror's captures in flight: 72 % of seconds at 29+
+  frames against 55 %, 7 frames over 100 ms against 25-31; THE PICTURE HAS NOT BEEN REVIEWED BY THE USER), ?coverbudget=K (not yet flown),
+  ?keepframe=1 (the canvas keeps its last picture).
+TOOLS (flyDiy/tools/perf/, each prints its use): window_train_check.sh (a train's perf check in one command: loads cold x2 + returning, the
+journey's first 8 minutes and the nose-down crash with the screen recorded), load_matrix.sh (a rows file of timed loads; it now checks that the
+port serves the row's folder), user_log.py (any flight log against the table), screen_read.py (the picture pass: the page shown, the screen
+frozen, exit 1 on a page frame), profile_window.py (a freeze named by function), lab_build.sh; tools/boot_perf.js --rollout-once / --profile-out,
+tools/flight_script.js --screencast and the 'page' step; scenarios in tools/flight_scripts/perf/.
+GATES run on the tree: BACKGUARD, PROGRAMS, FLIGHTREC, HULLWARM, LIGHT, AA, POSTFX, GFX, ROLLANIM, BOOT, DMGLOOK, DMGSKINGPU, DMGSCUFF's two
+text checks, the world build's workers and COMPSTEPS, AUDIO pass; every other red on it is L40J's own by check name (UISMOKE, DMGSKIN, DMGWRECK,
+FRAMECOST's pins, ROUNDTRIP).
+
+## PERF-LEAD 2 - GARAGE FIRST: THE GARAGE'S TWO 1.4 s FREEZES WHILE THE WORLD LOADS, AND GO'S 0.47 s FRAME (23 Nov 2026, claude/ready/perf-lead-2 on master L40K 56047b34e)
+The user, 23 Nov: "If that's background loading, but the garage freezes for the whole time, there's little point. That's the right solution, but
+garage shouldn't freeze." Everything here acts only under ?boot=garagefirst (a switch, OFF by default); a page without it is unchanged.
+- A compile behind the live garage puts back the program the garage's frames were drawing (compileSliced under gfLive; gfS.kept): the craft step's
+  compile of the shed as the roll-out shot dresses it left the sky's two domes on programs still linking, and the garage's next frame waited 1.4 s.
+- The clouds' first draw (CLOUDS.warmDraw: the march's two-output variant, built on the GPU's main thread) runs at the boot's end, under the
+  garage's own loading screen, not behind the visible garage (gfArm; ?gfcloud=late is the old place). A NAMED LOAD COST: about 1.5 s of that screen.
+- The world's vertex buffers go up a slice a task behind the garage (worldBuffersWarm; ?gfbuf=0): Go's first world frame handed 2 684 buffers, 402 MB.
+- tools/perf/gf_garage.py: the garage's tasks of 50 ms+ by step and label AND the picture standing still (the recorder's gaps of 250 ms+): a row
+  with a 1.45 s frozen picture and no long task had read clean. GATE GARAGEFIRST 1j.
+MEASURED (headed, 5120x1440): both 1.4 s gaps gone (16:00 quiet for the first, 17:35 on a busy box for the second); Go's frame gone; the crash's
+rows 14 and 15 met twice more on the merged tree (worst frame 133-150 ms, no page). STILL OPEN in the garage: 0.9-1.4 s right after the world step
+(the world's textures uploaded at a draw of the garage's frame), three ~0.3 s world-update calls in the settle (premises, masts, obstacles, cover).
+This ready CONTAINS, merged: perf-lead-1, claude/ready/perf-worldbuild-3's code (369ad0ec9), deform-wreck-clear f49705343, perf-trace-8 e3c2e449e,
+perf-sliders-release-1 87aeb19fb. GATES on the tree: PROGRAMS, LIGHT, HULLWARM, FLIGHTREC, GARAGEFIRST, BACKGUARD, COMMITHYGIENE, COVER, COMPSTEPS,
+DMGSKINGPU, DMGPAGEW pass.

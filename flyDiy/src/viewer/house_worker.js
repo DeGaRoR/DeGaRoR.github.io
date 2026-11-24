@@ -49,7 +49,9 @@ const HW_FILES = [['HOUSE_TEX_SETS', 'src/viewer/house_tex.js'], ['GROUND_TEX', 
   ['HANGAR_GEN', 'tools/_hangar_gen.js'], ['TOWER_GEN', 'tools/_tower_gen.js'], ['TRAM_GEN', 'tools/_tram_gen.js'], ['TOTEM_GEN', 'tools/_totem_gen.js'],
   ['VILLAGE_GEN', 'tools/_village_gen.js'], ['PREMISES_BUILD', 'src/viewer/premises_build.js'],
   // (C3c, G861) a kit plot's lot (Metlakatla on the kit): the job kind 'kit' - imported whatever the page has loaded
-  ['KIT_LOT', 'src/viewer/kit_lot.js']];
+  ['KIT_LOT', 'src/viewer/kit_lot.js'],
+  // (PERF-WORLDBUILD, 22 Nov) the strips' geometry: PAVEMENT.stripGeometry on the worker's composed ground ('strips' below)
+  ['PAVEMENT', 'src/viewer/pavement.js']];
 const HW_LAZY = [['SPORT_GEN', 'tools/_sport_gen.js'], ['MARINE_GEN', 'tools/_marine_gen.js'], ['NAVAID_GEN', 'tools/_navaid_gen.js'], ['METEO_GEN', 'tools/_meteo_gen.js']];
 const HW_DB = 'flydiy-houses';
 
@@ -216,6 +218,121 @@ function houseWorkerBody(G, port) {
     port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
       mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0 } });
   }
+  // PERF-WORLDBUILD (22 Nov): THE STRIPS' GEOMETRY (render_world.js stripsAsk). A job is a strip's builder options as the
+  // page resolved them (j.sd: numbers only), whether it is a bumpy strip (j.micro: the drawn ground is terrainH less the
+  // stones) and whether its lift reads the other pavements (j.lift); m.wear the page's worn-relief scales by weather code
+  // (20_world wearScales: this world's day is not the page's). Built by the page's own builder (pavement.js) on this world's
+  // composed ground - the page's, bit for bit - and posted as stripPack's arrays, transferred. No cache: a strip is a
+  // function of the ground under it and of the day's rung, and the page asks once a loading.
+  function strips(m) {
+    const PAV = G.PAVEMENT, W = st.world;
+    const one = j => {
+      if (m.epoch !== st.epoch || !st.O || !PAV || !PAV.stripPack) { port.post({ cmd: 'strip', epoch: m.epoch, seq: j.seq, id: j.id, miss: !PAV || !PAV.stripPack ? 'no pavement' : 'stale' }); return; }
+      const t0 = now();
+      try {
+        if (m.wear && !W.setWearScales) throw new Error('no wear hook');
+        if (W.setWearScales) W.setWearScales(m.wear || null);
+        const O = st.O, o = Object.assign({}, j.sd, { heightAt: j.micro && W.stoneH ? (x, z) => W.terrainH(x, z) - W.stoneH(x, z) : W.terrainH,
+          liftAt: j.lift && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, j.id) : null });
+        const p = PAV.stripPack(PAV.stripGeometry(G.THREE, o)), ms = now() - t0;
+        st.stripMs = (st.stripMs || 0) + ms; st.strips = (st.strips || 0) + 1; st.bytes += sizeOf(p.tr);
+        send({ cmd: 'strip', epoch: m.epoch, seq: j.seq, id: j.id, r: p.r, ms }, p.tr);
+      } catch (e) { port.post({ cmd: 'strip', epoch: m.epoch, seq: j.seq, id: j.id, miss: 'error: ' + (e && e.message) }); }
+      finally { if (W.setWearScales) W.setWearScales(null); }
+    };
+    // (a unit a job: the queue below picks the next by what the page reads first)
+    return Promise.all(m.jobs.map(j => unit(j.late ? PRI.late : PRI.strips, () => one(j)))).then(() => {
+    port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
+      mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0, strips: st.strips || 0, stripMs: Math.round(st.stripMs || 0) } });
+    });
+  }
+  // PERF-WORLDBUILD (22 Nov): THE PATCH'S QUERIES (render_premises.js patchFieldsAsk). For every 2 m vertex of the chunks
+  // named (m.chunks: [ci, cj] of m.PCH metres, (m.n + 1)^2 vertices each, row by row as the page samples them): g - the
+  // ground's build read (world.terrainHBuild), q1 - O.pavedAt(x, z, m.sideR1), q2 - O.pavedAt(x, z) when the page sinks
+  // the patch under its pavements (m.sink). Answered m.batch chunks at a time: g dense (Float64), q1 / q2 SPARSE (the
+  // vertex's offset in the batch + the answer's six fields). The page applies its own laws to them; nothing is decided here.
+  function patch(m) {
+    const W = st.world, per = (m.n + 1) * (m.n + 1);
+    const B0 = []; for (let b = 0; b < m.chunks.length; b += m.batch) B0.push(b);
+    const one = b0 => {
+      if (m.epoch !== st.epoch || !st.O) { port.post({ cmd: 'patchf', epoch: m.epoch, seq: m.seq, b0, miss: 'stale' }); return; }
+      const t0 = now(), O = st.O, cs = m.chunks.slice(b0, b0 + m.batch), g = new Float64Array(cs.length * per);
+      const mk = () => ({ idx: [], d: [], dPre: [], halfW: [], cls: [], kind: [], id: [] });
+      const put = (Q, k, a) => { Q.idx.push(k); Q.d.push(a.d); Q.dPre.push(a.dPre); Q.halfW.push(a.halfW); Q.cls.push(a.cls); Q.kind.push(a.kind); Q.id.push(a.id); };
+      const pack = Q => ({ idx: Uint32Array.from(Q.idx), d: Float64Array.from(Q.d), dPre: Float64Array.from(Q.dPre), halfW: Float64Array.from(Q.halfW), cls: Q.cls, kind: Q.kind, id: Q.id });
+      const q1 = mk(), q2 = m.sink ? mk() : null;
+      try {
+        if (m.wear && !W.setWearScales) throw new Error('no wear hook');
+        if (W.setWearScales) W.setWearScales(m.wear || null);
+        for (let c = 0; c < cs.length; c++) { const cx0 = cs[c][0] * m.PCH, cz0 = cs[c][1] * m.PCH;
+          for (let j = 0; j <= m.n; j++) for (let i = 0; i <= m.n; i++) {
+            const k = c * per + j * (m.n + 1) + i, x = cx0 + i * m.RES, z = cz0 + j * m.RES;
+            g[k] = W.terrainHBuild ? W.terrainHBuild(x, z) : W.terrainH(x, z);
+            const a = O.pavedAt ? O.pavedAt(x, z, m.sideR1) : null; if (a) put(q1, k, a);
+            if (q2) { const b = O.pavedAt(x, z); if (b) put(q2, k, b); }
+          } }
+        const P1 = pack(q1), P2 = q2 ? pack(q2) : null, tr = [g.buffer, P1.idx.buffer, P1.d.buffer, P1.dPre.buffer, P1.halfW.buffer].concat(P2 ? [P2.idx.buffer, P2.d.buffer, P2.dPre.buffer, P2.halfW.buffer] : []);
+        const ms = now() - t0; st.patchMs = (st.patchMs || 0) + ms; st.patchChunks = (st.patchChunks || 0) + cs.length; st.bytes += sizeOf(tr);
+        send({ cmd: 'patchf', epoch: m.epoch, seq: m.seq, b0, n: cs.length, g, q1: P1, q2: P2, ms }, tr);
+      } catch (e) { port.post({ cmd: 'patchf', epoch: m.epoch, seq: m.seq, b0, miss: 'error: ' + (e && e.message) }); }
+      finally { if (W.setWearScales) W.setWearScales(null); }
+    };
+    // (a unit a batch: the queue below picks the next by what the page reads first)
+    return Promise.all(B0.map(b0 => unit(PRI.patch, () => one(b0)))).then(() => {
+    port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
+      mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0, strips: st.strips || 0, stripMs: Math.round(st.stripMs || 0), patchChunks: st.patchChunks || 0, patchMs: Math.round(st.patchMs || 0) } });
+    });
+  }
+  // PERF-WORLDBUILD (22 Nov): THE MATERIAL MAP (render_premises.js paintMaterialsSteps): the page's own raster function, by
+  // its source text (m.src: self-contained, it reads its arguments only), run on this composition; the bytes transferred
+  function matmap(m) {
+    if (m.epoch !== st.epoch || !st.O) { port.post({ cmd: 'matmapf', epoch: m.epoch, seq: m.seq, miss: 'stale' }); return; }
+    const t0 = now();
+    try {
+      const fn = (new Function('return (' + m.src + ')'))(), d = new Uint8Array(m.N * m.N * 4);
+      const any = fn(st.O, d, m.N, m.mb, m.MW, m.MH, m.slots);
+      st.bytes += d.byteLength;
+      send({ cmd: 'matmapf', epoch: m.epoch, seq: m.seq, d, any: !!any, ms: now() - t0 }, [d.buffer]);
+    } catch (e) { port.post({ cmd: 'matmapf', epoch: m.epoch, seq: m.seq, miss: 'error: ' + (e && e.message) }); }
+  }
+  // PERF-WORLDBUILD (22 Nov): THE ROADS' AND THE PAVED POLYGONS' GEOMETRY (render_premises.js paveAsk). A job names the
+  // composition's road or polygon by id and carries the builder's options as the page resolved them (j.o: numbers only);
+  // the closures are made here - the road's polyline (PREMISES_GEN.polyRoad), the frame's toWorld, the ground's build read,
+  // the lift over another pavement (j.lift) and, for a road, the keep-off-the-strips factor: the page's own stripKeep, by
+  // its source text (m.keepSrc, self-contained over O and PG). Built by pavement.js's builders, posted as pavPack's arrays.
+  let keepFn = null, keepSrc = null, keepO = null;
+  function pave(m) {
+    const PAV = G.PAVEMENT, PG = G.PREMISES_GEN, W = st.world;
+    const one = j => {
+      if (m.epoch !== st.epoch || !st.O || !PAV || !PAV.pavPack) { port.post({ cmd: 'pavef', epoch: m.epoch, seq: j.seq, miss: !PAV || !PAV.pavPack ? 'no pavement' : 'stale' }); return; }
+      const t0 = now();
+      try {
+        if (m.wear && !W.setWearScales) throw new Error('no wear hook');
+        if (W.setWearScales) W.setWearScales(m.wear || null);
+        const O = st.O, hB = (x, z) => (W.terrainHBuild ? W.terrainHBuild(x, z) : W.terrainH(x, z));
+        const liftAt = j.lift && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, j.id) : null;
+        let g;
+        if (j.kind === 'road') {
+          const rd = O.roads.find(r => r.id === j.id); if (!rd) throw new Error('no road ' + j.id);
+          if (keepSrc !== m.keepSrc || keepO !== O) { keepFn = (new Function('O', 'PG', m.keepSrc))(O, PG); keepSrc = m.keepSrc; keepO = O; }
+          g = PAV.roadGeometry(G.THREE, Object.assign({}, j.o, { road: PG.polyRoad(rd.pts, rd.w), toWorld: (x, z) => O.frame.toWorld(x, z), heightAt: hB, shoulderK: keepFn, liftAt }));
+        } else {
+          const pp = (O.pavePolys || []).find(p => p.id === j.id); if (!pp) throw new Error('no polygon ' + j.id);
+          g = PAV.polyGeometry(G.THREE, Object.assign({}, j.o, { poly: pp.poly.map(q => O.frame.toWorld(q[0], q[1])), heightAt: hB, liftAt }));
+        }
+        const p = PAV.pavPack(g), ms = now() - t0;
+        st.paveMs = (st.paveMs || 0) + ms; st.paves = (st.paves || 0) + 1; st.bytes += sizeOf(p.tr);
+        send({ cmd: 'pavef', epoch: m.epoch, seq: j.seq, r: p.r, ms }, p.tr);
+      } catch (e) { port.post({ cmd: 'pavef', epoch: m.epoch, seq: j.seq, miss: 'error: ' + (e && e.message) }); }
+      finally { if (W.setWearScales) W.setWearScales(null); }
+    };
+    // (a unit a job: the queue below picks the next by what the page reads first)
+    return Promise.all(m.jobs.map(j => unit(PRI.pave, () => one(j)))).then(() => {
+    port.post({ cmd: 'stats', stats: { built: st.built, hits: st.hits, misses: st.misses, genMs: Math.round(st.genMs), initMs: Math.round(st.initMs), composeMs: Math.round(st.composeMs), cache: !!st.db,
+      mb: +(st.bytes / 1048576).toFixed(1), moved: st.moved, kept: st.kept, tallies: st.tallies || 0, strips: st.strips || 0, stripMs: Math.round(st.stripMs || 0), patchChunks: st.patchChunks || 0, patchMs: Math.round(st.patchMs || 0),
+      paves: st.paves || 0, paveMs: Math.round(st.paveMs || 0) } });
+    });
+  }
   // every array a packed result holds (the page takes them: nothing is copied back)
   function transfers(r) {
     const tr = [], seen = new Set();
@@ -223,14 +340,40 @@ function houseWorkerBody(G, port) {
     walk(r);
     return tr;
   }
-  // one message at a time, in order (an async step - the fetch, the cache - finishes before the next begins); the
-  // returned promise is the harness's (tools/_page_node.js acks a message when it settles), a browser ignores it
-  let chain = Promise.resolve();
-  port.on(m => {
-    chain = chain.then(() => (m.cmd === 'init' ? init(m) : m.cmd === 'compose' ? compose(m) : m.cmd === 'jobs' ? jobs(m) : null))
-      .catch(e => { st.err = String(e && e.message || e); port.post({ cmd: 'fail', why: st.err, stack: String(e && e.stack || '') }); });
-    return chain;
-  });
+  // PERF-WORLDBUILD (22 Nov 2026, fix A): THE QUEUE TAKES UNITS, BY WHAT THE PAGE READS FIRST. Messages were served whole
+  // and in the order posted: with the patch, the roads and the strips all asked of this one worker, the material map (asked
+  // at the 'materials' step, 1 s of work) waited behind every road and every strip - the box, 22 Nov: the page asleep 16.5 s.
+  // A unit is now a patch batch, the map, one road or apron, one strip, a houses message; the next unit run is the one the
+  // page's build reads soonest - the patch, the map, the roads and aprons, the strips, the houses, the strips marked late
+  // (near first: beyond the reveal's reach) - in arrival order within a kind, and the queue lets the port deliver its
+  // messages between two units, so a later, more urgent ask is seen. init and compose come before anything (an older
+  // epoch's units then answer 'stale', as they would to a newer composition). Every answer is the bytes it was. m.fifo
+  // (?hworder=fifo): units in arrival order, for the A/B. The returned promise is the harness's (tools/_page_node.js acks a
+  // message when every unit of it has run), a browser ignores it.
+  const PRI = { first: 0, patch: 1, matmap: 2, pave: 3, strips: 4, jobs: 5, late: 6 };
+  const UQ = []; let uOrd = 0, pumping = false;
+  const breath = (() => {   // a macrotask with no timer clamp: the port's pending messages are delivered before it
+    if (typeof MessageChannel === 'undefined') return () => new Promise(r => setTimeout(r, 0));
+    // (node: the channel keeps its thread alive only while a unit waits on it - ref'd for the wait, unref'd when none is left)
+    const mc = new MessageChannel(), w = []; mc.port1.onmessage = () => { const r = w.shift(); if (!w.length && mc.port1.unref) mc.port1.unref(); if (r) r(); };
+    if (mc.port1.unref) mc.port1.unref();
+    return () => new Promise(r => { w.push(r); if (mc.port1.ref) mc.port1.ref(); mc.port2.postMessage(0); });
+  })();
+  function unit(pri, run) { return new Promise(res => { UQ.push({ pri: st.fifo && pri > 0 ? 1 : pri, ord: uOrd++, run, res }); pump(); }); }
+  async function pump() {
+    if (pumping) return; pumping = true;
+    try {
+      while (UQ.length) {
+        let k = 0; for (let i = 1; i < UQ.length; i++) if (UQ[i].pri < UQ[k].pri || (UQ[i].pri === UQ[k].pri && UQ[i].ord < UQ[k].ord)) k = i;
+        const u = UQ.splice(k, 1)[0];
+        try { await u.run(); } catch (e) { st.err = String(e && e.message || e); port.post({ cmd: 'fail', why: st.err, stack: String(e && e.stack || '') }); }
+        u.res(); st.units = (st.units || 0) + 1;
+        if (UQ.length) await breath();
+      }
+    } finally { pumping = false; }
+  }
+  port.on(m => (m.cmd === 'init' ? unit(PRI.first, () => { st.fifo = !!m.fifo; return init(m); }) : m.cmd === 'compose' ? unit(PRI.first, () => compose(m)) : m.cmd === 'jobs' ? unit(PRI.jobs, () => jobs(m))
+    : m.cmd === 'strips' ? strips(m) : m.cmd === 'patch' ? patch(m) : m.cmd === 'matmap' ? unit(PRI.matmap, () => matmap(m)) : m.cmd === 'pave' ? pave(m) : Promise.resolve()));
 }
 
 // the Blob's source: this file by URL next to the page, then the body
@@ -242,7 +385,7 @@ function houseWorkerSource(url) {
 // ---- THE PAGE'S SIDE ---------------------------------------------------------------------------------------------------
 const HOUSE_WORKER = (() => {
   const S = { on: false, why: 'not started', w: null, ready: false, failed: false, epoch: 0, composed: -1, stats: {}, got: 0, bytes: 0, initMs: 0, composeMs: 0, t0: 0 };
-  let onResult = null, onFail = null, waiters = [];
+  let onResult = null, onFail = null, onStrip = null, onPatch = null, onMatmap = null, onPave = null, waiters = [];
   const W = typeof window !== 'undefined' ? window : {};
   const wake = () => { const w = waiters; waiters = []; for (const f of w) f(); };
   function off(why) { S.on = false; S.why = why; return null; }
@@ -273,7 +416,7 @@ const HOUSE_WORKER = (() => {
       w.onmessage = e => { try { msg(e.data); } catch (err) { console.warn('house worker message:', err); } };
       w.onerror = err => fail('the worker failed: ' + (err && err.message || err));
       const lazy = HW_LAZY.filter(([g]) => /sport\//.test(o.premises) && g === 'SPORT_GEN' || /marine\//.test(o.premises) && g === 'MARINE_GEN' || /(navaid|utility)\//.test(o.premises) && g === 'NAVAID_GEN' || /meteo\//.test(o.premises) && g === 'METEO_GEN').map(([g]) => g);
-      w.postMessage({ cmd: 'init', base, urls, island: o.island, hydro: o.hydro || null, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT, lazy, build: ver || 'dev',
+      w.postMessage({ cmd: 'init', fifo: /[?&]hworder=fifo(?:&|$)/.test((typeof location !== 'undefined' && location.search) || ''), base, urls, island: o.island, hydro: o.hydro || null, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT, lazy, build: ver || 'dev',
                       flags: { FLYDIY_GROUND_RASTER: W.FLYDIY_GROUND_RASTER } });
       S.urls = urls;
       return api;
@@ -294,6 +437,10 @@ const HOUSE_WORKER = (() => {
     else if (m.cmd === 'stats') S.stats = m.stats;
     else if (m.cmd === 'fail') { fail('the worker: ' + m.why); return; }
     else if (m.cmd === 'result') { S.got++; if (onResult) onResult(m); }
+    else if (m.cmd === 'strip') { if (onStrip) onStrip(m); }   // (PERF-WORLDBUILD: a strip's geometry, render_world's)
+    else if (m.cmd === 'patchf') { if (onPatch) onPatch(m); }   // (...the patch's queries, render_premises')
+    else if (m.cmd === 'matmapf') { if (onMatmap) onMatmap(m); }   // (...the material map's bytes)
+    else if (m.cmd === 'pavef') { if (onPave) onPave(m); }   // (...a road's or a paved polygon's geometry)
     wake();
   }
   // the renderer's side: its composition (a new epoch), its batches of work, its results
@@ -307,7 +454,7 @@ const HOUSE_WORKER = (() => {
   const api = {
     start, compose, post,
     ok: () => S.on && !S.failed,
-    set onResult(f) { onResult = f; }, set onFail(f) { onFail = f; },
+    set onResult(f) { onResult = f; }, set onFail(f) { onFail = f; }, set onStrip(f) { onStrip = f; }, set onPatch(f) { onPatch = f; }, set onMatmap(f) { onMatmap = f; }, set onPave(f) { onPave = f; },
     // a promise that settles on the worker's next message (the town step waits on it instead of spinning)
     next: () => new Promise(res => { if (!S.on) res(); else waiters.push(res); }),
     stats: () => Object.assign({ on: S.on, why: S.why, ready: S.ready, failed: S.failed, results: S.got, initMs: Math.round(S.initMs), composeMs: Math.round(S.composeMs) }, S.stats),

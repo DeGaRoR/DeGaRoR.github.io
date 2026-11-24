@@ -800,8 +800,15 @@ const WATER = (() => {
   // is an equilibrium k^-3 in height (k^-2 in slope) over wavelengths L/2 .. L/24 with a cos^2 spread
   // about +x (the wind); the crest channel is the height's own -Laplacian; the alpha a value noise.
   // Deterministic (its own LCG), ~2 ms at 256. `w` is the slope range the RG encode spans.
-  function bakeTile(N, seed) {
-    N = N || 256;
+  // PERF-WORLDBUILD (23 Nov 2026): THE BAKE IN STEPS. 96 waves on 256^2 texels is ~190 ms in one task of the world build's
+  // 'water' step (the dial above was a 64^2 tile's) - a frozen garage frame when the world is built behind it. bakeTileSteps
+  // is the same arithmetic in the same order as a generator: it yields at a row's end when `due()` says so - the host's
+  // budget (window.FLYDIY_WORLD_BUDGET.left() <= 0); with no host budget it never yields. bakeTile drains it: the same bytes
+  // (GATE WATER 4).
+  const hostDue = () => { const Bd = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };
+  function bakeTile(N, seed) { const g = bakeTileSteps(N, seed, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* bakeTileSteps(N, seed, due) {
+    N = N || 256; due = due || hostDue;
     let s = (seed || 12345) >>> 0;
     const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
     // a PEAKED spectrum (a Pierson-Moskowitz shape in k: k^-3 above the peak at kp cycles, a k^-4
@@ -819,12 +826,13 @@ const WATER = (() => {
     }
     const h = new Float32Array(N * N), sx = new Float32Array(N * N), sz = new Float32Array(N * N), lap = new Float32Array(N * N);
     let hmax = 0;
-    for (let j = 0, p = 0; j < N; j++) for (let i = 0; i < N; i++, p++) {
+    for (let j = 0, p = 0; j < N; j++) { if (j && due()) yield 'water: the tile'; for (let i = 0; i < N; i++, p++) {
       const u = i / N, v = j / N; let H = 0, X = 0, Z = 0, L = 0;
       for (const w of waves) { const ph = w.kx * u + w.kz * v + w.ph; const c = Math.cos(ph), sn = Math.sin(ph);
         H += w.a * c; X -= w.a * w.kx * sn; Z -= w.a * w.kz * sn; L -= w.a * w.k2 * c; }
       h[p] = H; sx[p] = X; sz[p] = Z; lap[p] = L; if (Math.abs(H) > hmax) hmax = Math.abs(H);
-    }
+    } }
+    if (due()) yield 'water: the tile';
     // THE CRESTS SHARPEN, THE TROUGHS FLATTEN (G460.11): a Stokes second-order profile h' = h + c h^2 / hmax
     // (c 0.4) - a sum of cosines is a gaussian sea, symmetric, and read as a soft plastic sheen up close;
     // the real chop is cusped. The slopes follow: s' = s (1 + 2 c h / hmax); the Laplacian (the crest mask)
@@ -850,9 +858,10 @@ const WATER = (() => {
     return { data, N, w: W, srms: 0.09, hmax: hmax * g };
   }
   let tile = null;
-  function makeTile(THREE) {
-    if (tile) return tile;
-    const b = bakeTile(256, 12345);
+  function makeTile(THREE) { return tile || tileOf(THREE, bakeTile(256, 12345)); }
+  // (PERF-WORLDBUILD: the tile made in steps ahead of the material - the world build's 'water' step under a host's budget)
+  function* makeTileSteps(THREE, due) { if (tile || !THREE.DataTexture) return tile; const b = yield* bakeTileSteps(256, 12345, due); return tile || tileOf(THREE, b); }
+  function tileOf(THREE, b) {
     const t = new THREE.DataTexture(b.data, b.N, b.N, THREE.RGBAFormat, THREE.UnsignedByteType);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
     t.generateMipmaps = true; t.flipY = false; t.anisotropy = 8; t.needsUpdate = true;
@@ -1146,7 +1155,19 @@ const WATER = (() => {
     ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0,
+    // PERF-LEAD LAB (22 Nov, both OFF by default; the user: "look into an optimization method for that mirror ... one of the best
+    // features of the game"). The journey's log: the capture ran 19 % of a normal flight, 62 % of that above 400 m (lakes and bays
+    // keep it to 900 m), every frame, 8.8 ms of submission at the median and twice the frame's triangles.
+    //   pace (?mirpace=1, or ?mirpace=<K in % of the height>): a LIVE capture is KEPT while the eye has moved less than paceK of its
+    //     height over the water (0.5 %) and turned inside 0.8 of the guard band's margin, for paceMax frames at most (4). The water
+    //     reads a capture through the capture's own view-projection (uWMirrorVP), so a kept one stays in place; the ripples are the
+    //     water's shader's (perturb), at every frame. Low over the water one frame's move is over the limit: every frame, as today
+    //   lean (?mirlean=1): a lake's / a bay's capture above leanAgl m leaves the cover ring and the grass out, as the sea ring's does
+    pace: false, paceK: 0.005, paceMax: 4, paceN: 0, kept: 0, lean: false, leanAgl: 150, leaned: 0,
     starsK: 10, starPx: 0.75 };   // STAR-LOVE: the stars in the mirror's sky - x their level in the sky (10 x the dome's STAR_LVL 0.03 = 0.3 of the old field's light: the user's 'quite lower'), their discs' radius in capture pixels
+  if (typeof location !== 'undefined' && location.search) { const qp = /[?&]mirpace=([0-9.]+)(?:&|$)/.exec(location.search);
+    if (qp && +qp[1] > 0) { MIR.pace = true; if (+qp[1] !== 1) MIR.paceK = +qp[1] / 100; }
+    MIR.lean = /[?&]mirlean=1(?:&|$)/.test(location.search); }
   // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};
@@ -1331,6 +1352,11 @@ const WATER = (() => {
     if (live && MIR.last && !vis) { MIR.skipped++; return false; }
     const pos = camera.position, q = camera.quaternion;
     let due = live || !MIR.last;
+    // (PERF-LEAD LAB, ?mirpace) the live capture KEPT while the eye has barely moved for its height: the weight still follows every frame
+    if (live && MIR.pace && MIR.last && MIR.rt) {
+      const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
+      if (++MIR.paceN < MIR.paceMax && moved <= eyeAgl * MIR.paceK && turned <= 0.8 * (L.margin || 0) && Math.abs(waterY - L.wy) <= 0.05) { U.uWMirror4.value.x = MIR.w; MIR.kept++; return false; }
+    }
     if (!due && MIR.last) {
       const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
       const jump = moved > MIR.jumpM || turned > MIR.jumpDeg * Math.PI / 180 || Math.abs(waterY - L.wy) > 0.5;
@@ -1453,8 +1479,12 @@ const WATER = (() => {
     // MIR.skip: objects left out of the scene's draw only (the culls a census names; the sky pass above keeps the dome)
     const skipped = [];
     // (G2836 ring guard) the small things out of the capture: the cover ring (grass, tufts, rocks, debris), the route helpers
+    const lean = !RG && MIR.lean && eyeAgl > MIR.leanAgl; if (lean) MIR.leaned++;   // (PERF-LEAD LAB, ?mirlean: the lake's / the bay's capture, high up)
     const skipList = RG && MIR.ringSkip ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : MIR.skip;
-    for (const o of skipList) if (o && o.visible) { o.visible = false; skipped.push(o); }
+    // (?mirlean=1, a SWITCH, off by default: the user's rule of 20 Oct stands - a lake keeps the grass and the cover in its mirror.
+    //  GATE WATER pins the line above; the lab's first cut of 22 Nov had rewritten it and the gate was red on perf-lead-1 and -2)
+    const skipLean = lean ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : null;
+    for (const o of (skipLean || skipList)) if (o && o.visible) { o.visible = false; skipped.push(o); }
     // (G2836 ring guard) THE SCISSOR: a water pixel reads the capture at its own screen row (G460.11.4: projected uv = pixel uv on y),
     // so only the rows under the water's horizon (+ a margin for the slope's walk and the edge fade) are ever read - the rest is not
     // rasterised. The horizon: the plane's far points along the view's left / centre / right headings, through the MAIN camera
@@ -1469,7 +1499,7 @@ const WATER = (() => {
     }
     MIR.capturing = true;
     try { renderer.render(scene, mc); } finally { MIR.capturing = false; for (const o of skipped) o.visible = true; if (sc) { MIR.rt.scissorTest = false; MIR.rows = MIR.rows || 1; } }
-    MIR.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0; MIR.captures++;
+    MIR.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0; MIR.captures++; MIR.paceN = 0;
     scene.background = bg;
     renderer.setClearColor(cc, ca); renderer.setRenderTarget(prevT); renderer.autoClear = ac; renderer.shadowMap.autoUpdate = sm;
     for (const m of hidden) m.visible = true;
@@ -1926,7 +1956,7 @@ const WATER = (() => {
   }
   const API = { lamps, nightSea: NIGHT_SEA, glint: GLINT, NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
-    gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
+    gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, bakeTileSteps, makeTile, makeTileSteps, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
     stamp, fieldStep, fieldOn, fieldProbe, warmList, setSubmerged, SUB_N: 12, setSlicks, SLICK_N: 6, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };

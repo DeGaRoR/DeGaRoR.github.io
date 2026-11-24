@@ -212,9 +212,57 @@
   const renderer = (typeof window !== 'undefined' && window.FLYDIY_RENDERER) ||
     // G1997b (A0, the laptop's ?diag: the context said powerPreference 'default'): a game asks for the HIGH-PERFORMANCE GPU - on a
     // hybrid / laptop machine the fast GPU and its fast path; one GPU, nothing changes (the probes above and welcome.js ask the same)
-    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' }, RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
+    // PERF-LEAD LAB (?keepframe=1, OFF by default; 23 Nov, ROW 15 "no blue screen, ever"): THE CANVAS KEEPS ITS LAST PICTURE.
+    // The draw guard holds a whole frame while a program links (aa.render returns 'held': nothing is resolved onto the
+    // canvas) on the word that "the page keeps showing the last whole frame". It does not: the screen's own recording of
+    // the Cub's crash (22-23 Nov) shows the PAGE - its pale blue background, the HUD on top - from the impact for 9 s
+    // while the cut copies' programs link, and the user has seen it for weeks ("a frame missing the 3d render. The UI
+    // keeps showing"). With preserveDrawingBuffer the browser keeps the canvas's last frame when a frame draws nothing
+    // on it: a held frame is then a FROZEN picture, as the guard's design meant. Its price (a copy of the canvas a frame
+    // in the browser, where it swapped) is what the A/B measures before any default moves.
+    new THREE.WebGLRenderer(Object.assign({ canvas, antialias: true, powerPreference: 'high-performance' },
+      (typeof location !== 'undefined' && /[?&]keepframe=1(&|$)/.test(location.search || '')) ? { preserveDrawingBuffer: true } : {},
+      RZ ? { reversedDepthBuffer: true } : { logarithmicDepthBuffer: true }));
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
+  // THE PERF LAB'S SWITCHES (PERF-LEAD, 22 Nov 2026). Each is OPT-IN by the URL and changes nothing without it: one
+  // question each for a same-build A/B on the box (tools/perf/load_matrix.sh), not features.
+  //   ?shaderlogs=0  three's FIRST USE of a program (getUniforms) reads its info log, both shaders' logs and LINK_STATUS
+  //                  before the uniform queries, because renderer.debug.checkShaderErrors is on by default and nothing
+  //                  here ever turned it off. Off: a program that fails to link says nothing (a lab run only).
+  //   ?wcsliced=1    the 'worldCompile' step through compileSliced and the sliced depth variants, as 'frames' does,
+  //                  in place of ONE synchronous renderer.compile of every key the prelinks did not meet (a long task
+  //                  under the loading screen: the user's row 10, "the screen remains responsive").
+  //   ?firstuse=1    first use paid OUTSIDE the frame where the game already waits for the links: after the lamp
+  //                  pool's background compile (dusk, dawn) and for a material the draw guard held in flight.
+  //   ?cubelean=1    the hangar's reflection cube is shot WITHOUT the aeroplane and the editor's cage (bakeHangarEnv hides
+  //                  them, G62.3: "the aeroplane was in its own reflection probe"), yet every compile for that target
+  //                  keyed their materials too: 22 skin programs of ~206 KB linked for the cube, 2 ever drawn
+  //                  (PERF-TRACE, 22 Nov). With the flag a compile for the cube leaves the probe's hidden subjects out
+  //                  (not while the "craft in probe" light test is on, which draws them there).
+  //   ?latelinks=1   A MEASURE, not a behaviour to keep: the load WITHOUT the two sets of programs it links for views
+  //                  the player may never open - the damage look's awake programs (scuffPrelink: every exterior skin
+  //                  again with the scuff block, ~30 programs of 225 KB) and the see-through view's twins
+  //                  (compileXrayVariants). With the flag the first damage / the first see-through view links them in
+  //                  its own frame, as before those prelinks existed. It prices "compile them after the reveal, in
+  //                  the background", which is the real change if the number is worth it.
+  // (?lampsfixed=1 is render_premises.js's: the lamp pool's count kept by day.)
+  const LABQ = k => typeof location !== 'undefined' && new RegExp('[?&]' + k + '(&|$)').test(location.search || '');
+  // PERF-LEAD LAB (?boot=garagefirst; OFF by default, 23 Nov 2026 - the user's row 3: "world loading time 1 minute, including
+  // the background loading (so ideally 1 minute spent in the garage)"): THE GARAGE FIRST, THE WORLD BEHIND IT. The boot runs
+  // none of the world's steps (as the phone's garage boot); when its screen is gone the SAME steps (TRIP_STEPS, by their
+  // keys) run in the background, a step after the other, on a budget of milliseconds a task (gfS.restMs at rest, gfS.busyMs
+  // while the pointer or a key moves: ?gfrest=N, ?gfbusy=N). Go joins the load where it stands (gfJoin: the roll-out's
+  // screen names the steps left, which then run at full speed). gfS is the rig's read (FLYDIY_LAB.gfS).
+  const GFN = (k, d) => { try { const m = new RegExp('[?&]' + k + '=(\\d+(?:\\.\\d+)?)(&|$)').exec(location.search || ''); return m ? +m[1] : d; } catch (e) { return d; } };
+  const LAB = { gf: LABQ('boot=garagefirst'), gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), cloudEarly: !LABQ('gfcloud=late'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
+      inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
+    coverK: GFN('coverbudget', 0), coverSet: null,   // (?coverbudget=K: see labCoverBudget)
+    noLogs: LABQ('shaderlogs=0'), wcSliced: LABQ('wcsliced=1'), firstUse: LABQ('firstuse=1'), lampsFixed: LABQ('lampsfixed=1'), cubeLean: LABQ('cubelean=1'), cubeSkipped: 0, lateLinks: LABQ('latelinks=1'), lateSkipped: 0,
+    groundFirst: LABQ('groundfirst=1'), ground: { at: {}, n: 0, keys: [], keysCompile: null, same: null, err: null }, paveFirst: LABQ('pavefirst=1'), pave: { handed: false, at: 0, readyAt: 0, sig: null, sigCompile: null, err: null },
+    lateBg: LABQ('latelinks=bg'), bg: { armed: false, revealed: false, revealAt: 0, running: false, done: false, xrayRun: false, startedAt: 0, xrayMs: 0, ms: 0, xrayLinks: 0, scuffLinks: 0, twins: 0, noTwin: 0, err: null } };
+  if (LAB.noLogs && renderer.debug) renderer.debug.checkShaderErrors = false;
+  if (typeof window !== 'undefined') window.FLYDIY_LAB = LAB;
   const groundCache = typeof GROUND_MATERIAL_CACHE !== 'undefined' && typeof location !== 'undefined' && /[?&]groundcache=[12](&|$)/.test(location.search || '')
     ? GROUND_MATERIAL_CACHE.install(THREE, renderer, { packed: /[?&]groundcache=2(&|$)/.test(location.search || '') }) : null;
   if (typeof window !== 'undefined') window.FLYDIY_GROUND_CACHE = groundCache;
@@ -872,10 +920,15 @@
   // hangar's canvas-made maps (DERELICT_GEN: the cladding, the slab, the stains, the boards) all at once, the first frame it
   // enters the view. initTexture uploads each one here instead, under the loading screen (the world's build) or in the
   // garage's quiet (a document change); a texture once uploaded is not uploaded again
+  // PERF-WORLDBUILD (23 Nov 2026): UNDER A HOST'S BUDGET (shedTexSliced, set by worldBuilt for its own call) THE SAME TEXTURES
+  // GO UP A TICK AT A TIME - handed in one go right after the world's last slice they were most of a 622 ms task of the
+  // live garage (304 texture calls, 23 Nov). One a tick at least, more while the host's budget has time left; a texture
+  // not up yet when its shed is first drawn uploads there, as it did before this warm.
+  let shedTexSliced = false;
   function shedTexWarm() {
     if (!WF || !renderer || typeof renderer.initTexture !== 'function') return 0;
-    const seen = new Set(); let n = 0;
-    const warm = t => { if (t && t.isTexture && !seen.has(t)) { seen.add(t); try { renderer.initTexture(t); n++; } catch (e) {} } };
+    const seen = new Set(); let n = 0; const later = shedTexSliced ? [] : null;
+    const warm = t => { if (t && t.isTexture && !seen.has(t)) { seen.add(t); if (later) { later.push(t); return; } try { renderer.initTexture(t); n++; } catch (e) {} } };
     try {
       scene.traverse(o => {
         if (!o.name || o.name.indexOf('shed:') !== 0) return;
@@ -885,12 +938,19 @@
         });
       });
     } catch (e) { console.warn('flyDiy: the side sheds\' textures -', e && e.message); }
+    if (later && later.length) { let i = 0;
+      const tick = () => { const B = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; let k = 0;
+        while (i < later.length && (k === 0 || (B && typeof B.left === 'function' && B.left() > 0))) { try { renderer.initTexture(later[i]); } catch (e) {} i++; k++; }
+        if (i < later.length) setTimeout(tick, 0); };
+      setTimeout(tick, 0); }
     return n;
   }
   function worldBuilt(wf) {
     WF = wf;
     // G2310 (PREM-S3): the side hangars held stand at their plots from the world's first frame (none in the sandbox)
+    shedTexSliced = typeof window !== 'undefined' && !!window.FLYDIY_WORLD_BUDGET;   // (PERF-WORLDBUILD: a host's budget - the sheds' textures a tick at a time)
     try { if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
+    shedTexSliced = false;
     if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
@@ -920,28 +980,115 @@
   // G1230 (MEM-BUDGET): UPLOAD AS YOU BUILD - the draw-only geometry a build slice made goes to the GPU as the slice ends
   // (its CPU copy freed there), not at first light: the far terrain's quads, the town's merges, the patch's LODs
   const geoFlush = () => { if (typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && typeof renderer.compileAsync === 'function') GPU_ONLY_GEO.flush(renderer); };
+  // ?pavefirst=1 (PERF-LEAD lab, 22 Nov; OFF by default): THE PAVEMENT PROGRAM HANDED TO THE COMPILER WHEN THE WORLD'S LIGHTS STAND.
+  // Every load of 22 Nov ends about 12 s after the pavement's program is ready, and that program waits 52-66 s in the driver
+  // (a 202 KB text; PERF-TRACE) from its hand-over at the town step, some 42 s in. Its key needs nothing of the strips
+  // (PERF-WORLDBUILD's reading: the fog, the environment and the lights of the scene, its own flags), so the world build
+  // yields 'pavement program' once those stand and this hands PAVEMENT.warmMesh - the table material on a one-triangle
+  // stand-in - to compileSliced against the world scene, wearing the craft's light stand-ins as the town's prelink does
+  // (craftLightsGuess), not awaited: worldCompile finds it linking. A night load's lamp pool is NOT worn (the pool does not
+  // exist yet): there the frame's key differs and this link is wasted - LAB.pave.sig / sigCompile say which it was.
+  function lightSig(sc) { let d = 0, p = 0, sp = 0, h = 0, ds = 0, ps = 0, ss = 0;
+    sc.traverseVisible(o => { if (!o.isLight) return; if (o.isDirectionalLight) { d++; if (o.castShadow) ds++; } else if (o.isPointLight) { p++; if (o.castShadow) ps++; }
+      else if (o.isSpotLight) { sp++; if (o.castShadow) ss++; } else if (o.isHemisphereLight) h++; });
+    return d + '.' + p + '.' + sp + '.' + h + ' / ' + ds + '.' + ps + '.' + ss + (sc.environment ? ' env' : ' no-env') + (sc.fog ? ' fog' : ' no-fog'); }
+  function paveFirstHand() {
+    const B = LAB.pave; if (B.handed || typeof PAVEMENT === 'undefined' || !PAVEMENT.warmMesh || typeof PROG_WARM === 'undefined' || typeof renderer.compileAsync !== 'function') return;
+    let m = null; try { m = PAVEMENT.warmMesh(THREE); } catch (e) { B.err = String(e && e.message); }
+    if (!m) return;
+    B.handed = true; B.at = Math.round(performance.now());
+    // (PERF-WORLDBUILD: the near shadow map's light is made visible and casting whatever the shadows dial says, and only the
+    // first world update turns it off - with the dial off this would key dir 2 for a frame that draws dir 1)
+    try { if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.apply) SHADOW_NEAR.apply(); } catch (e) {}
+    const g = new THREE.Group(); g.add(m);
+    const dress = fn => craftLightsGuess(() => { if (!B.sig) B.sig = lightSig(scene); return fn(); });
+    compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, dress)
+      .then(() => { B.readyAt = Math.round(performance.now()); }, e => { B.err = String(e && e.message); });
+  }
+  // ?groundfirst=1 (PERF-LEAD lab, 22 Nov; OFF by default): THE ISLAND GROUND'S PROGRAMS HANDED OVER AS THEIR MATERIALS APPEAR.
+  // The other heavy links of a cold load (the island ground's 17 and 14 s, 10 Nov) are keyed at the town step too, ~42 s in;
+  // their keys hold the ground's settings and the scene's fog, probe and lights, nothing of the geometry (PERF-WORLDBUILD's
+  // reading). The ring and its twin exist at the world build's 'ring lod' yield, the fine tiles' at 'far terrain', the far
+  // ring's at 'water': at each, every material of the ground family not handed over yet goes to compileSliced on a
+  // stand-in of the mesh that wears it, dressed as the pavement's hand-over is. Not awaited.
+  // (the proof, PERF-WORLDBUILD's: the family's own key at the hand-over and again in worldCompile - every early key among the
+  // frame's = the early links were the frame's. A key is long: its length and a hash of it are kept)
+  const groundKeyOf = m => { let k = ''; try { k = String(m.customProgramCacheKey ? m.customProgramCacheKey() : ''); } catch (e) {} let h = 0; for (let i = 0; i < k.length; i++) h = (Math.imul(h, 31) + k.charCodeAt(i)) | 0; return m.type + ':' + k.length + ':' + (h >>> 0).toString(16); };
+  function groundKeysNow() { const out = []; scene.traverse(o => { if (!o.isMesh || !o.material) return;
+    for (const m of (Array.isArray(o.material) ? o.material : [o.material])) if (m && m.groundFamily) { const k = groundKeyOf(m); if (out.indexOf(k) < 0) out.push(k); } }); return out; }
+  const GROUND_HANDED = new WeakSet();
+  function groundFirstHand(lab) {
+    const B = LAB.ground; if (B.at[lab] || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn || typeof renderer.compileAsync !== 'function') return;
+    B.at[lab] = Math.round(performance.now());
+    const g = new THREE.Group();
+    scene.traverse(o => { if (!o.isMesh || !o.material) return;
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) { if (!m || !m.groundFamily || GROUND_HANDED.has(m)) continue;
+        GROUND_HANDED.add(m); const k = groundKeyOf(m); if (B.keys.indexOf(k) < 0) B.keys.push(k);
+        try { g.add(PROG_WARM.standIn(o, m)); B.n++; } catch (e) { B.err = String(e && e.message); } } });
+    if (!g.children.length) return;
+    try { if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.apply) SHADOW_NEAR.apply(); } catch (e) {}
+    compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, fn => craftLightsGuess(fn)).catch(e => { B.err = String(e && e.message); });
+  }
+  // ...AND BY THE WORLD BUILD'S OWN STAND-INS (PERF-WORLDBUILD 7c9ffa308, 23 Nov; under the same ?groundfirst=1): at the yield
+  // 'ground programs' the build lists the island ground's three (ring, fine, outer) and at 'premises made' the premises
+  // patch's - each the DRAWN material on one bare triangle, never in the scene, its key the drawn one (their gate holds
+  // it). Handed to the driver there, they link while the rest of the world is built; the meshes scanned above are the
+  // fallback of a build without the list. LAB.ground.warm: [name, key, ms of the page at the hand-over]
+  function groundWarmHand(lab) {
+    const B = LAB.ground, f = lab === 'ground programs' ? scene.userData.groundWarm : scene.userData.patchWarm;
+    if (typeof f !== 'function' || typeof renderer.compileAsync !== 'function') return;
+    let list = []; try { list = f() || []; } catch (e) { B.err = 'warm list: ' + String(e && e.message); return; }
+    const g = new THREE.Group(); B.warm = B.warm || [];
+    for (const e of list) { if (!e || !e.mesh || !e.material || GROUND_HANDED.has(e.material)) continue;
+      GROUND_HANDED.add(e.material); g.add(e.mesh); B.n++; B.warm.push([e.name, String(e.key || '').slice(0, 60), Math.round(performance.now())]);
+      const k = groundKeyOf(e.material); if (B.keys.indexOf(k) < 0) B.keys.push(k); }
+    if (!g.children.length) return;
+    B.at[lab] = Math.round(performance.now());
+    try { if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.apply) SHADOW_NEAR.apply(); } catch (e) {}
+    compileSliced(g, aa && aa.target ? aa.target() : null, scene, false, fn => craftLightsGuess(fn)).catch(e => { B.err = String(e && e.message); });
+  }
   function buildWorldSliced() {
     if (WF) return;
     if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
+    // PERF-WORLDBUILD (22 Nov): THE BUILD MAY SLEEP ON A WORKER. A stage whose input is still in a worker (a strip's geometry,
+    // render_world stripsAsk) sets window.FLYDIY_WORLD_WAIT to a promise and yields: the slice ends there and the next one
+    // starts when it settles (or 250 ms later: a wake that never comes costs a look again, G1180's rule). FLYDIY_WORLD_ASYNC
+    // tells the build this host can sleep - a synchronous build (buildWorldScene) has none and asks no worker
+    window.FLYDIY_WORLD_ASYNC = true; window.FLYDIY_WORLD_WAIT = null;
     const g = buildWorldSceneSteps(scene, world, renderer, camera, worldShed());
     let n = 0, worst = 0;
     const t00 = performance.now();
     return new Promise(res => {
       const tick = () => {
-        if (WF) { res(); return; }   // built meanwhile by a synchronous door (none today: the screen owns the first build)
+        if (WF) { window.FLYDIY_WORLD_ASYNC = false; res(); return; }   // built meanwhile by a synchronous door (none today: the screen owns the first build)
         const t0 = performance.now(); let r = null, lab = '';
-        try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && performance.now() - t0 < 40); }
-        catch (e) { console.error('world build:', e); res(); return; }
+        const SL = gfSliceMs(); LAB.gfS.deadline = t0 + SL;   // (?boot=garagefirst: the slice is the garage's budget; 40 ms under a screen, as before)
+        try { do { r = g.next(); n++; if (!r.done) { lab = r.value; if (lab === 'pavement program' && LAB.paveFirst) paveFirstHand();
+          else if (LAB.groundFirst && (lab === 'ground programs' || lab === 'premises made')) groundWarmHand(lab);
+          else if (LAB.groundFirst && (lab === 'ring lod' || lab === 'far terrain' || lab === 'water')) groundFirstHand(lab); } } while (!r.done && !window.FLYDIY_WORLD_WAIT && performance.now() - t0 < SL); }
+        catch (e) { console.error('world build:', e); window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null; res(); return; }
         worst = Math.max(worst, performance.now() - t0);
+        if (gfLive()) { const G = LAB.gfS, ms = performance.now() - t0; G.slices++; if (ms > G.worstSlice) { G.worstSlice = Math.round(ms); G.worstLab = lab; }   // (the longest slice behind the live garage, and its label)
+          // ...and every slice over 50 ms by the label it ended on [count, ms in all, the longest]: the garage's freezes, named for PERF-WORLDBUILD
+          if (ms > 50) { const L = G.long || (G.long = {}), k = lab || '(the last)', e = L[k] || (L[k] = [0, 0, 0]); e[0]++; e[1] += Math.round(ms); if (ms > e[2]) e[2] = Math.round(ms);
+            if ((G.sl || (G.sl = [])).length < 90) G.sl.push([k, Math.round(t0), Math.round(ms)]); } }   // (...and each one's start on the page's clock: the CPU profile is cut by it, tools/perf/profile_window.py)
         geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
         if (r.done) {
+          window.FLYDIY_WORLD_ASYNC = false; window.FLYDIY_WORLD_WAIT = null;
           worldBuilt(r.value);
+          // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the flush is capped a call - assets.js - so what is left goes up
+          //  a tick at a time from here; a flush that uploads nothing ends it)
+          if (window.FLYDIY_WORLD_BUDGET && typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && GPU_ONLY_GEO.pending) {
+            const drain = () => { if (!(GPU_ONLY_GEO.pending() > 0)) return; let nf = 0; try { nf = GPU_ONLY_GEO.flush(renderer); } catch (e) { nf = 0; } if (nf > 0) setTimeout(drain, 0); };
+            setTimeout(drain, 0); }
           if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
           window.__WORLD_SLICES = { n, worst: Math.round(worst), ms: Math.round(performance.now() - t00) };
           res(); return;
         }
         BOOT.phase('world', 'laying out the world' + (lab ? ': ' + lab : ''), Math.min(0.95, n / WORLD_YIELDS));
-        setTimeout(tick, 0);
+        const wt = window.FLYDIY_WORLD_WAIT; window.FLYDIY_WORLD_WAIT = null;
+        if (wt && typeof wt.then === 'function') Promise.race([wt, new Promise(r2 => setTimeout(r2, 250))]).then(() => setTimeout(tick, 0));
+        else setTimeout(tick, 0);
       };
       tick();
     });
@@ -1111,7 +1258,7 @@
   const ENV_BAKES = { oneShot: 0, slices: 0, jobs: 0, requests: 0 };
   if (typeof window !== 'undefined') window.FLYDIY_ENV_BAKES = () => Object.assign({ running: envSlice ? envSlice.step : -1 }, ENV_BAKES);
   function ensureEnvRT() {
-    if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+    if (!envRT && THREE.WebGLCubeRenderTarget) { envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType }); envRT.texture.name = 'hangar env cube'; }   // (the name: PERF-TRACE's program report reads the target by it; it reaches no shader and no key)
     return envRT;
   }
   // The cube excludes the subjects (and their lights), while the visible garage
@@ -4686,6 +4833,26 @@
     model.grp.matrix.premultiply(SINK_M.fromArray(groundSinkMatrix(SINK_V, cg[0], cg[1], cg[2], SINK_A)));
   }
   let PC6Q = null;                           // PC6-OLEO: the mechanism rig's scratch quaternions and vectors
+  // ROW 8 / 13 / 14 (PERF-LEAD 23 Nov: after the Cub's nose-down impact the frames ran at 5 a second for 13 s, the
+  // recorder's 'scene' slot +115-142 ms each): THE BREAK PATH'S OWN CLOCK - the four damage calls of poseModel and two
+  // steps inside brkCage, summed and their worst kept; a ring of the last 900 frames that did damage work (t, gen,
+  // scuff, cage, cut, members, wreck, ms) to say what costs and whether it stops at rest. FLYDIY_DMG_PROF() / (true): reset
+  const DPROF = { n: 0, sum: new Float64Array(6), max: new Float64Array(6), ring: [], keys: ['gen', 'scuff', 'cage', 'cut', 'members', 'wreck'], cur: new Float64Array(6),
+    // (why the wreck was posed again, bits counted over the frames brkCage did not take its rest return: 1 nodes moved / a
+    // control, 2 not posed yet, 4 a new break event or events left, 8 records still to make, 16 a binding pending, 32 a tear
+    // sample in flight, 64 the wall binding not done or its key stale, 128 a switch flipped)
+    whyN: new Uint32Array(8), wcur: 0, restN: 0 };
+  if (typeof window !== 'undefined') window.FLYDIY_DMG_PROF = reset => {
+    const o = { frames: DPROF.n, keys: DPROF.keys, sumMs: Array.from(DPROF.sum, v => +v.toFixed(1)), maxMs: Array.from(DPROF.max, v => +v.toFixed(1)), ring: DPROF.ring.slice(),
+      why: { moved: DPROF.whyN[0], unposed: DPROF.whyN[1], event: DPROF.whyN[2], recs: DPROF.whyN[3], bind: DPROF.whyN[4], tear: DPROF.whyN[5], wall: DPROF.whyN[6], flip: DPROF.whyN[7] }, rested: DPROF.restN };
+    if (reset) { DPROF.n = 0; DPROF.sum.fill(0); DPROF.max.fill(0); DPROF.ring.length = 0; DPROF.whyN.fill(0); DPROF.restN = 0; }
+    return o; };
+  function dprofEnd() {
+    const c = DPROF.cur; let tot = 0; for (let i = 0; i < 6; i++) tot += (i === 3 || i === 4) ? 0 : c[i];   // (cut / members are inside cage)
+    if (tot > 0.05) { DPROF.n++; for (let i = 0; i < 6; i++) { DPROF.sum[i] += c[i]; if (c[i] > DPROF.max[i]) DPROF.max[i] = c[i]; }
+      DPROF.ring.push([+(sim ? sim.t : 0).toFixed(2), +c[0].toFixed(1), +c[1].toFixed(1), +c[2].toFixed(1), +c[3].toFixed(1), +c[4].toFixed(1), +c[5].toFixed(1), DPROF.wcur]);
+      if (DPROF.ring.length > 900) DPROF.ring.shift(); }
+    c.fill(0); DPROF.wcur = 0; }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4842,7 +5009,7 @@
       const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       genNodeBody(sim, model.nodeBody, model.oNode);
       // G1851 (DMG-D4a): over a break the skin's records (skin_break.js) pose it; nothing broken, nothing of it runs
-      const BK = brkGen(gain);
+      const tG = performance.now(); const BK = brkGen(gain); DPROF.cur[0] += performance.now() - tG;
       // THE SKIN IS POSED WHEN IT HAS MOVED (PERF 2026-09-23). Everything below is in the BODY frame -
       // the nodes against their rest, the control deflections, the gain - and it was redone, and every
       // skin buffer re-uploaded (54 of them, 2.8 MB a frame on the Cub-alike), on every frame: paused, at
@@ -4908,7 +5075,7 @@
     // the stand and the taxi alike, paused or not). The rows run now when a node has moved more than 0.3 mm or a
     // control more than 1e-4 since the pose last APPLIED (the generated skin's rule, above); the wheels, the engine
     // units, the cockpit's controls and the castor (object transforms) are posed every frame as before.
-    let still = false;
+    let still = false, stillN = false;
     { const n3 = sim.n * 3, P = model._poseNG;
       const nb = (P && P.nb.length === n3) ? P.cur : new Float64Array(n3);
       genNodeBody(sim, nb);
@@ -4920,14 +5087,24 @@
         wr.push(sim.ctl ? (sim.ctl.dr || 0) : 0, fx ? (fx.wrDown ? 1 : 0) : 1, Math.abs((fx ? (fx.wrDown ? 0 : 1) : 0) - r.ret) > 1e-3 ? NaN : 0);
       }
       const rows = [model.rigs, model.strutRigs, model.stretchRigs, model.surfParts, model.floatRigs, model.anchorRigs, model.linkRigs];
-      still = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]) &&
-              !brkCageOn();   // G1851: a wreck is re-posed every frame (its pieces move, its skin is redrawn over them)
-      if (still) for (let i = 0; i < wr.length; i++) if (!(wr[i] === P.wr[i])) { still = false; break; }
+      let same = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]);
+      if (same) for (let i = 0; i < wr.length; i++) if (!(wr[i] === P.wr[i])) { same = false; break; }
       // (G1869: a WRECK is re-posed past WRECK_STILL - a lying wreck's nodes jitter past 0.3 mm for ever, and every frame
       // re-posed the whole snapshot riding: 25-29 ms a frame on the box; 3 mm is not seen at a wreck's distances)
       const tolS = (BRK.recs.length && brkFast()) ? WRECK_STILL : 3e-4;
+      if (same) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { same = false; break; }
+      // (ROW 14, 23 Nov: stillN - THE WRECK ITSELF NOT MOVING: no node past tolS from where it stood when it last moved
+      // past it (model._stillRef, brkCageOn's state left out), the controls and the rows as at the last applied pose.
+      // brkCage starts no new GPU tear sample on such a frame. `still` has brkCageOn in it: a sample in flight made the
+      // frame not still and the next record's sample started - one always in flight on a wreck creeping a few mm a second,
+      // and it re-posed every frame at rest. A wreck moving, slowly or not, passes tolS within frames: its samples go on)
+      { const SR = model._stillRef; let sN = same && !!SR && SR.length === n3;
+        if (sN) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - SR[i]) > tolS) { sN = false; break; }
+        if (!sN) { if (SR && SR.length === n3) SR.set(nb); else model._stillRef = Float64Array.from(nb); }
+        stillN = sN; }
+      still = same;
       if (still) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - P.nb[i]) > tolS) { still = false; break; }
-      if (still) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { still = false; break; }
+      still = still && !brkCageOn();   // G1851: a wreck is re-posed every frame (its pieces move, its skin is redrawn over them)
       if (!still) model._poseNG = { nb, cur: P && P.nb.length === n3 ? P.nb : new Float64Array(n3), gain, rows, wr, link: Object.assign({}, link) }; }
     // G1818 (DMG-SKINGPU): A GROUP THE WRECK RIDES WHOLE is not posed here - its record (rideAll: every vertex on its
     // nodes' frames, from the record's own rest; its normals turned from R.nB) overwrites every position and normal the
@@ -5441,9 +5618,15 @@
       }
     }
     { const oB = [O[0] + oR[0], O[1] + oR[1], oR[2]];
+      const tP = performance.now();
       scuffFrame(oB);                              // G2004 (DMG-SCUFF): its own event test (two compares; null with the layer off)
-      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still); }   // G1851
-    wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
+      const tQ = performance.now(); DPROF.cur[1] += tQ - tP;
+      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still, stillN);   // G1851
+      DPROF.cur[2] += performance.now() - tQ; }
+    { const tW = performance.now();
+      wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
+      DPROF.cur[5] += performance.now() - tW; }
+    dprofEnd();
   }
   // G1851 / G1852 (DMG-D4a): THE SKIN OVER A BREAK (src/viewer/skin_break.js; DEFORM-AND-BREAK §2.5, §5.1, §8.4). Both
   // skins read the one damage state (dmgNow: the broken list and DMG-D1b's pieces, inline or from the worker on change).
@@ -5499,6 +5682,7 @@
       stats: Object.assign({}, SKIN_GPU.G.stats), tearChecked: BRK.recs.reduce((a, R) => a + (R.tearChecked || 0), 0) } : null });
   function brkRestore() {
     brkGpuFree();
+    brkCutFreeAll(BRK.model || model);                    // FLY-AGAIN DEBRIS: the cut copies' twins with the records
     for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; brkNrm(R); }
     brkHealUpload(BRK.model);
     BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
@@ -5625,6 +5809,7 @@
             let n = 0; for (const R of K.allRecs) { if (BRK.recs.indexOf(R) >= 0 || !(R.dead || R.active || R.torn || R.held)) continue;   // (R.held: FABRIC's held covering, G2040)
               if (SKIN_BREAK.event(R, K.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); n++; }
             if (n) { brkHealUpload(model); model._pose = null; model._poseNG = null; K.healLetGo = (K.healLetGo | 0) + n; } } } }
+      brkCutFreeAll(model);                               // FLY-AGAIN DEBRIS: the cut copies' twins off the healed aeroplane
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       brkLookClear();                                     // G3770
       wsClear(model);                                     // WING-STRUCTURE
@@ -5795,10 +5980,10 @@
   };
   // (train 41, A0: THE SHEET - a strip drawn metres across the runway at rest, on both paths: which record, which class)
   // G4102 (CUT-THROUGH): the cut copies on the page - records with copies, copies, their meshes, any corner not finite
-  window.FLYDIY_CUT_STATS = () => { let recs = 0, copies = 0, meshes = 0, bad = 0, clipped = 0;
-    for (const R of BRK.recs) { if (!R.cut2) continue; recs++; copies += R.cut2.nv / 3; for (let o = 0; o < R.cut2.nv; o++) if (R.cut2.s[o]) clipped++;
+  window.FLYDIY_CUT_STATS = () => { let recs = 0, copies = 0, meshes = 0, bad = 0, clipped = 0, built = 0, refills = 0;
+    for (const R of BRK.recs) { if (R.cutDraw) { built += R.cutDraw.built || 0; refills += R.cutDraw.refills || 0; } if (!R.cut2) continue; recs++; copies += R.cut2.nv / 3; for (let o = 0; o < R.cut2.nv; o++) if (R.cut2.s[o]) clipped++;
       const T = R.cutDraw; if (T && T.geo) { meshes += T.meshes.length; const a = T.geo.attributes.position.array; for (let i = 0; i < a.length; i++) if (!Number.isFinite(a[i])) { bad++; break; } } }
-    return { recs, copies, clipped: clipped / 3, meshes, bad }; };
+    return { recs, copies, clipped: clipped / 3, meshes, bad, built, refills }; };   // (built / refills: ROW 14's in-place cut geometry)
   window.FLYDIY_SKIN_LONGEST = () => {
     const K = model && model.brk; if (!K || !BRK.X || !K.NF || !sim) return null;
     const recs = [];
@@ -5996,41 +6181,76 @@
     c.onBeforeCompile = f;
     CUT_MAT.set(m, c); return c;
   }
+  // (FLY-AGAIN DEBRIS, the user 23 Nov via A0: "When I crashed then back to shed and fly again, there were some debris pieces
+  // remaining attached to the new plane": the cut copies' twins are CHILDREN OF THEIR HOST MESHES (brkCutBuild m.add(t)),
+  // and a heal - brkState's no-break branch (Fly again, a reset), brkRestore (the roll-out's wreck reset, a model change) -
+  // let the records go without them: brkCutFree ran only from brkCage, which a healed flight never reaches. The twins rode
+  // the next flight's aeroplane drawn in the last wreck's shape. Every heal frees them now (brkCutFreeAll); BRK.cutLive
+  // says whether any are made, so an intact flight's no-break frames pay one test)
+  function brkCutFreeAll(mdl) {
+    if (!BRK.cutLive || window.FLYDIY_HEAL_CUTKEEP === true) return;   // (the switch: the heal as it was - GATE DMGUPLOAD's selftest)
+    for (const R of BRK.recs) brkCutFree(R);
+    const K = mdl && mdl.brk; if (K && K.allRecs) for (const R of K.allRecs) brkCutFree(R);
+    BRK.cutLive = false;
+  }
   function brkCutFree(R) {
     const T = R.cutDraw; if (!T) return;
     for (const t of T.meshes) if (t.parent) t.parent.remove(t);
     if (T.geo) T.geo.dispose();
-    T.meshes = []; T.geo = null; T.v = -1;
+    T.meshes = []; T.geo = null; T.v = -1; T.cap = 0; T.src = null; T.nBa = null;
   }
+  // (ROW 14, 23 Nov - PERF-LEAD's log of the Cub's nose-down in the player's loop: from the impact on, 5-13 MB of NEW
+  // buffers in 50-375 buffers every frame, 'geo' +43 in one, and the scene slot 45-145 ms a frame for 3.5 s.) A record's cut
+  // copies were thrown away and built again whole at every one of its events - a new geometry, every attribute a new GL
+  // buffer, new twin meshes. Now the geometry is kept and REFILLED in place while it fits (a capacity half again the
+  // first count; the draw range says how much is drawn) and the twins are kept on it; only a record that outgrows it
+  // builds again. The uploads: the refilled part only (addUpdateRange)
   function brkCutBuild(R, T, C2) {
-    brkCutFree(R);
-    const src = R.geo, nv = C2.nv, g = new THREE.BufferGeometry(), ver = new Map();
-    for (const name in src.attributes) {
-      const a = src.attributes[name]; if (!a || a.isInterleavedBufferAttribute || !a.array) continue;
-      const it = a.itemSize, arr = name === 'position' ? new Float32Array(nv * it) : new a.array.constructor(nv * it);
+    const src = R.geo, nv = C2.nv, names = [];
+    for (const name in src.attributes) { const a = src.attributes[name]; if (a && !a.isInterleavedBufferAttribute && a.array) names.push(name); }
+    const groupsSrc = src.groups || [], multi = groupsSrc.length > 1;
+    let g = T.geo;
+    const fits = !!g && T.src === src && T.cap >= nv && !!g.index === multi && names.every(nm => g.attributes[nm] && g.attributes[nm].itemSize === src.attributes[nm].itemSize);
+    if (!fits) {
+      brkCutFree(R);
+      const cap = Math.ceil(nv * 1.5) + 48;
+      g = new THREE.BufferGeometry();
+      for (const name of names) { const a = src.attributes[name], it = a.itemSize;
+        g.setAttribute(name, new THREE.BufferAttribute(name === 'position' ? new Float32Array(cap * it) : new a.array.constructor(cap * it), it, a.normalized)); }
+      g.setAttribute('aCut', new THREE.BufferAttribute(new Float32Array(cap * 2), 2)); g.setAttribute('aCutP', new THREE.BufferAttribute(new Float32Array(cap * 3), 3));
+      if (multi) g.setIndex(new THREE.BufferAttribute(new Uint32Array(cap), 1));
+      for (const nm in g.attributes) g.attributes[nm].setUsage(THREE.DynamicDrawUsage);
+      T.geo = g; T.cap = cap; T.src = src; T.w = new Float64Array(cap * 3); T.nBa = null; T.built = (T.built || 0) + 1;
+    } else T.refills = (T.refills || 0) + 1;
+    const ver = new Map(), upd = (b, n) => { if (b.clearUpdateRanges) { b.clearUpdateRanges(); b.addUpdateRange(0, n); } b.needsUpdate = true; };
+    for (const name of names) {
+      const a = src.attributes[name], b = g.attributes[name], it = a.itemSize, arr = b.array;
       for (let o = 0; o < nv; o++) { const v = C2.src[o]; for (let k = 0; k < it; k++) arr[o * it + k] = a.array[v * it + k]; }
-      g.setAttribute(name, new THREE.BufferAttribute(arr, it, a.normalized)); ver.set(name, a.version);
+      upd(b, nv * it); ver.set(name, a.version);
     }
-    const cut = new Float32Array(nv * 2), cp = new Float32Array(nv * 3);
+    const cut = g.attributes.aCut.array, cp = g.attributes.aCutP.array;
     for (let o = 0; o < nv; o++) { cut[o * 2] = C2.d[o]; cut[o * 2 + 1] = C2.s[o]; cp[o * 3] = C2.base[o * 3]; cp[o * 3 + 1] = C2.base[o * 3 + 1]; cp[o * 3 + 2] = C2.base[o * 3 + 2]; }
-    g.setAttribute('aCut', new THREE.BufferAttribute(cut, 2)); g.setAttribute('aCutP', new THREE.BufferAttribute(cp, 3));
+    upd(g.attributes.aCut, nv * 2); upd(g.attributes.aCutP, nv * 3);
     // (a multi-material geometry: the copies ordered by their source triangle's group, one group each)
-    const groupsSrc = src.groups || [];
-    if (groupsSrc.length > 1) {
+    g.clearGroups();
+    if (multi) {
       const nT = nv / 3, gi = new Int32Array(nT);
       for (let j = 0; j < nT; j++) { const s3 = C2.tri[j] * 3; let q = 0; for (; q < groupsSrc.length; q++) if (s3 >= groupsSrc[q].start && s3 < groupsSrc[q].start + groupsSrc[q].count) break; gi[j] = q < groupsSrc.length ? groupsSrc[q].materialIndex : 0; }
-      const ord = Array.from({ length: nT }, (_, j) => j).sort((x, y) => gi[x] - gi[y]), idx = new Uint32Array(nv);
+      const ord = Array.from({ length: nT }, (_, j) => j).sort((x, y) => gi[x] - gi[y]), idx = g.index.array;
       ord.forEach((j, k) => { idx[k * 3] = j * 3; idx[k * 3 + 1] = j * 3 + 1; idx[k * 3 + 2] = j * 3 + 2; });
-      g.setIndex(new THREE.BufferAttribute(idx, 1));
+      upd(g.index, nv);
       for (let k = 0; k < nT;) { const mi = gi[ord[k]]; let e = k; while (e < nT && gi[ord[e]] === mi) e++; g.addGroup(k * 3, (e - k) * 3, mi); k = e; }
     }
-    T.geo = g; T.v = C2.v; T.ver = ver; T.w = new Float64Array(nv * 3);
+    g.setDrawRange(0, nv);
+    T.v = C2.v; T.ver = ver; T.nv = nv;
     T.n = g.attributes.normal ? g.attributes.normal.array : null; T.nB = null;
-    if (T.n && R.nB) { T.nB = new Float32Array(nv * 3); for (let o = 0; o < nv; o++) { const v = C2.src[o]; T.nB[o * 3] = R.nB[v * 3]; T.nB[o * 3 + 1] = R.nB[v * 3 + 1]; T.nB[o * 3 + 2] = R.nB[v * 3 + 2]; } }
+    if (T.n && R.nB) { if (!T.nBa) T.nBa = new Float32Array(T.cap * 3); T.nB = T.nBa;
+      for (let o = 0; o < nv; o++) { const v = C2.src[o]; T.nB[o * 3] = R.nB[v * 3]; T.nB[o * 3 + 1] = R.nB[v * 3 + 1]; T.nB[o * 3 + 2] = R.nB[v * 3 + 2]; } }
     if (!T.nB) T.n = null;
+    if (fits && T.meshes.length) return;   // (the twins already ride this geometry)
     const hosts = []; model.grp.traverse(m => { if (m.isMesh && !m.userData.cutTwin && R.geos && R.geos.indexOf(m.geometry) >= 0) hosts.push(m); });
     for (const m of hosts) { const t = new THREE.Mesh(g, brkCutMat(m.material)); t.userData.cutTwin = true; t.castShadow = false;
-      t.receiveShadow = m.receiveShadow; t.frustumCulled = false; t.renderOrder = m.renderOrder; t.name = (m.name || '') + ':cut'; m.add(t); T.meshes.push(t); }
+      t.receiveShadow = m.receiveShadow; t.frustumCulled = false; t.renderOrder = m.renderOrder; t.name = (m.name || '') + ':cut'; m.add(t); T.meshes.push(t); BRK.cutLive = true; }
   }
   function brkCutDraw(R, off, X, K) {
     const C2 = R.cut2, T = R.cutDraw || (R.cutDraw = { v: -1, geo: null, meshes: [], w: null, n: null, nB: null, ver: null });
@@ -6038,13 +6258,14 @@
     if (T.v !== C2.v || !T.geo) brkCutBuild(R, T, C2);
     else for (const [name, v0] of T.ver) { const a = R.geo.attributes[name]; if (!a || a.version === v0 || name === 'position' || name === 'normal') continue;   // (the scuff's record moved: gathered again)
       const b = T.geo.attributes[name], it = a.itemSize; for (let o = 0; o < C2.nv; o++) { const v = C2.src[o]; for (let k = 0; k < it; k++) b.array[o * it + k] = a.array[v * it + k]; }
-      b.needsUpdate = true; T.ver.set(name, a.version); }
+      if (b.clearUpdateRanges) { b.clearUpdateRanges(); b.addUpdateRange(0, C2.nv * it); } b.needsUpdate = true; T.ver.set(name, a.version); }
     if (!T.meshes.length) return;
     const pa = T.geo.attributes.position;
     SKIN_BREAK.poseCage(C2, K.rest, sim.p, C2.base, pa.array, K.NF, K.down, off, { Mi: X.Mi, B: X.B, cg: X.cg, o: X.o, w: T.w, n: T.n, nB: T.nB });
-    pa.needsUpdate = true; if (T.n) T.geo.attributes.normal.needsUpdate = true;
+    if (pa.clearUpdateRanges) { pa.clearUpdateRanges(); pa.addUpdateRange(0, C2.nv * 3); } pa.needsUpdate = true;
+    if (T.n) { const na = T.geo.attributes.normal; if (na.clearUpdateRanges) { na.clearUpdateRanges(); na.addUpdateRange(0, C2.nv * 3); } na.needsUpdate = true; }
   }
-  function brkCage(xA, yU, cg, o, gain, still) {
+  function brkCage(xA, yU, cg, o, gain, still, stillN) {
     const D = brkState();
     if (!D || model.gen) return;
     // G1864 (DMG-D4b): a wreck at REST is drawn as it stands - no node moved past the pose's 0.3 mm (poseModel's own
@@ -6052,7 +6273,20 @@
     // the whole snapshot riding: 62 ms frames on a broken-up Cub at rest, measured on the box)
     // (train 41: nor while a tear's sample is in flight - at rest the GPU path's last sample landed on no posed frame and
     // the triangles it tears stayed drawn: the 07:25 still pair, stretched strips on the GPU path only)
-    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recPending && !BRK.recs.some(R => R.pending || R.tearAsk != null) && !brkWallStale(D)) return;
+    // (ROW 14, 23 Nov - PERF-LEAD's screen run: 43-51 ms a frame in brkCage with the wreck lying still and the sim stopped;
+    // the rest return never fired. FLYDIY_DMG_PROF's why: 'bind' on every frame - a record's R.pending. Under the INHERITED
+    // binding (brkInhWant, the default) bindMore never runs (below: `if (!inhOn)`), the event leaves every unbound place in
+    // R.pending (it is given no budget) and the inheritance binds them by its own steps and leaves its kept places unbound:
+    // R.pending is never emptied and asks for work nothing will do. Pending counts here only when bindMore would take it;
+    // the inheritance's own unfinished work is brkWallStale's (inhSt not done))
+    // (window.FLYDIY_REST_PENDWORK = true: pending counted under the inherited binding too, as before - GATE DMGPAGEW's selftest)
+    const pendWork = !brkInhWant() || window.FLYDIY_REST_PENDWORK === true;
+    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recPending && !BRK.recs.some(R => (pendWork && R.pending) || R.tearAsk != null) && !brkWallStale(D)) { DPROF.restN++; return; }
+    { const fl = BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false) || !!BRK.reachCopies !== (window.FLYDIY_SKIN_REACHCOPIES === true);
+      const w = (!BRK.posed ? 2 : 0) | (BRK.vB !== D.vB ? 4 : 0) | (BRK.recPending ? 8 : 0) | (BRK.recs.some(R => pendWork && R.pending) ? 16 : 0) |
+                (BRK.recs.some(R => R.tearAsk != null) ? 32 : 0) | (brkWallStale(D) ? 64 : 0) | (fl ? 128 : 0);
+      const wa = w | (!still && !w ? 1 : 0);   // (still is false on any of the others too - brkCageOn - so 1 only when none holds)
+      DPROF.wcur = wa; for (let i = 0; i < 8; i++) if (wa & (1 << i)) DPROF.whyN[i]++; }
     const K = model.brk, SB = SKIN_BREAK, N = def.nodes, n = N.length;
     // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it; and the basis itself
     const inv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
@@ -6158,7 +6392,7 @@
     if (!inhOn) for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
     const t2 = performance.now();
     SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
-    if (LOOK.pools && LOOK.slots) DMG_MEMBERS.frame(LOOK.pools, sim.p, K.NF.q, cg);   // G3770
+    if (LOOK.pools && LOOK.slots) { const tM = performance.now(); DMG_MEMBERS.frame(LOOK.pools, sim.p, K.NF.q, cg); DPROF.cur[4] += performance.now() - tM; }   // G3770
     const t3 = performance.now();
     const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
     BRK.X = X;
@@ -6182,7 +6416,7 @@
         X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
         SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
       }
-      if (R.cut2 || (R.cutDraw && R.cutDraw.geo)) brkCutDraw(R, off, X, K);   // G4102: the cut copies beside it
+      if (R.cut2 || (R.cutDraw && R.cutDraw.geo)) { const tC = performance.now(); brkCutDraw(R, off, X, K); DPROF.cur[3] += performance.now() - tC; }   // G4102: the cut copies beside it
       // (G1869: the tear checked at most every TEAR_EVERY s of sim time - a check is every live triangle's three edges;
       // G1818: on the GPU's riding, on its places' world positions - skin_break.js tearPlaces. Train 41: AT THE CPU'S
       // CADENCE - the frame the tear is due asks the places pass (that frame's positions); the read lands a frame or two
@@ -6214,7 +6448,10 @@
         } else if (!(brkFast() && sinceT < (onGpu ? tearEveryGpu() : TEAR_EVERY))) {
           // (G3022 v2: no sample for a record with nothing to tear - no watched triangle, or tearPlaces' own no-tear rule - nor
           // for one the motion clock has not moved TEAR_MOVE since its last sample: its tear clock starts again)
-          if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
+          // (ROW 14: nor on a frame the wreck has not moved - stillN, poseModel's - as the CPU path tears nothing at rest; its
+          // clocks kept, so the frame it moves again takes the sample due)
+          if (onGpu && stillN) G3022.stillSkip = (G3022.stillSkip | 0) + 1;
+          else if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
                         (R.tearMot != null && (BRK.motion || 0) - R.tearMot < TEAR_MOVE))) { R.tearT = sim.t; G3022.skipped++; }
           else if (onGpu) { R.tearMot = BRK.motion || 0; G3022.sampled++; GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; R.askState = new Map(); }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
@@ -7109,6 +7346,79 @@
     } catch (e) { job = Promise.reject(e); }
     return shaderProgress(job.then(done, e => { done(); console.warn('scuff prelink:', e && e.message); }), 'world', 60000);
   }
+  // ROW 14 (the user, 22 Nov: "less than 250 ms freeze on crash, and no sky blue screen"; "a crash could cause up to 10
+  // seconds of full freeze"): THE CRASH'S OWN PROGRAMS, linked and first drawn HERE under the screen, right after the
+  // scuff's (scuffPrelink) - a skin-family program waits 1-2 s in the driver at its first link, cold (PERF-TRACE, 22 Nov).
+  // With the scuff block AWAKE while they compile, as scuffPrelink's: their keys follow the awake source.
+  //   1 the cut copies (G4102 brkCutMat: a twin per wrapped skin material, its key the source's + '|cut4102', made at a
+  //     record's first cut event - one link per distinct skin material in the impact's first frames)
+  //   2 the member pools (dmg_members.js 'dmglook:pool': parked hidden and compiled with the world, but their key is
+  //     'dmglook:2:' + the SOURCE's - the awake one only from the first damage on)
+  //   3 SKIN_GPU's riding program (raw GL, linked on the driver's threads; started here, not at the first break)
+  //   4 the wreck's wires (wreckWires: a gear leg's material on a PLAIN mesh - a skinned leg's non-skinned variant)
+  //   5 the ground scar's decals (ground_scar.js 'scar:decal' / 'scar:live': parked with the world; again here, known keys link nothing)
+  //   6 the wreck's wing structure (wsWreck, made at the first wing break) and its cut twins
+  // Each by stand-in (PROG_WARM.standIn: the object by prototype, never shown for a call) or a plain mesh made for it,
+  // compiled as scuffPrelink's (compileSliced: the craft dressed in the world, its lights key them) and first-drawn
+  // (warmDrawSliced). FLYDIY_CRASH_PRELINK = false: off (the A/B).
+  if (typeof window !== 'undefined') window.FLYDIY_CRASH_PRE = () => (model && model.crashPre ? Object.assign({}, model.crashPre, { job: undefined }) : null);
+  function crashPrelink(inW) {
+    if (window.FLYDIY_CRASH_PRELINK === false || !model || model.gen || !craft || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
+    // ONCE A MODEL (PERF-LEAD 23 Nov, the user's row 3: world loading 60 s with its background work, ideally in the garage):
+    // the loading's 'spec' (craftStart: craftEarly) runs it in the background; the craft step's second compileCraftLinks,
+    // under the roll-out's screen, finds it done and pays nothing. Its cost: model.crashPre (FLYDIY_CRASH_PRE())
+    if (model.crashPre) return model.crashPre.job || null;
+    const t0 = performance.now(), prog0 = renderer.info && renderer.info.programs ? renderer.info.programs.length : null;
+    try { if (window.SKIN_GPU && window.FLYDIY_SKINGPU !== false && renderer) SKIN_GPU.prepare(renderer); } catch (e) {}   // 3
+    const at = model.scuff, W = at && at.W, S = typeof SKIN_SCUFF !== 'undefined' ? SKIN_SCUFF : null;
+    const tgt = aa && aa.target ? aa.target() : null, CG = new THREE.Group(), only = [], seen = new Set();
+    const add = (o, m) => { if (!m) return; const k = o.uuid + '|' + m.uuid; if (seen.has(k)) return; seen.add(k); const s = PROG_WARM.standIn(o, m); CG.add(s); only.push(s); };
+    const plain = (g, m, nm) => { if (!m || !g) return; const k = 'P|' + g.uuid + '|' + m.uuid; if (seen.has(k)) return; seen.add(k);
+      const p = new THREE.Mesh(g, m); p.name = nm; p.frustumCulled = false; CG.add(p); only.push(p); };
+    const mats = o => (Array.isArray(o.material) ? o.material : [o.material]).filter(Boolean);
+    if (W && S) { W.pre++; S.wakeSet(W); }
+    try {
+      craft.traverse(o => {
+        if (!o.isMesh || !o.geometry || (o.userData && o.userData.cutTwin)) return;
+        if (o.name === 'dmglook:pool') { for (const m of mats(o)) add(o, m); return; }                                  // 2
+        if (o.isSkinnedMesh) for (const m of mats(o)) plain(o.geometry, m, 'crashPrelink:wire');                         // 4
+      });
+      // 1 THE CUT TWINS: every material the model's meshes draw with (brkCutBuild's hosts are model.grp meshes whose geometry a
+      // record holds - the skin, the liner, the glass, the body groups: PERF-LEAD's registry, 23 Nov 00:10, 16 programs
+      // after the impact, nearly all '+ cutaway', made one by one over six seconds as the records came); a twin is a PLAIN
+      // mesh on the host's material copy (new THREE.Mesh(g, brkCutMat(..))) even on a skinned host
+      if (model.grp && typeof brkCutMat === 'function') model.grp.traverse(o => {
+        if (!o.isMesh || !o.geometry || (o.userData && o.userData.cutTwin) || o.name === 'dmglook:pool') return;
+        for (const m of mats(o)) plain(o.geometry, brkCutMat(m), 'crashPrelink:cut');
+      });
+      scene.traverse(o => {   // (the pools and the decals parked in the world, not under the craft)
+        if (!o.isMesh || !o.geometry) return;
+        if (o.name === 'dmglook:pool' || o.name === 'scar:decal' || o.name === 'scar:live') for (const m of mats(o)) add(o, m);                       // 2, 5
+      });
+    } catch (e) { console.warn('crash prelink (gather):', e && e.message); }
+    // 6 THE WRECK'S WING STRUCTURE (wsWreck: WING_STRUCT.group made at the first wing break, added to model.grp - its own
+    // material and, as a record's host, its cut twin both linked at the crash: PERF-LEAD's screen run 23 Nov 00:50, the
+    // guard held 'wingStruct:0L/MeshPhysicalMaterial' 35 frames, 3.1 s). Made here once (its materials are wing_struct.js's
+    // shared library, the same keys), compiled, its geometry disposed when the job ends
+    let WSG = null;
+    try {
+      if (window.WING_STRUCT && window.FLYDIY_WINGSTRUCT !== false && model.wsRigs === undefined && def && def.parts && def.parts.wf) {
+        WSG = WING_STRUCT.group(THREE, def, { map: p => [p[0], p[1], p[2]], lod: 1, name: 'wingStructPrelink' });
+        for (const m of WSG.children) for (const mt of mats(m)) { plain(m.geometry, mt, 'crashPrelink:ws'); if (typeof brkCutMat === 'function') plain(m.geometry, brkCutMat(mt), 'crashPrelink:wscut'); }
+      }
+    } catch (e) { console.warn('crash prelink (wing structure):', e && e.message); }
+    const done = () => { if (W && S) { W.pre--; S.wakeSet(W); } if (WSG) { try { WING_STRUCT.dispose(WSG); } catch (e) {} WSG = null; } };
+    if (!CG.children.length) { done(); model.crashPre = { n: 0, done: true }; return null; }
+    let job;
+    try {
+      job = compileSliced(CG, tgt, scene, false, inW)
+        .then(() => warmDrawSliced(scene, tgt, null, only, inW));
+    } catch (e) { job = Promise.reject(e); }
+    const CP = model.crashPre = { n: CG.children.length, gatherMs: +(performance.now() - t0).toFixed(1), prog0, at: inGarage ? 'garage' : 'world', t0 };
+    CP.job = shaderProgress(job.then(done, e => { done(); console.warn('crash prelink:', e && e.message); })
+      .then(() => { CP.wallMs = Math.round(performance.now() - t0); CP.programs = prog0 != null && renderer.info.programs ? renderer.info.programs.length - prog0 : null; CP.done = true; }), 'world', 60000);
+    return CP.job;
+  }
   // THE RECORDS: the break path's own (brkCageRec - the same record a break would make, off the break list until one
   // comes), only for groups something draws with a pair; ms: the time they may take (Infinity: all of them). The pose
   // offset they are made with is the model's own constant (poseModel's oB: model.off + model.oRest), not a frame's
@@ -7143,6 +7453,7 @@
              panes: st.panes.map(P => ({ sev: +P.sev.toFixed(3), slot: P.slot })), counts: cnt, busy: S_busy(st) };
   };
   const S_busy = st => (window.SKIN_SCUFF ? SKIN_SCUFF.busy(st) : false);
+  const scuffLayerHere = () => typeof SKIN_SCUFF !== 'undefined';   // (the block's door for a caller outside it: the lab's late links, lateBgScuff)
 
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
   // the ground straight under each tyre (and a faint one under the fuselage), fading with the tyre's height over
@@ -15515,6 +15826,12 @@
     certKick();                        // G1831: the certificate's thread starts with the roll-out
     // G2715 (CREW-SEATS): the job's seats on the crew layer NOW (a rig's load first), so the snapshot below takes them
     if (FREIGHT_PAGE && inGarage) try { fsRigDue(); fsCrewSync(true); } catch (e) { console.warn('flyDiy (crew seats):', e && e.message); }
+    // (?boot=garagefirst) Go while the world loads behind the garage: join it (gfJoin), then come back here; Go before it began:
+    // the roll-out's own screen loads the world, as a first roll-out always could
+    if (LAB.gf) { const G = LAB.gfS;
+      if (G.joining) return;
+      if (G.running) { gfJoin(() => rollOut(after, sync)); return; }
+      if (!G.done) { G.done = true; G.why = 'Go before the background load began'; } }
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
     if (!screenCan()) {
@@ -15831,7 +16148,7 @@
   function compileCraft() {
     if (!WF || typeof renderer.compileAsync !== 'function') return;
     const was = holdRender;
-    holdRender = true;
+    holdRender = gfLive() ? was : true;   // (?boot=garagefirst: behind a live garage the picture is never held)
     const release = () => { holdRender = was; };
     return compileCraftLinks().then(() => craftHullWarm()).then(() => hybridWarm()).then(release, e => { release(); throw e; });
   }
@@ -15896,8 +16213,74 @@
       .then(() => warmDrawSliced(scene, target, null, depth.children, noFog, { perKey: true }))
       .catch(e => console.warn('craft reflection warm:', e && e.message));
   }
+  // ?latelinks=bg (PERF-LEAD lab, 22 Nov; OFF by default): THE TWO PRELINKS OF ?latelinks, AFTER THE REVEAL INSTEAD OF UNDER THE BOOT.
+  // ?latelinks=1 priced the load without the damage look's awake programs and the see-through twins: 102.7 s against 114-127
+  // (22 Nov, cold, headed 5K). Skipping them for good would move their links to the first scratch and the first see-through
+  // view - a freeze where it hurts most. Here the boot skips them, and:
+  //   1. a few seconds after the garage is revealed (the boot's screen gone, nothing busy, still in the garage) they are
+  //      linked in the background: the see-through twins by their own function (twins of the room's materials: no live
+  //      material is touched), the damage look's awake programs on TWINS of the wrapped materials (the scuff layer's awakeTwin
+  //      hook: the awake key while the live materials sleep on) - compileSliced's stand-ins, a program a group, no draw;
+  //   2. the FIRST roll-out's craft step runs again (its key carries the phase) and scuffPrelink does there what it did
+  //      under the boot - the live materials compiled awake (the programs are in three's cache: no link) and drawn once,
+  //      under the Go screen - so the wake at a crash finds everything resident, as today.
+  // Go pressed before 1 has ended: the craft step waits for the links under its screen. The see-through view opened before
+  // 1 has ended links its twins itself (as before G441). LAB.bg holds the times and counts for the rig.
+  // REVEALED, READ AT ONCE (a rig presses Go 0.2 s after the boot's screen is gone - the journey's log, 22 Nov - and the
+  // roll-out's own screen is up by the time the craft step's key is read): latched the moment the boot's screen is gone
+  // or another set's screen (the roll-out's) is seen
+  function lateBgRevealed() {
+    const B = LAB.bg; if (B.revealed) return true;
+    if (!B.armed || typeof BOOT === 'undefined') return false;
+    if (BOOT.state === 'gone' || (BOOT.set && BOOT.set !== 'garage')) { B.revealed = true; B.revealAt = performance.now(); }
+    return B.revealed;
+  }
+  function lateBgArm() {
+    const B = LAB.bg; if (B.armed) return; B.armed = true;
+    const wait = () => {
+      const up = typeof BOOT !== 'undefined' && ((BOOT.state && BOOT.state !== 'gone') || (typeof BOOT.busy === 'function' && BOOT.busy()));   // (a page without the screen: nothing to wait for)
+      lateBgRevealed();
+      if (up) { setTimeout(wait, 500); return; }
+      if (!B.revealed) { B.revealed = true; B.revealAt = performance.now(); }
+      if (performance.now() - B.revealAt < 3000 || !inGarage) { setTimeout(wait, inGarage ? 500 : 2000); return; }
+      lateBgRun();
+    };
+    setTimeout(wait, 500);
+  }
+  function lateBgRun() {
+    const B = LAB.bg; if (B.running || B.done) return;
+    B.running = true; B.startedAt = performance.now();
+    const progs = () => (renderer.info && renderer.info.programs ? renderer.info.programs.length : 0), n0 = progs();
+    B.xrayRun = true;
+    Promise.resolve().then(() => compileXrayVariants())
+      .then(() => { B.xrayRun = false; B.xrayMs = Math.round(performance.now() - B.startedAt); B.xrayLinks = progs() - n0; return Promise.resolve(lateBgScuff()).then(() => crashPrelink(craftInWorldNow)); })   // (ROW 14: the crash's programs after the scuff's, here too)
+      .then(() => { B.ms = Math.round(performance.now() - B.startedAt); B.scuffLinks = progs() - n0 - B.xrayLinks; B.done = true; B.running = false; },
+            e => { B.xrayRun = false; B.running = false; B.err = String(e && e.message); console.warn('late links (background):', e && e.message); });
+  }
+  function lateBgScuff() {
+    const B = LAB.bg, at = model && model.scuff;
+    if (!at || !at.W || at.W.on || !WF || !scuffLayerHere() || typeof AEROSKIN === 'undefined' || !AEROSKIN.aeroDupe
+        || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
+    const twinOf = new Map(), G = new THREE.Group();
+    const add = (o, m) => {
+      if (!m || !m.userData || !m.userData.scuff) return;
+      let t = twinOf.get(m);
+      if (t === undefined) {
+        const hook = m._atmoHook || (Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : null);
+        t = null;
+        if (hook && hook.awakeTwin) { try { t = AEROSKIN.aeroDupe(m); t.onBeforeCompile = hook.awakeTwin; B.twins++; } catch (e) { t = null; } }
+        if (!t) B.noTwin++;
+        twinOf.set(m, t);
+      }
+      if (t) { try { G.add(PROG_WARM.standIn(o, t)); } catch (e) {} }
+    };
+    craft.traverse(o => { if (o.isMesh && o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) add(o, m); });
+    for (const [o, m] of ((window.FLOWN_BAKE && FLOWN_BAKE.warmPairs) ? FLOWN_BAKE.warmPairs() : [])) add(o, m);
+    if (!G.children.length) return null;
+    return compileSliced(G, aa && aa.target ? aa.target() : null, scene, false, craftInWorldNow, 1);   // (a program a group: a new skin source is the long part of a task)
+  }
   function compileCraftLinks() {
-    const inW = craftInWorldNow, KG = (window.FLOWN_BAKE && FLOWN_BAKE.FB.noKeptCompile) ? new THREE.Group() : keptGroup().KG;   // (?fbake=nokeptcompile)
+    const inW = craftInWorldNow, KG =(window.FLOWN_BAKE && FLOWN_BAKE.FB.noKeptCompile) ? new THREE.Group() : keptGroup().KG;   // (?fbake=nokeptcompile)
     const jobs = [compileSliced(craft, aa && aa.target ? aa.target() : null, scene, false, inW)];
     if (KG.children.length) jobs.push(compileSliced(KG, aa && aa.target ? aa.target() : null, scene, false, inW));
     if (typeof PROG_WARM !== 'undefined' && PROG_WARM.depthVariants) {
@@ -15905,7 +16288,10 @@
       catch (e) { console.warn('craft depth compile:', e && e.message); }
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
-      .then(() => scuffPrelink(inW))
+      // (?latelinks=1: not at all - a measure; ?latelinks=bg: not under the boot's screen but behind the garage - lateBgArm)
+      .then(() => { if (LAB.lateLinks) { LAB.lateSkipped++; return true; } if (LAB.lateBg && !lateBgRevealed()) { LAB.lateSkipped++; lateBgArm(); return true; } return false; })
+      .then(late => late ? null : Promise.resolve().then(() => scuffPrelink(inW))
+        .then(() => crashPrelink(inW)))   // ROW 14: the crash's own programs, after the scuff's (their keys follow its awake source)
       .then(() => compileCraftShed());
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
@@ -16104,6 +16490,7 @@
   let craftAway = 0, craftHome = null, craftGrpVis = null;
   function craftInWorld(fn) {
     if (!inGarage || !WF) return fn();
+    if (gfLive()) return fn();   // (?boot=garagefirst, the garage ON SCREEN: the aeroplane is never lent across tasks - the compiles dress it a task at a time, craftInWorldNow)
     if (!craftAway++) { craftHome = craft.parent; if (craft.parent !== scene) scene.add(craft);
       craftGrpVis = model && model.grp ? [model.grp, model.grp.visible] : null; if (craftGrpVis) { model.grp.visible = true; restBake(); if (!craftGrpVis[1] && !window.FLYDIY_POSE_NOCATCHUP) poseModel(true); } }   // (G2111: posed, shown; G2750: the rest place, under the screen)
     let once = false;
@@ -16149,12 +16536,12 @@
   // FLYDIY_SHADOW_WARM = { drawn, lights, firstUse: { n, paid, ms } }. ?shadowwarm=0: both off (the A/B)
   const SHADOW_WARM_OFF = /[?&]shadowwarm=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
   let SHADOW_WARM_LIGHTS = 0;
-  const firstUseSliced = () => new Promise(res => {
+  const firstUseSliced = budget => new Promise(res => {   // (budget: ms a task, 30 under a screen; ?firstuse=1 asks 4 in flight)
     const progs = (renderer.info && renderer.info.programs ? renderer.info.programs.slice() : []).filter(p => p && typeof p.getUniforms === 'function');
     let i = 0, paid = 0, ms = 0;
     const tick = () => {
       const t0 = performance.now();
-      while (i < progs.length && performance.now() - t0 < 30) {
+      while (i < progs.length && performance.now() - t0 < (budget || Math.min(30, gfSliceMs()))) {
         const p = progs[i++], t1 = performance.now();
         if (p.isReady && !p.isReady()) continue;   // (still linking: programsReady's, not ours - its frame waits as before)
         try { p.getUniforms(); } catch (e) {}
@@ -16237,7 +16624,7 @@
   // First use of these off-camera world variants still links lazily in ANGLE after
   // compileSliced reports ready. Draw one smallest representative per program/layout
   // under first light, including hidden LODs; leave live materials and visibility alone.
-  function worldViewWarmDraw() {
+  function worldViewWarmDraw(dress) {   // (dress: the craft dressed in the world a task at a time - the garage on screen, ?boot=garagefirst)
     if (!WF || !renderer.properties || typeof renderer.compileAsync !== 'function') return Promise.resolve(0);
     const reps = new Map();
     scene.traverse(o => {
@@ -16255,8 +16642,18 @@
       }
     });
     const only = [...new Set(reps.values())];
-    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world views', only, null, { perKey: true, groupMax: 1 })
+    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world views', only, dress || null, { perKey: true, groupMax: 1 })
       .then(drawn => { window.FLYDIY_VIEW_WARM = { objects: only.length, drawn }; return drawn; });
+  }
+  // (?boot=garagefirst, the garage ON SCREEN: the six whole views from the stand are not drawn (they would land on the canvas), so
+  //  nothing had handed the world's vertex buffers to the GPU - Go's first world frame did: 2 684 buffers, 402 MB, 364 ms in one
+  //  frame of the roll-out shot (23 Nov 14:19). Every shown object draws one primitive off screen, a slice a task on the
+  //  garage's budget: its own buffers go up. ?gfbuf=0: left to Go's frame)
+  function worldBuffersWarm() {
+    const all = [], t0 = performance.now();
+    scene.traverseVisible(o => { if ((o.isMesh || o.isPoints || o.isLine) && o.material && o.geometry && o.geometry.attributes && o.geometry.attributes.position) all.push(o); });
+    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world buffers', all, craftInWorldNow)
+      .then(n => { LAB.gfS.bufDrawn = [all.length, n, Math.round(performance.now() - t0)]; return n; });
   }
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
@@ -16296,6 +16693,13 @@
     let n = 0, last = -1, still = 0; const t00 = performance.now();
     // the parked aeroplanes the stream places meanwhile are captured a step a task, as under the roll-out screen
     const PK = PK_ASYNC() ? window.PARKED : null; if (PK) PK.async = true;
+    // PERF-WORLDBUILD (22 Nov) ?settle=near, OPT-IN (the default is the rule as it was): the gate ends once every streamer's
+    // own count is 0 round the stand for three looks - the premises' stream, the forest within RING_REACH (the 'ring' step's
+    // reach), the cover's rings, the rocks, the stand cards, the far-town merges, the obstacles, the life - and the forest's
+    // FAR queue (1.5 - 9 km, the fill's 4 ms a frame) goes on arriving in flight, as it already does past the 1 500-update
+    // cap. A VISIBLE choice (stand-in cards for longer past 1.5 km): shown to the user before it is ever a default
+    const SETTLE_NEAR = !!WF.settleStat && typeof location !== 'undefined' && /[?&]settle=near(?:&|$)/.test(location.search || '');
+    const nearOwed = () => { const s = WF.settleStat(cg, RING_REACH); let n = 0; for (const k in s) if (k !== 'fill' && k !== 'geo' && !/Far$/.test(k)) n += s[k] > 0 ? s[k] : 0; return n; };   // (a ...Far count is work that lands after the reveal by design)
     const idle = () => (!ST || !(ST.near > 0)) && !(WF.ringStat && WF.ringStat() && WF.ringStat().busy);
     // G1075 (LOAD-SETTLE): THE SLICE'S CLOCK, HONOURED INSIDE THE CALL. The 40 ms slice was only checked between two
     // worldUpdate calls, and ONE call could hold ~1.1 s: a premises build, an HLOD cell's merge, a stand-card chunk and
@@ -16304,23 +16708,36 @@
     // stand-card chunk builds by rows against it; the work is the same, it no longer bunches. Flight has no slice: its
     // builders keep their own per-frame budgets.
     const SL = { until: 0 };
+    // PERF-WORLDBUILD (22 Nov): THE GATE'S LEDGER - which streamer holds readiness, by its own count (render_world
+    // settleStat), looked at once a slice. `held` = the looks each one still owed work at; `last` = [updates, ms] of the last
+    // such look (when it came to rest); `count` = the looks the idle scene's object count still moved at; `naps` = the waits
+    // on the house worker. A REPORT ONLY: the rule below (idle + the count still three looks, or 1 500 updates, or 45 s) is
+    // as it was. Codex's finding (20 Nov): the gate ends on its 1 500-update cap with the forest's far queue still busy
+    const LG = { looks: 0, naps: 0, held: {}, last: {}, end: null };
+    const ledger = () => { if (!WF.settleStat) return; let s = null; try { s = WF.settleStat(cg, RING_REACH); } catch (e) { return; }
+      LG.looks++; const at = [n, Math.round(performance.now() - t00)];
+      for (const k in s) if (s[k] > 0) { LG.held[k] = (LG.held[k] || 0) + 1; LG.last[k] = at; } LG.end = s; };
     return new Promise(res => {
       const tick = () => {
         // G830: the premises' stream waiting on the house worker - wait for its answer, not in updates
         const hw = WF.premises && WF.premises.hwWait ? WF.premises.hwWait() : null;
-        if (hw) { workerNap(hw).then(() => setTimeout(tick, 0)); return; }
+        if (hw) { LG.naps++; workerNap(hw).then(() => setTimeout(tick, 0)); return; }
         const t0 = performance.now();
         const keep = inGarage ? camera.position.clone() : null;
         if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
-        SL.until = t0 + 40; window.FLYDIY_SLICE = SL;
-        try { while (performance.now() - t0 < 40 && n < 1500) { WF.worldUpdate(cg); n++; } }
+        const SLms = gfSliceMs();   // (40 ms, or the garage's budget behind a live garage-first run)
+        SL.until = t0 + SLms; window.FLYDIY_SLICE = SL;
+        try { while (performance.now() - t0 < SLms && n < 1500) { WF.worldUpdate(cg); n++; } }
         catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
         finally { window.FLYDIY_SLICE = null; if (keep) camera.position.copy(keep); }
         geoFlush();   // G1230
-        if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; } } else still = 0;
+        ledger();
+        if (SETTLE_NEAR) { if (nearOwed() === 0) still++; else still = 0; }
+        else if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; LG.held.count = (LG.held.count || 0) + 1; LG.last.count = [n, Math.round(performance.now() - t00)]; } } else still = 0;
         const done = still >= 3 || n >= 1500 || performance.now() - t00 > 45000;
         BOOT.phase('settle', 'the world settling round the stand' + (ST ? ' · ' + (ST.near || 0) + ' to build' : ''), done ? 1 : Math.min(0.95, n / 600));
-        if (done) { if (typeof window !== 'undefined') window.FLYDIY_WORLD_SETTLE = { n, ms: Math.round(performance.now() - t00), rest: still >= 3, near: ST ? ST.near : null, fill: WF.ringStat ? WF.ringStat() : null };
+        if (done) { if (typeof window !== 'undefined') window.FLYDIY_WORLD_SETTLE = { n, ms: Math.round(performance.now() - t00), rest: still >= 3, near: ST ? ST.near : null, fill: WF.ringStat ? WF.ringStat() : null,
+            why: still >= 3 ? 'rest' : n >= 1500 ? 'cap 1500 updates' : '45 s', rule: SETTLE_NEAR ? 'near' : 'all', looks: LG.looks, naps: LG.naps, held: LG.held, last: LG.last, end: LG.end };   // (PERF-WORLDBUILD: the ledger)
           if (PK && PK.whenIdle) PK.whenIdle().then(() => { if (inGarage) PK.async = false; res(); }); else res(); }
         else setTimeout(tick, 0);
       };
@@ -16384,7 +16801,7 @@
         .catch(e => console.warn('flown bake:', e && e.message || e)) },
     { id: 'spec', part: 'craft', label: 'your aeroplane, built', w: 4, key: buildKey, deps: ['snapshot', 'bake'],
       fn: () => { syncApply(tripSync, true); } },
-    { id: 'craft', part: 'craft', label: "your aeroplane's shaders", w: 4, key: () => modelId() + '|' + (WF ? 'w' : '-') + '|' + gfxKey(), deps: ['spec'],
+    { id: 'craft', part: 'craft', label: "your aeroplane's shaders", w: 4, key: () => modelId() + '|' + (WF ? 'w' : '-') + '|' + gfxKey() + (LAB.lateBg ? (lateBgRevealed() ? '|bg1' : '|bg0') : ''), deps: ['spec'],   // (?latelinks=bg: the first roll-out after the reveal runs it again - lateBgArm)
       fn: () => compileCraft() },
     // W6 (GPS-STALL): the roll-out shot's shadow pass, its first draws and every program's first use under this screen
     // (shedShadowWarm), once per aeroplane and graphics; only where the shot plays. ?shadowwarm=0: off (the A/B)
@@ -16420,7 +16837,7 @@
       let built = 0;
       return new Promise(res => {
         const tick = () => {
-          let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
+          let r; try { r = WF.premisesPrewarm(cg, { budgetMs: gfSliceMs() }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
           built += r.built || 0;
           geoFlush();   // G1230
           BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
@@ -16455,7 +16872,7 @@
       return new Promise(res => {
         let ticks = 0;
         const tick = () => {
-          let r; try { r = WF.prewarm(cg, { budgetMs: 40, reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          let r; try { r = WF.prewarm(cg, { budgetMs: gfSliceMs(), reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
           geoFlush();   // G1230
           const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
           BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
@@ -16519,8 +16936,12 @@
       if (WF.lampsArm && WF.lampsWant) WF.lampsArm(WF.lampsWant());
       return craftInWorld(() => {
         worldSettle();   // (in the one loading: the lights as the stand will have them, before their programs are keyed)
-        return shaderProgress(compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
-          .then(() => compileDepthVariants()), 'world', 240000);
+        if (LAB.paveFirst) LAB.pave.sigCompile = lightSig(scene);
+        if (LAB.groundFirst) { const B = LAB.ground; B.keysCompile = groundKeysNow(); B.same = B.keys.every(k => B.keysCompile.indexOf(k) >= 0); B.sig = B.sig || null; B.sigCompile = lightSig(scene); }   // (?groundfirst=1: the family's keys now, against the hand-overs')   // (?pavefirst=1: the light set this step keys with, against the early hand-over's)
+        const tgt = aa && aa.target ? aa.target() : null, warn = e => console.warn('world compile:', e && e.message);
+        return shaderProgress((LAB.wcSliced || gfLive())   // (?boot=garagefirst behind a live garage: the dress in every task too) (?wcsliced=1: the dress in every task, as 'frames' - craftInWorld's own hold spans tasks)
+          ? compileSliced(scene, tgt, null, false, craftInWorldNow).catch(warn).then(() => compileDepthVariants(scene, true, craftInWorldNow))
+          : compilePass(scene, tgt).catch(warn).then(() => compileDepthVariants()), 'world', 240000);
       });
     } },
     // two frames of the world rendered under the overlay: the passes, the
@@ -16531,7 +16952,9 @@
     // reveal (G584's owed "premises that stream in"). A second, sliced pass right before the frames: the programs it
     // already knows cost their key, the new ones link on the driver's threads.
     // B9: in the boot (the shed on screen) the frames are ONE warm draw of the world from the stand (worldWarmDraw)
-    { id: 'frames', part: 'world', label: 'first light', w: 4, key: () => 'lit', deps: ['world', 'town', 'ring', 'parking', 'settle', 'worldCompile'], fn: t => {
+    // (?boot=garagefirst: behind a LIVE garage the step runs without its warm draws - they would land on the canvas - and its
+    //  key says so ('lit-bg'): Go's own world phase then runs it once more under the roll-out's screen, for the draws alone)
+    { id: 'frames', part: 'world', label: 'first light', w: 4, key: () => 'lit' + (gfLive() && !LAB.gfS.warm ? '-bg' : ''), deps: ['world', 'town', 'ring', 'parking', 'settle', 'worldCompile'], fn: t => {
       if (!WF || typeof renderer.compileAsync !== 'function') { holdRender = false; return framesRendered(2); }   // the harness: synchronous, as before
       // G732.1: the catch-up's depth variants a slice a task (compileDepthVariants' `sliced`, the settings screen's since G991):
       // unsliced, compileAsync built every new depth program's source in one task - 21 of them here, a 983 ms task
@@ -16542,7 +16965,13 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(shadowWarm).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot());
+        // (?boot=garagefirst, the garage ON SCREEN: the world's first draws go OFF SCREEN - one stand-in a program into the frame's
+        //  own target, a slice a task (worldViewWarmDraw, the settings screen's), then the shadow pass's; the six whole views
+        //  from the stand would land on the canvas. ?gfwarm=0: none here, Go's world phase runs this step once more for them)
+        .then(() => { if (inGarage && gfLive()) { const t0 = performance.now();
+            return (LAB.gfS.warm ? worldViewWarmDraw(craftInWorldNow).then(n => { LAB.gfS.warmDrawn = n; return shadowWarm(); }).then(() => LAB.gfS.bufWarm ? worldBuffersWarm() : null).then(() => { LAB.gfS.cloudLate = Math.round(performance.now()); cloudsWarm(); LAB.gfS.warmMs = Math.round(performance.now() - t0); })
+              .catch(e => { LAB.gfS.warmErr = String(e && e.message); }) : Promise.resolve()).then(() => hviewBoot()); }
+          if (inGarage) return Promise.resolve(worldWarmDraw()).then(shadowWarm).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot());
           return shadowWarm().then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }); }));   // (REVEAL-HITCH: the stand's grass; W6: the shadow pass's first draws, every program's first use; G1998e: the clouds' march; G3630: the view out of the door)
     } },
   ];
@@ -16573,6 +17002,106 @@
     const ran = new Set(), run = [];
     for (const s of TRIP_STEPS) if (s.part === part && tripNeed(s, ran).need) { ran.add(s.id); run.push(s); }
     return run;
+  }
+  // PERF-LEAD LAB (?coverbudget=K, a percentage; OFF by default, 23 Nov; rows 8, 9 and 13): THE GROUND COVER'S WORK A FRAME.
+  // Its four layers (cover, grass, lawn, rocks) plant on 4 + 3 + 2 + 2 ms a frame and rebuild 2-4 blocks a frame with no
+  // clock on them: 12-15 ms a frame low down, the third cost over the 30 fps budget in the journey's log (7.8 s over 50 ms
+  // in 8 minutes, 23 Nov). With the switch each layer plants on K % of its milliseconds and rebuilds ONE block a frame.
+  // The same picture, LATER: what it costs is how long ground near the eye stands unplanted - the layers' own STAT.dirty
+  // and queues say it, and the user sees it in a flight before any default moves.
+  function labCoverBudget() {
+    const K = LAB.coverK; if (!(K > 0) || LAB.coverSet || typeof window === 'undefined' || !window.TREE_FILL) return;
+    const out = {};
+    for (const nm of ['cover', 'grass', 'lawn', 'rockLayer']) {
+      try { const L = typeof TREE_FILL[nm] === 'function' ? TREE_FILL[nm]() : null; if (!L || !L.get || !L.set) continue;
+        const g = L.get(), o = {};
+        if (g.budgetMs > 0) o.budgetMs = Math.max(0.25, g.budgetMs * K / 100);
+        if (g.preBudgetMs > 0) o.preBudgetMs = Math.max(0.25, g.preBudgetMs * K / 100);
+        if (g.blockBudget > 1 && K < 100) o.blockBudget = 1;
+        L.set(o); out[nm] = { ms: [g.budgetMs, o.budgetMs], blocks: [g.blockBudget, o.blockBudget || g.blockBudget] };
+      } catch (e) { out[nm] = String(e && e.message); }
+    }
+    if (Object.keys(out).length) LAB.coverSet = out;
+  }
+  // ================= PERF-LEAD LAB: GARAGE FIRST (?boot=garagefirst; OFF by default, 23 Nov 2026) =================
+  // The world's steps, in the boot's own order, then the aeroplane's programs in the world's light. NOT in the list: the
+  // roll-out shot's shadow warm ('shedWarm': it draws in the shed) and the world's warm draws (the 'frames' step's second
+  // half) - both run at Go under the roll-out's screen, where round 1 measures what they cost.
+  const GF_IDS = ['world', 'stages', 'restore', 'town', 'parking', 'trees', 'ring', 'settle', 'images', 'upload', 'worldCompile', 'frames', 'craft'];
+  function gfLive() { const G = LAB.gfS; return LAB.gf && G.running && !G.fast; }
+  // the milliseconds a background task may take: 40 under a screen (as the build always had), else the garage's budget
+  function gfSliceMs() { const G = LAB.gfS; if (!gfLive()) return 40; return performance.now() - G.inputAt < 400 ? G.busyMs : G.restMs; }
+  function gfMark(id) { const G = LAB.gfS; G.passed[id] = true; const w = G.waits[id]; if (w) { delete G.waits[id]; w(); } }
+  function gfWait(id) { const G = LAB.gfS; return (G.passed[id] || !G.running) ? Promise.resolve() : new Promise(res => { const w = G.waits[id]; G.waits[id] = () => { if (w) w(); res(); }; }); }
+  function gfEvent(ms, d) { try { if (window.FLIGHT_REC && window.FLIGHT_REC.event) window.FLIGHT_REC.event('gf', ms, d); } catch (e) {} }
+  // armed as the boot's screen is done with: the run starts gfS.delayMs after the garage is on screen
+  function gfArm() {
+    const G = LAB.gfS; if (G.armed) return; G.armed = true;
+    // THE CLOUDS' FIRST DRAW, STILL UNDER THE GARAGE'S OWN LOADING SCREEN (the evening row, 23 Nov: the garage's last 1.4 s
+    // freeze, in every run at the end of first light, was cloudsWarm - the march's two-output variant is built on the GPU
+    // process's main thread at its first draw (CLOUDS.warmDraw's note) and every frame waits for it. Behind a live garage
+    // that is the garage's picture standing still; here it is the loading screen, about 1.5 s longer - A NAMED LOAD COST of
+    // ?boot=garagefirst. ?gfcloud=late: where it was)
+    if (G.cloudEarly) { const t0 = performance.now(); cloudsWarm(); G.cloudAt = [Math.round(t0), Math.round(performance.now() - t0), !!window.FLYDIY_CLOUD_WARM]; }
+    try { for (const k of ['pointerdown', 'pointermove', 'wheel', 'keydown']) window.addEventListener(k, () => { G.inputAt = performance.now(); }, { capture: true, passive: true }); } catch (e) {}
+    const wait = () => {
+      if (G.done || G.running) return;
+      const up = typeof BOOT !== 'undefined' && ((BOOT.state && BOOT.state !== 'gone') || (typeof BOOT.busy === 'function' && BOOT.busy()));
+      if (up) { setTimeout(wait, 250); return; }
+      if (!G.revealAt) { G.revealAt = performance.now(); gfEvent(null, 'the garage on screen, the world not begun'); }
+      if (performance.now() - G.revealAt < G.delayMs) { setTimeout(wait, 100); return; }
+      gfRun();
+    };
+    setTimeout(wait, 250);
+  }
+  function gfRun() {
+    const G = LAB.gfS; if (G.running || G.done) return;
+    if (!inGarage) { G.done = true; G.why = 'not in the garage'; return; }
+    G.running = true; G.t0 = performance.now();
+    // AUDIO-ROBUST's "loading behind" (ready audio-robust-1; absent before it is merged): the music treats the busy page as
+    // a loading screen - it keeps playing, no restart - while the world builds behind the garage, and is told when it is in
+    const behind = on => { try { if (window.AUDIO && typeof AUDIO.loadingBehind === 'function') { AUDIO.loadingBehind(on); G.audioBehind = on; } } catch (e) {} };
+    behind(true);
+    const t = G.trip = tripOpen('gfworld'), ids = GF_IDS.filter(id => TRIP_BY[id]);
+    // PERF-WORLDBUILD's builders ask this between their own yield points (agreed 23 Nov): <= 0 = yield now
+    window.FLYDIY_WORLD_BUDGET = { left: () => G.deadline - performance.now() };
+    let i = 0;
+    const end = () => {
+      G.running = false; G.done = true; G.step = null; G.ms = Math.round(performance.now() - G.t0); tripClose(t); behind(false);
+      try { delete window.FLYDIY_WORLD_BUDGET; } catch (e) { window.FLYDIY_WORLD_BUDGET = null; }
+      try { if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } } catch (e) { console.warn('garage first: the parked flush -', e && e.message); }
+      for (const id of Object.keys(G.waits)) gfMark(id);
+      gfEvent(G.ms, 'the world ready behind the garage' + (G.fast ? ' (Go joined it)' : ''));
+    };
+    const next = () => {
+      if (i >= ids.length) { end(); return; }
+      const s = TRIP_BY[ids[i++]], t0 = performance.now(), n0 = renderer.info && renderer.info.programs ? renderer.info.programs.length : -1; G.step = s.id;
+      const fin = er => { const ms = Math.round(performance.now() - t0);
+        G.log.push([s.id, ms, er || (t.ran.has(s.id) ? 'ran' : 'same'), Math.round(t0 - G.t0), (renderer.info && renderer.info.programs ? renderer.info.programs.length : -1) - n0, G.fast ? 'screen' : 'live']);
+        if (er) { G.err = s.id + ': ' + er; console.warn('garage first: step ' + s.id + ' -', er); }
+        gfEvent(ms, s.id + (er ? ' FAILED' : ''));
+        // (the last step: the run ENDS in this same task, before anything waiting on the step goes on - a Go joined at
+        //  that instant must find the run over, not running with nothing left)
+        if (i >= ids.length) { end(); return; }
+        gfMark(s.id); setTimeout(next, 0); };
+      let r; try { r = tripRun(s, t); } catch (e) { fin(String(e && e.message)); return; }
+      Promise.resolve(r).then(() => fin(null), e => fin(String(e && e.message)));
+    };
+    next();
+  }
+  // GO JOINS THE LOAD WHERE IT STANDS: the roll-out's screen comes up naming the steps left; they run at full speed
+  // (gfS.fast: 40 ms slices, the aeroplane lent to the world, the picture held), and the roll-out goes on when they are in
+  function gfJoin(cb) {
+    const G = LAB.gfS; G.joining = true; G.fast = true; G.joinAt = performance.now(); G.joinStep = G.step;
+    const left = GF_IDS.filter(id => TRIP_BY[id] && !G.passed[id]);
+    const fin = () => { G.joining = false; G.joinMs = Math.round(performance.now() - G.joinAt); holdRender = false; cb(); };
+    gfEvent(null, 'Go pressed with ' + left.length + ' step(s) left, at ' + G.step);
+    if (typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || !left.length) { Promise.all(left.map(gfWait)).then(fin); return; }
+    holdRender = typeof renderer.compileAsync === 'function';
+    const steps = left.map(id => ({ id: id, label: TRIP_BY[id].label, w: TRIP_BY[id].w, fn: () => gfWait(id) }));
+    startLoop();
+    BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', idle: 240000, hard: 300000, quietFrames: 1, done: loopDone(fin),
+      probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
   // one phase of a trip: its needed steps under the roll-out screen, or nothing at all
   function tripPhase(t, part, done) {
@@ -16694,7 +17223,7 @@
     return new Promise(res => {
       const tick = () => {
         const t0 = performance.now();
-        while (i < list.length && performance.now() - t0 < 30) { try { renderer.initTexture(list[i]); } catch (e) {} i++; }
+        while (i < list.length && performance.now() - t0 < Math.min(30, gfSliceMs())) { try { renderer.initTexture(list[i]); } catch (e) {} i++; }
         BOOT.phase(id, label + ' ' + i + ' / ' + list.length, list.length ? i / list.length : 1);
         if (i >= list.length) res(); else setTimeout(tick, 0);
       };
@@ -20244,6 +20773,7 @@
     return { D, s, tgt, az: tgt + s * 0.45, el: 0.16, dist: D * 1.7 };
   }
   function flRevealStart() {
+    labCoverBudget();                    // (?coverbudget=K, the lab's: the cover layers' work a frame, set once)
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
     if (window.GFX && window.GFX.hw) window.GFX.hw.reveal();   // G1995: the step-down's measuring starts from the hand-over
@@ -21719,6 +22249,9 @@
       const o = sim && sim.out;
       R.spd = o ? (o.Vg != null ? o.Vg : o.V) : NaN; R.vs = o ? o.vs : NaN;   // the GROUND speed: a parked aeroplane in a wind has an airspeed
       R.agl = (!inGarage && cg) ? cg[1] - groundH(cg[0], cg[2]) : NaN;
+      // PERF-TRACE 7: the broken members, for the recorder's 'crash' events - the damage state AS THE PAGE LAST HAD IT (no hop
+      // asked of the worker here: dmgNow()'s own callers keep it fresh while there is damage to show)
+      { const Dq = (!inGarage && sim) ? (sim.dmgState ? sim.dmgState() : (DMGS.sim === sim ? DMGS.st : null)) : null; R.breaks = (Dq && Dq.br) ? Dq.br.length : 0; }
       // G820 (C1c): the physics worker's step ms, dilation and the steps this frame showed (NaN: the page flies it)
       const wp = SIMW ? SIMW.perf() : null;
       if (wp && wp.live && simwRan >= 0) { R.wms = wp.stepMs; R.wdil = wp.dil; R.wran = simwRan; } else { R.wms = NaN; R.wdil = NaN; R.wran = NaN; }
@@ -22219,6 +22752,24 @@
     if ((!inGarage || studioOn) && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();   // (G3726: no shed in the studio)
     if (aa) framePresented = aa.render(inGarage && !introAt ? garageScene() : scene, camera) !== 'held';
     else renderer.render(inGarage && !introAt ? garageScene() : scene, camera);
+    // PERF-LEAD (23 Nov, ROWS 14 / 15): THE TIME THE SCREEN SHOWED NO NEW PICTURE. A held frame costs its 100-230 ms in the
+    // recorder's frame times - and puts nothing on the screen: the Cub's crash read "worst frame 233 ms" while the screen
+    // stood still (or showed the page) for 4-9 s (the user, 23 Nov: "the 200 ms quoted before are rubbish, it freezes for
+    // several seconds"). So every run of held frames is an event in the flight log: 'still', its length from the last
+    // PRESENTED frame to the next one, the frames it swallowed, and whether the canvas kept its picture (?keepframe=1:
+    // a frozen picture) or not (the page shows). One branch a frame; the log's reader counts it as ONE frame of that length.
+    if (typeof window !== 'undefined') {
+      const ST = window.FLYDIY_STILL || (window.FLYDIY_STILL = { shownAt: 0, frames: 0, runs: 0, heldFrames: 0, worstMs: 0, lastMs: 0 });
+      const tS = performance.now();
+      if (!framePresented) { ST.frames++; ST.heldFrames++; }
+      else {
+        if (ST.frames && ST.shownAt) {
+          const ms = tS - ST.shownAt; ST.runs++; ST.lastMs = ms; if (ms > ST.worstMs) ST.worstMs = ms;
+          if (window.FLIGHT_REC && window.FLIGHT_REC.event) window.FLIGHT_REC.event('still', Math.round(ms), { f: ST.frames, keep: /[?&]keepframe=1(&|$)/.test(location.search || '') ? 1 : 0 });
+        }
+        ST.frames = 0; ST.shownAt = tS;
+      }
+    }
     if (shedSh) SHED_SHADOW.post();
     if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
     if (drawGuard && !inShed) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
@@ -22246,6 +22797,7 @@
     POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
     if (window.AUDIO) AUDIO.update(sim, camera, fdt, def, cam, inGarage, world);   // G1600: the sound's numbers off the newest step (audio.js; nothing before a gesture)
     if (window.BOOMBOX) BOOMBOX.frame(camera, bbProp);   // G1711: the radio's panel follows the radio - nothing while it is closed
+    if (FR && !framePresented && FR.notShown) FR.notShown();   // PERF-TRACE 7: rendered, held by the draw guard, NOT on the screen (the row's notShown flag)
     if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
     PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran);   // (G820: the worker's steps are not the page's: their cost is not a page step's)   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
@@ -22292,6 +22844,9 @@
   // seated and textured. In GATE UISMOKE's vm the same list runs
   // synchronously (its setTimeout fires at once).
   const bootSteps = [];
+  // PERF-LEAD LAB (?boot=garagefirst): the boot runs NONE of the world's steps (the list below, as the phone's garage boot
+  // leaves them out); they run behind the garage once its screen is gone (gfArm, at the boot's done)
+  const GF_BOOT = LAB.gf && !GARAGE_ONLY;
   const bootStep = (id, label, w, fn) => bootSteps.push({ id, label, w, fn });
   // THE WORLD SCENE IS NOT BUILT HERE ANY MORE (LOADING S3, the user's ruling):
   // the garage does not show it, so it is built under the ROLL-OUT screen the
@@ -22400,13 +22955,13 @@
   // B9 (G1020): THE WORLD, IN THE ONE LOADING - its build, the town and its parked aeroplanes, the forest ring, the world
   // at rest round the stand - BEFORE the build is committed: the parked aeroplanes' captures put the player's build back
   // through the editor, and the build's export moves after them; committed first, the first roll-out found it changed
-  if (!GARAGE_ONLY) for (const id of ['world', 'town', 'parking', 'trees', 'ring', 'settle']) bootTripStep(id);   // G2100
+  if (!GARAGE_ONLY && !GF_BOOT) for (const id of ['world', 'town', 'parking', 'trees', 'ring', 'settle']) bootTripStep(id);   // G2100
   // THE PARKED AEROPLANES (G411): the world's aircraft objects were stood as
   // empty holders at the world step (the editor did not exist yet); each is
   // captured now through the editor - a round trip, the user's build put back
   // - under the loading screen, where the seconds belong. PARKED.ready after
   // this: a build the world editor parks later captures on the spot.
-  if (!GARAGE_ONLY && !PHONE_FLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes (G3791: none on the phone's test field either - its heap)
+  if (!GARAGE_ONLY && !GF_BOOT && !PHONE_FLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes (G3791: none on the phone's test field either - its heap)
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
   // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
@@ -22417,7 +22972,7 @@
   bootStep('snapshot', 'committing the build', 10, () => { tripSync = null;
     // (each kick in a task of its own: the gathers walk whole scenes, and the shed's key environment is a PMREM render -
     // one task with the commit's first slice was 1.0-1.3 s on the GPU box)
-    if (!GARAGE_ONLY) setTimeout(worldPrelinkSettled, 0); setTimeout(shedPrelink, 0);   // (G2100: no world to prelink)
+    if (!GARAGE_ONLY && !GF_BOOT) setTimeout(worldPrelinkSettled, 0); setTimeout(shedPrelink, 0);   // (G2100: no world to prelink)
     return tripRun(TRIP_BY.snapshot, bootTrip); });
   if (!GARAGE_ONLY) bootTripStep('bake');   // G2100: the flown bake is a roll-out's
   // G1085 (LOAD-COMPILE): the flown model is built here - its programs (in the world's lights, and in the shed as the
@@ -22440,7 +22995,7 @@
   // boot's screen round the stand the route names (standAnchor: the aeroplane is still in the shed), then the
   // aeroplane's programs in the world's lights; the shed compiles and lights up after them, and the world is drawn
   // once from the stand at the end. The first roll-out finds every key unchanged.
-  if (!GARAGE_ONLY) for (const id of ['images', 'upload', 'worldCompile']) bootTripStep(id);   // (G2100: none in the phone garage)   // (B9: the rest of the world's steps: see 'settle' above the commit)
+  if (!GARAGE_ONLY && !GF_BOOT) for (const id of ['images', 'upload', 'worldCompile']) bootTripStep(id);   // (G2100: none in the phone garage)   // (B9: the rest of the world's steps: see 'settle' above the commit)
   // THE SHADERS COMPILE IN PARALLEL (LOADING S2, G407). Every program used
   // to be compiled synchronously on its first draw: measured 25 s of a cold
   // boot inside three's link-status query. renderer.compileAsync issues every
@@ -22464,7 +23019,7 @@
   // BasicDepthPacking material, in the lit scene's light state, the caster's map / alphaTest / side copied on);
   // the ~12 it does draw with linked on the first frame. PROG_WARM.depthVariants mirrors three's rule (GATE
   // PROGRAMS holds it to the real shadow pass) and the helper is compiled with the world scene as its lit scene.
-  const PLAIN_RT = () => PLAIN_RT.rt || (PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4));
+  const PLAIN_RT = () => { if (!PLAIN_RT.rt) { PLAIN_RT.rt = new THREE.WebGLRenderTarget(4, 4); PLAIN_RT.rt.texture.name = 'depth warm-up'; } return PLAIN_RT.rt; };
   // G680: `sc` - the shed too (its boot's compile warmed the room for its two targets, not its shadow pass nor the
   // passes outside the scene: the garage's first frame linked them, 1.8 s cold); the far cascade is the world's alone
   // G991: `sliced` - the settings screen's: every pass through compileSliced (a task at a time). A shadows change re-keys
@@ -22478,10 +23033,27 @@
   // G1340 THE DRAW GUARD (shader_warm.js PROG_WARM.guard): in the world, a draw of a material with no program yet is held
   // a frame or a few while its program links on the driver's threads, never compiled and waited for inside the frame
   drawGuard = (typeof PROG_WARM !== 'undefined' && PROG_WARM.guard && typeof renderer.compileAsync === 'function' && !(typeof location !== 'undefined' && /[?&]guard=0(&|$)/.test(location.search)))
-    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity }) : null;
+    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity, firstUse: LAB.firstUse }) : null;
   // (the guard holds only behind the AA target: the scene pass draws there and a held frame is not resolved - aa.hold -
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
-  if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
+  { // PERF-LEAD (?holdframe=ground | all | 0; rows 14 and 15): which held draws may hold the WHOLE frame.
+    // Today any held draw does (the canvas then shows no frame: the screen's recording of the Cub's crash is 9 s of the
+    // page's blue while the cut copies link). ground: only the ground family's (a hole in the ground is the sky's colour);
+    // 0: none - the held object alone is missing until its program is ready.
+    // THE DEFAULT SINCE 23 Nov IS 'ground' (was 'all'; ?holdframe=all is the way back). Measured on the screen, the Cub put
+    // nose-down into the ground from 50 m: 'all' showed the PAGE for 6.3-9.2 s at every crash (five recorded crashes, the
+    // game's own 'still' event 6 868 ms) while the frame times read 200 ms; 'ground' in four crashes held no frame, showed
+    // no page, the worst frame 217-250 ms. The user watched both: "the draw guard code is rubbish, it does worse than just
+    // freezing a frame, and here it even hid some interesting things to look at" / "last test much, much better". What it
+    // costs, said by the damage's owner: a cut copy not yet linked is not drawn - the tear a row of triangles wider with a
+    // clean edge, a piece of debris late - for the 2-3 s its program takes; the links block 26-56 ms a frame meanwhile.
+    const HQ = (typeof location !== 'undefined' && (/[?&]holdframe=(0|ground|all)(&|$)/.exec(location.search || '') || [])[1]) || 'ground';
+    // PERF-TRACE (23 Nov): A MATERIAL WHOSE PROGRAM ALREADY EXISTS HOLDS NO FRAME. The hold is decided after the held
+    // draws' compiles have been asked for (drawGuard.settle, shader_warm.js): a new material object whose program three
+    // answers ready at once (a cache hit: a streamer's fresh material, a clone) draws next frame and does not keep this
+    // one off the screen - the eight single blue frames of the journey's first 8 minutes, six with no link anywhere.
+    if (drawGuard && aa && aa.hold && HQ !== '0') aa.hold(() => { if (!drawGuard.heldNow) return false; drawGuard.settle(camera); return (HQ === 'all' ? drawGuard.waitNow : drawGuard.waitGround) > 0; });
+    if (typeof window !== 'undefined') window.FLYDIY_HOLDFRAME = HQ; }
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;
@@ -22490,6 +23062,7 @@
     const t0 = performance.now();
     return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
       .then(() => compileDepthVariants(scene, true, dress))
+      .then(() => (LAB.firstUse ? firstUseSliced(4) : null))   // (?firstuse=1: the re-keyed programs' first use here, not in the frame the pool switches)
       .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
   }
   // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
@@ -22636,8 +23209,12 @@
     if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
       return D(() => fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit));
     const reps = [], seen = new Set(), mats = new Set();
+    // (?cubelean=1: what the reflection cube never shows is not compiled for it - the probe's hidden subjects, whole)
+    let lean = null;
+    if (LAB.cubeLean && envRT && target === envRT && !craftInProbe) { lean = new Set(); for (const r of [craft, edSit, refSit, bpSit]) if (r && r.traverse) r.traverse(x => lean.add(x)); }
     D(() => sc.traverse(o => {
       if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.material) return;
+      if (lean && lean.has(o)) { LAB.cubeSkipped++; return; }
       const g = o.geometry;
       const gk = g && g.attributes ? Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.morphTargetsRelative ? 'r' : '') : '';
       const ok = (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '')
@@ -22666,12 +23243,21 @@
           try {
             if (fogless) litScene.fog = null;
             renderer.setRenderTarget(target, 0);
-            while (i < reps.length && performance.now() - t0 < 30) {
+            while (i < reps.length && performance.now() - t0 < Math.min(30, gfSliceMs())) {
               const room = PACE_N ? PACE_N - linkingNow() : Infinity; if (room <= 0) break;   // BOOT-PROGRAMS: the driver full
               const grp = new THREE.Group(), n = Math.min(G, reps.length - i, room), t1 = performance.now();
-              for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
+              // (?boot=garagefirst, the garage ON SCREEN - PERF-TRACE's who-table, 23 Nov: the garage's worst freeze, 1.4 s. A compile
+              //  for ANOTHER state than the frame's - the shed dressed for the roll-out shot: its shadow map on - leaves each
+              //  material's currentProgram on the program it just asked for. A lit material re-keys at the next frame (the
+              //  lights' version moved); one WITHOUT lights - the sky's two domes, 28 and 35 KB - has nothing three checks, so
+              //  the garage's next frame drew the program still linking and waited for it. The live run puts back the
+              //  program the frames were drawing; the new one links behind, as asked)
+              const keepLive = gfLive() && renderer.properties ? [] : null;
+              for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m));
+                if (keepLive) { const pp = renderer.properties.get(m); if (pp && pp.currentProgram) keepLive.push([pp, pp.currentProgram]); } }
               i += n; if (job) job.left = reps.length - i;
               try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
+              if (keepLive) for (const [pp, was] of keepLive) if (pp.currentProgram !== was) { pp.currentProgram = was; pp.uniformsList = null; LAB.gfS.kept = (LAB.gfS.kept || 0) + 1; }
               grp.clear();
               const dt = performance.now() - t1;
               G = Math.max(1, Math.min(GMAX, Math.round(G * (dt > 1 ? 20 / dt : 2))));   // the next group aims at ~20 ms
@@ -22825,7 +23411,7 @@
           sc.add(grp);
           // a group of stand-ins a draw (the render walks the whole scene once: the group grows while that is the cost),
           // until the slice's 30 ms are spent (a first draw is ~16 ms on the box it was cut for)
-          while (i < reps.length && performance.now() - t0 < 30) {
+          while (i < reps.length && performance.now() - t0 < Math.min(30, gfSliceMs())) {
             const n = Math.min(G, reps.length - i), narrowed = new Map(), t1 = performance.now();
             for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; try { grp.add(one(o, m, narrowed)); } catch (e) {} }
             i += n;
@@ -22899,6 +23485,8 @@
   // room's in exactly opaque, doubleSided and flipSided).
   function compileXrayVariants() {
     if (typeof renderer.compileAsync !== 'function' || !hangar) return Promise.resolve();
+    if (LAB.lateLinks) { LAB.lateSkipped++; return Promise.resolve(); }   // (?latelinks=1: a MEASURE of the load without them - the first see-through view then links its twins itself)
+    if (LAB.lateBg && !LAB.bg.xrayRun && !LAB.bg.done) { LAB.lateSkipped++; lateBgArm(); return Promise.resolve(); }   // (?latelinks=bg: in the background after the reveal - lateBgRun calls back here)
     const helper = new THREE.Group(), seen = new Set();
     let n = 0;
     const twin = (m, side) => {
@@ -23040,12 +23628,12 @@
     if (typeof renderer.compileAsync !== 'function' || !hangar) return;   // (the harness: nothing to warm, the boot stays synchronous)
     return new Promise(res => setTimeout(res, 0)).then(() => compileXrayVariants());
   });
-  if (!GARAGE_ONLY) bootTripStep('frames');   // B9: the world from the stand, drawn once under the overlay
+  if (!GARAGE_ONLY && !GF_BOOT) bootTripStep('frames');   // B9: the world from the stand, drawn once under the overlay
   // ...and the aeroplane's programs in the world's light LAST: the parked batch's restore is followed by the editor's
   // autosave commit and the energy layer's re-placed tanks (_cage_energy commit -> GARAGE_SPEC.update: the flying model
   // rebuilt once more, ~0.5 s after the batch let go - seen in GATE ROUNDTRIP's trace at 'firstFrame'); compiled
   // before that, the first roll-out compiled the rebuilt model again
-  if (!GARAGE_ONLY) bootTripStep('craft');   // G2100: the flown model's programs in the world's light: a roll-out's
+  if (!GARAGE_ONLY && !GF_BOOT) bootTripStep('craft');   // G2100: the flown model's programs in the world's light: a roll-out's
   // G3380 (STORY-INTRO): a New career's opening - its views linked under this screen (registered only while its curtain is up)
   if (!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl) bootStep('intro', 'the opening', 4, () => (CAREER_DEV ? storyIntroPrepare() : null));
   // THE AEROPLANE, AS IT SETTLED (B9): a commit feeds back into the editor - the flown spec's CG re-derives the tail's
@@ -23482,7 +24070,7 @@
   // the dev tools and the setup panel (inside #boot) are not among them
   if (typeof BOOT.setUnder === 'function') BOOT.setUnder(['ui', 'wsUI', 'edInfo', 'edInfoTab', 'edWrap', 'edView', 'ctlPanel']);
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
-    done: loopDone(() => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0); if (DRIVE_Q) setTimeout(() => DRIVE.enter(), 0);
+    done: loopDone(() => { tripClose(bootTrip); if (GF_BOOT) gfArm(); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0); if (DRIVE_Q) setTimeout(() => DRIVE.enter(), 0);
       if (SIMW) SIMW.prewarm(); startLoop();
       if (PHONE_FLY) setTimeout(phoneFlyGo, 0);   // G3791: the phone's test flight rolls out as the screen lifts
       if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); }),   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed

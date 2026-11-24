@@ -589,6 +589,20 @@ const GATES = [
   // the default; the island built with them and without (?pavepolybound=0&pavereuse=0) is the same patch, strips, roads, aprons,
   // rails, poles and far terrain byte for byte. Two page processes one after the other
   { id: 'PAVEXACT', file: '_pavexact_check.js', tier: 'core', wall: 300 },
+  // PERF-WORLDBUILD (22 Nov 2026): the strips' geometry built in the house worker (?stripw=1) is the inline build's, byte for
+  // byte, on every pavement strip of Jolene and at two more soil rungs; none built on the page's thread; arrays transferred.
+  // And NEAR FIRST (?nearfirst=1): the held strips stand coarse at the load, land one a task, each byte-equal to the inline
+  // build, the end state one refined mesh a strip, unmerged. Two page processes one after the other
+  { id: 'STRIPWORKER', file: '_stripworker_check.js', tier: 'core', wall: 480 },
+  // PERF-WORLDBUILD (22 Nov 2026): the premises' patch sampled from the house worker's answers (?patchw=1) is the page's own,
+  // byte for byte, every chunk read from the worker; the other families untouched. Two page processes one after the other
+  { id: 'PATCHWORKER', file: '_patchworker_check.js', tier: 'core', wall: 300 },
+  // GATE COMPSTEPS (PERF-WORLDBUILD, 22 Nov): the premises composed in steps (?compsteps=1) are the premises composed in one
+  // task - the overlay's records, the world's aerodromes and every family built from them, byte for byte; the standing
+  // premises in force until the swap. Two page processes in node, ~4 min.
+  { id: 'COMPSTEPS', file: '_compsteps_check.js', tier: 'core', wall: 300 },
+  // PERF-LEAD (23 Nov): ?boot=garagefirst - the page without it boots as before; the background run's own logic on fakes
+  { id: 'GARAGEFIRST', file: '_garagefirst_check.js', tier: 'core' },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
@@ -722,6 +736,11 @@ const GATES = [
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
   { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 1200 },   // G2228: measured ALONE 13 Oct 1 078 s (the Cub 404 s: boot 89 + 13 rows ~20 s; the metal 674 s: boot 108 + 13 rows ~36 s) - no slow row, the old 480 was stale
+  // PERF-SLIDERS (23 Nov): GATE INSTANT's check where the Cub and the metal Cessna cannot see - a twin with its engines and
+  // its retracting gear on the wing (the DC-3-alike: its wing span's release left the engines' layer one build behind)
+  // a hull with a pylon engine (the Super Petrel) and the Cub; six rows each, the main gear's station along the fuselage
+  // among them (a row that turns the sit: the Cub's tank, the limbs) - _instant_rel_check.js
+  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', wall: 1500 },
   // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
