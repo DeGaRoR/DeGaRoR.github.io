@@ -272,7 +272,9 @@ async function pool(jobs, n) {
   console.log('K. THE V HUNG DOWN ON A SINGLE BOOM (LAZAIR)');
   { const SH = require(path.join(T, '_scene_headless.js')), LB = require(path.join(T, '_load_build.js'));
     const CHN = 'builds/chinook_2026-09-21_corrected.json', C172 = 'builds/cessna172r_2026-11-08.json';
-    const VW = { stCant: -35, stMount: 1, stX: 0, stY: 0, stZ: 0, finOn: 0 };   // the V-tail tile's writes, the cant below 0
+    // the V-tail tile's writes, the cant below 0 - at -30 on panels of half the drawn span the tips stand just over the
+    // mains' ground line (tw_probe's 'lazair'): a stance an aeroplane can have
+    const VW = { stCant: -30, stSpan: 0.5, stMount: 1, stX: 0, stY: 0, stZ: 0, finOn: 0 };
     // K1 THE DRAWING (the Chinook's single rod): the panels hang from under the rod, mirrored; a wheel contact under each tip
     // (the tail unit's, as the tail wheel), below the boom; the fin stood down; the flown V's area the drawn panels'
     const fx = SH.loadFixture(path.join(T, '..', CHN));
@@ -287,10 +289,10 @@ async function pool(jobs, n) {
     const rootY = bR && bL ? Math.max(bR.max.y, bL.max.y) : null;
     const under = !!tips && tips.length === 2 && cs.length === 2 && cs.every(c => { const q = tips.find(p => Math.sign(p[0]) === Math.sign(c.p[0]));
       return q && Math.abs(c.p[0] - q[0]) < 1e-3 && Math.abs(c.p[2] - q[2]) < 1e-3 && c.p[1] < q[1] - c.R && c.p[1] + c.R < rootY - 0.1; });
-    ok(SB && SB.cant === -35 && mir && under && tips[0][1] < rootY - 0.3 && finN === 0 && GW.vtMode === 'tail',
+    ok(SB && SB.cant === -30 && mir && under && tips[0][1] < rootY - 0.2 && finN === 0 && GW.vtMode === 'tail',
        `K1 the drawn V at ${SB && SB.cant} deg: the panels mirrored ${mir}, the tips ${tips ? tips.map(q => q.map(v => v.toFixed(3)).join(',')).join(' / ') : '-'} under the root (${rootY == null ? '-' : rootY.toFixed(3)}), a wheel contact under each ${under} (${cs.map(c => c.p.map(v => v.toFixed(3)).join(',')).join(' / ')}), the fin layer ${finN ? 'drawn' : 'stood down'}`);
     const L1 = LB.loadBuild(CHN, { patch: j => { const sp = j.spec || j; sp.cage = Object.assign({}, sp.cage, VW, { vtWheels: 1 }); return j; } }), s1 = L1.spec;
-    ok(s1.tail.type === 'v' && s1.tail.vAngle === -35 && SB && SB.measure && Math.abs(s1.tail.Svt - 2 * SB.measure.areaTail) < 1e-9 && !(L1.errors || []).length,
+    ok(s1.tail.type === 'v' && s1.tail.vAngle === -30 && SB && SB.measure && Math.abs(s1.tail.Svt - 2 * SB.measure.areaTail) < 1e-9 && !(L1.errors || []).length,
        `K1 the join: tail.type ${s1.tail.type}, vAngle ${s1.tail.vAngle}, Svt ${s1.tail.Svt && s1.tail.Svt.toFixed(4)} m2 = the drawn panels' ${SB && SB.measure ? (2 * SB.measure.areaTail).toFixed(4) : '-'} m2 ${(L1.errors || []).join(' | ')}`);
     // K1b the drawn ruddervators on a nose-left pedal: both trailing edges swing to PORT (the join's sgn2 by the hinge's lean)
     { const PH = require(path.join(T, '_pose_headless.js')), H = PH.surfHinges(S, PH.collect(S, THREE, {}));
@@ -332,9 +334,11 @@ async function pool(jobs, n) {
        && Math.abs(Math.abs(nodeP(d1, d1.refs.tw)[2]) - Math.abs(cs[0].p[0])) < 2e-3 && Math.abs(nodeP(d1, d1.refs.tw)[2] + nodeP(d1, d1.refs.tw2)[2]) < 1e-9,
        `K3 as the tail wheel: the tail contacts are the two tips (z ${isTW(d1.refs.tw) ? nodeP(d1, d1.refs.tw)[2].toFixed(3) : '-'} / ${isTW(d1.refs.tw2) ? nodeP(d1, d1.refs.tw2)[2].toFixed(3) : '-'}, drawn x ${cs.map(c => c.p[0].toFixed(3)).join(' / ')}), ${twN} tail nodes, no other`);
     { const sim = C.makeSim(d1, null); sim.reset(0); for (let f = 0; f < 600; f++) sim.step(1 / 60);
-      const clr = i => sim.p[i * 3 + 1] - sim.r[i], all = [...d1.refs.mains, d1.refs.tw, d1.refs.tw2].map(clr);
-      ok(all.every(v => Math.abs(v) < 0.03) && !(sim.damage && sim.damage().crashed),
-         `K3 as the tail wheel: it stands on its mains and both tip wheels, clear ${all.map(v => v.toFixed(3)).join(' / ')} m (< 0.03)`); }
+      const clr = i => sim.p[i * 3 + 1] - sim.r[i], wh = [...d1.refs.mains, d1.refs.tw, d1.refs.tw2], all = wh.map(clr);
+      // ...and on nothing else: no other node within 3 cm of the ground (the tail whole, not folded onto its boom)
+      const other = d1.nodes.map((n, i) => i).filter(i => !wh.includes(i) && clr(i) < 0.03);
+      ok(all.every(v => Math.abs(v) < 0.03) && !other.length && !(sim.damage && sim.damage().crashed),
+         `K3 as the tail wheel: it stands on its mains and both tip wheels, clear ${all.map(v => v.toFixed(3)).join(' / ')} m (< 0.03), nothing else down (${other.map(i => d1.nodes[i].tag).join(',') || 'none'})`); }
     const c0 = C.buildGen(JSON.parse(JSON.stringify(ld(C172, Object.assign({ vtWheels: 0 }, VW)).spec)));
     const L2 = ld(C172, Object.assign({ vtWheels: 2 }, VW)), c2 = C.buildGen(JSON.parse(JSON.stringify(L2.spec)));
     const same = (a, b) => a.every((v, k) => Math.abs(v - b[k]) < 1e-9);
@@ -354,7 +358,7 @@ async function pool(jobs, n) {
        `K4 vtD 0.30 / vtFork 0.10: the drawn wheel R ${cs4.map(c => c.R).join(' / ')}, its hub ${dyDrawn == null ? '-' : (1000 * dyDrawn).toFixed(0)} mm, the flown contact R ${d4.nodes[d4.refs.tw].r}, ${(1000 * dyFlown).toFixed(0)} mm (-120 each)`);
   }
   { const st = g('lazair', 'stand'), p = g('lazair', 'pivot'), c = g('lazair', 'circuit');
-    ok(st.vAngle === -35 && st.tailContacts === 2 && st.tailClear && st.tailClear.every(v => v < 0.03) && st.deckDeg > 0,
+    ok(st.vAngle === -30 && st.tailContacts === 2 && st.tailClear && st.tailClear.every(v => v < 0.03) && st.deckDeg > 0,
        `K5 the Chinook as a Lazair: it stands on its two tip wheels (the V at ${st.vAngle} deg, clear ${JSON.stringify(st.tailClear)} m), deck ${st.deckDeg} deg tail-down`);
     ok(p.t180 != null && p.withinSpans <= 2 && !p.crashed, `K5 it turns 180 deg on the brake in ${p.t180} s within ${p.withinSpans} spans`);
     ok(/LIFTOFF/.test(c.phases || '') && /STOPPED/.test(c.phases || '') && !c.crashed && c.touchdowns && c.touchdowns.length

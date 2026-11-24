@@ -2769,12 +2769,21 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   } else if (isV) {
   // the V keeps its two tip nodes on four members each (the ruddervator
   // pair is one surface, raked; a truss for it is its own chantier)
-  [HTL, HTR] = NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
+  // LAZAIR: A V HUNG DOWN ON ITS TIP WHEELS (gear.vTip, with the wheel where the gear layer drew it) puts its tip nodes
+  // AT the drawn tips - right over the wheels, so each wheel's leg stands straight under its tip (a wheel hung off a node
+  // 0.4 m ahead of it swung up about the leg: measured on the Chinook-Lazair, the tail sat on its tips) - and ties the
+  // two tips together (internal): the panels' only anchors are the boom's own narrow ring, so a tip loaded upward
+  // rotated about the boom's axis; with the tie the Lambda is a triangle. Every other V: the lines below, to the bit
+  const VTd = t.vAngle < 0 && S.gear && S.gear.vTip && S.gear.vTip.z > 0 ? S.gear.vTip : null;
+  const vtW = !VTd ? null : VTd.mode === 'tail' ? (S.gear.twX != null && S.gear.twY != null ? [S.gear.twX, S.gear.twY] : null)
+            : (VTd.x != null && VTd.y != null ? [VTd.x, VTd.y] : null);
+  [HTL, HTR] = vtW ? NM(vtW[0], vtW[1] + (VTd.R || 0.10) + (VTd.fork || 0), VTd.z, 'HT') : NM(t.hX, stabY, 0.5 * t.hSpan, 'HT');
   for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
     B(H, TPB, 'fus'); B(H, TPT, 'fus');
     B(H, side === 'L' ? last.BL : last.BR, 'fus');
     B(H, side === 'L' ? last.TL : last.TR, 'fus');
   }
+  if (vtW) B(HTL, HTR, 'fus', false, 'inner');
   cover(1.9 * t.Svt, [HTL, HTR, TPB, TPT]);
   } else {
   // ---- THE TAIL IN THE WING'S IDIOM (TAIL CHANTIER 2 P4) --------------------

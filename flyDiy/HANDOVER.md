@@ -319225,7 +319225,12 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
   design's tail-type read says 'v' for |cant| >= 20 (no new tile: the V-tail tile, then the slider below 0).
 - **THE JOIN / SPEC / FRAME:** tail.type 'v', tail.vAngle SIGNED (clampSpec keeps the sign, 20-55 on its size), Svt the
   drawn panels' (as every V); tail.vRootY (keel datum, the key only on a V hung down) is the drawing's root height - the
-  frame hangs HTL/HTR vHeight under it (absent: under the tail's keel). vHeight stays a height (|sin|).
+  frame hangs HTL/HTR vHeight under it (absent: under the tail's keel). vHeight stays a height (|sin|). With tip wheels
+  the frame's tip nodes stand AT the drawn tips (right over the wheels: a wheel hung off a node 0.4 m ahead swung up
+  about its leg) and the two tips are tied (internal): a single rod's ring is too narrow to hold a tip against rotation
+  about the boom's axis. MEASURED: a V whose tips hang well under the mains' ground line (the Chinook at -35 on its full
+  span: the tips 0.40 m under it) stands on its tail and folds it - a stance no aeroplane has; tune the cant / span /
+  stY so the tips sit near the mains' line (the gate's Lazair: -30 on half the span, 2.4 deg tail-down).
 - **THE CONTROLS:** 62_gen_aero's 'vtail' strips carry sinV < 0, so the solver's normal leans OUTWARD; the rudder's mix
   sign is the lean's (30_solver: `st.sinV < 0 ? -side : side`, the old line for every V before it). Measured on the
   generator's default at +-30 / +-55: the elevator's up pitches nose-up and the rudder's left yaws nose-left at all four, the
@@ -319242,9 +319247,9 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
   TW2 there (refs.tw / tw2: the solver's two tail contacts, G3800). On a build with no tail unit (a tricycle) the tips take
   'extra wheels': drawn with the airframe (no unit), CAGE_GEAR.vtExtra; gear.vTip { mode 'extra', x, y, z, R, fork,
   castor }; the frame's refs.xw (+ xwFree): the solver rolls them as an unbraked main, a castoring one with no side force.
-- **GATE TAILWHEEL K** (the Chinook's rod as a Lazair, the Cessna's tricycle, the generator's default): K1 the drawing (the
+- **GATE TAILWHEEL K** (the Chinook's rod as a Lazair at -30 on half its span, the Cessna's tricycle, the generator's default): K1 the drawing (the
   panels mirrored, a wheel contact under each tip below the root, the fin layer stood down, Svt = the drawn panels', the
   ruddervators' TE to port), K2 the controls at +-30 / +-55, K3 the three modes (off: one centreline tailwheel; as the
-  tail: two tail contacts at the drawn tips, standing on them; extra: the Cessna's nose wheel and mains to the bit, two
+  tail: two tail contacts at the drawn tips, standing on them and nothing else; extra: the Cessna's nose wheel and mains to the bit, two
   castoring contacts aft), K4 vtD / vtFork move the drawn wheel and the flown contact together, K5 the Lazair stands on its
   tips, turns on the brake and flies HOME's circuit (tw_probe --build lazair).
