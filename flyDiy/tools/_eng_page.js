@@ -210,8 +210,8 @@ const PRESETS = {
     rpm: 2600, volts: 88.8, fwW: 0.42, fwH: 0.42 },
   'FES sustainer': { arch: 'electric', eStyle: 0, canD: 0.20, canL: 0.09,
     rpm: 4500, volts: 116, fwW: 0.32, fwH: 0.32 },
-  // SMALL-ENGINES (24 Nov): the E-Lazair's Joby JM1 - an outer-rotor can (~0.13 x 0.06 m, an ESTIMATE), 16S at 63 V
-  'Joby JM1': { arch: 'electric', eStyle: 0, canD: 0.13, canL: 0.06, rpm: 4550, volts: 63, fwW: 0.20, fwH: 0.20 },
+  // SMALL-ENGINES (24 Nov): the E-Lazair's Joby JM1 - an outer-rotor can (~0.18 x 0.07 m: the can the model's 10 kW at 4550 rpm wants, an ESTIMATE), 16S at 63 V
+  'Joby JM1': { arch: 'electric', eStyle: 0, canD: 0.182, canL: 0.07, rpm: 4550, volts: 63, fwW: 0.24, fwH: 0.24 },
   'EMRAX 228': { arch: 'electric', eStyle: 1, canD: 0.228, canL: 0.086,
     rpm: 5000, volts: 400, fwW: 0.60, fwH: 0.55 },
   'pipistrel E-811': { arch: 'electric', eStyle: 2, canD: 0.268, canL: 0.19,
@@ -413,7 +413,7 @@ const ENG_GROUPS = [
     // 180 hp on 340 in3 is 1.09 of a boxer's 9.8 bar
     // (ENGINE-DIALS: widened to _eng_gen.js ENG_DIAL_RANGE, the registry's
     // own extremes; the step to 0.001 so a row's point is on the dial)
-    ['bmepK',   'tune (bmep / layout)', 0.5, 2.0, 0.001, x => x.toFixed(3)],
+    ['bmepK',   'tune (bmep / layout)', 0.35, 2.0, 0.001, x => x.toFixed(3)],   // (SMALL-ENGINES: from 0.35, an industrial single)
     // and its build: mass over the swept-volume law (the CC340's 0.88)
     ['massK',   'build (mass / law)', 0.4, 2.2, 0.001, x => x.toFixed(3)],
   ], isPiston],

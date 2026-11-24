@@ -41,6 +41,81 @@
    "massK": 2.0611673456729513
   }
  },
+ "rotax185_direct": {
+  "base": "rotax 185",
+  "dials": {
+   "rpm": 5800,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.4138992087602016,
+   "massK": 1.6903785099883237
+  }
+ },
+ "pioneer55_chainsaw": {
+  "base": "Pioneer chainsaw 5.5 hp",
+  "dials": {
+   "rpm": 7500,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.46536533067805647,
+   "massK": 1.8700478493214523
+  }
+ },
+ "hirthf33_belt": {
+  "base": "Hirth F-33",
+  "dials": {
+   "rpm": 6500,
+   "geared": 1,
+   "gearRatio": 2.2,
+   "liquid": 0,
+   "bmepK": 0.6487754654057751,
+   "massK": 1.1977960411725899
+  }
+ },
+ "thor202_belt": {
+  "base": "Polini Thor 202",
+  "dials": {
+   "rpm": 9000,
+   "geared": 1,
+   "gearRatio": 3.4,
+   "liquid": 0,
+   "bmepK": 0.8409907904264603,
+   "massK": 1.4120647177225896
+  }
+ },
+ "thor250_belt": {
+  "base": "Polini Thor 250",
+  "dials": {
+   "rpm": 8500,
+   "geared": 1,
+   "gearRatio": 3.3,
+   "liquid": 1,
+   "bmepK": 0.8151497295537201,
+   "massK": 1.1253739341081481
+  }
+ },
+ "thor303_belt": {
+  "base": "Polini Thor 303",
+  "dials": {
+   "rpm": 8000,
+   "geared": 1,
+   "gearRatio": 3.1,
+   "liquid": 1,
+   "bmepK": 0.7943562889176637,
+   "massK": 1.1415711201648797
+  }
+ },
+ "simonini_mini3": {
+  "base": "Simonini Mini 3",
+  "dials": {
+   "rpm": 7000,
+   "geared": 1,
+   "gearRatio": 2.6,
+   "liquid": 0,
+   "bmepK": 0.8259730977402736,
+   "massK": 1.40277611960615
+  }
+ },
  "vw2180_wood": {
   "base": "VW 2180",
   "dials": {
@@ -372,6 +447,16 @@
    "liquid": 0,
    "bmepK": 1.057271629828877,
    "massK": 0.98692216634587
+  }
+ },
+ "jobyjm1_direct": {
+  "base": "Joby JM1",
+  "dials": {
+   "rpm": 4550,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.0387657914357982,
+   "massK": 0.8553100531674275
   }
  },
  "fes_folding_100": {
