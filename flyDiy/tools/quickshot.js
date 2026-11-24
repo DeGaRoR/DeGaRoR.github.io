@@ -422,11 +422,13 @@ function decalMix(rgb, k, nk, fl, cls, ok) {
     const onMe = d.on[cls < 0.5 ? 0 : cls < 1.5 ? 1 : cls < 2.5 ? 2 : 3];
     if (!onMe) continue;
     const mir = d.noMir ? 1 : sideF;
-    let dd;
-    if (d.mode === 0) { if (!fl) continue; dd = [(fl[0] - d.sL) * mir, fl[1] - d.sC]; }
-    else if (d.mode === 1) { const nx = nk[0], smir = d.noMir ? 1 : (Math.abs(nx) > 0.25 ? Math.sign(nx) : sideF); dd = [(k[1] - d.sL) * smir, k[2] - d.sC]; }
-    else { const pmir = d.noMir ? 1 : (nk[2] < 0 ? -1 : 1); dd = [(k[0] - d.sL) * pmir, k[1] - d.sC]; }
-    const x = dd[0] * d.cr - dd[1] * d.sr, y = dd[0] * d.sr + dd[1] * d.cr, qx = x / d.hw * 0.5 + 0.5, qy = y / d.hh * 0.5 + 0.5;
+    let dd, sg = 1;
+    if (d.mode === 0) { if (!fl) continue; dd = [(fl[0] - d.sL) * mir, fl[1] - d.sC]; sg = mir; }
+    else if (d.mode === 1) { const nx = nk[0], smir = d.noMir ? 1 : (Math.abs(nx) > 0.25 ? Math.sign(nx) : sideF); dd = [(k[1] - d.sL) * smir, k[2] - d.sC]; sg = smir; }
+    else { const pmir = d.noMir ? 1 : (nk[2] < 0 ? -1 : 1); dd = [(k[0] - d.sL) * pmir, k[1] - d.sC]; sg = pmir; }
+    // REG-TURN-MIRROR (aeroskin.js's decal loop): a mirrored face turns the other way, so the letters keep one physical tilt
+    const sr = d.sr * sg;
+    const x = dd[0] * d.cr - dd[1] * sr, y = dd[0] * sr + dd[1] * d.cr, qx = x / d.hw * 0.5 + 0.5, qy = y / d.hh * 0.5 + 0.5;
     if (qx < 0 || qx > 1 || qy < 0 || qy > 1) continue;
     if (d.one) { const sg = d.one > 1.5 ? -1 : 1; if (!(k[0] * sg >= -0.02 && nk[0] * sg >= 0)) continue; }
     if (d.sdf === 1 && ok <= 0.75) continue;   // (letters decline a paint-only surface: a float)

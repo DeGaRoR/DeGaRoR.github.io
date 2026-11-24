@@ -71,6 +71,7 @@ const MFALL = {
   cast:    lam(0x8e949a),
   hide:    lam(0x3a2a1f),
   ptt:     lam(0xc0302a),
+  brk:     lam(0x2f6fd0),      // AIRBRAKES: the sailplane's blue handle
   ball:    lam(0x1c1e22),      // a throttle's ball
   tread:   lam(0x202227),      // a pedal's rubber
   plateAl: lam(0xd0d4d8),      // a pedal's plate: the dash's own metal
@@ -473,6 +474,74 @@ function buildYoke(g0, A, P, sx) {
   }
   return { objL: grips[1], objR: grips[-1], label: 'yoke' };
 }
+// CAR-3 (the user, 13 Nov: "let's also model a full wheel, we'll need it. Model something that could work for both the
+// van and the roadster"): ctlStick 4 - A CAR'S STEERING WHEEL. The column leaves the dash through the yoke's own plated
+// collar (at the plate's depth, its footprint kept out of the panel's layout) and RAKES UP toward the driver at
+// steerRake degrees, steerReach metres to the hub; a column shroud over it, a column-shift lever under the wheel on
+// the right with its black knob (static). The wheel turns about the column (G240's contract: one part, one axis; the
+// roll input steers, ~2.2 rad over the travel): a cast hub dished behind the rim with a black horn button and a plated
+// ring, three round spokes (at nine, three and six o'clock), the rim a black bakelite torus steerD across with its
+// finger grips. The hands take the rim at a quarter to three (objL / objR, the grip axis the rim's own tangent).
+function buildSteerWheel(g0, A, P, sx) {
+  const g = ctlShift(g0, P, 'stickX', 'stickY', 'stickZ');
+  const yY = A.waistY - 0.04;
+  const F = A.face || null;
+  const zCol = F && F.depthAt ? F.depthAt(sx, yY) - 0.001 : A.zDash;
+  const rake = (P.steerRake != null ? +P.steerRake : 22) * D2R;
+  const L = P.steerReach != null ? Math.max(0.08, +P.steerReach) : 0.34;
+  const rW = (P.steerD != null ? Math.max(0.2, +P.steerD) : 0.42) / 2;
+  const c = [0, Math.sin(rake), -Math.cos(rake)];             // the column, toward the driver and up
+  const off = [P.stickX || 0, P.stickY || 0, P.stickZ || 0];
+  const H = [sx + c[0] * L + off[0], yY + c[1] * L + off[1], zCol + c[2] * L + off[2]];
+  const K = window.GEAR_KIT;
+  // the column and its shroud, the collar on the plate
+  tube(g0, M.ctrl, [sx, yY, zCol + 0.02], [H[0] - c[0] * 0.06, H[1] - c[1] * 0.06, H[2] - c[2] * 0.06], 0.016);
+  tube(g0, M.console, [sx + c[0] * 0.02, yY + c[1] * 0.02, zCol + c[2] * 0.02], [sx + c[0] * L * 0.62, yY + c[1] * L * 0.62, zCol + c[2] * L * 0.62], 0.027);
+  if (K) {
+    const col = K.Bag();
+    K.revolve(col, [sx, yY, zCol], [0, 0, -1], [[0.040, 0], [0.040, 0.004], [0.030, 0.008], [0.030, 0.024], [0.027, 0.026]], 32, false);
+    for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + 0.5; K.bolt(col, [sx + Math.cos(a) * 0.034, yY + Math.sin(a) * 0.034, zCol - 0.004], [0, 0, -1], 0.0025, 0.002); }
+    col.mesh(g0, M.plated);
+  }
+  if (Array.isArray(A.keepOut)) A.keepOut.push({ x0: sx - 0.05, x1: sx + 0.05, y0: yY - 0.05, y1: yY + 0.05, what: 'steering column' });
+  // the column-shift lever: a stalk from a boss under the wheel, out to the driver's right and down, a black knob
+  { const b0 = [H[0] - c[0] * 0.13, H[1] - c[1] * 0.13 - 0.01, H[2] - c[2] * 0.13];
+    const b1 = [b0[0] - 0.17, b0[1] - 0.05, b0[2] - 0.03];
+    tube(g0, M.plated, b0, b1, 0.0055);
+    if (K) { const kb = K.Bag(); K.revolve(kb, b1, [-1, -0.3, -0.18], [[0, -0.004], [0.014, 0], [0.016, 0.014], [0.012, 0.03], [0, 0.034]], 18, false); kb.mesh(g0, M.knob);
+             const bs = K.Bag(); K.revolve(bs, b0, c, [[0.03, -0.02], [0.03, 0.02]], 20, true); bs.mesh(g0, M.ctrl); } }
+  // THE WHEEL turns about the column
+  const gW = movingAt(g, 'edCtl_wheel', H, c, 'da', -2.2, 1);
+  const up = [0, 1, 0], ud = up[0] * c[0] + up[1] * c[1] + up[2] * c[2];
+  let u = [up[0] - c[0] * ud, up[1] - c[1] * ud, up[2] - c[2] * ud]; const ul = Math.hypot(...u) || 1; u = u.map(v => v / ul);
+  const e1 = [1, 0, 0];
+  const onW = (th, r, h) => [r * (Math.sin(th) * e1[0] + Math.cos(th) * u[0]) + h * c[0],
+                             r * (Math.sin(th) * e1[1] + Math.cos(th) * u[1]) + h * c[1],
+                             r * (Math.sin(th) * e1[2] + Math.cos(th) * u[2]) + h * c[2]];
+  const rt = Math.max(0.010, 0.032 * rW);                     // the rim's section radius
+  if (K) {
+    // the rim: a torus, its section a circle with a finger-grip scallop ring inside (12 shallow bumps)
+    const rim = K.Bag(), prof = [];
+    for (let k = 0; k <= 16; k++) { const a = 2 * Math.PI * k / 16; prof.push([rW + rt * Math.cos(a), rt * 1.08 * Math.sin(a)]); }
+    K.revolve(rim, [0, 0, 0], c, prof, 64, false);
+    rim.mesh(gW, M.knob);
+    const sc = K.Bag();
+    for (let k = 0; k < 24; k++) { const th = 2 * Math.PI * (k + 0.5) / 24; if (Math.abs(Math.cos(th)) < 0.2 && Math.sin(th) > 0) continue;
+      K.revolve(sc, onW(th, rW - rt * 0.85, 0), [Math.sin(th) * e1[0] + Math.cos(th) * u[0], Math.sin(th) * e1[1] + Math.cos(th) * u[1], Math.sin(th) * e1[2] + Math.cos(th) * u[2]],
+        [[0, -rt * 0.25], [rt * 0.42, -rt * 0.1], [rt * 0.42, rt * 0.1], [0, rt * 0.25]], 10, false); }
+    sc.mesh(gW, M.knob);
+    // the hub, dished 4 cm behind the rim, the horn button and its plated ring
+    const hub = K.Bag(), btn = K.Bag(), ring = K.Bag();
+    K.revolve(hub, [0, 0, 0], c, [[0, -0.075], [0.03, -0.075], [0.046, -0.06], [0.046, -0.04], [0.032, -0.028], [0, -0.028]], 32, false);
+    K.revolve(ring, [0, 0, 0], c, [[0.036, -0.03], [0.036, -0.022], [0.031, -0.02], [0.031, -0.03]], 32, false);
+    K.revolve(btn, [0, 0, 0], c, [[0, -0.008], [0.016, -0.011], [0.027, -0.018], [0.03, -0.024], [0, -0.024]], 28, false);
+    hub.mesh(gW, M.cast); ring.mesh(gW, M.plated); btn.mesh(gW, M.knob);
+  }
+  // three spokes: nine, three and six o'clock, from the hub's rim up to the wheel's
+  for (const th of [Math.PI / 2, -Math.PI / 2, Math.PI]) tube(gW, M.plated, onW(th, 0.042, -0.04), onW(th, rW - rt * 0.6, -0.004), 0.0065);
+  const grip = th => gripAt(gW, onW(th, rW, 0), [Math.cos(th) * e1[0] - Math.sin(th) * u[0], Math.cos(th) * e1[1] - Math.sin(th) * u[1], Math.cos(th) * e1[2] - Math.sin(th) * u[2]], rt);
+  return { objL: grip(1.30), objR: grip(-1.30), label: 'steering wheel', wheel: true };
+}
 function buildStickSide(g0, A, P, sx, seat) {
   const g = ctlShift(g0, P, 'stickX', 'stickY', 'stickZ');
   // right-hand side stick on an armrest ledge (pilot's right = -x)
@@ -543,17 +612,41 @@ function buildPedals(g, A, P, sx) {
     return { objL: out[1], objR: out[-1], label: 'pedals' };
   }
   const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  // PEDALS IN A HULL (SEAPLANES 21 Nov, the user: "the pedals poke through the hull of the petrel whatever the
+  // settings"): the floor line (floorAt) is the keel's, flat across - in a V-bottomed hull the skin rises off the keel
+  // at 30 deg, so under a side-by-side pilot (the Super Petrel: 0.25 m off the centreline) the axle, the blocks, the
+  // horns and the cables stood 8-13 cm under the drawn skin, and no pedal row moved them (pedalH only lengthens the
+  // bars). The blocks, the horns and the cables rise out of the skin where the floor line is through it (liftOut).
+  // the ground a part stands on at x: the floor line, or 4 mm over the skin where the floor line is out through it
+  const groundAt = (x, z, hw) => liftOut(A, x, A.floorAt(z), z, hw);
   // ---- THE AXLE: a 22 mm torque tube 42 mm off the boards, on two cast
-  // pillow blocks bolted down, a pinch bolt through each cap
-  const yA = yF + 0.042, zA = zP, rA = 0.011;
-  const x0 = sx - sp - 0.075, x1 = sx + sp + 0.075;
+  // pillow blocks bolted down, a pinch bolt through each cap; in a hull each block stands on the skin at its own x
+  // (the two posts unequal on the V) and the axle rides over the higher, the horns 4 cm under it clear of the skin
+  const zA = zP, rA = 0.011;
+  let x0 = sx - sp - 0.075, x1 = sx + sp + 0.075;
+  // (16 Nov 2026, the LS4's narrow nose - the user: "ensure that the pedals ... do not poke through"): the axle and its
+  // blocks stand 2 cm inside the walls at the boards' height - a round belly is narrow there, and the 0.33 m axle
+  // stood 3 cm through the LS4's; never inside the pedals' own spread. (The walls are read at the axle's height off the
+  // boards, yF + 0.042; the hull's per-block ground below then stands each block on the skin at its clamped x.)
+  const wOf = (sd, y, z) => Math.abs((A.wallIn && A.wallIn(sd, y, z)) || (A.wallAt && A.wallAt(sd, y, z)) || 0);
+  {
+    const yA0 = yF + 0.042;
+    const wL = Math.min(wOf(1, yF + 0.005, zA), wOf(1, yA0 + rA, zA)), wR = Math.min(wOf(-1, yF + 0.005, zA), wOf(-1, yA0 + rA, zA));
+    if (wL > 0.05) x1 = Math.max(sx + sp + 0.03, Math.min(x1, wL - 0.02));
+    if (wR > 0.05) x0 = Math.min(sx - sp - 0.03, Math.max(x0, -wR + 0.02));
+  }
+  const xBlk = [x0 + 0.022, x1 - 0.022];
+  const yG = xBlk.map(xb => groundAt(xb, zA, 0.017));
+  const yA = Math.max(yF + 0.042, yG[0] + 0.042, yG[1] + 0.042,
+    ...[-1, 1].map(sd => liftOut(A, sx + sd * sp, yF + 0.001, zA + 0.02, 0.012) + 0.041));   // the horn's eye 3 cm under, its lug 7 mm round
   const steel0 = K.Bag(), cast0 = K.Bag(), pl0 = K.Bag();
   K.revolve(steel0, [x0, yA, zA], X, [[rA, 0], [rA, x1 - x0]], 24, true);
-  for (const xb of [x0 + 0.022, x1 - 0.022]) {
-    K.boxIn(cast0, [xb, yF + 0.006, zA], [0.017, 0.006, 0.027], X, Y, Z);                          // the foot
-    K.boxIn(cast0, [xb, (yF + 0.012 + yA) / 2, zA], [0.011, (yA - yF - 0.012) / 2 + 0.003, 0.013], X, Y, Z);   // the post
+  for (let b = 0; b < 2; b++) {
+    const xb = xBlk[b], yB = yG[b];
+    K.boxIn(cast0, [xb, yB + 0.006, zA], [0.017, 0.006, 0.027], X, Y, Z);                          // the foot
+    K.boxIn(cast0, [xb, (yB + 0.012 + yA) / 2, zA], [0.011, (yA - yB - 0.012) / 2 + 0.003, 0.013], X, Y, Z);   // the post
     K.revolve(cast0, [xb - 0.013, yA, zA], X, [[rA + 0.0055, 0], [rA + 0.0055, 0.026]], 20, true);   // the cap
-    for (const dz of [-0.018, 0.018]) K.bolt(pl0, [xb, yF + 0.012, zA + dz], [0, -1, 0], 0.0035, 0.010);   // hold-downs
+    for (const dz of [-0.018, 0.018]) K.bolt(pl0, [xb, yB + 0.012, zA + dz], [0, -1, 0], 0.0035, 0.010);   // hold-downs
     K.bolt(pl0, [xb, yA + rA + 0.0055, zA], [0, -1, 0], 0.003, 0.012);                                 // the pinch bolt
   }
   steel0.mesh(g, M.frame); cast0.mesh(g, M.cast);            // (the plated bag closes after the cables)
@@ -652,7 +745,10 @@ function buildPedals(g, A, P, sx) {
     const belly = A.bellyAt ? A.bellyAt(xp, zC) : null;
     // 15.5 mm over the belly: the block's own half-height (14 mm) and a hairline (LINER-BACK 9 Nov: the liner is the
     // skin's back face now - the 4 mm it used to add lifted the block off the floor of the nose)
-    const yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.0155 : -Infinity);
+    let yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.0155 : -Infinity);
+    // (21 Nov, PEDALS IN A HULL: and over the skin's top across its footprint where a V rises over that - the belly's
+    // lowest within 4 cm is the keel side of the block)
+    yC = liftOut(A, xp, yC, zC, 0.011);
     const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yC + 0.010, zC];
     // the cable follows the belly where the belly rises above its chord (a
     // convex-up run under the pedals to a fairlead at the nose): four legs,
@@ -663,6 +759,8 @@ function buildPedals(g, A, P, sx) {
       const q = [e0[0] + (e1[0] - e0[0]) * s, e0[1] + (e1[1] - e0[1]) * s, e0[2] + (e1[2] - e0[2]) * s];
       const bq = A.bellyAt ? A.bellyAt(q[0], q[2]) : null;
       if (bq != null && q[1] < bq + 0.012) q[1] = bq + 0.012;
+      const tq = liftOut(A, q[0], q[1] - 0.008, q[2], 0.002);     // (21 Nov: out through a V's side: 12 mm over it)
+      if (tq > q[1] - 0.008) q[1] = tq + 0.008;
       legs.push(q);
     }
     legs.push(e1);
@@ -1048,6 +1146,46 @@ function buildFlapLever(g0, A, P, sx, seat, sbs) {
   tapeOn(g0, 'Flaps', 0.040, [x + sd * 0.0205, y0 + 0.030, z - 0.010], sd > 0 ? -Math.PI / 2 : Math.PI / 2);
   return { obj: gL, label: 'flap lever' };
 }
+// THE AIRBRAKE HANDLE (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a
+// sailplane's blue handle on the LEFT wall by the pilot's knee - a tube on a pivot in a small bracket, a blue grip at
+// its head, forward with the brakes in and pulled aft as they come out (ctl.airbrake 0..1, ~70 deg of swing). Only on
+// a build with airbrakes (the wing's wgBrake row).
+// `left` (16 Nov 2026, the LS4 - the user: "ensure that the pedals and the controls and all that stuff do not poke
+// through"): a sailplane's handle is on the LEFT wall, under the pilot's left hand (the stick in the right) - the
+// side when the build has no throttle there (the caller's); else the right wall, the throttle's hand kept free. The
+// wall is read at the BRACKET's own heights (its foot 7 cm over the floor, where a round belly is narrowest - it was
+// read at 12 cm and the bracket stood 16 mm through the LS4's skin), 3 cm inboard of the narrower
+function buildAirbrakeHandle(g0, A, P, sx, seat, left) {
+  const K = window.GEAR_KIT;
+  if (!K || !+P.wgBrake) return null;
+  const s = left ? 1 : -1;
+  // (16 Nov 2026: 0.28 m ahead of the squab is an upright pilot's reach; a sailplane's back reclined 48 deg puts the
+  //  shoulder ~0.3 m further aft and the LS4's knob stood 0.85 m from it - the reach shortens with the back's recline)
+  const rake = (P.seatRake != null ? +P.seatRake : 13) * D2R;
+  const z = (seat ? seat.szc : A.zBack + 0.20) + 0.28 - 0.40 * Math.sin(Math.max(0, rake));
+  const y0 = A.floorAt(z) + 0.004;
+  let x = s * (Math.abs(sx || 0) + 0.22);
+  {
+    const wOf = y => Math.abs((A.wallIn && A.wallIn(s, y, z)) || (A.wallAt && A.wallAt(s, y, z)) || 0);
+    const w = Math.min(wOf(y0 + 0.07), wOf(y0 + 0.13)) - 0.03;
+    if (w > 0.05) x = s * w;
+  }
+  const piv = [x, y0 + 0.10, z];
+  const br = K.Bag();
+  K.sweep(br, [[x, y0 + 0.07, z], [x, y0 + 0.13, z]],
+    () => [[-0.012, -0.03], [0.012, -0.03], [0.012, 0.03], [-0.012, 0.03]], true, [0, 0, 1]);
+  br.mesh(g0, M.cast);
+  const gH = movingAt(g0, 'edCtl_airbrake', piv, [1, 0, 0], 'airbrake', -1, 1.2);
+  const lev = K.Bag(), grip = K.Bag();
+  const up = _nrm3([0, Math.cos(25 * D2R), Math.sin(25 * D2R)]);
+  K.revolve(lev, [0, 0, 0], up, [[0.005, 0], [0.005, 0.20]], 12, true);
+  K.revolve(grip, _off3([0, 0, 0], up, 0.19), up,
+    [[0.005, 0], [0.013, 0.008], [0.014, 0.040], [0.012, 0.060], [0, 0.066]], 18, false);
+  lev.mesh(gH, M.plated); grip.mesh(gH, M.brk);
+  tapeOn(g0, 'Airbrakes', 0.040, [x - s * 0.016, y0 + 0.10, z - 0.04], -s * Math.PI / 2);
+  // the knob, a grip the free hand can take (the knob's axis, its 13 mm radius - gripAt, G3700 HANDS)
+  return { obj: gripAt(gH, _off3([0, 0, 0], up, 0.225), up, 0.013), label: 'airbrake handle', job: 'airbrake' };
+}
 // THE OVERHEAD CONSOLE (CABIN-INTERIOR G1, the user 2-3 Nov: the cabin's top half, "what you see through windows";
 // the first cut, 3 Nov 08:40). A shallow moulded pod on the ceiling's centreline just forward of the front row's
 // heads - the 172's and every light twin's: two eyeball vents forward, two reading-lamp seats aft, one each side.
@@ -1320,6 +1458,15 @@ function wallUnder(A, sd, y, z, dz, yb, yt) {
   }
   return isFinite(m) ? sd * (m - 0.003) : null;
 }
+// A FOOTPRINT OUT THROUGH THE SKIN (SEAPLANES 21 Nov, PEDALS IN A HULL): a part's underside at y, its footprint x +- hw at
+// station z - the height it must rise to (4 mm over the skin it came through, read at the footprint's edges and middle),
+// or y itself where the skin is under all three (A.skinOver: no lift for a part inside, however the skin is shaped)
+function liftOut(A, x, y, z, hw) {
+  if (!A.skinOver) return y;
+  let m = y;
+  for (const d of [-hw, 0, hw]) { const o = A.skinOver(x + d, y, z); if (o != null && o + 0.004 > m) m = o + 0.004; }
+  return m;
+}
 function buildFuelSelector(gRoot, A, P, sx, seat) {
   const K = window.GEAR_KIT;
   if (!K) return null;
@@ -1331,7 +1478,11 @@ function buildFuelSelector(gRoot, A, P, sx, seat) {
   // clear of the frame's tubes: step aft until both hold
   const jamb = A.doorFwdAt ? A.doorFwdAt(sd, y) : Infinity;
   if (isFinite(jamb) && z > jamb - 0.09) { z = jamb - 0.09; y = A.floorAt(z) + 0.26; }
-  const wxAt = () => (A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90));
+  // (16 Nov 2026: the plate's own corners, -3..+5 cm high and +-4 cm long, on the exact wall - A.wallIn - where it is inboard of wallAt's
+  //  coarse one: the LS4's trim plate stood 6 mm through its round flank)
+  const wxAt = () => { const c = A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90);
+    let w = Infinity; if (A.wallIn) for (const yy of [y - 0.03, y, y + 0.05]) for (const zz of [z - 0.04, z, z + 0.04]) { const q = A.wallIn(sd, yy, zz); if (q != null) w = Math.min(w, Math.abs(q)); }
+    return w < Math.abs(c) ? sd * w : c; };
   let wx = wxAt();
   if (A.tubeDist) for (let i = 0; i < 6; i++) {
     if (Math.min(A.tubeDist([wx, y, z]), A.tubeDist([wx, y + 0.06, z])) > 0.05) break;
@@ -1368,11 +1519,23 @@ function buildTrimWheel(gRoot, A, P, sx, seat) {
   const g0 = ctlShift(gRoot, P, 'trimX', 'trimY', 'trimZ');
   const sd = Math.sign(sx || 1), inb = -sd;
   let z = (seat ? seat.zBack : A.zBack) + 0.34;
-  const y = (seat ? seat.panY : A.floorAt(z) + 0.08) + 0.13;
+  let y = (seat ? seat.panY : A.floorAt(z) + 0.08) + 0.13;
   const R = 0.046;
-  const wxAt = () => (A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90));
+  // (16 Nov 2026: the plate's own corners, -3..+5 cm high and +-4 cm long, on the exact wall - A.wallIn - where it is inboard of wallAt's
+  //  coarse one: the LS4's trim plate stood 6 mm through its round flank)
+  const wxAt = () => { const c = A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90);
+    let w = Infinity; if (A.wallIn) for (const yy of [y - 0.03, y, y + 0.05]) for (const zz of [z - 0.04, z, z + 0.04]) { const q = A.wallIn(sd, yy, zz); if (q != null) w = Math.min(w, Math.abs(q)); }
+    return w < Math.abs(c) ? sd * w : c; };
   let wx = wxAt();
   if (A.tubeDist) for (let i = 0; i < 4 && A.tubeDist([wx, y, z]) < R + 0.02; i++) { z -= 0.06; wx = wxAt(); }   // off the frame
+  // ON THE WALL, NOT THROUGH THE BOTTOM (SEAPLANES 21 Nov): by a hull's chine the wall at the hip's height is the V's
+  // own side, and the wheel (46 mm) and its plate (30 mm under the axle) hung 7-12 cm under the Super Petrel's bottom.
+  // Step it up the wall, 2 cm at a time, until the rim clears the skin's top under it by 5 mm.
+  for (let i = 0; i < 12; i++) {
+    const yb = y - R - 0.005;                                  // the rim's bottom, 5 mm to spare
+    if (liftOut(A, wx + inb * 0.024, yb, z, 0.006) <= yb) break;   // (the wheel's own plane, clear of the wall's edge)
+    y += 0.02; wx = wxAt();
+  }
   { const wu = wallUnder(A, sd, y, z, 0.040, -0.030, 0.060); if (wu != null) wx = wu; }
   const br = K.Bag();
   K.sweep(br, [[wx, y, z], [wx + inb * 0.006, y, z]],
@@ -1712,7 +1875,9 @@ const FLOOR_MARGIN = 0.0015;                // the board's edge stands this far 
                                             // showed as a slot along both edges; 1.5 mm = the hairline every lining kept)
 let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
 const floorThru = (x, z, r) => { FLOOR_THRU.push({ x, z, r }); };
-const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar)/;
+// (16 Nov 2026, the LS4's floor 25 mm through its belly: a composite shell's inner face - the `composite` liner
+//  _cage_gen extrudes inward off the skin on a carbon / glass body - is the wall its board meets, as the skin is)
+const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar|composite)/;
 const FLOOR_FRAME = /^(toele|aluminium)/;      // the metal construction's own sheet frame
 const NOTCH_C = 0.006, NOTCH_MAX = 0.30;       // a notch's clearance, and how far in it may reach
 // a triangle's cut by the plane y = yc, as a segment [[x, z], [x, z]] or null
@@ -1789,6 +1954,10 @@ function floorWalls(mesh, k, yAt, zF, zA) {
       const x = rayAt(y0 + dy, zi, sd);
       if (x != null && (best == null || x < best)) best = x;
     }
+    // (16 Nov 2026, the LS4's nose: the board's TOP meets the wall but its BOTTOM finds none - the belly has risen
+    //  through the board there; that station is the section pinching shut, as a station with no wall at all is: the
+    //  run ends (it stood 18 mm through the LS4's nose under the panel). A door's sill - no wall at the top - is not this)
+    if (best != null && rayAt(y0, zi, sd) != null && rayAt(y0 - FLOOR_T - 0.008, zi, sd) == null) return null;
     return best == null ? null : Math.max(0.03, best - FLOOR_MARGIN);
   };
   const STEP = 0.015, zs = [];
@@ -2465,6 +2634,8 @@ function solveGripJob(occ, j, ctx) {
 // the measured sill height off the front-most door outline; fallback
 // floorboard allowance when no door is cut.
 const FLOOR_BOARDS = 0.035;              // fallback: boards over the belly, m
+// (SEAPLANES 21 Nov) the faces that are not the outer skin, for skinOver: linings, glass, the cabin's own fittings
+const SKIN_NOT = /liner|tube|cloth|dash|bulk|baggage|fire|shoulder|toele|plywood|floorBoard|seat|[Ww]in|glass|pane|reveal|composite|joint|seal/;
 function anchors(spec, P, mesh) {
   // THE UNIT: metres = cage x CAGE_UNIT x planeScale (see _cage_gen.js).
   // The crew is built in metres and never scales — it is the ruler.
@@ -2714,6 +2885,20 @@ function anchors(spec, P, mesh) {
     for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[1] >= y0 && q[1] <= y1 && q[2] < z) z = q[2];
     return z < 1e8 ? z : dashAftZ;
   };
+  // ...and THE GLASS OVER IT (16 Nov 2026, the user, the LS4: "ensure that the pedals and the controls and all that
+  // stuff do not poke through"): the lowest canopy / windscreen vertex within dx of x, between z0 and z1 and above
+  // yAbove - the ceiling a thing standing on the glareshield must stay under (the portable's cradle); null with none
+  const glassPts = [];
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (!/^(windshield|pilotWindow|drawnPane|skyWindows)$/.test(f.m)) continue;
+      for (const vi of f.v) glassPts.push([mesh.V[vi][0] * k, mesh.V[vi][1] * k, mesh.V[vi][2] * k]);
+    }
+  const ceilAt = (x, dx, z0, z1, yAbove) => {
+    let y = 1e9;
+    for (const q of glassPts) if (Math.abs(q[0] - x) <= dx && q[2] >= z0 && q[2] <= z1 && q[1] > yAbove && q[1] < y) y = q[1];
+    return y < 1e8 ? y : null;
+  };
   const dashBotAt = (x, dx, z0, z1) => {
     let y = 1e9;
     for (const q of dashPts) if (Math.abs(q[0] - x) <= dx && q[2] >= z0 && q[2] <= z1 && q[1] < y) y = q[1];
@@ -2777,6 +2962,36 @@ function anchors(spec, P, mesh) {
     }
     return best != null ? sd * best : null;
   };
+  // THE WALL AT A HEIGHT, EXACTLY (16 Nov 2026, the LS4 - the user: "ensure that the pedals and the controls and all
+  // that stuff do not poke through"): wallAt reads the widest side vertex within 8 cm of the height and only those
+  // 15 cm off the centreline - low in a round belly there are none, and it answered 90 % of the cabin's half-width:
+  // the pedals' axle, the airbrake's bracket stood 2-3 cm through the LS4's skin. wallIn casts a ray along x at
+  // (y, z) through the wall faces the floor's board meets (FLOOR_WALL), the innermost hit (metres, signed), or null
+  const wallTris = [];
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (!FLOOR_WALL.test(f.m || '')) continue;
+      for (let i = 1; i + 1 < f.v.length; i++) {
+        const t = [f.v[0], f.v[i], f.v[i + 1]].map(vi => [mesh.V[vi][0] * k, mesh.V[vi][1] * k, mesh.V[vi][2] * k]);
+        wallTris.push({ t, y0: Math.min(t[0][1], t[1][1], t[2][1]), y1: Math.max(t[0][1], t[1][1], t[2][1]),
+                        z0: Math.min(t[0][2], t[1][2], t[2][2]), z1: Math.max(t[0][2], t[1][2], t[2][2]) });
+      }
+    }
+  const wallIn = (sd, y, z) => {
+    let best = Infinity;
+    for (const w of wallTris) {
+      if (y < w.y0 || y > w.y1 || z < w.z0 || z > w.z1) continue;
+      const [a, b, c] = w.t;
+      const d = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]);
+      if (Math.abs(d) < 1e-9) continue;
+      const u = ((y - a[1]) * (c[2] - a[2]) - (z - a[2]) * (c[1] - a[1])) / d;
+      const v = ((b[1] - a[1]) * (z - a[2]) - (b[2] - a[2]) * (y - a[1])) / d;
+      if (u < -1e-6 || v < -1e-6 || u + v > 1 + 1e-6) continue;
+      const x = (a[0] + (b[0] - a[0]) * u + (c[0] - a[0]) * v) * sd;
+      if (x > 0.02 && x < best) best = x;
+    }
+    return best < Infinity ? sd * best : null;
+  };
   const wallAt = (sd, y, z) => {
     const sh = shoulderAt(sd, y, z);
     if (sh != null) return sh;
@@ -2801,7 +3016,7 @@ function anchors(spec, P, mesh) {
   // pedals' cable fairlead placed on `floorAt` hung under the aeroplane. This
   // reads the displayed mesh: the lowest skin vertex within 5 cm of (x, z),
   // in metres; null where the mesh has no skin (a headless list).
-  const bellyPts = [];
+  const bellyPts = [], skinTris = [];
   if (mesh && mesh.F && mesh.V)
     for (const f of mesh.F) {
       if (!FLOOR_WALL.test(f.m || '') && !/^(plywood|cloth|aluminium|taper)/.test(f.m || '')) continue;
@@ -2809,6 +3024,14 @@ function anchors(spec, P, mesh) {
         const v = mesh.V[vi];
         if (v[1] * k < (spec.waistY || 0) * k) bellyPts.push([v[0] * k, v[1] * k, v[2] * k]);
       }
+    }
+  // (21 Nov, for skinOver - is a point through the skin: the WHOLE outer skin as triangles, every material but the
+  // cabin's own linings, glass and fittings; the belly's few materials alone missed a cowl's or a metal panel's bottom)
+  if (mesh && mesh.F && mesh.V)
+    for (const f of mesh.F) {
+      if (!f.v || f.v.length < 3 || SKIN_NOT.test(f.m || '')) continue;
+      for (let t = 1; t + 1 < f.v.length; t++)
+        skinTris.push([f.v[0], f.v[t], f.v[t + 1]].map(vi => [mesh.V[vi][0] * k, mesh.V[vi][1] * k, mesh.V[vi][2] * k]));
     }
   // (the belly rises toward the nose, so the lowest vertex in a window is
   // its aft edge: the skin is the lowest vertex per centimetre of station,
@@ -2830,6 +3053,28 @@ function anchors(spec, P, mesh) {
     if (a && c && c[0] > a[0]) return a[1] + (c[1] - a[1]) * (z - a[0]) / (c[0] - a[0]);
     return (a || c)[1];
   };
+  // A POINT THROUGH THE SKIN (SEAPLANES 21 Nov, PEDALS IN A HULL): skinOver(x, y, z), metres - null while the drawn skin
+  // has a face under the point (it is inside, whatever the shape: a V, a curved belly, a wall beside it, a nose over it),
+  // else the lowest face over it: the skin the point came out through. The outer skin's faces (SKIN_NOT), as triangles;
+  // null too off the skin's plan (no face either way: nothing to rest on), and null when the face over it is more than 20 cm
+  // up: that is a deck or a top over an open part of the sheet (the nose a cowl layer draws), not a skin it came through
+  // (a hull's V lifts a part 16 cm at most). (Reading "the skin under a point" as a height
+  // instead lifted the C172's pedal axle 19 mm that was clear, walked the DC-3's trim wheel up its wall, and stood the
+  // trainer's cable fairleads on its nose's top.)
+  const skinOver = (x, y, z) => {
+    let over = null;
+    for (const [a, b, c] of skinTris) {
+      const d = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+      if (Math.abs(d) < 1e-12) continue;
+      const l1 = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / d;
+      const l2 = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / d, l3 = 1 - l1 - l2;
+      if (l1 < -1e-9 || l2 < -1e-9 || l3 < -1e-9) continue;
+      const h = l1 * a[1] + l2 * b[1] + l3 * c[1];
+      if (h <= y) return null;
+      if (over == null || h < over) over = h;
+    }
+    return over != null && over - y <= 0.20 ? over : null;
+  };
   // G2792: THE FIREWALL'S STATION (the aft-most vertex of its faces, metres) -
   // the floor's run ends there and the pedal cables are anchored on it
   let zFire = -Infinity;
@@ -2839,7 +3084,7 @@ function anchors(spec, P, mesh) {
   // (G3515: the cockpit's dash shell is the FRONT seat's - a rear pilot's panel
   // stands on its own at the rear station, its height off the floor rule)
   if (rear) { dashLip = null; dashTop = null; dashAftZ = null; face = null; }
-  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch) && !rear, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch) && !rear, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, skinOver, ceilAt, wallIn, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            zFire: isFinite(zFire) ? zFire : null,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
@@ -2900,11 +3145,13 @@ function seatPlaces(A, P) {
   // the outer shoulder sits ~0.21 m outboard of the seat centre (the
   // skeleton's clavicle + joint), so the seat centre stays 0.25 m inside the
   // waist half-width (2026-09-04: the pilots stuck out of the sides)
-  const gapIn = halfW => Math.min(P.seatGap, Math.max(0.18, halfW - 0.25));
+  // (CAR-3, 13 Nov: paxGap - the passenger rows' own side-by-side gap; absent = the cockpit's seatGap, as before - so a
+  // van's front pair can sit close while its benches of three keep their spread)
+  const gapIn = (halfW, section) => Math.min(section && P.paxGap != null ? +P.paxGap : P.seatGap, Math.max(0.18, halfW - 0.25));
   const row = (zBack, halfW, section, filled, ab) => {
     const out = [];
     const n0 = ab || abreast, n = perRowOf(n0);
-    const gp = n0 >= 2 && n0 <= 3 ? gapIn(halfW) : 0;
+    const gp = n0 >= 2 && n0 <= 3 ? gapIn(halfW, section) : 0;
     // a pair sits +-gap; a bench of three adds the middle seat last (the
     // outer two fill first, the way a rear bench is used)
     const xs = AISLE[n0] ? aisleXs(n0, halfW) : n === 3 ? [gp, -gp, 0] : n === 2 ? [gp, -gp] : [0];
@@ -3182,11 +3429,13 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     if (stickMode === 0) o.stick = buildStickCenter(cg, A, P, seat.x, seat);
     if (stickMode === 1) o.stick = buildYoke(cg, A, P, seat.x);
     if (stickMode === 2) o.stick = buildStickSide(cg, A, P, seat.x, seat);
+    if (stickMode === 4) o.stick = buildSteerWheel(cg, A, P, seat.x);
     if (P.ctlPed) o.pedals = buildPedals(cg, A, P, seat.x);
     return o;
   };
   // dual controls in the COCKPIT only — a passenger bay's row has none (G180)
-  const stn = seats.map(s2 => (s2.pilot || (sbs && !s2.section)) ? mkStation(s2) : null);
+  // (CAR-3: a car has ONE wheel - with the steering wheel only the driver's seat gets a station, no dual controls)
+  const stn = seats.map(s2 => (s2.pilot || (sbs && !s2.section && stickMode !== 4)) ? mkStation(s2) : null);
   const st1 = stn[seats.indexOf(pilot)];
   let stick = st1.stick, thr = null;
   // the console BOX only exists side-by-side (user): with one seat
@@ -3264,6 +3513,9 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // the pilot's, drawn with the controls so the join carries them
   try {
     if (Math.round(+P.flapCtl || 0) !== 1) buildFlapLever(tg, A, P, pilot.x, pilot, sbs);   // G335: else the panel's switch
+    // AIRBRAKES: the blue handle (a build with brakes only) - with no throttle, on the left wall, in the free hand
+    const abH = buildAirbrakeHandle(tg, A, P, pilot.x, pilot, !thr);
+    if (!thr && abH) st1.thr = abH;
     buildBrakeKnob(tg, A, P, pilot.x);
     buildFuelSelector(tg, A, P, pilot.x, pilot);
     buildTrimWheel(tg, A, P, pilot.x, pilot);
@@ -3661,21 +3913,25 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       return dx > 0.06 ? 'L' : dx < -0.06 ? 'R' : null;
     };
     const other = h => h === 'L' ? 'R' : 'L';
-    let hStick = stick && stickMode !== 1 ? sideOf(stick.obj) : null;
+    let hStick = stick && stickMode !== 1 && stickMode !== 4 ? sideOf(stick.obj) : null;
     let hThr = thr ? sideOf(thr.obj) : null;
     if (hStick && hThr && hStick === hThr) hThr = other(hStick);
     else if (hStick && !hThr) hThr = other(hStick);
     else if (hThr && !hStick) hStick = other(hThr);
     else if (!hStick && !hThr) { hStick = 'R'; hThr = 'L'; }
     const jobs = [];
-    if (stick) {
-      const a = stickMode === 1
+    if (stick && stickMode === 4 && !thr) {
+      // CAR-3: a steering wheel and no throttle lever - both hands on the rim
+      jobs.push({ chain: 'armL', a: stick.objL, label: 'L→' + stick.label });
+      jobs.push({ chain: 'armR', a: stick.objR, label: 'R→' + stick.label });
+    } else if (stick) {
+      const a = (stickMode === 1 || stickMode === 4)
         ? (hStick === 'L' ? stick.objL : stick.objR) : stick.obj;
       jobs.push({ chain: hStick === 'L' ? 'armL' : 'armR', a,
                   label: hStick + '→' + stick.label });
     }
     if (thr) jobs.push({ chain: hThr === 'L' ? 'armL' : 'armR', a: thr.obj,
-                         label: hThr + '→throttle' });
+                         label: hThr + '→' + (thr.job || 'throttle') });
     if (pedals) {
       jobs.push({ chain: 'legL', a: pedals.objL, label: 'L→pedal' });
       jobs.push({ chain: 'legR', a: pedals.objR, label: 'R→pedal' });
@@ -3766,9 +4022,27 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // ride out with each seat — the join reads the capacity, the occupancy
     // and the loading numbers off this one list
     // SEATS: `kg`, the drawn seat's own mass (its preset's), so the join bills each seat as drawn
-    seatsAt: seats.map(s2 => ({ x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
-                                panY: s2.panY, section: s2.section | 0,
-                                filled: !!s2.filled, kg: s2.kg })),
+    // SEAT-CG (16 Nov 2026, the user: "Fix the balance" - the LS4's pilot lying back): `cgFwd`, how far ahead of the
+    // seat's back its occupant's mass centre sits (the join's station). The join's rule was 0.20 m for every seat;
+    // the drawn pilot's own mass centre (its posed bones, Winter's segment fractions) bears it out upright (0.19) but
+    // a reclined back lays the torso aft: 0.127 m in the Archaeopteryx's 42 deg seat, 0.088 m in the LS4's 50. Fitted
+    // on a sweep of the drawn body (13-61 deg, within 4 mm): the torso's shift goes as the sine of the back's
+    // recline (the seat's rake, plus the pilot's own recline row on the pilot's seat), the legs' with the pedals'
+    // distance - anchored on the old rule at the upright default (rake 13, recline 0, pedals 0.90). BLENDED IN between
+    // 28 and 42 deg of back (a smoothstep): the conventional seats - the Cubs' and Jodels' 25-27 deg, the certified
+    // Rufus - keep the old rule to the millimetre (it reads 2-4 cm forward of their drawn body: a fleet-wide re-baseline
+    // that is A0's to call, not done here); the sailplanes' supine seats (34-56 deg) take the measured body. Seat
+    // geometry only (no character needed): the same number headless and in the game
+    seatsAt: seats.map(s2 => {
+      const effD = Math.max(13, (+s2.SP.rake || 13) + (s2.pilot ? (+P.pilRecline || 0) : 0)), eff = effD * D2R;
+      const pz = s2.pilot && P.pedalZ != null ? +P.pedalZ : 0.90;
+      const body = 0.20 - 0.195 * (Math.sin(eff) - Math.sin(13 * D2R)) + 0.16 * (pz - 0.90);
+      const t = Math.min(1, Math.max(0, (effD - 28) / 14)), wB = t * t * (3 - 2 * t);
+      const cgFwd = 0.20 + wB * (body - 0.20);
+      return { x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
+               panY: s2.panY, section: s2.section | 0,
+               filled: !!s2.filled, kg: s2.kg, cgFwd: +cgFwd.toFixed(4) };
+    }),
     seats: seats.map(s2 => ({ x: +s2.x.toFixed(3),
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };

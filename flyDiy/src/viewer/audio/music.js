@@ -274,7 +274,7 @@ var AUDIO_MUSIC = (function () {
   // (`flight` is 1 anywhere out of the shed and past the loading screen: G1723 - no dwell, no height, no flaps)
   function contextOf(welcome, photo, garage, musicGarage, musicFlight, flight, musicLoading) {
     if (photo) return C_PHOTO;
-    if (welcome) return musicLoading ? C_WELCOME : C_NONE;   // a loading screen: its own switch (off by default)
+    if (welcome) return musicLoading ? C_WELCOME : C_NONE;   // a loading screen: its own switch (on by default since 22 Nov, AUDIO-ROBUST 3)
     if (garage) return musicGarage ? C_GARAGE : C_NONE;
     return musicFlight && flight ? C_CRUISE : C_NONE;
   }
@@ -784,11 +784,18 @@ var AUDIO_MUSIC = (function () {
     if (panner) { panner.pan.value = 0; duck.connect(panner); panner.connect(au.bus('music')); } else duck.connect(au.bus('music'));
     SRC[4] = 0; PS[S_PANT] = 0;
     decks = [];
-    if (!D || !D.createElement || !c.createMediaElementSource) { ctx = null; return; }   // no media elements here
+    const MM = G.MENU_MUSIC || null;
+    if (!D || !D.createElement || !c.createMediaElementSource) { if (MM && MM.release) MM.release(); ctx = null; return; }   // no media elements here
+    // AUDIO-ROBUST 5: THE MENU'S SONG IS TAKEN OVER (menu_music.js) - its element becomes deck 0, playing on, the same song
+    // at the same second, now through the music bus; one stream from the menu to the world (a song not in this
+    // catalogue, or none playing: the menu's player is released)
+    let mm = MM && MM.adopt ? MM.adopt() : null;
+    if (mm) { let t = mm.t; if (!cat[t] || cat[t].id !== mm.id) t = cat.findIndex(x => x && x.id === mm.id); if (t < 0) { try { mm.el.pause(); } catch (e) {} mm = null; } else mm.t = t; }
+    else if (MM && MM.release) MM.release();
     for (let k = 0; k < 2; k++) {
-      const el = D.createElement('audio');
+      const el = k === 0 && mm ? mm.el : D.createElement('audio');
       C.elements++;
-      el.preload = 'none';
+      if (!(k === 0 && mm)) el.preload = 'none';
       el.crossOrigin = 'anonymous';
       const src = c.createMediaElementSource(el), gain = c.createGain();
       gain.gain.value = 0;
@@ -799,6 +806,14 @@ var AUDIO_MUSIC = (function () {
       DK[k * K_N + K_STATE] = ST_IDLE; DK[k * K_N + K_TRACK] = -1; DK[k * K_N + K_STOP] = -1;
     }
     PS[S_CUR] = C_NONE; PS[S_ACT] = -1; PS[S_GAP] = -1; PS[S_DUCK] = 0; PS[S_BED] = 1; PS[S_TALK] = 0; PS[S_FIN] = 0; FINAL_ST[0] = 0;
+    if (mm) {   // AUDIO-ROBUST 5: deck 0 is the menu's song, playing; its level moves from the element to the deck's gain
+      const t = mm.t, o = 0;
+      DK[o + K_STATE] = ST_PLAYING; DK[o + K_TRACK] = t; DK[o + K_POS] = mm.el.currentTime || mm.pos || 0;
+      DK[K_DUR] = cat[t].durationS > 0 ? cat[t].durationS : USER_DUR_S; DK[o + K_FD] = 0; DK[o + K_FA] = DK[o + K_FB] = trims[t];   // (deck 0: o = 0)
+      decks[0].gain.gain.value = trims[t];
+      try { mm.el.volume = 1; } catch (e) {}
+      PS[S_ACT] = 0; JOIN = 0; REC[1] = REC[0]; REC[0] = t; C.adopted = (C.adopted || 0) + 1;
+    }
     // the radio's voice and keys: made here, on the gesture (nothing is spoken before one)
     // G1683: the talker plays a segment's recorded clips (AUDIO_VOICE) when they all exist, else speaks it; the clips
     // pass radioIn -> the duck -> the music bus, so the music's ducks, its volume and the context's suspend reach them
@@ -806,7 +821,7 @@ var AUDIO_MUSIC = (function () {
     const RT = typeof G.RADIO_TALK !== 'undefined' ? G.RADIO_TALK : null;
     speaker = RT ? (RT.makeTalker ? RT.makeTalker(G, voiceApi) : RT.makeSpeaker(G)) : null;
     if (G.addEventListener) G.addEventListener('keydown', onKey);
-    if (station === ST_TALK) PS[S_TUNE] = 1;   // the first music of the page on the roots station opens with its ID
+    if (station === ST_TALK && !mm) PS[S_TUNE] = 1;   // the first music of the page on the roots station opens with its ID (a song taken over from the menu: tuned in already)
     if (RT && RT.cursor) CUR = RT.cursor(G);   // G1702: the broadcast continues where the last session left it
     loadScript();
     // G1723: a music switch (music in flight, in the garage, while loading) answers on its own event - at 3-4 fps the next

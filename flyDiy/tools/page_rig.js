@@ -5,7 +5,10 @@
 //
 // A MODULE:
 //   const rig = await require('./page_rig.js').start({ cap: 600, q: 'glint=0', size: '1600x900' });
-//   await rig.fly();                      // Go until FLYING (BOOT gone, mode-fly, no mode-ws, no rollShot, sim t rising)
+//   await rig.fly();                      // Go until FLYING (BOOT gone, mode-fly, no mode-ws, no rollShot, sim t rising);
+//                                         // a float / hull build's start dialog answered: { launch: 'water' (default) | 'trailer' };
+//                                         // then the world must DRAW: an open fleet screen / new-plane panel closed (Escape),
+//                                         // the AA renders > 0 a second, else a throw naming the hold (rig.plane.aaPerS)
 //   await rig.pause();                    // the game's own #bPause, as a player would
 //   await rig.place(x, z, agl);           // optional: the aircraft to a FAR subject first (FLIGHT_PROBE.place, paused)
 //   await rig.skipToLineUp();             // optional (page-rig-2): the game's own Skip (#bSkip): the stand's taxi skipped, lined up at the hold
@@ -44,7 +47,7 @@
 //
 // A CLI (plain stills):
 //   node tools/page_rig.js --views views.json --out <dir> [--q k=v&k2=v2] [--size 1600x900] [--cap 600] [--page dev.html]
-//        [--seed seed.json] [--init '<js>'] [--jpeg 0.92] [--nofly] [--port 8560]
+//        [--seed seed.json] [--init '<js>'] [--jpeg 0.92] [--nofly] [--port 8560] [--launch water|trailer]
 //   views.json: [ { name, yaw, pitch,  x, y, z  |  near: [dx, dy, dz] (from the aircraft)  |  agl (y over the ground),
 //                   place: [x, z] or [x, z, agl] (the aircraft moved there first; then near is relative to it),
 //                   settle (frames, 60), wait (ms, 5000), eval (js run before the shot) } ]   (or { views: [...] })
@@ -89,6 +92,10 @@ const INFRAME = p => '(() => { const cam = FLIGHT_PROBE.camera && FLIGHT_PROBE.c
   ' return { x: +(cx / cw).toFixed(4), y: +(cy / cw).toFixed(4), z: +(cz / cw).toFixed(4), front: vz < 0, dist: +Math.hypot(vx, vy, vz).toFixed(2) }; })()';
 // the page's flying test: every condition RIG-PROCEDURE 2 names; -1 = not flying, else the sim's clock
 const SIMT = "(()=>{ const b = document.body && document.body.classList; if (!b || !window.FLIGHT_PROBE || (window.BOOT && BOOT.state !== 'gone') || !b.contains('mode-fly') || b.contains('rollShot') || b.contains('mode-ws')) return -1; const s = FLIGHT_PROBE.sim(); return s && typeof s.t === 'number' ? s.t : -1; })()";
+// (page-rig-4) the launch dialog's answer: null when #edLaunch is absent or closed (a land build, or it is answered), else the
+// chosen start clicked ('water' | 'trailer') or 'no <k>' when that button is missing
+const LAUNCH_ANSWER = k => { k = k === 'trailer' ? 'trailer' : 'water';
+  return "(() => { const el = document.getElementById('edLaunch'); if (!el || el.hidden) return null; const b = el.querySelector('button[data-k=" + k + "]'); if (!b) return 'no " + k + "'; b.click(); return '" + k + "'; })()"; };
 const BOOT_HEALTH = "(()=>{const B=window.BOOT;if(!B)return {ok:false,reason:'no BOOT'};const rows=B.log||[],failures=rows.filter(e=>e.k==='fail'||e.k==='error'),normalReady=rows.some(e=>e.k==='ready'),busy=!!(B.busy&&B.busy());return {ok:B.state==='gone'&&!busy&&normalReady&&!failures.length,state:B.state,busy,normalReady,failures};})()";
 const FRAMES = n => `new Promise(r => { let k = ${n | 0}; const f = () => { if (--k <= 0) r(1); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 // the localStorage wipe (flydiy.* only, once per tab: a sessionStorage guard, so a page's own reload keeps its state), then the seed
@@ -128,12 +135,20 @@ const PAGE_HOOK = `(() => {
   return 'PAGE_RIG ok';
 })()`;
 
+// (page-rig-4, AUDIO via A0 22 Nov) THE UI HOLDS: flying (the sim's clock rising, rAF looping) and still nothing drawn - the
+// game's loop returns before the world (app.js: holdRender || uiHold || NEW_PLANE open || FLEET_SCREEN open; uiHold is
+// FLYDIY_UI_HOLD's, set by the fleet screen, the new-plane panel and the fiche's picture). The screens a player closes
+// with Escape, named (ONE key event on the page: the screens listen on window in the capture phase; a second would reach
+// the game's own Escape once the screen has closed); the AA renders in one second (0 = the world held)
+const UI_HOLDS = "(() => { const o = (x) => { try { return !!(x && x.isOpen && x.isOpen()); } catch (e) { return false; } }; const h = []; if (o(window.FLEET_SCREEN)) h.push('fleet screen'); if (o(window.NEW_PLANE)) h.push('new plane'); return h; })()";
+const ESCAPE = "(() => { const ev = () => new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true, cancelable: true }); (document.body || document).dispatchEvent(ev()); return true; })()";
+const AA_RATE = "new Promise(res => { if (!window.PAGE_RIG) return res(null); const a0 = PAGE_RIG.aaCalls(); setTimeout(() => res(PAGE_RIG.aaCalls() - a0), 1000); })";
 // WHY (RIG-PROCEDURE 4): one look at everything that stops a frame, logged on the first miss
 const WHY = `new Promise(res => { const R = window.FLYDIY_RENDERER, f0 = R ? R.info.render.frame : null, t0 = performance.now(), aa0 = window.PAGE_RIG ? PAGE_RIG.aaCalls() : null; let n = 0;
   const raf0 = window.requestAnimationFrame, names = {}; window.requestAnimationFrame = function (cb) { const k = (cb && cb.name) || 'anonymous'; names[k] = (names[k] || 0) + 1; return raf0.call(window, cb); };
   const pageRigTick = () => { n++; if (performance.now() - t0 < 1000) raf0.call(window, pageRigTick); }; raf0.call(window, pageRigTick);
   setTimeout(() => { window.requestAnimationFrame = raf0; let holds = null; try { holds = window.FLYDIY_HOLDS ? FLYDIY_HOLDS() : null; } catch (e) { holds = 'ERR ' + e.message; }
-    res(JSON.stringify({ boot: window.BOOT ? BOOT.state : 'none', body: document.body ? document.body.className : null, holds, visibility: document.visibilityState,
+    res(JSON.stringify({ boot: window.BOOT ? BOOT.state : 'none', body: document.body ? document.body.className : null, holds, uiHolds: ${UI_HOLDS}, visibility: document.visibilityState,
       rafPerS: n, rafByName: names, rendererFramesPerS: R ? R.info.render.frame - f0 : null, aaRenderPerS: aa0 == null ? null : PAGE_RIG.aaCalls() - aa0, simT: ${SIMT}, url: location.href })); }, 1100); })`;
 
 // (page-rig-3) the frame rate over one second: low while a new place streams in after a long jump (DIRT-STRIP 16 Nov:
@@ -175,7 +190,9 @@ async function start(o) {
     // A nonzero debugging port avoids Chrome's port0 webdriver signal. The
     // explicit player mode preserves vsync/frame pacing; legacy rigs unchanged.
     const playerPort = o.live ? await freePort() : 0;
-    ch = spawn(chrome, [...(o.headed ? [] : ['--headless=new']), '--remote-debugging-port=' + playerPort, '--window-size=' + size[0] + ',' + size[1], '--user-data-dir=' + udd,
+    // HEADED (the user 22 Nov: GPU work in a visible window): Chrome backgrounds a covered window (no rAF: 'no frame drawn in 5 s')
+    const HEADED_ARGS = ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--window-position=0,0'];
+    ch = spawn(chrome, [...(o.headed ? HEADED_ARGS : ['--headless=new']), '--remote-debugging-port=' + playerPort, '--window-size=' + size[0] + ',' + size[1], '--user-data-dir=' + udd,
       '--disable-gpu-sandbox', ...(o.live ? [] : ['--disable-frame-rate-limit', '--disable-gpu-vsync']), '--no-first-run', '--hide-scrollbars', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });
     let dport = playerPort; for (let i = 0; i < 80 && !dport; i++) { await sleep(250); try { dport = +fs.readFileSync(path.join(udd, 'DevToolsActivePort'), 'utf8').split('\n')[0]; } catch (e) {} }
     if (!dport) throw new Error('page_rig: Chrome never opened its debugging port');
@@ -246,17 +263,39 @@ async function start(o) {
   } catch (e) { clearTimeout(capT); kill(); process.removeListener('exit', onExit); process.removeListener('SIGINT', onInt); process.removeListener('SIGTERM', onInt); throw e; }
 
   // fly: Go until FLYING - all of RIG-PROCEDURE 2's conditions, the sim's clock rising. The text HOLDING is not flying.
+  // (page-rig-4, SEAPLANES 22 Nov) A FLOAT OR HULL BUILD ASKS WHERE TO START: Go from the workshop opens #edLaunch (app.js
+  // launchAsk: On the water / From the trailer) and every further Go only toggles it - 8 presses never flew the Super
+  // Petrel (the 03:18 slot). After each Go the open dialog is answered as a player does: fo.launch 'water' (the default)
+  // or 'trailer' (CLI --launch trailer); its button runs Go itself. A land build never opens it: nothing to answer.
   rig.fly = async (fo) => {
-    fo = fo || {}; const tries = fo.tries || 8;
+    fo = fo || {}; const tries = fo.tries || 8, launch = fo.launch === 'trailer' ? 'trailer' : 'water';
+    // (page-rig-4 x perf-codex) the live (headed) run waits natively; its Go also answers a float / hull build's start dialog
     if(o.live){const r=await require('./perf/native_fly_wait')({timeoutMs:fo.timeoutMs||180000,sleep,
       state:()=>rig.J(`({t:(${SIMT}),ready:document.body.classList.contains('mode-fly')&&!document.body.classList.contains('mode-ws')&&!document.body.classList.contains('rollShot')&&BOOT.state==='gone'&&!BOOT.busy(),garage:document.body.classList.contains('mode-ws'),roll:document.body.classList.contains('rollShot'),busy:BOOT.state!=='gone'||BOOT.busy()})`),
-      click:()=>rig.ev("(()=>{const b=document.getElementById('bGo');if(b&&!b.disabled)b.click();return !!b;})()"),progress:s=>log('native flight wait '+JSON.stringify(s))});rig.flying=r.ok;
+      click:()=>rig.ev("(()=>{const b=document.getElementById('bGo');if(b&&!b.disabled)b.click();" + LAUNCH_ANSWER(launch) + ";return !!b;})()"),progress:s=>log('native flight wait '+JSON.stringify(s))});rig.flying=r.ok;
     }else for (let a = 0; a < tries && !rig.flying; a++) {
-      await rig.ev("(() => { const b = document.getElementById('bGo'); if (b) b.click(); return !!b; })()"); await sleep(fo.waitMs || 6000);
+      await rig.ev("(() => { const b = document.getElementById('bGo'); if (b) b.click(); return !!b; })()");
+      await sleep(400); const la = await rig.ev(LAUNCH_ANSWER(launch)); if (la) log('launch dialog answered: ' + la);
+      await sleep(fo.waitMs || 6000);
       const ta = await rig.ev(SIMT); await sleep(1500); const tb = await rig.ev(SIMT);
       rig.flying = ta >= 0 && tb > ta; log('fly try ' + (a + 1) + ': sim t ' + ta + ' -> ' + tb + ', body ' + await rig.ev('document.body.className'));
     }
     if (!rig.flying) { const w = await rig.why(); log('WHY ' + JSON.stringify(w)); if (fo.need !== false) throw new Error(o.live?'page_rig: native flight readiness deadline (no two advancing sim samples)':'page_rig: not flying after ' + tries + ' Go clicks (the free eye would be inert)'); return false; }
+    // (page-rig-4) FLYING IS NOT DRAWING: a UI hold returns the loop before the world - close it (Escape, as a player does)
+    // and see the AA render before going on; a hold that stays is named (rig.why().uiHolds) and the run stops
+    let aa = 0, uh = [];
+    for (let k = 0; k < 3; k++) {
+      uh = await rig.J(UI_HOLDS);
+      if (uh && uh.length) { log('UI hold open: ' + uh.join(', ') + ' - Escape'); await rig.ev(ESCAPE); await sleep(800); }
+      aa = await rig.J(AA_RATE); if (aa > 0) break;
+      if (!(uh && uh.length)) await sleep(1500);   // (a passing hold - the fiche's picture: give it a moment)
+    }
+    rig.plane = Object.assign({}, rig.plane || {}, { aaPerS: aa });
+    if (!(aa > 0)) {
+      const w = await rig.why(); log('WHY ' + JSON.stringify(w));
+      if (fo.need !== false) throw new Error('page_rig: flying but the world is HELD - no AA render in a second' + (uh && uh.length ? ' (open: ' + uh.join(', ') + ')' : ' (no screen open: uiHold / holdRender, see WHY)'));
+      return false;
+    }
     await rig.frames(30); const A = await rig.anchor();
     if (A.miss) { if (fo.need !== false) throw new Error('page_rig: flying, but ' + A.miss); return false; }
     // (page-rig-2) the chase camera shows the aircraft after fly(): its CG projects inside the frame (GATE PAGERIG 6b)
@@ -382,7 +421,7 @@ async function cli(argv) {
   let bad = 0;
   try {
     R.gpu = rig.gpu; R.bootS = rig.bootS; save();
-    if (!flag('nofly')) { await rig.fly(); if (flag('skip')) await rig.skipToLineUp({ need: true }); await sleep(3000); await rig.pause(); await rig.anchor(); R.plane = rig.plane; }
+    if (!flag('nofly')) { await rig.fly({ launch: opt('launch', 'water') }); if (flag('skip')) await rig.skipToLineUp({ need: true }); await sleep(3000); await rig.pause(); await rig.anchor(); R.plane = rig.plane; }
     for (const v of views) {
       try {
         if (Array.isArray(v.place)) { if (!rig.flying) throw new Error('place: needs a flight (drop --nofly)'); await rig.place(v.place[0], v.place[1], v.place[2]); }
@@ -406,5 +445,5 @@ async function cli(argv) {
   return bad ? 1 : 0;
 }
 
-module.exports = { start, parseViews, cli, REAL_GPU, SIMT, BOOT_HEALTH, PAGE_HOOK, WHY, RAFRATE, SETTLE_RAF, pickAnchor, frameVerdict, ANCHOR, INFRAME, ORIGIN_R, STALE_M };
+module.exports = { start, parseViews, cli, REAL_GPU, SIMT, LAUNCH_ANSWER, UI_HOLDS, ESCAPE, AA_RATE, BOOT_HEALTH, PAGE_HOOK, WHY, RAFRATE, SETTLE_RAF, pickAnchor, frameVerdict, ANCHOR, INFRAME, ORIGIN_R, STALE_M };
 if (require.main === module) cli(process.argv.slice(2)).then(c => process.exit(c), e => { console.error('page_rig: ' + (e && e.stack || e)); process.exit(1); });

@@ -1,0 +1,300 @@
+CESSNA-REFIT - list:50 (builds/cessna172r_2026-11-08.json) BEFORE the refit -> AFTER, genShakedown(buildGen(genMigrateSpec(spec)))
+(the measure tools/snapshots.js uses; script: bench_cmp.js beside this file). BEFORE = master fb8fb633b's file, byte for byte.
+Every numeric shakedown figure that moved; relative change in the last column. Rows absent on one side are '-'.
+
+== TABLE 1 (FINAL): on master L40d fb8fb633b - this branch's file as pushed (the cowl side view to the three-view, T-RUEX) ==
+AR                                        7.318 ->       7.3746 0.8 %
+ClMaxClean                               1.6149 ->       1.5495 -4.1 %
+ClMaxFlap                                 2.242 ->       2.1711 -3.2 %
+LD                                       9.1408 ->       9.0369 -1.1 %
+LDbest                                  11.1761 ->      11.2032 0.2 %
+Sw                                      16.5345 ->      16.4077 -0.8 %
+TORun                                       332 ->          357 7.5 %
+VAppr                                   30.8587 ->      30.8119 -0.2 %
+VCruise                                    50.9 ->         51.7 1.6 %
+VbestLD                                 37.1412 ->      37.5056 1.0 %
+Vs                                      24.6853 ->      25.0279 1.4 %
+VsFlap                                  21.0051 ->      21.2971 1.4 %
+VsRatio                                  0.8487 ->       0.8448 -0.5 %
+W                                      9991.642 ->    9868.4151 -1.2 %
+alphaCruise                              2.2266 ->       -1.285 -157.7 %
+cBar                                     1.5086 ->       1.4964 -0.8 %
+cgEmptyX                                 0.6814 ->       0.9599 40.9 %
+cgX                                      0.6986 ->       0.9468 35.5 %
+climbGrad                                0.1056 ->        0.108 2.3 %
+climbRate                                3.6953 ->       3.8125 3.2 %
+cnBeta                                    0.129 ->       0.1426 10.6 %
+cooling.bareA                                 - ->            0 
+cooling.cdA                                   - ->        0.018 
+cooling.cruise                                - ->         3.83 
+cooling.inA                                   - ->        0.085 
+cooling.margin                                - ->         1.86 
+cooling.needA                                 - ->        0.038 
+cooling.needKgS                               - ->         1.33 
+cooling.passKgS                               - ->         2.47 
+cooling.taxi                                  - ->         2.96 
+cost                                 121997.873 ->  120187.8946 -1.5 %
+cowlBot                                  0.4907 ->       0.5583 13.8 %
+cowlHalfW                                0.4258 ->       0.4715 10.7 %
+cowlTop                                  0.5577 ->       0.2596 -53.5 %
+dEpsDa                                    0.326 ->       0.3679 12.9 %
+deckAngle                               -0.7919 ->       4.7061 694.2 %
+design.deriv.CLa                         4.9497 ->       4.7947 -3.1 %
+design.deriv.CLq                         3.0476 ->       4.3983 44.3 %
+design.deriv.CYb                        -0.4019 ->      -0.4376 -8.9 %
+design.deriv.CYp                        -0.0798 ->      -0.1506 -88.7 %
+design.deriv.CYr                         0.2909 ->       0.3142 8.0 %
+design.deriv.Clb                        -0.0406 ->      -0.0755 -86.0 %
+design.deriv.Clp                        -0.6825 ->      -0.6771 0.8 %
+design.deriv.Clr                         0.0945 ->       0.0328 -65.3 %
+design.deriv.Cm0                         0.0152 ->       0.0959 532.3 %
+design.deriv.Cma                        -0.9993 ->      -1.1928 -19.4 %
+design.deriv.Cmq                       -11.6692 ->     -11.2619 3.5 %
+design.deriv.Cnb                         0.1403 ->       0.1562 11.3 %
+design.deriv.Cnp                         -0.012 ->       0.0291 342.2 %
+design.deriv.Cnr                        -0.1193 ->      -0.1308 -9.6 %
+design.deriv.Ixx                      2295.5832 ->    2182.3792 -4.9 %
+design.deriv.Ixz                        11.4826 ->     206.8612 1701.5 %
+design.deriv.Iyy                      2146.4074 ->    1797.3906 -16.3 %
+design.deriv.Izz                      3588.7281 ->    3324.1891 -7.4 %
+design.deriv.Sw                         16.5345 ->      16.4077 -0.8 %
+design.deriv.V                             50.9 ->         51.7 1.6 %
+design.deriv.W                         9991.642 ->    9868.4151 -1.2 %
+design.deriv.alpha                       0.0389 ->      -0.0224 -157.7 %
+design.deriv.c                           1.5086 ->       1.4964 -0.8 %
+design.deriv.m                         1018.516 ->    1005.9546 -1.2 %
+design.deriv.q                        1586.8711 ->    1637.1451 3.2 %
+empty                                   665.876 ->     653.3146 -1.9 %
+envelope.aft.cgPct                       0.4419 ->       0.2827 -36.0 %
+envelope.aft.cgX                         0.8211 ->       1.0259 24.9 %
+envelope.aft.litres                        31.8 ->          212 566.7 %
+envelope.aft.mass                      1048.772 ->    1165.9546 11.2 %
+envelope.aft.npPct                       0.5816 ->       0.5632 -3.2 %
+envelope.aft.npX                         1.0319 ->       1.4458 40.1 %
+envelope.aft.staticMargin                0.1397 ->       0.2806 100.8 %
+envelope.cgPct                           0.3607 ->       0.2298 -36.3 %
+envelope.fwd.cgPct                        0.371 ->       0.2352 -36.6 %
+envelope.fwd.cgX                         0.7142 ->       0.9549 33.7 %
+envelope.fwd.mass                       808.772 ->     796.2106 -1.6 %
+envelope.fwd.npPct                       0.5574 ->        0.529 -5.1 %
+envelope.fwd.npX                         0.9953 ->       1.3946 40.1 %
+envelope.fwd.staticMargin                0.1863 ->       0.2938 57.7 %
+envelope.npPct                           0.5684 ->       0.5383 -5.3 %
+envelope.staticMarginAft                 0.1397 ->       0.2716 94.4 %
+envelope.worst.cgPct                     0.4419 ->       0.2557 -42.1 %
+envelope.worst.cgX                       0.8211 ->       0.9856 20.0 %
+envelope.worst.litres                      31.8 ->          212 566.7 %
+envelope.worst.mass                    1048.772 ->     925.9546 -11.7 %
+envelope.worst.npPct                     0.5816 ->       0.5273 -9.4 %
+envelope.worst.npX                       1.0319 ->       1.3919 34.9 %
+envelope.worst.occupants                      4 ->            1 -75.0 %
+envelope.worst.staticMargin              0.1397 ->       0.2716 94.4 %
+gearStrain                               0.0064 ->       0.0074 15.6 %
+ledger.bracing.cost                   2607.8442 ->    2493.3806 -4.4 %
+ledger.bracing.mass                     33.4339 ->      31.9664 -4.4 %
+ledger.bracing.mx                       20.8268 ->      36.8929 77.1 %
+ledger.cabin.mx                          79.776 ->       79.776 0.0 %
+ledger.cargo.mx                          67.414 ->       66.468 -1.4 %
+ledger.elec.mass                         20.569 ->       19.933 -3.1 %
+ledger.elec.mx                          -10.685 ->      -5.8541 45.2 %
+ledger.engines.cost                  52568.9058 ->   52512.6185 -0.1 %
+ledger.engines.mass                    176.4205 ->     175.0804 -0.8 %
+ledger.engines.mx                      -152.254 ->     -65.1265 57.2 %
+ledger.fuel.mx                         110.6564 ->     179.1154 61.9 %
+ledger.furnish.cost                        8058 ->         7912 -1.8 %
+ledger.furnish.mass                     45.0896 ->      44.3586 -1.6 %
+ledger.furnish.mx                       57.7405 ->      58.6173 1.5 %
+ledger.fuselage.cost                  8584.2689 ->    7735.5613 -9.9 %
+ledger.fuselage.mass                   110.0547 ->      99.1739 -9.9 %
+ledger.fuselage.mx                     206.8084 ->     178.8283 -13.5 %
+ledger.gear.cost                       8684.174 ->     8245.085 -5.1 %
+ledger.gear.mass                        42.4234 ->      46.6398 9.9 %
+ledger.gear.mx                          33.9602 ->      45.8936 35.1 %
+ledger.outfit.cost                         3047 ->         3041 -0.2 %
+ledger.outfit.mass                      48.2279 ->      48.0772 -0.3 %
+ledger.outfit.mx                        21.8091 ->      30.3269 39.1 %
+ledger.paint.cost                     2406.6653 ->    2321.5062 -3.5 %
+ledger.paint.mass                          7.22 ->       6.9645 -3.5 %
+ledger.paint.mx                         14.5147 ->      15.7345 8.4 %
+ledger.tail.cost                      1721.7794 ->    1748.1482 1.5 %
+ledger.tail.mass                        25.9073 ->      26.4485 2.1 %
+ledger.tail.mx                         140.9402 ->     148.2148 5.2 %
+ledger.vessel.mx                         7.3788 ->      11.9438 61.9 %
+ledger.wings.cost                     9699.2354 ->    9558.5947 -1.5 %
+ledger.wings.mass                      135.0513 ->     133.1941 -1.4 %
+ledger.wings.mx                         112.657 ->     171.6443 52.4 %
+mainDrop                                 0.3204 ->       0.2452 -23.5 %
+mass                                   1018.516 ->    1005.9546 -1.2 %
+noseOver                               -25.9508 ->     -21.2931 17.9 %
+npX                                      1.0119 ->       1.4085 39.2 %
+powerLoad                                6.4166 ->       6.3375 -1.2 %
+propClear                                0.0949 ->       0.1287 35.6 %
+propTW                                     0.22 ->       0.2227 1.2 %
+rangeKm                               1175.6143 ->    1194.0915 1.6 %
+reserve.Vs                              23.0595 ->      23.3583 1.3 %
+reserve.climbRate                        4.4998 ->       4.6476 3.3 %
+reserve.mass                            888.772 ->     876.2106 -1.4 %
+reserve.staticMargin                     0.2024 ->       0.3248 60.5 %
+reserve.wingLoad                        53.7525 ->      53.4026 -0.7 %
+restChassisStrain                        0.0016 ->        0.019 1094.0 %
+springStrain                             0.0034 ->       0.0027 -21.8 %
+stabTrim                                -0.0155 ->      -0.0405 -161.6 %
+staticMargin                             0.2077 ->       0.3085 48.6 %
+susShift                                 0.0176 ->       0.0436 148.4 %
+susTravel                                0.0031 ->       0.0019 -38.3 %
+thirdLeg                                 0.3432 ->       0.4219 22.9 %
+thrCruise                                  0.65 ->       0.6558 0.9 %
+wingLoad                                61.5994 ->      61.3101 -0.5 %
+xLEmac                                   0.1544 ->       0.6029 290.4 %
+
+== TABLE 2: the first cut (v57b) on L40c 58c681347 + REAL-CANON, for the record ==
+AR                                        7.318 ->       7.3746 0.8 %
+ClMaxClean                               1.6149 ->       1.5495 -4.0 %
+ClMaxFlap                                 2.242 ->       2.1712 -3.2 %
+LD                                       9.1408 ->       9.0325 -1.2 %
+LDbest                                  11.1761 ->      11.2008 0.2 %
+Sw                                      16.5345 ->      16.4077 -0.8 %
+TORun                                       332 ->          356 7.2 %
+VAppr                                   30.8587 ->      30.8122 -0.2 %
+VCruise                                    50.9 ->         51.7 1.6 %
+VbestLD                                 37.1412 ->      37.5096 1.0 %
+Vs                                      24.6853 ->      25.0301 1.4 %
+VsFlap                                  21.0051 ->      21.2991 1.4 %
+VsRatio                                  0.8487 ->       0.8448 -0.5 %
+W                                      9991.642 ->    9870.5516 -1.2 %
+alphaCruise                              2.2266 ->      -1.2007 -153.9 %
+cBar                                     1.5086 ->       1.4964 -0.8 %
+cgEmptyX                                 0.6814 ->       0.9597 40.8 %
+cgX                                      0.6986 ->       0.9467 35.5 %
+climbGrad                                0.1056 ->       0.1078 2.1 %
+climbRate                                3.6953 ->       3.8177 3.3 %
+cnBeta                                    0.129 ->       0.1427 10.6 %
+cooling.bareA                                 - ->            0 
+cooling.cdA                                   - ->        0.018 
+cooling.cruise                                - ->         3.82 
+cooling.inA                                   - ->        0.085 
+cooling.margin                                - ->         1.86 
+cooling.needA                                 - ->        0.038 
+cooling.needKgS                               - ->         1.33 
+cooling.passKgS                               - ->         2.47 
+cooling.taxi                                  - ->         2.96 
+cost                                 121997.873 ->  120203.0283 -1.5 %
+cowlBot                                  0.4907 ->       0.5583 13.8 %
+cowlHalfW                                0.4258 ->       0.4715 10.7 %
+cowlTop                                  0.5577 ->       0.2763 -50.5 %
+dEpsDa                                    0.326 ->       0.3679 12.8 %
+deckAngle                               -0.7919 ->       4.7042 694.0 %
+design.deriv.CLa                         4.9497 ->        4.796 -3.1 %
+design.deriv.CLq                         3.0476 ->       4.3936 44.2 %
+design.deriv.CYb                        -0.4019 ->      -0.4379 -9.0 %
+design.deriv.CYp                        -0.0798 ->      -0.1501 -88.1 %
+design.deriv.CYr                         0.2909 ->       0.3146 8.1 %
+design.deriv.Clb                        -0.0406 ->      -0.0752 -85.4 %
+design.deriv.Clp                        -0.6825 ->       -0.677 0.8 %
+design.deriv.Clr                         0.0945 ->       0.0345 -63.4 %
+design.deriv.Cm0                         0.0152 ->       0.0944 522.1 %
+design.deriv.Cma                        -0.9993 ->      -1.1984 -19.9 %
+design.deriv.Cmq                       -11.6692 ->     -11.2603 3.5 %
+design.deriv.Cnb                         0.1403 ->       0.1562 11.4 %
+design.deriv.Cnp                         -0.012 ->       0.0285 336.8 %
+design.deriv.Cnr                        -0.1193 ->      -0.1309 -9.7 %
+design.deriv.Ixx                      2295.5832 ->    2182.2222 -4.9 %
+design.deriv.Ixz                        11.4826 ->     204.6935 1682.6 %
+design.deriv.Iyy                      2146.4074 ->    1797.9558 -16.2 %
+design.deriv.Izz                      3588.7281 ->    3325.2693 -7.3 %
+design.deriv.Sw                         16.5345 ->      16.4077 -0.8 %
+design.deriv.V                             50.9 ->         51.7 1.6 %
+design.deriv.W                         9991.642 ->    9870.5516 -1.2 %
+design.deriv.alpha                       0.0389 ->       -0.021 -153.9 %
+design.deriv.c                           1.5086 ->       1.4964 -0.8 %
+design.deriv.m                         1018.516 ->    1006.1724 -1.2 %
+design.deriv.q                        1586.8711 ->    1637.1451 3.2 %
+empty                                   665.876 ->     653.5324 -1.9 %
+envelope.aft.cgPct                       0.4419 ->       0.2826 -36.1 %
+envelope.aft.cgX                         0.8211 ->       1.0258 24.9 %
+envelope.aft.litres                        31.8 ->          212 566.7 %
+envelope.aft.mass                      1048.772 ->    1166.1724 11.2 %
+envelope.aft.npPct                       0.5816 ->       0.5631 -3.2 %
+envelope.aft.npX                         1.0319 ->       1.4455 40.1 %
+envelope.aft.staticMargin                0.1397 ->       0.2805 100.8 %
+envelope.cgPct                           0.3607 ->       0.2297 -36.3 %
+envelope.fwd.cgPct                        0.371 ->       0.2351 -36.6 %
+envelope.fwd.cgX                         0.7142 ->       0.9548 33.7 %
+envelope.fwd.mass                       808.772 ->     796.4284 -1.5 %
+envelope.fwd.npPct                       0.5574 ->       0.5288 -5.1 %
+envelope.fwd.npX                         0.9953 ->       1.3943 40.1 %
+envelope.fwd.staticMargin                0.1863 ->       0.2937 57.6 %
+envelope.npPct                           0.5684 ->       0.5381 -5.3 %
+envelope.staticMarginAft                 0.1397 ->       0.2715 94.3 %
+envelope.worst.cgPct                     0.4419 ->       0.2556 -42.2 %
+envelope.worst.cgX                       0.8211 ->       0.9854 20.0 %
+envelope.worst.litres                      31.8 ->          212 566.7 %
+envelope.worst.mass                    1048.772 ->     926.1724 -11.7 %
+envelope.worst.npPct                     0.5816 ->       0.5271 -9.4 %
+envelope.worst.npX                       1.0319 ->       1.3916 34.9 %
+envelope.worst.occupants                      4 ->            1 -75.0 %
+envelope.worst.staticMargin              0.1397 ->       0.2715 94.3 %
+gearStrain                               0.0064 ->       0.0074 15.7 %
+landing.full                                  1 ->            - 
+landing.partial                            0.95 ->            - 
+ledger.bracing.cost                   2607.8442 ->    2493.6088 -4.4 %
+ledger.bracing.mass                     33.4339 ->      31.9693 -4.4 %
+ledger.bracing.mx                       20.8268 ->      36.8963 77.2 %
+ledger.cabin.mx                          79.776 ->       79.776 0.0 %
+ledger.cargo.mx                          67.414 ->       66.468 -1.4 %
+ledger.elec.mass                         20.569 ->       19.933 -3.1 %
+ledger.elec.mx                          -10.685 ->      -5.8541 45.2 %
+ledger.engines.cost                  52568.9058 ->   52512.9722 -0.1 %
+ledger.engines.mass                    176.4205 ->     175.0888 -0.8 %
+ledger.engines.mx                      -152.254 ->     -65.1291 57.2 %
+ledger.fuel.mx                         110.6564 ->     179.1154 61.9 %
+ledger.furnish.cost                        8058 ->         7914 -1.8 %
+ledger.furnish.mass                     45.0896 ->      44.3712 -1.6 %
+ledger.furnish.mx                       57.7405 ->      58.6356 1.6 %
+ledger.fuselage.cost                  8584.2689 ->    7742.9667 -9.8 %
+ledger.fuselage.mass                   110.0547 ->      99.2688 -9.8 %
+ledger.fuselage.mx                     206.8084 ->      178.871 -13.5 %
+ledger.gear.cost                       8684.174 ->    8245.2979 -5.1 %
+ledger.gear.mass                        42.4234 ->      46.6425 9.9 %
+ledger.gear.mx                          33.9602 ->      45.8963 35.1 %
+ledger.outfit.cost                         3047 ->         3045 -0.1 %
+ledger.outfit.mass                      48.2279 ->      48.1664 -0.1 %
+ledger.outfit.mx                        21.8091 ->         30.3 38.9 %
+ledger.paint.cost                     2406.6653 ->    2322.0251 -3.5 %
+ledger.paint.mass                          7.22 ->       6.9661 -3.5 %
+ledger.paint.mx                         14.5147 ->      15.7354 8.4 %
+ledger.tail.cost                      1721.7794 ->    1748.2828 1.5 %
+ledger.tail.mass                        25.9073 ->      26.4502 2.1 %
+ledger.tail.mx                         140.9402 ->     148.2247 5.2 %
+ledger.vessel.mx                         7.3788 ->      11.9438 61.9 %
+ledger.wings.cost                     9699.2354 ->    9558.8747 -1.4 %
+ledger.wings.mass                      135.0513 ->     133.1977 -1.4 %
+ledger.wings.mx                         112.657 ->     171.6555 52.4 %
+mainDrop                                 0.3204 ->       0.2452 -23.5 %
+mass                                   1018.516 ->    1006.1724 -1.2 %
+noseOver                               -25.9508 ->     -21.2884 18.0 %
+npX                                      1.0119 ->       1.4082 39.2 %
+powerLoad                                6.4166 ->       6.3388 -1.2 %
+propClear                                0.0949 ->       0.1287 35.6 %
+propTW                                     0.22 ->       0.2227 1.2 %
+rangeKm                               1175.6143 ->    1194.0915 1.6 %
+reserve.Vs                              23.0595 ->      23.3607 1.3 %
+reserve.climbRate                        4.4998 ->       4.6452 3.2 %
+reserve.mass                            888.772 ->     876.4284 -1.4 %
+reserve.staticMargin                     0.2024 ->       0.3248 60.5 %
+reserve.wingLoad                        53.7525 ->      53.4158 -0.6 %
+restChassisStrain                        0.0016 ->        0.019 1092.0 %
+springStrain                             0.0034 ->       0.0027 -21.9 %
+stabTrim                                -0.0155 ->      -0.0404 -161.5 %
+staticMargin                             0.2077 ->       0.3084 48.5 %
+susShift                                 0.0176 ->       0.0436 148.2 %
+susTravel                                0.0031 ->       0.0019 -38.4 %
+thirdLeg                                 0.3432 ->       0.4218 22.9 %
+thrCruise                                  0.65 ->       0.6562 1.0 %
+wingLoad                                61.5994 ->      61.3234 -0.4 %
+xLEmac                                   0.1544 ->       0.6029 290.4 %
+
+Between the two: the v58 touch-up (windscreen bows, nose cap length) moves no figure beyond 0.1 % (alphaCruise -1.20 -> -1.19 deg);
+the L40d shakedown no longer reports landing.full / landing.partial for either file (master's change, not this plane's).
+Headline: mass 1019 -> 1006 kg, empty 666 -> 654, take-off 332 -> 356 m, cruise 183 -> 186 km/h, range 1176 -> 1194 km,
+Vs 24.7 -> 25.0 m/s, ClMax clean 1.61 -> 1.55, climb 3.70 -> 3.82 m/s, static margin 0.21 -> 0.31, CG 36 -> 23 % MAC.

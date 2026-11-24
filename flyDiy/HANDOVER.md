@@ -317084,6 +317084,71 @@ note futureDesigns/SKIS-2026-11-13.md section 3; evidence and tables reports/evi
 - OPEN: the PC-6 MTOW loading for real_check (CG 76 % MAC with the check's aft load); plane_shot's tw: view shows the
   cockpit when run after board: in the same load (alone it works); the drafting tool's tail-wheel marks do not read the
   oleo tailwheel yet (0.8 m off on the check, the wheel on the drawing in the overlay).
+
+
+ARCHAEOPTERYX PITCH (archaeopteryx-2, cloud, 15 Nov; A0's "archaeo-pitch" ask, the user: "the batteries ... at the level of the thighs of the pilot, below the horizontal struts").
+- WHY IT WAS AFT: the card's pack had no station (weight study L7: 'under the floor'); the bay settled it at 1.18 m, 0.13 m AFT of the seat.
+- MOVED to the real place: along 0.85 m, lv 0.1 (tools/_cage_design.js, commit 65c28fdc6). Flown (gameSpecFull), before -> after: CG 68.9 -> 65.8 % MAC (all-up 160.4 kg), empty CG 96.1 -> 90.0 %, static margin -11.6 -> -8.6 %, spiral 4.79 -> 5.16 s, Dutch roll -1.000 (sentinel). Neutral point ~57 % MAC.
+- STILL UNSTABLE: +5 % margin wants the CG ~0.14 m further forward (~22 kg.m) - no pack station gives that. Wing move / nose mass NOT done: the user's yes first.
+- NO PUBLISHED CG RANGE found (Ruppert: 61 kg empty, L/D 28). Model suspects: the wing's mass centroid at 64 % MAC (spar-node billing: front 15 %, rear 65 %), the outfit at 92 %.
+- OWED: the drawn energy layer resets the hanging pod's pack to 2.27 m / 0.8 kWh (before and after; TANKMOUNT KNOWN_AUTO); the flown spec keeps 0.85 m / 2 kWh.
+- GATES: fleet hash only archaeopteryx moved; TANKMOUNT ULTRALIGHT LIGHTWING HUB NACELLE ENGINELESS GLIDE UNIFY DESIGN STOL JOIN PLANELISTS PASS. Red on the tree before this change too (not ours): REALBAND (carboncubss moved), DESIGNCHECK (carbon shell post 4.2 mm vs 1.8), CANDIDATES (pc6_drafting not in index.json); TAXICLEAR 9 (the Cessna's taxi; its hash did not move).
+
+ARCHAEOPTERYX STABILITY, A0's three asks (the user's defaults, 15 Nov evening) - REPORT, no card change:
+1. PITCH: the pack at the thighs gives -11.6 -> -8.6 % (above). The wing move needed (probe_wingsweep.js, wgDx aft of the card's 0.5): -0.05 m -5.5 %, -0.10 -2.3 %, -0.15 +0.8 % (neutral), -0.20 +4.0 %, -0.25 +6.7 %; +5 % wants ~0.21 m aft. The THREE-VIEW does not allow it: the wing's root LE sits on the drawing to 0.01 m (blueprint.py match; the lines are ~0.045 m thick), so the drawing allows ~+-0.05 m = -5.5 % at best. The real one flies with this wing where it is, so the gap is likelier our MASS model (the wing's centroid at 64 % MAC, the outfit 92 %, the empty CG 90 %) or the neutral point (~57 % MAC) than the geometry. The user decides.
+2. SPIRAL / FIN x1.3: the three-view does NOT allow it - today's fin top is on the drawing (1.66 m over the datum, both); finHeight 1.25 -> 1.625 puts it 0.49 m above (side IoU 0.860 -> 0.807). Not changed. And not needed in the sim (probe_spiral.js, from 10 deg bank, controls free, pitch held): motor at cruise the bank decays (10 -> 4.3 deg in 24 s); motor off it grows 10 -> 14.4 deg in 24 s (doubles in ~45 s: a mild glider's spiral). The motorglider: 10 -> 8 / 7.7; the Cub, which the design check passes at 99.8 s, 10 -> 66 deg.
+3. DUTCH ROLL -1.000: verified, NOT a sentinel for 'unmeasured' - it is the row's code for 'four real roots, one positive' (64b genDcLateral: roots +0.668, +0.134, -3.45, -22.4 at cruise thrust). The trigger is CYr (the side force from the yaw rate): 0.31 live (the pusher's wash on the fin) vs 0.235 motor off; swapping the motor-off CYr alone removes BOTH positive roots (the spiral's 5.16 s too). Light (160 kg) with a big fin on a long arm, Yr/V = 1.28 (the motorglider 0.65): the 4-state model's Yr/V - 1 term turns positive. The sim does not fly it (probe_dsim.js, rudder doublet, controls free): the yaw-roll wallow is gone in ~3 s motor on, ~4 s off, like the motorglider's. The motor-off design rows: all four roots stable (-22.1, -1.49, -0.30 +- 0.27i). Owed (design check, not the card): judge a glider's lateral modes motor off, or flag Yr/V > 1 as outside the linear model. Dihedral unchanged.
+BRANCH: A0 asked for claude/archaeo-pitch; this session pushes only its own branch until the user says otherwise - copy from claude/archaeopteryx-sailplane-study-q8tzz2.
+
+ARCHAEOPTERYX MASS AUDIT (the user 15 Nov: "stay true to the drawing"; look at every mass, critically; the packs are two, on the cabin's sides below the pilot's knees; the rescue parachute and the kit we do not model ride in the very nose). ANALYSIS, no card change. Probes futureDesigns/archaeopteryx/probe_{audit,mac}.js.
+- THE % MAC LABELS WERE WRONG: gen.xLEmac = 0.625 is the ROOT LE; the area-weighted MAC LE of this swept-LE wing is 0.795 (cBar 1.014 right). True: CG 1.293 = 49 % MAC, NP ~1.206 = 41 %, the wing's mass 48 %. The static margin (-8.6 %, the probe's Cma/CLa) is unaffected. Owed in the core: xLEmac for a wing whose LE is not straight (every % MAC readout).
+- 1 % margin = 1.6 kg.m about the NP. The ledger (kg at m, kg.m about the NP): tail 5.61 at 4.93 (+20.9), engines 8.0 at 1.89 (+5.5), fuselage 4.42 at 1.79 (+2.6), outfit 6.55 at 1.56 (+2.3: cowl 2.7, glazing 1.9, controls 1.7), wings 31.0 at 1.28 (+2.3), pilot 80 at 1.047 (-12.7), pack 15.1 at 0.85 (-5.4), panel 0.8 at 0.
+- THE PILOT: billed at the drawn backrest + 0.20 (SEAT_CG_FWD) = 1.047, ~the hip; a reclined pilot, legs out, has its mass centre within ~0.05 m of the hip. Fair.
+- ROOM (the drawing untouched): the packs to the knees (two, ~0.65 m) +1.9 %; the nose kit (rescue parachute + stowage, NOT MODELLED) +0.65 % per kg at the nose (6 kg +3.9 %); the wing's mass split 50/50 on the 15 % and 65 % spar nodes (40 % chord) where a D-tube wing's is nearer 30-35 % +1 to 1.5 %; the tail 5.6 kg unverified (each kg 2.3 %). Together about -1.5 % to +1 %: near neutral, not +5 %. The rest is the neutral point (the aero: the tail's efficiency, the pod ahead).
+
+WATER TANKS (archaeopteryx-2, cloud, 15 Nov; the user: tanks filled with water, a release, a water shower, blue plastic; the lead row removed). Commits 03a3fe2c2 + ebd653543 (+ builts).
+- spec.water.vessels {bay, capacity L, fill 0..1, along, lv, rot, form, dims, look} - genWaterClamp (60_gen_spec; a body or wing bay, <= 400 L, no key when empty); GEN_VESSELS.waterPoly, GEN_WATER (60c); GEN_RULES.water {outletD 0.04, Cd 0.6, head 0.25}: ~1.67 L/s a tank.
+- 61_gen_frame: 'waterTank' (shell, airframe) and 'water' (payload) ledger lines; mWater per node; parts.water / params.water {kg0, rateLs, outlets [{pts:[[node,w]], dy}], tanks}; the design gross carries the tanks FULL.
+- 30_solver: ctl.dump (only on a build with water) -> waterFrame once a frame; WDEF per node (the burn, setFreight keep the dumped kilos gone); reset refills and shuts; snap/unsnap carry it; sim.water, out.waterKg / out.waterFlow.
+- viewer: input.js 'water dump' Digit0; app.js dumpKeyUnderAP + syncDumpFx (spray.js sprites, world scene pool); the worker's hand packet carries dump (sim_link / sim_host writeHand).
+- garage: _cage_energy.js - water tanks in EN.vessels flagged holds:'water' (placement / fit / drag / draw reused), blue (FINISH.bluePoly), 'filled' row, '+ add a water tank', toWater -> spec.water through the join; outletJudge: from the tank floor straight down, the skin first (floor boards pass), 0.35 m under the skin clear - a pipe + valve drawn, red where blocked (body tanks only; a wing tank's outlets are the core's, not drawn).
+- GATE WATERTANK (new). NOTE: GATE WATER is the SEA's material gate (_water_check.js) - untouched. tools/water_dump_shot.js: the shower in the real page.
+- Archaeopteryx: 5 L in the nose bay (x 0 is the panel's ring on this pod), a 0.52 x 0.115 x 0.12 m cylinder at -0.06 m; 1 mm into the nose's shoulder (owed: a nudge). SM -4.0 %.
+- LS4 build: two wing tanks, wingRoot 110 L + wingPanel 40 L (150 L; the LS4 70 L a wing, the LS4-a/-b 85 - the bags 2 x 85 = 170 L don't fit OUR 12 % NACA 2412 section: the real one is a much thicker Wortmann; a drag-study item). Full: 401.6 kg all-up, empty 171.6 (was 135: the structure built for the water), SM +45.9 %, Vs 19.6; dry 251.6, Vs 15.5. Dump 3.3 kg/s (both) - faster than a real glider's few minutes (the outlet is one rule for every tank; a per-tank size is owed).
+
+LS4-ALIKE CARD + CONSTRUCTION + AIRBRAKES (archaeopteryx-2, cloud, 15 Nov). Commits 0182e2f9e, 8ddb527b4 (+ builts).
+- CARD 'ls4' (LS4-alike, _cage_design.js after the Archaeopteryx): the motorglider's tiles + the 173 rows builds/ls4_2026-11-13.json differs by; engineless; NACA 2415 (the LS4's thin Wortmann mod.); 170 L in two wing tanks (140 + 30) with 20 mm outlets (3.4 min); CG tow release; construction 'strong'; airbrakes 0.30-0.46 semispan, 0.2 c plates; the kit (asi alt vsi compass, VHF, Mode-S, portable GPS, lead battery, moulded seat). Empty 219.7 kg (LS4-b 238; the rest likely the moulded fuselage shell / canopy frame - not fudged).
+- CONSTRUCTION (GEN_CATEGORY, spec.category, the 'construction' row certCat 0 normal / 1 very light / 2 strong (sailplanes) / 3 aerobatic: 3.8 / 3.0 / 5.3 / 6.0 g): gauge x (Nz/3.8)^e on wing/fus/tail (not gear); 66_gen_cert genCertLim / genCertUlt (genCertify, genCertSpeeds, genCertFlown, pod mounts). The garage's sandbag bench (65_gen_loadtest) still tests to 3.8 by default - owed.
+- WATER: per-tank outletD (6-80 mm; the 'outlet' row says L/s and the time to empty as filled); params.water.rateLs = the tanks' sum.
+- AIRBRAKES (GEN_RULES.airbrake, wings[0].airbrake {z0,z1,h}; rows wgBrake / At / Len / H): strips `ab`; solver Cl x (1 - 0.6 e), Cd + 1.2 h e at ctl.airbrake (only on a build with brakes); 'airbrake' ledger 1.4 kg/m/side; plates = 63_gen_wing moving group brkR/brkL (a SLIDE up by h, k ~0), drawn by _cage_wing, flown via the join (drive 'airbrake'; 50_model_codec linkage key); cockpit blue handle (_cage_crew buildAirbrakeHandle); keys 7 in / 8 out (the brackets are the radio's); under the AP and through the worker's hand packet; HUD cells 'abrk' and 'wtr' (body.html). LS4 L/D at 28 m/s 19.3 -> 9.5 full out.
+- Gates: SAILPLANE (new), WATERTANK, ENGINELESS, ULTRALIGHT, TANKMOUNT (an engineless card noted), DESIGN (the hinge layer's rows known) updated; 29-gate run green but DESIGNCHECK's carbon post (master's). Fleet hash: only ls4 new; archaeopteryx's params.water.tanks gained rateLs (nodes / beams / spec identical).
+
+## 16 Nov 2026 - THE LS4-ALIKE JOINS THE CANDIDATES; THE SEAT SLIDE (session claude/archaeopteryx-sailplane-study-q8tzz2)
+- The user: "add the LS4 to the candidate lists proudly, and do a little render. Check the seat position, and pilot position and recline ... that seat should be allowed to slide back from the firewall to the aft bulkhead".
+- builds/candidates/ls4_2026-11.json (D-4LS4) in candidates/index.json and plane_lists.json (n 57, reproduction, alike ls4); real_refs REFS.ls4 / PLANES.ls4 (LD 40.5 waits for the drag study); realband_baseline: the ls4 row ONLY (carboncubss's standing core move still not accepted); thumb + hero baked (media/thumbs, media/heroes cand_ls4_2026-11.webp).
+- THE SEAT SLIDE, measured (FLYDIY_JOIN_PROBE, the load chain's crew): the crew layer never held the seat in the cabin section - seatZ (+-1.5 m) moves zBack 1:1 off pilCabB's waist, the floor (keelAt) follows, and the stick, pedals and throttle follow the station; the mirrored keel's reflection does not apply on the LS4. The one limit was in the JOIN: a seat whose billed station fell within 0.05 m of the firewall (seat back ~0.25 m behind it) was FILTERED out of seatsX, and with one seat gone every seat's station was dropped (the pillar-ring fallback: a CG cliff at the slider's fore end). _cage_join now holds such a seat at 0.05 (the core's own floor, 60_gen_spec). No archetype's seats were dropped before (surveyed: 33 cards), so no card moves.
+- THE LS4-ALIKE'S SEAT 0.15 m aft (seatZ 0 -> -0.15, card + both builds): the head under the canopy's crown (2.7 cm under the outer skin, was 1.5), feet at the pedals 0.6 m behind the nose tip, the spine ~45 deg (seatRake 42, pilRecline 6 kept). CG typ 12.8 -> 16.5 % MAC, margin 49 -> 46 % (the type's CG still forward of the real range; the margin's size is the drag/NP study's).
+- OWED: the join bills a seat's occupant 0.20 m ahead of its back (SEAT_CG_FWD) whatever the recline - on a 42 deg sailplane seat the drawn body's mass centre is ~0.1-0.15 m further aft (the hips are 0.115 m ahead of the back): a recline-aware station from the crew layer's hips. Also still owed: the sandbag bench at 3.8 g regardless of category, the dash hood lifting with the canopy, the drag study, A0's branch names.
+- Gates: PLANELISTS, PLANETHUMB, SAILPLANE, WATERTANK, STOL, CREWSEATS, CGBAND, DESIGN, NEWPLANE PASS; REALBAND red only carboncubss (pre-existing), CANDIDATES red only pc6_drafting (pre-existing).
+
+## 16 Nov 2026 (later) - THE LS4-ALIKE'S PILOT, POD AND CLEARANCES (session claude/archaeopteryx-sailplane-study-q8tzz2)
+- The user, on a cut with the pilot: "the head is really at the back of the canopy"; "ensure that the pedals and the controls and all that stuff do not poke through"; then "The dash in the real plane really protrudes ... maybe 40, even 50 centimeters ... go slightly up and bulge a little ... the stick ... needs to go up ... bring the pedals ... closer to the feet ... extend his feet a tad more"; "Looks good!".
+- THE TOOLS (scratchpad, not committed - worth a tools/ home): the load chain's posed scene dumped (FLYDIY_JOIN_PROBE body: every mesh's triangles, skinned ones posed - the crew, the pilot) + the sheet from _scene_headless; a cut renderer (the near half of the hull removed, the crew whole; --whole / --view bottom for the outside); a POKE check (each crew vertex against the OUTER skin + the composite liner along a ray from the section's axis); a CLASH check (the pilot against the dash shell and the panel, a 12 mm voxel grid). The quickshot / cabin_stills renderers draw no pilot (the characters load only in the load chain or the browser).
+- CREW FIXES (_cage_crew.js, all builds): FLOOR_WALL takes the `composite` liner (a glass/carbon body's floor ran through its belly); the floor run ends where the belly rises through the board's bottom; A.wallIn(sd, y, z) - the exact wall by a ray at that height (wallAt reads only vertices 15 cm off the centreline, +-8 cm: low in a round belly it answered 90 % of halfW) - used by the pedals' axle (clamped 2 cm inside), the airbrake bracket, the trim / fuel-selector plates (their corners); A.ceilAt (the glass over a point) and _panel_gen's portable cradle refuses a place through the canopy (the LS4's GPS: named, not drawn, still billed); with NO throttle the airbrake handle goes on the LEFT wall and the free hand takes it (gripAt on the knob; the job label 'L->airbrake'); the knob's station pulls aft with the back's recline (0.40 sin rake).
+- THE LS4-ALIKE: seat -0.40 (back 50 deg, boards +25 mm), stick aft/up (stickZ -0.15, stickY 0.02, len 0.33), pedals 1.03 / 0.15 (legs extended), ctlThr 3 (none), no console; THE POD: dashBack 0.10 -> 0.70 cage (the row's range 0.30 -> 1.00), dashCrown 0.30, dashDepth 0.12. Poke: nothing through the skin (the trim plate flush on the liner, 3 mm); clash: 0; the head 4 cm under the glass in the canopy's rear third. CG 0.17 m aft of the root LE, margin 39 % (was 49).
+- THE HOOD'S MASS (61_gen_frame, dashHood builds only - the LS4): the setback and the crown billed, the rows read in cage units x planeScale (the depth was read as metres): 2.99 kg (was 2.35).
+- Gates: STOL, PILOT, PILOTCANFLY, PILOTACT, WATERTANK, SAILPLANE, CABIN, SEATS, PLANETHUMB, PLANELISTS, LIVERYREACH, CABINLAMP, HANDLE, CREWSEATS, CGBAND, DESIGN, NEWPLANE, PILOTMATRIX, HYDROTRIM, PILOTS, PANEL, DASH, GPSFACE PASS; CREWLOAD red under load, PASS alone; REALBAND: the ls4 row re-taken (its balance moved), carboncubss still pre-existing; CANDIDATES pc6_drafting and NODUMMY (_cage_gen.js 1379 `atD`, since 9 Nov) pre-existing.
+- PILOTPAGE cannot run in this cloud container: tour_real.js launches a headed Chrome on the GPU (no --no-sandbox) and gets "no page target" before the page loads - the same 4 reds alone and under load; not judged here. The LS4 REALBAND row re-taken: empty 230.3 kg, typ cgMAC 22.9 %, margin 39 %. Its thumb and hero re-baked.
+
+## 16 Nov 2026 (night) - SEAT-CG, THE GPS SIDE ARM, tools/crew_cut (session claude/archaeopteryx-sailplane-study-q8tzz2)
+- The user: "Fix the balance, do a side mount, commit the tools and let a0 know".
+- SEAT-CG (_cage_crew.js seatsAt[].cgFwd, read by _cage_join.js's seatsX): the occupant's station was 0.20 m ahead of every seat's back. The drawn pilot's mass centre (posed bones, Winter's fractions: tools/crew_cut/bodycg.js) bears that out upright (0.19) but measures 0.127 in a 42 deg seat and 0.088 in the LS4's 50+6. Fitted: body = 0.20 - 0.195 (sin back - sin 13) + 0.16 (pedalZ - 0.90) (back = the seat's rake, + pilRecline on the pilot's seat; pedals only on the pilot's), within 4 mm over 13-61 deg; BLENDED IN between 28 and 42 deg of back (smoothstep), so every conventional seat (the Cubs' 25.5, the Jodels' 27, the certified Rufus) keeps 0.20 exactly. Moves: the LS4 (0.103), the Archaeopteryx (0.129: its pilot ~7 cm aft - A0's pitch study), the candidates sailPlane (0.119), superpetrel_V4_1 (0.106 both seats), B-ITES (0.158); and the PASSENGER seats at 34.5 deg (the Cub / PA-18 / Jodel rear rows, 0.170) - billed only when filled: cub160 / pa18f160 MTOW cgMAC +0.3 %, inside REALBAND's band (rows kept). Seat geometry only: the same number headless and in the game (no character needed).
+- THE OPEN QUESTION FOR A0: applied without the blend, the rule moves every conventional 25-27 deg seat 2-4 cm aft (what the drawn body says) - a fleet re-baseline (REALBAND, STOL, JOINPARITY, the certified Rufus's stamp) left to A0.
+- THE GPS SIDE ARM (_panel_gen.js, _cage_panel.js): a portable with no room under the glass on the glareshield (A.ceilAt) goes on an arm on the RIGHT wall, just aft of the panel's face at the sill (A.wallIn), its screen turned 0.5 rad to the pilot; else named as before. The LS4's GPS is drawn again (37 panel items), no poke, no clash.
+- tools/crew_cut/ (README.md): dump / cut / poke / clash / bodycg / check.sh - the cockpit as the load chain draws it, pilot included. REF_MATCH.md section 13 and CLAUDE.md point at it.
+- Fixtures re-taken, the moves MEANT: JOINPARITY's page rows for the Cub (its rear passenger) and the Super Petrel (tools/join_parity_page.js --only); the STOL baseline (tools/_stol_samebits.js --root=. --capture: the LS4 card and the Cub's rear seat); REALBAND's ls4 row only (empty 231.3, typ cgMAC 24.9 %, margin 37 %).
+- Reds left, all older: JOINPARITY the Jodel + "no tool flies a validated build raw"; REALBAND carboncubss; CANDIDATES pc6_drafting; NODUMMY (_cage_gen.js `atD`); BENCHTIME under load; PILOTPAGE cannot run here (needs a GPU Chrome).
+
 ## MISSIONS-LIVE - A MISSION IN FLIGHT: THE TRACKER FED, THE GATES / RINGS / POINTS DRAWN, THE NEXT ONE UNDER A BEACON WITH A SCREEN-EDGE ARROW, THE LAP'S TIMER + SPLITS, THE MAP'S MISSION PLACES; GATE MISSIONLIVE (13 Nov 2026, MISSIONS-LIVE for A0, cloud - node + headless three.js, no GPU; branch claude/missions-live-1 off claude/mission-packs 2d1ab6ca)
 
 The brief (A0, 13 Nov): code only, no story or mission content - (1) feed the plane's state to 73c at a low fixed rate,
@@ -317816,6 +317881,105 @@ the next steps).
   lip (lipMode 1), the grille five horizontal rows on two uprights set 2 cm back (grilleN 2, grilleRows 5, grilleBar
   0.014), ductLen 0.05; the pair round (pairSq 0.5 - 0 is a diamond), pairX 0.47, r 0.105, level with the grille
   (pairY 0), the headlamps in them (lampOn, lampIn, lampBack 0.03). A radiator cap tried and left off (a dark knob).
+- **CAR-3, THE GRILLE TALLER (12 Nov; the user: "make the grill taller ... to the bottom of the green line")**: the top
+  kept, the bottom down to the livery's green band: apH 0.273 (0.55 m tall), apLift 0.207, the lamps kept where they
+  were (pairY 0.193 - the pair rides the main inlet's axis), grilleRows 11 (the bars' pitch kept). No code change: the
+  aperture fit (sectF at cowlLen) holds it - a try that measured the fit at the dropped face shrank everything and was
+  reverted.
+- **CAR-3, THE VAN'S WHEELS AGAIN (12 Nov; the user: "too round ... get the geometry of the roadster wheels, and then
+  design a rim that looks less vintage ... a basic rim ... a little wavy ... with holes ... probably aluminium ... on a
+  quite fat wheel")**: whRim 4 'pressed, round holes' (_gear_gen.js pressedDisc; _gear_page.js names): a dished plate
+  from the hub boss to the rim's well with N round holes (N = whBolts, 4..10) on a band at 0.275-0.395 Rh, pressed
+  proud between them and dimpled round each (a cos(N th) wave, 4.5 % of the face), 2.2 % Rh thick with a wall round
+  every hole (a closed plate - the gear's materials are FrontSide); the annuli and the holed band share their edge
+  samples (no cracks); in the hub's light alloy. The van: whProfile 2 (the roadster's slim carcass), whWide 1.4 (fat),
+  whRimD 0.6, whRim 4, whBolts 6, whCap 1 (domed); its sheet rewritten (same 1268 kg, still LAUNCHES).
+- **CAR-3, TWO LIVERIES AND A MOUNTAINS PATTERN (12 Nov; the user, with two reference vans: "do a livery, or maybe a
+  couple ... two of these trucks hanging out as utilities ... adding shapes to the livery editor, particularly the
+  mountain shapes ... and a retro one ... vanilla ... colors which are a little happier")**: NEW KIT PATTERN 'mountains'
+  (aeroskin.js AERO_KIT, LAST - index 13, a saved layer's pattern is its index): one to three seeded ranges rising from
+  the layer's bottom edge, far (D) tallest and drawn first, middle (B), near (A); knobs peaks 2-16, height (of the
+  depth), ranges 1-3, roughness (crags); rounded tops (quadratics through the midpoints); above the ridges the page is
+  empty. LIVERY OVERLAYS: tools/_rejoin_build.js takes edits.json,overlay.json,... (cage and meta merged key by key,
+  every other block replaced; one file = as before). builds/edits/utility_2026-11.mountain.json ("Field Wagon Alpine",
+  TOW 2: warm white, a sunset - roundel, sunflower - behind mint / turquoise / deep-teal ranges, satin paint) and
+  .retro.json ("Field Wagon Retro", TOW 3: cream over navy - a 'bands' layer of one - with yellow / orange / red belt
+  stripes - 'bands' lying, three); both side-box layers 5.4 m long from L -2.0 (the side box's L runs aft as it rises:
+  -4.7 is the bumper, +0.7 the tail), so they wrap the rear doors too. Rejoin: node tools/_rejoin_build.js
+  builds/cessna172r_2026-11-08.json out.json builds/edits/utility_2026-11.edits.json,builds/edits/utility_2026-11.retro.json
+  NOTE: GATE LIVERY is red on the cub's strut ("resolves to its painted pin trim - got castAlu", 2 of 328) - red at
+  0c90344f (master's train L38b, before any car work), not ours; reported, not fixed here.
+- **CAR-3, TAIL LAMPS AND BLINKERS (12 Nov; the user: "the TOW session has ... a trailer ... some tail lights. So maybe
+  you can also inherit them ... and use the little lights that we have at the wingtips there to do some blinkers")**:
+  NEW ROW carTail (Car part, 'lamps'; _gear_page.js; absent = none): _cage_gear.js carTailLamps - the trailer's
+  combination lamp (trailer_model.js: black housing, stop/tail red, amber indicator, white reverse) upright on each
+  rounded rear corner, facing back and out along the corner's 45-degree line (found from the airframe's sections ahead of
+  the wall: where the half-width grows as fast as the body runs forward), its foot 5 cm over the rear bumper; a sharp
+  corner takes it on the wall's face. Lenses: emissive MeshStandard (userData.aeroskin), no light source (GATE LIGHT
+  green). NEW ROWS cw_blinkOn / cw_blinkY (the cowl's 'Grille, radiator cap, lamps' group; _cowl_gen.js buildBlinkers;
+  ABSENT_AT 0): the wingtip light's teardrop (the cage light layer's pod: quarter ellipse, fine tail) on each side of
+  the bonnet just behind the face, nose forward, the nose the AMBER lens, the tail chrome, at the headlamps' height less
+  blinkY. Static: they do not blink yet (that is the drive mode's, when the car part takes the game's car). The van:
+  carTail 1, cw_blinkOn 1, cw_blinkY 0.06 (the liveries inherit them - overlays carry paint / finish / meta only).
+- **CAR-3, THE WIDTH CHECKED, THE WHEEL'S HOLES, THE RETRO CHOSEN (12 Nov)**: THE WIDTH (the user: "isn't this thing
+  really too wide? ... compare the half track"): the van is 1.98 m wide, track 1.76 / 1.64 m (half-track 0.88), wheelbase
+  3.20 m, 2.21 m tall - a Chevy Van G20 is 2.02 m, track ~1.77 / 1.71; a Ford Econoline 2.03 m, ~1.76 - a large American
+  van to the centimetre (a VW T5 is 1.90 / 1.63); kept, reported. THE WHEEL (the user: "a larger tire flank ... the
+  holes ... closer to the center ... in between the outer walls and the inner walls of the rim"): whRimD 0.5 (a taller
+  sidewall); pressedDisc's band now 0.205-0.315 Rh, between the hub boss (0.19) and the rim's well wall (0.335), the
+  holes BETWEEN the bolts (half a pitch off), the dish falling to the well outside them. THE RETRO (the user's pick):
+  the navy up to the bonnet's top (the bonnet all navy), the three stripes 8 cm above it under the sills; the lettering
+  PROJECTED (text pieces t1 'Home Field' in Lobster Two bold italic, cream; t2 'OFFICIAL TOW & UTILITY' in Barlow
+  bold, yellow; the registration regMode 1 on the bonnet's flank, Barlow, cream); THE ROOF (the user: "not a big flat
+  white plane"): a plan-view layer, a navy band edged in orange running nose to tail over the roof. PLAN MODE'S AXES:
+  L is ACROSS (the span) and C fore / aft (C runs as the side box's L), so a band along the roof is turned 90 degrees
+  (Rot 1.5708) with W its length - unturned it ran across the whole width and down the walls. Every section metallic
+  (metal 0.45, rough 0.3), the stripes' layers metallic. THE ALPINE: the sun dropped (the user), the mountains one
+  layer of three ranges, metallic. Roof bas-relief: not yet (the band answers the flat white for now).
+- **CAR, THE MUST-LAND (13 Nov; A0's list via TOW-LAUNCH, the user: "put the car in the garage, roll out, pick a
+  destination, drive there ... a few CAR-ONLY destinations ... a ROBUST car detection ... the car AI drives it there";
+  the user kept the WHOLE car part here, the AI included)**:
+  - THE MERGE: claude/tow-launch-onmaster (00b8f7d1f: origin/master 23ce68c1f + the tow branch) merged in - master's
+    per-bay rows (paxLen2..6, doorPaxFront) in place of paxLenLast / doorPaxN (the van: paxLen 1.29, paxLen2 0.933,
+    the same car: 1268 kg); the cars moved by FLAGSHIP out of the plane lists / the pool into builds/lists/vehicles.json.
+  - GATE DRIVE-TRIP went red on the re-bake (master's HOME-DERELICT moved HOME's stand onto a square junction):
+    (1) THE LEAD-IN (vehicle_drive.js legPoly): a leg leaving 20-120 deg off the car's heading starts with a point
+    straight ahead as far as the corner's fillet needs (1.15 rMin tan(th/2) + 2, at most 15 m) - from rest the car swung
+    3.69 m wide joining a route 67 deg off (limit 2.5); now 1.57 m. (2) VI_STOP_IN 12 (vehicle_island.js, was 6): a
+    place's stop 12 m in from its road's end - coming round HOME's square corner the car could not line up in 6 m and
+    stopped 3.2 m off (limit 1 m). The driver's stats keep xtAt (where the worst cross-track was).
+  - THE KIND: window.VEHICLE_KIND(spec) (garage.js) - 'car' when spec.cage.isCar is 1 (an explicit row; 0 is "no (an
+    aeroplane)") or the legacy spec.meta.car; 'plane' otherwise (the Fleet's contract with the game coordinator).
+  - THE VEHICLES LIST: garage.js vehicleList() (builds/lists/vehicles.json, a row's kind 'car' when absent; on the API
+    for the Fleet) and the garage fleet's own 'vehicles (cars)' group (openListed). The list now names the van in its
+    three liveries and the UTV: builds/vehicles/*.json (rejoined from builds/edits/ - the van's overlays as before).
+  - THE CAR SHEET IN THE PAGE: src/vehicle/car_sheet_core.js (lazy, window.CAR_SHEET; tools/car_sheet.js requires it -
+    the same digits): sheetFromBake / tuneFor moved out of the tool, measured in the craft root's frame in the page, and
+    carFromGarage(window) -> { name, sheet, tune, buildRig(THREE, def) }: the RIG OF THE CAR'S OWN MESHES (the garage's
+    drawing cloned - shared geometry and materials - re-framed by a ROTATION, y +90 deg: car_sheet's axis swap is a
+    mirror; a physics wheel at sheet z takes the garage unit at x = -z, the car being symmetric).
+  - THE ROLL-OUT: a car build's Roll out (app.js carBuild()) is DRIVE.enter(): measured on the stand first
+    (carFromGarage), then rolled out, then DRIVE_MODE.enter({ vehicle }) - drive_mode.js vehicleUp(): the vehicle source
+    (ctx.vehicle or DM.vehicleSource - the seam agreed with TOW-LAUNCH) for the drive, the tow and the trailer alike, the
+    Conquer pickup without one; the menu's row reads "Drive <the car>". tools/car_drive_shot.js: the whole flow in the
+    real page (import -> VEHICLE_KIND -> roll out -> drive -> stills).
+  - THE CAR'S DESTINATIONS: vehicle_island.js h.landOnly (no water aerodromes) and h.sites (CAR-ONLY places: the
+    record's named sites, kept when a road passes within 80 m); drive_mode.js CAR_SITES: Dockside Diner, Harbour General
+    Store, Cedar Harbour dock, Hilltop Coffee, Jolene Island Packing (all reached from HOME, ~12 km); the runway ends
+    out of the To list unless a tow is on; the fields with no road (the strips the roads never reach) were already
+    dropped, the unreachable greyed.
+- **CAR-3, A REAL HEADLINER AND PILLAR TRIMS (13 Nov; the user: "a real liner engulfs the pillar structure, and adds 5-10
+  cm of depth. I want to stop seeing the bare metal pillars ... model the roof liner, because this one does nothing")**:
+  NEW ROW hdlDepth (_cage_page5.js 'headliner' group, Fittings > Headliner & trim; absent = the recoloured skin as before):
+  _cage_gen.js cageInterior - the cabin's ceiling skin (inward normal at least 0.8 down, between zA and the windscreen)
+  and the roof hoops' faces within 12 cm of the crown, extruded INTO the cabin as one closed slab hdlDepth deep in the
+  headliner's material (the liner idiom, so it runs on over each hoop as a padded rib - its break left a black slit);
+  the hoops' descent and the pillar bands (PM) from the sill up, a moulded trim min(hdlDepth, 5 cm) deep in the upper
+  wall trim's. Their cabin faces take the skin liner's lit path (LINER-BACK: the skin's winding, flagged back) - a
+  front-facing underside was unlit, a black ceiling. _cage_light.js ceilAt: the lamp's band reaches a padded
+  headliner's underside (hdlDepth + skinT under the crown) - it hung on the skin inside the slab. (intPillars, the
+  composite pillar bands, builds nothing on the van - its zones are not 'carbon'.) The van: hdlDepth 0.075; its
+  builds/vehicles/ files rejoined, its sheet rewritten.
 
 ## TOW-LAUNCH SLOPE - THE GROUND PUSHES ALONG ITS NORMAL (13 Nov, for A0; claude/tow-launch-slope-reaction off L39b 23ce68c1f)
 - THE BUG (the user: "a real nasty bug ... everything should roll"): 30_solver.js pushed every contact node STRAIGHT UP and kept every friction in the horizontal plane, so a slope never pulled anything downhill. The motorglider set on Skyline Altiport (tw_ski, ~9 % grass) never moved; pushed to 4.4 m/s it slowed at g Crr (0.47 m/s2) as on flat ground.
@@ -317829,6 +317993,197 @@ the next steps).
 - PUSHED WITHOUT THE FULL BATTERY (A0's call, 13 Nov: the core battery is ~16 h of wall on the cloud box; train L40b runs every gate on its own box). The targeted branch-vs-master comparison of the ground gates was run side by side.
 - TRAP (named, not fixed here - 39c_placement is not this change's): placeAtAerodrome without seatOnGround on a sloped strip (the spawn identity) drops the aeroplane onto a buried third wheel; on a downhill spawn with the ground's slope now real, a taildragger can go over its nose. The game seats (app.js applyRoute); a gate that spawns raw on Jolene's sloped strips is the place to look first if one goes red on this change.
 
+## CAR (cont., 13 Nov evening - claude/fly-diy-car-build-uu6e6w): the van finished, the kind on saves, the lamp check
+
+- **CAR-3, THE SPARE ON THE REAR DOOR (the user: "for the back to be nice to look at, just put a spare wheel in the middle
+  of the left door, centered on the part without the window at the bottom")**: NEW ROWS spareAt (0 the flank as
+  before / 1 the rear wall), spareX (m across, rear wall), spareK (x the road wheels; absent 1) - _gear_page.js, claimed
+  in _cage_parts.js 'spare wheel'. _cage_gear.js spareBuild draws the same wheel, carrier, strap and buckle in a RIG
+  (+x aft, +z across) stood on the wall plane AF.z0. The van: spareSide 1 (the LEFT), spareX 0.427 (the left door's and
+  its window's centre), spareY -0.222, spareK 0.85 - the wall's clear panel between the bumper's top (-0.537) and the
+  window's bottom (0.274) is 0.81 m, a full 0.9 m road wheel does not fit. spareSide's LABELS were backwards (the cage's
+  +x is PORT, G209): now -1 'right', 1 'left' - no value changed, the roadster's spare (1) was always on its left.
+- **RETRO ROOF BAND**: m3 Pat 0 plan, C -1.015, W 3.53 (the windscreen's top to the rear doors' foot), H 1.70, P 0.941,
+  Q 0.05 - navy +-0.80, keylines to +-0.84, on the flat roof. Wider (H 1.94) painted the upper flanks: a plan
+  projection paints every face in its footprint and the body narrows under 0.88 above y 0.8. The orange keylines run
+  down the rear door edges. Seats: seatGap 0.40, paxGap (new row, passengers' own sbs gap) 0.64.
+- **spec.kind (A0)**: src/viewer/vehicle_kind.js (TOW's, the one rule) - an explicit garage car switch (spec.cage.isCar)
+  wins over a stale spec.kind; VEHICLE_KIND.stamp(spec). garage.js saveAs / exportFile stamp spec.kind ('car';
+  NO key for an aeroplane); garage.js's own vehicleKind defers to window.VEHICLE_KIND (it used to overwrite it). The six
+  car files carry spec.kind 'car', the three car edit sets 'kind' (tools/_rejoin_build.js copies E.kind).
+- **THE CABIN LAMPS UNDER THE LINER ARE LIT**: page probe - flood lens 2.40, pax 0.00 in both the plain and the lined
+  C172, the lamp 5.1 cm lower (on the slab's underside, 0.704 vs the skin 0.761). The dark close-up was plane_shot's:
+  rendered in the other order the PLAIN one is dark - the SECOND build of a plane_shot run renders its cabin lamps off.
+  TRAP (named, not fixed): compare lamps across builds one run per build.
+- **CAR-3, THE TAIL LAMPS FLAT ON THE BACK (the user: "place the backlights flat on the flat back surface ... not at 45
+  degrees")**: NEW ROW carTailAt (_gear_page.js after carTail; absent 0 = the corner's 45-degree station as before,
+  1 = flat). _cage_gear.js carTailLamps: the lens in the back's plane z0 facing aft, centred between the flat wall's
+  edge (halfX at z0 + 1 mm: the van's door edges, 0.855) and the full width (z0 + 12 cm, 0.976), width min(0.11, gap -
+  4.6 cm); the black housing runs forward until the corner's skin passes its outer edge (+12 mm). There is no flat
+  wall OUTBOARD of the van's doors - the corner's radius starts at their edges - so the lamp's face is in the back's
+  plane and its body fills the radius. The van: carTailAt 1 (x 0.873..0.950, just outboard of the lower hinges).
+- **CAR-3, NO STRAP ON THE VAN'S SPARE (the user: "drop the leather")**: NEW ROW spareStrap (absent 1 = the leather
+  strap and buckle as before; 0 = none - the wheel on its carrier, stub and wing nut alone). The van: spareStrap 0.
+- **CAR-3, A BEAM AXLE ON LEAF SPRINGS (the user: "rear suspension clips through rear tyre. Anchor it better,
+  realistic")**: the van's rear station was the aeroplane's swinging-link V (s1Leg 1) - with the wheels tucked into
+  their arches its tubes ran from the flank, outboard of the tyre, to the hub inboard of it: 1376 of the leg's 2149
+  vertices inside each tyre. NEW ROW carBeamR (_gear_page.js after carDrive, claimed in 'drive'; absent 0 = the leg as
+  drawn): the rearmost PAIR of units (not a lever, not a retracting leg) drawn by _cage_gear.js beamAxleSide INTO each
+  side's own edLeg group (a rigid unit: it rides its wheel as the leg did; the physics, contacts and sheet unchanged):
+  the axle tube from the brake plate's back to the centre with its collar; a leaf spring 6 cm inboard of the plate, 4
+  leaves on one quadratic through the front eye (a hanger 7 cm under the floor), the seat and the rear eye (a shackle
+  11 cm under it), UNDERSLUNG when the floor leaves the pack on top less than 1 cm of camber (the van: under); rolled
+  eyes with rubber bushes and bolts; two U-bolts and their plate and nuts; a telescopic shock inboard, from behind the
+  axle up and forward to a floor bracket; on the left side the differential (banjo, rear cover and 10 bolts, pinion
+  snout, flange, universal joint) and the propeller shaft forward under the floor. Measured: 0 vertices inside either
+  tyre. The van: carBeamR 1; src/cars/car_utility.json rewritten (the spare's 5 cm on the box).
+- **CAR-3, THE VAN FINISHED (13 Nov evening; the user, with a 1940s carryall and a military truck for reference)** -
+  every change a row, absent = as before:
+  - **whBrake 2, a car's drum INSIDE the rim** (_gear_gen.js wheel): the aeroplane disc (kind 0) is sized off Rh - on a
+    car's big rim (whRimD) it stood 0.3 m across, outside the wheel's inner face. The drum sits in the rim's well (its
+    radius the well's less 8 mm), three cooling ribs; a pressed backing plate closes the rim's inner opening, 8 bolts.
+    The van: whBrake 2, s2Brake 1 (the front wheels drummed too). The beam axle (carBeamR) now runs its tube INTO the
+    backing plate (the wheel's 'brake' mesh) and its springs 4.5 cm in from the wheel's back ("closer to the actual
+    drivetrains").
+  - **carFender 1 rounded / 2 square, carFenderGap (absent 0.07), carStep** (_gear_page.js, claimed 'mud guards and step';
+    _cage_gear.js fenderBuild, NEW meshes only, group edFenders): a sheet swept along a path round each wheel (the
+    foremost and the aftmost pairs of units) - rounded: a crowned section with a skirt and a rolled bead, the front
+    guard from 52 deg (above the bumper) over to 150 deg then down and aft into the step, the rear rising out of it to
+    165 deg; square: flat top, raked front, a straight slope to the step, a deep square skirt (mitred corners). The
+    step: a ribbed plate with rubber strips on three brackets to the floor. In the livery's TRIM colour (spec.paint.trim
+    x 0.62 - lit flat it read lighter than the body). The van: rounded, with the step.
+  - **ctlStick 4, a STEERING WHEEL** (_cage_crew.js buildSteerWheel; rows steerD 0.42, steerRake 22 deg, steerReach
+    0.34): the yoke's collar on the plate, a raked column and shroud, a column-shift lever, the wheel turning about the
+    column (roll input, 2.2 rad): cast hub dished 4 cm with horn button and plated ring, three spokes, a bakelite rim
+    with finger grips. Hands at a quarter to three; with no throttle lever BOTH hands on the rim; ONE station only (no
+    dual controls - the passenger takes the passenger's pose). The cars: ctlStick 4, ctlThr 3 (no throttle; "for a
+    car, we'll deactivate the throttle control, and we'll keep the pedals"): the van, the UTV, the buggy, the roadster
+    (card and build). The van: consoleOn 1.
+  - **THE REAR CORNERS' SHARDS** ("protruding things at the back"): the padded headliner's pillar trim on the rear
+    corner's faces (within 15 cm of the cabin's aft end) folded round the door frame and, inset 5 cm, came out through
+    the skin - those faces stay bare; the liner's outer sheet now sits 1 cm under the skin (was LIN_EPS 1.5 mm with no
+    shell thickness). TRAP: _cage_light ceilAt's band (crown - 0.06 - hdlDepth - skinT) still reaches the slab, now 1 cm
+    deeper.
+  - **THE TRAILER'S CAR DECK** (src/vehicle/trailer_model.js fit.kind 'car', fit.car { xR, xF, track[F/R], tyreR, tyreW,
+    x0, x1 }): a hardwood deck over the guards (deckY = max(rail + 0.12, 2 wheelR + 0.13)) on outriggers and posts,
+    angle edges with stake pockets and D-rings, a ladder headboard, chocks at the front tyres, a ratchet strap over each
+    tyre's crown, two FOLDING ladder ramps on the tracks (two sections; up for the road, Tr.ramp 'down' to the ground at
+    20 deg). The floats and hull cradles untouched. tools/convoy_shot.js: tow + trailer + cargo in one portrait (the
+    cargo snapshot from its garage load - levelled: the garage tilts the GROUND to a stance, so its axles' ground points
+    differ in the cage frame - its tyres measured from the drawn wheel groups; the trailer on the tow's drawn ball;
+    plane_shot's PORTRAIT routine).
+- **CAR-3, THE GUARDS ARE THE BODY'S SKIN (the user: "just give it exactly the same material as the fuselage, then it can
+  be reached by the livery, it can be reached by the weathering system ... You are reinventing the wheel")**: a new
+  AEROSKIN section `fenderSkin` { parent: 'body', role: 'skin', layer: 'gear' } (aeroskin.js AERO_SEC, beside
+  boomSkin; markings ALLOWED), owned by the Car part (_cage_parts.js sections) - fenderBuild asks CAGE_SECMAT for it
+  the booms' way (surf 0, fieldM 1, struct 1). The livery's markings project onto the guards and the step as onto the
+  body; the Retro's navy band (m1) reaches 25 cm lower (C -0.41, H 1.20) so the step is navy too. (The detour: a
+  hand-tuned colour can never match - the join rebuilds a layer's plain material keeping only its COLOUR, so metal,
+  gloss and coat changed nothing.) GATE LIVERY's 2 fails (the Cub's strut, castAlu) are master's own, unchanged.
+- **CONVOY: THE CARGO KEEPS ITS LIVERY** (the user: "the car has lost its livery"): the garage caches materials across
+  builds (64 of the roadster's 106 came back on the van) and the skin's hook reads the build-wide uniforms by reference,
+  so the next load repainted the snapshot. tools/convoy_shot.js gives the cargo its own: AEROSKIN.aeroDupe per material,
+  both uniform sets deep-copied, every texture redrawn into a canvas of its own - with a NEW THREE.Source (r186: a
+  texture's clone shares its Source; setting the copy's image repointed the original and the van wore the roadster's).
+- **CONVOY: THE CARGO'S SIDE / PLAN MARKINGS FOLLOW IT** (the user: "the nose of the speedster is not silver like it used
+  to be, in the trailer"): the roadster's polished radiator shell (and its tail's pinstripes) are markings projected in
+  the CRAFT's frame - vCraftPos = uCraftInv x modelMatrix x p; the snapshot moved the meshes onto the deck (T = cargo
+  world x G^-1, G the gear layer's world at the snapshot) and kept the garage's uCraftInv, so those markings landed off
+  the car. convoy_shot multiplies each copy's uCraftInv by G x world^-1 (68 materials on the roadster). Surface (field)
+  markings - the script name, the roundels - never moved, which is why they had survived.
+- **LIGHT WEATHERING, TRIED** (the user: "try light weathering too"): spec.finish.wear 0.25 on the Retro van and the
+  roadster renders a fine streaking and a dulled gloss, the livery readable; NOT saved into the builds (the van's is 0,
+  the roadster's absent) - a one-key change when wanted.
+- **RECONCILE NOTE (TOW-LAUNCH, 13 Nov 16:24)**: the car deck (fit.kind 'car', folding ramps, Tr.ramp 'down', from
+  42881221c) now lives in TOW-LAUNCH's reworked src/vehicle/trailer_model.js on claude/tow-launch-trailer-look
+  522f7c7b8 (house-kit materials, UVs in metres, an atlas UV set, baked AO; the planks real boards through trlPlankUV;
+  GATE TRAILER's MODEL row builds the deck). At the reconcile TAKE THEIRS for trailer_model.js; a later deck change goes
+  on top of it (a new plank through trlPlankUV). tools/convoy_shot.js stays this branch's.
+- **CAR-3, 13 Nov late afternoon** (the user): "0,2 for the van; 0,01 for roadster" - finish.wear in the three van
+  liveries' edit sets and the roadster's saved build (a card's finish carries no wear: GATE DESIGN); TOW-LAUNCH's
+  textured trailer MERGED (claude/tow-launch-trailer-look 522f7c7b) and on it the deck: "remove the yellow links and
+  remodel the wheel blocks" - no straps; each tyre fore and aft a moulded chock CUT TO THE TYRE (the arc 8 mm off the
+  tread), a stepped back with three ribs, a grab loop - the profile mirrored in its own coordinates (a scale -1 on a
+  non-indexed extrusion left the faces inside out: "issue with normals on the wheel blocks"); "make the saturation of the
+  wooden planks half" - a map_fragment step chained on the AO patch, cache key 'trl-ao-direct-desat50'. "redo the brake
+  sizing for the speedster too": whBrake 2 on the roadster (card and build). "give the van a proper licence plate": NEW
+  ROW carPlate (Car > lamps) - _cage_gear.js plateBuild, a 12 x 6 in pressed plate (spec.meta.plate { top, main,
+  bottom, bg, fg }; the vans: JOLENE ISLAND / HF 1003 / 46), its drawing its own bump map, on the right rear door's
+  lower panel with a plate lamp; its material marked aeroskin (the understudy greyed it blank) and propMat (its own join
+  bucket). "the wheel well ... a little tight": archGap 0.05 -> 0.10, carFenderGap 0.11 (the guards follow).
+  convoy_shot: the PAGE's trailer model (FLYDIY_LAZY - an injected copy drew white), the house textures read and waited
+  for, the AO bake waited for, the convoy hung off the cage root (a gear-layer rebuild took it away).
+
+CAR-3 WHEEL-TEX (13 Nov, the user: "all the tyres are much too clean. Please do a professional texturing job ... a
+  proper PBR material for the rubber, patterns/writing on the flanks as normals, a proper tyre road pattern - wavy
+  ridges for the speedster, modern all paths and weather for the van ... the same treatment to the rims, proper UV
+  mapping, PBR materials and believable wear and dirt ... also impact the normal planes, at least as an option").
+  NEW ROWS (Wheels > rim): whTex (0 the old flat rubber, 1 textured; absent = 0, so every plane is as before until the
+  row is set), whTexPat (0 auto - a car all-season, a plane aviation ribs; 1 vintage wavy ribs, 2 all-season, 3
+  aviation), whTexDirt (0..1, absent 0.4). UVs: _gear_kit.js Bag takes a uvf and revolve adds a seam column (u = the
+  angle round the axle, so the maps turn WITH the wheel - no swimming); _gear_gen.js wheel() maps the tyre v by the
+  carcass profile's arc length (inboard flank 0-0.3, tread 0.3-0.7, outboard flank 0.7-1) and the rim by r/rimR.
+  Maps: window.CAGE_WHEELTEX (_gear_gen.js) - procedural canvases periodic in u: the tyre 2048 x 512 height field ->
+  normal / albedo / roughness (tread blocks, grooves, sipes, shoulder slots; the flank a bead seat, a rim-protector rib,
+  serrations, raised lettering and a DOT line), the rim 512 x 512 (brake dust, grime in the hub); MeshStandardMaterial
+  per key 'tyre|pat|dirt%' / 'rim|rrggbb|dirt%', userData.tyreTex (own join bucket, keeps its uv; app.js and parked.js
+  rebuild it from the key) and aeroskin (the understudy leaves it). Headless: drawOK() guards the canvas (no maps, flat
+  rubber); plateBuild guarded the same way. The vans whTex 1 / pat 2 / dirt 0.45 (edits, the three vehicles rejoined,
+  names restored); the roadster whTex 1 / pat 1 / dirt 0.15 (card and candidate). The Cub with whTex 1 checked as the
+  plane option (a Cessna's spats hide its wheels). Gates PARTS DESIGN GEAR CAGEFIT VEHICLE UISMOKE TRAILER LIVERYREACH
+  JOIN green; the convoy re-rendered.
+
+CAR-3 FINAL PUSH (13 Nov, the user: "some clipping at the bottom of the back windows ... black stuff", "we really want
+  the blue one", "the wheels ... stick out almost 10 centimeters ... enlarge the track", "the saturation in the middle").
+  The black stuff: the PADDED HEADLINER (hdlDepth) took an upward ledge on the rear wall at the sill line for ceiling and
+  hung its slab under it, the slab's aft side in the skin's own plane - z-fighting under both rear windows (found by
+  raycasting the rear wall in the page: an aeroFinish 'headliner' face at the skin's depth). _cage_gen.js: the ceiling
+  is the roof - faces within 30 cm of its crown. Not the seats, not the wall trim (both ruled out by renders).
+  The track: s1X 0.82 -> 0.90, s2X 0.88 -> 0.96 (8 cm out each side; the guards and arches follow the wheels);
+  paxSeatZ 0.2 -> 0.32. The three vans rejoined. The trailer's wood: TRL_WX.mat timber/plank saturation 0.5 -> 0.7,
+  silvering 0.6 -> 0.3 (GATE TRAILER's check moved with it). The convoy rendered with the Retro (navy) van as the tow.
+
+CAR-3 TOW KIT + REAR GUARDS (13 Nov, the user: "a flat face on top of the windscreen ... signs there, indicating it's
+  the tow vehicle ... beacons ... windshield wipers for all windows"; "the wheel arches hug the fuselage at the back ...
+  real ones are cut to silhouette ... have it come inside the wheel well"). NEW ROWS (Car > lamps): carTowSign,
+  carBeacon, carWipers (absent = none) - _cage_gear.js towKitBuild, placed off the drawn sheet: the windscreen's own
+  faces (material 'windshield'; they are a CUT part - read back through cutOff, as cageAirframe does) give its edges and
+  plane; the sign (amber, black chevrons, "TOW SERVICE", canvas map + bump, propMat 'carTowSign') on the header's
+  frontmost forward-facing faces; two amber beacons on the roof's front corners; two wipers parked along the
+  windscreen's foot, one on each rear window along its sill. The vans have all three. REAR GUARDS (fenderBuild, with
+  the rear well cut, archOn & 1): radius min(R + carFenderGap, R + archGap - 8 mm) - inside the well's opening - and a
+  per-point inner edge: inside the well 3 mm short of its wall, elsewhere 3 mm short of the body's silhouette at that
+  height (the section's crossing); flat inside the body's line, crowned outboard. NOTE: in the game the textured
+  pieces (carPlate, carTowSign) fall back to their bucket colour - propBuild knows neither; a follow-up.
+
+CAR-3 VAN STANCE (13 Nov, the user: "Tyres 70% their current width, + 7 cm outward. Slightly squarer body at the
+  bottom, the step goes up 10 cm ... is the firewall width matched to the bonnet? ... Shot from the top"). whWide 1.4 ->
+  0.98; s1X 0.90 -> 0.97, s2X 0.96 -> 1.03; botRound 0.05 -> 0 (the keel's half-width 0.44 -> 0.48 m, 0.78 -> 0.84 at
+  5 cm up; the frames' BotW rows were tried and NARROW the bottom - the seats came through the flanks; not used). NEW
+  ROW carStepY (step height up, m; absent 0; the vans 0.10; when carFender, not carStep - GATE PARTS' one-step rescue);
+  a step above the body's bottom hugs the side (3 mm off its silhouette) and drops its brackets. THE FIREWALL: the nose
+  ring (noseW 0.8 from task #23) was 0.75 m half-width against the bonnet's rear 0.865 m and the cabin's 0.92 m - a
+  pinch; noseW 0.914 puts the ring on the bonnet's rear edge (measured on the dumped triangles); the plan view now runs
+  bonnet -> scuttle -> windscreen without a step. The three vans rejoined.
+
+CAR VEHICLES CATEGORY (15 Nov, A0 for the user: "The UTV car is also a candidate. Ensure the cars have their own
+  category for loading into the garage for now, so we can easily hide two layers if need be").
+  THE TWO SWITCHES - in builds/lists/vehicles.json, top level, no code to touch:
+    showVehicles   false = no Vehicles category in the garage's Fleet at all (absent / true = shown)
+    showCandidates false = the candidate layer hidden, the validated kept       (absent / true = shown)
+  Each row's `status`: validated | candidate (absent = candidate) | selectable (a car with no garage build).
+  VALIDATED: the Field Wagon van x3 (Retro, base, Alpine) and the boat-tail roadster. CANDIDATES: the Ranch Hand UTV,
+  the Dune Bug. SELECTABLE: the Conquer '89 pickup (file null, sheet src/cars/car_conquer.json) - in the game, not a
+  default, in neither garage layer; removed once the built cars are proven. The rule is one function,
+  VEHICLE_KIND.layers(json) (src/viewer/vehicle_kind.js); the Fleet (garage.js) draws it as "vehicles" (.gfVeh) and
+  "vehicles, candidates" (.gfVehCand), a layer's header hidden with it. No vehicle sits in the plane candidates' index
+  or plane_lists.json. GATE VEHICLE row LIST (tools/_vehicle_list_check.js): every garage-built row lands in one layer
+  and is a car by VEHICLE_KIND, none among the planes, the two switches empty what they should, the user's statuses,
+  the Fleet's two boxes. Page check (dev.html, the Load door): 4 validated, 2 candidates, no page error.
+  ALSO: src/cars/car_utility.json re-measured after the stance change (da97f638; track 1.94 / 2.06 m).
+  PENDING THE USER: merging TOW-LAUNCH's claude/tow-launch-l40d (it holds our car work only to 9819055c, 64 commits
+  behind; its van is old and on the lug tyre, now whProfile 4 there) and the van-as-default swap in drive_mode.js on
+  claude/cars-own for L40e (the Conquer kept selectable).
 ### TOW-LAUNCH L40d (15 Nov) - the set on L40c, and the cars' decision
 
 - claude/tow-launch-l40d = claude/tow-launch-l40c-3 merged onto master 58c681347 (L40c), then (baked), then (built).
@@ -318132,11 +318487,122 @@ UP (water), GREEN = DOWN (runway), "gear is UP for water landing" / "gear is DOW
   the panel from the seat; (5) the Super Petrel on the water, the lever up, the blues; (6) the PC-6 on Wiplines: on the water
   (blues), on the runway (greens), on final with the advisory on the PFD; (7) the selector up on the ground - the red (the horn's
   moment, no sound in a still).
+The stack claude/real-canon (= claude/tail-retract-canon) on master L40a: PHYS-SCALE, STRUT-OPTIONS, the RUCKUS pieces,
+PETREL-LS, THE CANON, TAIL-RETRACT, PETREL-FRAME, TAIL-LATENT, ELEC-SYSTEMS; PHYSICS_V 9. flyDiy/REAL-CANON-READY.md
+places every red of the full battery (316) against the base. Re-pinned with their reasons (the stack's deliberate
+physics): WINGSPLIT, ENERGYBASE (carbon left at master's), PROCURE, FREIGHT, JOINPARITY's page fixture (re-captured with
+node tools/join_parity_page.js --only twinFloats / --only petrel: the twin floatplane's masses, the V4.1's FIN-MOUNT bars).
+Stack reds with causes: CANDIDATES (+V4.1, +jodel_geo), DMGINTEGRITY (knife edge), DMGGEAR (the V4.1's tail tie),
+FRAMECOST / PARKED (the parked cook is stale: re-cook on a GPU after the train's build), BENCH (the Rufus stamp is V 7).
+
+
+## CANON-CLEAN phase 1 + FLAPLESS-SAID (FLAGSHIP, Sat 14 Nov, for the integration batch) - one file per plane (the user 12 Nov ~23:59: "land the official list of planes and get rid of the other copies ... once and for all")
+
+- THE RULE: a plane is its list row (builds/lists/plane_lists.json); never copy a plane file; a test plane lives ONLY in tools/fixtures/test_copies/ with its "Test copy: ..." row (legacy), and only while some gate or tool reads it. Name a plane by its row: "list:50 Cessna 172".
+- THE CLEAN (inventory: https://claude.ai/artifact/Bj8g1fVPZAcSyi3ctoWBde, master 23ce68c1f): test copies MOVED to tools/fixtures/test_copies/ (same bytes, same file names; every reader re-pointed, a path change only); copies of a list plane DELETED and their readers re-pointed to the list plane's file; files nobody read DELETED. A list row whose file went keeps its number with a `deleted` note; a test copy without a row got one (from 60: 53/54 the Ruckus, 55/56 the chooser's shapes, 57-59 free). HELD: tools/fixtures/build_v7_ultralight_2026-09-05.json, the career's twin floatplane (CONTRACT_DESIGNS.twinf), until the career flies list:27. reports/ (the evidence) is not touched.
+- GATE PLANELISTS - THE FILES: every tracked plane file (a JSON whose spec has wings) is a list row's file (reports/ aside); a test plane's file lives in test_copies/ (HELD aside) and some tool or gate reads it; no two plane files are the same aeroplane (paint, finish, name, registration aside); a deleted row has no door. 4 selftest breaks.
+- FLAPLESS-SAID (A0 13 Nov, out of the list:40 read: genTrim says "say so in the shakedown" and nothing did): genShakedown carries `landing` {flapless, partial, full, trimFail} only when genTrim could not land the build as built; the shakedown sheet prints "landing flaps" / "approach trim", the fiche "lands" / "approach trim". GATE PLANEFICHE: the four places, numbers() on a stub sheet, 4 breaks.
+- The Cessna copies are ONE-CESSNA's (the user 13 Nov ~00:40: "one official Cessna" = list:50): its ready re-points them and deletes them; this one moves only what is still there.
+
+
+## ONE-CESSNA (FLAGSHIP, Sun 15 Nov, for L40d, on real-canon 123c7b63f) - one official Cessna (the user 13 Nov ~00:40: "There's one official Cessna, none other is worth flying or benchmarking against, and even in the story, it should just be replaced")
+
+- L40d order (A0): real-canon, then canon-clean, then onecessna; claude/ready/canon-clean and claude/ready/onecessna are the same head (parts 1-6 on 123c7b63f).
+- THE CESSNA is list:50, Cessna 172 F-HCSN, builds/cessna172r_2026-11-08.json. Every tool and gate that read a Cessna copy reads it (part 1: 106 files, a path change only; part 5: real-canon's new GATE STRUTOPT, whose Cessna case has no pins). The floats Cessna stays list:4 (bugReports/cessnaFloatsWOrks.json) until list:52 is ready; the Wipline fixture's readers read list:4. The load door's VALIDATED.metal is list:50.
+- list:40 B-CESS (the metal Cessna) is RETIRED from the career: CONTRACT_DESIGNS.c172 builds list:50 and says "Cessna 172". NO SAVE MIGRATION (the user 13 Nov: "there are no players, that's just me"): an owned B-CESS airframe keeps its spec; new purchases, contracts, the story and the starter get list:50.
+- B-CESS is kept ONLY as "Test copy: B-CESS" (tools/fixtures/test_copies/cessnaMetal (1).json, row 40 legacy) because three gates test ITS finding: TOUR's c172fx comparison (Pilot), GATE CESSNAVREF's finding case and GATE ALTIPORT case 4 (the load door's build lands flapless, the elevator runs out on the final). CESSNAVREF's control is list:50. When those findings are retired, delete the copy and its row's file.
+- Still test copies (named, each with its reader): list:3 (WILGAGEAR's Wilga-class host), list:64 (WIPLINE's Wipline record), list:70 (DMGPOD's pod variant - to be rebuilt from list:50 by tools/pod_fixture.js), list:51/60 (REAL-FIGURES' c172rf float props - theirs to retire), row 88 Super Petrel V4.1 (the gates' Super Petrel since row 41 is V4.2), row 89 the Ruckus struts card (STRUTOPT's).
+- THE MEASURES FOLLOW IT: tools/snapshots.js --write on real-canon's core (A0 15 Nov: land as measured, the user's canon is real figures) - CONTRACT_DESIGNS.c172 MTOW 880 -> 1019 kg, empty 662 -> 666 kg, take-off 144 -> 332 m, cruise 177 -> 183 km/h, range 91 -> 1176 km, tank 26.5 -> 224.7 L, cost 137572 -> 121998; FREIGHT_CARDS.c172 (its hold) and PROCURE's meridian c172 effects with it; the other designs moved 1-2 kg with real-canon's core and are re-measured with them. A Cessna contract now needs a 332 m strip: fewer Cessna strips. TECH_DESIGNS.c172 re-derived (list:50 flies a custom engine: fam:piston); techKeysOfModel lets a stock engine option replace a custom engine's key.
+- Gate pins moved for list:50 (each said in its file): STOL's baseline (builds.metal alone, re-captured on real-canon's core), ENGCONFIG (one Cessna row, pinned on real-canon's core), LIVERY (a legacy finish.wear of exactly 0 is no wear: the page drops it), PHYSPAGES (side picture 800 px), FREIGHT (the stacking scenario's drum 0.45 m: list:50's cabin top closes lower), PLANELISTS (two selftest breaks re-aimed), JOINPARITY (frames_shot / fiche_reference_bake declared; the page capture re-taken on this base - the Jodel's node vs page 0.93 kg stays red as on real-canon's own capture of 04:43Z).
+- LIST:50'S OWN FINDINGS, landed as NAMED REDS (A0 15 Nov: never hidden behind B-CESS; A0 tells the owners after L40d): CLIP (the nav lamp 35.7 mm into the wing, the nose leg edLegT 24.8 mm into the fuselage, the elevator hinges into the fuselage, the tail tie-down into the rudder) - REAL-FIGURES; DMGSETTLE (metal trunk-0 / trunk-2.5: pieces still moving at 15 s) - Deform; PODEDITOR (the C172's default pod red), POD (c172 pod datums not the join's) and DMGPOD (gear up: crushed, where B-CESS's pod tore off) - Game; POD's c172/metal certificate digests - owed a re-bless from a base worktree. CONTRACTS: three mission stages (minedock.02/03, resort.05 stage 0) no validated design flies and the C172 no longer takes two into the mine street - they leaned on B-CESS's 144 m take-off, which was not real; list:50 needs 332 m - owner STORY REVAMP; the career stays on list:50 (A0 15 Nov 10:45).
+- Plane rows: 85-87 (next) Archaeopteryx, the PC-6 drafting card, LS4 - plane files with no row, the user places them (A0 asks); 90 (next) jodel_geo, "replaces row 2".
+- ONE JODEL (list:2 -> builds/candidates/jodel_geo.json) is NOT here: its own chain for L40e (Mon 19:00), readies by Mon 17:00 (A0 15 Nov).
+## CESSNA-REFIT (16 Nov) - list:50 refitted to the 172 three-view (FLAGSHIP; the user: "consider this final")
+THE PLANE: builds/cessna172r_2026-11-08.json (list:50, F-HCSN), its cage refitted on the drafting table to the user's
+172 three-view (private, never committed), at subdivision level 2, every value a garage row. Written by
+tools/_rejoin_build.js (the page's own join re-measures the whole build); the crew layer's rows (pilotWho, copWho, dum*)
+and the retired rows the headless join drops are carried over as they were. Before -> after (genShakedown; the
+snapshots' own measure): mass 1019 -> 1006 kg, empty 666 -> 654, take-off 332 -> 356 m, cruise 183 -> 186 km/h, range
+1176 -> 1194 km, Vs 24.7 -> 25.0 m/s, ClMax clean 1.61 -> 1.55, climb 3.70 -> 3.82 m/s, static margin 0.21 -> 0.31,
+CG 36 -> 23 % MAC (the wing and nose moved in the fit; the cabin keeps 4 seats). CONTRACT_DESIGNS / FREIGHT_CARDS /
+PROCURE re-written by tools/snapshots.js --write: only the c172 rows moved (its own commit, droppable).
+WHAT CHANGED ON THE AEROPLANE: the cabin frame (roof, pillars, windscreen a U from above, glazed to the waist), the wing
+seat and thickness, the single strut on the windscreen (A) post, the cowl fitted on the true thrust line with a level
+bottom and a short chin scoop on the keel, the faceted wheel fairings, the drawn windows (door, bulged passenger,
+top-projected rear panes), lower and reclined rear seats, the padded headliner, one landing-light bay in the LEFT
+wing at 3.75 m, the 1956 livery (white / red cheat line / polished belly, silver wings and stabs, red tips).
+NEW GARAGE ROWS (all ABSENT at default - a build without them draws the same bytes):
+- windscreen: wsToWaist, wsShoulder / wsShoulderX / wsShoulderTop (shoulder columns: a U not a V), wsShoulderBase (the
+  forward share at the screen's base - a shoulder pushed forward over a deck that curves down hung the screen's corner
+  outside the skin: the lip the user found)
+- frame: bulkAt, pillarFollow, aftFloorDy; windows: {paxWin,win2,win3,winRowMore}Proj (projected from the top: a
+  rear pane on a taper)
+- strut: bracing.strutFoot (61_gen_frame: the A-post foot node on the lower longeron, three noMass ties; the join
+  writes it when the strut picks the A post - _pillar_site windscreenPost)
+- cowl: keelLevel (the bottom line leaves the firewall level); engine: eng_cylK (the cylinders' drawn reach, LATENT 1.85)
+- fairings: s{1,2}FairNose / FairH / FairStyle (faceted, pointed) / FairKick (tail upsweep)
+- lights: li_baySide (the bay in both wings, the port one or the starboard one; one bay holds the landing lamp)
+- headliner: hdlDepth - the CAR session's rows (claude/fly-diy-car-build-uu6e6w c51f995ae + 697cbb7b9), applied here
+  unchanged so the Cessna can wear it; the same hunks as the car branch's
+FIXES: the door's inner panel stops under a window DRAWN on the door (_shoulder_gen panelBuild: a knife pane is not
+band glass; it covered the new pilot window from inside); the light layer's taxi lamp only where a second bay exists.
+NOT DONE: the floats Cessna (c172f, bugReports/cessnaFloatsWOrks.json) and every other Cessna copy keep the old body -
+the one-Cessna integration waits for REAL-FIGURES' verdict (the user, 15 Nov); the red cheat line (a side box
+projection) also paints the cabin's inner lining (shows through the windows); the door shape (bottom 10-15 cm high).
+TOUCH-UP (the user, same day): the screen bulge sat too high and the cowl top had a corner at the nose ring - wsCeilBow 0.88 -> 0.70
+and wsBaseBow 0.65 -> 0.85 (the screen line back on the drawing with wsShoulderBase 0.4 kept: no lip), cw_lidLen 0.095 -> 0.17
+and cw_lidRound 0.06 -> 0.2 (the top line one smooth rise from the ring to the firewall, measured per pixel column). Registration T-RUEX.
+CLIP (A0, same day): the 172 nose strut (edLegT) inside the refit cowl, 434.9 mm at every pose, is a DECLARED gap in
+tools/_clip_check.js (c172 x cageLayer:cowl, cap 436 mm) beside the fuselage one - the same strut, the same reason, the refit cowl
+now encloses it. Its own commit: revert it if REAL-FIGURES' read of the three-view says otherwise.
+NOSE HUMP + ROUND SPINNER OPENING (the user, 16 Nov): the cowl top climbed back before the nose bowl - with deckFall the bend's
+second point was still aimed at the firewall's height. _cowl_gen.js: with deckLevel and deckFall > 0 the top line is drawn AS SEEN, one
+convex cubic (straight on the fall to deckShoulder, deckRound 0 = the chord to the ring .. 1 = the fall carried on), the spine taken
+back out; deckFall 0 is untouched (only the 172 sets it). Refit to the three-view at level 2, the firewall end pinned to the body:
+deckH 1.17 -> 1.1763, deckFall 0.17 -> 0.0594, deckShoulder 0.92 -> 0.6227, deckRound 0.15 -> 0; the slope now steepens from 0.06 at the
+firewall to 0.36 at the ring, within 5 mm of the drawing. The centre opening was a diamond (cw_apSq 0 = n 1): apSq 0.5, apH 0.12 -> 0.113
+(a circle). Figures move < 0.1 %. Gates: COWL CLIP COOL CAGEFIT BLUEPRINT pass; KNIFE / TAXICLEAR pack / REALBAND c172v2 the known reds.
 
 **CARBON CUB SS, the final (the user 16 Nov: "I updated the drawn windows slightly"; A0: claude/carbon-cub-final for L40f).** The aft window's six rows from the user's garage export: paxWinR2 / R3 (the aft corners) 0.14 / 0.07 -> 0.45 / 0.45; the aft quad corners Q2 (0.12, 0.545) -> (0.6581, 0.7101), Q3 (0.12, 0.205) -> (0.4437, 0.2485). The export's whSlick 0 and s1_shockKind 0 are the page's older state (it predates this morning's tyres and bungees) and were not taken. On ed28bdf6d (the L40e ready) + claude/ready/carbon-cub-livery de66150c7 (the colour-restore pictures); thumb + hero rebaked.
 KNIFE corpus re-recorded (A0, L40e's one new red): IDENTITY moved on the Cub family (client_cub_floats, client_cub_upgraded, cub_2026-09-20, cub_2026-09-20_corrected: sheet 20942/16762 -> 21054/16874) and on bugReports flydiy-build (3)/(4) (13558/11310 -> 13654/11406). The cause is MEANT: carbon-cub-cowl's nose longeron (_cage_gen.js hugRun, the user: "tubular structural elements poking through the nose section ... on all cubs"), +7 tube segments a side in the nose bay. Every drawn-window loop is identical to the record; with hugRun switched off the old corpus passes (checked). tools/fixtures/knife_corpus.json rewritten by node tools/_knife_check.js --record on L40e master + this branch.
 
 **THROTTLE-SHOULDER (PROPER-COWLS, the user 16 Nov: "the throttle should be placed through the shoulder, and it currently can't do that properly, the big panel sticks out" - then "Yes" to fixing it and moving the Cubs).** (1) _cage_gen.js: the throttle's request (ctlThr 4/5) carries the crew's station in metres (0.45 + seatZ + thrZ over planeScale; the 0.05 was added in cage units, 1.6 cm off at planeScale 0.68) and the ring it stands off: a rear-seat pilot's bay-1 aft ring (crewPilotRear's rule), else pilCabB as before. (2) _shoulder_gen.js: the slot lever's length is the thrLen row's (pivot to knob, at least the old 45 mm through the face); absent = the old fixed reach. (3) _cage_crew.js: ctlThr 4 seats its flange at the cage pass's own measured height and station (plateY / plateZ, less the rows' shift the crew adds itself); with no shoulder at the station (4 or 5) the wall lever stands on its flange only, never the 20 x 13 cm cast plate that stood through the Cubs' skin, and the page warns. (4) _cage_crew.js wallUnder: the trim wheel's and the fuel selector's wall plates seat on the innermost wall over their footprint, 3 mm in (the trim plate stood 1 mm proud of the Carbon Cub's lower wall: the user's circled black corner; now 7 mm inside). The STOL Cub (stol_cub_showcase) ctlThr 0 -> 5; the certified J-3-chord card and the stock Piper Cub keep 0 (ctlThr is in the certificate). Physics unchanged (STOL Cub: same numbers, same spec hash). NOTE the cause of the user's "big panel": the garage page I published loaded tools/_cage8.html's old list, without _shoulder_gen.js, so every ctlThr 5 fell back to the cast plate; the page now loads build.js's own editor list. SHOULDER CREWSEATS CREWLOAD DASH PANEL CABIN EDBUGS SKIN FRAMES DMGMEMBERS COMMITHYGIENE green (CREWLOAD's retry clock red once under 4 jobs, green alone); PARTS CANDIDATES JOINPARITY ENGCONFIG fail as on the base (digests line for line).
+
+## ONE-CESSNA ON L40h - claude/ready/one-cessna on master 5f33d6bb7 (FLAGSHIP, Wed 18 Nov; the user via A0 10:10: "the new Cessna is tested, right? We can go with it")
+
+claude/one-cessna (ONE-CESSNA + CANON-CLEAN + the refitted 172, list:50) merged onto L40G; the measures re-written on the
+merged tree (snapshots.js --write, stamp bbe167bccb509e42); REALBAND re-pinned (c172v2 moved alone: the refit); the join
+parity page re-captured for list:50 (`node tools/join_parity_page.js --only metal`: the refit is meant - n 117 / nb 492 now
+match); the REALREFS lint skips a DROPPED reference's file (CANON-CLEAN deleted builds/cessna172_floats_2026-11.json, the
+dismissed cessnaF's); _planelists_check.js back to LF (COMMITHYGIENE).
+NAMED, NOT HELD (A0's rule for this train):
+- CONTRACTS (8): minedock.02 / minedock.03 / resort.05 stage 0 not flyable by the three base designs at the refit's real
+  357 m take-off - ACCEPTED by the user (17 Nov: "a stock Cessna should not be able to clear all stages ... drop it").
+FIXED 18 Nov (the user 11:20: "Fix the two tests pointing at the old metal Cessna ... do everything clean"):
+- CLIP: the elevator end hinges off the stab skin (hgOutSt 0.075, hgSize 0.9 on the card, C172-CLIP's rows) and the belly
+  panel off the main leg (acc_inspBelly_lv -0.3); DECLARED with the user's words (18 Nov, on the picture): the wingtip pod
+  half sunk in the refit tip, 35.7 mm ("looking good actually, and probably realistic"), and the nose strut 21.1 mm into the
+  fuselage (20.0 -> 22.0: the oleo rides up into the cowl, anchored high on the firewall). OWED (garage gap, the user: "if
+  easy"): a skin opening where the strut passes and the oleo's top anchored on the firewall.
+- LIVERY: list:50's finish written as the page writes it (13 decal keys at their defaults dropped from the card: the look
+  is the same by definition); the check counts the markings (list:50 wears 6, the bug report's copy 2: at least 2) and
+  reads the bench's memory on a section the Cessna wears in metal (its wing, not its white body).
+- PILLAR IDENTITY: a SOURCE fix - the join cleared a picked strut station (the 172's A post, bracing.strutFoot 0.6851 in
+  its file) whenever the snap was off; only a pick returned to auto clears now (_cage_join.js). Snap on: unchanged.
+- PHYSPAGES: a SOURCE fix - the destroy page took its shape only when a part let go; list:50 kinks 18 wing members at
+  7.40 g and keeps every part, so it is drawn at its first break (66c_gen_fiche_pages.js; the Cub and the twin, which
+  lose parts, are drawn as before); list:50's physics fiche re-baked.
+- PLANELISTS: cars skip the plane-file rule by their spec (cage.isCar: the Dune Bug, the roadster); the trailer's flying
+  boat moved to tools/fixtures/test_copies/ with its row (list:96, GATE TRAILER's path follows). STILL RED: the two PC-6
+  livery cards are one aeroplane - AIRCRAFT-LOOKS' pc6-liveries (56c0526ae, ahead in L40h) retires both files and rows.
+- THE REG: T-RUEX (the user 16 Nov, again 18 Nov via A0: "T-RUEX") - list:50's row, the fiche index and PLANELISTS'
+  pin follow the card (they said F-HCSN).
+NOTED (Deform's stills, A0 18 Nov): in the tree at 100 km/h list:50's left wing folds steeply UP at the root.
+STILL NAMED:
+- JOINPARITY: list:50's node vs page mass 1061.70 / 1061.80 kg (the Jodel's master red, the same 0.1 kg class) and its
+  engine nodes' finding (-0.604 m both, the join's -0.6035); master's two reds unchanged.
+- STOL / ENGCONFIG / ALTIPORT / CANDIDATES / ENGINE / WINGROWS / NAMES: red on master 5f33d6bb7 as here (ALTIPORT case 4
+  the metal Cessna's tw_ski arrival, STOL's joined-spec rows also list the metal / floats / twin floats here).
 
 ## ELECTRIC-TRAINER - the official Electric trainer (FLAGSHIP, 17-18 Nov 2026, claude/ready/electric-trainer off master 5f33d6bb7 = L40G)
 
@@ -318243,7 +318709,186 @@ NEW REDS (named):
 - MONOWHEEL: E, parked on the wheel + nose skid + one wingtip skid - FLAGSHIP (the E811 change / electric trainer) to check.
 - TAILWHEEL: I, down & out lands HOME at 22.57 m/s, roll-out 0 deg - Pilot / FLAGSHIP to check against the E811 change.
 NAMED for list:50 (rides L40i): DMGCERT BROKE UP with no BROKE AT (18 wing members kink at 7.4 g, nothing detaches).
+CAR x L40e (15 Nov, the user: "do the merge"): claude/tow-launch-l40e merged into claude/fly-diy-car-build-uu6e6w -
+  eae0c0c8 (master L40c/d + the tow set), then b2966b01 (the rope's end: towRingRig in drive_mode's TOW section, theirs
+  whole). Resolved: the lug tyre is whProfile 4 (master's bicycle took 3), the van stays on 2 with its track 0.97 / 1.03;
+  the garage's popup Fleet went (fleet_screen.js) - the Vehicles layers now reach the Fleet screen through garage.js's
+  vehicleLists door (VEHICLE_KIND.layers) and its Vehicles tab heads them Validated / Candidates (GATE VEHICLE LIST reads
+  that); the rows united (brkHold + the car drum and WHEEL-TEX rows under notCycle, ctlRuns + the steering wheel, the
+  cowl's coolOpenings + buildBlinkers, the pressed wheel + the bicycle wheel); the roadster card drops cw_partLevel (no
+  row since L40d: the split is always level). The vans rejoined (the base's registration only).
+  GATES on the merge: VEHICLE DRIVE-TRIP TRAILER UISMOKE LIVERYREACH CAGEFIT KNIFE COWL JOIN GEAR DESIGN PASS. Two reds,
+  both master's named ones (HANDOVER's L40c NEW REDS, owner ARCHAEOPTERYX): PARTS canClear (no part claims it) and TOW
+  CIRCUIT archaeopteryx (capsized on its motor-off circuit). TOW alone takes ~25 min on SwiftShader; under --jobs=2 it
+  overruns the runner's cap - run it alone.
+  NOT DONE (needs a decision): the van as the stock / tow car. drive_mode falls back to the Conquer's sheet AND its model;
+  a garage car drives only from the stand (FLYDIY_GARAGE_CAR -> carFromGarage measures the live garage scene). The van
+  as a default needs its mesh built from builds/vehicles/utility_retro_2026-11.json outside the garage (parked.js's
+  capture machinery is the candidate) and src/cars/car_utility.json as its sheet.
 
+CAR - THE VAN IS THE STOCK CAR (15 Nov, the user: "Yes, the van is the default, with the dark blue livery"). drive_mode.js
+  useCar: with no car handed (the drive, towStart, trailerStart) it takes THE VAN - builds/vehicles/utility_retro_2026-11.json
+  (the Retro: navy, "Home Field", TOW 3) with its sheet src/cars/car_utility.json. Its body is CAPTURED by parked.js
+  (PARKED.capture('car:utility_retro_2026-11', spec): the garage editor's round trip, the build's own livery block, kept in
+  the record for the session; PARKED.build draws it) and fitted into the sheet's frame by its sampled vertices: the long
+  axis on +x, the front the end with the lower top (the bonnet), the front bumper on the sheet box's front, the tyres on
+  y = 0, centred; rotations only. Its drawn wheels stay in the body (they do not spin - the garage car's MVP).
+  ctx.stock 'pickup' drives the Conquer '89, which also drives wherever no editor can capture (node: the gates' PAGE
+  rows). vehicles.json names it (stockCar). tools/car_drive_shot.js takes '-' for the build: no import, the stock car.
+  PAGE CHECK (dev.html, SwiftShader): "Field Wagon (TOW 3)", HOME -> Cedar Harbour, 41 km/h at 15 s, the van on the road
+  the right way round. COST: the first drive of a session captures the van - 23 s here plus a 29 s far-level bake on
+  the idle path (parked.js's own figure on a real GPU: ~10 s for a C172's round trip); later drives reuse the record.
+  OWED: the plate's and the tow sign's textures in the game (propBuild knows neither: the bucket colour shows); a
+  capture under the boot screen (or a cooked record) would take the first-drive wait away; the van's wheels spinning.
+  GATES: VEHICLE DRIVE-TRIP TRAILER UISMOKE PASS; TOW run alone (its CIRCUIT archaeopteryx red is the card's, named).
+
+CAR - THE STOCK VAN'S WHEELS, TEXTURES, SIGN (16 Nov, the user: "No further load on the global loading screen ...
+  only take the hit when required ... Make the wheels spin and the textures show. The tow service sign ... span the
+  whole area on top of the windshield"). LOADING: the van is captured only on demand (drive_mode.js stockVan, the first
+  drive / line tow / trailer tow that needs it) - nothing on the boot screen. WHEELS: _cage_join.js - with four or more
+  contacts a wheel mesh goes to the NEAREST contact of any kind (the van's front pair classes as 'tw' while its groups
+  are edWheelL / R: both left wheels had landed in one part), so each car wheel is its own part about its own axle
+  (aeroplanes: the name rule as before). drive_mode.js vanMesh: parked.js merges a record per material (the near rung
+  too), so the BODY is built from a copy of the record without its wheel parts (its own key: its own cut and bake) and
+  each wheel part is drawn alone (PARKED.levelMeshes; the tyres on CAGE_WHEELTEX, the rest plain in the record's
+  colour) in build()'s frame, then handed to the rig (matched to the sheet's nearest wheel in the holder's WORLD frame =
+  the sheet's): they spin and the front pair steers. The body LEVELLED on the hubs (parked.js stood it as an aeroplane:
+  ~1.8 deg nose-up, the front hubs 10 cm high). DRIVE_MODE.vanInfo (parts, hubs, matched) for the page rigs; check:
+  4 parts, hubs [0.52, 0.46, +-0.97] / [3.72, 0.45, +-1.03], matched RR RL FR FL. TEXTURES: window.CAGE_CARTEX
+  (_cage_gear.js) - the plate's and the tow sign's canvas faces from ONE factory keyed by what they show (JSON: plate
+  top/main/bottom/bg/fg, sign text/aspect); the material carries userData.carTex, the join keeps it (its bucket, its uv),
+  app.js and parked.js rebuild it: the game's plate reads HF 1003. THE SIGN: the header's whole width (the windscreen's
+  top edge, 3 % in each end) and its height the larger of 88 % of the found band and 70 % of the glass-top-to-roof gap.
+  GATES: VEHICLE JOIN KNIFE GEAR CAGEFIT LIVERYREACH DESIGN DRIVE-TRIP TRAILER UISMOKE PASS; PARTS red on master's
+  canClear only (named, ARCHAEOPTERYX's).
+
+## PERF-CODEX-GREEN 2 - GATE PREMISES threw on a perf fixture (PERF-WORLDBUILD for A0, 22 Nov 2026, claude/ready/perf-codex-green-2 off perf-codex-green cc0495b93)
+GATE PREMISES runs every tools/fixtures/premises_v*_*.json. Codex's 8b38df7dc added his perf record there as premises_v1_perf_town_third.json (written by tools/perf/make_compact_town.js, read by tools/_pave_poly_bounds_check.js and tools/_road_bounds_check.js); it carries the Mount Ardent pad mt_t_pad, a terrain entry of kind 'ramp', and the gate's check 7 (grade / flatten / raise / plane) threw at its first sample (tools/_premises_check.js:256, m.plane undefined). Master's L40h log has PREMISES PASS: the gate's fixture set there is the six premises_v1_* files.
+- THE FIX (a source fix; the gate is untouched): the file is tools/fixtures/perf_town_third.json now, out of the gate's pattern; its three users read and write the new name. The gate's fixture set is master's again.
+- Run on this tree: PREMISES PASS; the two unit checks that read the fixture pass.
+- NOT perf-codex's, checked against the WHOLE block of master's L40h log: CONTACT's five rows and TERRAINMATCH's six are master's own, number for number. (A first reading of mine said four of CONTACT's came with perf-codex: wrong, corrected the same hour.) A survey bisect agrees: tools/ground_surface.js --grid / --sep give identical rows with Codex's boundedRoads off, with the terrain memo's legacy hash, and with both.
+- OWED by the scenery's owner, not here: check 7 does not know a 'ramp' entry; a gate fixture that carries one will throw the same way.
+## CHINOOK-USER - the user's modified Chinook is list:8 (FLAGSHIP, Sun 22 Nov 2026; claude/ready/chinook-user on one-cessna-4)
+
+The user (21-22 Nov): "I have modified the Chinook, not yet tested, but much better looking and accurate, to be replaced in
+game"; "send my new chinook for quick testing and inclusion". builds/chinook_2026-09-21_corrected.json is the user's card
+(D:/Dev/flydiy-notes/user-reports-2026-11-21/chinook_modified_4.json, their bytes; the names kept: name birdman, meta chinook,
+reg C-ICHK). 351 cage rows moved: span 9.75 -> 10.6 m, chord 1.47 -> 1.21 m, taper 0.25 -> 0.65 m, cabin 0.70 -> 1.06 m.
+QUICK TEST (node): it builds; it flies HOME's circuit (tw_probe circuit: roll 176 m, lift-off 15 s, touchdown 1.61 m/s at
+19.8 m/s, rolled out and STOPPED); real_check chinookm: every indicator INSIDE its band (empty 186 kg, Vs1 54-69, V75
+124-132, Vmax 146-151, ROC 2.1-4.9, L/D 9.3, TO 76-185 m); REALBAND re-pinned (chinookm alone moved). Gates: PLANELISTS
+REALBAND REALREFS FLAPS RODROW DASH PLANEFICHE PASS; GEN (cruise quiet in wind: the default generated plane), TANKMOUNT
+(the Archaeopteryx), FLEX (the generator archetypes) and ENGCONFIG (every build against its master pin) red - none reads
+the Chinook's flight: master's.
+NAMED, NOT RETUNED (the user's card): the static margin at the lightest load is 1 % (CG 44 % MAC) - near neutral solo.
+
+## DASH-FIX - GATE DASH on the refitted 172 (FLAGSHIP, Sun 22 Nov 2026; claude/ready/dash-fix on chinook-user, for L40J's tail)
+
+GATE DASH was red 7 with one-cessna-4 (the refitted 172, list:50): (a) its 4 load-migration rows read list:50 as a file saved
+BEFORE the dash rows (G3451) - the refit is saved WITH them (dashStyle 1, dashLegs 1, dashV 1, dashWas 0): the migration rows
+now read the pre-row copy of the metal 172 (tools/fixtures/test_copies/cessnaMetal (1).json, B-CESS), list:50 stays in the
+geometry rows; (b) its 3 geometry rows were a REAL defect: the refit's windscreen base bows UP in its middle (0.33 at the sides,
+0.465 inboard), the band's lowest fifth found two 6-point pieces (one a side) and the dash was built off ONE side's piece - a
+cheek with no middle (x 0.30-0.54 only). Fixed in source (_cage_gen.js, the band): the base is taken at the first band (a
+fifth, two, three) where it is ONE chain across the glass, else the first with 4 edges as before. The refit now: one 17-point
+chain, the dash across the cabin (x +-0.54), nothing between the legs, the cheeks on the forward edge. Every base the fifth
+already found whole is untouched. With it, DASH-CHAIN (the longest chain, stubs within 8 cm joined; the Electric trainer's
+dash, the user 21 Nov) rides here too.
+READY claude/ready/dash-fix (for L40J's tail, A0 16:57 option a): GATE DASH PASS (the 7 reds out), SNAPSHOTS and COMMITHYGIENE
+PASS; REALBAND re-pinned (c172v2 empty 709 -> 717 kg: the full dashboard billed by its area); PLANELISTS = the PC-6 livery pair
+(retired by pc6-liveries). NAMED, NOT HELD: GATE CLIP c172 - the nav aerial's wire 22.3 mm into edFinSkin at (0, 0.58, -0.82),
+deterministic, gone with the old band. The aerial's mast and the fin skin measure identical with either band in a plain build,
+so the cause is how CLIP builds one of them (the dorsal root following the deck line is the lead) - followed on user-fixes;
+nothing declared, no gate moved. Owner FLAGSHIP.
+## PERF-WORLDBUILD 1 - THE TWO EXACT PAVEMENT SHORT-CUTS ARE THE DEFAULT (22 Nov 2026, claude/ready/perf-worldbuild-1 off claude/perf-codex 4421e5416)
+PERF-LEAD's order (22 Nov): Codex's pavepolybound and pavereuse (20-21 Nov, opt-in) flipped to defaults, on their own ready. No visible change: the island is built byte for byte the same.
+- src/core/27_premises.js compose: boundedPolys is true unless ?pavepolybound=0 (or o.boundedPolys: false). dEdgeOf skips a paved polygon whose box lies beyond the caller's finite reach. In node and in a worker (no page query) it is on.
+- src/viewer/pavement.js REFINE.reuseHeight is true unless ?pavereuse=0: the heights the refinement read are the heights the vertices are written with.
+- GATE PAVEXACT (tools/_pavexact_check.js, core tier, ~4 min, two page processes in node one after the other, the house worker on): the old paths (?pavepolybound=0&pavereuse=0) against the defaults - the same meshes, vertices, triangles and DIGEST (every attribute's and index's bytes) for the premises' patch (947 meshes, 4 372 769 vertices), the strips (10 merged, 2 125 206), the roads (47, 1 942 391), the paved polygons (12, 341 583), the guardrails (89), the poles (222) and the far terrain (16). PASS on build 6ecafed88d9c. The polygon queries: 13 525 639 exact -> 2 573 208 exact + 10 952 431 rejected by their box.
+- MEASURED (node, the world step's main-thread ms, old -> new, one pair on a hot shared box): strips 11 086 -> 9 280, patch 9 956 -> 9 305, paved 1 678 -> 1 074, roads 6 255 -> 6 791 (noise). An earlier pair on the profiler: the whole world step 38.9-39.6 s -> 35.4 s. On the box the shader gate hides most of it: the gain reads as main-thread seconds of the 'world' step, and, once the strips are built in the house worker (PERF-WORLDBUILD 2), as their landing time.
+- THE COST, NAMED: pavereuse keeps the refinement's memo (a Map keyed by strings) alive through the vertices' emission - the JS heap's peak during the strips 577 -> 653 MB (+76 MB, transient: the memo dies with the builder's call). Typed arrays unchanged (2 351 MB with every array kept for the digest).
+- THE OTHER GATES THAT READ THESE FILES, run on this tree (--only, one at a time): WORLDRENDER, PAVEMENT, MICRO, MUDLADDER PASS; Codex's two unit checks (tools/_pave_poly_bounds_check.js: 167 356 comparisons exact; tools/_pavement_refine_reuse_check.js: byte-identical) pass.
+  RED, AND NOT THIS CHANGE'S (each run on the untouched base too): CONTACT fails the same 5 rows on claude/perf-codex 4421e5416 without this change, same numbers (strip:gravel p5 -13.6 mm, strip:grass p5 -15.8, apron edge 810 > 749, apron side 2 142 > 1 977, 02/20's band 25 749 of 38 764; master's L40h log has the same five rows, number for number - an earlier wording of this entry said four of them came with perf-codex: wrong, I had read the tail of the block only); TERRAINMATCH fails master's own 6 rows of the L40h log, number for number; PREMISES throws inside the gate (tools/_premises_check.js:256, m.plane undefined on a terrain entry that is neither a grade, a flatten nor a raise) with AND without this change on the perf-codex base - master's L40h log has it PASS: Codex's perf fixture sat in the gate's fixture pattern - fixed by claude/ready/perf-codex-green-2 (a rename).
+- Not run here (the box's and the train's): FRAMECOST, ROUNDTRIP, HOUSEWORKER (a rebuilt tree stales the parked cook), the full battery.
+
+## DASH-FIX-2 - L40J's identity re-pins on FLAGSHIP's cards (Sun 22 Nov 2026, late; claude/ready/dash-fix-2 on dash-fix)
+
+GATE FRAMES and GATE KNIFE re-pinned for the INTENDED card changes only (each gate's --record run, then the corpus kept as it was
+but for these entries - nothing added, nothing dropped): FRAMES file:builds/cessna172r_2026-11-08.json (the refitted 172's tail
+cap band, one-cessna-4) and file:builds/chinook_2026-09-21_corrected.json (the user's modified Chinook's pilPaxA band,
+chinook-user); KNIFE file:builds/cessna172r_2026-11-08.json (the refit's sheet with its whole-width dashboard, dash-fix).
+NAMED for L40J, ONE TAIL-MOVE ITEM for user-fixes / L40K (owner FLAGSHIP): GATE FIN (the refit's fin sheet folds over itself,
+5 faces), GATE GEOPARITY (the drawn fin / stab against the flown ones: fin chord -0.310, stab -0.198, worst dx +0.188) and
+GATE DMGSKIN / DMGGEAR (the fin's front-spar root members VF-S4TL/TR ~3 % under at the FAR 23.473 drop) - all the refit's tail.
+
+## DASH-FIX-3 - L40J's last reds on the refitted 172 (FLAGSHIP, Mon 23 Nov 2026, ~01:40; claude/ready/dash-fix-3 on dash-fix-2)
+
+FIXED: GATE AUDIOENG - the refit carries its engine's own sound row (spec.engines[0].sound: 4 flat, four-stroke, 5.92 L), the
+resolver's first source: cessna's expected source 'custom.name' -> 'spec.sound' (the same cylinders, gear, firings), and the name
+parser keeps its own row (the same engine with the sound row set aside must resolve by its custom name; the 'parse' break turns it
+red, as it did the Cessna's).
+NAMED for L40J, fixed in L40K (owner FLAGSHIP unless said):
+- CONTRACTS (8 of 2549): the minedock / resort stage-0 rows the refit's real 357 m take-off cannot fly - ACCEPTED by the user
+  17 Nov ("a stock Cessna should not be able to clear all stages ... drop it"): the rows' expectations follow that ruling in L40K.
+- DMGDRIVE: the refit's prop overspeeds at VD (3268 rpm against 2450, tip Mach 1.03) and at VNE cruise (2704, 10 %) - its fixed
+  pitch against the refit's lower drag (L/D 11.2 vs the book's ~9): the prop's pitch / the engine's rpm limit from the C172S
+  POH (2700 redline), or the governor of the fixed-pitch overspeed; and the 4.43 g pull row.
+- DMGSCAR / DMGSCUFF / DMGWRECK (all under "the metal Cessna"): ground contacts recorded beyond the wheels in a plain circuit,
+  a taxi and the drops; a scuff when intact; the wing-low slide scraping the HIGH wing; the trunk prop strike not drawn - one
+  low part of the refit touching the ground in ordinary use (the nose strut / lower cowl / the spinner's clearance are the
+  leads) - with the FAR 23.473 drop's tail yield already named (the tail-move item).
+- WATERDAMP: the refit on its floats settles under 1 cm p-p from 17 s (bound 12 s): its mass and inertia moved with the refit.
+- MISSIONS: the bush run (HOME, 20 kg, David and Jody) refuses to load on list:50 - its seats / payload / range under the refit's
+  figures against the story's mission sheet: traced in L40K.
+
+## L40J (A0, Mon 23 Nov 2026, pushed ~05:00) - Codex's perf work with the user's cuts LIVE, the refitted Cessna (T-RUEX), the user's Chinook, the PC-6 liveries
+
+WHAT LANDED (merge order): claude/perf-codex (Codex's perf work; the user's accepted cuts are DEFAULTS: cliffs/rocks R1
+dormant `?rocks=1`, the player's flown bakes off `?flownbake=1`, the static parked trio `?parktrio=0` for the player-derived
+props, the cloud-pass forest mist; + A0's gate/tool follow-ups: FMIST and HITBOX specs follow the cuts, parked_cook follows
+the static trio, page_rig headed windows keep rendering when covered), programs-sandbox, perf-codex-green + green-2,
+one-cessna-4 (the refitted 172, reg T-RUEX), chinook-user (the user's Chinook, list:8), pc6-liveries-3, perfbench-gfx,
+perf-worldbuild-1b, dash-fix + dash-fix-2 + dash-fix-3 (FLAGSHIP: the refit's dash across the cabin, FRAMES/KNIFE identity
+re-pins with reasons, the refit's engine sound row), and as CHERRY-PICKS (their branches sat on A0's candidate commit
+f80229d71, built + cook in one commit - COMMITHYGIENE): pilot-takeoff-yaw d83064264 (Pilot: run-up to ~1.2 Vs before the
+climb pitch + a 15 Hz rudder-chatter detector: c172 to 15 m 794 -> 674 m, the metal route's rudder 20.3 -> 3.3 reversals/min)
+and pilot-takeoff-yaw-2 98d28fe57 (the 1.2 Vs screen speeds for the ground-effect run-up only, the 1.3 Vs kit from the climb's
+start: GATE PROFILE's 'climb from 15 m never under 1.3 Vs' - Jodel 1.28, C172 1.23 with -1 alone - green again)
+and dmg-bakeoff f42051157 (Deform: skin_gpu's swapped geometries carry a CPU-pose bounding box - the crash threw on the
+default bake-off path; DMGUPLOAD bakes with &flownbake=1 + default-path rows).
+
+THE BATTERY: the core tier in 13 chunks of 30 (the user 22 Nov: "run the gates in little chunks"), 359 gates on fe0028603,
+then the late fixes' gates and the pilot-heavy chunks again on the final tree. Reds against master L40H: 19 new, every one
+FIXED or NAMED with its owner (GFX and MONOWHEEL turned green).
+
+NAMED, NOT HELD (owners; fixes in L40K unless said):
+- FLAGSHIP, the refitted 172 (one cause family, the tail move + the low drag): a low part (nose strut / lower cowl /
+  spinner) touches the ground in a plain circuit and taxi - DMGSCAR, DMGSCUFF, DMGWRECK (FIRST in user-fixes: a player sees
+  scars on an ordinary taxi); the tail's lower strut ~3 % under strength at the FAR 23.473 limit drop (DMGSKIN, DMGGEAR rows),
+  the fin sheet folds (FIN) and the drawn tail differs from the flown one (GEOPARITY fin chord -0.31, stab -0.198);
+  fixed-pitch prop overspeed at VD / VNE (DMGDRIVE); floats settle in 17 s against 12 (WATERDAMP); the bush run refuses
+  list:50 (MISSIONS); 8 CONTRACTS rows (stage 0 at the refit's 357 m take-off - ACCEPTED by the user 17 Nov); ROUTE
+  fly:metal's 3 fixture rows (a 51 m/s aeroplane on a route drawn for slow ones; WP1's climb leg 2.5 vs the plan limit 2.4);
+  APSMOOTH c172 student roll 6.0 > 6; CLIP the aerial wire's tip 22 mm into the fin.
+- TAKEOFF technique c172: to 15 m 732 m against [0.6, 1.4] x 514 m = 720 m (12 m over; was 794 m before pilot-takeoff-yaw;
+  Pilot's own tree passed without dash-fix's +8 kg) - Pilot + FLAGSHIP tune it in L40K. PROFILE is GREEN again (-2).
+- PARKED: the meeting row, fixed in perf-simplify-2 (L40K).
+- Master's own (L40H's list) stand as they were.
+
+THE PERF CHECK (PERF-LEAD, 03:15-03:41, headed 5120x1440, quiet box, tools/perf/window_train_check.sh; evidence
+D:/Dev/flydiy-notes/evidence/perf-check-L40J-2026-11-23/): no regression against the lab base; the loading gain is real.
+- Cold load 121.3-123.4 s / 456 programs (L40H 185-224 s / 488: -35 to -45 %); a returning player 98.7 s (worldCompile
+  37 -> 3.7 s: the shader cache works; the world build + settle remain). Go -> flying 2.5 s (shot skipped) / 11.6 s (played).
+- The journey's first 8 min at 5K: row 13 55 % of seconds at 29+ fps (bar 85, target 95); row 8 31 frames > 100 ms, worst
+  283 ms (bar 5); row 9 88 % of blocks late (bar 25 %); causes: render 14.7 s, the water mirror 12.8 s (33 % of the flight),
+  the cover 7.8 s.
+- Row 15 (no blue screen): the journey CLEAN on the screen recording (532 pictures, longest gap 211 ms); the CRASH shows the
+  page 6.3-7.1 s from the impact (27-30 programs compiled there) - not met, as in every build before; the fixes are the lab's
+  ?holdframe=ground and Deform's crash prelink (L40M candidates).
+
+THE BOX (22-23 Nov): CPU tokens (cpu_token.sh v9: a plain run starts under the governor's MAX 1-4 and < 90 C), trains hold
+tokens only for the gates they run (train_tokens.sh), GPU work HEADED in visible windows (the user 22 Nov), quiet windows for
+the perf checks. Next: L40K (the user's fixes + the story revamp), L40L (the physics audit), L40M.
 ## PERF-TRACE - THE ENGINE EXPLAINS ITSELF: every program named by its owner, what each loading step waited for, the freeze ledger (PERF-TRACE, 22 Nov 2026; claude/perf-trace on claude/perf-codex)
 THE USER (21-22 Nov): "requiring new shader programs to identify themselves and their dependencies"; "retro fit shader identity and force the new
 ones to explicitly declare themselves". The independent review (reports/ARCHITECTURE-PERF-REVIEW-2026-11-20.md): attribution before coordination.
@@ -318350,23 +318995,224 @@ PERF-TRACE 6 (22 Nov, after the 14:00 slot; the journey's log showed what the in
   it is ready; a warm visit re-links the 190 KB+ programs (the skin family) as if cold; every load links 86 programs for light signatures a
   load plus a departure never draws (1.3.6.0: the hangar's second state; 2.0.0.1 / 2.8.0.1); lampsfixed=1 ADDS the night signature and still
   links 75 of the day one.
+## COMPOSITE-FIBRE (G4104) - a cracked laminate holds by its fibres (Deform, 18 Nov 2026, WIP for L40g)
+The user (18 Nov, the electric trainer's nose-down, with 5 real composite wreck photos): the wing "exploding into panels
+that end up perfectly cut ... these things are really getting torn"; the real wrecks keep their wings (a spar broken, the
+skin torn round it), the fuselage / cockpit crushed, at most cut in half. 30_solver: carbon / glass members (tetherKind 3)
+keep a tension tether at their crack - their own crack in tension or a bend's core / fold, or a crushed (kinked) laminate;
+not a joint letting go, a part cut, the gear - GEN_DMG_TETHER.rComp 0.2 x fu, torn once stretched eComp 0.04 past its
+length at the crack (b.Lb); the joints count it as keeping rComp (tetherKeep / tetherGroups). Checked in node only: every
+live tether within 1.03 x its length (a first cut left the kinked carbon's Lb unset: 7.4 x, fixed); the Super Petrel
+tree100 1 piece (95 %), nosedown 4 big pieces (top 42 %) on one run - yesterday's 2 (59 %), the nose-down's spread is
+wide. OWED: the gates (DMGCOMPOSITE first, then the damage set), the electric trainer's crash stills (its branch
+electric-trainer-2 merged with this), and the composite skin torn ragged at a crack if the stills still show clean cuts.
+The user, 22 Nov, on the electric trainer stills (flydiy-notes/evidence/composite-fibre-2026-11-18/): "I'm OK with this last fix, please submit ... for inclusion in next trains".
+## WINCH - THE GLIDER WINCH LAUNCH: THE WINCH DRAWN AND WEATHERED, THE LINE TO A FIXED DRUM, THE START CHOOSER'S 'winch' (13 Nov 2026, cloud; branch claude/sailplane-launch-study-176kdv, master 23ce68c1f + claude/tow-launch-onmaster 480ea6df merged in)
 
-## PERF-WORLDBUILD 1 - THE TWO EXACT PAVEMENT SHORT-CUTS ARE THE DEFAULT (22 Nov 2026, claude/ready/perf-worldbuild-1 off claude/perf-codex 4421e5416)
-PERF-LEAD's order (22 Nov): Codex's pavepolybound and pavereuse (20-21 Nov, opt-in) flipped to defaults, on their own ready. No visible change: the island is built byte for byte the same.
-- src/core/27_premises.js compose: boundedPolys is true unless ?pavepolybound=0 (or o.boundedPolys: false). dEdgeOf skips a paved polygon whose box lies beyond the caller's finite reach. In node and in a worker (no page query) it is on.
-- src/viewer/pavement.js REFINE.reuseHeight is true unless ?pavereuse=0: the heights the refinement read are the heights the vertices are written with.
-- GATE PAVEXACT (tools/_pavexact_check.js, core tier, ~4 min, two page processes in node one after the other, the house worker on): the old paths (?pavepolybound=0&pavereuse=0) against the defaults - the same meshes, vertices, triangles and DIGEST (every attribute's and index's bytes) for the premises' patch (947 meshes, 4 372 769 vertices), the strips (10 merged, 2 125 206), the roads (47, 1 942 391), the paved polygons (12, 341 583), the guardrails (89), the poles (222) and the far terrain (16). PASS on build 6ecafed88d9c. The polygon queries: 13 525 639 exact -> 2 573 208 exact + 10 952 431 rejected by their box.
-- MEASURED (node, the world step's main-thread ms, old -> new, one pair on a hot shared box): strips 11 086 -> 9 280, patch 9 956 -> 9 305, paved 1 678 -> 1 074, roads 6 255 -> 6 791 (noise). An earlier pair on the profiler: the whole world step 38.9-39.6 s -> 35.4 s. On the box the shader gate hides most of it: the gain reads as main-thread seconds of the 'world' step, and, once the strips are built in the house worker (PERF-WORLDBUILD 2), as their landing time.
-- THE COST, NAMED: pavereuse keeps the refinement's memo (a Map keyed by strings) alive through the vertices' emission - the JS heap's peak during the strips 577 -> 653 MB (+76 MB, transient: the memo dies with the builder's call). Typed arrays unchanged (2 351 MB with every array kept for the digest).
-- THE OTHER GATES THAT READ THESE FILES, run on this tree (--only, one at a time): WORLDRENDER, PAVEMENT, MICRO, MUDLADDER PASS; Codex's two unit checks (tools/_pave_poly_bounds_check.js: 167 356 comparisons exact; tools/_pavement_refine_reuse_check.js: byte-identical) pass.
-  RED, AND NOT THIS CHANGE'S (each run on the untouched base too): CONTACT fails the same 5 rows on claude/perf-codex 4421e5416 without this change, same numbers (strip:gravel p5 -13.6 mm, strip:grass p5 -15.8, apron edge 810 > 749, apron side 2 142 > 1 977, 02/20's band 25 749 of 38 764; master's L40h log has the last one only: the other four came with perf-codex); TERRAINMATCH fails master's own 6 rows of the L40h log, number for number; PREMISES throws inside the gate (tools/_premises_check.js:256, m.plane undefined on a terrain entry that is neither a grade, a flatten nor a raise) with AND without this change on the perf-codex base - master's L40h log has it PASS, so it came with perf-codex or its fixture. A0 told.
-- Not run here (the box's and the train's): FRAMECOST, ROUNDTRIP, HOUSEWORKER (a rebuilt tree stales the parked cook), the full battery.
-## PERF-CODEX-GREEN 2 - GATE PREMISES threw on a perf fixture (PERF-WORLDBUILD for A0, 22 Nov 2026, claude/ready/perf-codex-green-2 off perf-codex-green cc0495b93)
-GATE PREMISES runs every tools/fixtures/premises_v*_*.json. Codex's 8b38df7dc added his perf record there as premises_v1_perf_town_third.json (written by tools/perf/make_compact_town.js, read by tools/_pave_poly_bounds_check.js and tools/_road_bounds_check.js); it carries the Mount Ardent pad mt_t_pad, a terrain entry of kind 'ramp', and the gate's check 7 (grade / flatten / raise / plane) threw at its first sample (tools/_premises_check.js:256, m.plane undefined). Master's L40h log has PREMISES PASS: the gate's fixture set there is the six premises_v1_* files.
-- THE FIX (a source fix; the gate is untouched): the file is tools/fixtures/perf_town_third.json now, out of the gate's pattern; its three users read and write the new name. The gate's fixture set is master's again.
-- Run on this tree: PREMISES PASS; the two unit checks that read the fixture pass.
-- NOT perf-codex's, checked against the WHOLE block of master's L40h log: CONTACT's five rows and TERRAINMATCH's six are master's own, number for number. (A first reading of mine said four of CONTACT's came with perf-codex: wrong, corrected the same hour.) A survey bisect agrees: tools/ground_surface.js --grid / --sep give identical rows with Codex's boundedRoads off, with the terrain memo's legacy hash, and with both.
-- OWED by the scenery's owner, not here: check 7 does not know a 'ramp' entry; a gate fixture that carries one will throw the same way.
+The user (13 Nov, via A0): "why wouldn't you plan for the winch, and why wouldn't we do a 3D model for that? ... a very
+specialized piece of equipment"; then "full weathering ... the plane or the building methods, or both"; "middle option,
+and take the wheels from the cars sessions, get the ones from the van"; "you may start on the implementation". The
+study before it: futureDesigns/glider-launch/STUDY.md (aerotow / car tow / the trailer / the winch, the probes).
+
+- **THE WINCH, A PROP** (`tools/_winch_gen.js`, WINCH_GEN; the tower generator's grammar: DEF / ROWS / PRESETS / PAINTS /
+  build(P) -> THREE.Group, DIM / KIT for a placer): a twin-drum trailer winch - tandem chassis on leaf springs, the deck at
+  1.0 m, A-frame drawbar and jockey wheel, four stabiliser legs; the engine housing (V8 / diesel / electric) with its
+  grille, louvres and stack; two narrow drums (core 0.80 m, flanges 1.16 m) on one shaft with disc brakes; a levelwind per
+  drum; the rear fairleads with their GUILLOTINES; the mesh cage; the driver's cab facing aft down the cable, its window
+  grilled, the amber beacon; the cable out to the drogue, strop, weak link and rings. THE VAN'S WHEELS: the CAR session's
+  Field Wagon (builds/vehicles/utility_2026-11.json) drawn by GEAR_GEN.wheel with its saved rows (VAN_WHEEL: TYRE 2 x 1.4
+  wide, rim 0.5, six bolts, cap, valve, R 0.45); plain discs when the gear kit is not on the page. Each part carries
+  `aBox` (its half extents and kind) for the weathering's edges; `userData.wx` the weather's sources.
+- **THE WEATHERING, BOTH METHODS** (`tools/_winch_weather.js`, WINCH_WX): the BUILDINGS' scans (house_tex.js's steelgrey
+  / steelrust / rust / galv, triplanar at their own tile; paint as a neutral-map grain under the tint), the house's
+  DIRT_EXPR splash line and age tone; the AEROPLANES' four macros (age / use / field / rain, aeroWxResolve's rule), the
+  grunge sheet (aeroWxGrunge) and AERO_WX_COL, sources placed (the stack's plume, the wheels' mud, grease at the drums,
+  rollers, gearbox and hitch), chips at each part's own edges down to primer and rusting steel, no shiny dirt (grease the
+  one glossy). THE CLUB LOOK on every build (the user's "middle option"). Found tuning it: fade + age tone + rain streaks
+  together washed the yellow to cream - each halved, and the fade bleaches toward the paint's own lighter colour.
+- **THE PHYSICS** (`src/vehicle/winch.js`, pure): tow.js's line with the far end FIXED (the fairlead) and its rest length
+  reeled in at the drum's speed (stretch rate -v_hook.u + v_drum; per-substep exact - nothing moves at the far end); THE
+  CG HOOK (winchHookNodes: a point 0.25 m ahead of the CG on the belly, the pull shared by the belly's two bracketing
+  frame stations) - ON THE NOSE HOOK THE LAUNCH FAILED: the pull held the nose down, the elevator full up, the pitch
+  falling from 30 to 7 deg, 187 m off 1000 m; the DRUM (150 kW, 9 kN cap, 350 kg equivalent, 32 m/s) and its DRIVER (the
+  slack taken up at 2 m/s, the ground run opened over 1.5 s but never pulling past 1.1 x the glider's weight - full power
+  at once snatched the 249 kg glider off a 3.9 kN link in 3 s - the glider's airspeed held in the climb by a PI, the pull
+  capped at 1.3 W, easing off past 50 deg, the brake after the release, the GUILLOTINE past 80 deg or 2.2 W); the
+  releases (the back-release at 70 deg, slack at the top, the cable wound in, the weak link 1.6 W, the key); the hands
+  (makeWinchHands: the ground run, 7 deg off the ground, the climb to 42 deg by height, the nose lowered when slow and as
+  the line steepens). Same surface as tow.js's line, so the page's tow plumbing drives it.
+- **THE PAGE** (`src/viewer/winch_mode.js`, WINCH_MODE, lazy with winch.js / tow.js / the two tools): the start chooser's
+  `winch:HOME` (ok on Jolene AFB, was "not built yet"), START.mode 'winch'; towTick lines the glider up, the motor off,
+  and calls winchStart: the winch built and weathered at the end of up to 1000 m of cable along the runway (the fairlead
+  on the centreline, the drawbar away), the cable drawn with its sag, laid on the grass and reeled in after the release.
+  app.js: towOn() answers WINCH_MODE first (its tow hooks: towPre / towPost / towDraw / towWords / towRelease / towStop
+  and `tow` with kind 'winch'), so the R key, the plate ('winch launch'), the inline flight, the restart and the
+  autopilot's handover (launchHandOver) are the car tow's. MANIFEST.lazy +4.
+- **GATE WINCH** (`tools/_winch_check.js`, core, ~6 min; run_gates row after TRAILER): LAUNCH (1000 m: lift-off 3.9 s,
+  the climb at 22.4-23.8 m/s against 23.5, released at 275 m by the back-release, 2.79 kN at most), GLIDE, RELEASE (the
+  key at 100 m, the drum braked), WEAK (1.5 kN breaks in the roll), CUT (no back-release: the guillotine at 274 m),
+  SHORT (600 m: 135 m), AUTOPILOT (CLIMB -> GLIDE), CIRCUIT (released at 275 m, the glider's circuit, landed on the
+  runway 7.4 m off the centreline, sink 0.40), PERF, MODULE (winch_mode.js run in node on a three scene: the winch drawn
+  and weathered at the far end, a launch by the hands, the plate's words, towStop clean), PAGE (the wiring by source).
+- **NOT DONE / OWED**: the page not flown in a browser (the island boots ~9 min under SwiftShader; MODULE runs the page's
+  half in node, PAGE checks app.js by source); no collision with the winch (the glider is released short of it); one
+  cable of the two used; no winch sound; the winch not in the world outside a winch launch (a scenery placement - the
+  KIT numbers are ready); a pure 0-engine sailplane card still owed (the motorglider flies with its motor off).
+- **WINCH 2 (A0, 13 Nov: "installed PERMANENTLY at Jolene AFB ... PBR materials, reusing the game's existing ones")**:
+  every winch material is a PBR MeshStandardMaterial made by MATLIB.shared in the `winch` scope (GATE ASSETS' rule; the
+  scope keeps the weathering hook off every other family's shared material); the cage's mesh was unlit LineSegments - now
+  thin square bars, one merged geometry, painted steel (it casts its grid's shadow); the scans in the game are the house
+  library's own Images (HOUSE_TEX_SETS - fetched once, shared with the buildings); the weathering's prop space is per
+  placed winch (an inverse world matrix on the group, set before each of its meshes draws). FOUND: the cage's alias
+  (MAT.mesh = MAT.trim) set before the role loop re-tagged trim 'mesh' - 63 meshes unweathered; the alias after the loop.
+  A PERMANENT WINCH: winch_mode.js uses any WINCH_GEN group standing on the centreline ahead (userData.winchProp, its
+  fairlead 300 m+ away) instead of setting one up, and leaves it standing (MODULE row). WINCH_GEN.fairlead(group, drum).
+  The placing session's notes: futureDesigns/glider-launch/WINCH-PLACEMENT.md. GATE ASSETS is red on master's merge of
+  the car branch (tools/_cowl_gen.js, 2 material sites) - not the winch's.
+
+
+## AFB-0220 WINCH - THE GLIDER WINCH INSTALLED PERMANENTLY AT JOLENE AFB, ONE PER DIRECTION OF 13/31 (13 Nov 2026, cloud AFB-0220 for A0; claude/afb-0220-winch, stacked on claude/sailplane-launch-study-176kdv)
+- The user (13 Nov via A0): "THE GLIDER WINCH, installed PERMANENTLY at Jolene on the main runway 13/31 ... CHECK it uses PBR materials". Two editor objects { kind: 'prop', key: 'gen:winch' } in tools/fixtures/island_jolene.json: xw_winch13 (-359.51, 136.34) yaw 0.8552 serves 13; xw_winch31 (-209.03, 267.17) yaw -2.2864 serves 31. Each 25.5 m NE of the centreline (the van 1.5 m off the paved edge), its fairlead 1000 m from its direction's start (60 m in from the end), facing it. The world editor moves, turns, deletes them.
+- render_premises.js GEN_PROPS / buildGenProp: WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 }) in a holder at the record's pose, WINCH_WX.apply once placed, hitAdd(g, 'prop', 0.5): it collides (OBSTACLES). A holder with propPending until the lazy files land (world_boot.js asks for _winch_gen / _winch_weather when the record names gen:winch).
+- winch_mode.js winchStart: the search 30 m off the centreline (was 25 - the van stood on the paved edge), only a winch that FACES the glider, the nearest of those: from 13's start xw_winch13, from 31's xw_winch31 (the other, turned away down the same runway, passed over).
+- PBR, checked (GATE WINCH PLACED): 13 materials on a built winch, every one a MeshStandardMaterial made by MATLIB (the 'winch' scope, WINCH 2). Gates: WINCH PASS (PLACED 5 rows), UISMOKE PASS, PREMISES PASS, BUILT PASS; ASSETS FAIL (tools/_cowl_gen.js 2 material sites - the base's, named in WINCH 2) and SCENERYED FAIL 20b (Metlakatla compose timing - the base fails it too, 3493 ms quiet).
+- OWED: the premises cook (the fixture moved: PREMCOOK, re-cook on the train); the fixture here has no trailing newline (the tow-launch line's form), master's has one - integrate by taking either side and re-splicing the two xw_winch objects; FRAMECOST / the look on a GPU (the winch near the 13/31 edge, both ends).
+
+## WINCH-LAND - THE GLIDER WINCH LANDED: ONE PERMANENT WINCH AT 13/31'S FAR END, THE CHOOSER'S WINCH LAUNCH LIVE (22 Nov 2026, [LOCAL-GPU] WINCH-LAND for A0; claude/ready/winch on origin/claude/perf-codex)
+- THE USER (22 Nov): "The Winch model is already built by a session, even tested ... please check that and try to land it. I'm fine with the winch model to be permanently placed." Then, on the placement (via A0): "the winch on 13/31 at the end, so not where we are taking off usually, of course, at the other end ... we can winch from there, and it does a little element of scenery at the end of the runway".
+- THE MERGE: origin/claude/afb-0220-winch (fd55d8f0) carries the whole study branch (claude/sailplane-launch-study-176kdv is its ancestor), merged onto perf-codex 4421e541. Unions: app.js (the chooser's winch row live, the winch side), build.js MANIFEST.lazy (perf-codex's livery_marks + mission props AND the winch's four files), island_jolene.json (perf-codex's record + the winch object re-spliced), this file (both). Built files rebuilt, never merged.
+- GATE WINCH RED ON THE BASE, FIXED IN SOURCE: the motorglider is 276 kg today (249 on 13 Nov); the hands' proportional pitch hold gave 0.18 elevator for the 3 deg error under 8 m and held the nose at 4 deg - the whole cable flown level at 1-9 m, released 40 m short of the winch (8 rows red). src/vehicle/winch.js makeWinchHands: a TRIM (the integral, 0.02 per deg s, +-0.5, no wind-up while the elevator is at its stop; zeroed on the ground run). Released at 241 m off 1000 m (275 on 13 Nov's lighter build), the circuit landed 0.3 m off the centreline.
+- THE PLACEMENT (the user's): ONE winch, xw_winch (-1164.88, -496.19) yaw -2.2864, replaces the two mid-runway ones (xw_winch13 / xw_winch31, ~100 m either side of the middle). The usual take-off is the game's own line-up from HOME's stand (the pilot's lineupPose: station +1052 m of 13/31, rolling toward -u); the winch stands 40 m inside the OTHER (far) threshold, 25.5 m off the centreline on the SW side (off the paved edge with the van's width), facing the line-up: ~2170 m of cable. FIRST TRIED on the NE side (-1131.42, -534.68, the side the stills of 03:10 show): GATE TAXICLEAR 11a red - the Cub's turn-around at end0 -25 / -33 m swings into it (-3.78 m with the winch's real box). Probed (taxiclear lib planAt, the three builds, HOME end0 at 15-150 m): NE 40 m in -3.78; SW 40 m in +4.64; NE 100 m in +15.8; beyond the end clear; NE 35 m off +5.72.
+- THE CENSUSES DID NOT KNOW THE WINCH: _taxiclear_lib propBoxes stands an unknown prop key in as a person's 0.6 m disc, so the census (TAXICLEAR, the fleet spots) saw the 2.6 x 7.2 m winch as a post. GEN_BB (the generated props' boxes) gives gen:winch [-1.46, 0, -2.98, 1.19, 4.26, 4.25]; GATE WINCH PLACED holds it to WINCH_GEN.build's own Box3. From the far end a launch has the winch behind it: winchStart sets one up and towStop takes it away (unchanged). GATE WINCH PLACED re-written for one winch + LONG (a launch on the whole cable). The chooser's subtitle: "on the cable to the club winch at the far end of Jolene AFB 13/31, released at the top".
+- IN GAME (RTX 3080, 22 Nov 03:10-03:18, tools: a page_rig.js rig in the session's scratchpad; stills D:/Dev/flydiy-notes/evidence/winch-land-2026-11-22/): the motorglider through NEW_PLANE.openShape, motorOff through GARAGE_SPEC.set (the chooser's glider rows - push, car tow, winch - need an unpowered build), FLYDIY_START.go({ start: 'winch:HOME' }): lined up at (494, 912), the cable 2173 m to xw_winch (none built), the climb ~150 s, the back-release at 70 deg ~890 m over the field. THE COST: the winch's programs 2 at the end of the boot (the opaque and the glass PBR + its weathering, cacheKey 'winchwx1'; 545 in all on this rig's settings), 4 after the first close look (2 more variants compiled then; not attributed further in this slot - a named cost for the perf round); its build 19 ms + the weathering's apply 113 ms, once, during the boot; 38 616 triangles, 13 MATLIB materials. The van / tow car untouched (lazy as before).
+- OPEN, for the user (page https://claude.ai/artifact/UKFygDvqa3zy7VBC6fanE7): the full runway gives a long, high launch (2.2 km; in node, calm, released at 572 m after 86 s - GATE WINCH LONG; in game with that morning's wind ~890 m after ~150 s; clubs fly 1-1.5 km to 300-500 m) - default keep. RE-SHOT at the SW spot (RTX 3080, 22 Nov 09:44-09:47; evidence/winch-land-2026-11-22/sw-spot/): the winch on the grass beside the far end, 549 programs at the end of that run, 2 of them the winch's.
+
+## STORY-REVAMP - THE GAME LAYER ON THE MISSION SYSTEM: THE CAREER'S RULES AND CLIENTS RIDE ON THE PACK, THE STORY PACK (91 MISSIONS, 10 PROJECTS, 40 STEPS, NO DRAWN JOB), THE TUTORIAL PLAYED ON NODE, THE AERO CLUB'S SCORING WIRED, THE MACHINERY GIVEN, THE SWITCH-OVER (22 Nov 2026, cloud - node + one headless boot; branch claude/story-revamp off L40H 9349a62c; readies claude/ready/story-1..n; progress file reports/STORY-REVAMP.md)
+
+THE USER (13 Nov, relayed): "NO GENERATED JOBS at all: everything deterministic"; "contracts in any order; projects as ordered steps tied
+to a site and its meshes"; "no buying machinery. A contract/project GIVES the machinery"; "competitions are a priority from the start";
+(16 Nov) "this is a game about building planes"; (17 Nov) the sandbox = the final stage, a story stage = the final state minus removals;
+(22 Nov) four backbone stories for the large missions (the remote community, home improvement, the observatory, the cultural heritage
+site) - the direction of the projects below. Words in the pack are DRAFTS (draft: true) for whoever writes the story.
+
+WHAT A PACK CAN SAY NOW (src/core/73b_missions.js; all optional - a pack that says none of it behaves as before):
+- `rules { jobs: 'generated' | 'none', shady: true | false, unflyable: 'hold' | 'offer' }` - how the career fills its board while the
+  pack is in use (74_ careerOfferIds reads missionPackRules()): none = no job drawn from the seed; shady false = no drawn "no questions"
+  job; unflyable offer = a mission no validated design can fly is on the board all the same (the player builds the plane). The
+  Trust's loan job stays (one fixed errand).
+- a mission's `repeat: { every: n }` (kind other than job): free again once n other contracts are done after its last time.
+- `clients [{ id, name, desc, fields, track, person, colour }]` - a provider that stands in CONTRACT_PROVIDERS only while its pack is
+  in use (no job table); its words are the pack's (prov.<id>.name / .desc / .short). The built-in pack keeps the game's five.
+- a project step's `track: '<track>:<n>'` (the world stage it builds: CONTRACT_TRACKS, never going down along the steps; the tick moves
+  career.tracks and emits { k: 'unlock' }) and `gives: [abilities]`; a mission's or a step's `onDone.gives`. An ability is a word kept
+  once in career.abilities (careerAbilityGrant): 'tech:<n>' opens the machine shop's segment, 'kit:<id>' stands a hangar kit.
+- `start { sheds: { <hangar>: { without: [kits] } } }` - the kits a career on this pack does not start with; careerPackAdopt(doc, use)
+  applies it ONCE a career (career.pack { id, without }) and drops an accepted mission no table knows any more.
+- careerProjectsBoard(doc, projects, now): the projects as a record for the page (locked / open / done, the current step, the works).
+- 74_: the done row keeps a competition's result (laps, course, stol); careerBest(doc, id); contractOnStop keeps r.scores / r.course.
+- 72_ CONTRACT_TRACKS + 76_ STAGE_REVEALS: four project tracks - home 6, community 7, heritage 2, lumber 3 (every reveal world: false
+  until the scenery wears them).
+
+THE STORY PACK (src/missions/story.json, WRITTEN BY tools/_story_pack.js - edit the tool, run it, never the json; --table prints the
+structure, --check is in the gate): rules none / no shady / offer; 3 clients of its own (home, community, aeroclub; stand-in faces);
+91 missions (30 kept from the built-in pack by id); 10 projects: the old hangar (field 1-3 -> the metal shop + segment 2), the old mine
+(minedock 1-2), the harbour (minedock 3-4, after the mine), the lumber camp (lumber 1-3), Skyline (resort 1-3), the totem site
+(heritage 1-2), the observatory (observatory 1-3 -> segment 3), home improvement (home 1-6 -> the wood shop), the community's runway
+(community 1-7), the club house (clients 1-2). The Aero Club: six events on 73c's scoring (a STOL landing, a spot landing, four pylons,
+a regularity run, a three-leg course, a timed gathering), four of them repeating.
+
+THE SWITCH-OVER (ready story-4): build.js CAREER_PACK_DEFAULT = 'story' and CAREER_PACK_LOAD (one rule for both pages) - index.html's
+career loader and dev.html name and fetch the pack for a career of the welcome menu (window.FLYDIY_MODE === 'career' without
+?career=1); app.js CAREER_PACK uses it, keeps its text in flydiy.pack.<id> for a start with no network; the career adopts it at the
+load (playerLoad) and its projects meet the clock at a flight's end, at the load and on a wait (projectsNow; a step's world stage
+noted for the next composition). A career that adopted a pack has a board ONLY while that pack is in use (74_ careerOfferIds). THE
+DEV CAREER (?career=1), ?map=1 and the sandbox are untouched: every gate's fixture career keeps the built-in tables. The tutorial's
+one job leads the board even when it is on it already (found by walking the tutorial with the pack in use).
+
+THE COMPETITIONS' SEAMS (COMPETE-SCORE's 1 and 2, closed): mission_live.js tick(t, x, y, z, agl, more) hands gnd / v / hdg / pitch /
+roll to 73c; a contract with a STOL line open arms a tracker with no gate; such a flight samples at RATE_STOL (30 Hz). app.js
+missionLiveFrame builds the sample off the sim. tools/mission_feas_lib.js feeds the same sample.
+
+TOOLS: tools/story_run.js (the tutorial T0 -> the checkpoint on node, the story pack in use and adopted; --dry the walk, else its four
+flights and its one job flown), tools/_story_pack.js, tools/story_feas.js (the pack's feasibility table kept ROW BY ROW: --fly one
+mission a process, a row keyed by the mission's record; --table; --check = GATE STORYFEAS-to-be, not registered while rows are
+missing: the whole pack is tens of hours of one core), tools/mission_feas.js --official (every official plane in the pool:
+widePool), tools/mission_feas_lib.js (installPack goes through missionPackUse; a project step's mission is put on offer with its
+project standing at that step; the page's STOL / attitude sample).
+
+GATES: STORYPACK (new, core, ~30 s, 119 checks): the rules, the board to the id without rules, one career for three seeds, repeats, a step's track
+and its reveal, what is given, the pack's clients, THE STORY PACK WALKED TO ITS END (every mission, every project, every step in
+order, every track at its max, every aerodrome used), the Aero Club's events, the start and the machinery, the board's record, the
+switch-over (the built page's loader run as written). TUTORWALK (new, core): story_run --dry. TUTORFLY (new, full): the tutorial
+flown. MISSIONLIVE +13 (the story pack's short landing through the page's own call; selftest 12/12). CONTRACTS re-pinned (the track
+list and a new career's tracks name the four project tracks; its own commit).
+
+WHAT IS NOT DONE (reports/STORY-REVAMP.md, the gaps): no scenery wears home / community / heritage / lumber (18 of 31 world stages
+change nothing yet); claude/ready/community-airport and claude/ready/docks-lodge are not on master; 14 missions need a plane no
+validated design can fly; no glider, no aerobatic plane; the Projects board and the machinery's pop-up are the page's (Game, local
+GPU); the economy of the pack is not calibrated (GATE ECON reads the built-in tables).
+
+STORY-REVAMP 7 - THE MISSION EDITOR, FOUND AND USABLE (ready story-5; the user 22 Nov: "there should be an in-game path ... a start menu
+option even ... operated by a human rather than being just a big repository of barely explained parameters"): welcome.js has a
+"Mission editor" row (a light page: tools/mission_editor.html); the editor has "<- The game", "Open story pack", "Try it in the game"
+(a new tab on the TEST career, ?career=1&pack=draft) and edits the pack's rules, clients, starting kits, projects and steps, a
+mission's "Comes back" / "After these projects" / "It gives"; it loads 79b_tech.js too (tools/_missions_lib.js LEAN follows). app.js
+unwraps the editor's draft ({ file, pack }): ?pack=draft could not work before. GATE STORYPACK 18 (133 checks). NOT in the editor:
+the competition fields (raw JSON only). story.json is still WRITTEN BY tools/_story_pack.js (GATE STORYPACK 9): the hand-over to the
+editor is its own small ready, on the user's word.
+
+STORY-REVAMP 8 - story.json IS THE EDITOR'S (ready story-6; the user 22 Nov: "Yes"): src/missions/story.json is in the mission
+editor's save format (JSON.stringify(missionPackNormalise(pack), null, 1) + newline; GATE STORYPACK 9 holds the round trip to the
+byte), tools/_story_pack.js is DELETED - edit the pack in the editor (or by hand), never regenerate it. GATE STORYPACK 9-13 are
+now RULES (valid, no drawn job, every mission placed once, a career walked to its end for three seeds, every step in order, every
+track a project builds at its max, every kit taken at the start given back, every aerodrome used, every scored mission runnable),
+never a count or a name; 14-16, GATE MISSIONLIVE's short landing and nothing else read the FROZEN copy of the pack as handed over,
+tools/fixtures/storypack/story_v0.json (do not edit it with the story; replace it only with the gate rows that read it). The
+totem site's project no longer requires the mine (an invented prerequisite). 132 checks.
+
+STORY-REVAMP 9 - THE FIRST FLIGHTS READ (ready story-7; reports/STORY-REVAMP.md "The flights so far"): tools/mission_feas_lib.js
+lands a contract with an open STOL landing / spot line THE WAY THE LINE NAMES (the field's landHdg for that flight; 73c measures no
+other way and every line of the stop must be measured) and says so in the row; tools/story_feas.js --again re-flies named missions
+after a change of the harness (a row is keyed by the mission's record only) and keeps a flight's notes. club.pylons' bronze and
+target are 250 s (the Cub's lap: 215.9 s). KNOWN, NOT MINE, with their cases in the report: the Cessna 172 capsizes out of its slip
+on a short final (master's own minedock.02 the same - 43_pilot.js WINGS-LEVEL's family); Cabin Lake (cb_sea) is landable one way
+only (approach: 0 on the island's record lands it) and five home missions land there. To trace one flight whole: judgeMission with
+a log callback prints each leg (phases, the pilot's verdicts, the landing, each gate's closest pass).
+- PETREL-FIXES (SEAPLANES, 21-22 Nov; the user via A0 on the Super Petrel: "the pedals poke through the hull of the petrel whatever the settings"; "2 bands with shading issues at its back, and the aft bulkhead does not draw properly. The additional 'ribs' on the hull need further subdivisions"; then "raise the seat"; then the 4 lines traced on the aft deck). Page: claude.ai/artifact/1JSBCwLk2Aijn4g2eByQDm. (1) PARTS OUT THROUGH THE SKIN - _cage_crew.js anchors() gains skinOver(x, y, z): null while the outer skin (every face but linings, glass and fittings: SKIN_NOT) has a face under the point, else the lowest face over it when within 20 cm (farther is a deck over an open part of the sheet, e.g. a nose the cowl layer draws). liftOut(A, x, y, z, hw) reads it at a footprint's edges and middle. buildPedals: each pillow block stands on liftOut(floor line), the axle over the higher block and the horns' ground, the fairlead and the cable's legs lifted only where out; the foot stays at floor + pedalH unless the axle forces it up. The trim wheel steps up its wall while its rim (its own plane, 24 mm in) is out. _seat_gen.js groundAt: the reclined tub's anchors the same way. The floor line is the keel's, flat across: in the Petrel's V the pedals stood 8-13 cm under the skin and pedalH only stretched the bars. Measured (headless level 2, control points with no skin face under them, master -> this): Super Petrel V4.2 739 -> 0, its V1-V4 copies 893 -> 0, Jodel 271 -> 34, build_v7 twin 400 -> 23, ultralight 345 -> 2, Ruckus 1080 -> 538, sailPlane 545 -> 196, Electric trainer 308 -> 34; DC-3, Stearman, Rufus and 27 others untouched (all-planes hash of the controls and seats against master). Earlier versions read "the skin under a point" as a height and lifted clear parts (C172 axle 19 mm, DC-3 trim wheel up its wall, the trainer's fairleads onto its nose top): the poke-through test is the rule. (2) SEATS - the V4.2 card seatH 0.02 -> 0.085 (the user: "raise the seat"): the tubs clear the V, the helmet ~6 cm under the canopy; the join moves only that row. (3) A HULL'S AFT BULKHEAD - _cage_gen.js cageInterior bulkSection, on every hull (S.hull), no row (the user: "that's really the aft bulkhead, why need a new row?"): the pillar band over a hull is an arch whose boundary walk breaks into pieces (five cycles of 71 at level 2) and the ladder filled a sliver of one side; the wall is now the fuselage's own section at the band (96 rays, innermost skin, the plain panel's inset, 5 mm plate); bulkZ +1 = the band's aft-most station (the V4.2 card takes bulkZ 1: the wall behind the headrests). (4) THE TRANSOM - cageAftOutward(m, S): with a tail cut (hullTailCut > 0: the V4.2 only) the cap's fore-aft faces turn to look aft (192 of 192 looked forward: the shader's cabin darkening, and the liner stood 25 mm out through it in two folded strips); the cut's rim takes crease 3 whatever crCap (crCap itself creases the rod's caps, which the join measures: 27 leaves); the cap is one 'taper' section. (5) THE DECK IS ONE SURFACE - the hull-taper branch of the aft rings takes HT_MAT (CAGE_PILLAR('taper')): CAGE_MAT.taper runs the painted longeron rails (a ceilingLoop strip each side, a waistband at the gunwale) through a taper, right on a pod-and-boom; on the hull's afterbody they were the user's "2 bands delimited by 4 lines" across a deck that turns < 2 deg at their edges. (6) THE SPRAY STRAKES - _cage_float.js drawStrakes: 120 stations (40), the run's plan eased +-4 cm, each wedge face its own vertices. The V4.2's join is unchanged by (1) and (3)-(6) (rejoin, master's sheet code vs this: 0 leaves). GATES (this branch, one at a time): PLANELISTS QSCUT CREWLOAD SEATS PILOTS CABINLAMP LIGHT FRAMES FLOATKIT DASH ENERGY PETRELTRIM CREWSEATS PASS; PARTS (canClear), DESIGN (roadster.cw_partLevel), SAVE (skiPos) red on master already, not this change. ALSO SEEN, NOT FIXED: the carbon liner (composite) showing through low on the Petrel's hull sides (x +-0.6, y -0.3, z 1.2-1.4 and 2.5-2.8) - tan patches under the hull.
+- PAGE-RIG-4 (SEAPLANES 22 Nov, A0 + AUDIO): tools/page_rig.js fly() (1) answers a float / hull build's start dialog (#edLaunch, app.js launchAsk: every Go only toggled it - the Super Petrel's 03:18 slot never flew): after each Go, LAUNCH_ANSWER clicks fo.launch 'water' (default) or 'trailer' (CLI --launch trailer); a land build never opens it; (2) FLYING IS NOT DRAWING: once the sim t rises, an open fleet screen / new-plane panel (UI_HOLDS) is closed with ONE Escape (the screens listen on window, capture) and fly() returns only with AA renders > 0 a second (AA_RATE; rig.plane.aaPerS), else throws naming the hold; WHY reports uiHolds. GATE PAGERIG 7o-7r (stubs + source). The in-game proof is SEAPLANES' Petrel slot (~07:50).
+- PETREL-FOLD (SEAPLANES 23 Nov, the user via FLAGSHIP: "the remaining dark bands on the petrel too please ... we need a single body for the aft part"): the Super Petrel's PORT side only kept 114 outer skin faces wound INTO the body at level 2 (11 at level 0) - the cabin's aft pillar band (pillarPassenger, pillarCabin, body, floorLoop: the deck behind the cockpit and the wall down to the waist, z 1.10-1.33 m) just forward of the taper's front (1.13 m), the stretch PETREL-SKIN's afterbody walk (cageAftOutward) stopped short of; the skin shader drew them as the cabin's inside, a dark band with a winding break at each edge; starboard clean. Found headless (a winding probe: each skin face's normal against its station's axis); quickshot cannot show it (no back-face darkening). FIX, tools/_cage_gen.js: (1) cageAftOutward on a HULL (S.hull) walks half a unit (~0.37 m) forward of the taper's front and turns the cabin pillar bands' outer faces too (CAGE_AFT_PILLARS) - the Petrel: 0 inward of 4022; any other build walks as before (every plane-list card's cage windings hashed before / after at level 0: 74 of 76 unchanged, only the Petrel's 9 faces + its liner); (2) cageInterior's aft bulkhead walks its band's boundary by adjacency when the directed walk runs off a dead end (a band of mixed winding after (1): the build threw) - a band the directed walk closes keeps its cycles exactly; (3) cageSheetKept (the editor's kept path) passes the spec to cageAftOutward as cageSheet does - the transom turn (PETREL-FIXES) never ran there. TRIED AND DROPPED: orientCage crossing 3+-face edges last - no effect on the Petrel, and it changed the Chinook's sheet. The V4.2's join is unchanged (rejoin, HEAD's sheet code vs this: 0 leaves). GATES (one run, --jobs=1): PLANELISTS QSCUT CREWLOAD SEATS PILOTS CABINLAMP LIGHT FRAMES FLOATKIT DASH ENERGY PETRELTRIM CREWSEATS PAGERIG PASS. In game: SEAPLANES' 11:12 slot (headed).
+
+## L40K (A0, Mon 23 Nov 2026, pushed ~16:00) - the user's fixes, the story revamp, the LS4 + Archaeopteryx, the van tow, the winch, the Petrel's side bands
+
+WHAT LANDED (on L40J 089297693): perf-trace-6 (programs, workers and materials named; FLIGHTREC green), perf-simplify-2 (based
+planes / storage on hold, the PARKED meeting row fixed), garage-fixes (the Shed's wing out, the club's night panes, ONE photo
+mode, the tree-card foot; the airframe AO DROPPED by the user's rule - +2.8 MB / +45 MB GPU / a new variant for a look he barely
+saw), veg-colours, reg-tank-fix (painted fuel tanks), deform-composite-fibre, audio-robust-1 (menu music, one stream into the
+world), water-start, story-7 (the story revamp: rules on the pack, clients + project tracks, the tutorial + aero club, the
+switch-over, the mission editor, the editor's story file, the first flights read) + story-fields (L40J's merge of one-cessna-4
+had dropped CONTRACT_FIELDS' xw_rough and tw_ski's corrected strip - restored by STORY-REVAMP), petrel-fixes-3 (114 inward-faced
+port skin faces in the cabin-aft band - the Petrel's dark side bands), winch-2 (the winch at the far end of 13/31; its lazy
+entries before the mission pair, its materials' owners, GATE TRAILER's car-tow regex accepting the winch beside it), van-tow-3
+(the van tow + its pictures, the van's materials through MATLIB with owners), ls4-arch-2 (the user's LS4 + Archaeopteryx; the
+pedal axle merged with the Petrel's hull fix by SEAPLANES; REALBAND re-pinned), FLAGSHIP's PARTS-COWL (the refit's cowl rows
+claimed), the water-ballast material's owner.
+
+THE BATTERY: 13 chunks on cf95faa2d (paused 06:57-08:00 for PERF-LEAD's quiet hour), then the late refs' gates on the final
+tree. New reds traced and fixed in the train: MISSIONLIVE + TUTORWALK (story-fields), PROGRAMS + MISSIONLIVE's build.js order +
+TRAILER (winch-2), PROGRAMS (the water ballast). Turned green vs master: FLIGHTREC, PARTS, DESIGN, GEN, MONOWHEEL, GFX.
+
+NAMED, NOT HELD:
+- the Super Petrel's static margin: ls4-arch-1's STRADDLE-FIX mass placement (REAL-FIGURES: meant) adds 3.6 kg and moves the CG
+  aft: sm min 1.80 -> 0.55 %, typ 2.99 -> 1.60, MTOW 14.3 -> 11.6 %. petrel-fixes-4 (L40M) pins today's as the floor; the target
+  is the user's call.
+- CONTRACTS 4 (was 8 in L40J; the refit's stage-0 rows the user accepted 17 Nov), MISSIONS (the bush run on list:50), STOL + SKIS
+  on the Jodel + metal Cessna (join parity), and L40J's named refit-172 reds (ground contact, tail strut / fin / stab, overspeed,
+  floats damping, TAKEOFF 732 vs 720 m, the aerial tip) - FLAGSHIP's user-fixes, L40M.
+
+THE PERF CHECK (PERF-LEAD, 15:10-15:40, headed 5120x1440, quiet; evidence perf-check-L40K-2026-11-23/): no regression against
+L40J. Cold 114-120 s / 453-463 programs (L40J 119-127 s / 451), returning 103 s, Go 2.5 s (11.5 s with the shot). The journey's
+first 8 min: 54.9 % of seconds at 29+ fps, 17 frames over 100 ms (L40J 31), the page never shown. The crash: the page 6.7 s
+(unchanged: the fix is L40M's perf-lead-1 + Deform's wreck-clear).
 ## PERF-SLIDERS 1 - EVERY AEROPLANE IN THE GARAGE: row 1 measured per aeroplane, five exact cuts of the drag tick, the drag budget as a switch (PERF-SLIDERS, 23 Nov 2026, claude/ready/perf-sliders-1 off perf-lead-lab d21f414f7)
 The user, 22 Nov: "editing the dc3 is really laggy on the phone, while the chinook was really easy. Let's make sure that all planes are workable. The thing is laggy even before it updates." The whole account - the tables, the defects, the next steps - is flyDiy/reports/PERF-SLIDERS-HANDOVER.md; this entry is what the ready changes. The two release rules and GATE INSTANTREL are ALSO alone on claude/ready/perf-sliders-release-1 / -2 (off origin/master, L40M): the same text here.
 - MEASURED, row 1's first every-aeroplane table (a real visible Chrome, 23 Nov 08:20-10:12, a shared box; D:/Dev/flydiy-notes/evidence/perf-sliders-2026-11-23/TABLES.md): the desktop garage at 5120x1271, today: 0 of 30 aeroplanes keep every drag frame under 50 ms (DC-3 684 ms ... the Cub 67); with ?dragbudget=auto 10 of 30, by holding the model on 61 of 90 rows. The phone profile: 6 of 30 as quick as the Chinook (the user's bar for the phone) on all three drags. The user's S20 FE: the Chinook 145 / 440 ms a wing-drag frame, the DC-3 306 / 918 and 2 162 / 2 865 on the gear station.

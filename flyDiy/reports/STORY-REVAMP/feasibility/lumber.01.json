@@ -1,0 +1,35 @@
+{
+ "id": "lumber.01",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Cessna 172 floats (career)",
+ "timeS": 419,
+ "why": "",
+ "tried": [
+  "Cessna 172 floats (career):feasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "mk_sea",
+   "t": 419,
+   "how": "stopped",
+   "at": "mk_sea",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "00f3ea098a96",
+ "where": "lumber:1",
+ "pool": "validated",
+ "wallS": 481
+}

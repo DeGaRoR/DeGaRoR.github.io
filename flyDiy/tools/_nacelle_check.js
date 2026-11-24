@@ -23,8 +23,10 @@
 //    own socket aside), on a parasol no cabane; nothing degenerate; the mast weighs GEN_HANG.kgM a metre; THE WHEEL HANGS
 //    FROM ITS FOOT: the monowheel's axle under the mast's middle, its members on the mast's nodes, none on the cabin's.
 // C. THE AEROPLANE STANDS: parked on its wheel 6 s it settles (no member lets go); the hub held, the cabin under 2 g more
-//    hangs from the mast and the rod's ring (its nose's keel within 25 mm: 12 measured on the card, the box no longer tied
-//    into the cabin's rings).
+//    hangs from the mast and the rod's ring (its nose's keel within 30 mm: 12 measured on the card, the box no longer tied
+//    into the cabin's rings; RE-PINNED 25 -> 30 on 15 Nov: the user's 5 kg in the nose - lead first (24.3 -> 26.9 mm on
+//    the parasol, 22.2 -> 24.7 on the high wing), then the nose WATER tank that replaced it - and the packs moved forward
+//    load the pod's nose, the sag following the nose's load as it should; an untied box reads far past either).
 // D. THE DRAWING: the mast at its station on the root chord, the cabin free of it (a longer cabin leaves it where it
 //    stands); the pusher on its back face; the wheel's fitting its middle; the sunk wheel's square cut leaves the rod over
 //    it whole (no rod face reaches below the rod);
@@ -154,7 +156,7 @@ console.log('C. THE AEROPLANE STANDS');
       if (k >= 60 * N) { acc += y0 - sim.p[nose * 3 + 1]; n++; }
     }
     const drop = acc / n;
-    ok(isFinite(vmax) && vmax < 0.5 && isFinite(drop) && Math.abs(drop) < 0.025 && !broken,
+    ok(isFinite(vmax) && vmax < 0.5 && isFinite(drop) && Math.abs(drop) < 0.030 && !broken,
        `C ${lab}: parked 8 s it settles (fastest node ${vmax.toFixed(3)} m/s); the hub held, 2 g more: the nose's keel moves ${(1000 * drop).toFixed(1)} mm`);
   } }
 

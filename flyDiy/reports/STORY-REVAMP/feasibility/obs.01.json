@@ -1,0 +1,64 @@
+{
+ "id": "obs.01",
+ "kind": "survey",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 3841,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 1426,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 1798,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:1@0",
+    "stage@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 617,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@1",
+    "stage@1",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "c3cb1a93548f",
+ "where": "observatory:1",
+ "pool": "validated",
+ "wallS": 2065
+}

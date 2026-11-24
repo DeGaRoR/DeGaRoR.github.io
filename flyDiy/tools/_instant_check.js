@@ -28,10 +28,10 @@ const fs = require('fs'), path = require('path'), vm = require('vm'), crypto = r
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json',
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
+  cessna: 'builds/cessna172r_2026-11-08.json', floats: 'bugReports/cessnaFloatsWOrks.json',
   // PHONE-EDIT-PERF (2 Nov): the user's twin-boom pusher on floats (their S20 FE log's plane; the file's own name)
-  twin: 'bugReports/Twin_busher_floats_2.json',
+  twin: 'tools/fixtures/test_copies/Twin_busher_floats_2.json',
   // PERF-SLIDERS (23 Nov): wing engines on a gear that retracts into the nacelles (the DC-3), a hull with a pylon engine
   // (the Super Petrel) - GATE INSTANTREL's two (_instant_rel_check.js)
   dc3: 'builds/candidates/dc3_2026-10.json', petrel: 'builds/candidates/superpetrel_V4_2.json' };

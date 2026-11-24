@@ -61,7 +61,9 @@ const log = s => console.log(s);
 const EXPECT = {
   cub:          { cyl: 4, arch: 'flat',   two: 0, gear: 1,    fpr: 2, src: 'table' },
   jodel:        { cyl: 4, arch: 'flat',   two: 0, gear: 1,    fpr: 2, src: 'table' },
-  cessna:       { cyl: 4, arch: 'flat',   two: 0, gear: 1,    fpr: 2, src: 'custom.name' },
+  // DASH-FIX-3 (23 Nov, L40J): the refitted 172 (list:50, one-cessna-4) carries its engine's own sound row (spec.engines[0].sound
+  // { cyl 4, flat, twoStroke 0, 5.92 L }), the resolver's first source; the cylinders, the gear and the firings are the same
+  cessna:       { cyl: 4, arch: 'flat',   two: 0, gear: 1,    fpr: 2, src: 'spec.sound' },
   cessnaFloats: { cyl: 6, arch: 'flat',   two: 0, gear: 1,    fpr: 3, src: 'table' },
   twin582:      { cyl: 2, arch: 'inline', two: 1, gear: 2.62, fpr: 2, src: 'table' },
 };
@@ -91,6 +93,20 @@ function secConfig(brk) {
   const saved = clone(T);
   try {
     if (brk === 'drift') T.o540_hartzell.cyl = 4;
+    // DASH-FIX-3 (23 Nov): THE NAME PARSER KEEPS ITS OWN ROW. The refitted 172 now resolves off its sound row, so the
+    // name path it used to exercise is read here on the same engine with the row set aside: the custom name alone must
+    // still give 4 flat cylinders, 2 firings a turn (the 'parse' break turns this row red, as it did the Cessna's)
+    {
+      const Bc = BUILDS.find(b => b.key === 'cessna');
+      if (Bc) {
+        const spec = clone(Bc.spec);
+        delete spec.engines[0].sound;
+        if (brk === 'parse') spec.engines[0].custom.name = 'custom engine';
+        const c = CFGM.engineSoundConfig(spec, 0, C.POWERPLANTS);
+        rows.push([c.piston && c.cyl === 4 && c.arch === 'flat' && !c.twoStroke && c.firingPerRev === 2 && c.source === 'custom.name',
+                   `cessna by its custom name (the sound row set aside): ${c.cyl} cyl ${c.arch}, ${c.firingPerRev} firings/rev, from ${c.source}`]);
+      }
+    }
     for (const B of BUILDS) {
       const spec = clone(B.spec);
       if (brk === 'parse' && B.key === 'cessna') spec.engines[0].custom.name = 'custom engine';

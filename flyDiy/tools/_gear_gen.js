@@ -359,6 +359,60 @@ function tyreLugs(bag, at3, TT, L, R) {
       }
     }
 }
+// CAR-3 (the user, 12 Nov, of the van: "design a rim that looks less vintage ... this basic rim ... a little wavy there
+// with holes in that, in probably aluminium ... on a quite fat wheel"): whRim 4, THE PRESSED WHEEL - a dished disc from
+// the hub boss to the rim's well with a ring of N round holes (N = the bolts, 4..10), the disc between them pressed
+// proud and dimpled round each hole (the wave), a real thickness and a wall round every hole, so it reads as a solid
+// plate with light through it. at / ax are wheel()'s frame; s the face (+1 outboard, -1 inboard), hf its axial station.
+// A closed band from the boss to the well: the annuli and the holed band share their edge samples, so no crack.
+function pressedDisc(bag, at, ax, s, hf, Rh, bead, N) {
+  // (12 Nov, the user: "the holes ... closer to the center of the wheel so that they do not clip with the walls of the
+  // rim ... in between the outer walls and the inner walls"): the band sits between the hub boss (0.19 Rh) and the
+  // rim's well wall (0.335 Rh), the holes BETWEEN the bolts (offset half a pitch), the dish falling to the well outside
+  const rA = Rh * 0.15, rI = Rh * 0.205, rO = Rh * 0.315, rE = Math.max(bead * 0.99, Rh * 0.40);
+  const rH = (rI + rO) / 2, hr = Math.min((rO - rI) * 0.44, Math.PI * rH / N * 0.55);
+  const t = Rh * 0.022;                                      // the plate's thickness
+  // the dish, in fractions of hf: the boss, the bolt face flat, the slope through the holes, down to the well
+  const XS = [0.15, 0.19, 0.315, 0.335, 0.37, rE / Rh], YS = [0.86, 1.00, 0.985, 0.95, 0.86, 0.74];
+  const A = 0.045;                                           // the wave, x hf
+  const H = (r, th) => {
+    const x = r / Rh; let h = lerpTab(x, XS, YS);
+    if (x > 0.195 && x < 0.325) h -= A * Math.sin(Math.PI * (x - 0.195) / 0.13) * Math.cos(N * (th - Math.PI / N));
+    return hf * h;
+  };
+  const V = (r, th, back) => bag.v(at(r, H(r, th) - (back ? s * t : 0), th));
+  const m = 8, q = 4, NT = N * m, TH = j => 2 * Math.PI * j / NT;
+  // a quad whose (a, b) runs CCW round +ax and (a, d) outward faces -ax: the front (facing s*ax) is turned for s > 0
+  const Q = (a, b, c, d, front) => (front === (s > 0)) ? bag.quad(a, d, c, b) : bag.quad(a, b, c, d);
+  // the two plain annuli, boss to the holes and the holes to the well
+  const annulus = rs => { for (const back of [false, true]) {
+    const G = rs.map(r => { const row = []; for (let j = 0; j < NT; j++) row.push(V(r, TH(j), back)); return row; });
+    for (let i = 0; i + 1 < rs.length; i++) for (let j = 0; j < NT; j++) {
+      const j2 = (j + 1) % NT; Q(G[i][j], G[i][j2], G[i + 1][j2], G[i + 1][j], !back); } } };
+  annulus([rA, Rh * 0.17, Rh * 0.19, rI]);
+  annulus([rO, Rh * 0.335, Rh * 0.355, Rh * 0.37, rE]);
+  // the holed band, a sector per hole: its rectangle's edge (in r, theta) lofted in to the hole's circle
+  const LV = [0, 0.3, 0.65, 1];
+  for (let k = 0; k < N; k++) {
+    const th0 = TH(k * m), th1 = TH((k + 1) * m), thc = (th0 + th1) / 2, per = [];
+    for (let i = 0; i < m; i++) per.push([rI, th0 + (th1 - th0) * i / m]);
+    for (let i = 0; i < q; i++) per.push([rI + (rO - rI) * i / q, th1]);
+    for (let i = 0; i < m; i++) per.push([rO, th1 - (th1 - th0) * i / m]);
+    for (let i = 0; i < q; i++) per.push([rO - (rO - rI) * i / q, th0]);
+    const hole = per.map(([r, th]) => { const f = Math.atan2(rH * (th - thc), r - rH); return [rH + hr * Math.cos(f), thc + hr * Math.sin(f) / rH]; });
+    const M = per.length;
+    const ring = (l, back) => per.map(([r, th], p) => V(hole[p][0] + (r - hole[p][0]) * LV[l], hole[p][1] + (th - hole[p][1]) * LV[l], back));
+    for (const back of [false, true]) {
+      const G = LV.map((_, l) => ring(l, back));
+      for (let l = 0; l + 1 < LV.length; l++) for (let p = 0; p < M; p++) {
+        const p2 = (p + 1) % M; Q(G[l][p], G[l][p2], G[l + 1][p2], G[l + 1][p], !back); }
+    }
+    // the hole's wall, front ring to back ring, facing into the hole
+    const F = ring(0, false), B = ring(0, true);
+    for (let p = 0; p < M; p++) { const p2 = (p + 1) % M;
+      if (s > 0) bag.quad(F[p], F[p2], B[p2], B[p]); else bag.quad(F[p], B[p], B[p2], F[p2]); }
+  }
+}
 // MONOWHEEL (the user, 11 Nov, the Archaeopteryx's photograph: "super light wheels ... a new model"): THE BICYCLE WHEEL
 // (whProfile 3) - its own drawing: a narrow tube tyre (a round section 0.20 R wide on a 0.16 R wall), a thin box-section
 // rim, a small barrel hub with its two flanges, 24 wire spokes crossing from alternate flanges to the rim, a valve.
@@ -422,6 +476,30 @@ function wheel(bags, ctr, axis, R, opt) {
   let e1 = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
   e1 = nrm(sub(e1, mul(ax, dot(e1, ax))));
   const e2 = crs(ax, e1);
+  // CAR-3 (WHEEL-TEX, the user 13 Nov: "all the tyres are much too clean ... a professional texturing job ... Don't forget
+  // that turn"): whTex 1 - the tyre and the rim get a UV map in THE WHEEL'S OWN FRAME, so the maps turn with it: u round
+  // the axle (revolve's own angle, its seam column at u = 1), v across - the tyre's profile in three bands (the inboard
+  // sidewall 0-0.3, the tread 0.3-0.7, the outboard sidewall 0.7-1; +axis is outboard), the rim by radius. The maps are
+  // CAGE_WHEELTEX's (below); absent = no uv, the plain materials, every wheel byte for byte
+  const WT = +P.whTex === 1;
+  const rTreadOf = () => R * (1 - (prof.crown || 0.06)) * 0.985;
+  if (WT) {
+    const loc = p => { const d = sub(p, ctr); const a = dot(d, e1), b = dot(d, e2); return [Math.hypot(a, b), dot(d, ax), (Math.atan2(b, a) / (2 * Math.PI) + 1) % 1]; };
+    T.uvf = p => { const [r, h, u] = loc(p), rt = rTreadOf(), b0 = R * prof.bead;
+      if (r >= rt) return [u, 0.5 + 0.2 * clamp(h / (hw * 0.78), -1, 1)];
+      const f = clamp((r - b0) / Math.max(1e-6, rt - b0), 0, 1) * 0.3; return [u, h < 0 ? f : 1 - f]; };
+    const rimR = R * prof.bead * 1.25;
+    Hb.uvf = p => { const [r, , u] = loc(p); return [u, clamp(r / rimR, 0, 1)]; };
+  }
+  // the carcass profile's rows: piecewise arc length - the inboard flank to 0.3, the tread band to 0.7, the outboard to 1
+  const vProf = pts => {
+    if (!WT) return pts;
+    const rt = rTreadOf(); let iA = pts.findIndex(q => q[0] >= rt), iB = pts.length - 1 - pts.slice().reverse().findIndex(q => q[0] >= rt);
+    if (iA < 0) { iA = Math.floor(pts.length * 0.4); iB = Math.ceil(pts.length * 0.6); }
+    const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const span = (i0, i1, v0, v1, i) => v0 + (v1 - v0) * (L[i1] - L[i0] > 1e-9 ? (L[i] - L[i0]) / (L[i1] - L[i0]) : 0);
+    return pts.map((q, i) => [q[0], q[1], i <= iA ? span(0, iA, 0, 0.3, i) : i <= iB ? span(iA, iB, 0.3, 0.7, i) : span(iB, pts.length - 1, 0.7, 1, i)]);
+  };
   const at = (rad, hh, an) => add(ctr, add(mul(ax, hh),
     add(mul(e1, Math.cos(an) * rad), mul(e2, Math.sin(an) * rad))));
 
@@ -477,11 +555,11 @@ function wheel(bags, ctr, axis, R, opt) {
     // G2784: one ellipse, bead to bead; whBulge widens it as it widens the flank
     const grooves = [];                       // G3852: the bush tyre wears lugs, never circumferential grooves
     const TT = tyreTorus(R, bead * 1.03, beadH, hw * B, grooves);
-    revolve(T, ctr, ax, TT.pts.map(([r, z]) => [r, z]), 44);
+    revolve(T, ctr, ax, vProf(TT.pts.map(([r, z]) => [r, z])), 44);
     wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
     if (L && L.tread === 'lugs') tyreLugs(T, (r, z, th) => at(r, z, th), TT, L, R);   // whSlick 2 (G3851b)
     else if (!slick) bushLugs(T, TT, R, at, prof.mil ? MIL_LUG : BUSH_LUG);
-  } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
+  } else revolve(T, ctr, ax, vProf(flank(-1).concat(crown, flank(1).reverse())), 44);
   if (!prof.torus && !L) for (const s of [-1, 1])
     for (const rr of [0.62, 0.70]) {
       // on the sidewall: the straight wall's 0.90 hw, or the torus where it is at that radius
@@ -560,6 +638,8 @@ function wheel(bags, ctr, axis, R, opt) {
         [bead * 1.11, hf * 0.98]], 44, true);
       // its split: a notch tab across the ring
       taper(bags.dark, at(bead * 1.10, hf * 1.05, 0.4), at(bead * 1.19, hf * 1.05, 0.4), Rh * 0.010, Rh * 0.010, 6);
+    } else if (rimK === 4) {                 // CAR-3: A PRESSED WHEEL, ROUND HOLES (a plain modern wheel)
+      pressedDisc(Hb, at, ax, s, hf, Rh, bead, Math.max(4, Math.min(10, bolts)));
     } else {                                 // CAST DISC: solid, dished
       revolve(Hb, ctr, ax, [[Rh * 0.16, hf * 0.80], [Rh * 0.24, hf * 1.00],
         [Rh * 0.32, hf * 0.96], [bead * 0.99, hf * 0.72]], 38);
@@ -603,7 +683,30 @@ function wheel(bags, ctr, axis, R, opt) {
     // brake — and the valve — on the wrong face.
     const s = 1;
     const kind = Math.round(P.whBrake == null ? 0 : P.whBrake);
-    if (kind === 1) {
+    if (kind === 2) {
+      // CAR-3 (the user, 13 Nov: "resize the brake disc and the inside of the wheels so they look good"): A CAR'S DRUM,
+      // INSIDE THE RIM. The disc (kind 0) is an aeroplane's, sized off Rh - on a car's big rim (whRimD) it stood 0.3 m
+      // proud of the wheel's inner face, larger than the rim itself. Here the drum sits in the rim's well (its radius the
+      // well's, less a clearance), from the inner bead to the wheel's middle, three cooling ribs round it; a pressed
+      // BACKING PLATE closes the rim's inner opening (a dish from the hub out to just inside the bead flange), its ring
+      // of bolts - what the inside of a car wheel shows. No caliper.
+      const wellR = Rh * 0.335 - wall, dRd = Math.max(0.02, Math.min(wellR - 0.008, bead * 0.82));
+      const h0 = -s * beadH * 0.92, h1 = -s * beadH * 0.12, hb = Rh * 0.17;
+      revolve(bags.brake, ctr, ax, [[hb, h1], [dRd * 0.97, h1], [dRd, h1 - s * 0.008], [dRd, h0], [hb, h0]], 32);
+      for (const f of [0.3, 0.5, 0.7]) {
+        const hh = h1 + (h0 - h1) * f;
+        revolve(bags.brake, ctr, ax, [[dRd, hh - s * 0.006], [dRd + Math.max(0.004, 0.025 * dRd), hh - s * 0.004],
+          [dRd + Math.max(0.004, 0.025 * dRd), hh + s * 0.004], [dRd, hh + s * 0.006]], 32);
+      }
+      const rB = Math.min(bead * 1.04, dRd + 0.04), hp = -s * beadH * 1.02;
+      revolve(bags.brakefix || bags.brake, ctr, ax, [[hb * 0.55, hp - s * 0.012], [dRd * 0.55, hp - s * 0.014],
+        [dRd * 1.04, hp - s * 0.006], [rB, hp + s * 0.004], [rB, hp + s * 0.012]], 36);
+      for (let k = 0; k < 8; k++) {
+        const an = 2 * Math.PI * (k + 0.5) / 8;
+        revolve(bags.hub, at(dRd * 0.78, hp - s * 0.012, an), ax,
+                [[Math.max(0.003, 0.03 * dRd), 0], [Math.max(0.003, 0.03 * dRd), -s * 0.010]], 6, true);
+      }
+    } else if (kind === 1) {
       revolve(bags.brake, off(ctr, ax, -s * hw * 1.02), ax,
         [[Rh * 0.20, 0], [Rh * 0.60, 0], [Rh * 0.60, -s * hw * 0.44],
          [Rh * 0.54, -s * hw * 0.52], [Rh * 0.20, -s * hw * 0.52]], 30, true);
@@ -638,6 +741,7 @@ function wheel(bags, ctr, axis, R, opt) {
             q(Rh * 0.022, 0.003, 0.005), q(Rh * 0.018, 0.0025, 0.004), 7);
     }
   }
+  if (WT) { T.uvf = null; Hb.uvf = null; }   // (WHEEL-TEX: the mappers are this wheel's alone)
 }
 // ---- THE SPAT -------------------------------------------------------------
 // A wheel fairing is a STREAMLINED BODY, and the shape is the whole point
@@ -677,9 +781,17 @@ function spat(bags, hub, axis, R, o) {
     up = nrm(add(mul(up, cR), mul(fwd, sR)));
     fwd = f2;
   }
-  const zN = R * 1.62, zT = R * 2.45 * tail;     // nose ahead, tail behind
-  const Hm = R * 1.20, Wm = R * 0.62 * wid;      // depth and half width
+  // SPAT-NOSE-DEPTH (15 Nov, the 172's wheel pants from its blueprint): the nose's reach ahead of the axle and the
+  // shell's depth, as multiples of the tyre (absent 1: the shell as it always was)
+  const noseK = clamp(O.nose || 1, 0.70, 1.80), depK = clamp(O.depth || 1, 0.70, 1.50);
+  const zN = R * 1.62 * noseK, zT = R * 2.45 * tail;     // nose ahead, tail behind
+  const Hm = R * 1.20 * depK, Wm = R * 0.62 * wid;      // depth and half width
   const yCut = -R * clamp((full ? 0.80 : 0.48) + (O.skirt || 0), 0.30, 0.92);
+  // FAIR-FACET (16 Nov, the 172's wheel pants, the user: "more pointy at the front and the back ... a polygonal shape
+  // with beveled edges ... alternative wheel fairings"): style 1 = a pointed nose and tail and an octagonal section (a
+  // box with its four long edges bevelled); `kick` (x R) sweeps the tail up behind the tyre (clear of a tail-down
+  // rotation). Absent: the rounded shell, level, as it always was
+  const style = Math.round(O.style || 0) === 1 ? 1 : 0, kick = clamp(O.kick || 0, 0, 0.8);
   const NT = 30, NA = 22;
   // THE FAIRING IS THE GREATER OF TWO SHAPES. Streamline alone is
   // shallower than the tyre at the front and back of the wheel, and the
@@ -687,9 +799,32 @@ function spat(bags, hub, axis, R, o) {
   // and it encloses the wheel AND runs out to a fine tail.
   const gap = R * 0.07;
   const env = z => Math.abs(z) < R ? Math.sqrt(Math.max(0, R * R - z * z)) : 0;
-  const stream = z => z >= 0
-    ? Hm * Math.sqrt(Math.max(0, 1 - (z / zN) * (z / zN)))
-    : Hm * Math.pow(Math.max(0, 1 - Math.pow(-z / zT, 1.85)), 0.62);
+  const stream = style === 1
+    ? (z => z >= 0 ? Hm * Math.max(0, 1 - Math.pow(z / zN, 1.6))
+                   : Hm * Math.max(0, 1 - Math.pow(-z / zT, 1.35)))
+    : (z => z >= 0
+      ? Hm * Math.sqrt(Math.max(0, 1 - (z / zN) * (z / zN)))
+      : Hm * Math.pow(Math.max(0, 1 - Math.pow(-z / zT, 1.85)), 0.62));
+  // the section point at angle an (0 crown, pi keel): the ellipse, or (style 1) the bevelled box - the ray from the
+  // centre to the octagon |x| <= 1, |y| <= 1, |x| + |y| <= 2 - BEV (the bevel cuts BEV off each corner)
+  const BEV = 0.62;
+  const sec = (an, Hh, Ww) => {
+    const ux = Math.sin(an), uy = Math.cos(an);
+    if (style !== 1) return [Ww * ux, Hh * uy];
+    const r = 1 / Math.max(Math.abs(ux), Math.abs(uy), (Math.abs(ux) + Math.abs(uy)) / (2 - BEV), 1e-9);
+    return [Ww * r * ux, Hh * r * uy];
+  };
+  // where the section meets the cut, measured from the crown (the octagon's y falls monotonically with an)
+  const aCut = Hh => {
+    if (style !== 1) return Math.acos(clamp(yCut / Hh, -1, 1));
+    if (sec(Math.PI, Hh, 1)[1] >= yCut) return Math.PI;
+    let lo = 0, hi = Math.PI;
+    for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (sec(m, Hh, 1)[1] > yCut) lo = m; else hi = m; }
+    return 0.5 * (lo + hi);
+  };
+  // the tail's sweep up, from just behind the axle to the tip (a parabola: level where it leaves the tyre)
+  const z0K = -R * 0.6;
+  const kickAt = z => kick > 0 && z < z0K ? kick * R * Math.pow((z0K - z) / Math.max(1e-6, zT + z0K), 2) : 0;
   const Hat = z => Math.max(stream(z), env(z) > 0 ? env(z) + gap : 0);
   const Wat = z => {
     // full width wherever the tyre is, easing out just past it
@@ -699,18 +834,23 @@ function spat(bags, hub, axis, R, o) {
   };
   const bag = bags.fair;
   const rows = [], edges = [[], []];
+  // FAIR-FACET (16 Nov, the user: "cut clean and straight, just in the last little portion"): the faceted shell stops
+  // short of its point (CUT of the tail's run) and is closed by a flat end; the rounded one runs to its tip as always
+  const CUT = style === 1 ? 0.86 : 1, endPts = [];
   for (let i = 0; i <= NT; i++) {
     const t = i / NT;
-    const z = zN - t * (zN + zT);
+    const z = zN - t * (zN + zT * CUT);
     const Hh = Math.max(1e-4, Hat(z)), Ww = Math.max(1e-4, Wat(z));
-    // where the ellipse meets the cut, measured from the crown
-    const c = clamp(yCut / Hh, -1, 1);
-    const aMax = Math.acos(c);                   // 0 = crown, pi = keel
+    // where the section meets the cut, measured from the crown
+    const aMax = aCut(Hh);                       // 0 = crown, pi = keel
+    const yK = kickAt(z);
     const row = [];
     for (let j = 0; j <= NA; j++) {
       const an = -aMax + 2 * aMax * j / NA;
-      const y = Hh * Math.cos(an), x = Ww * Math.sin(an);
-      row.push(bag.v(add(hub, add(mul(fwd, z), add(mul(up, y), mul(ax, x))))));
+      const [x, y] = sec(an, Hh, Ww);
+      const pp = add(hub, add(mul(fwd, z), add(mul(up, y + yK), mul(ax, x))));
+      row.push(bag.v(pp));
+      if (i === NT && CUT < 1) endPts.push(pp);
     }
     rows.push(row);
     // THE BEAD RUNS WHERE THE OPENING IS (A7, 2026-09-21, the user of
@@ -722,8 +862,8 @@ function spat(bags, hub, axis, R, o) {
     // with a pinch where they parted at the opening's ends. The edges stop
     // at the last open station; the closed run-out is plain shell.
     if (aMax < Math.PI - 1e-3) {
-      const pE = an2 => add(hub, add(mul(fwd, z),
-        add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
+      const pE = an2 => { const q = sec(an2, Hh, Ww);
+        return add(hub, add(mul(fwd, z), add(mul(up, q[1] + yK), mul(ax, q[0])))); };
       edges[0].push(pE(-aMax));
       edges[1].push(pE(aMax));
     }
@@ -745,6 +885,15 @@ function spat(bags, hub, axis, R, o) {
       bag.quad(rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]);
     else
       bag.quad(rows[i][j + 1], rows[i][j], rows[i + 1][j], rows[i + 1][j + 1]);
+  }
+  // the faceted shell's flat end: a fan from its centre, every face turned to look aft
+  if (CUT < 1 && endPts.length > 2) {
+    const cc = endPts.reduce((a, q) => add(a, mul(q, 1 / endPts.length)), [0, 0, 0]), ic = bag.v(cc), last = rows[NT];
+    const aft = mul(fwd, -1);
+    for (let j = 0; j < NA; j++) {
+      const nn = crs(sub(endPts[j], cc), sub(endPts[j + 1], cc));
+      if (dot(nn, aft) >= 0) bag.tri(ic, last[j], last[j + 1]); else bag.tri(ic, last[j + 1], last[j]);
+    }
   }
   // the rolled edge bead down both sides of the opening
   for (const e of edges)
@@ -1453,12 +1602,16 @@ function legShroud(bag, path, yStop, chord, thick) {
 //   turning fork, and the housing's own height is exactly where the turning
 //   part begins (CASTOR_HOUSE, the profile castorUnit revolves).
 const CASTOR_HOUSE = 0.062;
+// LEG-FAIR-TO (the user 15 Nov, the C172 refit: the main legs' fairings "look broke now, spending only half/a third of the
+// total arm length"): with a wheel pant on (fair 1) and legFairTo set, the leg's shroud runs on INTO the pant - its end
+// hidden in the pant's inboard face, 0.4 tyre radii over the axle - as a spring-steel leg's fairing meets the spat on the
+// real aeroplane. Absent / no pant: it stops above the tyre as it always has.
 // (INLINE-FORK, proto 17 Nov: the inline fork's wheel is ON the leg's axle - no castor below it - so its shroud stops
 // clear of the tyre and of the spat's crown, the user: "it should stop short of the fairing and the wheel")
 const fairStopY = (st, axleY) =>
   st.inline ? axleY + st.R * (st.fair ? 1.3 : 1.08)
   : (st.steer > 0 && st.x <= 0.01) ? axleY + CASTOR_HOUSE
-                                 : axleY + st.R * 1.04;
+                                 : axleY + st.R * (st.legFairTo && st.fair === 1 ? 0.4 : 1.04);
 
 // the STUB AXLE: from where the leg ends, out through the hub and a
 // little past it — the piece that was missing when legs ran to the
@@ -3180,7 +3333,8 @@ function legTailwheel(bags, AF, P, st) {
   if (st.fair) {
     spat(bags.castorBags || bags, u.hub, u.axis, st.R,
          { full: st.fair === 2, skirt: st.fairSkirt, tail: st.fairTail,
-           rake: st.fairRake, width: st.fairW });
+           rake: st.fairRake, width: st.fairW, nose: st.fairNose, depth: st.fairH,
+           style: st.fairStyle, kick: st.fairKick });
     if (st.fair === 2)
       legShroud(bags.fair, path, tip[1] + 0.02,
                 Math.max(0.10, P.twSpringW * 2.2),
@@ -3446,7 +3600,168 @@ function skiRigRun(bags, a, b, coil, kS) {
   for (const e of [p0, p1]) revolve(bags.alloy, off(e, t, e === p0 ? -0.012 * k : 0), t, [[0.004 * k, 0], [Rh, 0.006 * k], [0.004 * k, 0.012 * k]], 10, true);
 }
 
-window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
+// ---- WHEEL-TEX: THE TYRES' AND RIMS' OWN MAPS (CAR-3, the user 13 Nov: "all the tyres are much too clean. Please do a
+// professional texturing job on these. Don't forget that turn, so no leaks and stuff like that. But a proper PBR material
+// for the rubber, maybe some patterns/writing on the flanks as normals, maybe a new normal map with a proper tyre road
+// pattern - wavy ridges for the speedster, and modern all paths and weather for the van. Apply the same treatment to the
+// rims, proper UV mapping, PBR materials and believable wear and dirt ... Have those modifications also impact the
+// normal planes, at least as an option") ---------------------------------------------------------------------------
+// Drawn once per key on canvases, in the wheel's own uv (wheel() above: u round the axle, v across - the tyre's inboard
+// sidewall 0-0.3, tread 0.3-0.7, outboard sidewall 0.7-1; the rim by radius). EVERYTHING IS PERIODIC IN u and nothing
+// depends on where the wheel stands, so the maps turn with it without a seam or a smear: the dust settles in the grooves
+// and toward the bead all the way round, not at the bottom of a picture. A HEIGHT FIELD first (the tread's blocks and
+// grooves, the sidewall's bead seat, rib, serrations and raised lettering), the normal map off it (central differences,
+// wrapped in u), the albedo and the roughness from the same field and the dirt. Keys: 'tyre|<pattern>|<dirt%>'
+// (vintage wavy ribs, modern all-season, aviation ribbed), 'rim|<rrggbb>|<dirt%>'. A material is pooled per key and
+// carries userData.tyreTex = key: the join keeps its uv and its own bucket, and the game rebuilds it from here.
+const WHEELTEX = (() => {
+  const pool = new Map();
+  const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  // value noise, periodic in x over `px` lattice cells
+  const noise = (x, y, px) => { const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const w = q => ((q % px) + px) % px, sm = t => t * t * (3 - 2 * t);
+    const a = hash(w(xi), yi), b = hash(w(xi + 1), yi), c = hash(w(xi), yi + 1), d = hash(w(xi + 1), yi + 1);
+    return (a + (b - a) * sm(fx)) + ((c + (d - c) * sm(fx)) - (a + (b - a) * sm(fx))) * sm(fy); };
+  const sstep = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const TEXT = { vintage: 'HOMEFIELD SPEEDWAY ★ RACING CORD ★ 5.25-18 ★ ', allseason: 'JOLENE ALL-TERRAIN • M+S • LT 7.50 R16 • TUBELESS • ',
+                 aviation: 'FLYDIY AERO • 6.00-6 • 6 PLY RATING • TT • ' };
+  // the tread's height at (u, t): t across the tread 0..1
+  const tread = (pat, u, t) => {
+    if (pat === 'vintage') {                     // five ribs between four WAVY grooves, notched shoulders
+      let h = 1;
+      for (let k = 0; k < 4; k++) { const c = 0.2 * (k + 1) + 0.032 * Math.sin(2 * Math.PI * (u * 36 + k * 0.5)); h = Math.min(h, sstep(0.020, 0.034, Math.abs(t - c))); }
+      if (t < 0.08 || t > 0.92) { const f = (u * 96) % 1; h = Math.min(h, 0.35 + 0.65 * sstep(0.08, 0.16, Math.min(f, 1 - f))); }
+      return h;
+    }
+    if (pat === 'aviation') { let h = 1; for (let k = 0; k < 4; k++) h = Math.min(h, sstep(0.018, 0.03, Math.abs(t - 0.2 * (k + 1)))); return h; }
+    // ALL-SEASON: four circumferential grooves; shoulder slots; chevron-angled blocks in the intermediate rows (mirrored
+    // about the centre - directional); a centre rib cut by sipes; two zig-zag sipes across every block
+    const P = 64, xp = u * P, gC = [0.21, 0.42, 0.58, 0.79];
+    let h = 1;
+    for (const c of gC) h = Math.min(h, sstep(0.016, 0.03, Math.abs(t - c)));
+    const side = t < 0.5 ? -1 : 1, tt = t < 0.5 ? t : 1 - t;        // folded to one half
+    if (tt < 0.21) {                                                  // the shoulder: lateral slots
+      const f = ((xp + tt * 0.6) % 1 + 1) % 1; h = Math.min(h, sstep(0.07, 0.12, Math.min(f, 1 - f)) * (tt < 0.03 ? 0.7 : 1) + (tt < 0.03 ? 0.3 : 0));
+      const sp = ((xp * 2 + tt * 0.6 + 0.25) % 1 + 1) % 1; if (tt > 0.05 && tt < 0.18) h = Math.min(h, 0.55 + 0.45 * sstep(0.02, 0.04, Math.min(sp, 1 - sp)));
+    } else if (tt < 0.42) {                                           // the intermediate rows: chevron grooves
+      const f = ((xp + (tt - 0.21) * 2.2 * side * -1 + (side > 0 ? 0.5 : 0)) % 1 + 1) % 1;
+      h = Math.min(h, sstep(0.06, 0.1, Math.min(f, 1 - f)));
+      const sp = ((xp * 2 + (tt - 0.21) * 2.2 * -side + 0.25 + 0.03 * Math.sin(tt * 90)) % 1 + 1) % 1;
+      h = Math.min(h, 0.55 + 0.45 * sstep(0.015, 0.03, Math.min(sp, 1 - sp)));
+    } else {                                                          // the centre rib: sipes only
+      const sp = ((xp * 3 + (t - 0.5) * 2 + 0.03 * Math.sin(t * 120)) % 1 + 1) % 1; h = Math.min(h, 0.6 + 0.4 * sstep(0.02, 0.04, Math.min(sp, 1 - sp)));
+    }
+    return h;
+  };
+  const textBand = (W, Hpx, text, size) => {   // the lettering, twice round, on its own canvas (alpha = raised)
+    const c = document.createElement('canvas'); c.width = W; c.height = Hpx; const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.font = '800 ' + size + 'px "Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+    const w = g.measureText(text).width, reps = Math.max(1, Math.floor(W / (w + 40)));
+    const step = W / reps;
+    // (upside down in the canvas: on the outboard sidewall the letters' up is outward = the canvas's down, and they read
+    //  clockwise = the canvas's leftward - the 180 degree turn does both)
+    g.translate(W / 2, Hpx / 2); g.rotate(Math.PI); g.translate(-W / 2, -Hpx / 2);
+    for (let k = 0; k < reps; k++) g.fillText(text, k * step + 8, Hpx / 2);
+    return g.getImageData(0, 0, W, Hpx).data;
+  };
+  function tyreMaps(pat, dirt) {
+    const W = 2048, H = 512, Hf = new Float32Array(W * H);
+    const vOf = y => 1 - (y + 0.5) / H, inBand = (v0, v1) => [Math.max(0, Math.floor((1 - v1) * H)), Math.min(H, Math.ceil((1 - v0) * H))];
+    // the lettering: the outboard sidewall, w 0.42-0.72 (v 0.784-0.874); a DOT-code line inboard
+    const [lb0, lb1] = inBand(1 - 0.3 * 0.72, 1 - 0.3 * 0.42), Lh = lb1 - lb0;
+    const txt = textBand(W, Lh, TEXT[pat] || TEXT.aviation, Math.round(Lh * 0.86));
+    const [db0, db1] = inBand(0.3 * 0.45, 0.3 * 0.6), Dh = db1 - db0;
+    const dot = textBand(W, Dh, 'DOT ' + (pat === 'vintage' ? '1938' : pat === 'allseason' ? 'HF7C 4623' : 'AV12 0946') + '   MADE ON JOLENE ISLAND   ', Math.round(Dh * 0.8));
+    const T = new Float32Array(W * H);   // the tread mask (1 on the tread band), for the albedo
+    for (let y = 0; y < H; y++) { const v = vOf(y);
+      for (let x = 0; x < W; x++) { const u = x / W, i = y * W + x;
+        let h;
+        if (v >= 0.3 && v <= 0.7) { const t = (v - 0.3) / 0.4; h = 0.55 + 0.45 * tread(pat, u, t); T[i] = 1;
+          h -= 0.03 * noise(u * 512, t * 64, 512); }                   // the wear's unevenness
+        else { const w = v < 0.3 ? v / 0.3 : (1 - v) / 0.3;           // 0 at the bead, 1 at the shoulder
+          h = 0.5 + 0.06 * sstep(0.10, 0.13, w) * (1 - sstep(0.21, 0.24, w)) - 0.04 * (1 - sstep(0.06, 0.1, w));   // the rim protector rib, the bead seat
+          if (w > 0.84) h += 0.025 * Math.sin(w * 900);                // the shoulder's serrations
+          h += 0.01 * noise(u * 256, w * 24, 256);
+          if (y >= lb0 && y < lb1) h += 0.1 * txt[((y - lb0) * W + x) * 4 + 3] / 255;
+          if (y >= db0 && y < db1) h += 0.05 * dot[((y - db0) * W + x) * 4 + 3] / 255; }
+        Hf[i] = h; } }
+    const nrm = document.createElement('canvas'), alb = document.createElement('canvas'), rgh = document.createElement('canvas');
+    for (const c of [nrm, alb, rgh]) { c.width = W; c.height = H; }
+    const nI = nrm.getContext('2d').createImageData(W, H), aI = alb.getContext('2d').createImageData(W, H), rI = rgh.getContext('2d').createImageData(W, H);
+    const K = 6.0, d = Math.max(0, Math.min(1, dirt));
+    for (let y = 0; y < H; y++) { const v = vOf(y), ym = Math.max(0, y - 1), yp = Math.min(H - 1, y + 1);
+      for (let x = 0; x < W; x++) { const i = y * W + x, xm = (x + W - 1) % W, xp = (x + 1) % W;
+        const du = (Hf[y * W + xp] - Hf[y * W + xm]) * 0.5, dv = (Hf[ym * W + x] - Hf[yp * W + x]) * 0.5;
+        let nx = -du * K, ny = -dv * K, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+        nI.data[i * 4] = (nx * 0.5 + 0.5) * 255; nI.data[i * 4 + 1] = (ny * 0.5 + 0.5) * 255; nI.data[i * 4 + 2] = (nz * 0.5 + 0.5) * 255; nI.data[i * 4 + 3] = 255;
+        const h = Hf[i], u = x / W, n1 = noise(u * 300, v * 80, 300), n2 = noise(u * 1400, v * 360, 1400);
+        let r = 23, g = 23, b = 26, ro = 0.88;   // (a cool near-black: the first read warm under the studio key)
+        if (T[i]) { const top = sstep(0.86, 0.97, h), groove = 1 - sstep(0.6, 0.8, h);
+          const k = top * (0.55 + 0.45 * n1); r += 16 * k; g += 15 * k; b += 14 * k; ro = 0.9 - 0.2 * top;           // the road's polish on the blocks
+          const dd = d * groove * (0.6 + 0.4 * n2); r += (82 - r) * dd * 0.6; g += (74 - g) * dd * 0.6; b += (62 - b) * dd * 0.6; ro = Math.max(ro, 0.9 + 0.08 * dd); }
+        else { const w = v < 0.3 ? v / 0.3 : (1 - v) / 0.3;
+          const lift = Math.max(0, h - 0.56) * 2.2; r += 26 * lift; g += 26 * lift; b += 27 * lift; ro -= 0.08 * lift;              // the raised letters' worn edges
+          const dust = d * (0.2 + 0.8 * (1 - sstep(0.15, 0.7, w))) * (0.55 + 0.45 * n1) * 0.32;                                  // road dust toward the bead (grey, not tan: a render read the tyres beige)
+          r += (78 - r) * dust; g += (74 - g) * dust; b += (68 - b) * dust; ro = Math.min(0.98, ro + 0.1 * dust);
+          if (n2 > 0.93) { r += 14; g += 14; b += 14; } }                                                                         // the scuffs
+        aI.data[i * 4] = r; aI.data[i * 4 + 1] = g; aI.data[i * 4 + 2] = b; aI.data[i * 4 + 3] = 255;
+        const rv = Math.max(0, Math.min(1, ro)) * 255; rI.data[i * 4] = rI.data[i * 4 + 1] = rI.data[i * 4 + 2] = rv; rI.data[i * 4 + 3] = 255; } }
+    nrm.getContext('2d').putImageData(nI, 0, 0); alb.getContext('2d').putImageData(aI, 0, 0); rgh.getContext('2d').putImageData(rI, 0, 0);
+    return { nrm, alb, rgh };
+  }
+  function rimMaps(dirt) {
+    const W = 512, H = 512, d = Math.max(0, Math.min(1, dirt));
+    const nrm = document.createElement('canvas'), alb = document.createElement('canvas'), rgh = document.createElement('canvas');
+    for (const c of [nrm, alb, rgh]) { c.width = W; c.height = H; }
+    const nI = nrm.getContext('2d').createImageData(W, H), aI = alb.getContext('2d').createImageData(W, H), rI = rgh.getContext('2d').createImageData(W, H);
+    for (let y = 0; y < H; y++) { const v = 1 - (y + 0.5) / H;
+      for (let x = 0; x < W; x++) { const u = x / W, i = y * W + x;
+        const n1 = noise(u * 64, v * 16, 64), n2 = noise(u * 400, v * 30, 400), n3 = noise(u * 900, v * 900, 900);
+        // brake dust at the hub and in the bead seat, streaked round the wheel; paint chips; orange peel
+        const dust = d * (0.75 * (1 - sstep(0.12, 0.42, v)) + 0.6 * sstep(0.74, 0.86, v) * (1 - sstep(0.95, 1, v))) * (0.55 + 0.45 * n1) * (0.75 + 0.25 * n2);
+        let r = 236, g = 236, b = 236;
+        r += (78 - r) * dust; g += (68 - g) * dust; b += (58 - b) * dust;
+        const chip = n3 > 0.965 ? 1 : 0; if (chip) { r *= 0.55; g *= 0.55; b *= 0.6; }
+        aI.data[i * 4] = r; aI.data[i * 4 + 1] = g; aI.data[i * 4 + 2] = b; aI.data[i * 4 + 3] = 255;
+        const ro = Math.min(1, 0.32 + 0.5 * dust + 0.3 * chip) * 255; rI.data[i * 4] = rI.data[i * 4 + 1] = rI.data[i * 4 + 2] = ro; rI.data[i * 4 + 3] = 255;
+        const px = (noise(u * 900 + 1.3, v * 900, 900) - 0.5) * 0.12, py = (noise(u * 900, v * 900 + 2.1, 900) - 0.5) * 0.12;
+        const l = Math.hypot(px, py, 1); nI.data[i * 4] = (px / l * 0.5 + 0.5) * 255; nI.data[i * 4 + 1] = (py / l * 0.5 + 0.5) * 255; nI.data[i * 4 + 2] = (1 / l * 0.5 + 0.5) * 255; nI.data[i * 4 + 3] = 255; } }
+    nrm.getContext('2d').putImageData(nI, 0, 0); alb.getContext('2d').putImageData(aI, 0, 0); rgh.getContext('2d').putImageData(rI, 0, 0);
+    return { nrm, alb, rgh };
+  }
+  let canDraw = null;   // (a headless bench's document draws nothing: the plain materials there)
+  const drawOK = () => { if (canDraw == null) { try { const c = document.createElement('canvas'); canDraw = !!(c && c.getContext && c.getContext('2d') && c.getContext('2d').createImageData); } catch (e) { canDraw = false; } } return canDraw; };
+  function material(key) {
+    if (typeof document === 'undefined' || !key || !drawOK()) return null;
+    if (pool.has(key)) return pool.get(key);
+    const [kind, a, b] = key.split('|'), dirt = (+b || 0) / 100;
+    const M = kind === 'tyre' ? tyreMaps(a, dirt) : rimMaps(dirt);
+    const tex = (c, srgb) => { const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8;
+      if (srgb && THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; };
+    const m = (typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', kind === 'tyre'
+      ? { color: 0xffffff, map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0 }
+      : { color: new THREE.Color('#' + (a || 'c8ccd0')), map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0.35 },
+      'aircraft / landing gear / tyre and rim texture');   // (PERF-TRACE: the owner, MATLIB's 4th argument)
+    m.normalScale.set(kind === 'tyre' ? 1.4 : 0.6, kind === 'tyre' ? 1.4 : 0.6);
+    m.userData.tyreTex = key; m.userData.aeroskin = 1;
+    pool.set(key, m); return m;
+  }
+  return { material };
+})();
+if (typeof window !== 'undefined') window.CAGE_WHEELTEX = WHEELTEX;
+// the wheel's material for a bag: the textured tyre / rim when the build asks (whTex 1), else the plain gear material
+function wheelMat(k, P) {
+  if (!P || +P.whTex !== 1 || (k !== 'tyre' && k !== 'hub') || typeof document === 'undefined') return gearMat(k);
+  const pats = ['vintage', 'allseason', 'aviation'];
+  const pi = Math.round(+P.whTexPat || 0), pat = pi >= 1 && pi <= 3 ? pats[pi - 1] : (+P.isCar ? 'allseason' : 'aviation');
+  const dirt = Math.round(100 * (P.whTexDirt != null ? +P.whTexDirt : 0.4));
+  let key;
+  if (k === 'tyre') key = 'tyre|' + pat + '|' + dirt;
+  else { const h = gearMat('hub'); key = 'rim|' + ((h && h.color) ? h.color.getHexString() : 'c8ccd0') + '|' + dirt; }
+  return WHEELTEX.material(key) || gearMat(k);
+}
+
+window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat, wheelMat, WHEELTEX, stubAirframe, drawStub, objAirframe, drawBody,
                     ski, SKI_GEO, skiRigRun,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,

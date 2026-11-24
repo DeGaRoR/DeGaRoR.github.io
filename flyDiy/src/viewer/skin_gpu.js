@@ -124,9 +124,14 @@
     // (the CPU's arrays stay readable through them - a raycast, a rig's dump: the last CPU pose, not the GPU's riding)
     for (const [ga, a] of [[D.glA, A], [D.glN, AN]]) if (ga) { ga.array = a.array; ga.getX = i => a.array[i * 3]; ga.getY = i => a.array[i * 3 + 1]; ga.getZ = i => a.array[i * 3 + 2];
       ga.getComponent = (i, c) => a.array[i * 3 + c]; }
-    for (const g of D.geos) if (!g.boundingSphere) g.computeBoundingSphere();
+    for (const g of D.geos) { if (!g.boundingSphere) g.computeBoundingSphere(); if (!g.boundingBox) g.computeBoundingBox(); }
     D.saved = D.geos.map(g => [g, g.attributes.position, g.attributes.normal]);
     for (const g of D.geos) { g.attributes.position = D.glA; if (AN && g.attributes.normal === AN) g.attributes.normal = D.glN; }
+    // (L40J, the player's flown bake off by default: the shed's framing - hangar.js / app.js Box3.setFromObject(craft) - asks
+    // a geometry it swapped for its box, which three refuses on a GLBufferAttribute ("requires a manual bounding box", the
+    // metal Cessna's crash -> the shed, GATE DMGUPLOAD's bake-off row). Its box is read from the CPU's last pose instead -
+    // the same pose its getX serves a raycast; given back with the geometry (release))
+    for (const [g, a] of D.saved) g.computeBoundingBox = function () { (this.boundingBox || (this.boundingBox = new THREE.Box3())).setFromBufferAttribute(a); };
     // the members that do not ride: their attribute versions, as last sent up (the fold's own range test, kept apart)
     if (D.views) D.ver = D.views.map(v => [v.pa.version, v.na ? v.na.version : -1]);
     return D;
@@ -409,7 +414,7 @@
   // THE HEAL: the geometries draw their own attributes again, sent up whole from the CPU arrays (the rigs kept writing
   // them; three sent nothing while they were not drawn), and the drawer's GL objects freed
   function release(D, renderer) {
-    for (const [g, a, n] of D.saved) { if (g.attributes.position === D.glA) g.attributes.position = a; if (D.glN && g.attributes.normal === D.glN) g.attributes.normal = n; }
+    for (const [g, a, n] of D.saved) { if (g.attributes.position === D.glA) g.attributes.position = a; if (D.glN && g.attributes.normal === D.glN) g.attributes.normal = n; delete g.computeBoundingBox; }
     for (const a of [D.A, D.AN]) if (a) { if (a.clearUpdateRanges) a.clearUpdateRanges(); a.needsUpdate = true; }
     free(D);
   }

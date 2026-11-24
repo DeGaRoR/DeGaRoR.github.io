@@ -114,6 +114,12 @@ const COWL_ROWS = [
     // PROPER-COWLS V4: the bottom's own bend (absent = the bowl's shoulder and fullness)
     { k: 'keelShoulder', label: 'bottom line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
     { k: 'keelRound', label: 'bottom line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
+    // KEEL-LEVEL (16 Nov, the 172): the bottom leaves the firewall level as SEEN from the side (the axis's climb cancelled)
+    { k: 'keelLevel', label: 'bottom line: leaves the firewall level (as seen)', lo: 0, hi: 1, step: 1 },
+    // DECK-LEVEL (16 Nov): the same for the top line (absent 0)
+    { k: 'deckLevel', label: 'top line: leaves the firewall level (as seen)', lo: 0, hi: 1, step: 1 },
+    // DECK-FALL (16 Nov): with the line level, how much it falls toward the nose, as seen (absent 0)
+    { k: 'deckFall', label: 'top line: falls toward the nose (m per m, as seen)', lo: 0, hi: 0.5, step: 0.005, when: 'P.deckLevel>0' },
     // PROPER-COWLS V5: the top line's own bend (absent = the bowl's pair)
     { k: 'deckShoulder', label: 'top line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
     { k: 'deckRound', label: 'top line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
@@ -245,6 +251,8 @@ const COWL_ROWS = [
     { k: 'lampY', label: 'lamp height over the axis (m)', lo: -0.4, hi: 0.4, step: 0.005, when: 'P.lampOn>0' },
     { k: 'lampBack', label: 'lamp behind the face (m)', lo: 0, hi: 0.6, step: 0.005, when: 'P.lampOn>0' },
     { k: 'lampIn', label: 'lamps in the side inlets', lo: 0, hi: 1, step: 1, when: 'P.lampOn>0' },   // CAR-3
+    { k: 'blinkOn', label: 'blinkers (wingtip teardrops) on the bonnet\'s sides', lo: 0, hi: 1, step: 1 },   // CAR-3
+    { k: 'blinkY', label: 'blinkers under the headlamps (m)', lo: -0.3, hi: 0.4, step: 0.005, when: 'P.blinkOn>0' },
   ] },
   // ---- Chin scoop (or a top one) ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
