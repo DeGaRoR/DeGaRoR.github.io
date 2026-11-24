@@ -41,8 +41,22 @@ const GEN_KVISC = 0.845;
 
 // Oswald efficiency, Raymer's straight-wing estimate, times a bracing penalty
 // (a strut and its fairing spoil the span loading near the attach).
-function genOswald(AR, strut, tipE) {
-  const e = 1.78 * (1 - 0.045 * CORE_MATH.pow(AR, 0.68)) - 0.64;
+// ABOVE ASPECT RATIO 6-8 (PHYSICS-AUDIT step 1, 2026-11-21; reports/PHYSICS-AUDIT-2026-11-21.md): Raymer's fit is of
+// conventional aeroplanes and is good to an aspect ratio of about 10 - past it it falls away (0.71 at 12, 0.68 at 13,
+// under the 0.55 floor at 21) where a clean cantilever wing holds 0.8 and more: the Archaeopteryx flew a span
+// efficiency of 0.62 and the LS4 0.52, half of their missing glide. What limits a slender wing is its inviscid span
+// loading and the profile drag that grows with CL^2:  e = 1 / (1 / eInv + pi AR kv)  (GEN_DRAG.span: eInv 0.95, kv by
+// the surface's own finish - a smooth composite skin 0.0035, a riveted or fabric one 0.007). Taken where it is the
+// LARGER of the two, phased in between arLo and arHi so no slider meets a step: at or below arLo (6) every wing is
+// Raymer's, to the bit; a fabric or metal wing's two laws cross at 7.9, so it is Raymer's to there.
+function genOswald(AR, strut, tipE, matCd0) {
+  let e = 1.78 * (1 - 0.045 * CORE_MATH.pow(AR, 0.68)) - 0.64;
+  const SP = GEN_DRAG.span;
+  if (SP && AR > SP.arLo) {
+    const kv = matCd0 != null && matCd0 <= SP.smoothCd0 ? SP.kvSmooth : SP.kv;
+    const e2 = 1 / (1 / SP.eInv + Math.PI * AR * kv);
+    if (e2 > e) e += Math.min(1, (AR - SP.arLo) / (SP.arHi - SP.arLo)) * (e2 - e);
+  }
   // the tip treatment multiplies span efficiency BEFORE the cap: a winglet on
   // an already-efficient wing cannot conjure e past the Raymer ceiling
   return Math.min(0.95, Math.max(0.55, e * (strut ? 0.90 : 1.0) * (tipE || 1)));
@@ -59,7 +73,7 @@ function genPolar(naca, AR, strut, matCd0, clmaxK, sweepDeg, tipE) {
   // free way to move the CG.
   const cosL = CORE_MATH.cos((sweepDeg || 0) * Math.PI / 180);
   const a0 = 2 * Math.PI * GEN_KVISC * (1 + 0.77 * t) * cosL;
-  const eAR = Math.PI * genOswald(AR, strut, tipE) * AR;
+  const eAR = Math.PI * genOswald(AR, strut, tipE, matCd0) * AR;
   const a3d = 1 / (1 / a0 + 1 / eAR);
   const Cl0 = a3d * (-aL0);
   const ClMax = (1.38 + 5.0 * m + 1.2 * (t - 0.12)) * clmaxK * cosL;
@@ -900,7 +914,11 @@ function genFusCdA(S, fr, o) {
                        Math.min(1, (fu.crownSide == null ? 0.07 : fu.crownSide) / 0.6));
   const boxK = 1 + D.boxK * (1 - crown);
   const reK = genReK(wet.L, D.reynolds.lBody);
-  const body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK * reK;
+  // PHYSICS-AUDIT step 5 (2026-11-22; GEN_DRAG.hullK): a hull's step, chines and spray rails - the body row of a
+  // fuselage that is the boat (gear.hull's measured lines, a hull or an amphibian on it)
+  const hullK = D.hullK > 0 && S.gear && S.gear.hull && Array.isArray(S.gear.hull.sta) ? D.hullK : 1;
+  let body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK * reK;
+  if (hullK !== 1) body *= hullK;
   // the cooling, by the engine and its cowl
   const EN = (S.engines && S.engines[0]) || {};
   const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
@@ -910,13 +928,22 @@ function genFusCdA(S, fr, o) {
   const radial = eng.layout === 'radial';
   const cw = S.cowl || {}, covers = cw.covers || {};
   const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
-  let cool = 0, heads = 0;
+  let cool = 0, heads = 0, radialWake = 0, radialOpen = 0;
   const none = typeof genUnpowered === 'function' && genUnpowered(S);   // (ENGINELESS: no engine to cool, no stacks)
   if (!electric && !none) {
     const k = th.family === 'turbine' ? D.kCool.turbine
             : th.cooling === 'liquid' ? D.kCool.liquid
             : radial ? (cowlOn ? radialCowlK(D.kCool, S) : D.kCool.radialBare) : D.kCool.pressureCowl;
     cool = k * th.coolKW;
+    // PHYSICS-AUDIT step 5 (2026-11-22; GEN_DRAG.radialWake): a bare or ring-cowled radial on the NOSE is billed its
+    // own pressure drag just above; the fuselage behind its disc is in its wake, so the body's form share (FF - 1) / FF
+    // comes off in proportion to the frontal the disc covers and to the cowl's distance from a NACA cowl
+    // (applied below, once it is known that the per-kW figure stands: a MEASURED cowl pays the momentum of its air, not
+    //  a wall of cylinders, and its body keeps its form drag)
+    if (radial && D.radialWake > 0 && S.engBox && S.engBox.cylReach > 0 && !(S.engAt || []).some(e => e && e.mount && e.mount !== 'nose')) {
+      const K = D.kCool;
+      radialOpen = !cowlOn ? 1 : K.radialNaca != null && K.radialRing > K.radialNaca ? Math.max(0, Math.min(1, (k - K.radialNaca) / (K.radialRing - K.radialNaca))) : 0;
+    }
     // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal (genHeadsFrontal counts the
     // same reach as a bare inlet; the expression stays here as it was, bit for bit)
     const E = S.engBox;
@@ -934,6 +961,11 @@ function genFusCdA(S, fr, o) {
   if (o && o.Vs > 0) {
     coolSheet = genCooling(S, { VClimb: GEN_VRATIO.VClimb * o.Vs, VCruise: GEN_VRATIO.VCruise * o.Vs });
     if (coolSheet.kind === 'measured') cool = coolSheet.cdA;
+  }
+  if (radialOpen > 0 && !(coolSheet && coolSheet.kind === 'measured')) {
+    const cover = Math.min(1, Math.PI * S.engBox.cylReach * S.engBox.cylReach / Math.max(1e-6, wet.frontal));
+    radialWake = D.radialWake * radialOpen * cover * (FF - 1) / FF * body;
+    body -= radialWake;
   }
   // the windscreen
   const cb = S.cab || {}, cn = cb.canopy || {};
@@ -956,6 +988,7 @@ function genFusCdA(S, fr, o) {
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
             body, cool, heads, screen, junct, exh, ...(reK !== 1 ? { reK } : {}),
+            ...(hullK !== 1 ? { hullK } : {}), ...(radialWake > 0 ? { radialWake } : {}),
             coolBy: coolSheet && coolSheet.kind === 'measured' ? 'momentum' : 'perKW' },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
@@ -1010,8 +1043,10 @@ function genFusCdA(S, fr, o) {
 //   Skirt depth, rake and width stay geometry-only: clearance and attitude
 //   choices, priced no more than legDrop is (stance is not a drag knob).
 const genFairDroplet = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) - 1);
-function genGearCdA(S, semi) {
+// (PHYSICS-AUDIT step 5: `noWheels` - a floatplane's call: no wheels and no legs, the lift struts as ever)
+function genGearCdA(S, semi, noWheels) {
   const G = S.gear;
+  if (noWheels) return S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0;
   const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55)
             * (G.fairing && G.fairing !== 'none' ? genFairDroplet(G.fairTail) : 1);
   const R = G.wheelR || 0.20, Rt = G.twR || 0.10;
@@ -1883,7 +1918,16 @@ function genParams(S, fr, strips) {
   // HONEST's relative checks are written against (spats buy, tyres cost).
   // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
   const gearDCdA = genGearCdADelta(S, S.geom.semi);
-  let gearCdA = genGearCdA(S, S.geom.semi);
+  // PHYSICS-AUDIT step 5 (2026-11-22; 60_gen_spec GEN_DRAG.float): A FLOATPLANE PAYS ITS FLOATS, not a phantom wheeled
+  // gear - each float its `cd` on beam x depth, the frame's exposed float members (struts, spreaders) a streamline
+  // section at the truss's figure. The lift struts stay genGearCdA's; an amphibian's wheels the amph row's (below)
+  const FLT = S.gear.type === 'floats' && S.gear.floats && S.gear.floats.B > 0 && S.gear.floats.H > 0 && GEN_DRAG.float ? S.gear.floats : null;
+  let gearCdA = genGearCdA(S, S.geom.semi, !!FLT), floatCdA = null;
+  if (FLT) {
+    let Ls = 0; for (const b of fr.beams) if (b.cls === 'gear' && b.ext) Ls += b.L;
+    floatCdA = { floats: 2 * GEN_DRAG.float.cd * FLT.B * FLT.H, struts: GEN_DRAG.float.strutCd * Ls * GEN_RULES.strutT };
+    gearCdA += floatCdA.floats + floatCdA.struts;
+  }
   // SKIS (29c_ski.js): the skis' own drag (the frame's resolved record); a PLAIN ski replaces its wheel, so that wheel's
   // bare term comes off (a ski wears no spat: clampSpec). Absent: no term, the sum as it was
   if (fr.parts && fr.parts.ski) {
@@ -1894,6 +1938,7 @@ function genParams(S, fr, strips) {
   }
   cda.fusCdA[0] += gearCdA;
   cda.drag.gear = gearCdA;
+  if (floatCdA) { cda.drag.floats = floatCdA.floats; cda.drag.floatStruts = floatCdA.struts; }
   // AMPH-FLOATS (GEAR-LEVER): AN AMPHIBIAN'S FLOAT WHEELS IN THE STREAM - four tyres (the mains single or dual) at the
   // bare tyre's Cd on diameter x width, and four short legs; in the body row like every gear (the design numbers are
   // the gear-DOWN aeroplane's) and the retraction's own cdA (30_solver takes it off as the wheels come up). Only an
@@ -1932,14 +1977,18 @@ function genParams(S, fr, strips) {
   // apart. `braceDCdA` stays what its name says (the truss between the
   // planes, which a monoplane has none of, GATE HONEST's row); both are
   // paid into the same body drag area.
+  // ...AND THE WIRES ARE THE WIRES THE AEROPLANE HAS (PHYSICS-AUDIT step 2, 2026-11-21): a cantilever tailplane's
+  // brace wires are not `ext` (61_gen_frame, genTailBraced) and pay nothing; a biplane's flying wires pay a round
+  // cable's Cd (GEN_DRAG.wire.cdRound, the 1.0 they always paid) or a streamline wire's (bracing.wireSection)
   let braceDCdA = 0, tailBraceDCdA = 0;
   const tailEnd = b => /^HT|^FIN/.test(fr.nodes[b.a].tag || '') || /^HT|^FIN/.test(fr.nodes[b.b].tag || '');
+  const wireCd = S.bracing && S.bracing.wireSection === 'streamline' ? GEN_DRAG.wire.cdStream : GEN_DRAG.wire.cdRound;
   for (const b of fr.beams) {
     if (!b.ext) continue;
     if (b.cls === 'interplane' || b.cls === 'cabane') braceDCdA += 0.10 * b.L * GEN_RULES.strutT;
     else if (b.cls === 'wire') {
-      if (tailEnd(b)) tailBraceDCdA += 1.0 * b.L * GEN_RULES.wireD;
-      else braceDCdA += 1.0 * b.L * GEN_RULES.wireD;
+      if (tailEnd(b)) tailBraceDCdA += GEN_DRAG.wire.cdRound * b.L * GEN_RULES.wireD;
+      else braceDCdA += wireCd * b.L * GEN_RULES.wireD;
     }
   }
   cda.fusCdA[0] += braceDCdA + tailBraceDCdA;

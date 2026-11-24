@@ -272,6 +272,13 @@ function aeroMudStep(m, dt, o) {
   return aeroWxClamp01(m + (acc - wash) * dt);
 }
 // the coat onto the live block: the layers it raises (none at m = 0 - the old look exactly)
+// aeroWxSetRain(THREE, wet, V, t, g): the glass's wetness, the airspeed (m/s), the clock (s), gravity in craft space [x y z] (RAIN step 2)
+function aeroWxSetRain(THREE, wet, V, t, g) {
+  const U = aeroWxSharedU(THREE), a = U.uRainG.value, b = U.uRainF.value;
+  a.x = Math.max(0, Math.min(1, +wet || 0)); a.y = Math.max(0, +V || 0); a.z = (+t || 0) % 3600;
+  if (g) { b.x = g[0]; b.y = g[1]; b.z = g[2]; }
+  return a.x;
+}
 function aeroWxSetMud(THREE, m) {
   if (THREE) aeroWxSharedU(THREE);
   m = aeroWxClamp01(m);
@@ -652,6 +659,10 @@ function aeroWxSharedU(THREE) {
     uWxB:   { value: new THREE.Vector4(K.bakeGain, K.bakeConvex, K.chipLip, K.mudRelief) },
     uSpiral: { value: new THREE.Vector4(0, 1, 0.10, 0.30) },   // on, hand, pitch m, width at the base
     uSpiralC: { value: new THREE.Vector4(1, 1, 1, 1) },       // linear rgb, strength
+    // RAIN ON THE GLASS (RAIN step 2 prototype, LOOK-1, 17 Nov): x the glass's wetness 0..1 (0 = dry: the block is skipped), y airspeed
+    // m/s, z the clock s, w the look's gain; uRainF xyz gravity in craft space (down), w the drop cells per metre
+    uRainG: { value: new THREE.Vector4(0, 0, 0, 1) },
+    uRainF: { value: new THREE.Vector4(0, 0, -1, 45) },
     // GROUND-FX (16 Nov): THE LIVE TERM's block (AERO_GD_PARS below; app.js gdFrame writes it) - the deposit's two 3-D
     // textures (null: three binds its empty one), the grid's box, the colours, the PBR and the rain on the skin
     tGdMud:  { value: null },                                 // RGBA8: the mud's cover by arrival (up, aft, port, starboard)
@@ -894,6 +905,8 @@ const AERO_WX_PARS_FS = AERO_GD_PARS + `
 #define AEROWX_LE_SIGN 1.0
 uniform sampler2D tGrunge;
 uniform vec4 uWxL[AEROWX_NL];
+uniform vec4 uRainG, uRainF;   // RAIN step 2: the glass's wetness, airspeed, clock, gain / gravity in craft space, cells per metre
+float aeroRainD = 0.0, aeroRainR = 0.0;   // the drops' cover and their dark rims (the glass block writes them, the glass output reads them)
 uniform vec4 uWxC[8];
 uniform vec4 uWxE[AEROWX_NE];
 uniform vec4 uWxEd[AEROWX_NE];
@@ -1526,6 +1539,38 @@ const AERO_WX_GLASS_FS = `
         }
       }
     }
+    // RAIN ON THE GLASS (RAIN step 2 PROTOTYPE, LOOK-1, 17 Nov; RAIN-STUDY 3 (c); our own cells, no copied shader): the flow on the pane
+    // is the airflow (craft +y, aft) blended with gravity by airspeed, projected on the glass - parked the drops run down, flying they
+    // stream up and back; two layers in metres on the pane: the beads (stripped at speed) and the runners with a short trail
+    if (uRainG.x > 0.0) {
+      vec3 rN = normalize(vCraftNrm) * (gl_FrontFacing ? 1.0 : -1.0);
+      float rV = uRainG.y, rAir = smoothstep(4.0, 25.0, rV), rT = uRainG.z, rWet = uRainG.x, rC = uRainF.w;
+      vec3 rF = vec3(0.0, 1.0, 0.0) * (rAir * 3.0) + uRainF.xyz * (1.0 - rAir) + vec3(0.0, 1e-3, 0.0);
+      vec3 rT1 = rF - rN * dot(rF, rN); rT1 = rT1 / max(length(rT1), 1e-4);
+      vec3 rT2 = cross(rN, rT1);
+      vec2 rq = vec2(dot(vCraftPos, rT2), dot(vCraftPos, rT1));          // metres on the pane: x across the flow, y along it
+      // 1 the beads: cells of 1 / rC m, each holding one bead that swells in and dries out; stripped from the glass at speed
+      vec2 rcA = rq * rC, riA = floor(rcA), rfA = fract(rcA) - 0.5;
+      float rhA = fract(sin(dot(riA, vec2(127.1, 311.7))) * 43758.5453), rhB = fract(sin(dot(riA, vec2(269.5, 183.3))) * 43758.5453);
+      float rLife = fract(rT * (0.05 + 0.1 * rhB) + rhA);
+      float rOnA = step(rhA, rWet * 0.85) * smoothstep(0.0, 0.15, rLife) * (1.0 - smoothstep(0.75, 1.0, rLife)) * (1.0 - 0.85 * smoothstep(20.0, 40.0, rV));
+      float rR = 0.12 + 0.22 * rhB, rdA = length(rfA - (vec2(rhA, rhB) - 0.5) * 0.5);
+      float rBead = (1.0 - smoothstep(rR * 0.85, rR, rdA)) * rOnA;
+      float rRimA = smoothstep(rR * 0.45, rR * 0.95, rdA) * rBead;
+      // 2 the runners: columns 1.3 x the bead cell wide, one drop each, sliding along the flow, a trail behind (the side it came from)
+      float rCol = rC * 1.3, rix = floor(rq.x * rCol), rhC = fract(sin(rix * 91.7 + 3.1) * 43758.5453);
+      float rSp = mix(0.02 + 0.06 * rhC, min(2.5, 0.04 * rV), rAir);   // m/s along the pane
+      float rSeg = 0.35 + 0.5 * rhC, ryy = rq.y - rT * rSp;
+      float riy = floor(ryy / rSeg), rhD = fract(sin((rix * 17.0 + riy) * 13.37) * 43758.5453);
+      float rBack = rSeg - fract(ryy / rSeg) * rSeg;                     // metres behind the segment's front: the drop sits at 0.02
+      float rfx = fract(rq.x * rCol) - 0.5 + (rhD - 0.5) * 0.3, rOnB = step(rhD, rWet * 0.7);
+      float rHeadR = 0.0045 + 0.003 * rhD;
+      float rHead = (1.0 - smoothstep(rHeadR * 0.7, rHeadR, length(vec2(rfx / rCol, (rBack - 0.02) * 0.8)))) * rOnB;
+      float rTrail = (1.0 - smoothstep(0.1, 0.5, abs(rfx))) * smoothstep(0.02, 0.06, rBack) * (1.0 - smoothstep(0.06, 0.25, rBack)) * rOnB * 0.35;
+      aeroRainD = clamp((rBead + rHead + rTrail) * uRainG.w, 0.0, 1.0);
+      aeroRainR = clamp((rRimA + rHead * 0.6) * uRainG.w, 0.0, 1.0);
+      roughnessFactor = mix(roughnessFactor, 0.02, aeroRainD);   // the water is glossy: the bead catches the sky and the sun
+    }
 `;
 
 // THE MULTIPLY PASS with craft space: insects darken what is seen through
@@ -1568,7 +1613,7 @@ const AEROWX_API = {
   AERO_WX_DEF, AERO_WX_GLOSS_OK, AERO_WX_NL, AERO_WX_NE, AERO_WX_NW, AERO_WX,
   aeroWxResolve, aeroWxMacroFromSpec, aeroWxMacroToSpec,
   aeroWxGrunge, aeroWxGrungeTex, AERO_WX_GRUNGE_PX, aeroWxCavity, aeroWxBakeCavity,
-  aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin, AERO_MUD, aeroMudStep, aeroWxSetMud,
+  aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin, AERO_MUD, aeroMudStep, aeroWxSetMud, aeroWxSetRain,
   aeroWxSetDebug, aeroWxSetSources, aeroWxCraftOf, aeroWxSetSpiral, AERO_WX_SPIRAL_DEF,
   aeroWxLabGet, aeroWxLabSet, aeroWxLabReset, aeroWxLabResetRow, aeroWxLabExport, AERO_WX_LAB_KEY, AERO_WX_KNOB_RANGE,
   AERO_WX_PARS_FS, AERO_WX_SURF_FS, AERO_WX_CC_FS, AERO_WX_GLASS_FS,

@@ -1109,7 +1109,8 @@
     if (rec.physics) return refsLoad().then(() => Object.assign({ reference: rec.reference || refOf(rec, o) }, rec.physics));
     if (cache[key]) return cache[key];
     if (rec.baked && rec.pics && typeof rec.pics.side === 'string') {
-      const url = rec.pics.side.replace(/[^/]*$/, 'physics.json');
+      // (PHYSICS-AUDIT 1d: rec.physicsAt - the same aeroplane's page, held once under media/: fiche_physics_bake.js dedupe)
+      const url = typeof rec.physicsAt === 'string' && rec.physicsAt ? rec.physicsAt : rec.pics.side.replace(/[^/]*$/, 'physics.json');
       return (cache[key] = Promise.all([fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null), refsLoad()])
         .then(([D]) => (D ? Object.assign(D, { reference: refOf(rec, o) }) : null)));
     }

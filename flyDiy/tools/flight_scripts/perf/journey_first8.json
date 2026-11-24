@@ -1,0 +1,149 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_journey_first8",
+ "what": "THE JOURNEY'S FIRST 8 MINUTES (PERF-LEAD, 22 Nov): main_journey's steps to the orbit en route, then 300 s of the cruise to w6 and the end - the climb's and the cruise's far terrain re-cuts (t+93..193 s, t+406..451 s in the 22 Nov log) and the water mirror's stretch at 700 m, for an A/B of ?farslots=1 and the mirror switches in 10 minutes a run instead of 28",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "HOME",
+ "to": "w7",
+ "steps": [
+  {
+   "name": "load typical",
+   "do": "load",
+   "preset": "typical"
+  },
+  {
+   "name": "roll-out",
+   "do": "start",
+   "until": {
+    "phase": [
+     "TAXI",
+     "DEPART",
+     "LINEUP",
+     "STOP",
+     "HOLD"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "taxi 40 s",
+   "do": "wait",
+   "until": {
+    "s": 40
+   },
+   "capS": 60
+  },
+  {
+   "name": "skip to the start",
+   "do": "skip",
+   "until": {
+    "phase": [
+     "HOLD",
+     "ROLL",
+     "LIFTOFF",
+     "CLIMB"
+    ]
+   },
+   "capS": 90
+  },
+  {
+   "name": "take-off",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "ENROUTE",
+     "INBOUND"
+    ]
+   },
+   "capS": 240
+  },
+  {
+   "name": "orbit 360",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 20,
+   "dist": 18
+  },
+  {
+   "name": "interior",
+   "do": "camera",
+   "view": "cockpit",
+   "s": 15
+  },
+  {
+   "name": "back outside",
+   "do": "camera",
+   "view": "chase",
+   "s": 5
+  },
+  {
+   "name": "overcast",
+   "do": "weather",
+   "cond": "front"
+  },
+  {
+   "name": "cruise overcast",
+   "do": "wait",
+   "until": {
+    "s": 30
+   },
+   "capS": 45
+  },
+  {
+   "name": "gale",
+   "do": "weather",
+   "cond": "gale"
+  },
+  {
+   "name": "thermal",
+   "do": "weather",
+   "cond": "thermal"
+  },
+  {
+   "name": "clear again",
+   "do": "weather",
+   "cond": "breeze"
+  },
+  {
+   "name": "evening",
+   "do": "time",
+   "hour": 19.5
+  },
+  {
+   "name": "cruise at dusk",
+   "do": "wait",
+   "until": {
+    "s": 30
+   },
+   "capS": 45
+  },
+  {
+   "name": "destination changed to w6",
+   "do": "dest",
+   "to": "w6"
+  },
+  {
+   "name": "minimap open",
+   "do": "minimap",
+   "open": true
+  },
+  {
+   "name": "orbit en route",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 20,
+   "dist": 25
+  },
+  {
+   "name": "en route, 300 s",
+   "do": "wait",
+   "until": {
+    "s": 300
+   },
+   "capS": 330
+  }
+ ]
+}

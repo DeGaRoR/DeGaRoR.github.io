@@ -660,6 +660,7 @@ const GP_PARKED_FOOT = {   // [half-span, nose + prop ahead of the mount, tail b
   motorglider: [6.5, 0.9, 5.0], radial: [5.5, 0.9, 5.8], etrainer: [4.5, 0.9, 5.6], ttail: [5.5, 0.9, 5.8], vtail: [5.5, 0.9, 5.9],
   mw5: [4.7, 0.6, 5.6], archaeopteryx: [6.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 6.2],
   p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9], pushPull: [5.5, 0.9, 6.2], trimotor: [5.5, 0.8, 6.0], fourEngine: [5.5, 0.6, 6.1],
+  ls4: [7.5, 0.9, 5.1],        // L40L (A0): the LS4 archetype (LS4-ARCH, in L40K) had no row - TAXICLEAR 1; its nodes: half 7.50, nose 0.74, tail 5.01
   camel: [4.3, 0.9, 5.1],      // NEW-SHAPES-1 (the Stearman's tail to 5.5: its re-matched boom, 5.45 m)
 };
 const GP_PARKED_DEFAULT = [6.0, 1.6, 6.6];

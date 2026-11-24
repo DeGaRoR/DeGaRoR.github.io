@@ -235,7 +235,11 @@ function genDesignAids(def, bal, opts) {
       const dy = e.y - cg[1];
       // thrust forward (-x): about the CG the moment's nose-up part is -dy * T (a line above the CG pitches nose-down)
       const Mup = -dy * T;
-      return { at: [e.x, e.y, e.z || 0], dir: [-1, 0, 0], T, R, mount: e.mount || 'nose', dy, Mup, drawn: !!off,
+      // PROP-CHECK: the disc's axis is the drawn shaft's (the engine's tilt) when the editor measured it; the body axis else.
+      // A pusher's shaft points aft in the model, its thrust forward all the same: the axis is taken pointing forward
+      const ax = off && off.length >= 4 ? (() => { const h = Math.hypot(off[2], off[3]) || 1, s = off[2] > 0 ? -1 : 1;
+        return [s * off[2] / h, s * off[3] / h, 0]; })() : [-1, 0, 0];
+      return { at: [e.x, e.y, e.z || 0], dir: ax, T, R, mount: e.mount || 'nose', dy, Mup, drawn: !!off,
                elev: Mde ? Math.abs(Mup) / Mde : null };
     });
     const sumM = out.thrust.reduce((s, t) => s + t.Mup, 0), share = Mde ? Math.abs(sumM) / Mde : null;
@@ -343,7 +347,7 @@ function genDesignAids(def, bal, opts) {
     const ground = def.nodes.reduce((m, n) => Math.min(m, n.p[1] - (n.r || 0)), Infinity);
     out.prop = pr.map(t => {
       const R = t.R, c0 = t.at;
-      const o2 = { at: c0, R, ground: null, groundLevel: null, water: null, struct: null, who: null, flapsDown: false, hit: null, drawn: t.drawn };
+      const o2 = { at: c0, R, ground: null, groundLevel: null, water: null, struct: null, who: null, flapsDown: false, hit: null, drawn: t.drawn, dir: t.dir };
       if (!(FL && FL.length)) {
         // on its wheels: a tricycle sits level (the taxi attitude); a taildragger on its three points - the disc's
         // lowest point rotated about the main contact by the deck angle - and its level (tail-up) figure beside it
@@ -528,5 +532,7 @@ function genKeyIssues(def, sh, aids, opts) {
 function genAidPropOff(CE) {
   const U = CE && Array.isArray(CE.units) ? CE.units : null;
   if (!U || !U.length) return null;
-  return U.map(u => (u && u.at && u.propAt) ? [-(u.propAt[2] - u.at[2]), u.propAt[1] - u.at[1]] : null);
+  // [dx, dy] the hub off the mount; PROP-CHECK: + [ax, ay], the shaft's direction in the design frame (x aft: -z there)
+  return U.map(u => (u && u.at && u.propAt) ? [-(u.propAt[2] - u.at[2]), u.propAt[1] - u.at[1]]
+    .concat(Array.isArray(u.propAxis) ? [-u.propAxis[2], u.propAxis[1]] : []) : null);
 }

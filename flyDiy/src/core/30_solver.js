@@ -2625,10 +2625,45 @@ function makeSim(def, world) {
     const sh = (typeof GEN_SHAFT !== 'undefined') ? GEN_SHAFT : { staticK: 0.92, idleK: 0.28 };
     return Math.pow(sh.idleK / sh.staticK, 2);
   })();
+  // THE REDLINE (PHYSICS-AUDIT step 3, 2026-11-21; 60_gen_spec genPropFit, 00_registry genShaftRpm). A fitted fixed-
+  // pitch propeller (params.prop.V1) unloads with airspeed and the full-throttle rpm reaches the rated speed at its
+  // redline speed; past it the throttle is held to what keeps the shaft AT the rated speed - the shaft law solved for
+  // the torque: t = ((rpmK nR)^2 - (nR V / V1)^2) sigma / (powerK nS^2), less the idle's share. 1 below the redline
+  // speed, and on every def without V1 (a governed propeller, an old def): the thrust they always had, to the bit.
+  // `rpmK` a lower limit than the rated speed (a book's "at 2300 rpm" on a 2500 rpm motor: sim.thrustAt's fourth).
+  const PR_V1 = (PR && PR.V1 > 0 && !(EN && EN.cs)) ? PR.V1 : 0;
+  // A GOVERNED PROPELLER FLIES THE ACTUATOR DISC (PHYSICS-AUDIT step 6, 2026-11-22; 60_gen_spec genPropGovern): the
+  // thrust at full throttle is the disc's at the blade's efficiency, capped standing (params.prop.cs { T0, etaB }) - in
+  // this air: the power by the engine's own lapse, the cap by the static scaling (kT). No cs record: the quadratic.
+  const PR_CS = (PR && PR.cs && PR.cs.T0 > 0 && EN && EN.powerW > 0 && typeof genPropDiscT === 'function') ? PR.cs : null;
+  function csThrust(V, rhoA, kT, pk) {
+    return Math.min(PR_CS.T0 * kT, genPropDiscT(EN.powerW * pk, PROPA, V, PR_CS.etaB, rhoA));
+  }
+  const SHAFT_K2 = (() => { const sh = (typeof GEN_SHAFT !== 'undefined') ? GEN_SHAFT : { staticK: 0.92 }; return sh.staticK * sh.staticK; })();
+  function thrLimit(V, sg, pk, rpmK) {
+    if (PR_V1 === 0) return 1;
+    const x = V / PR_V1, r = rpmK > 0 ? rpmK : 1;
+    const t = ((r * r - x * x) * sg / (Math.max(1e-6, pk) * SHAFT_K2) - IDLE_T) / (1 - IDLE_T);
+    return t >= 1 ? 1 : t > 0 ? t : 0;
+  }
+  let THR_LIM = 1;                                   // this frame's (the aero pass sets it; the burn reads it)
+  // THE PROPELLER AT IDLE (PHYSICS-AUDIT step 4, 2026-11-21; 60_gen_spec GEN_PROP_IDLE): each propeller's drag as a
+  // share of its disc - by its engine's state: turning (x what is left of the throttle), dead and windmilling, seized.
+  // Nothing at full throttle and nothing standing: the thrust those always had, to the bit. No propeller: nothing.
+  const KW_RUN = typeof genPropIdleK === 'function' ? genPropIdleK(EN, PR, 'run') : 0;
+  const KW_DEAD = typeof genPropIdleK === 'function' ? genPropIdleK(EN, PR, 'dead') : 0;
+  const KW_STOP = typeof genPropIdleK === 'function' ? genPropIdleK(EN, PR, 'stopped') : 0;
+  const KW_ON = KW_RUN > 0 || KW_DEAD > 0;
+  // the idling propellers' drag (N, every engine turning, throttles closed) at V in the probe's air: the trim's reading
+  function idleDragAt(V, hAlt) {
+    if (!KW_ON) return 0;
+    const A = airOf();
+    return (def.params.nEngines || 1) * KW_RUN * 0.5 * A.rho(hAlt == null ? hProbe : hAlt) * V * V * PROPA;
+  }
   function thrEffOf(i) {
     const e = eng[i]; if (!e || !e.running) return 0;
     const le = ctl.eng && ctl.eng[i];
-    const t = Math.max(0, Math.min(1, ctl.thr * (le ? (le.on ? +le.thr : 0) : 1)));
+    const t = Math.max(0, Math.min(THR_LIM, ctl.thr * (le ? (le.on ? +le.thr : 0) : 1)));
     return IDLE_T + (1 - IDLE_T) * t;
   }
   // the burn, once per substep: the sheet's rated figure times the mean
@@ -3040,14 +3075,28 @@ function makeSim(def, world) {
     const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = rC[tw] - rC[M[0]];
     const R = hyp2(A, B);
     if (R < 1e-6 || Math.abs(C) > R) return 0;
-    const th = Math.asin(C / R) - Math.atan2(B, A);
+    // TRICYCLE-STANCE (23 Nov, the refit 172's tail post on the ground at every spawn): A sin t + B cos t = C has two
+    // roots, asin(C/R) - phi and pi - asin(C/R) - phi (phi = atan2(B, A)). The first is the small one only when the
+    // third wheel is AFT of the mains (A > 0, a tailwheel); a nosewheel lies forward (-x), phi is near +-pi, the first
+    // root came out ~3 rad, the 34 deg guard refused it, and no tricycle was ever stood on its three wheels - it fell
+    // level onto its nosewheel, rocked back and (the refit 172) struck its tail post. The root nearest zero now.
+    const wrap = t => t - 2 * Math.PI * Math.round(t / (2 * Math.PI));
+    const r1 = wrap(Math.asin(C / R) - Math.atan2(B, A)), r2 = wrap(Math.PI - Math.asin(C / R) - Math.atan2(B, A));
+    const th = Math.abs(r1) <= Math.abs(r2) ? r1 : r2;
     if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
     const cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
+    // (TRICYCLE-STANCE: reset left the LOWEST contact 1 cm clear (+ its drop) - a nosewheel's, on a nose-low build - and
+    // the turn about the mains lifts it to the mains' line, 16 cm up on the refit 172: the lowest contact goes back to
+    // the height reset gave it. A tailwheel's turn ends with the mains still lowest, where they were: a no-op there.)
+    let min0 = Infinity, min1 = Infinity;
+    for (let i = 0; i < n; i++) min0 = Math.min(min0, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) {
       const dx = p[i*3] - ax, dy = p[i*3+1] - ay;
       p[i*3] = ax + dx * cs - dy * sn;
       p[i*3+1] = ay + dx * sn + dy * cs;
     }
+    for (let i = 0; i < n; i++) min1 = Math.min(min1, p[i*3+1] - rC[i]);
+    if (min1 > min0) for (let i = 0; i < n; i++) p[i*3+1] -= min1 - min0;
     return th;
   }
 
@@ -3394,7 +3443,8 @@ function makeSim(def, world) {
       // many engines make it. `params.nEngines` says that, and every def
       // states it. The registry's Tstatic/kV2 are PER PROPELLER.
       const nE = def.params.nEngines || 1;
-      const Tcap = Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
+      const Tcap = PR_CS !== null ? csThrust(Vfwd, rho, PS.kT, PS.power) : Math.max(0, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * Vfwd * Vfwd);
+      const TLIM = THR_LIM = PR_V1 > 0 ? thrLimit(Vfwd, sig, PS.power, 1) : 1;   // (PHYSICS-AUDIT step 3: the redline)
       // G194: PER ENGINE. Each engine's thrust is the pilot's throttle times
       // its own lever (ctl.eng, null = every lever full and on), and each
       // mount node takes its OWN engine's share (refs.engineOf) — so a cut
@@ -3409,11 +3459,17 @@ function makeSim(def, world) {
         // the panel arc: a stopped engine pulls nothing (every engine runs
         // unless the key or the tanks say otherwise — bit-identical before)
         const run = !eng[i] || eng[i].running;
-        Ti[i] = run ? ctl.thr * lev(i) * Tcap * DK[i] : 0; T += Ti[i];   // (DK: G1826's factor, 1 unless the drive is hurt)
+        Ti[i] = run ? (TLIM < 1 ? Math.min(TLIM, ctl.thr * lev(i)) : ctl.thr * lev(i)) * Tcap * DK[i] : 0;
+        if (KW_ON) {                                 // (PHYSICS-AUDIT step 4: the propeller that is not driven is a brake)
+          const kw = run ? KW_RUN * (1 - Math.max(0, Math.min(TLIM, ctl.thr * lev(i))))
+                         : (eng[i] && eng[i].seized ? KW_STOP : KW_DEAD);
+          if (kw > 0) Ti[i] -= kw * 0.5 * rho * Vfwd * Vfwd * PROPA;
+        }
+        T += Ti[i];   // (DK: G1826's factor, 1 unless the drive is hurt)
         // and the shaft speed the tacho reads: prop rpm, then through the
         // reduction unit (00_registry.js genShaftRpm, the one law)
         if (typeof genShaftRpm === 'function') {
-          const thrE = run ? Math.max(0, Math.min(1, ctl.thr * lev(i))) : 0;
+          const thrE = run ? Math.max(0, Math.min(TLIM, ctl.thr * lev(i))) : 0;
           const rp = genShaftRpm(EN, PR, thrE, Vfwd, sig, PS.power, run);
           out.rpm[i] = rp; out.rpmEng[i] = genEngineRpm(EN, rp);
           // G2080: the shaft's torque (the law's own Qe) and speed, per engine
@@ -4863,9 +4919,14 @@ function makeSim(def, world) {
              aspiration: ASP };
   }
 
-  function thrustAt(V, floor = 0, hAlt) {
-    const A = airOf();
-    const PS = atmosPropScale(A.sigma(hAlt == null ? hProbe : hAlt), ASP, FLAT, CRIT);
+  function thrustAt(V, floor = 0, hAlt, rpmK) {
+    const A = airOf(), sg = A.sigma(hAlt == null ? hProbe : hAlt);
+    const PS = atmosPropScale(sg, ASP, FLAT, CRIT);
+    // (step 6: a governed propeller's is the disc's)
+    if (PR_CS !== null) return Math.max(floor, csThrust(V, A.rho(hAlt == null ? hProbe : hAlt), PS.kT, PS.power)) * (def.params.nEngines || 1);
+    // (step 3: at full throttle the redline holds the thrust past the propeller's redline speed; rpmK a lower limit)
+    if (PR_V1 > 0) return Math.max(floor, (PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V) * thrLimit(V, sg, PS.power, rpmK))
+                          * (def.params.nEngines || 1);
     return Math.max(floor, PR.Tstatic * PS.kT - PR.kV2 * PS.kV * V * V)
            * (def.params.nEngines || 1);
   }
@@ -5105,7 +5166,7 @@ function makeSim(def, world) {
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,
-           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, probeAir,
+           setAtmos, setGroundRef, setGroundCone, atmos: airOf, thrustAt, idleDragAt, probeAir,
            // RETRACT-1: the retractable gear - null on a fixed build. gear(): { pos 0 up..1 down, locked (down and
            // locked), up (stowed), moving -1/0/1, wow (a wheel on the ground: the squat switch), power, emerg, handle
            // (ctl.gear) }; gearPower(on) the page's bus; gearEmergency() the emergency extension (down, at its rate,

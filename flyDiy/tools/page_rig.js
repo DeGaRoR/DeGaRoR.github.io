@@ -203,6 +203,7 @@ async function start(o) {
     let id = 0, shown = 0; const waits = new Map();
     const note = t => { rig.errors.push(t); if (rig.errors.length > 200) rig.errors.shift(); if (shown++ < 20) log(t); };
     ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); return; }
+      if (rig.onEvent) { try { rig.onEvent(m); } catch (e2) {} }   // (23 Nov: a caller's own CDP events - flight_script's --screencast)
       if (m.method === 'Runtime.exceptionThrown') { const d = m.params.exceptionDetails; note('EXC ' + String(d.exception && d.exception.description || d.text).slice(0, 300)); }
       if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') note('ERR ' + m.params.args.map(a => a.value != null ? a.value : a.description).join(' ').slice(0, 300)); };
     cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
@@ -227,8 +228,11 @@ async function start(o) {
     await cmd('Page.addScriptToEvaluateOnNewDocument', { source: wipeScript(o.seed) });
     if (o.init) { await cmd('Page.addScriptToEvaluateOnNewDocument', { source: String(o.init) }); log('INIT script before the load: ' + String(o.init).slice(0, 120)); }
     if (o.seed) log('SEEDED localStorage before the load: ' + Object.keys(o.seed).join(', ') + ' (a failure must be retried without the seed)');
-    await cmd('Emulation.setDeviceMetricsOverride', { width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false });
-    const url = 'http://localhost:' + sport + '/flyDiy/' + (o.page || 'index.html') + (o.q ? '?' + o.q : '');
+    await cmd('Emulation.setDeviceMetricsOverride', Object.assign({ width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false }, o.metrics || {}));
+    // (PERF-SLIDERS 23 Nov) o.metrics: the device metrics over the default (a phone: { width, height, deviceScaleFactor, mobile: true });
+    // o.touch: touch emulation, before the load - the phone profile's page as phone_edit.js gives it
+    if (o.touch) await cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    const url ='http://localhost:' + sport + '/flyDiy/' + (o.page || 'index.html') + (o.q ? '?' + o.q : '');
     log('load ' + url); rig.url = url;
     const navigationStarted = Date.now();
     await cmd('Page.navigate', { url });

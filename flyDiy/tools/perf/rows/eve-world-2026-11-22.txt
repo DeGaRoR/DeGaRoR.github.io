@@ -1,0 +1,8 @@
+# THE EVENING WINDOW, LAST PART (PERF-LEAD for PERF-WORLDBUILD, 22 Nov): the roads / aprons and the material map in the
+# worker (?roadw=1, new) with the strips and the patch, against the afternoon's WORLDALL. What the row must show:
+# roadw { why asked, asked 232 = used, here 0, missed 0, waitMs }, patchw { asked = used, here 0, matmap worker }, stripw
+# { asked 14 = used, inline 0 }; the reading that matters: the SUM of the three waitMs and the world step's wall.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+ALL3_1     ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&roadw=1             ; new ; H5K ; -
+ALL3NEAR_1 ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&roadw=1&nearfirst=1 ; new ; H5K ; --rollout
+WORKERS_E  ; D:/Dev/perf-lab-built ; stripw=1&patchw=1                     ; new ; H5K ; -

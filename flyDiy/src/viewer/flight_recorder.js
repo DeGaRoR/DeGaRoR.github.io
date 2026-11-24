@@ -93,7 +93,15 @@
   const C = {}; COLS.forEach((k, i) => { C[k] = i; });
   const NC = COLS.length, C_SLOT0 = C.script;
   // flags: what the frame was
-  const F = { garage: 1, running: 2, held: 4, manual: 8, away: 16, freeze: 32, boot: 64, gpuForeign: 128, noRender: 256 };
+  const F = { garage: 1, running: 2, held: 4, manual: 8, away: 16, freeze: 32, boot: 64, gpuForeign: 128, noRender: 256, fewDraws: 512, notShown: 1024 };
+  // notShown (PERF-LEAD, 23 Nov, with the user watching a crash): the frame was rendered into its target and NOT presented -
+  // the draw guard held a draw, so the resolve was skipped (aa_resolve.js: 'held') and the screen kept its last picture, or
+  // the page's colour. Its dt is a frame's; the PICTURE'S age is the run of such frames: the log's worst frame read 233 ms
+  // while the screen stood still for 4 to 9 s. app.js says so with FLIGHT_REC.notShown() before the frame's end.
+  // PERF-TRACE 7 (the user's row 14: "no sky blue screen (failed render frame)" at a crash): fewDraws - a frame of the
+  // WORLD (not the garage, not under a loading screen) that rendered and whose renders summed to under FEW_DRAWS draw
+  // calls: the sky and the post passes without the scene. The world draws hundreds; the header says the bar.
+  const FEW_DRAWS = 60;
   const FREEZE_MS = 250;              // PACE's own line for a stall (app.js): a frame this long is a freeze, kept and flagged
 
   function make(opt) {
@@ -122,6 +130,7 @@
     // wait the frame's next GL call would have paid). A frame under a loading screen is not a sample.
     let depth = 0, open = false, fi = 0, taken = 0, owed = 0, selfN = 0, samp = false, sampN = 0;
     let calls = 0, tris = 0, lastCap = -1, lastBoot = '', revealAt = -1, freezes = 0;
+    let brk = 0, crashAt = -1, restN = 0, brkSaid = 0, unshown = false;   // PERF-TRACE 7: the crash (the probe's `breaks`: the broken members)
     // G1995 (HW-COVERAGE): THE REVEAL IS THE FLIGHT'S, NOT THE SCREEN'S. A roll-out whose plan is empty (the world built in
     // the one loading, B9 - every first roll-out of a boot that finished) reveals with no screen at all, and the reveal was
     // only ever marked on a roll-out screen gone: the user's GTX 660 log (4 Oct) and the 1660 Ti log (5 Oct) both read
@@ -198,7 +207,7 @@
     // probe's word that a new flight began (the 'flight' event: its route, pilot, day, damage and build at its start)
     const probeOut = { garage: false, running: false, held: false, manual: false, phase: '', cam: '', spd: NaN, vs: NaN, agl: NaN, wms: NaN, wdil: NaN, wran: NaN,
       hdg: NaN, pitch: NaN, bank: NaN, beta: NaN, ias: NaN, ail: NaN, elev: NaN, rud: NaN, thr: NaN, brake: NaN, brd: NaN, flap: NaN, pilot: '', wspd: NaN, wdir: NaN,
-      windSpec: null, newFlight: false };
+      windSpec: null, newFlight: false, breaks: 0 };
     const names = { phase: [''], cam: [''], pilot: [''] }, codes = { phase: new Map([['', 0]]), cam: new Map([['', 0]]), pilot: new Map([['', 0]]) };
     // G3322: the flights of this session, each as it began (the header's `flight` is the last one's)
     let flightN = 0, lastFlight = null;
@@ -297,6 +306,7 @@
     // the frame ends: rendered (false: the loop returned before its render - the boot's hold), the loop's CG
     // (the query ends INSIDE the frame's work: endQuery is a GL call, and a GL call blocks while the GPU's command
     // buffer is full - that wait is the frame's, in `other`, never the recorder's own time)
+    function notShown() { if (open) unshown = true; }
     function end(rendered, cg) {
       if (!open) return;
       if (samp) { const te = clock(); gpuEnd(false); V[SAMP_GL] += clock() - te; } else gpuEnd(false);
@@ -332,6 +342,18 @@
       const P = probeOut;
       if (rec.probe) { try { rec.probe(P, cg); } catch (e) { rec.probe = null; event('err', t, null, 'probe: ' + String(e && e.message || e)); } }
       if (P.garage) fl |= F.garage; if (P.running) fl |= F.running; if (P.held) fl |= F.held; if (P.manual) fl |= F.manual;
+      if (rendered && !P.garage && calls < FEW_DRAWS && !(W.BOOT && W.BOOT.state !== 'gone')) fl |= F.fewDraws;
+      if (unshown) { fl |= F.notShown; unshown = false; }
+      // THE CRASH HAS ITS MOMENTS IN THE LOG (PERF-TRACE 7; PERF-LEAD: "so no reader has to guess the moment from the speed").
+      // The probe gives the count of broken members (app.js: the damage state as the page last had it; 0 with no damage).
+      // 'crash' { k: 'impact' } at the first one, { k: 'breaks' } as more follow (four a second at most), { k: 'rest' }
+      // when the speed has stayed under 0.5 m/s for 30 frames - its ms the time since the impact. A prop strike or a bent
+      // member with nothing broken is not an impact here.
+      { const nb = P.breaks > 0 ? P.breaks : 0;
+        if (nb > brk) { if (brk === 0) { crashAt = t; restN = 0; brkSaid = t; event('crash', t, null, { k: 'impact', breaks: nb, spd: P.spd === P.spd ? r1e(P.spd) : null, agl: P.agl === P.agl ? r1e(P.agl) : null }); }
+          else if (t - brkSaid >= 250) { brkSaid = t; event('crash', t, crashAt >= 0 ? t - crashAt : null, { k: 'breaks', breaks: nb }); } brk = nb; }
+        else if (nb < brk) { brk = nb; if (nb === 0) crashAt = -1; }   // (healed, a new aeroplane, a new flight)
+        if (crashAt >= 0) { if (P.spd === P.spd && P.spd < 0.5) { if (++restN === 30) { event('crash', t, t - crashAt, { k: 'rest', breaks: brk }); crashAt = -1; } } else restN = 0; } }
       ringF[j + C.agl] = P.agl; ringF[j + C.spd] = P.spd; ringF[j + C.vs] = P.vs;
       ringF[j + C.wms] = P.wms; ringF[j + C.wdil] = P.wdil; ringF[j + C.wran] = P.wran;
       ringF[j + C.phase] = codeOf('phase', P.phase); ringF[j + C.cam] = codeOf('cam', P.cam);
@@ -619,7 +641,7 @@
         cores: (W.navigator && W.navigator.hardwareConcurrency) || null, memGB: (W.navigator && W.navigator.deviceMemory) || null,
         screen: W.screen ? { w: W.screen.width, h: W.screen.height, availW: W.screen.availWidth, availH: W.screen.availHeight } : null,
         window: { w: W.innerWidth, h: W.innerHeight }, dpr: W.devicePixelRatio || 1,
-        cols: COLS, slots: SLOTS, flags: F, freezeMs: FREEZE_MS, codes: names, units: UNITS,
+        cols: COLS, slots: SLOTS, flags: F, fewDrawsUnder: FEW_DRAWS, freezeMs: FREEZE_MS, codes: names, units: UNITS,
         sceneDetail: detail ? detail.meta() : null,
         frames: fi, ring: N, events: events.length, eventsDropped: evDropped, revealAt,
         overhead: { frameUsMean: sampN ? +(V[SAMP_SUM] / sampN * 1000).toFixed(1) : null, frameUsMax: +(V[SAMP_MAX] * 1000).toFixed(1), sampled: sampN,
@@ -721,7 +743,7 @@
     } : null;
     const api = {
       SLOTS, S, COLS, C, F, N, CHUNK, rec, sceneDetail: detail,
-      attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince, reveal, gpuMay, town,
+      attach, begin, end, lap, push, pop, notShown, event, stats, header, logParts, chunkRec, eventsSince, reveal, gpuMay, town,
       codeOf, names,
       get frame() { return fi; }, get open() { return open; }, get events() { return events; },
       set chunkSink(fn) { chunkSink = fn; },
@@ -824,7 +846,7 @@
   const API = {
     make, SLOTS, COLS, S: REC.S, F: REC.F,
     attach: (renderer, probe) => OFF ? null : REC.attach(renderer, probe),
-    begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop, town: REC.town,   // G3415: the town meter
+    begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop, town: REC.town, notShown: REC.notShown,   // G3415: the town meter
     event: (kind, ms, detail) => REC.event(kind, null, ms, detail),
     // PHONE-EDIT-PERF (D): a garage task by name - the commit, the bench's re-checks - run as fn() and logged as 'gtask'
     // when it took 16 ms or more (the timers after an edit, named in the log). The clock is a rig's real one where it
@@ -844,7 +866,7 @@
     mount: (body, H) => mount(body, H),
     mountMeter: (body, H) => mountMeter(body, H), mountLog: (body, H) => mountLog(body, H),   // G760
   };
-  if (OFF) { API.begin = API.end = API.lap = API.push = API.pop = API.town = NOOP; }
+  if (OFF) { API.begin = API.end = API.lap = API.push = API.pop = API.town = API.notShown = NOOP; }
 
   // ---- the page's events ------------------------------------------------------------------------------------------
   const ev = (k, t, ms, d) => REC.event(k, t, ms, d);

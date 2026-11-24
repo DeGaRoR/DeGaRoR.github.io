@@ -1,0 +1,59 @@
+{
+ "id": "resort.b2",
+ "kind": "build",
+ "verdict": "infeasible",
+ "plane": "Jodel D112",
+ "timeS": 653,
+ "why": "crashed: the damage ended the flight: a tail member broke",
+ "tried": [
+  "Jodel D112:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "tw_ski",
+   "t": 653,
+   "how": "crashed",
+   "at": null,
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "crash",
+    "break",
+    "prop-strike"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Jodel D112",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a tail member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 653,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 710 m (planned 708)",
+      "capsized: on its back in ROLLOUT at 7.7 m/s (bank -91 deg)",
+      "out-of-energy: the engine seized at t=651 s — engines stopped"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "11726c1ab6c5",
+ "where": "contract",
+ "pool": "validated",
+ "sim": "L40K",
+ "wallS": 722
+}

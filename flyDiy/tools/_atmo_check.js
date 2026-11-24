@@ -246,6 +246,87 @@ console.log('5. the sources');
   yes(!has(src + cl + rwH, 'atmoAP().a') && !/apSample\([^)]*\); c = c \* ap\.a/.test(cl), 'no reader left on the unscaled atlas');
 }
 
+// ---- 9. NIGHT-SUN (21 Nov 2026): THE LIGHT SEEN ------------------------------------------------------------------
+// The user: "In the midst of an aurora night (preset), I can still see crazy red reflections in the sea of a sun which is not
+// there, and the horizon keeps showing a huge red halo." One answer for both of the sky's lights at every hour (atmo.js THE
+// LIGHT SEEN): the disc's share over the horizon, the terrain's share for the key light, the sun's light through the
+// astronomical twilight - and every reader takes it.
+console.log('9. NIGHT-SUN: the light seen');
+{
+  const V = p => fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', p), 'utf8');
+  const src = V('atmo.js'), sl = V('sky_light.js'), wa = V('water.js'), ap = V('app.js'), cl = V('clouds.js'), gl = V('sky_glare.js');
+  const has = (t, x) => t.indexOf(x) >= 0;
+  ATMO.setDay({ turbidity: 1.8, ozone: 300, groundAlbedo: 0.15, version: 91 }); ATMO.bakeT(); ATMO.bakeMS();
+  // the twilight's weight: whole to -12 deg, none from -18 (the end of the astronomical twilight), monotone between
+  let mono = true, prev = -1;
+  for (let el = -30; el <= 10; el += 0.25) { const t = ATMO.twilight(el); if (t < prev - 1e-12 || t < 0 || t > 1) mono = false; prev = t; }
+  yes(mono && ATMO.twilight(-12) === 1 && ATMO.twilight(-5) === 1 && ATMO.twilight(60) === 1 && ATMO.twilight(-18) === 0 && ATMO.twilight(-19.7) === 0 && ATMO.twilight(-90) === 0,
+      'the sun\'s light is whole down to -12 deg and none from -18 (the astronomical twilight), monotone: -15 deg ' + ATMO.twilight(-15).toFixed(3));
+  // the night the user reported: 22 Aug 23:00 at 55 N - the sun at -19.7 deg. Toward its azimuth, a degree over the horizon, the model's own
+  // single-scatter tail is a pure red residual the night's exposure draws; x the twilight's weight it is nothing
+  const K = SKY_LIGHT.K().K_SUN, dir = (el, az) => [Math.cos(el * D2R) * Math.sin(az * D2R), Math.sin(el * D2R), -Math.cos(el * D2R) * Math.cos(az * D2R)];
+  const band = el => { const L = ATMO.skyRadiance(6360.03, dir(1, 0), dir(el, 0), 1, 32, [0, 0, 0]); return { raw: lum(L) * K * LIGHT_RIG.exposureFor(el), rb: L[0] / Math.max(1e-30, L[2]), L }; };
+  const b197 = band(-19.7), b15 = band(-15), b9 = band(-9);
+  yes(b197.raw > 1e-3 && b197.rb > 30, 'the model\'s tail at -19.7 deg IS a red residual on the horizon (exposed ' + b197.raw.toFixed(4) + ', red / blue ' + b197.rb.toFixed(0) + '): what the weight is for');
+  yes(b197.raw * ATMO.twilight(-19.7) === 0, 'x the twilight\'s weight the sun adds nothing to the night sky at -19.7 deg');
+  yes(b15.raw * ATMO.twilight(-15) < 0.6 * b15.raw && b9.raw * ATMO.twilight(-9) === b9.raw, 'the weight halves it at -15 deg and leaves the dusk alone (-9 deg: ' + b9.raw.toFixed(3) + ' as it was)');
+  // every CPU reader of the sun's sky irradiance takes the weight (E), and E left out is the old number to the bit
+  const sN = dir(-19.7, 0), sD = dir(30, 0);
+  const E0 = ATMO.skyIrradiance(0.03, sD), E1 = ATMO.skyIrradiance(0.03, sD, [0, 0, 0], 1), Ez = ATMO.skyIrradiance(0.03, sN, [9, 9, 9], ATMO.twilight(-19.7));
+  yes(E0.every((v, i) => v === E1[i]) && Ez.every(v => v === 0), 'skyIrradiance(.., E): 1 is the old number to the bit, the night\'s weight gives 0');
+  yes(has(sl, 'ATMO.skyIrradiance(altKm, sun, _E, ATMO.twilight ? ATMO.twilight(el) : 1)'), 'the hemisphere takes the sun\'s sky light through the twilight');
+  yes(has(sl, 'if (!(L > 1e-9) && !ATMO.NIGHTSUN_OFF) hemi.color.setRGB(NIGHT_TINT.col[0], NIGHT_TINT.col[1], NIGHT_TINT.col[2]);'), 'with no sun and no moon in the sky the floor keeps the night\'s own colour (a black hemisphere lit nothing)');
+  yes(has(src, 'skyIrradiance(km, day.sun, E, SEEN.tw)') && has(src, 'Eg(day ? day.sun : [0, 1, 0], day ? twilight(day.sunEl) : 1)'), 'the mist\'s colour and the probe\'s cap take it');
+  yes(has(cl, 'A.skyIrradiance(topKm, sun, _E, tw)') && has(cl, 'A.skyIrradiance(km, sun, vE, A.twilight ? A.twilight(day.sunEl) : 1)'), 'the clouds\' ambient and the veil take it');
+  yes(has(src, 'vec3 L = skyRadiance(uR, d, uSun, uESun, 32, Tp);') && has(src, 'vec3 S = uESun * ((sR * pRs + vec3(sM * pMs)) * T(rr, muS) * shadow + (sR + vec3(sM)) * MS(rr, muS));')
+      && src.split('uESun: U.eSun').length - 1 === 2 && has(src, 'SEEN.tw = U.eSun.value = day ? twilight(day.sunEl) : 1;'),
+      'the sky-view and the aerial-perspective tables take the sun\'s illuminance from the same weight (uESun, both passes wired)');
+  // the disc over the horizon: the circular segment, the dip of the horizon with the eye's height
+  const dO = (el, alt) => ATMO.discOver(Math.sin(el * D2R), alt, ATMO.P.sunRad);
+  let monoD = true, pd = -1; for (let el = -3; el <= 3; el += 0.01) { const v = dO(el, 0.3); if (v < pd - 1e-12) monoD = false; pd = v; }
+  const dip = Math.acos(6360 / 6362) / D2R;
+  yes(dO(1, 0) === 1 && Math.abs(dO(0, 0) - 0.5) < 1e-9 && dO(-0.27, 0) === 0 && dO(-19.7, 0) === 0 && monoD && Math.abs(dO(-dip, 2) - 0.5) < 1e-6 && dO(-0.5, 2) === 1,
+      'a disc is whole a radius over the horizon, half on it, gone a radius under; from 2 km the horizon dips ' + dip.toFixed(2) + ' deg and the disc with it');
+  // the dome: the discs and the coronas through uSeen; the probe's dome takes the eye's answer and re-bakes when it moves
+  yes(has(src, 'L += Tsun * limb * edge * above * uSeen.x / (3.14159265 * sr * sr);') && has(src, 'lit * edge * above * uSeen.y;') && has(src, '0.02 / (1.0 + pow(a / 0.02, 2.0)) * uSeen.z;')
+      && has(src, '0.4 / (1.0 + pow(max(angm, mr) / 0.02, 2.0)) * uSeen.w;') && !/smoothstep\(-0\.05, 0\.02, u(Sun|Moon)\.y\)/.test(src.replace(/\/\/[^\n]*/g, '')),
+      'the dome draws each disc and its corona x the light seen (no ramp of its own through the horizon)');
+  yes(has(src, 'domeMat({ toneMapped: false, depthTest: true }, o.frameYaw || 0, U.seenProbe)') && has(src, 'uSeen: seen || U.seenEye') && has(src, 'if (now - lastBake > (o.minGapMs || 4000) && seenMoved()) return probe.bake(day);') && has(src, 'ter = 1 - terRaw;') && has(src, 'nowT() - terRawAt > PROBE_TER_MS'),
+      'the probe\'s dome holds the discs the EYE sees (its scene has no terrain) and re-bakes when the answer moves');
+  yes(has(src, 'se[0] = 1; se[1] = 1; se[2] = SEEN.sun.hor; se[3] = SEEN.moon.hor;') && has(src, 'sp[0] = SEEN.sun.ter; sp[1] = SEEN.moon.ter; sp[2] = SEEN.sun.eye; sp[3] = SEEN.moon.eye;'),
+      'the screen\'s dome leaves its discs to the terrain drawn over them; the probe\'s takes the terrain\'s share');
+  // the key light: the moon through the horizon on the sun's ramp; the terrain's share and the glitter path are the KEY's, at every hour
+  yes(has(sl, 'Math.min(1, Math.max(0, (elK + 1.5) / 2))') && has(sl, 'const NS_OFF = !!ATMO.NIGHTSUN_OFF, elK = isMoon ?'), 'the moon\'s key goes through the horizon on the sun\'s ramp (no moonlight from under it, no cut)');
+  { SKY_LIGHT.calibrate();
+    const mk = () => ({ intensity: 0, color: { setRGB() {} } }), keyAt = me => { const key = mk(); SKY_LIGHT.applyDay({ sunEl: -19.7, sun: dir(-19.7, 0), moon: dir(me, 180), moonPhase: 0.784 }, { key, hemi: mk(), unit: 1 }); return key.intensity; };
+    const k3 = keyAt(3), k0 = keyAt(0), kM = keyAt(-1), kU = keyAt(-1.6);
+    yes(k3 > k0 && k0 > kM && kM > 0 && kU === 0, 'the moon\'s key falls through the horizon and is 0 under -1.5 deg: ' + [k3, k0, kM, kU].map(v => v.toExponential(2)).join(' > ')); }
+  yes(has(ap, "(inShed || (L.isMoon && !NS) || typeof world.terrainH !== 'function') ? (eyeHideRaw = 0) : sunHiddenEye(camera.position, glareDir, eyeHide); ATMO.sunHidden(eyeHide, eyeHideRaw);") && has(ap, 'glintVis(camera.position, glareDir, WATER.glint.vis, horW)'),
+      'the eye\'s terrain share and the glitter path\'s are walked for the moon too, the path x the disc over the water\'s horizon');
+  yes(has(ap, 'if (hor != null && hor <= 0) return v - v * 0.15;'), 'a key light under the water\'s horizon draws no glitter path (it answered 1: "nothing to hide")');
+  yes(has(wa, 'wGR = uWGlint.w; wGV = uWGlint.x;') && has(wa, '(wGV * mix(1.0, uWGlint.y, wGR))') && has(wa, 'float wGR = 0.0, wGV = 1.0,'),
+      'the water\'s direct highlight takes the key\'s visibility at every hour (the directional loop only: a lamp keeps 1)');
+  yes(has(gl, '(o.seen != null ? Math.max(0, Math.min(1, o.seen)) : 1)') && has(ap, 'seen: hE, isMoon: L.isMoon'), 'the flare takes the disc\'s share over the eye\'s horizon');
+  // a disc is reflected once: at night the water's probe lookup is held to the sky's round the key moon (the direct highlight carries the disc)
+  yes(has(wa, 'if (uWDisc.w > 0.0) {') && has(wa, 'iblRadiance = mix(iblRadiance, min(iblRadiance, wSk), wDm);') && has(wa, 'U.uWDisc.value.set(mv.x, mv.y, mv.z, NIGHT_SEA.disc * tS); else U.uWDisc.value.w = 0;')
+      && has(wa, 'uniform vec4 uWGlint; uniform vec4 uWDisc; '),
+      'at night the sea reflects the moon\'s disc once, by its direct highlight: the probe\'s lookup round the moon is held to the sky\'s, never raised (0 by day: the branch is not taken)');
+  // the user's picks of 22 Nov (the stills page): the night sea's sheen at 70 % and half of that on far water, the probe's moon at the moonlight's own
+  // level and colour, the aurora in the water's planar mirror - and ?nightsun=0 keeps the sea, the moon and the mirror as they were
+  yes(has(wa, 'const NIGHT_SEA = { k: 0.266, ') && has(wa, 'farK: 0.5, far: [150, 1500]') && has(wa, 'const NIGHT_SEA_MASTER = { k: 0.38, farK: 1 };')
+      && has(wa, 'kN = (nsOffN ? NIGHT_SEA_MASTER.k : NIGHT_SEA.k) * tN') && has(wa, 'mix(1.0, uWNight2.x, smoothstep(uWNight2.y, uWNight2.z, distance(vWP0, cameraPosition)))'),
+      'the night sea\'s sheen is at the user\'s pick (k 0.266, far water at half), fading over 150 m to 1.5 km from the eye');
+  yes(has(src, "const MOON_PROBE = { k: 'own', white: 1 }") && has(src, "MOON_PROBE.k === 'own' ? moonProbeOwn(day)") && has(src, 'U.moonP.value[3] = 0;'),
+      'the probe\'s moon is at the moonlight\'s own level and colour (the user\'s pick); ?nightsun=0 keeps the dome\'s own disc');
+  { const au = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'aurora.js'), 'utf8');
+    yes(has(au, 'mirror() { return meshes.length && mirMesh && MIR.k > 0 && !(W.ATMO && W.ATMO.NIGHTSUN_OFF) ? mirMesh : null; }') && has(au, 'uniforms: U, vertexShader: VS, fragmentShader: FS,')
+        && has(wa, 'if (aurM) { MIR.skyScene.add(aurM); aurM.position.copy(mc.position);') && has(wa, 'if (aurM) MIR.skyScene.remove(aurM);'),
+        'the aurora is in the water\'s planar mirror: a second sphere of the SAME program (no added shader), in the mirror\'s sky pass for the one draw'); }
+  // the mist's forward peak: the key light's, none for a set light
+  yes(has(src, 'mistScalars[7] = MIST.fwd * kf;') && has(src, 'const kd = NIGHTSUN_OFF ? day.sun : kl;') && has(src, 'SEEN.keyMoon ? SEEN.moon.hor * (lumA > 0 ? Math.max(0, 1 - lumS / lumA) : 0) : SEEN.sun.hor'),
+      'the mist\'s forward peak is the key light\'s and goes with its disc (by day: the sun\'s, x 1)');
+}
+
 console.log(`${checks} checks, ${fails} failed`);
 console.log(`GATE ATMO: ${fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'}`);
 process.exit(fails ? 1 : 0);

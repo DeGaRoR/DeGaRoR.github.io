@@ -1,0 +1,8 @@
+# GARAGE FIRST, ROUND 1 (Monday 23 Nov 13:00) - PART C, run with LM_AFTER=150: THE BUDGET'S TWO ENDS (the milliseconds a
+# background task may take while the garage is at rest: 12 by default). 6 = a gentler garage and a later world; 25 = the
+# other way. Read gf.ms (the world ready) against afterReveal (the garage's long tasks) - the pair picks the default.
+# And ?gfwarm=0: the world's first draws left to Go (what they cost under its screen, against behind the garage).
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+GF_REST6  ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near&gfrest=6 ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
+GF_REST25 ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near&gfrest=25 ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js
+GF_NOWARM ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near&gfwarm=0 ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 200 --init-file tools/perf/init_longtasks.js

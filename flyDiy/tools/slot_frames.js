@@ -74,7 +74,7 @@ function slotFrames(log, opt) {
       linkedAgoS: pr ? r1((e.t - pr.t) / 1000) : null, where: where(e) }; });
     const links = E.filter(e => e.kind === 'link').map(e => ({ n: e.d, owner: who(byN.get(e.d)), ms: r1(e.ms), where: where(e) }));
     const waits = E.filter(e => e.kind === 'linkwait').map(e => ({ n: e.d, owner: who(byN.get(e.d)), ms: r1(e.ms), where: where(e) }));
-    const deliv = E.filter(e => e.kind === 'deliver' && e.d).map(e => ({ streamer: e.d.s || '?', n: e.d.n == null ? null : e.d.n, ms: r1(e.ms), where: where(e) }));
+    const deliv = E.filter(e => e.kind === 'deliver' && e.d).map(e => ({ streamer: e.d.s || '?', n: e.d.n == null ? null : e.d.n, ms: r1(e.ms), where: where(e), plantMs: e.d.plantMs || 0, blocks: e.d.blocks || 0, blockMs: e.d.blockMs || 0, kb: e.d.kb || 0 }));
     const prem = E.filter(e => e.kind === 'premslow' && e.d).length;
     const g = gu && gu.d ? { ms: r1(gu.ms), textures: (gu.d.tex || [])[0] || 0, megapixels: (gu.d.tex || [])[2] || 0, buffers: (gu.d.buf || [])[0] || 0, bufferKB: (gu.d.buf || [])[2] || 0, updates: (gu.d.sub || [])[0] || 0, updateKB: (gu.d.sub || [])[1] || 0,
       mipmaps: (gu.d.mip || [])[0] || 0, mipmapMs: (gu.d.mip || [])[1] || 0, newTextures: gu.d.texNew || 0, newGeometries: gu.d.geo || 0 } : null;
@@ -86,7 +86,7 @@ function slotFrames(log, opt) {
   }
   // ---- the sums --------------------------------------------------------------------------------------------------
   const sum = (a, f) => a.reduce((x, y) => x + (f(y) || 0), 0), cnt = (a, f) => a.filter(f).length;
-  const long = sel.filter(f => f.nextDt > OVER), fz = sel.filter(f => f.nextDt > 100);
+  const long = sel.filter(f => f.nextDt > OVER + 4), fz = sel.filter(f => f.nextDt > 104);   // (the limit rule of 23 Nov: over 50 / 100 ms is counted from 54 / 104)
   const group = (items, key, add) => { const m = new Map(); for (const it of items) { const k = key(it); let g = m.get(k); if (!g) m.set(k, g = { key: k, n: 0, ms: 0, in: 0, maybe: 0 }); g.n++; g.ms += it.ms || 0; g[it.where === 'in' ? 'in' : 'maybe']++; if (add) add(g, it); } return [...m.values()].sort((a, b) => b.ms - a.ms || b.n - a.n).map(g => Object.assign(g, { ms: r1(g.ms) })); };
   const allUses = [].concat(...sel.map(f => f.uses.filter(u => u.where !== 'out'))), allLinks = [].concat(...sel.map(f => f.links.filter(u => u.where !== 'out'))),
     allWaits = [].concat(...sel.map(f => f.waits.filter(u => u.where !== 'out'))), allDel = [].concat(...sel.map(f => f.deliveries.filter(u => u.where !== 'out')));
@@ -122,7 +122,7 @@ function slotFrames(log, opt) {
       byOwner: group(allUses, u => u.owner + '  [keyed for ' + (u.rt || '?') + ', linked in the ' + u.linked + ']').slice(0, 25), excessOfThoseFrames: Math.round(sum(sel.filter(f => f.uses.some(u => u.where !== 'out')), f => f.excess)) },
     links: { frames: cnt(sel, f => f.links.some(u => u.where !== 'out')), n: allLinks.length, ms: Math.round(sum(allLinks, u => u.ms)), byOwner: group(allLinks, u => u.owner).slice(0, 12) },
     waits: { frames: cnt(sel, f => f.waits.some(u => u.where !== 'out')), n: allWaits.length, ms: Math.round(sum(allWaits, u => u.ms)), byOwner: group(allWaits, u => u.owner).slice(0, 12) },
-    deliveries: { frames: cnt(sel, f => f.deliveries.some(u => u.where !== 'out')), n: allDel.length, byStreamer: group(allDel, u => u.streamer).slice(0, 12) },
+    deliveries: { frames: cnt(sel, f => f.deliveries.some(u => u.where !== 'out')), n: allDel.length, byStreamer: group(allDel, u => u.streamer, (g, u) => { g.items = (g.items || 0) + (u.n || 0); g.plantMs = (g.plantMs || 0) + u.plantMs; g.blocks = (g.blocks || 0) + u.blocks; g.blockMs = (g.blockMs || 0) + u.blockMs; g.kb = (g.kb || 0) + u.kb; }).slice(0, 12) },
     gpuData: { frames: G.length, ms: Math.round(sum(G, f => f.gpuData.ms)), textures: sum(G, f => f.gpuData.textures), megapixels: Math.round(sum(G, f => f.gpuData.megapixels)), buffers: sum(G, f => f.gpuData.buffers), bufferMB: Math.round(sum(G, f => f.gpuData.bufferKB) / 1024),
       mipmaps: sum(G, f => f.gpuData.mipmaps), mipmapMs: Math.round(sum(G, f => f.gpuData.mipmapMs)), newTextures: sum(G, f => f.gpuData.newTextures), newGeometries: sum(G, f => f.gpuData.newGeometries),
       excessOfThoseFrames: Math.round(sum(G, f => f.excess)), inTheSlot: sel.some(f => f.slotUploads) ? { frames: cnt(sel, f => f.slotUploads && f.slotUploads.ms >= 1), ms: Math.round(sum(sel, f => f.slotUploads ? f.slotUploads.ms : 0)), calls: sum(sel, f => f.slotUploads ? f.slotUploads.calls : 0) } : null },
@@ -145,6 +145,9 @@ function text(R) {
   L.push('  LINKS SUBMITTED: ' + R.links.n + ' in ' + R.links.frames + ' frames, ' + R.links.ms + ' ms of link calls' + (R.links.byOwner.length ? ': ' + R.links.byOwner.slice(0, 5).map(g => g.n + ' ' + g.key).join('; ') : ''));
   L.push('  DRAWS HELD ON A LINK: ' + R.waits.n + ' in ' + R.waits.frames + ' frames, ' + R.waits.ms + ' ms (that time is the shader slot\'s, not this one\'s)' + (R.waits.byOwner.length ? ': ' + R.waits.byOwner.slice(0, 5).map(g => g.ms + ' ms ' + g.key).join('; ') : ''));
   L.push('  STREAMER DELIVERIES: ' + R.deliveries.n + ' in ' + R.deliveries.frames + ' frames' + (R.deliveries.byStreamer.length ? ': ' + R.deliveries.byStreamer.map(g => g.n + ' ' + g.key).join(', ') : ' (no streamer says what it delivered in this log)') + '; premises built in ' + R.premisesFrames + ' frames');
+  // (a streamer that says what its time was made of - cover_ring.js update(): the cells planted, the blocks rebuilt - gets its split)
+  if (R.deliveries.byStreamer.some(g => g.plantMs || g.blockMs || g.kb)) { L.push('  ' + lp('reports', 9) + lp('ms', 9) + lp('items', 8) + lp('plant ms', 10) + lp('blocks', 8) + lp('block ms', 10) + lp('rest ms', 9) + lp('KB', 9) + '  streamer (rest = its ms less the planting and the block rebuilds)');
+    for (const g of R.deliveries.byStreamer) L.push('  ' + lp(g.n, 9) + lp(g.ms, 9) + lp(g.items, 8) + lp(r1(g.plantMs), 10) + lp(g.blocks, 8) + lp(r1(g.blockMs), 10) + lp(r1(g.ms - (g.plantMs || 0) - (g.blockMs || 0)), 9) + lp(g.kb || 0, 9) + '  ' + g.key); }
   const G = R.gpuData;
   L.push('  NEW GPU DATA (the WHOLE frame' + (G.inTheSlot ? '; in the slot itself, from the laps: ' + G.inTheSlot.ms + ' ms in ' + G.inTheSlot.frames + ' frames, ' + G.inTheSlot.calls + ' calls' : ': the log cannot split it between the passes') + '): ' + G.frames + ' frames made 1 ms or more of it, ' + G.ms + ' ms in all: ' +
     G.textures + ' texture calls (' + G.megapixels + ' MP), ' + G.buffers + ' buffers (' + G.bufferMB + ' MB), ' + G.mipmaps + ' mipmap builds (' + G.mipmapMs + ' ms), +' + G.newTextures + ' textures, +' + G.newGeometries + ' geometries; those frames hold ' + G.excessOfThoseFrames + ' ms of the excess (' + pct(G.excessOfThoseFrames) + ')');

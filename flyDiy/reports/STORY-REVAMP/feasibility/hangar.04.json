@@ -1,0 +1,155 @@
+{
+ "id": "hangar.04",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "STOL Cub",
+ "timeS": 1253,
+ "why": "",
+ "tried": [
+  "Piper Cub:infeasible",
+  "STOL Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w5",
+   "t": 554,
+   "how": "stopped",
+   "at": "w5",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w5",
+   "to": "HOME",
+   "t": 699,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 582,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "aim-displaced: the approach to Cannery Runway needs 22.2 deg over the obstacle 25 m out (10 m); flying 8.5 deg to an aim 144 m in",
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 207 m",
+      "slip: high on energy on the short final (+37.0 m at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 66,
+      "sink": 1.45,
+      "V": 16.1,
+      "offCentre": 0.8,
+      "pastAim": 24,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 168,
+      "stopLeft": 76
+     }
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 2400,
+     "how": "timeout",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "pivot: the taxi point is behind — turning on the spot",
+      "gave-up: still in TAXI at t=832 s — out of patience, not out of sky"
+     ],
+     "stop": "stopped off an aerodrome: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "STOL Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 554,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "aim-displaced: the approach to Cannery Runway needs 22.2 deg over the obstacle 25 m out (10 m); flying 9.1 deg to an aim 133 m in",
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 161 m",
+      "slip: high on energy on the short final (+8.0 m at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 24,
+      "sink": 1.44,
+      "V": 11.9,
+      "offCentre": 1.3,
+      "pastAim": 17,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 150,
+      "stopLeft": 136
+     }
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 699,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "backtrack: rolling on to the end of the strip (101 m from it) to turn round 7 m from it - the whole strip for the take-off",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 18.7 m/s until clear",
+      "taxi-in: taxiing in to the stand, 799 m"
+     ],
+     "landing": {
+      "run": 39,
+      "sink": 1.35,
+      "V": 11.9,
+      "offCentre": 1.3,
+      "pastAim": 24,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 34,
+      "stopLeft": 2253
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "429b46061d65",
+ "where": "hangar:2",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 4172
+}

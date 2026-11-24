@@ -141,7 +141,7 @@ function genFicheDestroy(def0, opts) {
 }
 
 // THE DRAG: the rows, the gear's terms, each one's km/h
-function genFicheGearTerms(S) {
+function genFicheGearTerms(S, D) {
   // genGearCdA's own terms, one by one (62_gen_aero.js); GATE PHYSPAGES checks the sum against genGearCdA
   const G = S.gear, semi = S.geom.semi;
   const fd = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) - 1);
@@ -153,12 +153,18 @@ function genFicheGearTerms(S) {
     const lv = G.lever, dx = lv && lv.horn && lv.top ? [0, 1, 2].map(k => lv.horn[k] - lv.top[k]) : null;
     lever = 2 * legCd * (dx ? Math.hypot(dx[0], dx[1], dx[2]) : 0.50) * 0.060;
   }
+  // PHYSICS-AUDIT step 5 (2026-11-22): AN AEROPLANE ON FLOATS carries no wheels in the air - its gear row is its lift
+  // struts, its two floats as bodies and their struts (62_gen_aero genParams: params.gen.drag.floats / floatStruts)
+  if (D && D.floats > 0)
+    return { wheels: 0, third: 0, legs: 0, lever: 0, thirdLeg: 0,
+             struts: S.bracing && S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0,
+             floats: D.floats, floatStruts: D.floatStruts || 0 };
   return { wheels: 2 * wCd * (2 * R * 0.76 * R), third: tCd * (2 * Rt * 0.76 * Rt), legs: 2 * legCd * (G.legDrop || 0.42) * 0.05, lever,
            thirdLeg: (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0) * (G.twLeg || 0.20) * 0.05,
            struts: S.bracing && S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0 };
 }
 const GEN_FICHE_DRAG_GROUPS = { fuselage: ['body'], cooling: ['cool', 'heads', 'exh'], screen: ['screen'], junct: ['junct'],
-  mainGear: ['g:wheels', 'g:legs', 'g:lever'], third: ['g:third', 'g:thirdLeg'], struts: ['g:struts'], wires: ['brace'],
+  mainGear: ['g:wheels', 'g:legs', 'g:lever', 'g:floats', 'g:floatStruts'], third: ['g:third', 'g:thirdLeg'], struts: ['g:struts'], wires: ['brace'],
   nacelles: ['nacelles'], pod: ['pod'], strutPods: ['strutPods'] };
 function genFicheDrag(def) {
   const S = def.spec, g = def.params.gen || {}, D = g.drag || {};
@@ -173,7 +179,7 @@ function genFicheDrag(def) {
     return 0.5 * (lo + hi);
   };
   const v0 = cruise(0);
-  const terms = genFicheGearTerms(S);
+  const terms = genFicheGearTerms(S, D);
   const rows = {};
   let known = 0;
   for (const r of ['body', 'cool', 'heads', 'screen', 'junct', 'exh', 'gear', 'brace', 'pod', 'strutPods']) {

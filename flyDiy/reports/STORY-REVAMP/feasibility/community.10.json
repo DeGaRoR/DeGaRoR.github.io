@@ -1,0 +1,99 @@
+{
+ "id": "community.10",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "DC-3-alike",
+ "timeS": 1868,
+ "why": "the stop refuses the load: aboard 0 kg / 1 pax, the job is 400 kg / 0 pax",
+ "tried": [
+  "PC-6 Turbo Porter:infeasible",
+  "DC-3-alike:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w7",
+   "t": 1868,
+   "how": "stopped",
+   "at": "w7",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 400 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w7",
+     "t": 1084,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 94 deg that the wheels (16.4 m) cannot steer on the route - turning on the spot"
+     ],
+     "landing": {
+      "run": 250,
+      "sink": 1.34,
+      "V": 24.1,
+      "offCentre": 0.1,
+      "pastAim": 25,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 213,
+      "stopLeft": 557
+     },
+     "stop": "aboard 0 kg / 0 pax, the job is 400 kg / 0 pax"
+    }
+   ]
+  },
+  {
+   "plane": "DC-3-alike",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 1 pax, the job is 400 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w7",
+     "t": 1868,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "go-around: unstabilised approach at 79 m: high 16 m on the slope (attempt 1)",
+      "go-around: unstabilised approach at 75 m: sinking 5.1 m/s (attempt 2)",
+      "committed-unstable: unstabilised (sinking 5.1 m/s) but committed - landing it"
+     ],
+     "landing": {
+      "run": 540,
+      "sink": 1.52,
+      "V": 33.9,
+      "offCentre": -0.7,
+      "pastAim": 20,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 208,
+      "stopLeft": 272
+     },
+     "stop": "aboard 0 kg / 1 pax, the job is 400 kg / 0 pax"
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "b2b2cc68f4ad",
+ "where": "community:7",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 2604
+}

@@ -1,0 +1,265 @@
+=== STOL ===
+  ok   selftest: a null stol hashed raw differs from the absent key (what bench.js strips)
+(134 checks)
+GATE STOL: PASS
+=== PILOTCANFLY ===
+  roster:megan / c172w             -         -  land 216         -         -         -         -         -         -  land 216
+  (25.8 s)
+GATE PILOTCANFLY: PASS
+=== SOFTGROUND ===
+(327 s)
+GATE SOFTGROUND: PASS
+=== TAKEOFF ===
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 21.4 s; max |cross| 0.9 m, past an end -5.6 m, off the surface 0.0 s; LIFTOFF (airborne); backtrack,pivot,committed-takeoff
+GATE TAKEOFF: PASS
+=== SAILPLANE ===
+  ok   C 170 L in the wings (wingRoot 140, wingPanel 30), dumped in 3.4 min
+  ok   C 30 s at 300 m with the valve open: finite true, the water 170.0 -> 145.0 kg
+GATE SAILPLANE: PASS
+=== PROFILE ===
+  PASS  3 on final the lowest node >= 10 m over every tree top within 15 m of the track - 67.2 m (611 m before the threshold); the approach {"technique":"short","gs":0.105,"reqGs":0.118,"aimIn":10,"displaced":null}
+(840 s)
+GATE PROFILE: PASS
+=== CARDS ===
+56 ok, 0 red
+GATE CARDS: PASS
+=== PLANELISTS ===
+  selftest files: a test copy nobody reads: red (ok)
+  selftest the floats draft shown to a player before its file lands: red (ok)
+GATE PLANELISTS: PASS
+=== REALBAND ===
+  note: the report's evidence is not fresh for etrainer (never flown), pc6 (never flown), pc6f (never flown), cub (unstamped), jodelg (never flown), pa18f (unstamped), ruckus (never flown), ruckusbc (never flown), dc3r (never flown), chinookm (never flown), tigermothm (never flown), camelm (never flown), stearman (unstamped), ls4 (never flown), archaeo (never flown), petrel42 (never flown), carboncubss (unstamped), c172v2 (unstamped) - re-fly them (real_check --all)
+  18 planes in 581 s
+GATE REALBAND: PASS
+=== BENCH ===
+THE SHEET
+  ok   drawPlaque prints 67 literal rows
+  ok   every row has an explanation
+  ok   every section heading has its line
+  ok   the energy section's two headings are explained
+  ok   climb bound 0.5 m/s, red below it
+  ok   take-off run 500 / 1100 m
+  ok   static margin 0.05 / 0
+  ok   crosswind 4 / 2 m/s
+  ok   prop clearance 0.12 / 0.05 m
+  ok   the four loading corners left the plaque
+  ok   the bench check runs without the corners
+  ok   judge: climb
+  ok   judge: take-off run
+  ok   judge: static margin
+  ok   the band bar's marker stays on the bar and its zone is the judge's
+  ok   the marker moves monotonically with the value
+  ok   the sheet renders headings and rows
+  ok   a red row carries its fix in the hover text
+  ok   a judged row carries its band bar
+  ok   no row went unexplained
+THE WORD
+  ok   a new colour, a new finish and a new name keep the fingerprint
+  ok   a longer wing changes it
+  ok   a cage row changes it
+  ok   the hash is eight hex digits and stable
+  ok   FNV-1a reference values
+  ok   the cosmetic set is paint, finish, meta (+ ENGINE-COOLING's measured cooling)
+  ok   a tank hue, tint or finish keeps it
+  ok   the panel bezel keeps it
+  ok   the lights, who is aboard, a view toggle and a look row keep it
+  ok   a light switched on (the cabin flood, the nav lights) keeps it (G3449)
+  ok   a lamp taken out (li_floodFit) keeps it (G3780 R2: lamps fitted are minor)
+  ok   a smooth tundra tread (whSlick) keeps it (G3852: drawing only)
+  ok   whTread off its default still changes it (G3852: every file signed it)
+  ok   a cage row added at its default keeps it
+  ok   the key order keeps it
+  ok   a float printed to the last digit keeps it
+  ok   a cage row moved off its default changes it
+  ok   a row put back to its default changes it (it was moved)
+  ok   a vessel capacity changes it
+  ok   the systems fit keeps it (G3780 R2: avionics and instruments are minor)
+  ok   without defaults every row counts (a core-only caller)
+  ok   a box build switched to the arch hashes as it was certified on the box (G3451)
+  ok   an arch build through the switch hashes as before
+  ok   after the switch the dash is a look: the box picked again, or other legs, keep it
+  ok   a build born after the switch hashes as an arch build did, whatever dash it wears
+  ok   a cage from before the switch (no dashV) still hashes as it is (the box is not the arch there)
+  ok   through the switch a real cage row still changes it
+  ok   the scheme is named in the tag
+  ok   canonical JSON sorts keys at every depth
+  ok   fpNow reads the default aeroplane garage.js publishes
+  ok   another PHYSICS_V is the same f3 fingerprint (R3: an update re-checks, never withdraws)
+  ok   the OLD f2 still folds the versions in
+  ok   M1: an f2 certificate of this body under ANY past version is recognised (and not one of another body)
+  ok   the dirty hook compares the major fingerprint, and an undone change restores (G3780 R4)
+  ok   the restore: held on the same aeroplane, re-checked under another version (R3: suspended if it fails), an f2 of this body re-stamped (M1), an unstamped one withdrawn (M2)
+  ok   a withdrawn certificate is kept, struck through
+  ok   every settled result is dated
+  ok   BENCH_STATE carries the advised trim only from a live, accepted flight
+  ok   roll-out seeds the hand from the advised trim
+  ok   the pilot publishes the trim it held
+  ok   trim words in clicks of 0.02
+THE RULE
+  ok   f3: the major fingerprint and its five groups (4b6e77f7)
+  ok   keeps: a passenger aboard (T4)
+  ok   keeps: another pilot, the crew hidden (T5)
+  ok   keeps: a GPS and a radio (T6)
+  ok   keeps: the cargo and the fuel aboard
+  ok   keeps: the glazed area and the seats' stations (measured)
+  ok   keeps: the name, the registration and the paint
+  ok   keeps: the floats' station the join measures off the CG (T3) - and another float model is a change
+  ok   keeps: the belly pod fitted, resized and removed (a bolt-on, outside the certificate)
+  ok   the weight & balance line names no pod (the tanks or the seats changed)
+  ok   M1 with a pod: an f2 taken with the pod fitted, or before it was, is still this aeroplane
+  ok   M3 with a pod: the factory p1 signature, taken before or after the pod, still names this airframe
+  ok   withdraws and names it: the wing or the structure changed (structure)
+  ok   withdraws and names it: the engine or the propeller changed (engine)
+  ok   withdraws and names it: the landing gear changed (gear)
+  ok   withdraws and names it: the tail or the controls changed (tail)
+  ok   withdraws and names it: the tanks or the seats changed (wb)
+  ok   M3: procureFp is the bench's f3; a p1 signature of this spec under any version is recognised, another spec's is not
+  ok   DASH x f3: a cage saved after the dash switch hashes its certified dash on both paths (procureFp = the bench's f3; another dash keeps both)
+  ok   M4: an acceptance leg under the live f3 or one of its f2 aliases counts, another build's does not
+THE STRIP
+  ok   the phase strip knows all 24 pilot phases
+  ok   the crosswind leg is cruise, taxi and stopped map to their steps (A9: the ladder has its own card)
+  ok   all six roundels draw on a stub context
+  ok   the master roundel draws: AIRWORTHY, 250 mm, on page 7
+  ok   the master is dated by the last GATING certificate (a rating does not date it)
+  ok   a roundel is a disc with lettering round it
+  ok   one sticker per declared test, and every test has one (six: the crosswind's A9, the hydroplane's S1 G451.1; the belly pod's G2410 row, an option measured, wears none)
+  ok   six 120 mm roundels in a 0.87 m strip
+  ok   no decal block = the rear fuselage under the registration
+  ok   the fin place (box side frame), fine-tuned, smaller, turned
+  ok   with a measured fin, the strip is centred on its chord 0.35 m under the top
+  ok   without a chord, hung short of the top's station
+  ok   no decal block = the master 250 mm, one roundel wide
+  ok   the master on the fin, fine-tuned, bigger, turned — on its own keys
+  ok   the master off hides the master and not the strip
+  ok   with a measured wing, the strip lies across the span on its chord station
+  ok   stickers shown off = no strip
+  ok   five named places, each with surfaces and a projection
+  ok   the sticker keys are decal defaults, so they ride finish.decals — and the default place is the fin
+  ok   the master keys are decal defaults too (the rear fuselage under the registration), with their panel rows
+  ok   the panel has a stickers block and the finish view a heading for it
+  ok   the strip lives on atlas page 6 (0 reg, 1-2 images, 3-5 the kit)
+  ok   the shader has the strip's and the master's slots (15: LIVERY-5's five layers, LIVERY-TEXT's six pieces)
+  ok   aeroDecalsFor takes the stickers through the hook, with the decal block
+  ok   the manifest carries plaque.js, stickers.js, bench_worker.js, bench.js and bench.css
+  ok   the editor can be asked to rebuild its decal list
+THE THREAD
+  ok   the worker imports this module and the core bundle, and names the rig and the ladder
+  ok   the page backend steps under a frame's budget
+  ok   the rig's thread is killed at every way out (5 sites), with terminate()
+  ok   the certificate fails on a break-up or the tip cap, never on the yield proxy
+  ok   the proxy is reported as a warning, named for what it is
+  ok   the fix line names rows that exist (fixation, construction, span), not a deeper spar
+  ok   the advisor's levers are the wing page's rows; thickness and spar stations are not offered (measured useless / worse)
+  ok   a cantilever aluminium wing is offered struts, carbon and a metre off — not aluminium again
+  ok   a wing that follows an aluminium fuselage is not offered aluminium either (genSurfKey decides)
+  ok   the advisor runs after the verdict through the bridge, line by line
+  ok   a lever line names the row and the tip it buys
+  ok   the test flight is a flown card: it hands off to the game
+  ok   an arrival on the pilot awards, with the landing run and the trim
+  ok   a refusal is a failed test with its reason
+  ok   an arrival by hand awards, and carries no trim reading
+  ok   logFlight hands every flight to the bench; the offscreen circuit is gone
+  ok   the game pilot publishes the trim it held (the advisor reads the real flight now)
+  ok   the director cuts on the phases and a framing pick ends it
+  ok   2x steps twice a frame (twice what the real time owes, G586), refuses floats, drops itself
+  ok   no watched test left: the crosswind ladder is gone, nothing is live (G3780)
+  ok   the crosswind roundel is the design check's rudder row against the plaque's bar
+  ok   the wing loading and the hydroplane are computed (quick), not watched
+  ok   the quick wing loading reads the rig's last state with the watched rig's own verdict
+  ok   a member that lets go still fails the wing loading
+  ok   the page runs the rig unpaced on the bench's thread (page fallback) and the water run to its end
+  ok   the probe publishes its rungs as they land (read-only)
+  ok   the plaque has the crosswind section, from the card's sheet
+  ok   the worker's run is the rig: same verdict, same tip (HELD, 1.022 %)
+THE FLIGHT
+  ok   the default garage build leaves LIFTOFF for CLIMB within 40 s of lifting off (10 s)
+  ok   it flies the whole circuit and stops: completed — ROLL LIFTOFF CLIMB CROSSWIND DOWNWIND BASE FINAL FLARE ROLLOUT STOPPED
+  ok   with a landing run (211 m)
+THE FIRST FLIGHT
+  ok   an unarmed arrival settles the flight certificate on the roll-out's fingerprint (4b6e77f7)
+  ok   the first arrival awards the flight quietly and a second changes nothing (0, then 0 cards)
+  ok   the reload restores it valid, with its first day
+  ok   R6: even an arrival fingerprinted out in the world (pre-G700) keeps its flight across the reload - the flight is the airframe's
+  ok   Rufus ships used: its flight awarded 2009-05-16, built 2009-04-25, 5 logged flights, 4.1 h
+  ok   ...restored, its flight holds (2009-05-16) and the player's first landing awards nothing (2009-05-16, 0 cards)
+  ok   a rebuild out in the world (the story's skip onto the final) supersedes nothing, and back in the garage the aeroplane holds (3, 3, 3 of 3 held)
+  ok   the guard is not vacuous: the same engine and propeller rows hashed in the garage supersede all three (0 held)
+  ok   app.js hands the bench whether the page is in the garage
+  ok   under the roll-out screen a rebuild is fingerprinted only once the screen goes (3 held while held, 0 at rest), and R4's re-run does not start under a screen (0 running, 3 superseded)
+  ok   the restore's re-check and the run queue wait for a garage at rest too (bench.js idle)
+  ok   an f2 stamp of THIS game version restores as it is - no re-check (only an older version re-checks)
+  ok   in the garage the belly pod fitted, resized and removed supersedes nothing (3, 3, 3 of 3 held); a tank change does (0 held)
+  ok   app.js rollOut fingerprints the aeroplane before it closes the editor
+  ok   builds/rufus_2026-10-18_certified.json: its bench check holds, the design not failed (FLIES A CIRCUIT)
+  ok   builds/rufus_2026-10-18_certified.json: the wing loading and the test flight held too, so the page reads it passed (HELD, FLEW THE CIRCUIT)
+  FAIL builds/rufus_2026-10-18_certified.json: stamped under this game (f3, spec 10, physics 9; now 10, 10)
+  ok   builds/rufus_2026-10-18_certified.json: the plaque is the stamp recorded here (01f845e8, recorded 01f845e8; flight awarded under 58f5a348)
+  ok   builds/rufus_2026-10-18_certified.json: the load door still builds the body that was stamped (cc88a9ce, recorded cc88a9ce)
+
+156/157 checks
+GATE BENCH: FAIL
+(exit code 1)
+=== WIRES ===
+  ok     6. ...and a streamline wire, or a tail stated unbraced, is another aeroplane
+  ok     6. the Tiger Moth, Stearman and Camel cards state streamline wire (their bpWireSec row: tigermoth stearman camel)
+GATE WIRES: PASS
+=== PROPFIT ===
+  (no unpowered build from the stock spec: row 7b not read)
+  ok     8. the built spec rebuilds the same propeller
+GATE PROPFIT: PASS
+=== IDLEPROP ===
+  ok     5. dead < closed < clean, and the dead-engine glide within a quarter of the clean one
+  ok     6. thirty seconds flown with the throttle closed stay finite (the thrust down to -121 N, the wash finite)
+GATE IDLEPROP: PASS
+=== DRAGROWS ===
+  ok     4. an inline engine's body is whole (the Tiger Moth-alike)
+  ok     4. a measured cowl's body is whole (the Camel-alike: cooling by momentum)
+GATE DRAGROWS: PASS
+=== PLANEFICHE ===
+selftest: 59 of 59 caught
+GATE PLANEFICHE: PASS
+=== PHYSPAGES ===
+        cooling measured, climb 1.3499 x, cdA 0.0228
+  (411 s)
+GATE PHYSPAGES: PASS
+=== PROCURE ===
+3170 checks, 33 shakedowns (cached by content)
+GATE PROCURE: PASS
+=== SNAPSHOTS ===
+ok     the snapshots (CONTRACT_DESIGNS, FREIGHT_CARDS, PROCURE eff) are of the build files as they are: stamped c94df0ffe8e2b71b, the files c94df0ffe8e2b71b
+GATE SNAPSHOTS: PASS
+=== RPM ===
+GATE RPM: PASS
+=== BUILT ===
+  the working tree's outputs = the fresh build (7 files)
+  HEAD decd4e5458's committed outputs = the fresh build
+GATE BUILT: PASS
+
+──────── summary ────────
+STOL      PASS   608.8 s
+PILOTCANFLY PASS    34.5 s
+SOFTGROUND PASS   327.5 s
+TAKEOFF   PASS   945.6 s
+SAILPLANE PASS    87.1 s
+PROFILE   PASS   840.1 s
+CARDS     PASS     4.0 s
+PLANELISTS PASS     6.6 s
+REALBAND  PASS   581.0 s
+BENCH     FAIL   170.4 s
+WIRES     PASS     1.6 s
+PROPFIT   PASS     2.2 s
+IDLEPROP  PASS    14.5 s
+DRAGROWS  PASS     2.7 s
+PLANEFICHE PASS    13.5 s
+PHYSPAGES PASS   411.9 s
+PROCURE   PASS   211.5 s
+SNAPSHOTS PASS     0.1 s
+RPM       PASS    24.0 s
+BUILT     PASS     3.0 s
+total           4290.6 s
+wall            1765.9 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+exit 1

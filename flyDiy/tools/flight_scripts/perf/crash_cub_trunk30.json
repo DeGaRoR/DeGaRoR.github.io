@@ -1,0 +1,59 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_crash_cub_trunk30",
+ "what": "ROW 14 (the user, 22 Nov: \"less than 250 ms freeze on crash, and no sky blue screen\"): the cub off HOME, brought down to ~5 m and flown head on into a trunk (r 0.3 m) 60 m ahead at its climb speed - DEFORM's trunk30 stills case, as the player flies it (the worker, the default path)",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "HOME",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "take-off",
+   "do": "start",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "DOWNWIND",
+     "ENROUTE"
+    ],
+    "agl": 40
+   },
+   "capS": 400
+  },
+  {
+   "name": "down low",
+   "do": "lift",
+   "by": -36
+  },
+  {
+   "name": "the trunk",
+   "do": "page",
+   "js": "(() => { const P = window.FLIGHT_PROBE, sim = P.sim(), W = P.world(), n = sim.n, p = sim.p, v = sim.v; let cx = 0, cz = 0, vx = 0, vz = 0; for (let i = 0; i < n; i++) { cx += p[i*3]; cz += p[i*3+2]; vx += v[i*3]; vz += v[i*3+2]; } cx /= n; cz /= n; const h = Math.hypot(vx, vz) || 1, fx = vx / h, fz = vz / h, D = 60, off = 0, R = 0.3, H = 25; const tx = cx + fx * D - fz * off, tz = cz + fz * D + fx * off, g = W.terrainH(tx, tz); W.treeHits.set('fill:fs_trunk', [tx, tz, g, R, g + H]); const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R + 0.05, H, 20), new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.95 })); m.position.set(tx, g + H / 2, tz); m.castShadow = true; P.craft().parent.add(m); return 'trunk ' + D + ' m ahead, ' + off + ' m aside, r ' + R + ', ' + H + ' m tall, at ' + tx.toFixed(1) + ' ' + tz.toFixed(1); })()",
+   "until": {
+    "s": 1
+   },
+   "capS": 5
+  },
+  {
+   "name": "the crash",
+   "until": {
+    "s": 12
+   },
+   "capS": 30,
+   "allow": [
+    "crash",
+    "yield",
+    "dent",
+    "prop-strike"
+   ]
+  },
+  {
+   "name": "orbit the wreck",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 15,
+   "dist": 20
+  }
+ ]
+}

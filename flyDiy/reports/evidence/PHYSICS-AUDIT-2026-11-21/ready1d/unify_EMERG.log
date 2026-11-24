@@ -1,0 +1,9 @@
+ok   TABLE   Stig (expert): STOL yes, glider yes
+ok   TABLE   Megan (bush): STOL yes, glider yes
+ok   TABLE   Brian (club): STOL no, glider no
+ok   TABLE   Remy (student): STOL no, glider no
+ok   TABLE   Bryce (hamfist): STOL no, glider no
+ok   EMERG   the Cessna 172 (list:50) 2.6 km out for East Point Clearing, the engine stops at 600 m, the expert: Cannery Runway (right-hand); on the runway 11.1 m off, sink 1.61, forced-landing - "the engine stopped at t=12 s, 607 m up — an emergency: gliding to Cannery Runway, 1382 m away - a glider's circuit, right-hand, landing head"
+ok   EMERG   the Cessna 172 (list:50) 2.6 km out for East Point Clearing, the engine stops at 600 m, the student: Cannery Runway (right-hand); on the runway 13.0 m off, sink 1.52, forced-landing - "the engine stopped at t=12 s, 608 m up — an emergency: gliding to Cannery Runway, 1383 m away - a glider's circuit, right-hand, landing head"
+GATE UNIFY: PASS
+exit 0

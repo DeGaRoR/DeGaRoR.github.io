@@ -1185,15 +1185,23 @@ const SPLAT_GROUND = (() => {
   // reads it (a lake as muskeg, over 16 as 16) - 36 % of Jolene's land - votes with one tap instead of 25 (sSplat,
   // the same weights exactly). Two O(n) run passes (rows, then columns of the row-even cells): 151 ms on Jolene's 12.1 M cells
   // in node. Every reader of the byte masks the bit (sCodeAt and the vote here, render_world gTT). GATE SPLAT proves it against the brute force.
-  function oneCode(T, w, h) {
+  // PERF-WORLDBUILD (23 Nov 2026): IN STEPS. oneCodeSteps is the same passes in the same order as a generator: it yields
+  // every 32 rows (columns in the second pass) when `due()` says so - the host's budget (window.FLYDIY_WORLD_BUDGET.left()
+  // <= 0); with no host budget it never yields. oneCode drains it: the same bytes (GATE SPLAT).
+  const hostDue = () => { const Bd = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };
+  function oneCode(T, w, h) { const g = oneCodeSteps(T, w, h, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* oneCodeSteps(T, w, h, due) {
+    due = due || hostDue;
     const n = w * h, m = new Uint8Array(n), ok = new Uint8Array(n);
-    for (let k = 0; k < n; k++) { let v = T[k]; if (v > 16) v = 16; if (v === 1) v = 3; m[k] = v; }
-    for (let y = 0; y < h; y++) { const r = y * w; let s = 0;
+    for (let k0 = 0; k0 < n; k0 += 1048576) { if (k0 && due()) yield 'island ground: the types';
+      for (let k = k0, k1 = Math.min(n, k0 + 1048576); k < k1; k++) { let v = T[k]; if (v > 16) v = 16; if (v === 1) v = 3; m[k] = v; } }
+    for (let y = 0; y < h; y++) { if (y && !(y & 31) && due()) yield 'island ground: the types'; const r = y * w; let s = 0;
       for (let x = 1; x <= w; x++) { if (x < w && m[r + x] === m[r + s]) continue;
         const e = x - 1; for (let i = s; i <= e; i++) if ((i - s >= 2 || s === 0) && (e - i >= 2 || e === w - 1)) ok[r + i] = 1;
         s = x; } }
+    if (due()) yield 'island ground: the types';
     const out = new Uint8Array(T);   // a copy: the bit set where the window is one code (a raw byte >= 128 never flags)
-    for (let x = 0; x < w; x++) { let s = 0; const val = y => ok[y * w + x] ? m[y * w + x] : 255;
+    for (let x = 0; x < w; x++) { if (x && !(x & 31) && due()) yield 'island ground: the types'; let s = 0; const val = y => ok[y * w + x] ? m[y * w + x] : 255;
       for (let y = 1; y <= h; y++) { if (y < h && val(y) !== 255 && val(y) === val(s)) continue;
         const e = y - 1;
         if (val(s) !== 255) for (let i = s; i <= e; i++) if ((i - s >= 2 || s === 0) && (e - i >= 2 || e === h - 1) && out[i * w + x] < 128) out[i * w + x] |= 128;
@@ -1521,6 +1529,6 @@ const SPLAT_GROUND = (() => {
     };
     return { uniforms: U, glslCommon: glslCommon(false), glslCommonFull: glslCommon(true), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
   }
-  return { make, oneCode };
+  return { make, oneCode, oneCodeSteps };
 })();
 if (typeof window !== 'undefined') window.SPLAT_GROUND = SPLAT_GROUND;

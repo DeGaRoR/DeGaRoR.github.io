@@ -53,6 +53,7 @@ function pure() {
     'under the strip ': 'under the strip 420 m out',
     'unstabilised approach at ': 'unstabilised approach at 85 m: fast 31.2 m/s for 27.0',
     'bounced ': 'bounced 2.4 m off the touch at 24.1 m/s',
+    'flown off the flare: ': 'flown off the flare: 47 m up with -140 m of strip left',
   };
   say('1 THE WORDS (src/viewer/ap_why.js against 43_pilot.js\'s own reasons)');
   if (lits.length < 8) bad('only ' + lits.length + ' goAround reasons read off 43_pilot.js (the reader is blind)');

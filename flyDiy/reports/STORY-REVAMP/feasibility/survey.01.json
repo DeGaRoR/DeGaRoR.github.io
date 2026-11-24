@@ -1,0 +1,111 @@
+{
+ "id": "survey.01",
+ "kind": "survey",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 2269,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 1650,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@0",
+    "stage@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 619,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@1",
+    "stage@1",
+    "say",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1650,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Jolene AFB 13/31",
+      "taxi-in: taxiing in to the stand, 452 m"
+     ],
+     "landing": {
+      "run": 176,
+      "sink": 0.78,
+      "V": 17,
+      "offCentre": 0.3,
+      "pastAim": 39,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 553,
+      "stopLeft": 1596
+     }
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 619,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 94 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear",
+      "taxi-in: taxiing in to the stand, 457 m"
+     ],
+     "landing": {
+      "run": 173,
+      "sink": 0.86,
+      "V": 16.9,
+      "offCentre": 0.3,
+      "pastAim": 37,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 551,
+      "stopLeft": 1601
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "901a02b8333c",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 775
+}

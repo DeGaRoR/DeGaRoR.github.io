@@ -1,0 +1,70 @@
+{
+ "id": "home.04",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+ "timeS": 929,
+ "why": "",
+ "tried": [
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w1",
+   "t": 929,
+   "how": "stopped",
+   "at": "w1",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 200,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w1",
+     "t": 929,
+     "how": "stopped",
+     "kg": 200,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+9.6 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 23.1 m/s at this power — flying the approach faster",
+      "slope: stopped on a 11.1 % grade — rolling 90 m on to the level part"
+     ],
+     "landing": {
+      "run": 123,
+      "sink": 0.03,
+      "V": 26.7,
+      "offCentre": -14.7,
+      "pastAim": 57,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 67,
+      "stopLeft": 194
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "dcb99b143eda",
+ "where": "home:2",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 682
+}

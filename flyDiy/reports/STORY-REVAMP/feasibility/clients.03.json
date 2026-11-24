@@ -1,0 +1,163 @@
+{
+ "id": "clients.03",
+ "kind": "challenge",
+ "verdict": "infeasible",
+ "plane": "STOL Cub",
+ "timeS": 1261,
+ "why": "no progress: stopped at Skyline Altiport, not Jolene AFB 13/31",
+ "tried": [
+  "Piper Cub:infeasible",
+  "Jodel D112:infeasible",
+  "STOL Cub:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "tw_ski",
+   "t": 572,
+   "how": "stopped",
+   "at": "tw_ski",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "tw_ski",
+   "to": "HOME",
+   "t": 689,
+   "how": "stopped",
+   "at": "tw_ski",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "no progress: stopped at Skyline Altiport, not Jolene AFB 13/31",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 580,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "off-the-strip: touched 114 m in, stopped -118 m past the end of 280 m (16 m off the centreline)",
+      "slope: stopped on a 20.5 % grade — rolling 50 m on to the level part",
+      "slope-parked: the grade is too steep to taxi up - parked on the brakes 50 m short of the level part"
+     ],
+     "landing": {
+      "run": 47,
+      "sink": -0.87,
+      "V": 13.7,
+      "offCentre": 3.9,
+      "pastAim": 98,
+      "k": 1,
+      "three": true,
+      "onStrip": false,
+      "tdIn": 114,
+      "stopLeft": 118
+     },
+     "stop": "stopped at Skyline Altiport, not Jolene AFB 13/31"
+    },
+    {
+     "from": "tw_ski",
+     "to": "HOME",
+     "t": 1471,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (163 m, 13.2 m off) — planning the departure again",
+      "taxi-timeout: the route took 365 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "stopped at Skyline Altiport, not Jolene AFB 13/31"
+    }
+   ]
+  },
+  {
+   "plane": "Jodel D112",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a tail member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 653,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 710 m (planned 708)",
+      "capsized: on its back in ROLLOUT at 7.7 m/s (bank -91 deg)",
+      "out-of-energy: the engine seized at t=651 s — engines stopped"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "STOL Cub",
+   "verdict": "infeasible",
+   "why": "no progress: stopped at Skyline Altiport, not Jolene AFB 13/31",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 572,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 17.6 m/s until clear",
+      "slip: high on energy on the short final (+2.0 m at idle) — slipping it down",
+      "off-the-strip: touched 101 m in, stopped -149 m past the end of 280 m (6 m off the centreline)"
+     ],
+     "landing": {
+      "run": 29,
+      "sink": -0.75,
+      "V": 11,
+      "offCentre": 5.1,
+      "pastAim": 91,
+      "k": 1,
+      "three": true,
+      "onStrip": false,
+      "tdIn": 101,
+      "stopLeft": 149
+     },
+     "stop": "stopped at Skyline Altiport, not Jolene AFB 13/31"
+    },
+    {
+     "from": "tw_ski",
+     "to": "HOME",
+     "t": 689,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (187 m, 14.2 m off) — planning the departure again",
+      "taxi-timeout: the route took 86 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "stopped at Skyline Altiport, not Jolene AFB 13/31"
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "d8e78e730817",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 3217
+}

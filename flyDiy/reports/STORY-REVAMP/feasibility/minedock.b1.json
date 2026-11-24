@@ -1,0 +1,99 @@
+{
+ "id": "minedock.b1",
+ "kind": "build",
+ "verdict": "feasible",
+ "plane": "Cessna 172 floats (career)",
+ "timeS": 2805,
+ "why": "",
+ "tried": [
+  "Cessna 172 floats (career):infeasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "SEA",
+   "t": 405,
+   "how": "stopped",
+   "at": "SEA",
+   "stop": [
+    "pending"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "SEA",
+   "to": "SEA",
+   "t": 2400,
+   "how": "timeout",
+   "at": null,
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "timeout"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "infeasible",
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "SEA",
+     "t": 405,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "wont-climb: no climb left (0.15 m/s) — accepting 289 m",
+      "vref-raised: the elevator cannot hold 31.8 m/s at this power — flying the approach faster",
+      "slip: high on energy on the short final (+18.8 m at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 374,
+      "sink": 0.32,
+      "V": 35.9,
+      "offCentre": 5.9,
+      "pastAim": 148,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 456,
+      "stopLeft": 670
+     },
+     "stop": "hydro: needs a test (the bench’s hydroplane test has not been run (a float build only))"
+    },
+    {
+     "from": "SEA",
+     "to": "SEA",
+     "t": 2400,
+     "how": "timeout",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "lineup-timeout: could not line up in 120 s — stopping to replan",
+      "lineup-timeout: could not line up in 120 s — stopping to replan",
+      "replan: not lined up with a run ahead (187 m, 31.2 m off) — planning the departure again"
+     ],
+     "stop": "stopped off an aerodrome: nothing is delivered"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
+ "untested": true,
+ "key": "eed053109604",
+ "where": "contract",
+ "pool": "validated",
+ "sim": "L40K",
+ "wallS": 3424
+}

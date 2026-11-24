@@ -1,0 +1,156 @@
+{
+ "id": "field.ridge",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "STOL Cub",
+ "timeS": 1258,
+ "why": "",
+ "tried": [
+  "Piper Cub:infeasible",
+  "STOL Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 564,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "w4",
+   "t": 694,
+   "how": "stopped",
+   "at": "w4",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 606,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 96 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 23.0 m/s until clear"
+     ],
+     "landing": {
+      "run": 117,
+      "sink": 1.29,
+      "V": 18.2,
+      "offCentre": 0.2,
+      "pastAim": 3,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 69,
+      "stopLeft": 358
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 792,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 927 m (planned 926)",
+      "slip: high on energy on the short final (+7.7 m at idle) — slipping it down",
+      "go-around: unstabilised approach at 14 m: high 9 m on the slope (attempt 1)"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "STOL Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 564,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 101 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 19.4 m/s until clear"
+     ],
+     "landing": {
+      "run": 37,
+      "sink": 0.88,
+      "V": 13.9,
+      "offCentre": -0.2,
+      "pastAim": 15,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 25,
+      "stopLeft": 481
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w4",
+     "t": 694,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 19.4 m/s until clear",
+      "slip: high on energy on the short final (+7.0 m at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 26,
+      "sink": -1.85,
+      "V": 13.9,
+      "offCentre": 0.6,
+      "pastAim": 15,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 25,
+      "stopLeft": 166
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats filled as the job asks: Piper Cub flown with 2 aboard (the garage's seat-fill)",
+  "the seats filled as the job asks: STOL Cub flown with 2 aboard (the garage's seat-fill)"
+ ],
+ "untested": false,
+ "key": "4aec0468d36e",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 1144
+}

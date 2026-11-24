@@ -1,0 +1,90 @@
+{
+ "id": "club.regular",
+ "kind": "challenge",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1086,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "HOME",
+   "t": 1086,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@0",
+    "sub:1@0",
+    "timer",
+    "sub:2@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": [
+    "hit:r1",
+    "hit:r2"
+   ]
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1086,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "route-done: the drawn route flown - on to the destination",
+      "route-arrival: arriving at Jolene AFB 13/31",
+      "taxi-in: taxiing in to the stand, 451 m"
+     ],
+     "near": {
+      "r1": {
+       "d": 1.3,
+       "agl": 99.7,
+       "msl": 137.4,
+       "t": 480.6
+      },
+      "r2": {
+       "d": 1.2,
+       "agl": 102.7,
+       "msl": 126.5,
+       "t": 597.7
+      }
+     },
+     "landing": {
+      "run": 178,
+      "sink": 0.87,
+      "V": 17.1,
+      "offCentre": 0.2,
+      "pastAim": 38,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 552,
+      "stopLeft": 1594
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "400eecfea2d6",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 409
+}

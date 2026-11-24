@@ -1,0 +1,6 @@
+# GARAGE FIRST, ROUND 1 (Monday 23 Nov 13:00) - PART B, run with LM_AFTER=5: GO PRESSED AT ONCE (5 s after the garage
+# shows). The roll-out's screen joins the load where it stands (eval gf.joinMs, gf.joinStep); the row's rollout line is the
+# whole wait from Go to the flight, the roll-out shot included. Then the budget's two ends, Go after 150 s again in part C.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+GF_GO5    ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 240 --init-file tools/perf/init_longtasks.js
+GF_GO5W   ; D:/Dev/perf-lab-built ; boot=garagefirst&compsteps=1&stripw=1&patchw=1&roadw=1&nearfirst=1&settle=near ; gfall ; H5K ; --rollout --rollout-once --rollout-watch 60 --rollout-secs 240 --init-file tools/perf/init_longtasks.js

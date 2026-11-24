@@ -1,0 +1,3 @@
+# THE EVENING WINDOW: ?latelinks=bg with Go pressed 6 s after the reveal (run with LM_AFTER=6) - the background pass has
+# barely begun, so the departure's own screen waits for the links: the worst case of the switch.
+LATEBG_6 ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js

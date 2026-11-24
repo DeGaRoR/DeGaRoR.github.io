@@ -1,0 +1,216 @@
+{
+ "id": "obs.03",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+ "timeS": 1492,
+ "why": "no progress: already loaded",
+ "tried": [
+  "STOL Cub:infeasible",
+  "Carbon Cub SS:infeasible",
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mt_strip",
+   "t": 669,
+   "how": "stopped",
+   "at": "mt_strip",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "mt_strip",
+   "to": "HOME",
+   "t": 411,
+   "how": "stopped",
+   "at": "mt_strip",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "mt_strip",
+   "to": "HOME",
+   "t": 411,
+   "how": "stopped",
+   "at": "mt_strip",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "STOL Cub",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 835,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 101 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 19.4 m/s until clear"
+     ],
+     "landing": {
+      "run": 7,
+      "sink": -0.5,
+      "V": 11.8,
+      "offCentre": 0.7,
+      "pastAim": 21,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 31,
+      "stopLeft": 172
+     }
+    },
+    {
+     "from": "mt_strip",
+     "to": "HOME",
+     "t": 1420,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (38 m, 4.9 m off) — planning the departure again",
+      "pivot: a turn of 95 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
+      "capsized: on its back in TAXI at 14.1 m/s (bank 91 deg) - after \"gave-up\""
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Carbon Cub SS",
+   "verdict": "infeasible",
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 758,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 24.7 m/s until clear",
+      "capsized: on its back in ROLLOUT at 2.8 m/s (bank -91 deg)",
+      "out-of-energy: the engine seized at t=757 s — engines stopped"
+     ],
+     "landing": {
+      "run": 13,
+      "sink": -0.47,
+      "V": 16.3,
+      "offCentre": 0.1,
+      "pastAim": 33,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 46,
+      "stopLeft": 151
+     }
+    },
+    {
+     "from": "mt_strip",
+     "to": "HOME",
+     "t": 2400,
+     "how": "timeout",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: the taxi point is behind — turning on the spot",
+      "out-of-energy: the engine seized at t=2 s, -1 m up — an emergency: gliding straight ahead for a forced landing",
+      "wings-level: the rudder eased off: the aileron on its stop against 179 deg of bank (0 deg of sideslip)"
+     ],
+     "stop": "stopped off an aerodrome: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "no progress: already loaded",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 669,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "vref-raised: the elevator cannot hold 22.2 m/s at this power — flying the approach faster",
+      "strip-short: Ardent Altiport: the elevator holds 23.4 m/s, the short-field stop from it needs 157 m, 130 m are left past the aim and the flo",
+      "slip: high on energy on the short final (+14.2 m at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 78,
+      "sink": 1.37,
+      "V": 26.3,
+      "offCentre": 12.3,
+      "pastAim": 0,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 10,
+      "stopLeft": 121
+     }
+    },
+    {
+     "from": "mt_strip",
+     "to": "HOME",
+     "t": 411,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (89 m, 1.0 m off) — planning the departure again",
+      "taxi-timeout: the route took 101 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "already loaded"
+    },
+    {
+     "from": "mt_strip",
+     "to": "HOME",
+     "t": 411,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (89 m, 1.0 m off) — planning the departure again",
+      "taxi-timeout: the route took 101 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "already loaded"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: STOL Cub flown with 2 aboard (the garage's seat door)",
+  "the seats as the job asks: Carbon Cub SS flown with 2 aboard (the garage's seat door)"
+ ],
+ "untested": false,
+ "key": "c1fa59db2016",
+ "where": "observatory:2",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 10388
+}

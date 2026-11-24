@@ -1,0 +1,11 @@
+ok   TABLE   Stig (expert): STOL yes, glider yes
+ok   TABLE   Megan (bush): STOL yes, glider yes
+ok   TABLE   Brian (club): STOL no, glider no
+ok   TABLE   Remy (student): STOL no, glider no
+ok   TABLE   Bryce (hamfist): STOL no, glider no
+FAIL STRIP   the user's Cub, the expert (Stig): HOME>tw_ski on tw_ski [short] FAULTS off-strip (asked: short, normal)
+ok   STRIP   the archetype cub, the expert: HOME>tw_ski on tw_ski [short] (asked: short)
+FAIL STRIP   the user's Cub, the bush pilot (Megan): HOME>tw_ski on tw_ski [short] FAULTS off-strip (asked: short)
+FAIL STRIP   the user's Cub, the club pilot (Brian): HOME>tw_ski on tw_ski [short] FAULTS off-strip,ground-loop ground-loop (asked: short)
+GATE UNIFY: FAIL
+exit 1

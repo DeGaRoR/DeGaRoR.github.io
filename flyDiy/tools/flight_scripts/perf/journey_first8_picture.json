@@ -1,0 +1,167 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_journey_first8_picture",
+ "what": "THE JOURNEY'S FIRST 8 MINUTES WITH THE PICTURE PASS (PERF-LEAD, 23 Nov; row 15 'no blue screen, ever'): journey_first8 with the page's background set to MAGENTA after the roll-out - flown with flight_script.js --screencast, a magenta frame in the recording is the page shown instead of the world (tools/perf/screen_read.py reads it) - and the draw guard's count at the end",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "HOME",
+ "to": "w7",
+ "steps": [
+  {
+   "name": "load typical",
+   "do": "load",
+   "preset": "typical"
+  },
+  {
+   "name": "roll-out",
+   "do": "start",
+   "until": {
+    "phase": [
+     "TAXI",
+     "DEPART",
+     "LINEUP",
+     "STOP",
+     "HOLD"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "the page's background magenta",
+   "do": "page",
+   "js": "(() => { document.documentElement.style.background = '#ff00ff'; document.body.style.background = '#ff00ff'; const G = window.FLYDIY_GUARD; return 'page background magenta; guard ' + (G ? JSON.stringify(G.stats && { held: G.stats.held, compiles: G.stats.compiles, ready: G.stats.ready, timedOut: G.stats.timedOut }) : 'absent'); })()",
+   "until": {
+    "s": 1
+   },
+   "capS": 10
+  },
+  {
+   "name": "taxi 40 s",
+   "do": "wait",
+   "until": {
+    "s": 40
+   },
+   "capS": 60
+  },
+  {
+   "name": "skip to the start",
+   "do": "skip",
+   "until": {
+    "phase": [
+     "HOLD",
+     "ROLL",
+     "LIFTOFF",
+     "CLIMB"
+    ]
+   },
+   "capS": 90
+  },
+  {
+   "name": "take-off",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "ENROUTE",
+     "INBOUND"
+    ]
+   },
+   "capS": 240
+  },
+  {
+   "name": "orbit 360",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 20,
+   "dist": 18
+  },
+  {
+   "name": "interior",
+   "do": "camera",
+   "view": "cockpit",
+   "s": 15
+  },
+  {
+   "name": "back outside",
+   "do": "camera",
+   "view": "chase",
+   "s": 5
+  },
+  {
+   "name": "overcast",
+   "do": "weather",
+   "cond": "front"
+  },
+  {
+   "name": "cruise overcast",
+   "do": "wait",
+   "until": {
+    "s": 30
+   },
+   "capS": 45
+  },
+  {
+   "name": "gale",
+   "do": "weather",
+   "cond": "gale"
+  },
+  {
+   "name": "thermal",
+   "do": "weather",
+   "cond": "thermal"
+  },
+  {
+   "name": "clear again",
+   "do": "weather",
+   "cond": "breeze"
+  },
+  {
+   "name": "evening",
+   "do": "time",
+   "hour": 19.5
+  },
+  {
+   "name": "cruise at dusk",
+   "do": "wait",
+   "until": {
+    "s": 30
+   },
+   "capS": 45
+  },
+  {
+   "name": "destination changed to w6",
+   "do": "dest",
+   "to": "w6"
+  },
+  {
+   "name": "minimap open",
+   "do": "minimap",
+   "open": true
+  },
+  {
+   "name": "orbit en route",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 20,
+   "dist": 25
+  },
+  {
+   "name": "en route, 300 s",
+   "do": "wait",
+   "until": {
+    "s": 300
+   },
+   "capS": 330
+  },
+  {
+   "name": "the guard's count",
+   "do": "page",
+   "js": "(() => { const G = window.FLYDIY_GUARD, A = window.FLYDIY_AA; return 'guard ' + (G ? JSON.stringify({ held: G.stats.held, compiles: G.stats.compiles, ready: G.stats.ready, timedOut: G.stats.timedOut, heldNow: G.heldNow, what: (G.stats.what || []).slice(0, 40) }) : 'absent') + ' | frames the AA stage held: ' + (A && A.held ? A.held() : 'n/a'); })()",
+   "until": {
+    "s": 1
+   },
+   "capS": 10
+  }
+ ]
+}
