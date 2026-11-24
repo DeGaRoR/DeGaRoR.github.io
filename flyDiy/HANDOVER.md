@@ -319282,3 +319282,39 @@ an option with their own parameters". The twin booms' inverted V (stMount 4, G38
   grass) and the pilot rejects a nose-over at V 3; the V tips' four 'fus' ties to the rod (the rod's 0.7 mm gauge) yield under
   the tail's load at the spawn (a dent); the solver's G1470 rule strikes EVERY propeller when the nose ring touches (wrong for
   wing and pusher engines); aid.prop and the garage marker read disc 0 only.
+
+## LAZAIR-TWIN 2 - EVERY PROP DISC WHERE IT IS DRAWN; THE V's TIP TIES ARE ITS SPARS (AND ITS BAR); TAIL-DOWN ON THE TIPS; ALUMINIUM TUBE DRAWS AS TUBE (24 Nov 2026, A0's LAZFIX job, the user's rulings of 13:30; branch a0/lazair-twin-fix)
+- **The prop check is generic (64c genDesignAids, the garage marker app.js buildAids, 66c the fiche's discs).** Every disc of
+  every build: at its engine's station plus the editor's own hub offset (genAidPropOff: [dx, dy, R, fit, why]), its radius
+  the DRAWN blade's (CAGE_ENG units[i].prop.R), its axis the drawn tilt's, a wing pair's disc on its OWN side (engAt keeps
+  |z| and a `side`: both discs had stood at +z, one circle over the other - "draws only for a single engine"). Each disc is
+  judged (ground / water / the wing and stab strips along its axis / the other discs' circles / the editor's propFitCheck
+  of the drawn skin and wing, and for an off-centre disc the body's lattice nodes, the mast, the tail tips); the aid.prop
+  row is the worst disc, named (port / starboard), its fix sized (discs: "N m apart centre to centre, each nacelle X cm out").
+  A single centreline disc reads its row's words and numbers as before. The marker draws a circle per disc in its own
+  plane (square to its axis), coloured by its own verdict.
+- **The marker's frame (app.js aidMap).** The design x was laid along the sim's nose-ring-to-tail-mid line - right only
+  where that line is level in the design frame. The Lazair's rod climbs aft 9 deg: every aid stood 9 deg off the
+  aeroplane ("even the rotation plane seems wrong"). The same line is now read off the DESIGN nodes and a point is carried
+  by its body-frame coordinates (a build whose line is level: identical).
+- **"Rejecting when too small" (_cage_eng propFitCheck).** The body test read AF.surf past the cowl's front (z1): the end
+  section held there swallowed a small tractor disc's inner rings. A tractor's sample ahead of z1 is now outside the body,
+  as a pusher's behind z0 already was. The Minimax clears at D 1.72 / 1.2 / 0.9.
+- **The V on tip wheels (61_gen_frame isV).** Its tips' four ties a side were the rod's lattice ('fus' aft of the box: the
+  rod row's section, 0.7 mm): nine yielded at the spawn under ~50 N a tip, and on every take-off. On tip wheels they are the
+  panels' spars, class 'tail'; zero yields. **The bar** (the user's ask): gear page rows vtBar / vtBarAt (ABSENT at off /
+  0.5), the join's tail.vBar, a node on each panel's line at that station tied to the tip, the post and its ring corner, the
+  two joined (0.35 kg a side, INFERRED), drawn by the stab layer as a 25 mm tube.
+- **Tail-down on the tips (30_solver stance; 64c aid.stance).** A nose wheel ahead of the mains, the CG behind them and the
+  V tips' extra wheels aft (refs.xw): the spawn pitches onto the TIPS, and the stance aid judges a taildragger whose nose
+  wheel is a bumper (the Lazair: the mains 6.9 deg ahead of the CG, 0.8 deg tail-down, the nose wheel 4 cm up: pass).
+- **The nose ring strikes only the nose's propeller (30_solver NOSE_G).** G1470 struck every engine when the nose ring
+  touched; now the nose engines (mount 'nose' or none) and each engine's own nodes for that engine. A single nose engine
+  reads as before.
+- **Aluminium tube draws as tube (_cage_gen cageSpec consG).** intCons 4 ('aluminium tube', the join's aluTube) was built
+  in the 'metal' idiom (lightened sheet frames); now the tube idiom. The Chinook's joined spec is bit-identical.
+- **Open: the Lazair's take-off at HOME.** On the flat field (tw_probe roll) it rolls straight to 25 m/s in 8.7 s. At HOME
+  the full-power start compresses its nose leg, the pod's keel (3.8 cm over the grass at rest) drags, and it pivots over
+  its nose (the tail 0.6 m up at V 3.6); the pilot's nose-over reject (th < -12 deg) saves it at V 3.3. Relaxing the
+  reject (past its -8 deg rest) lets it capsize at V 4.5 - so the rule stays master's. The cause to chase: the nose leg's
+  spring on a build whose static nose share is ~0 (the CG behind the mains), and the pod's keel height.

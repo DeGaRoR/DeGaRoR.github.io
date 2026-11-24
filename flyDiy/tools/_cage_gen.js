@@ -10539,7 +10539,10 @@ function cageSpec(P) {
     }
   }
   // (G2047: glassfibre, the sixth stop, is built as the composite is - the moulded shell's idiom)
-  const consG = ['carbon', 'tube', 'wood', 'metal', 'metal', 'carbon', 'tube'][   // (index 4 'metal': the clamp's old reading; 6 the soft shell's poles)
+  // LAZAIR-TWIN (24 Nov, the user: "This is tube construction, but still draws the frames as ajoure (lightened) aluminium
+  // frames, rather than tubes"): index 4, 'aluminium tube' (the join's aluTube), is built in the TUBE idiom - section
+  // rings, longerons and bay diagonals of tube - as the steel tube is; it read 'metal' (the clamp's old reading of 4)
+  const consG = ['carbon', 'tube', 'wood', 'metal', 'tube', 'carbon', 'tube'][   // (6 the soft shell's poles)
     Math.max(0, Math.min(6, Math.round(P.intCons || 0)))];
   const skinTv = Math.max(0, P.skinT || 0);
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
