@@ -3718,6 +3718,12 @@ function watchReadouts(elm) {
 let balEl = null, fillEl = null, barEl = null, tableEl = null, chartEl = null;
 let LAST_CHART = null;
 let LAST_SHAKE = null;
+// CHART-ON-DEMAND (the user 24 Nov: "The graph with the CG as a function of fuel should only be generated on demand"):
+// the chart's sweep (BALANCE.compute: the CG re-weighed at every fuel step) runs only while its row is OPEN, and its
+// answer is kept for the aeroplane and the loading it was drawn for (CHART_KEY): reopening an unchanged build draws the
+// kept chart, a build or a loading row while it is closed computes nothing
+let CHART_OPEN = false, CHART_KEY = null, READ_KEY = null;
+const chartKeyOf = job => job ? JSON.stringify([job.spec, job.occupants, job.baggage, job.fill]) : null;
 
 // THE READOUTS RUN OFF THE MAIN THREAD (2026-09-04). Fourteen aero solves —
 // the full shakedown with its reserve sheet and four corners inside it, the
@@ -3738,7 +3744,11 @@ let readWorker = null, readWorkerDead = false, readSeq = 0;
 function readoutJob() {
   const G = window.GARAGE_SPEC;
   if (!G || !G.get) return null;
-  return { spec: G.get(), occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill };
+  const job = { spec: G.get(), occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill };
+  // CHART-ON-DEMAND: the sweep only for an open chart whose kept answer is not this aeroplane's
+  READ_KEY = chartKeyOf(job);
+  job.chart = CHART_OPEN && READ_KEY !== CHART_KEY;
+  return job;
 }
 // the job, computed with whatever core is in scope: the worker's or the
 // page's. Self-contained on purpose — it is stringified into the worker.
@@ -3751,7 +3761,7 @@ function readoutCompute(job, core, BAL) {
     const L = S0.fuel.litres * MathL.min(1, MathL.max(0, job.fill == null ? 1 : job.fill));
     out.litres = L;
     out.fillSh = core.genShakedown(core.buildGen(core.genSpecAtFuel(S0, L)), { slim: true });
-    if (BAL) out.chart = BAL.compute(S0, core,
+    if (BAL && job.chart) out.chart = BAL.compute(S0, core,
       { occupants: job.occupants, baggage: job.baggage, fill: job.fill, envelope: shake.envelope });
   }
   return out;
@@ -3948,8 +3958,9 @@ function applyReadouts(r) {
     } else fillEl.textContent = '';
   }
   drawBar(E, sh ? sh.cgX : null);
-  if (r.chart && chartEl && window.BALANCE) {
-    try { window.BALANCE.draw(chartEl, r.chart, chartStyle()); LAST_CHART = r.chart; }
+  if (r.chart) { LAST_CHART = r.chart; CHART_KEY = READ_KEY; }
+  if (CHART_OPEN && LAST_CHART && CHART_KEY === READ_KEY && chartEl && window.BALANCE) {
+    try { window.BALANCE.draw(chartEl, LAST_CHART, chartStyle()); }
     catch (e) { console.error('balance chart:', e); }
   }
 }
@@ -4542,17 +4553,33 @@ function renderPanel() {
   // the core's shakedown over genSpecAtFuel — the same door as the reserve
   // sheet, the corners and the slider above.
   if (inGame() && window.BALANCE) {
+    // CHART-ON-DEMAND: the chart and its two loading rows fold away, and nothing is swept until the fold is opened
+    const chDet = document.createElement('details');
+    chDet.className = 'cgChartFold';
+    chDet.open = CHART_OPEN;
+    const chSum = document.createElement('summary');
+    chSum.textContent = 'CG against fuel (chart) · drawn when opened';
+    chSum.title = 'the CG walking as the fuel burns, at a loading you choose - computed only when this is open, and kept until the aeroplane changes';
+    chDet.appendChild(chSum);
+    B.appendChild(chDet);
+    chDet.addEventListener('toggle', () => {
+      CHART_OPEN = chDet.open;
+      if (!CHART_OPEN) return;
+      const job = readoutJob();
+      if (job && CHART_KEY === READ_KEY && LAST_CHART && chartEl) { try { window.BALANCE.draw(chartEl, LAST_CHART, chartStyle()); } catch (e) {} }
+      else readoutsRequest();
+    });
     const S0 = (() => { try { return window.GARAGE_SPEC.resolved(); } catch (e) { return null; } })();
     const seats = MathL.max(1, (S0 && S0.seats) | 0);
     if (VIEW.occupants == null) VIEW.occupants = MathL.max(1, MathL.min(seats, (S0 && S0.occupants) || 1));
     if (VIEW.baggage == null) VIEW.baggage = (S0 && S0.cabin && S0.cabin.baggage) || 0;
     const fmtN = x => x.toFixed(0);
     const fmtKg = x => x.toFixed(0) + ' kg';
-    range(B, 'occupants', 'how many people the chart is drawn for (the pilot ' +
+    range(chDet, 'occupants', 'how many people the chart is drawn for (the pilot ' +
       'and the seats behind, front to back)', 1, seats, 1, VIEW.occupants, fmtN,
-      x => { VIEW.occupants = x; }, x => { VIEW.occupants = x; chartReadout(); });
-    range(B, 'baggage', 'kilograms in the baggage bay for the chart', 0, 60, 1,
-      VIEW.baggage, fmtKg, x => { VIEW.baggage = x; }, x => { VIEW.baggage = x; chartReadout(); });
+      x => { VIEW.occupants = x; }, x => { VIEW.occupants = x; if (CHART_OPEN) chartReadout(); });
+    range(chDet, 'baggage', 'kilograms in the baggage bay for the chart', 0, 60, 1,
+      VIEW.baggage, fmtKg, x => { VIEW.baggage = x; }, x => { VIEW.baggage = x; if (CHART_OPEN) chartReadout(); });
     chartEl = document.createElement('canvas');
     chartEl.className = 'cgChart';
     chartEl.title = 'weight and balance: CG across (% of the mean chord), mass up. ' +
@@ -4561,7 +4588,7 @@ function renderPanel() {
       'the circles are the four loading corners; NEUTRAL is where the static ' +
       'margin reaches zero and CAUTION 5% of the chord ahead of it. No forward ' +
       'limit is drawn: the model has no elevator-authority rule to place one.';
-    B.appendChild(chartEl);
+    chDet.appendChild(chartEl);
   }
   tableEl = el('div', 'r note');
   B.appendChild(tableEl);

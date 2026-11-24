@@ -319621,3 +319621,8 @@ in the open frame between the pod and the boom.)
 - **NOT DONE / STATED CUTS:** the thrust line is taken fore-aft for every disc; an external tank's buoyancy is carved from
   its host hull slice (32_hydro) as if inside; the vertical billing is bodyRing's top/bottom pair; no browser look yet
   (the jug's translucency over the fuel, the cradle's look).
+- **CHART-ON-DEMAND (follow-up, the user 24 Nov: "The graph with the CG as a function of fuel should only be generated on
+  demand"):** the energy panel's CG-against-fuel chart (BALANCE.compute's sweep inside readoutCompute) and its two loading
+  rows (occupants, baggage) now sit in a fold, closed by default; the sweep runs only while it is open (`job.chart`), and its
+  answer is kept per aeroplane and loading (CHART_KEY): reopening an unchanged build draws the kept chart. The shakedown and
+  the fill readouts are unchanged. GATE ENERGY pins it ('lag: the CG-against-fuel chart is swept only when ...').
