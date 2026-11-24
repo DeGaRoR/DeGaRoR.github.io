@@ -429,6 +429,72 @@ const POWERPLANTS = {
     engine: { name: 'Rotax 277 (pusher)', mass: 30, powerW: 21000, aspiration: 'na', family: 'two', cooling: 'air', rpm: 6250, gear: 2.58 },
     prop:   { name: '2-pale bois 1.42 m', D: 1.42, Tstatic: 800, kV2: 0.545 },
   },
+  // THE SMALL END (SMALL-ENGINES, 24 Nov; the user: "We start at 21 kW, so I need smaller stuff ... we're lacking on the
+  // real small end"): the Lazair's two engines, the Minimax 1100R's official list (Hirth F-33, Polini Thor 202 / 250 /
+  // 303, Simonini Mini 3) and, in the electric ladder below, the E-Lazair's Joby JM1. Tstatic / kV2 as every row's:
+  // genResolveProp's synthesis at the row's own diameter (fm 0.477, propV0K 1.95 - the A-65 reproduces to 0.1 N), flying
+  // nothing (the build synthesises its own propeller), kept for the certificate keys. `mass` is DRY ENGINE as above (the
+  // reduction drive in, where the engine is sold with one). Prices: the two-stroke rule above (the real new price x1.5;
+  // a used / out-of-production engine at its market). An ESTIMATE is marked so; every figure has its source.
+  //   ROTAX 185: a 185 cc single, built for fire pumps, adopted by the Lazair (replacing its Pioneers) - 62 x 61 mm, 9 hp
+  //     at 5000 (Rotax 185 engine data, via en.wikipedia.org/wiki/Rotax_185) and 9.5 hp at 5800 as the Lazair flies it
+  //     (pilotmix.com/lazair; the user: "about 9.5 HP"); DIRECT DRIVE on the Lazair, ~4 L/h. MASS AN ESTIMATE: no source
+  //     gives it; 12 kg for a pull-started 185 cc industrial single with its exhaust. Out of production (the rights went
+  //     to the Wildfire Group): priced at a used unit's ~$800. Prop: the Lazair's small direct-drive pusher, 27 in.
+  rotax185_direct: {
+    price: 1200,
+    engine: { name: 'Rotax 185 (direct drive)', mass: 12, powerW: 7000, aspiration: 'na', family: 'two', cooling: 'air', rpm: 5800 },
+    prop:   { name: '2-pale bois 0.69 m', D: 0.69, Tstatic: 169.5, kV2: 0.0261 },
+  },
+  //   PIONEER CHAINSAW: the Lazair Series I's original pair - two modified Pioneer chainsaw engines of ~5.5 hp each
+  //     (planeandpilotmag.com, "Sixth in the Vintage Series: UltraFlight Lazair", Apr 2020; kitplanes.com "Light Stuff";
+  //     the user: "rotax 185 or Pioneer chainsaw engines (5.5 hp each)"). Direct drive. MASS, RPM AND PRICE ESTIMATES: a
+  //     chainsaw powerhead without its bar and chain ~6 kg, its working speed ~7500 rpm; a conversion's ~$300. Prop 22 in.
+  pioneer55_chainsaw: {
+    price: 450,
+    engine: { name: 'Pioneer chainsaw 5.5 hp', mass: 6, powerW: 4100, aspiration: 'na', family: 'two', cooling: 'air', rpm: 7500 },
+    prop:   { name: '2-pale bois 0.56 m', D: 0.56, Tstatic: 103.3, kV2: 0.0172 },
+  },
+  //   HIRTH F-33: a 312 cc single (76 x 69 mm), 28 hp at 6500 rpm (22 at 5200), 16 kg base - "extremely light"
+  //     (en.wikipedia.org/wiki/Hirth_F-33, citing Recreational Power Engineering; hirthengines.com 33 series: displacement
+  //     and bore / stroke), the G33 cog-belt reduction 1:1.8 / 2.2 / 2.5 (the 33 series datasheet, nwuav.com): 2.2 here,
+  //     its mass in (19 kg). New ~$3 900. Prop 54 in.
+  hirthf33_belt: {
+    price: 5900,
+    engine: { name: 'Hirth F-33 + 2.2 belt', mass: 19, powerW: 20900, aspiration: 'na', family: 'two', cooling: 'air', rpm: 6500, gear: 2.2 },
+    prop:   { name: '2-pale bois 1.37 m', D: 1.37, Tstatic: 555.3, kV2: 0.1031 },
+  },
+  //   POLINI THOR (the paramotor family the Minimax lists): Thor 202 - 205 cc, 33 hp, 16.8 kg, air-cooled, ~90 kg of
+  //     static thrust on a 51 in prop (polinithor.com technical area; flyminimax.com/products/polini-thor-202); Thor 250 -
+  //     244 cc, 36 hp, 18 kg WITHOUT its radiator, 105 kg on a 150 cm prop (polinithor.com "Thor 250 - 250 DS"); Thor 303
+  //     EVO - 281 cc, 38 hp at 8000 rpm, 21.5 kg WITH its radiator, 120 kg on a 160 cm prop (polinithor.com "Thor 303
+  //     EVO"). Each has its own gear reduction. THE RATED RPM AND THE RATIO ARE ESTIMATES (not in what was found): 9000 on
+  //     the 202, 8500 on the 250, 8000 (published) on the 303, ~3.3 to a ~2600 rpm prop. The 250's mass takes its radiator
+  //     (+1.5 kg). New ~$3 800 / $4 500 / $5 200.
+  thor202_belt: {
+    price: 5700,
+    engine: { name: 'Polini Thor 202', mass: 16.8, powerW: 24600, aspiration: 'na', family: 'two', cooling: 'air', rpm: 9000, gear: 3.4 },
+    prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 597.8, kV2: 0.0928 },
+  },
+  thor250_belt: {
+    price: 6750,
+    engine: { name: 'Polini Thor 250', mass: 19.5, powerW: 26800, aspiration: 'na', family: 'two', cooling: 'liquid', rpm: 8500, gear: 3.3 },
+    prop:   { name: '2-pale carbone 1.50 m', D: 1.50, Tstatic: 696.2, kV2: 0.1236 },
+  },
+  thor303_belt: {
+    price: 7800,
+    engine: { name: 'Polini Thor 303 EVO', mass: 21.5, powerW: 28300, aspiration: 'na', family: 'two', cooling: 'liquid', rpm: 8000, gear: 3.1 },
+    prop:   { name: '2-pale carbone 1.60 m', D: 1.60, Tstatic: 753.7, kV2: 0.1406 },
+  },
+  //   SIMONINI MINI 3: a 270 cc air-cooled single (aeroenginesaz.com, brand Simonini), 33 hp at 7000 rpm (en.wikipedia.org
+  //     /wiki/Simonini_Mini_3, citing the World Directory of Leisure Aviation 2011-12; dealers quote 36 hp at 7500 -
+  //     aceaviation.co.uk, flyminimax.com/shop/p/mini-3: the directory's figure kept), "under 50 lb" (flyminimax.com): 20 kg
+  //     with its reduction (AN ESTIMATE under that ceiling), ratio ~2.6 (estimate). New ~$4 500. Prop 54 in.
+  simonini_mini3: {
+    price: 6750,
+    engine: { name: 'Simonini Mini 3', mass: 20, powerW: 24600, aspiration: 'na', family: 'two', cooling: 'air', rpm: 7000, gear: 2.6 },
+    prop:   { name: '2-pale bois 1.37 m', D: 1.37, Tstatic: 619.0, kV2: 0.1031 },
+  },
   // THE MIDDLE OF THE MARKET. The six entries above skip from a 3 500 cr
   // two-stroke straight to a 9 000 cr A-65 and then to 24 000, which left the
   // garage with no way to build the aeroplane most people actually build: the
@@ -724,6 +790,19 @@ const POWERPLANTS = {
     engine: { name: 'e-PPG 12 kW direct drive', mass: 7.0, powerW: 12000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
     prop:   { name: '2-pale carbone 1.30 m', D: 1.30, Tstatic: 370, kV2: 0.0928 },
   },
+  // THE E-LAZAIR'S MOTOR (SMALL-ENGINES, 24 Nov; the user: "twin Joby JM1 powerplants with Jeti SPIN Pro 300 controllers
+  // and dual 16 cell 4 amp-hour battery packs that produce 63 volts, mounted in the wings"): the JOBY JM1, a high-torque
+  // outer-rotor brushless motor - ~10 kW and ~21 N.m (the user; 10 kW / 21 N.m is 4550 rpm at the rating); Joby Motors'
+  // own test (jobymotors.blogspot.com, 6 Feb 2014): more than 13 kW continuous and more than 4.5 kW/kg, one winding 13 kW
+  // at 6500 rpm on 63 V - so ~2.9 kg of motor (13 / 4.5, derived). With its Jeti SPIN Pro 300 ESC (~0.6 kg, an
+  // ESTIMATE) the row is 3.5 kg, the motor + controller convention above. Direct drive on 32 in props (the electric
+  // Lazair, endless-sphere.com "Electric Lazair Takes Flight"). The thinner JM1S (~13 N.m continuous, 1.6x the speed per
+  // winding - the same blog) is a note, not a row. ~$2 000 with its controller.
+  jobyjm1_direct: {
+    price: 3000,
+    engine: { name: 'Joby JM1 10 kW + Jeti SPIN Pro 300', mass: 3.5, powerW: 10000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 4550 },
+    prop:   { name: '2-pale bois 0.81 m', D: 0.81, Tstatic: 239.3, kV2: 0.036 },
+  },
   fes_folding_100: {
     price: 9500,
     engine: { name: 'FES sustainer 22 kW', mass: 9.0, powerW: 22000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 4500 },
@@ -974,6 +1053,8 @@ const GEN_ENG_CG = {
   a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
   jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23, rotax912is_warp: 0.23,
   rotax277_pusher: 0.11, rotax582_ivo: 0.17, rotax503_wood: 0.16,
+  rotax185_direct: 0.11, pioneer55_chainsaw: 0.10, hirthf33_belt: 0.12, thor202_belt: 0.11,   // SMALL-ENGINES (24 Nov):
+  thor250_belt: 0.11, thor303_belt: 0.12, simonini_mini3: 0.11, jobyjm1_direct: 0.08,              // the bench's, GATE ENGID
   verner7u_wood: 0.12, rotec3600_std: 0.12, clerget9b_wood: 0.14,
   mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
   hirth508_wood: 0.35, argus10c_wood: 0.39,
