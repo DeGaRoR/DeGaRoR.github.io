@@ -1113,7 +1113,7 @@
   const ENV_BAKES = { oneShot: 0, slices: 0, jobs: 0, requests: 0 };
   if (typeof window !== 'undefined') window.FLYDIY_ENV_BAKES = () => Object.assign({ running: envSlice ? envSlice.step : -1 }, ENV_BAKES);
   function ensureEnvRT() {
-    if (!envRT && THREE.WebGLCubeRenderTarget) { envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType }); if (envRT.texture) envRT.texture.name = 'hangar env cube'; }
+    if (!envRT && THREE.WebGLCubeRenderTarget) { envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType }); envRT.texture.name = 'hangar env cube'; }   // (the name: PERF-TRACE's program report reads the target by it; it reaches no shader and no key)
     return envRT;
   }
   // The cube excludes the subjects (and their lights), while the visible garage
