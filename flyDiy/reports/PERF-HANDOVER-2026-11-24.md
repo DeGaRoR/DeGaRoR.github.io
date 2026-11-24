@@ -227,16 +227,24 @@ THE GARAGE'S FREEZES WHILE THE WORLD LOADS: what was found, in the order it fell
 7. OPEN, about 0.26 s: first light's `worldSettle(true)` in one task; and 100-120 ms each: a station's build with its AO
    bake, the patch's set-up.
 
-THE GRAPHICS CARD'S FRAME (PERF-TRACE's `?recgpu=pass` and `tools/gpu_passes.js`, 24 Nov 07:36, a cruise over land).
-The scene pass is 85-87 % of the frame (28.6 ms of 32.6 on the base, 25.3 with the defaults); the clouds' march 2.2-2.6 ms;
-the shadow maps 0.6-1.9; the AA resolve, post and uploads 0.5 together. At half scale - a quarter of the pixels - the card
-still took 21 ms: about 13 ms do not depend on resolution (14.8 M triangles, 900 draws a frame). GEOMETRY IS THE LEVER:
-the knock-out rows of 24 Nov 13:00 (cover, ground blend, forest density and bands, shadows, clouds, each off in turn) put a
-number on each; their table is in PERF-TRACE's report. The first run's sampler lost its heaviest frames (fixed in
-perf-trace-10): its medians were right, its tail was not in the split.
-The automatic render scale (gfx 'auto'): its target follows the frame-rate cap (app.js tellScale); in its first flight it
-fell to 0.5 and stayed, because its way back up scaled ALL of the card's time by the pixels' ratio. It learns the fixed part
-from its own step now (aaAutoDecide, G0); its first flight with that rule is the first row of 13:00.
+THE GRAPHICS CARD'S FRAME (PERF-TRACE's `?recgpu=pass` and `tools/gpu_passes.js`, 24 Nov 07:36, corrected 09:52 after it
+re-read the rows over the SAME seconds). By pass, a cruise over land: the scene pass 85-87 % of the frame (28.6 ms of 32.6 on
+the base, 25.3 with the defaults); the clouds' march 2.2-2.6 ms; the shadow maps 0.6-1.9; the AA resolve, post and uploads 0.5
+together. By what it scales with: about 1.9 ms a megapixel (12 ms of a full-scale frame at 5K), and THE REST FOLLOWS THE
+TRIANGLE COUNT, about 0.75 ms a million triangles - 12 ms at 12 M (cruise), 18 ms at 15 M, 31 ms at 38 M (the take-off and
+the first climb). So the frames over 33.3 ms are the LOW ones: in the first 77 s after the reveal the card takes 37-39 ms
+whatever the render scale; at altitude the same build holds 24-30 ms. The user's "below 30 ms" is met in cruise and missed
+near the ground, where resolution buys almost nothing. GEOMETRY NEAR THE GROUND IS THE LEVER: the knock-out rows of 24 Nov
+13:00 (cover, ground blend, forest density and bands, shadows, clouds, each off in turn; read on the climb as well as en
+route) put a number on each; their table is in PERF-TRACE's report. The 07:36 run's sampler lost its heaviest frames (fixed
+in perf-trace-10): its medians were right, its tail was not in the split.
+The automatic render scale (gfx 'auto'): its target follows the frame-rate cap (app.js tellScale). In its first flight it
+went down to 0.5 in the climb, was HELD there 37.6 s by its way back up (which scaled ALL of the card's time by the pixels'
+ratio), then climbed back to 0.67 by itself. aaAutoDecide now learns the part that does not scale from its own step (G0);
+its first flight is the first row of 13:00. KNOWN LIMIT: that part is not a constant - it follows the triangle count, so a
+G0 learnt in the climb is too large for the cruise and one learnt in the cruise too small near the ground (the trial step
+then pays for it). The frame's triangle count is on the page (renderer.info.render.triangles): G0 = 0.75 ms a million
+triangles would track it without learning - the next change if the 13:00 row shows the learnt one wandering.
 
 NEXT, IN ORDER, for whoever takes this on.
 1. Read A0's trial of perf-lead-5 and fix its reds by check name (a real-page gate that clicks Go now waits behind one
