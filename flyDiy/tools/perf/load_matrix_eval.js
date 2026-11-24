@@ -40,6 +40,7 @@
       const a = T.tasks.filter(t => t[0] >= T.reveal), a30 = a.filter(t => t[0] < T.reveal + 30000), sum = l => l.reduce((s, t) => s + t[1], 0), mx = l => l.reduce((m, t) => Math.max(m, t[1]), 0);
       return { secs: Math.round((performance.now() - T.reveal) / 1000), n: a.length, ms: sum(a), worst: mx(a), over100: a.filter(t => t[1] >= 100).length,
                first30: { n: a30.length, ms: sum(a30), worst: mx(a30), over100: a30.filter(t => t[1] >= 100).length } }; })(),
+    treeWarm: (() => { try { const W = g('WORLD'); return (W && W.scene && W.scene.userData && W.scene.userData.treeWarm) || undefined; } catch (e) { return undefined; } })(),   // (24 Nov, PERF-WORLDBUILD 6: the tree packs handed up before the impostors' bake)
     cover: (L && L.coverSet) || undefined,   // (?coverbudget=K: each layer's ms and blocks a frame, before -> after)
     farslots: (() => { const F = g('FLYDIY_FARSLOTS'); return F && F.on ? { sentKB: Math.round(F.sentKB), writes: F.writes, grows: F.grows, moved: F.moved } : undefined; })(),
     mirror: (() => { try { const M = WATER.mirror; return M && (M.pace || M.lean) ? pick(M, ['mode', 'captures', 'kept', 'leaned', 'skipped']) : undefined; } catch (e) { return undefined; } })(),
