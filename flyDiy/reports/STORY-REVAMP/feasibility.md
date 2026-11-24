@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 57 feasible; 17 infeasible; 3 no official plane can fly it (the player builds one); 5 not flown; 1 stale. Time flown: 1815 min 42 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 58 feasible; 17 infeasible; 3 no official plane can fly it (the player builds one); 4 not flown; 1 stale. Time flown: 1853 min 58 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -66,7 +66,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 57 feasible; 17 infea
 | clients.04 | contract | order | Piper Cub | 10 min 17 s | HOME > HOME 617 |  |
 | clients.b1 | contract | order | - | - | - |  |
 | booze.01 | contract | feasible | Piper Cub | 23 min 27 s | HOME > w5 552; w5 > w8 855 |  |
-| booze.02 | contract | not flown | - | - | - |  |
+| booze.02 | contract | feasible | STOL Cub | 38 min 16 s | HOME > w6 1193; w6 > w5 1102 |  |
 | home.01 | home:1 | feasible | Piper Cub | 19 min 44 s | HOME > w1 1184 |  |
 | home.02 | home:1 | feasible | Piper Cub | 24 min 20 s | HOME > w3 560; w3 > w1 900 |  |
 | home.03 | home:2 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 20 min 08 s | HOME > w3 486; w3 > w1 722 |  |

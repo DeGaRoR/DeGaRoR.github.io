@@ -3333,7 +3333,13 @@
      "booze.01"
     ]
    },
-   "client": "adam"
+   "client": "adam",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 2296,
+    "sig": "0d25a9c2"
+   }
   },
   {
    "id": "home.01",
