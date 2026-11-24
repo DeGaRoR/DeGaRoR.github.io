@@ -258,7 +258,13 @@
   // THE DEFAULT SINCE 23 Nov 2026 (the user, 21:05, after the day's rows: "Make it default"): a real page boots garage first;
   // ?boot=loadfirst is the one loading screen as it was (the world before the garage). The node page (tools/_page_node.js: its user agent says flydiy-node) and a page without a real renderer (the node
   // harness: no compileAsync) keeps the old boot - its steps are synchronous and nothing would run the world behind
-  const GF_DEFAULT = typeof location !== 'undefined' && typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '') && !!renderer && typeof renderer.compileAsync === 'function' && !LABQ('boot=loadfirst');
+  // (REAL_PAGE: not tools/_page_node.js. The ONE place that asks: the modules read window.FLYDIY_REAL_PAGE - GATE GFX allows no
+  //  device test outside welcome.js, and render_world.js / water.js each had one for a night, 24 Nov)
+  const REAL_PAGE = typeof location !== 'undefined' && typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '');
+  if (typeof window !== 'undefined') window.FLYDIY_REAL_PAGE = REAL_PAGE;
+  // ?mirpace ON BY DEFAULT ON A REAL PAGE (the user, 23 Nov 22:10: "turn on all switches leading to good results"): ?mirpace=0 off
+  if (REAL_PAGE && typeof window !== 'undefined' && window.WATER && window.WATER.mirror && !LABQ('mirpace=0') && !/[?&]mirpace=/.test(location.search || '')) window.WATER.mirror.pace = true;
+  const GF_DEFAULT = REAL_PAGE && !!renderer && typeof renderer.compileAsync === 'function' && !LABQ('boot=loadfirst');
   const LAB = { gf: LABQ('boot=garagefirst') || GF_DEFAULT, gfS: { armed: false, running: false, done: false, fast: false, joining: false, warm: !LABQ('gfwarm=0'), bufWarm: !LABQ('gfbuf=0'), cloudEarly: !LABQ('gfcloud=late'), step: null, log: [], passed: {}, waits: {}, t0: 0, ms: 0, revealAt: 0,
       inputAt: -1e9, deadline: 0, restMs: GFN('gfrest', 12), busyMs: GFN('gfbusy', 3), delayMs: GFN('gfdelay', 1500), worstSlice: 0, slices: 0, why: null, err: null },
     coverK: GFN('coverbudget', 0), coverSet: null,   // (?coverbudget=K: see labCoverBudget)

@@ -319296,3 +319296,21 @@ longest screen gap 210 ms. THE PLAIN ADDRESS: the garage at 32.0 s, the world re
 0.75 s (the tree impostor atlases' bake: PERF-WORLDBUILD's -6), 4.2 s of freezes a minute against the user's 2; no freeze at the reveal.
 VISIBLE, NOT YET LOOKED AT BY THE USER: a reflection kept a little longer; a strip drawn coarse for a moment and stand-in cards for longer past
 1.5 km while the world loads behind the garage.
+
+## PERF-LEAD 5 - GARAGE FIRST AS THE DEFAULT, MADE SAFE: GO AT ONCE JOINS THE LOAD; THE TREE CARDS; THE AUTOMATIC SCALE'S WAY BACK UP (24 Nov 2026, claude/ready/perf-lead-5 - it SUPERSEDES perf-lead-3 and -4: do not land those)
+- GO INSIDE THE BACKGROUND RUN'S 1.5 s START DELAY NOW BEGINS THE RUN AND JOINS IT. In -3 and -4 it fell to the old path: the garage frozen 28 s,
+  a 71 s roll-out screen, and the crash's programs never linked ahead (a rig's row of 24 Nov 07:51: 25 links after the impact, frames of 12 s and
+  7 s). Every rig clicks Go at once; a player can. GATE GARAGEFIRST 1i re-pinned with this reason. MEASURED 08:06, the plain address, Go 0.4 s after
+  the garage: one roll-out screen 88 s, then the flight and the crash - 0 links after the impact, worst frame 200 ms, no page.
+- THE HANGAR'S TREE CARDS ARE LINKED BEFORE THEY ARE SHOWN (hangar.treesFrom(S, hold) / treesGroup / treesShow; app.js hoTreesTick): three made and
+  linked their material inside a draw of the garage's frame, 155-234 ms in EVERY load (PERF-TRACE's read). 07:30: the town step's waits 3 -> 1.
+- THE AUTOMATIC RENDER SCALE'S WAY BACK UP (aa_resolve.js aaAutoDecide): it predicted the card's time at the larger scale as if all of it were
+  pixels; about 13 of 30 ms are triangles and draws (PERF-TRACE's by-pass table, 24 Nov), so once pushed down it sat at half scale for ever. It now
+  learns the part that does not scale from its own step (G0) and scales only the rest. G0 = 0 until learnt: the rule as it was. GATE AA passes.
+  NOT flown yet. The scale is 'auto' only where the graphics settings say so: nothing changes for a fixed scale.
+- NO DEVICE TEST OUTSIDE ITS PLACE: -4 had one in water.js and one in render_world.js for the defaults (GATE GFX red). The page says
+  window.FLYDIY_REAL_PAGE once (app.js); ?mirpace's default is set there, ?farslots reads it.
+- MERGED: claude/ready/perf-trace-9 (the card's time by pass: ?recgpu=pass, tools/gpu_passes.js), claude/ready/perf-worldbuild-6 (inert on a cold
+  load - its block does not fire; -7 replaces it).
+MEASURED 24 Nov 07:30, quiet, the plain address: garage 37.0 s, world ready 92.6 s after; the garage meanwhile 11 tasks over 100 ms (15 before),
+worst 0.68 s (the tree impostors' bake: perf-worldbuild-7), 3.7 s of freezes a minute against the user's 2.

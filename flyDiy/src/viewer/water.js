@@ -1171,9 +1171,10 @@ const WATER = (() => {
   // ?mirlean STAYS A SWITCH: it takes the grass and the cover out of a lake's reflection from high up, and the user's rule of
   // 20 Oct is that lakes keep the full mirror (GATE WATER) - on only with his word on that rule. (With ?farslots the three
   // took the journey from 55 to 72 % of seconds at 29+ frames, the card from 33 to 24 ms: the split between them not measured)
-  { const S = typeof location !== 'undefined' ? (location.search || '') : '', real = typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '');
+  // (the default itself is set by the page - app.js, FLYDIY_REAL_PAGE - on MIR.pace: no device test in this module, GATE GFX's rule)
+  { const S = typeof location !== 'undefined' ? (location.search || '') : '';
     const qp = /[?&]mirpace=([0-9.]+)(?:&|$)/.exec(S);
-    if (qp ? +qp[1] > 0 : real) { MIR.pace = true; if (qp && +qp[1] !== 1) MIR.paceK = +qp[1] / 100; }
+    if (qp && +qp[1] > 0) { MIR.pace = true; if (+qp[1] !== 1) MIR.paceK = +qp[1] / 100; }
     MIR.lean = /[?&]mirlean=1(?:&|$)/.test(S); }
   // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });

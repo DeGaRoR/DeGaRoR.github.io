@@ -322,13 +322,23 @@
         A.holdDown = t + Math.min(300000, 30000 * Math.pow(2, A.reverts - 1));
         return A.i - 1;
       }
+      // THE PART OF THE CARD'S TIME THAT DOES NOT SCALE WITH THE PIXELS, LEARNT FROM THIS STEP (24 Nov 2026, PERF-TRACE's row
+      // C: at half scale - a quarter of the pixels - the card still took 21 ms of its 30: about 13 ms are triangles and draw
+      // calls). Two points - the time before the step at its scale, the time after at this one - give it: g = G0 + P x scale^2
+      if (p.g != null && g != null && p.s > 0) { const r = Math.pow(ST[A.i] / p.s, 2);
+        if (r < 0.95) { const G0 = p.g - (p.g - g) / (1 - r); if (isFinite(G0)) A.G0 = Math.max(0, Math.min(G0, g)); } }
       A.reverts = 0; return A.i;
     }
     if (A.up) { A.up = null; if (f > T * 1.08) { A.holdUp = t + 60000; return A.i + 1; } return A.i; }
-    if (f > T * 1.08 && A.i < ST.length - 1 && t > A.holdDown && t - A.since > 2000) { A.probe = { f }; return A.i + 1; }
+    if (f > T * 1.08 && A.i < ST.length - 1 && t > A.holdDown && t - A.since > 2000) { A.probe = { f, g, s: ST[A.i] }; return A.i + 1; }
     if (f <= T * 1.05 && A.i > 0 && t > A.holdUp && t - A.since > 4000) {
       const k = ST[A.i - 1] / ST[A.i];
-      if (g == null || g * k * k < T * 0.8) { A.up = { f }; return A.i - 1; }
+      // (the way back up asks whether the card would hold 0.8 T at the larger scale. It multiplied ALL of g by the pixels'
+      //  ratio: with 13 of 21 ms fixed it predicted 37.7 ms for a step that measures 20.3, and a cruise that holds 0.85 sat
+      //  at 0.5 for ever once a heavy stretch had pushed it down. Only the pixels' part is scaled now; G0 is 0 until learnt,
+      //  i.e. the rule as it was)
+      const G0 = A.G0 > 0 && g != null ? Math.min(A.G0, g) : 0;
+      if (g == null || G0 + (g - G0) * k * k < T * 0.8) { A.up = { f }; return A.i - 1; }
     }
     return A.i;
   }
@@ -488,7 +498,7 @@
     // the scale left alone for 30 s (doubling on each repeat, 5 min at most) - the picture is never blurred for nothing.
     // It steps UP when the frame holds the budget and the scene's own GPU time (the timer query round the scene pass)
     // says the next step's pixels fit in 80 % of it; an up step that then misses holds the ups for a minute.
-    const AUTO = { on: false, T: 1000 / 60, steps: [1, 0.85, 0.75, 0.67, 0.5], i: 0, fr: [], gpu: [], q: [], last: 0, since: 0,
+    const AUTO = { on: false, T: 1000 / 60, steps: [1, 0.85, 0.75, 0.67, 0.5], i: 0, G0: 0, fr: [], gpu: [], q: [], last: 0, since: 0,
                    probe: null, up: null, holdDown: 0, holdUp: 0, reverts: 0, ext: null, stats: { down: 0, up: 0, reverts: 0 } };
     function autoScale(on) {
       on = !!on;

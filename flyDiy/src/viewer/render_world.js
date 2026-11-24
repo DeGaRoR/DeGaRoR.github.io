@@ -3326,7 +3326,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // (ON BY DEFAULT ON A REAL PAGE since 23 Nov 2026, the user's word - "turn on all switches leading to good results": ?farslots=0
       //  is the old way; the node page (flydiy-node) keeps it off. No picture changes: big uploads 28 -> 0 in the journey)
       const FSLOT = (() => { if (typeof location === 'undefined' || !THREE.GLBufferAttribute) return null;
-        { const S = location.search || '', real = typeof navigator !== 'undefined' && !/flydiy-node/.test(navigator.userAgent || '');
+        { const S = location.search || '', real = typeof window !== 'undefined' && window.FLYDIY_REAL_PAGE === true;   // (the page says so - app.js: no device test here, GATE GFX's rule)
           if (!(/[?&]farslots=1(?:&|$)/.test(S) || (real && !/[?&]farslots=0(?:&|$)/.test(S)))) return null; }
         const gl = renderer && renderer.getContext ? renderer.getContext() : null;
         return gl && gl.copyBufferSubData && gl.COPY_WRITE_BUFFER ? gl : null; })();
