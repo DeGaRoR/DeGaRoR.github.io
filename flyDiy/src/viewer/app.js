@@ -20912,8 +20912,8 @@
     return { D, s, tgt, az: tgt + s * 0.45, el: 0.16, dist: D * 1.7 };
   }
   function flRevealStart() {
-    labCoverBudget();                    // (?coverbudget=K, the lab's: the cover layers' work a frame, set once)
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
+    labCoverBudget();                    // (?coverbudget=K, the lab's: the cover layers' work a frame, set once - AFTER the hand-back: GATE UILAYER U5)
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
     if (window.GFX && window.GFX.hw) window.GFX.hw.reveal();   // G1995: the step-down's measuring starts from the hand-over
     flShedBox = worldShedBox();
@@ -22900,7 +22900,7 @@
     // a frozen picture) or not (the page shows). One branch a frame; the log's reader counts it as ONE frame of that length.
     if (typeof window !== 'undefined') {
       const ST = window.FLYDIY_STILL || (window.FLYDIY_STILL = { shownAt: 0, frames: 0, runs: 0, heldFrames: 0, worstMs: 0, lastMs: 0 });
-      const tS = performance.now();
+      const tS = perfNow();   // (the UI smoke harness has no `performance`: the page's own clock, as the rest of the loop - GATE UISMOKE, 24 Nov)
       if (!framePresented) { ST.frames++; ST.heldFrames++; }
       else {
         if (ST.frames && ST.shownAt) {
