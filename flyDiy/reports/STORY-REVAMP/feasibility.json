@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 50,
+  "feasible": 51,
   "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
-  "not flown": 16,
+  "not flown": 15,
   "infeasible": 9,
   "stale": 5
  },
- "flownS": 92281,
+ "flownS": 93568,
  "rows": [
   {
    "id": "field.01",
@@ -1633,8 +1633,46 @@
    "id": "clients.n1",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172",
+   "timeS": 1287,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 625,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 663,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "clients.n2",

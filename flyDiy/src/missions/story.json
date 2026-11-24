@@ -2828,6 +2828,12 @@
      "who": "adam",
      "text": "ct.clients.n1.done"
     }
+   },
+   "validated": {
+    "with": "Cessna 172",
+    "sim": "L40K",
+    "flownS": 1287,
+    "sig": "fbbac96b"
    }
   },
   {
