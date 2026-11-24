@@ -2781,9 +2781,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // LAZAIR-TWIN (24 Nov): ON TIP WHEELS THE TIES ARE THE PANELS' SPARS. A V on its tip wheels stands on these four
   // members a side; built as the rod's own lattice (class 'fus' aft of the box: the rod row's section, the user's 0.7 mm
   // wall) nine of them yielded under the tail's 50 N a tip at the spawn and again on every take-off. They are the
-  // panel's structure - the tail's class (the stab's truss gauge), as the twin booms' V panels are. A V without tip
-  // wheels: 'fus', to the bit
-  const VC = vtW ? 'tail' : 'fus';
+  // panel's structure - the tail's class (the stab's truss gauge), as the twin booms' V panels are. Only for the EXTRA
+  // wheels (the user's Lazair, a tricycle's tips): the tips as the tail wheel (mode 'tail', GATE TAILWHEEL K5's Chinook-
+  // Lazair) keep 'fus' - re-classed, its roll-out ground-looped (157 deg) on master 237aa5754's stance. Every other V: 'fus'
+  const VC = vtW && VTd.mode === 'extra' ? 'tail' : 'fus';
   for (const [H, side] of [[HTL, 'L'], [HTR, 'R']]) {
     B(H, TPB, VC); B(H, TPT, VC);
     B(H, side === 'L' ? last.BL : last.BR, VC);
