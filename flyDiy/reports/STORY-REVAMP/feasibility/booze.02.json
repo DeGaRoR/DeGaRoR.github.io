@@ -1,0 +1,170 @@
+{
+ "id": "booze.02",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "STOL Cub",
+ "timeS": 2296,
+ "why": "",
+ "tried": [
+  "Piper Cub:infeasible",
+  "STOL Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w6",
+   "t": 1193,
+   "how": "stopped",
+   "at": "w6",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w6",
+   "to": "w5",
+   "t": 1102,
+   "how": "stopped",
+   "at": "w5",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 80,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "no progress: already loaded",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w6",
+     "t": 1219,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 102 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 22.9 m/s until clear"
+     ],
+     "landing": {
+      "run": 118,
+      "sink": 1.04,
+      "V": 16.6,
+      "offCentre": -0.2,
+      "pastAim": 45,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 63,
+      "stopLeft": 130
+     }
+    },
+    {
+     "from": "w6",
+     "to": "w5",
+     "t": 1417,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (-22 m, 4.6 m off) — planning the departure again",
+      "taxi-timeout: the route took 553 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "already loaded"
+    },
+    {
+     "from": "w6",
+     "to": "w5",
+     "t": 2220,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (-22 m, 4.6 m off) — planning the departure again",
+      "taxi-timeout: the route took 553 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "already loaded"
+    }
+   ]
+  },
+  {
+   "plane": "STOL Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w6",
+     "t": 1193,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 100 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 18.7 m/s until clear"
+     ],
+     "landing": {
+      "run": 39,
+      "sink": 1.05,
+      "V": 12.4,
+      "offCentre": 0.2,
+      "pastAim": 9,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 19,
+      "stopLeft": 253
+     }
+    },
+    {
+     "from": "w6",
+     "to": "w5",
+     "t": 1102,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 0,
+     "said": [
+      "go-around: unstabilised approach at 82 m: high 35 m on the slope (attempt 1)",
+      "aim-displaced: the approach to Cannery Runway needs 22.2 deg over the obstacle 25 m out (10 m); flying 9.1 deg to an aim 133 m in",
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 166 m"
+     ],
+     "landing": {
+      "run": 36,
+      "sink": 1.44,
+      "V": 11.8,
+      "offCentre": -0.1,
+      "pastAim": 18,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 150,
+      "stopLeft": 124
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "waited for the window (before dawn): 2026-07-16 28800 s UT"
+ ],
+ "untested": false,
+ "key": "1b6dc5ced7d8",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 4769
+}

@@ -1,0 +1,71 @@
+# THE BIG PERF SLOT, Sun 22 Nov 2026, 14:00-17:00 (PERF-LEAD's rows; A0: quiet box, all tokens, GPU lock)
+#   bash tools/perf/load_matrix.sh tools/perf/rows/slot-2026-11-22-pass1.txt D:/Dev/flydiy-notes/evidence/perf-slot-2026-11-22 170
+# ONE build for every row: the lab build (the new master or perf-codex + perf-codex-green + perf-trace-1 +
+# perf-worldbuild-lab + PERF-LEAD's lab switches), every change behind its own URL switch. So a row differs from BASE by
+# its query alone. All COLD (a new Chrome profile a row), headed 5120x1440, the game's fixed first day (21 June 16:00).
+# Order: every question once (pass 1), the questions again in the other order (pass 2), BASE between the blocks, so a
+# drift of the box (heat) shows in BASE and does not pass for a result. A row that does not fit the cap is skipped.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+
+# ---- pass 1 ---------------------------------------------------------------------------------------------------
+BASE_1      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; --rollout
+# THE SMOKE, as the slot's rows 2 and 3 (its own GPU turn did not come): every switch at once, then a night load with the
+# clock set to noon before Go and the near-first path forced. If BASE_1 fails the runner stops the whole slot; these two
+# are read by PERF-LEAD while pass 1 goes on.
+SMOKE_ALL   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near&wcsliced=1&shaderlogs=0&cubelean=1&latelinks=1&lampsfixed=1&firstuse=1&pace=16 ; new ; H5K ; --rollout
+SMOKE_HOLD  ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1&day=night ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js --init-file tools/perf/init_striphold.js
+# how many programs may link at once (default auto = 8 on this box): is the shader wait a queue?
+PACE4_1     ; D:/Dev/perf-lab-built ; pace=4 ; new ; H5K ; -
+PACE16_1    ; D:/Dev/perf-lab-built ; pace=16 ; new ; H5K ; -
+PACE32_1    ; D:/Dev/perf-lab-built ; pace=32 ; new ; H5K ; -
+PACE0_1     ; D:/Dev/perf-lab-built ; pace=0 ; new ; H5K ; -
+# first use without the info logs; the world's compile in slices
+LOGS0_1     ; D:/Dev/perf-lab-built ; shaderlogs=0 ; new ; H5K ; --rollout
+WCS_1       ; D:/Dev/perf-lab-built ; wcsliced=1 ; new ; H5K ; -
+BASE_2      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
+# the damage / scuff look (the user's rule: PERF-LEAD decides land or hold, with numbers)
+SCUFFLITE_1 ; D:/Dev/perf-lab-built ; scuffopt=lite ; new ; H5K ; -
+DMGOFF_1    ; D:/Dev/perf-lab-built ; dmglook=0&scuff=0&cracks=0 ; new ; H5K ; -
+# the world build (PERF-WORLDBUILD): the old pavement paths, the strips' worker, the near set first, the settle's near rule
+OLDPAV_1    ; D:/Dev/perf-lab-built ; pavepolybound=0&pavereuse=0 ; new ; H5K ; -
+STRIPW_1    ; D:/Dev/perf-lab-built ; stripw=1 ; new ; H5K ; -
+NEARFIRST_1 ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; --rollout
+# (on the box the worker may finish before the strips' stage: nothing is then held coarse. This row FORCES the landing path.)
+NEARHOLD_1  ; D:/Dev/perf-lab-built ; stripw=1&nearfirst=1 ; new ; H5K ; --rollout --init-file tools/perf/init_striphold.js
+SETTLE_1    ; D:/Dev/perf-lab-built ; settle=near ; new ; H5K ; --rollout
+WORLDALL_1  ; D:/Dev/perf-lab-built ; stripw=1&patchw=1&nearfirst=1&settle=near ; new ; H5K ; --rollout
+BASE_3      ; D:/Dev/perf-lab-built ; - ; new ; H5K ; -
+# night, and the departure after the clock is set to noon in the garage (the 164-program burst), lamp pool as today / fixed
+NIGHT_1     ; D:/Dev/perf-lab-built ; day=night ; new ; H5K ; --rollout
+NIGHTFIX_1  ; D:/Dev/perf-lab-built ; day=night&lampsfixed=1 ; new ; H5K ; --rollout
+N2NOON_1    ; D:/Dev/perf-lab-built ; day=night ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
+N2NOONFIX_1 ; D:/Dev/perf-lab-built ; day=night&lampsfixed=1 ; new ; H5K ; --rollout --rollout-secs 150 --pre-rollout-file tools/perf/pre_noon.js
+DAYFIX_1    ; D:/Dev/perf-lab-built ; lampsfixed=1 ; new ; H5K ; --rollout
+# the garage ALONE (no world at all: the phone's boot on this screen): the floor of "menu to garage in 20 s"
+GARAGE_1    ; D:/Dev/perf-lab-built ; profile=phone&gfx=gamer ; new ; H5K ; -
+GARAGE_2    ; D:/Dev/perf-lab-built ; profile=phone&gfx=gamer ; new ; H5K ; -
+# the old ledger's way, for the bridge between its rows and these
+HEADLESS_1  ; D:/Dev/perf-lab-built ; - ; new ; HL ; -
+# Game's perf-simplify (9b4130e40, L40K): the based planes + storage put back (the default holds them: the user's call)
+BASED_1     ; D:/Dev/perf-lab-built ; based=1 ; new ; H5K ; -
+# MOUNTAIN-VEG's alpine rock scatter: OFF by default in the lab build (its own verdict in game: not ready, being retuned),
+# ON with ?alprocks=1. The load must not move (nothing of it is built before the reveal); its frames need an alpine orbit, not a load.
+ALPROCKS1_1 ; D:/Dev/perf-lab-built ; alprocks=1 ; new ; H5K ; -
+# A RETURNING PLAYER (the 06:00 result: worldCompile 36 -> 4 s on a second visit, but the garage's 'compile' step 2 -> 10-20 s
+# and the load only 114 -> 93-106 s). The same three loads on the lab build, whose flight log names what 'compile' waits for.
+WARM_1      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
+WARM_2      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; -
+WARM_3      ; D:/Dev/perf-lab-built ; - ; ret ; H5K ; --rollout
+# WHAT THE RECORDING ITSELF COSTS (A0's captures, 07:00: garage 138 s with PERF-TRACE's registry on, 132 s with ?progid=0,
+# single runs): the registry off, against BASE. Every other row carries it, so an A/B on this build stays fair either way.
+PROGID0_1   ; D:/Dev/perf-lab-built ; progid=0 ; new ; H5K ; -
+# both workers (PERF-WORLDBUILD: the strips AND the premises patch's sampling asked of the house worker; node: 39 -> 21.8 s
+# of main thread). Read FLYDIY_PATCHW.waitMs and FLYDIY_STRIPW.waitMs first: the seconds the page slept on the worker.
+WORKERS_1   ; D:/Dev/perf-lab-built ; stripw=1&patchw=1 ; new ; H5K ; -
+# the reflection cube's compile without what the cube never shows (22 skin programs keyed for it, 2 ever drawn)
+CUBELEAN_1  ; D:/Dev/perf-lab-built ; cubelean=1 ; new ; H5K ; -
+# the load WITHOUT the programs linked for views the player may never open (the scuff's awake set, the see-through
+# twins): what "compile them after the reveal, in the background" would give. And Codex's one-program scuff (no
+# asleep / awake pair: the block always in, gated by a uniform).
+LATELINKS_1 ; D:/Dev/perf-lab-built ; latelinks=1 ; new ; H5K ; -
+SCUFFONE_1  ; D:/Dev/perf-lab-built ; scuffopt=liteone ; new ; H5K ; -

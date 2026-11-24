@@ -1,0 +1,12 @@
+# THE EVENING WINDOW: the pavement program handed to the compiler when the world's lights stand (?pavefirst=1), about 40 s
+# sooner than today's town step. Every load of the afternoon ended about 12 s after that program was ready (pending
+# 52-66 s). What the row must show: pave { handed true, at ~<world step start + 1-2 s>, readyAt, sig = sigCompile } - a sig
+# that differs from sigCompile is a wasted link (the early key was not the frame's) - and PERF-TRACE's program_diff ONE
+# pavement text, not two. BESTE_1 = tonight's best guess at the whole: pavement first + the late links in the background
+# + the fast pace + the strips in the worker + the near settle.
+# HEAVYFIRST_1: the pavement AND the island ground's programs (?groundfirst=1: handed over at 'ring lod' / 'far terrain' /
+# 'water', as their materials appear) - the four other heavy links ~35 s sooner.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+PAVEFIRST_1 ; D:/Dev/perf-lab-built ; pavefirst=1 ; new ; H5K ; -
+BESTE_1     ; D:/Dev/perf-lab-built ; pavefirst=1&groundfirst=1&latelinks=bg&pace=32&stripw=1&settle=near ; new ; H5K ; --rollout --init-file tools/perf/init_longtasks.js
+HEAVYFIRST_1 ; D:/Dev/perf-lab-built ; pavefirst=1&groundfirst=1 ; new ; H5K ; -

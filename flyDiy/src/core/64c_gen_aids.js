@@ -232,7 +232,7 @@ function genDesignAids(def, bal, opts) {
     // LAZAIR-TWIN (24 Nov): EACH DISC WHERE IT IS DRAWN. engAt keeps a wing pair's lateral station unsigned (|z|, the
     // frame mirrors by `side`): both discs stood on the starboard station, one drawn over the other (the user: "the prop
     // clearance marker draws only for a single engine"). The disc is now on its own side (side -1 port: -z, the frame's
-    // NL), its radius the DRAWN blade's (propOff's third number, the editor's own CW propD) where the editor measured
+    // NL), its radius the DRAWN blade's (propOff's fifth number, the editor's own CW propD) where the editor measured
     // it, and its axis the drawn thrust line's (engines[i].tilt, downthrust +: the disc's plane is square to it)
     const SE = Array.isArray(S.engines) ? S.engines : [];
     out.thrust = at.map((e0, i) => {
@@ -241,11 +241,16 @@ function genDesignAids(def, bal, opts) {
       const dy = e.y - cg[1];
       // thrust forward (-x): about the CG the moment's nose-up part is -dy * T (a line above the CG pitches nose-down)
       const Mup = -dy * T;
-      const z = (e0.side < 0 ? -1 : 1) * (e.z || 0), Ri = off && off[2] > 0 ? off[2] : R;
+      // PROP-CHECK: the disc's axis is the drawn shaft's (the engine's tilt) when the editor measured it; the body axis else.
+      // A pusher's shaft points aft in the model, its thrust forward all the same: the axis is taken pointing forward
+      // (LAZAIR-TWIN: the editor's record is [dx, dy, ax, ay, R, fit, why]; without a measured shaft, the drawn tilt's axis)
       const tl = (SE[i] && +SE[i].tilt || 0) * Math.PI / 180;
-      return { at: [e.x, e.y, z], dir: tl ? [-CORE_MATH.cos(tl), -CORE_MATH.sin(tl), 0] : [-1, 0, 0], T, R: Ri, mount: e.mount || 'nose',
+      const ax = off && off[2] != null && off[3] != null ? (() => { const h = Math.hypot(off[2], off[3]) || 1, s = off[2] > 0 ? -1 : 1;
+        return [s * off[2] / h, s * off[3] / h, 0]; })() : tl ? [-CORE_MATH.cos(tl), -CORE_MATH.sin(tl), 0] : [-1, 0, 0];
+      const z = (e0.side < 0 ? -1 : 1) * (e.z || 0), Ri = off && off[4] > 0 ? off[4] : R;
+      return { at: [e.x, e.y, z], dir: ax, T, R: Ri, mount: e.mount || 'nose',
                side: e0.side || 0, dy, Mup, drawn: !!off, elev: Mde ? Math.abs(Mup) / Mde : null,
-               ...(off && off[3] === 0 ? { skinHit: off[4] || 'the drawn skin' } : {}) };
+               ...(off && off[5] === 0 ? { skinHit: off[6] || 'the drawn skin' } : {}) };
     });
     const sumM = out.thrust.reduce((s, t) => s + t.Mup, 0), share = Mde ? Math.abs(sumM) / Mde : null;
     const t0 = out.thrust[0];
@@ -608,7 +613,10 @@ function genKeyIssues(def, sh, aids, opts) {
 function genAidPropOff(CE) {
   const U = CE && Array.isArray(CE.units) ? CE.units : null;
   if (!U || !U.length) return null;
-  return U.map(u => (u && u.at && u.propAt) ? [-(u.propAt[2] - u.at[2]), u.propAt[1] - u.at[1],
-    u.prop && u.prop.R > 0 ? u.prop.R : 0, u.propFit ? (u.propFit.ok ? 1 : 0) : -1,
-    u.propFit && !u.propFit.ok && Array.isArray(u.propFit.why) ? u.propFit.why.join(', ') : ''] : null);
+  // [dx, dy] the hub off the mount; PROP-CHECK: + [ax, ay], the shaft's direction in the design frame (x aft: -z there)
+  // (null, null where the unit has none); LAZAIR-TWIN: + [R, fit, why], the drawn disc's radius and the editor's fit
+  return U.map(u => (u && u.at && u.propAt) ? [-(u.propAt[2] - u.at[2]), u.propAt[1] - u.at[1]]
+    .concat(Array.isArray(u.propAxis) ? [-u.propAxis[2], u.propAxis[1]] : [null, null])
+    .concat([u.prop && u.prop.R > 0 ? u.prop.R : 0, u.propFit ? (u.propFit.ok ? 1 : 0) : -1,
+             u.propFit && !u.propFit.ok && Array.isArray(u.propFit.why) ? u.propFit.why.join(', ') : '']) : null);
 }

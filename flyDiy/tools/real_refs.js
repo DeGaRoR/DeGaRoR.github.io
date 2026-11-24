@@ -9,8 +9,16 @@
 //                                   pilot + half fuel; 'unknown' = anywhere from one light pilot with reserves to gross
 //                                   (the RANGE the user asked for: an unknown condition is a band, not a guess)
 //     flaps: 'up' | deg | 'unknown', surface: 'paved' | 'grass' | 'water' | 'unknown', alt: 0 (m), oat: 15 (C),
+//     rpm: 0.92,                    a level-speed row flown at a lower rpm limit: the fraction of the rated speed
+//     power: 0.85,                  the fraction of the RATED (take-off) power the figure was flown at, where the source
+//                                   states less than full power (a climb at max continuous, a de-rated take-off); absent = 1
+//     prop: 'idle' | 'none' | 'unknown',   a GLIDE row only: the propeller in the figure - 'idle' a flown handbook glide
+//                                   (windmilling or stopped), 'none' a computed clean polar or a glider, 'unknown' a
+//                                   brochure ratio nobody qualifies. The probe glides propeller-off: an 'idle' row is not
+//                                   like for like until the idle propeller's drag is modelled (PHYSICS-AUDIT step 4)
 //     src: 'where it comes from' }
-// Every row is sea level ISA unless it says otherwise (no row in this file does).
+// Every row is sea level ISA and rated power unless it says otherwise. real_check's airframe reading solves a row at
+// its `alt` and its `power` (PHYSICS-AUDIT step 0, 21 Nov 2026: until then both were recorded and not read).
 //
 // THE INDICATORS (the keys of `rows`):
 //   empty  kg       the empty weight (no load band: the frame's mass model)
@@ -72,7 +80,7 @@ const REFS = {
       V75:   { v: [73 * MPH, 75 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 73-75 mph at ~2150 rpm' },
       Vmax:  { v: 87 * MPH, tol: 0.05, kg: 'unknown', src: '87 mph' },
       roc:   { v: 450 * FPM, tol: 0.05, kg: 'unknown', src: '450 fpm' },
-      LD:    { v: 9.5, tol: 0.10, kg: 'unknown', src: 'common figure' },
+      LD:    { v: 9.5, tol: 0.10, kg: 'unknown', prop: 'none', src: 'common figure - Loftin\'s computed (L/D)max 9.6 (NASA SP-468), the propeller not in it' },
       TO:    { v: 370 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'unknown', src: '370 ft' },
       LDG:   { v: 290 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'unknown', src: '290 ft' },
     } },
@@ -88,7 +96,7 @@ const REFS = {
       V75:   { v: [150, 161], tol: 0.05, kg: 'unknown', src: 'cruise 150-160 km/h / 100 mph' },
       Vmax:  { v: [175, 124 * MPH], tol: 0.05, kg: 'unknown', src: 'perf_study REAL.d112 175 km/h; its own source line says 124 mph (200 km/h): both kept' },
       roc:   { v: [2.0, 800 * FPM], tol: 0.05, kg: 'unknown', src: '"800 fpm / 2 m/s" in one line: both kept' },
-      LD:    { v: 10, tol: 0.10, kg: 'unknown', src: 'common figure' },
+      LD:    { v: 10, tol: 0.10, kg: 'unknown', prop: 'unknown', src: 'common figure' },
       TO:    { v: 200, tol: 0.10, kg: 'gross', flaps: 0, surface: 'grass', src: '200 m at gross (catalogue)' },
       LDG:   { v: 150, tol: 0.15, kg: 'unknown', flaps: 0, surface: 'grass', src: 'catalogue' },
     } },
@@ -101,10 +109,14 @@ const REFS = {
     rows: {
       empty: { v: [721, 744], tol: 0.02, src: 'standard empty 1590-1639 lb (Plane & Pilot / spec summaries; the 7 Nov row\'s 736 kg = 1623 lb sits inside)' },
       Vs1:   { v: 51 * KT, tol: 0.03, kg: 'gross', flaps: 'up', src: '51 KCAS at 2450 lb, most forward CG' },
-      V75:   { v: 118 * KT, tol: 0.05, kg: 'gross', src: '75 % at SL, ~118 KTAS (the POH table starts at 2000 ft)' },
-      Vmax:  { v: 124 * KT, tol: 0.05, kg: 'gross', src: '124 KTAS at SL' },
+      // (PHYSICS-AUDIT 21 Nov: the 118 KTAS "read off" the cruise table, which starts at 2000 ft, is not consistent with
+      //  the POH's own specifications page - 123 kt at sea level on full power, 122 KTAS at 80 % at 8000 ft: a fixed pitch
+      //  holds its efficiency over that range, so speed goes with (power / density)^(1/3): 123 x 0.75^(1/3) = 112 and
+      //  122 x (0.75 / 0.80 x 0.786)^(1/3) = 110 KTAS at 75 % at sea level. The row is that range)
+      V75:   { v: [110 * KT, 112 * KT], tol: 0.05, kg: 'gross', src: '75 % at sea level, 110-112 KTAS: derived from the POH specifications page (123 kt at sea level at full power; 122 KTAS at 80 % at 8000 ft) by (power / density)^(1/3); the POH cruise table starts at 2000 ft. It was 118 KTAS, read off that table' },
+      Vmax:  { v: 123 * KT, tol: 0.05, kg: 'gross', src: '123 kt at sea level (POH specifications page; it was 124)' },
       roc:   { v: 720 * FPM, tol: 0.03, kg: 'gross', src: '720 fpm at SL, 2450 lb' },
-      LD:    { v: 9.0, tol: 0.10, kg: 'gross', src: 'max glide 9:1 (POH section 3: 1.5 nm per 1000 ft)' },
+      LD:    { v: 9.0, tol: 0.10, kg: 'gross', prop: 'idle', src: 'max glide 9:1 (POH section 3: 1.5 nm per 1000 ft at 65 KIAS, propeller windmilling)' },
       TO:    { v: 945 * FT, tol: 0.03, kg: 'gross', flaps: 10, surface: 'paved', src: '945 ft' },
       TO50:  { v: 1685 * FT, tol: 0.03, kg: 'gross', flaps: 10, surface: 'paved', src: '1685 ft' },
       LDG:   { v: 550 * FT, tol: 0.05, kg: 'gross', flaps: 30, surface: 'paved', src: '550 ft, max braking' },
@@ -148,7 +160,10 @@ const REFS = {
     src: 'Wipaire PA-18/PA-12 Product & Modification Guide (Wipline 2100 amphibian, O-320 160 hp): gross 1776 lb: TO run land 588 ft, water 776 ft, over 50 ft water 1294 ft, ROC 925 fpm; at 2000 lb: water 1174 ft, 50 ft 1956 ft, ROC 756 fpm',
     poh: { vr: 1.00, vy: 1.35, flapTO: 15, flapLDG: 30, brake: 0, note: 'PA-18 on floats: half flap off the water' },
     rows: {
-      Vs1:  { v: 43 * MPH, tol: 0.05, kg: 'gross', flaps: 'up', src: 'PA-18-150 landplane 43 mph flaps up (Piper sheet)' },
+      // (PHYSICS-AUDIT 21 Nov: 43 mph is the PA-18-150's stall with the flaps DOWN (Jane's, as Wikipedia reproduces it:
+      //  "43 mph (37 kn) flaps down"); the clean stall is 41 kt (AOPA's fact sheet) to 43 KIAS (a TCDS A-759 listing).
+      //  The row was 43 mph "flaps up": CL 2.1 at 806 kg on 16.6 m2)
+      Vs1:  { v: [41 * KT, 43 * KT], tol: 0.05, kg: 'gross', flaps: 'up', src: 'PA-18-150 landplane, clean: 41 kt (AOPA fact sheet) to 43 KIAS (a TCDS A-759 listing); the 43 mph of the Piper sheet is flaps down' },
       roc:  { v: 925 * FPM, tol: 0.05, kg: 806, src: 'Wipaire 925 fpm at 1776 lb (amphibian, 160 hp)' },
       roc2: { v: 756 * FPM, tol: 0.05, kg: 907, key: 'roc', src: 'Wipaire 756 fpm at 2000 lb' },
       TOW:  { v: 776 * FT, tol: 0.05, kg: 806, flaps: 'unknown', surface: 'water', src: 'Wipaire 776 ft at 1776 lb' },
@@ -168,9 +183,9 @@ const REFS = {
     rows: {
       empty: { v: 850 * LB, tol: 0.05, src: 'empty weight (standard) 850 lb - maker sheet' },
       Vs1:   { v: 37 * KT, tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 37 kt - maker sheet (weight not stated)' },
-      Vmax:  { v: 100 * KT, tol: 0.05, kg: 'unknown', src: 'max cruise 100 kt (the 912iS at max continuous) - maker sheet' },
+      Vmax:  { v: 100 * KT, tol: 0.05, kg: 'unknown', power: 69 / 73.5, src: 'max cruise 100 kt (the 912iS at max continuous, 69 of its 73.5 kW) - maker sheet' },
       roc:   { v: 1000 * FPM, tol: 0.05, kg: 'unknown', src: 'max climb rate 1000 ft/min (912iS; the 914 Turbo is 1400) - maker sheet' },
-      LD:    { v: 10, tol: 0.10, kg: 'unknown', src: 'glide ratio 10:1 - maker sheet' },
+      LD:    { v: 10, tol: 0.10, kg: 'unknown', prop: 'unknown', src: 'glide ratio 10:1 - maker sheet' },
       TO:    { v: 262 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'paved', src: 'take-off ground 262 ft - maker sheet' },
       TOW:   { v: 394 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'water', src: 'take-off water 394 ft - maker sheet' },
       LDG:   { v: 394 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'paved', src: 'landing ground 394 ft (water 328 ft) - maker sheet' },
@@ -186,7 +201,7 @@ const REFS = {
       V75:   { v: [72 * MPH, 83 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 72-83 mph' },
       Vmax:  { v: 95 * MPH, tol: 0.05, kg: 'unknown', src: '95 mph' },
       roc:   { v: [1000 * FPM, 1200 * FPM], tol: 0.05, kg: 'unknown', src: '1000 / 1200 fpm' },
-      LD:    { v: 10, tol: 0.10, kg: 'unknown', src: '10:1' },
+      LD:    { v: 10, tol: 0.10, kg: 'unknown', prop: 'unknown', src: '10:1' },
       TO:    { v: [200 * FT, 250 * FT], tol: 0.05, kg: 'unknown', flaps: 0, surface: 'grass', src: '200 / 250 ft' },
       LDG:   { v: 300 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: '300 ft' },
     } },
@@ -209,15 +224,16 @@ const REFS = {
     rows: {
       empty: { v: 428, tol: 0.05, src: 'design empty 428 kg (POH 1-5)', from: 'poh' },
       Vs1:   { v: 51 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '51 KCAS power off, flaps 0, 600 kg (POH 5-8)', from: 'poh' },
-      Vmax:  { v: 93 * KT, tol: 0.10, kg: 'gross', src: 'VH 93 KCAS at 2300 rpm, max continuous (POH 5-12) - rpm-limited, not the full-power level speed', from: 'poh' },
-      roc:   { v: 3.29, tol: 0.08, kg: 'gross', src: '647 fpm at VY 75 KIAS, 48 kW MCP, 600 kg (POH 5-11)', from: 'poh' },
+      // (PHYSICS-AUDIT 21 Nov: the powers the POH states are read - the E-811's 57.6 kW is its take-off rating)
+      Vmax:  { v: 93 * KT, tol: 0.10, kg: 'gross', power: 49.2 / 57.6, rpm: 2300 / 2500, src: 'VH 93 KCAS at 2300 rpm, max continuous 49.2 kW (POH 5-12) - rpm-limited (read at 2300 of the motor\'s 2500 rpm), not the full-power level speed', from: 'poh' },
+      roc:   { v: 3.29, tol: 0.08, kg: 'gross', power: 48 / 57.6, src: '647 fpm at VY 75 KIAS, 48 kW MCP, 600 kg (POH 5-11)', from: 'poh' },
       // (REAL-FIGURES, 18 Nov: the ground rolls and the glide - the take-off roll is the pilot-light physics evidence, the
       //  glide the drag sprint's; the figures as the proto row carried them off POH-128)
-      TO:    { v: 240, tol: 0.05, kg: 'gross', flaps: 9, surface: 'paved', src: 'ground roll 240 m, MPTOP 50 kW, flaps +1, asphalt, SL ISA (POH 5-9)', from: 'poh' },
+      TO:    { v: 240, tol: 0.05, kg: 'gross', flaps: 9, surface: 'paved', power: 50 / 57.6, src: 'ground roll 240 m, MPTOP 50 kW, flaps +1, asphalt, SL ISA (POH 5-9)', from: 'poh' },
       TO50:  { v: 448, tol: 0.10, kg: 'gross', flaps: 9, surface: 'paved', src: 'over 50 ft, MPTOP 50 kW, flaps +1, asphalt, SL ISA (POH 5-9)', from: 'poh' },
       LDG:   { v: 183, tol: 0.05, kg: 'gross', flaps: 19, surface: 'paved', src: 'ground roll 183 m, flaps +2, power cut, asphalt, SL ISA (POH 5-17)', from: 'poh' },
       LDG50: { v: 537, tol: 0.10, kg: 'gross', flaps: 19, surface: 'paved', src: 'from 50 ft, flaps +2, power cut, asphalt, SL ISA (POH 5-17)', from: 'poh' },
-      LD:    { v: 15, tol: 0.10, kg: 'gross', src: 'best glide 15:1 (POH): the propeller as the POH flies it - not prop-free until windmilling is modelled', from: 'poh' },
+      LD:    { v: 15, tol: 0.10, kg: 'gross', prop: 'idle', src: 'best glide 15:1 (POH): the propeller as the POH flies it - not prop-free until windmilling is modelled', from: 'poh' },
     } },
   pc6: {
     name: 'Pilatus PC-6/B2-H4 Turbo Porter (PT6A-27, 550 shp)', mtow: 2800, empty: 1250, fuelL: 484, S: 30.15,
@@ -269,8 +285,8 @@ Object.assign(REFS, {
       // Vs0 (not an indicator yet): 62 KIAS landing flap (AOPA 1994 [0.6]) - CL 1.96 at 25,200 lb
       Vmax:  { v: 230 * MPH, tol: 0.04, kg: 'gross', alt: 8500 * FT, src: '230 mph (200 kt) at 8,500 ft (Francillon DC-3A [0.5]); the C-47B: 224 mph at 10,000 ft at 26,000 lb. No sea-level figure is published: the row carries its altitude. (Wikipedia\'s "223 kt" is a slip for 230 mph)' },
       // the old V75 row (194-207 mph, altitude unstated) has no source that states a power or an altitude: dropped
-      roc:   { v: [1130 * FPM, 1220 * FPM], tol: 0.05, kg: 'gross', src: '1,130-1,140 fpm at 25,200 lb (Francillon [0.5]); 1,220 fpm at METO 1,050 hp, 25,000 lb, ISA SL (C-47 manual climb table [0.6 pending], extract). At take-off power (1,200 hp, 1-minute limit on A-669): 1,410 fpm. Light: ~1,200 fpm at 8,800 kg, 110 kt, 35 in / 2,350 rpm (Flight International [0.6])' },
-      LD:    { v: 14.7, tol: 0.08, kg: 'unknown', src: '(L/D)max 14.7 with CD0 0.0249 (Loftin, NASA SP-468, as commonly quoted [0.5 pending: the table was not reachable]); consistent with AR 9.14 and e 0.75; CD0 ~0.025 also derived from 230 mph at 8,500 ft on 2 x 1,050 hp' },
+      roc:   { v: [1130 * FPM, 1220 * FPM], tol: 0.05, kg: 'gross', power: 1050 / 1200, src: '(read at METO, 1,050 of 1,200 hp: PHYSICS-AUDIT 21 Nov) 1,130-1,140 fpm at 25,200 lb (Francillon [0.5]); 1,220 fpm at METO 1,050 hp, 25,000 lb, ISA SL (C-47 manual climb table [0.6 pending], extract). At take-off power (1,200 hp, 1-minute limit on A-669): 1,410 fpm. Light: ~1,200 fpm at 8,800 kg, 110 kt, 35 in / 2,350 rpm (Flight International [0.6])' },
+      LD:    { v: 14.7, tol: 0.08, kg: 'unknown', prop: 'none', src: '(L/D)max 14.7 with CD0 0.0249 (Loftin, NASA SP-468, as commonly quoted [0.5 pending: the table was not reachable]); consistent with AR 9.14 and e 0.75; CD0 ~0.025 also derived from 230 mph at 8,500 ft on 2 x 1,050 hp' },
     } },
 
   // TOP RUDDER RUCKUS, the airframe sheet (B&B Sport Aviation, Top Rudder's dealer, "RUCKUS - Airframe / Performance
@@ -279,6 +295,11 @@ Object.assign(REFS, {
   // min sink 580 fpm at 27.3 mph, drag polar CD = 0.13 + 0.088 CL^2; take-off 350 ft, landing 300 ft; 5 gal, 2 gal/h;
   // Vne 100, Va 48 mph. The standard engine the Polini 303 ("stall speeds under 20 mph and a cruise of 50", G. Boney).
   // No weight or surface is stated for the field lengths: the sheet's own (gross, the strip unknown)
+  // THE SHEET IS A CALCULATION, NOT A FLIGHT TEST (PHYSICS-AUDIT 21 Nov): on its own polar the 54 mph at 37 hp and the
+  // 650 fpm at 30 mph both come out at a propeller efficiency of 0.57 - one constant, at 30 mph and at 54 - and at 30 mph
+  // on a 1.6 m disc 0.57 is the actuator disc's IDEAL (no real propeller reaches it); its 24.1 mph stall needs CL 3.0 on
+  // 11.33 m2 at 249 kg. The rows stay (they are the only figures) but they are a designer's sheet: a miss on its climb,
+  // its stall or its roll is not evidence against the model
   ruckus: {
     name: 'Top Rudder Ruckus, standard (Polini Thor 303, 37-38 hp)', mtow: 249, empty: 115, fuelL: 19, S: 11.33, powerHP: 37,
     src: 'B&B Sport Aviation "RUCKUS - Airframe" sheet (pasted by the user 9 Nov): 254 / 550 lb, 17.5 ft, 28.4 ft, 122 ft2, Vs 24.1 mph, Vso 22, cruise 50, Vmax 54 at 37 hp, 650 fpm, L/D 4.6, TO 350 ft, LDG 300 ft, 5 gal',
@@ -289,7 +310,7 @@ Object.assign(REFS, {
       V75:   { v: 50 * MPH, tol: 0.05, kg: 'unknown', src: 'cruise 50 mph' },
       Vmax:  { v: 54 * MPH, tol: 0.05, kg: 'gross', src: 'V(Max) 54 mph at 37 hp' },
       roc:   { v: 650 * FPM, tol: 0.05, kg: 'gross', src: '650 ft/min' },
-      LD:    { v: 4.6, tol: 0.10, kg: 'unknown', src: 'L/D 4.6 at 35 mph (the drag polar CD 0.13 + 0.088 CL^2)' },
+      LD:    { v: 4.6, tol: 0.10, kg: 'unknown', prop: 'none', src: 'L/D 4.6 at 35 mph (the drag polar CD 0.13 + 0.088 CL^2)' },
       TO:    { v: 350 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '350 ft' },
       LDG:   { v: 300 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '300 ft' },
     } },
@@ -318,7 +339,7 @@ Object.assign(REFS, {
     rows: {
       empty: { v: 54, tol: 0.15, src: '54 kg, parachute and cladding in (the maker now says 61 kg: tol 15 %); the GLIDER\'s', from: ['wiki', 'fai', 'ostiv'] },
       Vs1:   { v: [30, 39], tol: 0.10, kg: 'unknown', flaps: 'unknown', src: 'stall 30-39 km/h (light to heavy pilot)', from: 'wiki' },
-      LD:    { v: 28, tol: 0.10, kg: 'unknown', src: 'glide ratio 28', from: ['wiki', 'maker'] },
+      LD:    { v: 28, tol: 0.10, kg: 'unknown', prop: 'none', src: 'glide ratio 28', from: ['wiki', 'maker'] },
       roc:   { v: 2.5, tol: 0.20, kg: 'unknown', src: '2.5 m/s fully charged (the Electeryx)', from: 'elec' },
       TO:    { v: 50, tol: 0.20, kg: 'unknown', flaps: 'unknown', surface: 'unknown', src: 'take-off roll 50 m (the Electeryx)', from: 'elec' },
     } },
@@ -498,6 +519,9 @@ const PLANES = {
   // no published PC-6 float figures; it reads the land type's reference (the TCDS's limits hold on floats), both halves
   // flown, and the type's own MTOW loading (PLANES.pc6's: the freight at the cabin front)
   pc6f:     { listRow: 58, label: 'Pilatus PC-6 on Wipline 6100 amphibious floats (benchmark: the land reference; no float figures published)', short: 'PC-6 on Wiplines', file: 'builds/candidates/pc6_floats_2026-11-13.json', ref: 'pc6', group: 'seaplane', water: true, land: true,
+              // (PHYSICS-AUDIT 21 Nov: a LIGHT check - its performance is read against the LANDPLANE's figures, so it is
+              //  measured and shown but left out of the scores and the physics signals)
+              light: true,
               mtowCase: { topAt: [0, 1], label: 'every seat, the wing tanks full, the rest as freight at the cabin front' },
               note: 'the drafting table\'s PC-6 on Wiplines (the floats\' weight checked against Wipline\'s 6100 figures); a benchmark beside the land PC-6' },
   cub:      { listRow: 1, label: 'Piper Cub (official)', short: 'Piper Cub', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
@@ -521,6 +545,8 @@ const PLANES = {
   // MASS-SCALE / TAIL-RETRACT (2026-11-09, claude/practical-cerf-7fjpwp): the candidates standing in for their cards
   ruckus:   { listRow: 53, label: 'Top Rudder Ruckus Solo 103 (from Rufus)', short: 'Ruckus Solo 103', file: 'builds/candidates/ruckus_std_2026-11-09.json', ref: 'ruckus', group: 'ultralight' },
   ruckusbc: { listRow: 54, label: 'Top Rudder Ruckus Back-Country (from Rufus)', short: 'Ruckus Back-Country', file: 'builds/candidates/ruckus_2026-11-09.json', ref: 'ruckus', group: 'ultralight',
+              // (PHYSICS-AUDIT 21 Nov: a LIGHT check - a 64 hp aeroplane read against the 37 hp sheet)
+              light: true,
               note: 'scored against the Ruckus reference (the Solo 103 figures): no Back-Country figures sourced yet' },
   dc3r:     { listRow: 12, label: 'DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
   chinookm: { listRow: 8, label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', group: 'ultralight' },

@@ -1,0 +1,14 @@
+{"from":"HOME","to":"tw_ski","t":432.18,"ok":false,"outcome":"completed","landedOn":"tw_ski","groundLoop":0,"offStrip":62,"nan":false,"declined":null,"heldOff":null,"track":null}
+faults [{"k":"off-strip","note":"the landing roll left tw_ski's box","t":386.3}]
+phases ["HOLD","ROLL","LIFTOFF","CLIMB","INBOUND","FINAL","FLARE","ROLLOUT","STOPPED"]
+verdicts ["vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear","slope: stopped on a 8.3 % grade — rolling 100 m on to the level part"]
+warnings []
+dep {"turned":0,"uturn":false,"latMax":0,"rollS":109.1,"rollFromEnd":109.1,"toDist":123.1,"taxiT":2}
+arr {"final":{"d":1399,"h":727.8},"apprClear":{"c":10.5,"d":41,"what":"ground"},"td":{"s":-44.7,"c":0.7},"landing":{"run":49,"sink":-0.02,"V":12.7,"offCentre":0.7,"pastAim":78,"k":1,"three":true,"onStrip":true,"tdIn":95,"stopLeft":136},"stopS":102.3}
+fuel {"litres":43.1,"burnt":1.9}
+damage {"yields":0,"breaks":0,"dented":false,"crashed":false,"gPeak":1.4,"propAt":null}
+trackI [0,217]
+appr {"technique":"short","Vref":17.3,"Vbase":17.3,"gust":0.2,"aimIn":17,"flap":0.7,"len":280,"surface":0,"runNeed":111,"gs":0.11,"reqGs":0.105,"gsWhy":"obstacle","obst":{"d":25,"h":2.6},"held":{"Vtd":17.3,"tail":4.6,"need":135,"needShort":113,"room":198,"grade":0.068}}
+landing {"run":49,"sink":-0.02,"V":12.7,"offCentre":0.7,"pastAim":78,"k":1,"three":true,"onStrip":true,"tdIn":95,"stopLeft":136}
+phases DEPART@0 HOLD@0 ROLL@2 LIFTOFF@14 CLIMB@23 INBOUND@116 FINAL@322 FLARE@378 ROLLOUT@384 STOPPED@432
+verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear | slope: stopped on a 8.3 % grade — rolling 100 m on to the level part

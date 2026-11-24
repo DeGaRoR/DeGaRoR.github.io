@@ -89,15 +89,24 @@ var FMIST = (function () {
   const use = { a: A, b: B, c: C };
   const st = { bakeMs: 0, map: null, k: [0, 0, 0], drift: [0, 0], t: null, hoursDry: null };
   // ---- THE MAP, ON THE CPU (pure: node can bake it - the gate and the study's figures) ----------------------------
-  function bakeMap(world, N) {
-    N = N || S.N;
+  // PERF-WORLDBUILD (23 Nov 2026): THE MAP IN STEPS. The 512^2 map is ~340 ms of terrain reads and box filters in one
+  // task of the world build's 'sky' step - a frozen garage frame when the world is built behind it. bakeMapSteps is
+  // the same arithmetic in the same order as a generator: it yields at a row's end (a block of texels in the last
+  // loops) when `due()` says so - the host's budget (window.FLYDIY_WORLD_BUDGET.left() <= 0); with no host budget
+  // it never yields. Nothing it reads moves between two steps and nothing reads the map before it is whole: the map
+  // is the one-task map bit for bit (GATE FMIST 3). bakeMap drains it. (`ms` is the wall time: the host's pauses
+  // are in it when it ran in steps.)
+  const hostDue = () => { const Bd = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };
+  function bakeMap(world, N) { const g = bakeMapSteps(world, N, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* bakeMapSteps(world, N, due) {
+    N = N || S.N; due = due || hostDue;
     const t0 = (typeof performance !== 'undefined') ? performance.now() : Date.now();
     const b = world.bounds, size = Math.max(b.x1 - b.x0, b.z1 - b.z0), step = size / N;
     const isl = world.island && world.island.canopyAt ? world.island : null;
     const SF = world.SURFACE || {};
     const g = new Float32Array(N * N), can = new Float32Array(N * N), wet = new Float32Array(N * N), fo = new Float32Array(N * N);
     const tH = world.terrainHBuild || world.terrainH, wH = world.waterHBuild || world.waterH;
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) { if (j && due()) yield 'sky: the forest mist'; for (let i = 0; i < N; i++) {
       const x = b.x0 + (i + 0.5) * step, z = b.z0 + (j + 0.5) * step, k = j * N + i;
       const h = tH(x, z), w = wH ? wH(x, z) : -1e9, water = w > h - 0.25 || h < 0.2;
       g[k] = water ? Math.max(w, 0) : h; wet[k] = water ? 1 : 0;
@@ -107,22 +116,23 @@ var FMIST = (function () {
         else if (world.surface && world.surface(x, z) === SF.FOREST_FLOOR) c = 18;
       }
       can[k] = c; fo[k] = c > 3 ? Math.min(1, c / 14) : 0;
-    }
+    } }
     const at = (a, i, j) => a[Math.min(N - 1, Math.max(0, j)) * N + Math.min(N - 1, Math.max(0, i))];
-    const sep = (a, R, f, init) => { const t = new Float32Array(N * N), o = new Float32Array(N * N);
-      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let m = init; for (let q = -R; q <= R; q++) m = f(m, at(a, i + q, j)); t[j * N + i] = m; }
-      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let m = init; for (let q = -R; q <= R; q++) m = f(m, at(t, i, j + q)); o[j * N + i] = m; }
+    const sep = function* (a, R, f, init) { const t = new Float32Array(N * N), o = new Float32Array(N * N);
+      for (let j = 0; j < N; j++) { if (j && due()) yield 'sky: the forest mist'; for (let i = 0; i < N; i++) { let m = init; for (let q = -R; q <= R; q++) m = f(m, at(a, i + q, j)); t[j * N + i] = m; } }
+      for (let j = 0; j < N; j++) { if (j && due()) yield 'sky: the forest mist'; for (let i = 0; i < N; i++) { let m = init; for (let q = -R; q <= R; q++) m = f(m, at(t, i, j + q)); o[j * N + i] = m; } }
       return o; };
-    const blur = (a, R) => { const s = sep(a, R, (m, v) => m + v, 0), n = (2 * R + 1) * (2 * R + 1); for (let k = 0; k < N * N; k++) s[k] /= n; return s; };
+    const blur = function* (a, R) { const s = yield* sep(a, R, (m, v) => m + v, 0), n = (2 * R + 1) * (2 * R + 1); for (let k = 0; k < N * N; k++) s[k] /= n; return s; };
     const R6 = Math.max(1, Math.round(600 / step)), R9 = Math.max(1, Math.round(900 / step)), R2 = Math.max(1, Math.round(200 / step));
-    const floor = blur(sep(g, R6, Math.min, 1e9), R2);              // the floor a hollow shares (atmo.js bakeField's rule)
-    const ridge = blur(sep(g, R9, Math.max, -1e9), R2);             // the ridges round it
-    const gb = blur(g, R2), gb2 = blur(g, R6);                       // the land at two scales: their difference is the hollow
-    const wetB = blur(wet, R6);                                      // near water (a lake, the sea, a river's reach)
-    const foB = blur(fo, Math.max(1, Math.round(120 / step)));      // forest, not a lone tree
+    const floor = yield* blur(yield* sep(g, R6, Math.min, 1e9), R2);              // the floor a hollow shares (atmo.js bakeField's rule)
+    const ridge = yield* blur(yield* sep(g, R9, Math.max, -1e9), R2);             // the ridges round it
+    const gb = yield* blur(g, R2), gb2 = yield* blur(g, R6);                       // the land at two scales: their difference is the hollow
+    const wetB = yield* blur(wet, R6);                                      // near water (a lake, the sea, a river's reach)
+    const foB = yield* blur(fo, Math.max(1, Math.round(120 / step)));      // forest, not a lone tree
     const px = new Float32Array(N * N * 4);
     let pool = 0, wisp = 0;
     for (let k = 0; k < N * N; k++) {
+      if (k && !(k & 16383) && due()) yield 'sky: the forest mist';
       const relief = Math.max(30, ridge[k] - floor[k]);
       const v = 1 - Math.min(1, Math.max(0, (g[k] - floor[k]) / (0.45 * relief)));   // 1 on the valley floor, 0 halfway up
       const hollow = Math.min(1, Math.max(0, (gb2[k] - gb[k]) / 40 + 0.5));         // > 0.5 a gully, < 0.5 a spur
@@ -141,13 +151,13 @@ var FMIST = (function () {
     // direction with no sign, which blends between texels where an angle would wrap - x how steep it is (flat ground:
     // no direction, a round wisp). Its own 512^2 in the atlas, beside the map.
     const px2 = new Float32Array(N * N * 4);
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) { if (j && due()) yield 'sky: the forest mist'; for (let i = 0; i < N; i++) {
       const gx = (at(gb, i + 1, j) - at(gb, i - 1, j)) / (2 * step), gz = (at(gb, i, j + 1) - at(gb, i, j - 1)) / (2 * step);
       const sl = Math.hypot(gx, gz), k = j * N + i;
       const a = Math.atan2(gx, -gz);                                  // the contour: perpendicular to the fall line
       const w = Math.min(1, Math.max(0, (sl - 0.03) / 0.12));
       px2[k * 4] = Math.cos(2 * a) * w; px2[k * 4 + 1] = Math.sin(2 * a) * w; px2[k * 4 + 2] = sl; px2[k * 4 + 3] = 1;
-    }
+    } }
     return { N, x0: b.x0, z0: b.z0, inv: 1 / size, size, px, px2, ms, poolMean: pool / (N * N), wispMean: wisp / (N * N) };
   }
   // ---- WHEN: the weather's law (CPU, per frame; pure in the day + the soil) ----------------------------------------
@@ -187,11 +197,13 @@ var FMIST = (function () {
     return [Math.max(pool, poolPlan), wisp, oro];
   }
   // ---- THE GPU SIDE: into the atlas, and the lanes -----------------------------------------------------------------
-  function bake(renderer, world, scene) {
+  function bake(renderer, world, scene) { const g = bakeSteps(renderer, world, scene, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // (PERF-WORLDBUILD: the map in steps under a host's budget, then the blits - the world build's 'sky' step asks this one)
+  function* bakeSteps(renderer, world, scene, due) {
     if (!ON || !world) return null;
     const AT = (typeof ATMO !== 'undefined') ? ATMO : null;
     if (!AT || !AT.AP || !AT.blit) { console.warn('FMIST: no atlas blit'); return null; }
-    const m = bakeMap(world, S.N);
+    const m = yield* bakeMapSteps(world, S.N, due);
     st.map = { N: m.N, x0: m.x0, z0: m.z0, inv: m.inv, poolMean: m.poolMean, wispMean: m.wispMean };
     st.bakeMs = m.ms;
     AT.blit(renderer, m.px, m.N, S.X, AT.AP.TILE_Y);
@@ -244,7 +256,8 @@ var FMIST = (function () {
     L[51] = S.elong; L[47] = st.wind ? Math.atan2(st.wind[1], st.wind[0]) : (S._windA || 0);
     if (L.length >= 52 && day && ATMO.sunTransmittance) {
       const key = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon) ? day.moon : day.sun;
-      const up = key[1] > -0.02 ? 1 : 0, Tk = ATMO.sunTransmittance(0.15, Math.max(0.01, key[1]), st._T || (st._T = [0, 0, 0]));
+      // (NIGHT-SUN, atmo.js THE LIGHT SEEN: the beam goes with the share of the key's disc over the pockets' horizon - it was whole down to -1.15 deg, then cut)
+      const up = ATMO.discOver && !ATMO.NIGHTSUN_OFF ? ATMO.discOver(key[1], 0.15, key === day.moon ? ATMO.P.moonRad : ATMO.P.sunRad) : (key[1] > -0.02 ? 1 : 0), Tk =ATMO.sunTransmittance(0.15, Math.max(0.01, key[1]), st._T || (st._T = [0, 0, 0]));
       const moonK = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon && ATMO.U.eMoon) ? ATMO.U.eMoon.value : 1;
       const sc = ATMO.U.scale.value * up * moonK * S.sunK;
       L[48] = Tk[0] * sc; L[49] = Tk[1] * sc; L[50] = Tk[2] * sc;
@@ -502,6 +515,6 @@ ${compactLoop ? `      int surfN = int(ceil(clamp(uMist[10].x, 0.0, 8.0)));
       // hard cap flattened exactly the cores that gave the run11 pick its definition.
       return od / (1.0 + od / ${S.odCap.toFixed(2)});
     }`;
-  return { ON, A, B, C, automatic, methodForClouds, S, use, densCPU, rhoOf, level, bakeMap, strengths, bake, update, stats, GLSL };
+  return { ON, A, B, C, automatic, methodForClouds, S, use, densCPU, rhoOf, level, bakeMap, bakeMapSteps, strengths, bake, bakeSteps, update, stats, GLSL };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = FMIST;

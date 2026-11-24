@@ -1,0 +1,18 @@
+{
+ "id": "clients.n2",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": null,
+ "timeS": 0,
+ "why": "no official plane can do it (73_ contractCanDo): cub: Cub: 175 kg aboard, the cabin takes 90 kg; jodel: Jodel: 175 kg aboard, the cabin takes 90 kg; c172: Cessna 172: stretcher (2 x 0.6 x 0.5 m) passes no door; c172f: Cessna floats: stretcher (2 x 0.6 x 0.5 m) passes no door; L8: Chinook: 175 kg aboard, the cabin takes 90 kg; L9: Stearman-alike: 175 kg aboard, the cabin takes 120 kg; L10: Tiger Moth-alike: 175 kg aboard, the cabin takes 100 kg; L11: Camel-alike: 1 passengers, 0 seats beside the pilot; L12: DC-3-alike: stretcher (2 x 0.6 x 0.5 m) passes no door; L25: PA-18 on floats: 175 kg abo",
+ "tried": [],
+ "legs": [],
+ "attempts": [],
+ "notes": [],
+ "untested": false,
+ "key": "614b2ff5e77b",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 7
+}

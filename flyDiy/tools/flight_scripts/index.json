@@ -80,6 +80,11 @@
   "file": "perf/pan_town.json"
  },
  {
+  "name": "perf_alp_rocks_orbit",
+  "what": "ALP-ROCKS (MOUNTAIN-VEG, PERF-LEAD 22 Nov): the alpine rock scatter's price IN FLIGHT - the user's Cub off tw_ski (Skyline altiport, the subalpine and the summits round it), a low leg over the rocky ground then the same 250 m higher; run twice on one build: default, then ?alprocks=0",
+  "file": "perf/alp_rocks_orbit.json"
+ },
+ {
   "name": "perf_takeoff_altiport",
   "what": "THE USER'S TAKE-OFFS (l.11): the user's Cub off tw_ski (the start chooser): the taxi, the line-up and the take-off",
   "file": "perf/takeoff_altiport.json"

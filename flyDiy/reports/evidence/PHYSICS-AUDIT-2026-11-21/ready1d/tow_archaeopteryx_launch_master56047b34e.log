@@ -1,0 +1,78 @@
+t 0 agl 1 V 0.0 vy 0.0 pitch -9.1 line on T 0 car 0.0 de 0.00
+t 1 agl 1 V 0.0 vy -0.0 pitch -9.0 line on T 0 car 2.6 de 0.00
+t 2 agl 1 V 5.1 vy 0.0 pitch -2.2 line on T 1215 car 4.7 de 0.00
+t 3 agl 1 V 6.9 vy -0.0 pitch -5.9 line on T 569 car 7.0 de 0.00
+t 4 agl 1 V 9.1 vy -0.0 pitch -8.8 line on T 596 car 9.2 de 0.00
+t 5 agl 1 V 10.9 vy -0.1 pitch -8.7 line on T 341 car 10.7 de 0.00
+t 6 agl 1 V 10.7 vy -0.0 pitch -8.7 line on T 347 car 10.9 de 0.00
+t 7 agl 1 V 13.1 vy -0.1 pitch -8.3 line on T 603 car 13.1 de 0.00
+t 8 agl 1 V 15.3 vy 0.0 pitch -7.2 line on T 584 car 15.3 de 0.62
+t 9 agl 1 V 17.4 vy 1.6 pitch 5.6 line on T 734 car 17.5 de 0.00
+t 10 agl 4 V 19.6 vy 4.2 pitch 8.4 line on T 836 car 19.2 de -0.09
+t 11 agl 9 V 21.5 vy 5.9 pitch 11.0 line on T 956 car 20.6 de -0.10
+t 12 agl 16 V 23.4 vy 7.7 pitch 13.6 line on T 1100 car 21.8 de -0.08
+t 13 agl 25 V 25.4 vy 9.9 pitch 17.0 line on T 1333 car 22.8 de -0.07
+t 14 agl 36 V 27.8 vy 13.1 pitch 22.0 line on T 1802 car 23.5 de -0.08
+t 15 agl 52 V 31.1 vy 17.3 pitch 27.7 line on T 2475 car 23.9 de -0.03
+t 16 agl 72 V 35.6 vy 22.4 pitch 32.3 line on T 3478 car 23.8 de -0.02
+t 17 agl 97 V 26.5 vy 25.4 pitch 67.8 line off car 24.0 de -0.70
+t 18 agl 109 V 5.4 vy 4.9 pitch -70.3 line off car 25.4 de 0.70
+t 19 agl 109 V 5.0 vy -4.6 pitch 27.7 line off car 26.7 de -0.30 GLIDE
+t 20 agl 100 V 13.4 vy -13.4 pitch 47.8 line off car 27.8 de -0.30 GLIDE
+t 21 agl 83 V 20.7 vy -20.5 pitch -31.6 line off car 28.3 de 0.35 GLIDE
+t 22 agl 62 V 18.3 vy -14.6 pitch 13.4 line off car 28.4 de -0.30 GLIDE
+t 23 agl 47 V 17.5 vy -16.6 pitch -17.7 line off car 28.4 de 0.35 GLIDE
+t 24 agl 27 V 23.8 vy -21.9 pitch -55.9 line off car 28.3 de 0.35 GLIDE
+t 25 agl 12 V 14.8 vy -8.5 pitch 25.9 line off car 28.2 de -0.30 GLIDE
+t 26 agl 3 V 9.7 vy -5.7 pitch 52.5 line off car 28.1 de -0.30 FLARE
+t 27 agl 1 V 3.0 vy 0.7 pitch 13.6 line off car 28.1 de 0.30 FLARE
+t 28 agl 1 V 1.1 vy -0.2 pitch 33.0 line off car 28.1 de 0.66 FLARE
+t 29 agl 1 V 0.2 vy -0.1 pitch 12.6 line off car 28.0 de 0.70 FLARE
+t 30 agl 1 V 0.0 vy -0.0 pitch 9.3 line off car 28.0 de 0.70 FLARE
+t 31 agl 1 V 0.0 vy -0.0 pitch 9.1 line off car 28.0 de 0.70 FLARE
+t 32 agl 1 V 0.0 vy 0.0 pitch 8.8 line off car 28.0 de 0.70 FLARE
+t 33 agl 1 V 0.0 vy -0.0 pitch 8.7 line off car 28.0 de 0.70 FLARE
+t 34 agl 1 V 0.0 vy -0.0 pitch 8.6 line off car 28.0 de 0.70 FLARE
+t 35 agl 1 V 0.0 vy -0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 36 agl 1 V 0.0 vy 0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 37 agl 1 V 0.0 vy 0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 38 agl 1 V 0.0 vy -0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 39 agl 1 V 0.0 vy -0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 40 agl 1 V 0.0 vy -0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 41 agl 1 V 0.0 vy 0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 42 agl 1 V 0.0 vy -0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 43 agl 1 V 0.0 vy -0.0 pitch 8.5 line off car 28.0 de 0.70 FLARE
+t 44 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 45 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 46 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 47 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 48 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 49 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 50 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 51 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 52 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 53 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 54 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 55 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 56 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 57 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 58 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 59 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 60 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 61 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 62 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 63 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 28.0 de 0.70 FLARE
+t 64 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 27.9 de 0.70 FLARE
+t 65 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 26.4 de 0.70 FLARE
+t 66 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 25.0 de 0.70 FLARE
+t 67 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 23.6 de 0.70 FLARE
+t 68 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 22.2 de 0.70 FLARE
+t 69 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 20.8 de 0.70 FLARE
+t 70 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 19.5 de 0.70 FLARE
+t 71 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 18.1 de 0.70 FLARE
+t 72 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 16.7 de 0.70 FLARE
+t 73 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 15.3 de 0.70 FLARE
+t 74 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 13.9 de 0.70 FLARE
+t 75 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 12.5 de 0.70 FLARE
+t 76 agl 1 V 0.0 vy -0.0 pitch 8.4 line off car 11.1 de 0.70 FLARE
+{"mass":166.16262375465442,"lift":{"t":8.783333333333333,"V":16.88177897441485,"x":73.88304630068203},"rel":"the weak link broke (6.0 kN)","relT":16.666666666666668,"relH":87.82602273321599,"relV":37.08805941382642,"maxH":110.61834327566427,"bad":false,"Tmax":6001.553693566013,"phases":["CLIMB","GLIDE","FLARE"],"glider":{"field":"Jolene AFB 13/31","way":"heading 131 deg","side":"left","W":220,"E":4,"Em":0.8,"stages":[]},"landing":null,"outcome":"capsized"}

@@ -1,0 +1,14 @@
+  fly:metal: WP1 468 m of 1440, +160.5 m
+  fly:metal: WP2 323 m of 433, -9.6 m
+  fly:metal: WP3 63 m of 150, -1.3 m
+  fly:metal: WP4 38 m of 150, -1.5 m
+  fly:metal: WP5 0 m of 150, +1.9 m
+  fly:metal: HOLD>ROLL>LIFTOFF>CLIMB>ROUTE>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 742 s; vs flown outside 0.5 s (worst 0.56, the hand-over's first 10 s -0.75 m/s past); route 85-387 s, min 151 m agl, reversals 3.2/3.8
+  fly:metal: 4 failed (576 s)
+  FAIL fly:metal: the drawn profile is clean for this aeroplane (no conflict, no point it cannot make) - WP1 climbs 2.6 m/s, plan limit +2.5
+  FAIL fly:metal: WP1 at 175 m +-15 - +160.5 m
+  FAIL fly:metal: the vertical speed flown stays inside them (1 s mean, +-0.5 m/s) - 0.5 s outside (31 steps), worst 0.56 m/s past
+  FAIL fly:metal: the pilot's own captures agree with the trace - 1009 323 63 38 0
+ROUTE: 4 failure(s), 576 s
+GATE ROUTE: FAIL
+exit 1

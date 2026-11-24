@@ -1,0 +1,97 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_crash_cub_nosedown_magenta",
+ "what": "ROW 15, IS THE BLUE SCREEN THE PAGE SHOWING THROUGH? (23 Nov; the Deform Coordinator's test.) The page's background is a pale sky blue (style.css: html, body { background: #cfe0ec }). crash_cub_nosedown with that background set to MAGENTA before the take-off: if the screen goes magenta at the impact, the canvas is not being shown and the page is - the draw guard's held frames (shader_warm.js guard, aa.hold: a frame whose draw waits for a program is not resolved onto the canvas). Run with --screencast.",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "HOME",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "roll-out",
+   "do": "start",
+   "until": {
+    "phase": [
+     "TAXI",
+     "DEPART",
+     "LINEUP",
+     "STOP",
+     "HOLD"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "skip to the start",
+   "do": "skip",
+   "until": {
+    "phase": [
+     "HOLD",
+     "ROLL",
+     "LIFTOFF",
+     "CLIMB"
+    ]
+   },
+   "capS": 90
+  },
+  {
+   "name": "the page's background magenta",
+   "do": "page",
+   "js": "(() => { document.documentElement.style.background = '#ff00ff'; document.body.style.background = '#ff00ff'; const G = window.FLYDIY_GUARD; return 'page background magenta; guard ' + (G ? JSON.stringify(G.stats && { held: G.stats.held, compiles: G.stats.compiles, ready: G.stats.ready, timedOut: G.stats.timedOut }) : 'absent'); })()",
+   "until": {
+    "s": 1
+   },
+   "capS": 10
+  },
+  {
+   "name": "take-off to 50 m",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "DOWNWIND",
+     "ENROUTE"
+    ],
+    "agl": 50
+   },
+   "capS": 240
+  },
+  {
+   "name": "the nose down, into the ground",
+   "do": "page",
+   "js": "(() => { const P = window.FLIGHT_PROBE; P.setManual(true, 'rig'); const I = P.input(); if (window.__NOSE) clearInterval(window.__NOSE); let n = 0; window.__NOSE = setInterval(() => { try { I.setAxis('pitch', -1); if (++n > 1500 || P.over()) clearInterval(window.__NOSE); } catch (e) { clearInterval(window.__NOSE); } }, 16); I.setAxis('pitch', -1); return 'manual ' + P.manual() + ', the stick HELD forward (pitch axis ' + I.axis('pitch') + '), agl ' + (+P.agl()).toFixed(1); })()",
+   "until": {
+    "s": 14
+   },
+   "capS": 40,
+   "allow": [
+    "crash",
+    "yield",
+    "dent",
+    "prop-strike"
+   ]
+  },
+  {
+   "name": "orbit the wreck",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 15,
+   "dist": 20
+  },
+  {
+   "name": "the guard's count",
+   "do": "page",
+   "js": "(() => { const G = window.FLYDIY_GUARD, A = window.FLYDIY_AA; return 'guard ' + (G ? JSON.stringify({ held: G.stats.held, compiles: G.stats.compiles, ready: G.stats.ready, timedOut: G.stats.timedOut, heldNow: G.heldNow, what: (G.stats.what || []).slice(0, 40) }) : 'absent') + ' | frames the AA stage held: ' + (A && A.held ? A.held() : 'n/a'); })()",
+   "until": {
+    "s": 1
+   },
+   "capS": 10,
+   "allow": [
+    "crash",
+    "yield",
+    "dent",
+    "prop-strike"
+   ]
+  }
+ ]
+}

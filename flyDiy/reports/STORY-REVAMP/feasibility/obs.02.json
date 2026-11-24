@@ -1,0 +1,67 @@
+{
+ "id": "obs.02",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+ "timeS": 678,
+ "why": "the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax",
+ "tried": [
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mt_strip",
+   "t": 678,
+   "how": "stopped",
+   "at": "mt_strip",
+   "stop": [],
+   "kg": 140,
+   "pax": 1,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 678,
+     "how": "stopped",
+     "kg": 140,
+     "pax": 1,
+     "said": [
+      "strip-short: 210 m of strip for a 194 m landing run — landing short-field, no margin",
+      "slip: high on energy on the short final (+8.1 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 23.4 m/s at this power — flying the approach faster"
+     ],
+     "landing": {
+      "run": 84,
+      "sink": 1.98,
+      "V": 26.8,
+      "offCentre": 12.2,
+      "pastAim": -1,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 9,
+      "stopLeft": 118
+     },
+     "stop": "aboard 140 kg / 1 pax, the job is 200 kg / 1 pax"
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "7cfccac05b90",
+ "where": "observatory:2",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 514
+}

@@ -1,0 +1,78 @@
+t 0 agl 1 V 0.0 vy 0.0 pitch -9.1 line on T 0 car 0.0 de 0.00
+t 1 agl 1 V 0.0 vy -0.0 pitch -9.0 line on T 0 car 2.6 de 0.00
+t 2 agl 1 V 5.1 vy 0.0 pitch -2.2 line on T 1215 car 4.7 de 0.00
+t 3 agl 1 V 6.9 vy -0.0 pitch -5.9 line on T 569 car 7.0 de 0.00
+t 4 agl 1 V 9.1 vy -0.0 pitch -8.8 line on T 595 car 9.2 de 0.00
+t 5 agl 1 V 10.9 vy -0.1 pitch -8.7 line on T 336 car 10.7 de 0.00
+t 6 agl 1 V 10.7 vy -0.0 pitch -8.7 line on T 346 car 10.9 de 0.00
+t 7 agl 1 V 13.1 vy -0.1 pitch -8.3 line on T 601 car 13.1 de 0.00
+t 8 agl 1 V 15.3 vy -0.0 pitch -7.1 line on T 574 car 15.3 de 0.62
+t 9 agl 1 V 17.4 vy 1.7 pitch 5.7 line on T 726 car 17.5 de -0.01
+t 10 agl 4 V 19.7 vy 4.4 pitch 8.8 line on T 851 car 19.2 de -0.11
+t 11 agl 10 V 21.6 vy 6.1 pitch 11.3 line on T 971 car 20.6 de -0.11
+t 12 agl 17 V 23.5 vy 8.0 pitch 14.0 line on T 1121 car 21.8 de -0.09
+t 13 agl 26 V 25.5 vy 10.2 pitch 17.6 line on T 1367 car 22.8 de -0.08
+t 14 agl 38 V 28.0 vy 13.4 pitch 22.6 line on T 1845 car 23.5 de -0.09
+t 15 agl 53 V 31.5 vy 17.9 pitch 28.3 line on T 2571 car 23.8 de -0.02
+t 16 agl 74 V 36.1 vy 22.9 pitch 32.2 line on T 3401 car 23.7 de 0.01
+t 17 agl 99 V 30.8 vy 26.7 pitch 82.5 line off car 23.7 de -0.70
+t 18 agl 112 V 7.4 vy 5.1 pitch -50.7 line off car 25.1 de 0.70
+t 19 agl 112 V 6.0 vy -4.4 pitch 63.0 line off car 26.4 de -0.30 GLIDE
+t 20 agl 103 V 13.7 vy -12.7 pitch 52.9 line off car 27.6 de -0.30 GLIDE
+t 21 agl 88 V 19.9 vy -17.2 pitch 66.4 line off car 28.2 de -0.30 GLIDE
+t 22 agl 66 V 25.4 vy -25.4 pitch 56.3 line off car 28.4 de -0.30 GLIDE
+t 23 agl 41 V 26.7 vy -22.9 pitch -19.0 line off car 28.4 de 0.35 GLIDE
+t 24 agl 26 V 18.8 vy -14.3 pitch 37.2 line off car 28.3 de -0.30 GLIDE
+t 25 agl 10 V 20.4 vy -19.4 pitch -64.3 line off car 28.2 de 0.35 GLIDE
+t 26 agl 1 V 1.2 vy -0.9 pitch -36.0 line off car 28.2 de 0.15 ROLLOUT
+t 27 agl 0 V 0.1 vy -0.1 pitch -28.1 line off car 28.1 de 0.35 STOPPED
+t 28 agl 0 V 0.1 vy -0.0 pitch -25.8 line off car 28.1 de 0.35 STOPPED
+t 29 agl 0 V 0.1 vy 0.0 pitch -25.2 line off car 28.0 de 0.35 STOPPED
+t 30 agl 0 V 0.0 vy -0.0 pitch -25.8 line off car 28.0 de 0.35 STOPPED
+t 31 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 32 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 33 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 34 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 35 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 36 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 37 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 38 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 39 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 40 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 41 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 42 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 43 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 44 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 45 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 46 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 47 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 48 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 49 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 50 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 51 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 52 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 53 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 54 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 55 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 56 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 57 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 58 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 59 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 60 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 61 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 62 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 63 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 64 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 28.0 de 0.35 STOPPED
+t 65 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 26.5 de 0.35 STOPPED
+t 66 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 25.0 de 0.35 STOPPED
+t 67 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 23.6 de 0.35 STOPPED
+t 68 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 22.3 de 0.35 STOPPED
+t 69 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 20.9 de 0.35 STOPPED
+t 70 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 19.5 de 0.35 STOPPED
+t 71 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 18.1 de 0.35 STOPPED
+t 72 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 16.8 de 0.35 STOPPED
+t 73 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 15.4 de 0.35 STOPPED
+t 74 agl 0 V 0.0 vy -0.0 pitch -25.3 line off car 14.0 de 0.35 STOPPED
+t 75 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 12.6 de 0.35 STOPPED
+t 76 agl 0 V 0.0 vy 0.0 pitch -25.3 line off car 11.2 de 0.35 STOPPED
+{"mass":166.16262375465442,"lift":{"t":8.766666666666666,"V":16.8569937498501,"x":73.61410305646598},"rel":"the weak link broke (6.0 kN)","relT":16.833333333333332,"relH":94.26151644340229,"relV":37.25027116228204,"maxH":113.00038238680793,"bad":false,"Tmax":6002.046752580734,"phases":["CLIMB","GLIDE","FLARE","ROLLOUT","STOPPED"],"glider":{"field":"Jolene AFB 13/31","way":"heading 131 deg","side":"left","W":220,"E":4,"Em":1,"stages":[]},"landing":{"run":0,"sink":15.95,"V":20,"offCentre":9.7,"pastAim":-212,"k":1,"three":false,"onStrip":true,"tdIn":302,"stopLeft":2023},"outcome":"capsized"}

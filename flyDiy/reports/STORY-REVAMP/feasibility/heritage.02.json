@@ -1,0 +1,18 @@
+{
+ "id": "heritage.02",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": null,
+ "timeS": 0,
+ "why": "no official plane can do it (73_ contractCanDo): cub: Cub: 300 kg aboard, the cabin takes 90 kg; jodel: Jodel: 300 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 300 kg aboard, the cabin takes 280 kg; c172f: Cessna floats: 300 kg aboard, the cabin takes 280 kg; L8: Chinook: 300 kg aboard, the cabin takes 90 kg; L9: Stearman-alike: 300 kg aboard, the cabin takes 120 kg; L10: Tiger Moth-alike: 300 kg aboard, the cabin takes 100 kg; L11: Camel-alike: 300 kg aboard, the cabin takes 20 kg; L12: DC-3-alike: totem (3 x 0.6 x 0.6 m) passes no door; L25: PA-18 on floats: 300 kg aboard, the cabin t",
+ "tried": [],
+ "legs": [],
+ "attempts": [],
+ "notes": [],
+ "untested": false,
+ "key": "ff4e975fa3b1",
+ "where": "heritage:2",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 6
+}

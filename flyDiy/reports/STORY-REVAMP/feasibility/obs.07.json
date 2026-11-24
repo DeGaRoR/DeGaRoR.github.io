@@ -1,0 +1,154 @@
+{
+ "id": "obs.07",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 0,
+ "why": "no progress: already loaded [declined]",
+ "tried": [
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible",
+  "PC-6 Turbo Porter:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mt_strip",
+   "t": 0,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "declined"
+   ],
+   "events": []
+  },
+  {
+   "from": "HOME",
+   "to": "mt_strip",
+   "t": 0,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "declined"
+   ],
+   "events": []
+  },
+  {
+   "from": "HOME",
+   "to": "mt_strip",
+   "t": 0,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "declined"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "no progress: already loaded [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 277 m landing run - not going there"
+     ]
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 277 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 277 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "infeasible",
+   "why": "no progress: already loaded [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 246 m landing run - not going there"
+     ]
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 246 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 246 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) flown with 3 aboard (the garage's seat door)",
+  "the seats as the job asks: PC-6 Turbo Porter flown with 3 aboard (the garage's seat door)"
+ ],
+ "untested": false,
+ "key": "a6e47c8e4499",
+ "where": "observatory:4",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 26
+}

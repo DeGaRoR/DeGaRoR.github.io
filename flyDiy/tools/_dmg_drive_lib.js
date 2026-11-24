@@ -97,7 +97,7 @@ function noseOver(key, o) {
   let W, strip, sim;
   const probe = C.makeSim(def, null);
   if (probe.hydro) { W = C.makeWorld(); strip = W.aerodromes.find(a => a.id === 'SEA'); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, strip); }
-  else { ({ W, strip } = L.flatWorld(0)); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 })); }
+  else { ({ W, strip } = L.flatWorld(0)); sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance(); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 })); }   // (STANCE-AS-GAME)
   L.lastRun.sim = sim;
   sim.ctl.thr = 0;
   for (let f = 0; f < 240; f++) sim.step(1 / 60);
@@ -211,6 +211,7 @@ function trunkStrike(key, o) {
 function tipStrike(key, o) {
   const C = L.core(), def = L.defOf(key, o), elev = 0, { W, TH, strip } = L.flatWorld(elev);
   const sim = C.makeSim(def, W); sim.reset(0); L.lastRun.sim = sim;
+  if (sim.stance) sim.stance();                    // (STANCE-AS-GAME: on its wheels, stood as the game stands it)
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev }));
   sim.ctl.brake = 1;
   for (let f = 0; f < 240; f++) sim.step(1 / 60);
@@ -315,7 +316,7 @@ function mountLoads(key, o) {
     const def = L.defOf(key, Object.assign({ probe: true }, o)), probe0 = C.makeSim(def, null);
     let W, strip, sim;
     if (probe0.hydro) { W = C.makeWorld(); strip = W.aerodromes.find(a => a.id === 'SEA'); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, strip); }
-    else { ({ W, strip } = L.flatWorld(0)); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 })); }
+    else { ({ W, strip } = L.flatWorld(0)); sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance(); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 })); }   // (STANCE-AS-GAME)
     for (let f = 0; f < 240; f++) sim.step(1 / 60);
     clearPeak(sim); sim.ctl.thr = 1; sim.ctl.brake = 1;
     for (let f = 0; f < 360; f++) { if (probe0.hydro) { for (let i = 0; i < sim.n; i++) { sim.v[i*3] *= 0.9; sim.v[i*3+2] *= 0.9; } } sim.step(1 / 60); }

@@ -110,7 +110,7 @@ console.log('PROP DISCS: every disc where it is drawn, in its own plane (LAZAIR-
       if (!o) bad.push(i + ': not drawn');
       else {
         if (Math.abs(q.at[0] - (e.x + o[0])) > 1e-9 || Math.abs(q.at[1] - (e.y + o[1])) > 1e-9) bad.push(i + ': off the drawn hub');
-        if (o[2] > 0 && Math.abs(q.R - o[2]) > 1e-9) bad.push(i + ': not the drawn radius');
+        if (o[4] > 0 && Math.abs(q.R - o[4]) > 1e-9) bad.push(i + ': not the drawn radius');
       }
       if (Math.abs(Math.hypot(...q.dir) - 1) > 1e-9) bad.push(i + ': no axis');
       if (e.mount === 'wing' && !(Math.sign(q.at[2]) === Math.sign(engZ(i)) && Math.abs(q.at[2] - engZ(i)) < 0.25)) bad.push(i + ': not on its own side (z ' + r2(q.at[2]) + ', its engine ' + r2(engZ(i)) + ')');
@@ -131,9 +131,9 @@ console.log('PROP DISCS: every disc where it is drawn, in its own plane (LAZAIR-
   ok(A.prop.length === 2 && D0.at && D1.at && Math.abs(D0.at[2] + D1.at[2]) < 1e-9 && Math.abs(D0.at[0] - D1.at[0]) < 1e-9 && Math.abs(D0.at[1] - D1.at[1]) < 1e-9 &&
      eL && eR && Math.abs(D0.at[2] - eL.p[2]) < 1e-6 && Math.abs(D1.at[2] - eR.p[2]) < 1e-6,
      `the Lazair: two discs, mirrored at the frame's engines (port z ${r2(D0.at && D0.at[2])} at ENGL ${r2(eL && eL.p[2])}, starboard ${r2(D1.at && D1.at[2])} at ENGR ${r2(eR && eR.p[2])})`);
-  ok(PL && PL.length === 2 && PL.every(o => o && o[2] > 0) && Math.abs(D0.R - PL[0][2]) < 1e-9 && Math.abs(D1.R - PL[1][2]) < 1e-9 && D0.drawn && D1.drawn,
-     `the Lazair: each disc's radius the drawn blade's (${r2(D0.R)} / ${r2(D1.R)} m, the editor's ${PL ? PL.map(o => o && r2(o[2])).join(' / ') : 'none'})`);
-  ok([D0, D1].every(q => q.dir && q.dir[0] === -1 && q.dir[1] === 0 && q.dir[2] === 0),
+  ok(PL && PL.length === 2 && PL.every(o => o && o[4] > 0) && Math.abs(D0.R - PL[0][4]) < 1e-9 && Math.abs(D1.R - PL[1][4]) < 1e-9 && D0.drawn && D1.drawn,
+     `the Lazair: each disc's radius the drawn blade's (${r2(D0.R)} / ${r2(D1.R)} m, the editor's ${PL ? PL.map(o => o && r2(o[4])).join(' / ') : 'none'})`);
+  ok([D0, D1].every(q => q.dir && Math.abs(q.dir[0] + 1) < 1e-6 && Math.abs(q.dir[1]) < 1e-3 && q.dir[2] === 0),
      'the Lazair: each disc square to its own thrust axis (no tilt: the y-z plane)');
   const pr = row(A.rows, 'aid.prop'), worst = A.prop.reduce((w, q) => (q.level === 'fail' || (q.level === 'warn' && w !== 'fail')) ? q.level : w, 'pass');
   ok(pr.level === worst && A.prop.every(q => q.level), `the Lazair: aid.prop judges every disc (${A.prop.map(q => q.level).join(', ')} -> ${pr.level}): ${pr.why}`);
@@ -158,13 +158,13 @@ console.log('PROP DISCS: every disc where it is drawn, in its own plane (LAZAIR-
   const J = joined('tools/fixtures/minimax_derived_2026-11-24.json'), PM = PO, d = C.buildGen(J);
   const sh = C.genShakedown(d, { corners: false, slim: true });
   const A = C.genDesignAids(d, sh, { propOff: PM }), D0 = A.prop[0] || {}, pr = row(A.rows, 'aid.prop');
-  ok(A.prop.length === 1 && D0.drawn && PM && PM[0] && Math.abs(D0.R - PM[0][2]) < 1e-9 && Math.abs(D0.R - 0.86) < 0.01 && D0.at[2] === 0,
+  ok(A.prop.length === 1 && D0.drawn && PM && PM[0] && Math.abs(D0.R - PM[0][4]) < 1e-9 && Math.abs(D0.R - 0.86) < 0.01 && D0.at[2] === 0,
      `the Minimax: one disc on the centreline at the drawn hub (x ${r2(D0.at && D0.at[0])}, y ${r2(D0.at && D0.at[1])}), its radius the drawn ${r2(D0.R)} m`);
   ok(pr.level !== 'fail', `the Minimax as built: the prop clears (${pr.level}: ${pr.why})`);
   // a smaller drawn propeller never fails where the larger one cleared; a disc grown into the ground fails
-  const small = C.genDesignAids(d, sh, { propOff: PM.map(o => o && [o[0], o[1], 0.5]) }), ps = row(small.rows, 'aid.prop');
+  const small = C.genDesignAids(d, sh, { propOff: PM.map(o => o && [o[0], o[1], o[2], o[3], 0.5]) }), ps = row(small.rows, 'aid.prop');
   ok(ps.level === 'pass' || (ps.level === pr.level && pr.level !== 'fail'), `the Minimax, a 1.0 m drawn propeller: ${ps.level} (${ps.why})`);
-  const gH = D0.ground != null ? D0.ground : 0, big = C.genDesignAids(d, sh, { propOff: PM.map(o => o && [o[0], o[1], D0.R + gH + 0.1]) }), pb = row(big.rows, 'aid.prop');
+  const gH = D0.ground != null ? D0.ground : 0, big = C.genDesignAids(d, sh, { propOff: PM.map(o => o && [o[0], o[1], o[2], o[3], D0.R + gH + 0.1]) }), pb = row(big.rows, 'aid.prop');
   ok(pb.level === 'fail' && big.prop[0].ground < 0 && /raise the disc/.test(pb.fix), `the Minimax, the drawn disc 10 cm into the ground: fail -> ${pb.fix}`);
 }
 console.log('UI');

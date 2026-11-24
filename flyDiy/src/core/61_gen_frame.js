@@ -2916,8 +2916,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // (FIN-MOUNT: the tip's wires go up and down the fin, below; its ties to the last ring stay - they are the stab's
     // roll path, G199.5: hung on the fin alone the v7 ultralight's stab rolled 5.4 deg on its mains through the taxi)
     if (stabOnFin) { stabTips.push([H, sd]); for (const r of ring) B(H, r, 'tail'); continue; }
-    B(H, TPT, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
-    B(H, TPB, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
+    // (PHYSICS-AUDIT step 2: `ext` - in the wind - only on a wire-braced tailplane, genTailBraced; a cantilever's
+    //  wires stand for the spar the lattice does not have: the same members, no drag, nothing to draw)
+    B(H, TPT, 'wire', genTailBraced(S), 'wire', null, { tens: true, pre: 5e-4 });
+    B(H, TPB, 'wire', genTailBraced(S), 'wire', null, { tens: true, pre: 5e-4 });
     for (const r of ring) B(H, r, 'tail');
   }
   B(HF.L[0], HF.R[0], 'tail'); B(HR.L[0], HR.R[0], 'tail');   // the carry-through
@@ -3024,8 +3026,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     for (const [H, sd] of stabTips) {
       const XS = sd === 'R' ? VX : VX2;
-      B(H, XS[Math.min(nV, j + 1)], 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
-      B(H, XS[j - 1], 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
+      B(H, XS[Math.min(nV, j + 1)], 'wire', genTailBraced(S), 'wire', null, { tens: true, pre: 5e-4 });
+      B(H, XS[j - 1], 'wire', genTailBraced(S), 'wire', null, { tens: true, pre: 5e-4 });
     }
   }
   // G327: the fin as one cluster with the post and the last ring it stands on

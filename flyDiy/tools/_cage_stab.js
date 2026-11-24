@@ -123,6 +123,11 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stChordTip', 'tip chord (of the root)',           0.30, 1.50, 0.01],
     ['stSweep',    'sweep (deg, the hinge rakes)',      -10, 45, 0.5],
     ['stHinge',    'elevator chord (of the root)',      0.08, 0.45, 0.005],
+    // PHYSICS-AUDIT step 2 (2026-11-21): the tailplane's BRACING is its drag - a fabric-covered stab is wire-braced to
+    // the fin post (four cables in the wind), a stressed-skin one is a cantilever (none); the row says otherwise when
+    // the aeroplane does (60_gen_spec genTailBraced, tail.brace). Absent at 0 (by its skin)
+    ['stBrace',    'bracing',                           0, 2, 1, ['by its skin', 'brace wires', 'none (cantilever)'],
+     { when: P => !+P.boomTwin }],
   ], 'open', { when: P => +P.stOn }],
   ['corners', [
     ['stTipZ',  'tip fore / aft (sweep)',     -0.60, 0.60, 0.005],

@@ -183,7 +183,7 @@ function buildSeat(parent, A, P, sx, zBack, sbs, SP, pl) {
     const own = P.paxSeatType != null ? Math.round(+P.paxSeatType) : -1;
     const pre = SG.PRESET_OF(P.seatType || 0);
     const t = own >= 0 ? own : (pre && pre.paxType != null ? pre.paxType : -1);
-    if (t >= 0 && t !== Math.round(P.seatType || 0)) P = Object.assign({}, P, { seatType: t });
+    if (t >= 0 && t !== Math.round(P.seatType || 0)) P = ((typeof window !== 'undefined' && window.CAGE_CHAIN && window.CAGE_CHAIN.over) || ((p, o) => Object.assign({}, p, o)))(P, { seatType: t });   // (PERF-SLIDERS: CAGE_CHAIN.over, no copy of every row)
   }
   const r = SG ? SG.build(parent, A, P, g, Object.assign({}, SP, { pax: isPax }), sbs) : null;
   // THE LAP BELTS ARE GONE (2026-09-20, the user, on the 172) and with the seat library no seat carries a belt (the
@@ -2544,14 +2544,18 @@ function solveGripJob(occ, j, ctx) {
     occ.fig.localToWorld(pole.copy(ctx.poleFig));
   } else {
     ikDefaultPole(occ, j.chain, pole);
-    const side = c.side === 'L' ? 1 : -1;
-    if (c.arm) {                    // elbows: down + in/out slider
-      pole.y -= 0.22 * s;
-      pole.x += side * (0.03 + (ctx.elbows || 0)) * s;
-    } else {                        // knees: up-forward + in/out slider
-      pole.y += 0.10 * s; pole.z += 0.10 * s;
-      pole.x += side * (ctx.knees || 0) * s;
-    }
+    // KNEE-SYM (the user 23 Nov: "the pilot position is not symmetric, its right knee is more inside than its left"):
+    // the offsets below were added along the WORLD's axes - in the shed the aeroplane lies along world x, so "out" was
+    // fore/aft (opposite for the two sides) and "forward" was sideways (the SAME side for both knees): a mirrored pair
+    // came out lopsided, and the pose hung on how the aeroplane was turned when it was built. They are the body's now:
+    // up, forward and OUT in the fig's own frame (+y up, +z the pilot's forward), out = the side the chain's root is on.
+    occ.fig.updateWorldMatrix(true, false);
+    occ.fig.getWorldQuaternion(_qf);
+    occ.bones[c.root].getWorldPosition(_hv);
+    const out = occ.fig.worldToLocal(_hv).x >= 0 ? 1 : -1;
+    if (c.arm) _hf.set(out * (0.03 + (ctx.elbows || 0)) * s, -0.22 * s, 0);   // elbows: down + in/out slider
+    else _hf.set(out * (ctx.knees || 0) * s, 0.10 * s, 0.10 * s);           // knees: up-forward + in/out slider
+    pole.add(_hf.applyQuaternion(_qf));
     // the pole the editor chose, in the fig's frame: what the join carries
     // so the flown solve bends the same elbow the same way
     j.poleFig = occ.fig.worldToLocal(pole.clone());
@@ -3873,9 +3877,14 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const recline = clamp((SP.rake - 7) + (pose || POSE_PILOT).recline, -10, 55);
     applyPose(occ.bones,
               seatedPose(recline, !(stick || thr || pedals), SP.tilt));
+    // SIT-OFFSET (the user 21 Nov: "additional controls to seat the pilot correctly in any seat, the position of his
+    // bottom"): the bottom's fore/aft and up/down on the seat - the pilot's own pair, everyone else's (co-pilot,
+    // passengers) the other; absent = 0, every saved build seats its crew where it did. The hands and feet IK onto the
+    // controls after this, so they follow
+    const sitZ = +(role === 'pilot' ? P.pilSitZ : P.paxSitZ) || 0, sitY = +(role === 'pilot' ? P.pilSitY : P.paxSitY) || 0;
     occ.fig.position.set(seat.x,
-                         seat.panY + 0.03 + (0.085 + CH.rig.hipDrop) * s,
-                         seat.zBack + 0.095 * s + 0.02);
+                         seat.panY + 0.03 + (0.085 + CH.rig.hipDrop) * s + sitY,
+                         seat.zBack + 0.095 * s + 0.02 + sitZ);
     occ.fig.updateMatrixWorld(true);
     // FEET WITHOUT PEDALS (G205, the user: 'sliders for controlling the feet
     // position of the passengers. Something like the pedals for the pilots,

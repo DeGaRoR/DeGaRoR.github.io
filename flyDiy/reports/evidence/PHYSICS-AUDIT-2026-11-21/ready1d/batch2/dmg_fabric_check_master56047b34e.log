@@ -1,0 +1,64 @@
+(365 s)
+1. the panels
+  ok    cub: 41 covered panels, 50.42 m2, all fabric ({"fabric":41})
+  ok    jodel: 41 covered panels, 45.32 m2, all fabric ({"fabric":41})
+  ok    metal: 44 covered panels, 58.04 m2, all sheet ({"sheet":44})
+  ok    floats: 40 covered panels, 60.53 m2, all sheet ({"sheet":40})
+  ok    twinFloats: 16 covered panels, 43.2 m2, all fabric ({"fabric":16})
+2. none when intact
+  ok    cub: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    jodel: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    metal: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    floats: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+  ok    twinFloats: parked 5 s, the FAR 23.473 drop, a flown 3.8 g pull - 0 ties / 0 broken, 0 ties / 0 broken, 0 ties / 0 broken
+3. the ties in a crash (the certificate stamped)
+  cub trunk25: 2 ties made (fabric), 0 torn (0 at birth), first 0.0804 s after contact, the tears at []; held / pieces at 0.5 / 1 / 2 / 4 s: 1/2 1/2 3/4 4/5; the covering took 0.76 kJ
+  ok    cub trunk25: the covering is tied across the parting (2 ties)
+  ok    cub trunk25: no tie before the first break
+  ok    cub trunk25: tension only - never a push, nothing while slack (20563 substeps with ties)
+  ok    cub trunk25: a live tie never past its strain at break (the worst live 7.27 %)
+  ok    cub trunk25: every torn tie tore by strain, past eu over its slack length (the least - (none torn))
+  ok    cub trunk25: a pair is tied once, ever
+  ok    cub trunk25: the covering HOLDS the struck wing - fewer held pieces than pieces on every frame a tie is live (275 / 275 frames)
+  ok    cub trunk25: read every 1 / 2 / 6 / 30 fixed steps (60 / 30 / 10 / 2 fps) - the same ties, torn at the same instants, the same bits (7f201aedc435 7f201aedc435 7f201aedc435 7f201aedc435)
+  cub trunk0: 2 ties made (fabric), 0 torn (0 at birth), first 0.056 s after contact, the tears at []; held / pieces at 0.5 / 1 / 2 / 4 s: 11/12 15/16 15/16 15/16; the covering took 0.47 kJ
+  ok    cub trunk0: the covering is tied across the parting (2 ties)
+  ok    cub trunk0: no tie before the first break
+  ok    cub trunk0: tension only - never a push, nothing while slack (20973 substeps with ties)
+  ok    cub trunk0: a live tie never past its strain at break (the worst live 8.00 %)
+  ok    cub trunk0: every torn tie tore by strain, past eu over its slack length (the least - (none torn))
+  ok    cub trunk0: a pair is tied once, ever
+  jodel trunk25: 5 ties made (fabric), 5 torn (5 at birth), first 0.0957 s after contact, the tears at [0.0957,0.0957,0.0957,0.0957,0.0957]; held / pieces at 0.5 / 1 / 2 / 4 s: 4/4 4/4 4/4 4/4; the covering took 0.00 kJ
+  ok    jodel trunk25: the covering is tied across the parting (5 ties)
+  ok    jodel trunk25: no tie before the first break
+  ok    jodel trunk25: tension only - never a push, nothing while slack (33031 substeps with ties)
+  ok    jodel trunk25: a live tie never past its strain at break (the worst live 0.00 %)
+  ok    jodel trunk25: every torn tie tore by strain, past eu over its slack length (the least 45.00 %)
+  ok    jodel trunk25: a pair is tied once, ever
+  metal trunk0: 4 ties made (sheet 4), 4 torn (0 at birth), first 0.0393 s after contact, the tears at [0.1074,0.1083,0.1473,0.1488]; held / pieces at 0.5 / 1 / 2 / 4 s: 8/8 8/8 8/8 8/8; the covering took 7.79 kJ
+  ok    metal trunk0: the covering is tied across the parting (4 ties)
+  ok    metal trunk0: no tie before the first break
+  ok    metal trunk0: tension only - never a push, nothing while slack (38157 substeps with ties)
+  ok    metal trunk0: a live tie never past its strain at break (the worst live 14.99 %)
+  ok    metal trunk0: every torn tie tore by strain, past eu over its slack length (the least 15.01 %)
+  ok    metal trunk0: a pair is tied once, ever
+4-5. the base's bytes
+  FAIL  cub t25: damage OFF - the base's bits (df861c5d44e4), no tie store
+  FAIL  cub t25: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (186b67e9424c)
+    cub t25, damage ON: 2 ties made - the run is its own (de92a7c06253, the base 6c8a933ccd97)
+  FAIL  cub t0: damage OFF - the base's bits (75709972d020), no tie store
+  FAIL  cub t0: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (123385a17832)
+    cub t0, damage ON: 7 ties made - the run is its own (0a36166fe46f, the base 0503144b2625)
+  FAIL  metal t25: damage OFF - the base's bits (9d4a8943f706), no tie store
+  FAIL  metal t25: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (86ed9f4eb825)
+    metal t25, damage ON: 4 ties made - the run is its own (4318c22dc957, the base 174ca146f36c)
+  FAIL  metal t0: damage OFF - the base's bits (350bdda9ddc8), no tie store
+  FAIL  metal t0: damage ON with the ties disabled (GEN_COVER.on = false) - the base's physics, its bits (0429b00b2077)
+    metal t0, damage ON: 4 ties made - the run is its own (ec764ea9b461, the base 14bdcf12d3b7)
+6. the drawing agrees (the hop)
+  ok    no tie key in a payload before a tie is made (82 payloads)
+  ok    the live and the torn ties reach the page's state on every payload once made (80 payloads, 0 off)
+  ok    a tear is a payload of its own (2)
+  39/47 checks
+GATE DMGFABRIC: FAIL
+exit 1

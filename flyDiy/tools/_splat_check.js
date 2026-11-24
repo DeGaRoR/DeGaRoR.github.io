@@ -513,7 +513,12 @@ function checkMineral(quiet) {
       for (let j = -2; j <= 2 && one; j++) for (let i = -2; i <= 2; i++) { const xx = Math.min(w - 1, Math.max(0, x + i)), yy = Math.min(h - 1, Math.max(0, y + j)); if (mm(T[yy * w + xx]) !== c) { one = false; break; } }
       if (one !== F[y * w + x] >= 128 || (F[y * w + x] & 127) !== (T[y * w + x] & 127)) bad++;
       if (T[y * w + x] >= 2) { land++; if (F[y * w + x] >= 128) landF++; } }
-    say(!bad && landF / land > 0.2, `the one-code flag matches the 5 x 5 brute force on 200000 of Jolene's cells (${bad} off), ${(100 * landF / land).toFixed(1)} % of land cells vote with one tap; the code under it untouched`); }
+    say(!bad && landF / land > 0.2, `the one-code flag matches the 5 x 5 brute force on 200000 of Jolene's cells (${bad} off), ${(100 * landF / land).toFixed(1)} % of land cells vote with one tap; the code under it untouched`);
+    // (PERF-WORLDBUILD, 23 Nov 2026) the flags made in steps - a yield wherever a host could ask for one - are the one-task flags
+    if (!ctx.SPLAT_GROUND.oneCodeSteps) say(false, 'SPLAT_GROUND.oneCodeSteps is missing (the flags in steps)');
+    else { const g = ctx.SPLAT_GROUND.oneCodeSteps(T, w, h, () => true); let ny = 0, r; for (;;) { r = g.next(); if (r.done) break; ny++; }
+      const F2 = r.value; let eq = F2.length === F.length; for (let k = 0; eq && k < F.length; k++) if (F[k] !== F2[k]) eq = false;
+      say(eq && ny > 100, `the one-code flags in steps are the one-task flags byte for byte (${ny} yields)`); } }
   const norm = (SP && SP.api) ? SP.api.norm() : {};
   say(Object.keys(norm).length > 8, `${Object.keys(norm).length} sets carry a gain from the imagery`);
   // THE LIST IS THE RULE: every surface here is rock, dirt, sand or snow and may

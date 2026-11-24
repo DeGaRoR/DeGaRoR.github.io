@@ -71,7 +71,7 @@
   const L = [];
   const C = window.CAGE_CHAIN = {
     on: !/(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || ''),
-    ok: true, why: '', layers: L, ORDER, FEEDS, REL_FEEDS, dirty: false,
+    ok: true, why: '', layers: L, ORDER, FEEDS, REL_FEEDS, DEFERS, dirty: false,
     last: null,           // the last chain: [{name, ran, ms}]
   };
   const fileOf = () => {
@@ -81,6 +81,7 @@
   };
   // ---- the recording view of P -------------------------------------------------------------------------------
   let CUR = null;                        // the layer whose own body is running
+  let DERK = null;                       // PERF-SLIDERS: the rows a derived read's function reads (C.derived, below)
   let RUN = null;                        // ...recorded or not (G2880: whose turn another layer is placed again in)
   const ADOPT = new WeakSet();           // G2880: objects a layer added inside another layer's turn
   const snapV = v => (v !== null && typeof v === 'object') ? (() => { try { return 'json:' + JSON.stringify(v); } catch (e) { return NaN; } })() : v;
@@ -89,7 +90,7 @@
   const viewOf = P => {
     let v = views.get(P);
     if (!v) views.set(P, v = new Proxy(P, {
-      get(t, k) { const x = t[k]; if (CUR && typeof k === 'string' && !CUR.reads.has(k)) CUR.reads.set(k, snapV(x)); return x; },
+      get(t, k) { const x = t[k]; if (DERK && typeof k === 'string') DERK.add(k); if (CUR && typeof k === 'string' && !CUR.reads.has(k)) CUR.reads.set(k, snapV(x)); return x; },
       has(t, k) { if (CUR && typeof k === 'string' && !CUR.reads.has(k)) CUR.reads.set(k, snapV(t[k])); return k in t; },
       ownKeys(t) { if (CUR) CUR.all = true; return Reflect.ownKeys(t); },
       getOwnPropertyDescriptor(t, k) { if (CUR && typeof k === 'string' && !CUR.reads.has(k)) CUR.reads.set(k, snapV(t[k])); return Reflect.getOwnPropertyDescriptor(t, k); },
@@ -104,7 +105,18 @@
   // ...and the scene's top-level objects each layer's own body added (a release that keeps a layer puts the layers'
   // groups back in the chain's order, as a whole build leaves them)
   const kids = ctx => (ctx && ctx.scene && ctx.scene.children) ? new Set(ctx.scene.children) : null;
-  const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); if (n > 0 && L[n]) { L[n].stat0 = statTxt(ctx); L[n].kids0 = kids(ctx); } });
+  // PERF-SLIDERS (23 Nov 2026): ...AND WHAT A LAYER ADDED BEFORE IT CALLED THE LAYERS UNDER IT (`pre`). The float layer draws a
+  // hull's tub, sponsons and spray strakes first thing in its body, then runs the chain below it; `objs` (what stands
+  // in the scene after the layers below, less what stood before) never held them, so a release that put each layer's
+  // groups back in a whole build's order (_cage_ui.js releaseSteps) left them ahead of the fuselage's own objects - the
+  // Super Petrel after a tail-span drag: the same objects, three places of the scene's order off the plain build's
+  // (GATE INSTANTREL, once CAGE_CHAIN.over let its releases go by the plan). A whole build adds them after the
+  // fuselage's objects and before every layer's own, the outermost layer's first.
+  const preOf = (n, ctx) => { const A = L[n].kidsA; if (!A || !ctx || !ctx.scene) return L[n].pre || [];
+    // (not the layers' under it: their own groups, nor what THEY added before the layers under them)
+    const inner = new Set(); for (let j = 0; j < n; j++) { for (const o of L[j].objs || []) inner.add(o); for (const o of L[j].pre || []) inner.add(o); }
+    return ctx.scene.children.filter(o => !A.has(o) && !inner.has(o) && !ADOPT.has(o)); };
+  const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); if (n > 0 && L[n]) { L[n].pre = preOf(n, ctx); L[n].kidsA = null; L[n].stat0 = statTxt(ctx); L[n].kids0 = kids(ctx); } });
   let childAcc = 0;
   // the clock (a node rig puts the machine's under the page's virtual one as window.__realNow)
   const now = () => (window.__realNow ? window.__realNow() : performance.now());
@@ -115,10 +127,10 @@
     const rec = C.on && ctx && ctx.__rec;
     const prev = CUR, prevRun = RUN;
     RUN = Ly;
-    if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.all = false; Ly.allSnap = null; } else CUR = null;
+    if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.der = null; Ly.all = false; Ly.allSnap = null; } else CUR = null;
     const outer = childAcc; childAcc = 0;
     const t0 = now();
-    Ly.stat0 = statTxt(ctx); Ly.kids0 = kids(ctx);
+    Ly.stat0 = statTxt(ctx); Ly.kids0 = kids(ctx); Ly.kidsA = Ly.kids0; Ly.pre = [];
     try { return Ly.f.call(PAGE, ctx); }
     finally {
       const k0 = Ly.kids0; Ly.kids0 = null;
@@ -127,6 +139,7 @@
       Ly.statApp = (st != null && Ly.stat0 != null && st.length >= Ly.stat0.length && st.slice(0, Ly.stat0.length) === Ly.stat0) ? st.slice(Ly.stat0.length) : '';
       const dt = now() - t0;
       Ly.ms = dt - childAcc; childAcc = outer + dt;
+      Ly.msRan = Ly.ms;                  // PERF-SLIDERS: its last RUN's ms (ms is 0 on a skipped turn) - the drag budget's guess
       if (rec && Ly.all) Ly.allSnap = snapV(rec.P);
       CUR = prev; RUN = prevRun;
     }
@@ -144,8 +157,38 @@
   });
   // ---- the build's side --------------------------------------------------------------------------------------
   // run(ctx, P, plan): the chain over ctx with P recorded (when on); `plan` from C.plan or null (every layer)
+  // PERF-SLIDERS (23 Nov 2026): THE AIRFRAME OF A SHEET, ONCE. GEAR_GEN.cageAirframe(mesh, scale) - the skin's faces
+  // bucketed by station, what every leg, strut, pad, float and nacelle is measured against - is asked for by the cowl
+  // (up to five times), the wing (three), the gear, the floats and the access plates, each time from the SAME sheet, and
+  // each time built again: ~3 ms a call on the Chinook, a dozen calls a whole build, one to three in every tick of a
+  // wing or a gear row (the garage at 5120: a quarter of the Chinook's 26 ms wing tick was the struts re-deriving a
+  // fuselage that had not moved). Here the answer is kept per sheet object and scale, under a STAMP of what the function
+  // reads (every vertex, every face's corners, material and cut offset), so a sheet edited in place is measured again;
+  // the airframe object is read-only to its callers (its one memo, __exact, is a function of it alone). Off: ?afmemo=0,
+  // CAGE_CHAIN.afMemo.on = false, or RELEASE_FAST_OFF (GATE INSTANT's long way builds without it).
+  const AF_OF = new WeakMap(), MAT_H = new Map();
+  C.afMemo = { on: !/(^|[?&])afmemo=0(&|$)/.test((typeof location !== 'undefined' && location.search) || ''), hits: 0, built: 0 };
+  const matH = m => { if (typeof m !== 'string') return +m || 0; let h = MAT_H.get(m); if (h === undefined) { h = 7; for (let i = 0; i < m.length; i++) h = (h * 31 + m.charCodeAt(i)) % 1000003; MAT_H.set(m, h); } return h; };
+  const afStamp = mesh => { const V = mesh.V, F = mesh.F; let a = 0, b = 0;
+    for (let i = 0; i < V.length; i++) { const p = V[i]; a += (p[0] + p[1] * 3.1 + p[2] * 7.3) * ((i % 13) + 1); }
+    for (let i = 0; i < F.length; i++) { const f = F[i]; if (!f || !f.v) { b += 0.5; continue; }
+      const v = f.v; let s = v.length * 31 + matH(f.m); for (let j = 0; j < v.length; j++) s += v[j] * (j + 2);
+      if (f.cutOff) s += f.cutOff[0] * 1.7 + f.cutOff[1] * 2.9 + f.cutOff[2] * 5.3;
+      b += s * ((i % 11) + 1); }
+    return V.length + ':' + F.length + ':' + a + ':' + b; };
+  const afWrap = () => { const GG = window.GEAR_GEN; if (!GG || typeof GG.cageAirframe !== 'function' || GG.cageAirframe.__memo) return;
+    const f0 = GG.cageAirframe;
+    const f = function (mesh, scale) {
+      if (!C.afMemo.on || window.RELEASE_FAST_OFF || !mesh || !mesh.V || !mesh.F || typeof mesh !== 'object') return f0(mesh, scale);
+      const k = scale || 1, st = afStamp(mesh);
+      let m = AF_OF.get(mesh); if (!m) AF_OF.set(mesh, m = new Map());
+      const e = m.get(k);
+      if (e && e.st === st) { C.afMemo.hits++; return e.AF; }
+      const AF = f0(mesh, scale); m.set(k, { st, AF }); C.afMemo.built++; return AF; };
+    f.__memo = true; GG.cageAirframe = f; };
   C.run = (ctx, P, plan) => {
     const UI = window.CAGE_UI;
+    afWrap();
     if (!C.on || !P) { PAGE.post && PAGE.post(ctx); return; }
     const view = viewOf(P);
     const hadUI = !!(UI && UI.P === P);
@@ -182,6 +225,41 @@
       host.stat0 = r.line.slice(0, Math.max(0, host.stat0.length + r.delta));
     return r;
   };
+  // PERF-SLIDERS (23 Nov 2026): derived(P, name, fn) - A READ THROUGH A FUNCTION. A layer that depends on a row only through
+  // a threshold or a class (the dash's gear selector counts ONE lamp when the mains stand on the centreline: s1X > 0.01)
+  // recorded the row's raw value, so every tick of that row re-ran the layer - the DC-3's main gear station re-ran the
+  // whole crew layer (its seats, its floor, its panel: 1.4 of a 2.0 s tick in the page in node) for a lamp count that
+  // did not change. derived() runs fn(P) with the recording off and records fn's VALUE under `name` (and, apart, the rows
+  // fn read: derivedKeys(), GATE DERIVED's walk); the plan runs the layer when fn(P) answers differently (or throws).
+  // fn must be a pure function of P. ?derived=0, or CAGE_CHAIN.derivedOff = true (the gate's): the raw reads, as before.
+  C.derivedOff = /(^|[?&])derived=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+  C.derived = (P, name, fn) => {
+    if (C.derivedOff || !CUR) return fn(P);
+    const Ly = CUR, keys = new Set(); CUR = null; DERK = keys;
+    let v; const raw = new Map();
+    try { v = fn(P); for (const k of keys) raw.set(k, snapV(P[k])); } finally { CUR = Ly; DERK = null; }
+    (Ly.der || (Ly.der = new Map())).set(name, { fn, v: snapV(v), keys, raw });
+    return v;
+  };
+  // PERF-SLIDERS (23 Nov 2026): over(P, o) - P WITH A FEW ROWS LAID OVER IT, WITHOUT READING EVERY ROW OF P. A layer that
+  // handed a generator `Object.assign({}, P, { engMount: m })` read every row (the copy enumerates P: the record's `all`),
+  // so it re-ran on EVERY tick of ANY row - the cowl layer of every aeroplane with a nose-and-aft pair or three or four
+  // engines (engMount 4-7: the Pawnee, the sailplane, the twin-boom of the list, ~70 ms of each tick in the garage at
+  // 5120, whatever the slider), the wing's of one with a cabin pylon, the gear's of one carrying a spare wheel, the
+  // crew's of one whose passengers sit on another seat than the pilots. over() answers an object whose own rows are o's
+  // and whose every other row is read THROUGH to P (its prototype: the recording view records the rows the generator
+  // asks for, one by one). The generator must not enumerate what it is handed (none of the four does: _cage_cowl.js
+  // engineFaces, CAGE_PYLON.drawPylonBlade, GEAR_GEN.wheel, SEAT_GEN.build). ?derived=0 / derivedOff: the copy, as before.
+  C.over = (P, o) => (C.derivedOff ? Object.assign({}, P, o) : Object.assign(Object.create(P), o));
+  // derivedMoved(P): the layers one of whose derived reads stands on a row that reads differently now than when the layer
+  // last ran (the function's value may be the same: the layer did not run). With the raw read the layer WOULD have run
+  // in the drag - the release's rule on a crew that moved (_cage_ui.js) asks this so the release is the one it was.
+  C.derivedMoved = P => { const out = [];
+    for (const l of L) { if (!l.der) continue; let m = false;
+      for (const d of l.der.values()) { for (const [k, v] of d.raw) if (!same(snapV(P[k]), v)) { m = true; break; } if (m) break; }
+      if (m) out.push(l.name); }
+    return out; };
+  C.derivedKeys = () => { const out = new Set(); for (const l of L) if (l.der) for (const d of l.der.values()) for (const k of d.keys) out.add(k); return out; };
   // the run counter (each layer's `seq` is the counter at its last run)
   C.seqNow = () => SEQ;
   // only(names): a plan that runs the named layers (and the always-run ones) and skips the rest
@@ -211,6 +289,8 @@
         else if (release && Ly.mesh !== mesh) r = 'sheet';      // it last ran on another sheet (a detail row's tick)
         else if (Ly.all && !same(snapV(P), Ly.allSnap)) r = 'all';
         else for (const [k, v] of Ly.reads) if (!same(snapV(P[k]), v)) { r = k; break; }
+        // (PERF-SLIDERS: its derived reads - the value of a function of P, not the keys the function read)
+        if (!r && Ly.der) for (const [n, d] of Ly.der) { let v, bad = false; try { v = snapV(d.fn(P)); } catch (e) { bad = true; } if (bad || !same(v, d.v)) { r = n; break; } }
         if (r) {
           run[i] = true; why[i] = r;
           if (r !== 'always') {

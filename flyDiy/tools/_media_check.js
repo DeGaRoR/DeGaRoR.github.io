@@ -365,7 +365,10 @@ function manifestFiles() {
   // LIVERY-TEXT (9 Nov): the livery's faces - aeroskin.js's AERO_TXT_FACES names each style's file and the family's
   // licence (tools/livery_fonts_prep.js owns media/fonts)
   const faces = [path.join(ROOT, 'src', 'viewer', 'aeroskin.js')];
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people, faces);
+  // GARAGE-VIEW (22 Nov): tools/garage_view/install.js owns media/garage_view; the pack list names every file of every cooked scene
+  // (its row's `files`), and install prunes what a scene no longer names
+  const gviewp = path.join(ROOT, 'src', 'core', 'garage_view_packs.json'), gview = fs.existsSync(gviewp) ? [gviewp] : [];
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people, faces, gview);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json|woff2|woff|txt)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380); woff2/woff/txt: LIVERY-TEXT's faces and their licences
@@ -560,7 +563,7 @@ const present = walkMedia(MEDIA);
     // (tools/fiche_reference_bake.js) - named by fiche_physics.js, so held both ways: each one present, none orphaned
     const FPs = path.join(ROOT, 'src', 'viewer', 'fiche_physics.js'), FP = fs.existsSync(FPs) ? fs.readFileSync(FPs, 'utf8') : '';
     if (fetched && /'physics\.json'/.test(FP))
-      for (const b of Object.values((J && J.fiches) || {})) { const side = b && b.pics && b.pics.side; if (typeof side === 'string' && side.includes('/')) { const r = 'media/fiches/' + side.replace(/[^/]*$/, 'physics.json'); if (!refs.has(r)) refs.set(r, 'src/viewer/fiche_physics.js'); } }
+      for (const b of Object.values((J && J.fiches) || {})) { const side = b && b.pics && b.pics.side; if (typeof side === 'string' && side.includes('/')) { const r = 'media/fiches/' + (typeof b.physicsAt === 'string' && b.physicsAt ? b.physicsAt : side.replace(/[^/]*$/, 'physics.json')); if (!refs.has(r)) refs.set(r, 'src/viewer/fiche_physics.js'); } }
     if (/'media\/fiches\/references\.json'/.test(FP) && !refs.has('media/fiches/references.json')) refs.set('media/fiches/references.json', 'src/viewer/fiche_physics.js'); } }
 checkStore(refs, present);
 // MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that

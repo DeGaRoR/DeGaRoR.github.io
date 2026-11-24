@@ -1,0 +1,14 @@
+{
+  "pack": "jolene_home",
+  "world": "jolene",
+  "fixture": "island_jolene.json",
+  "field": "HOME",
+  "sheds": [
+    { "id": "HOME", "shell": "club", "name": "club hangar" },
+    { "id": "HOME.2", "shell": "works", "name": "large hangar" }
+  ],
+  "trees": 700,
+  "mid": { "u": 560, "v": 460, "out": 110 },
+  "near": { "out": 46, "in": 6, "side": 10 },
+  "times": ["now", "noon", "golden", "night"]
+}

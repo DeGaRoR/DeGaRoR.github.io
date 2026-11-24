@@ -17,6 +17,17 @@
 //                    nose (FLIGHT_PROBE.place by/dv, G1096), resumed, 4 s to settle - Go alone leaves it idling on the stand
 //        [--menu]    the welcome menu shown (?welcome=1) and its Sandbox pressed by a TRUSTED click, as a player does: the
 //                    music starts on the menu (menu_music.js) and the loading recording begins at that click
+//        [--stream 8] (the user 23 Nov: the strange sound comes "during loading and freezes") A REAL STREAMING FREEZE in
+//                    flight, after the stall test: a 32 s recording (AUDIO.stallTest with no scripted block: the trace,
+//                    the underrun counters), and 5 s in the aircraft jumps <km> ahead along its heading WITHOUT a pause
+//                    (a pause silences the sound), 300 m over the ground there, still at 50 m/s: the world streams in and
+//                    compiles around it while the engine plays. Writes <pass>_stream.wav and res.stream
+//        [--repo D:/Dev/perf-lab-built] serve another built tree (page_rig's repo; default this worktree). It must hold
+//                    AUDIO-ROBUST 4 (AUDIO.record, AUDIO.loadingBehind): the rig says so and stops the pass if not
+//        [--behind]  (garage first, PERF-LEAD 23 Nov) the loading recording goes on after the boot, while
+//                    AUDIO.loadingBehindOn (the world still building behind a live garage), up to 240 s
+// ROW 11 (music and radio during loading screens: audible, uninterrupted): summary.json <pass>.row11 = { pass, why }:
+//   the loading recording made, at least 20 s long, NO second under -60 dB (silentSeconds 0), the loading music switch on
 // A BOX RUN: A0's slot (tools/RIG-PROCEDURE.md 1), boxlock.sh take gpu AUDIO, one Chrome, nice 19, the CPU under 80 C.
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -102,18 +113,29 @@ async function pass(name, q, out, o) {
   const PR = require(path.join(__dirname, '..', 'page_rig.js'));
   const res = { pass: name, q };
   let loadStarted = false;
-  const rig = await PR.start({ cap: +opt('cap', 1500), q: flag('menu') ? [q, 'welcome=1'].filter(Boolean).join('&') : q, seed: o.seed, headed: flag('headed') || flag('live'), live: flag('live'), name: 'stall_rig_' + name,
+  const rig = await PR.start({ repo: opt('repo') || undefined, cap: +opt('cap', 1500), q: flag('menu') ? [q, 'welcome=1'].filter(Boolean).join('&') : q, seed: o.seed, headed: flag('headed') || flag('live'), live: flag('live'), name: 'stall_rig_' + name,
     onNavigate: async r => {
       if (flag('noload')) return;
       if (flag('menu')) {   // the menu: wait for it, press Sandbox with a trusted click (the gesture), record from there
-        let at = null;
-        for (let i = 0; i < 120 && !at; i++) { at = await r.J("(() => { const b = document.querySelector('#welcome [data-mode=sandbox]'); if (!b) return null; const q = b.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; })()").catch(() => null); if (!at) await sleep(250); }
-        if (!at) throw new Error('stall_rig: the welcome menu never showed (?welcome=1)');
+        // (22 Nov, the 09:56 turn lost: a FRESH profile with ?welcome=1 shows the GRAPHICS CARD first (welcome.js: a first
+        // run takes the card, then the menu) - its button '.wplay' ("Use <preset>") is pressed the same way, then the menu)
+        const where = sel => `(() => { const b = document.querySelector('${sel}'); if (!b || !b.offsetParent) return null; const q = b.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; })()`;
+        const click = async xy => { for (const type of ['mousePressed', 'mouseReleased']) await r.cmd('Input.dispatchMouseEvent', { type, x: xy[0], y: xy[1], button: 'left', clickCount: 1 }); };
+        let at = null, carded = 0;
+        for (let i = 0; i < 160 && !at; i++) {
+          at = await r.J(where('#welcome [data-mode=sandbox]')).catch(() => null);
+          if (!at && carded < 3) { const c = await r.J(where('#welcome .wplay')).catch(() => null); if (c) { await click(c); carded++; console.log('stall_rig: the graphics card shown first - its button pressed (' + name + ')'); await sleep(800); continue; } }
+          if (!at) await sleep(250);
+        }
+        res.menuCard = carded;
+        if (!at) console.log('stall_rig: NO welcome menu within 40 s - the gesture falls back to the plain click (' + name + ')');
+        else {
         res.menuRow = await r.J("(() => { const b = document.querySelector('#welcome .wmusicbtn'), s = document.querySelector('#welcome .wmusicsel'); return b ? { pill: b.textContent, station: s && s.value } : null; })()").catch(() => null);
-        for (const type of ['mousePressed', 'mouseReleased']) await r.cmd('Input.dispatchMouseEvent', { type, x: at[0], y: at[1], button: 'left', clickCount: 1 });
+        await click(at);
         await sleep(1500);
         res.menuMusic = await r.J("window.MENU_MUSIC ? { playing: MENU_MUSIC.playing, track: MENU_MUSIC.track, station: MENU_MUSIC.station } : null").catch(() => null);
         console.log('stall_rig: the menu pressed; its music ' + JSON.stringify(res.menuMusic) + ' (' + name + ')');
+        }
       }
       // the gesture: a TRUSTED click (CDP input) as soon as the page has a body and AUDIO is armed
       for (let i = 0; i < 240; i++) { if (await r.ev("!!(document.body && window.AUDIO && window.AUDIO.enabled)").catch(() => false)) break; await sleep(250); }
@@ -123,6 +145,16 @@ async function pass(name, q, out, o) {
       console.log('stall_rig: the loading recording ' + (loadStarted ? 'started' : 'did NOT start') + ' (' + name + ')');
     } });
   try {
+    if (!loadStarted && !flag('noload')) {
+      res.hasRecord = await rig.J("({ record: !!(window.AUDIO && AUDIO.record), behind: !!(window.AUDIO && 'loadingBehindOn' in AUDIO) })").catch(() => null);
+      if (res.hasRecord && !res.hasRecord.record) throw new Error('this build has no AUDIO.record: it does not hold AUDIO-ROBUST 4 (c8b7f21a5)');
+    }
+    if (loadStarted && flag('behind')) {   // the world still building behind the garage: keep recording
+      const t0 = Date.now(); let on = true;
+      while (on && Date.now() - t0 < 240000) { on = await rig.ev('!!(window.AUDIO && AUDIO.loadingBehindOn)').catch(() => false); if (on) await sleep(500); }
+      res.behindS = +((Date.now() - t0) / 1000).toFixed(1); res.behindTimedOut = on;
+      console.log('stall_rig: loading behind the garage ' + res.behindS + ' s' + (on ? ' (still on at 240 s)' : ''));
+    }
     if (loadStarted) {
       const r = await rig.ev('window.AUDIO.record.stop().then(' + B64 + ')', 60000);
       const pcm = new Int16Array(Buffer.from(r.b64, 'base64').buffer.slice(0));
@@ -165,6 +197,28 @@ async function pass(name, q, out, o) {
     const pcm = new Int16Array(Buffer.from(r.b64, 'base64').buffer.slice(0));
     wavWrite(path.join(out, name + '_stall.wav'), pcm, r.sr, r.ch); delete r.b64;
     res.stall = Object.assign(r, { analysis: analyseStall(wavRead(path.join(out, name + '_stall.wav')), r.marks, r.ctxT0) });   // (the marks carry ctx times; r.ctxT0 = the recording's start)
+    if (opt('stream')) {   // the streaming freeze (above)
+      const km = +opt('stream') || 8;
+      const pend = rig.ev('window.AUDIO.stallTest({ seconds: 32, blocks: [] }).then(' + B64 + ')', 150000);
+      await sleep(5000);
+      res.stream = await rig.J(`(async () => { const s = FLIGHT_PROBE.sim(), d = FLIGHT_PROBE.def(), p = s.p, W = FLIGHT_PROBE.world();
+        const avg = l => { let x = 0, y = 0, z = 0; for (const j of l) { x += p[3 * j]; y += p[3 * j + 1]; z += p[3 * j + 2]; } return [x / l.length, y / l.length, z / l.length]; };
+        const n = avg(d.refs.noseFrame), t = avg(d.refs.tailMid); let fx = n[0] - t[0], fz = n[2] - t[2]; const L = Math.hypot(fx, fz) || 1; fx /= L; fz /= L;
+        const c = s.cgPos ? s.cgPos() : n, x = c[0] + fx * ${km * 1000}, z = c[2] + fz * ${km * 1000};
+        let g = W && W.terrainH ? W.terrainH(x, z) : 0; if (W && W.waterH) { const w = W.waterH(x, z); if (Number.isFinite(w) && w > g) g = w; }
+        const t0 = performance.now(), cg = await FLIGHT_PROBE.place({ at: [x, g + 300, z], dv: [fx * 50, 0, fz * 50] });
+        return { cg, ground: g, km: ${km}, placeMs: performance.now() - t0, ctxT: AUDIO.ctx.currentTime }; })()`).catch(e => ({ error: String(e.message || e) }));
+      console.log('stall_rig: the streaming jump ' + JSON.stringify(res.stream));
+      const r = await pend;
+      const pcm = new Int16Array(Buffer.from(r.b64, 'base64').buffer.slice(0));
+      wavWrite(path.join(out, name + '_stream.wav'), pcm, r.sr, r.ch); delete r.b64;
+      const tr = r.trace, W = r.traceW, gaps = [];
+      for (let i = 0; i < tr.length; i += W) if (tr[i + 2] > 100) gaps.push([+(tr[i + 1] - r.ctxT0).toFixed(2), Math.round(tr[i + 2]), tr[i + 4], tr[i + 5]]);
+      res.streamRec = { peak: r.peak, clipped: r.clipped, playout: r.playout, frames: tr.length / W, gapsOver100ms: gaps.slice(0, 40), nGaps: gaps.length,
+        worstGapMs: gaps.reduce((m, g) => Math.max(m, g[1]), 0), jumpAtS: res.stream && res.stream.ctxT ? +(res.stream.ctxT - r.ctxT0).toFixed(2) : null,
+        analysis: analyseStall(wavRead(path.join(out, name + '_stream.wav')), [], r.ctxT0) };
+      console.log('stall_rig: the streaming freeze recorded ' + JSON.stringify({ peak: r.peak, clipped: r.clipped, playout: r.playout, worstGapMs: res.streamRec.worstGapMs, nGaps: gaps.length }));
+    }
     res.why = await rig.why();
   } catch (e) { res.error = String(e && e.message || e); res.why = await rig.why(); }
   await rig.close();
@@ -193,7 +247,16 @@ async function pass(name, q, out, o) {
   }
   const brief = {};
   for (const p of Object.keys(sum)) { const j = sum[p]; brief[p] = { error: j.error, stall: j.stall && j.stall.analysis, lateTicks: j.stall && j.stall.lateTicks, stallFrames: j.stall && j.stall.stallFrames, playout: j.stall && j.stall.playout,
-    load: j.load && { seconds: j.load.seconds, silentSeconds: j.load.silentSeconds, longestSilenceS: j.load.longestSilenceS, music: j.load.music } }; }
+    load: j.load && { seconds: j.load.seconds, silentSeconds: j.load.silentSeconds, longestSilenceS: j.load.longestSilenceS, music: j.load.music },
+    row11: (() => { const L = j.load, why = [];
+      if (!L) why.push('no loading recording'); else {
+        if (!(L.seconds >= 20)) why.push('recording only ' + L.seconds + ' s');
+        if (L.silentSeconds > 0) why.push(L.silentSeconds + ' silent s (longest ' + L.longestSilenceS + ' s)');
+        if (!(L.music && L.music.musicLoading)) why.push('loading music switch off');
+      }
+      return { pass: why.length === 0, why: why.join('; ') || 'audible every second of ' + (L && L.seconds) + ' s' }; })(),
+    behindS: j.behindS,
+    stream: j.streamRec && { peak: j.streamRec.peak, clipped: j.streamRec.clipped, playout: j.streamRec.playout, worstGapMs: j.streamRec.worstGapMs, nGaps: j.streamRec.nGaps, jumpAtS: j.streamRec.jumpAtS } }; }
   fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(brief, null, 1));
   console.log(JSON.stringify(brief, null, 1));
 })().catch(e => { console.error(e); process.exit(1); });

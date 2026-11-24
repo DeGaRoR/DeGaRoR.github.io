@@ -299,6 +299,8 @@ function cageJoinSpec(P, M, T) {
                // so the resolved spec of a build without them is the bytes it was). A P without the row says nothing
                ...(P.wgStrutSec != null ? { section: Math.round(+P.wgStrutSec) === 1 ? 'tube' : null } : {}),
                ...(P.wgJury != null ? { jury: [null, 'wing', 'cabin'][Math.round(+P.wgJury)] || null } : {}),
+               // PHYSICS-AUDIT step 2 (2026-11-21): the flying wires' section, stated in both states as the two above
+               ...(P.bpWireSec != null ? { wireSection: Math.round(+P.bpWireSec) === 1 ? 'streamline' : null } : {}),
                // G185: the cabane's drawing style where there is one, and the
                // truss on a biplane. SPEC-FIXPOINT (A3): STATED in every state
                // - the defaults (GEN_FIELDS 'bracing.*') where the aeroplane
@@ -894,6 +896,9 @@ function cageJoinSpec(P, M, T) {
   if (M.Sv > 0) tl.Sv = M.Sv;
   if (M.Svt > 0) tl.Svt = M.Svt;
   if (+P.tailDrawn) tl.drawn = 1;                  // REAL-CANON: PETREL-LS's drawn-tail rules (60_gen_spec, 61_gen_frame), latent
+  // PHYSICS-AUDIT step 2 (2026-11-21): the tailplane's bracing, stated in both states (null at "by its skin": the merge
+  // takes it off, the normaliser deletes it)
+  if (P.stBrace != null) tl.brace = [null, 'wires', 'none'][Math.round(+P.stBrace)] || null;
   if (M.hTaper > 0) tl.hTaper = M.hTaper;          // P4: the trusses' trapezoids
   if (M.vTaper > 0) tl.vTaper = M.vTaper;
   if (typeof M.dorsalArea === 'number' && isFinite(M.dorsalArea))
