@@ -15849,6 +15849,7 @@
     // the roll-out's own screen loads the world, as a first roll-out always could
     if (LAB.gf) { const G = LAB.gfS;
       if (G.joining) return;
+      if (!G.running && !G.done && G.armed && GF_BOOT) gfRun();   // (24 Nov: Go inside the run's start delay BEGINS it - the old path froze the garage 28 s and never linked the crash's programs)
       if (G.running) { gfJoin(() => rollOut(after, sync)); return; }
       if (!G.done) { G.done = true; G.why = 'Go before the background load began'; } }
     const reveal = () => { flRevealStart(); if (after) after(); };

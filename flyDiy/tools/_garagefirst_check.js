@@ -32,7 +32,10 @@ ok(/tripClose\(bootTrip\); if \(GF_BOOT\) gfArm\(\);/.test(src), '1e the backgro
 ok(/function gfSliceMs\(\) \{ const G = LAB\.gfS; if \(!gfLive\(\)\) return 40;/.test(src) && /performance\.now\(\) - t0 < SL\)/.test(src), '1f the world build\'s slice is 40 ms unless a background run is live');
 ok(/key: \(\) => 'lit' \+ \(gfLive\(\) && !LAB\.gfS\.warm \? '-bg' : ''\)/.test(src), '1g first light\'s key is \'lit\' unless a live run left its draws to Go (?gfwarm=0)');
 ok(/function craftInWorld\(fn\) \{\n\s+if \(!inGarage \|\| !WF\) return fn\(\);\n\s+if \(gfLive\(\)\) return fn\(\);/.test(src), '1h the aeroplane is lent to the world across tasks unless a background run is live');
-ok(/if \(LAB\.gf\) \{ const G = LAB\.gfS;\n\s+if \(G\.joining\) return;\n\s+if \(G\.running\) \{ gfJoin\(\(\) => rollOut\(after, sync\)\); return; \}/.test(src), '1i Go joins a live run, once; a run that never began is left to the roll-out\'s own screen');
+// (RE-PINNED 24 Nov 2026 08:00: "a run that never began is left to the roll-out's own screen" was the rule - a rig's row of 07:51
+//  on the default page clicked Go inside the run's 1.5 s start delay: the old path froze the garage 28 s, then a 71 s screen, and
+//  the crash's programs were never linked ahead - 25 links after the impact, a 12 s frame. Go now BEGINS the run and joins it)
+ok(/if \(LAB\.gf\) \{ const G = LAB\.gfS;\n\s+if \(G\.joining\) return;\n\s+if \(!G\.running && !G\.done && G\.armed && GF_BOOT\) gfRun\(\);[^\n]*\n\s+if \(G\.running\) \{ gfJoin\(\(\) => rollOut\(after, sync\)\); return; \}/.test(src), '1i Go joins a live run, once; Go before the run began begins it and joins it (the same steps, the crash\'s programs among them)');
 // (23 Nov, the garage's 1.4 s freeze: a live compile for another state - the shed dressed for the shot - left the sky's
 //  materials on programs still linking, and the garage's next frame drew them)
 ok(/const keepLive = gfLive\(\) && renderer\.properties \? \[\] : null;/.test(src) && /if \(keepLive\) for \(const \[pp, was\] of keepLive\) if \(pp\.currentProgram !== was\) \{ pp\.currentProgram = was; pp\.uniformsList = null;/.test(src),
