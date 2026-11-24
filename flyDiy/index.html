@@ -4938,7 +4938,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='e5eb1fe68e84';window.FLYDIY_BUILD_DATE='2026-11-23T13:39:32.700Z';</script>
+<script>window.FLYDIY_BUILD='292807f6177b';window.FLYDIY_BUILD_DATE='2026-11-24T02:25:18.506Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -15140,7 +15140,9 @@ var GROUND_WX = (function () {
 //   R coverage   0..1 — the fraction of the column the cloud fills, 0 = clear
 //   G height     0.5..1 — the column's own top as a fraction of the layer's
 //   B lumpiness  0..1 — a second noise the GLSL uses to vary the profile
-//   A wetness    reserved (precipitation is its own session)
+//   A rain       0..1 - the column's rain POTENTIAL (RAIN, 16 Nov 2026): where this deck rains when the day rains.
+//                The day's d.rain multiplies it at use (CLOUD_FIELD.rainAt, the march's uniform), so the map stays a
+//                pure function of (seed, cover, type): a dry day is bit-identical, a rain change never re-fits the map
 // The coverage's threshold is the (1 − cover) QUANTILE of the noise, so the
 // covered fraction of the map IS the day's cloudCover — exactly, not by eye
 // (GATE CLOUD holds it within 5 % after the soft edge).
@@ -15177,6 +15179,15 @@ var CLOUD_FIELD = (function () {
   const MAX_LAYERS = 3;                   // the low deck + two upper decks (the cirrus veil is the dome's, not a layer)
   const LAYER_GAP = 150;                  // m of clear air between one deck's top and the next one's base
   const typeOf = t => TYPES[t] ? t : 'cu';
+  // RAIN (16 Nov 2026; the user: "a proper, very optimized job"; RAIN-STUDY-2026-11-16 section 3.0): which decks rain and how.
+  //   'conv' (cu, cb): the dense, tall columns rain (Nubis: "high densities precipitate") - smoothstep(lo, hi, coverage x height)
+  //   'strat' (st, sc, as): broad, even rain under the sheet - the coverage x k (st a drizzle, sc light)
+  //   cuh (fair-weather cumulus) and ac never rain
+  const RAIN_OF = Object.freeze({ st: { k: 0.6 }, sc: { k: 0.8 }, as: { k: 1 }, cu: { lo: 0.45, hi: 0.85 }, cb: { lo: 0.3, hi: 0.7 } });
+  function rainPotential(type, c, h) {
+    const R = RAIN_OF[type]; if (!R || !(c > 0)) return 0;
+    return R.k != null ? R.k * c : smooth(R.lo, R.hi, c * h);
+  }
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
@@ -15227,7 +15238,7 @@ var CLOUD_FIELD = (function () {
       data[k * 4] = c;
       data[k * 4 + 1] = T.hsMin + (1 - T.hsMin) * clamp(0.6 * Math.sqrt(c) + 0.4 * C.h2[k], 0, 1);   // bigger columns stand taller
       data[k * 4 + 2] = C.l2[k];
-      data[k * 4 + 3] = 0;
+      data[k * 4 + 3] = rainPotential(type, c, data[k * 4 + 1]);
     }
     return { N, span: SPAN, data, cover, type, seed, lo, hi };
   }
@@ -15311,7 +15322,20 @@ var CLOUD_FIELD = (function () {
     if (out[i]) Object.assign(out[i], patch);
     return out;
   }
-  const API = { SPAN, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, LOW_EFF_STEP, typeOf, weatherMap, sample, coverFraction, profile, lowOf, layer, layers, upperWith, columnOD, vnoise, fbm };
+  // rainAt(map, lay, x, z, h, o) -> the rain rate 0..1 at a point (RAIN 16 Nov): o.rain (the day's d.rain; 0 or missing = 0,
+  // nothing sampled), o.drift (the deck's), o.wind [wx, wz] m/s and o.vFall (m/s, default VFALL): below the base the rain left
+  // the base (base - h) / vFall seconds ago, so it is read UP-WIND by wind x that time - the shafts slant. Inside the deck the
+  // potential itself; above the deck's top none.
+  const VFALL = 6.5;   // m/s - a 2 mm drop (Gunn & Kinzer 1949, read off the curve)
+  const _r4 = [0, 0, 0, 0];
+  function rainAt(map, lay, x, z, h, o) {
+    const rain = o && +o.rain > 0 ? Math.min(1, +o.rain) : 0;
+    if (!rain || !map || !lay || !RAIN_OF[lay.type] || h > lay.top) return 0;
+    const t = Math.max(0, lay.base - h) / Math.max(0.5, o.vFall || VFALL), w = o.wind || null;
+    const sx = w ? x - w[0] * t : x, sz = w ? z - w[1] * t : z;
+    return rain * sample(map, sx, sz, o.drift, _r4)[3];
+  }
+  const API = { SPAN, RAIN_OF, VFALL, rainPotential, rainAt, TYPES, TYPE_ORDER, MAX_LAYERS, LAYER_GAP, SIGMA, FILL, LOW_EFF_STEP, typeOf, weatherMap, sample, coverFraction, profile, lowOf, layer, layers, upperWith, columnOD, vnoise, fbm };
   return API;
 })();
 if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld) module.exports = CLOUD_FIELD;
@@ -73834,7 +73858,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f11b6fa2580a';window.FLYDIY_BUILD='e5eb1fe68e84';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=d627c4b0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='9af8eaf4cf3b';window.FLYDIY_BUILD='292807f6177b';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=d627c4b0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -73881,7 +73905,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 (function () {
-  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=8223a32c","_marine_gen":"tools/_marine_gen.js?v=0927fe16","_navaid_gen":"tools/_navaid_gen.js?v=130193d7","_meteo_gen":"tools/_meteo_gen.js?v=dfea6b31","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=cb49afc6","world_rail":"src/viewer/world_rail.js?v=bd26f847","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=4faa0ded","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=2e0b8354","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=7c369925","map_menu":"src/viewer/map_menu.js?v=a3af17d6","freight_load":"src/viewer/freight_load.js?v=01ed060d","freight_strap":"src/viewer/freight_strap.js?v=57f2d389","crowd":"src/viewer/crowd.js?v=ba5b4c86","cars_car":"src/cars/cars_car.js?v=25075f4b","cars_lods":"src/cars/cars_lods.js?v=fd2fd3d6","vehicle":"src/vehicle/vehicle.js?v=da9a3c68","car_sheet_core":"src/vehicle/car_sheet_core.js?v=6db3e366","vehicle_drive":"src/vehicle/vehicle_drive.js?v=f92de1eb","vehicle_island":"src/vehicle/vehicle_island.js?v=3053d17d","tow":"src/vehicle/tow.js?v=f004a7de","trailer":"src/vehicle/trailer.js?v=7df609b6","trailer_model":"src/vehicle/trailer_model.js?v=91e3faf1","drive_mode":"src/viewer/drive_mode.js?v=cc9e24cd","livery_marks":"src/viewer/livery_marks.js?v=d66a0572","winch":"src/vehicle/winch.js?v=9b8fb5a6","_winch_gen":"tools/_winch_gen.js?v=4bf64eac","_winch_weather":"tools/_winch_weather.js?v=59ba0b92","winch_mode":"src/viewer/winch_mode.js?v=b92bccae","_mission_gen":"tools/_mission_gen.js?v=7d29e5c7","mission_live":"src/viewer/mission_live.js?v=9a68f646"}, got = {}, busy = 0;
+  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=8223a32c","_marine_gen":"tools/_marine_gen.js?v=0927fe16","_navaid_gen":"tools/_navaid_gen.js?v=130193d7","_meteo_gen":"tools/_meteo_gen.js?v=dfea6b31","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=cb49afc6","world_rail":"src/viewer/world_rail.js?v=4d54e701","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=4faa0ded","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=2e0b8354","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=7c369925","map_menu":"src/viewer/map_menu.js?v=a3af17d6","freight_load":"src/viewer/freight_load.js?v=01ed060d","freight_strap":"src/viewer/freight_strap.js?v=57f2d389","crowd":"src/viewer/crowd.js?v=ba5b4c86","cars_car":"src/cars/cars_car.js?v=25075f4b","cars_lods":"src/cars/cars_lods.js?v=fd2fd3d6","vehicle":"src/vehicle/vehicle.js?v=da9a3c68","car_sheet_core":"src/vehicle/car_sheet_core.js?v=6db3e366","vehicle_drive":"src/vehicle/vehicle_drive.js?v=f92de1eb","vehicle_island":"src/vehicle/vehicle_island.js?v=3053d17d","tow":"src/vehicle/tow.js?v=f004a7de","trailer":"src/vehicle/trailer.js?v=7df609b6","trailer_model":"src/vehicle/trailer_model.js?v=91e3faf1","drive_mode":"src/viewer/drive_mode.js?v=cc9e24cd","livery_marks":"src/viewer/livery_marks.js?v=d66a0572","winch":"src/vehicle/winch.js?v=9b8fb5a6","_winch_gen":"tools/_winch_gen.js?v=4bf64eac","_winch_weather":"tools/_winch_weather.js?v=59ba0b92","winch_mode":"src/viewer/winch_mode.js?v=b92bccae","_mission_gen":"tools/_mission_gen.js?v=7d29e5c7","mission_live":"src/viewer/mission_live.js?v=9a68f646"}, got = {}, busy = 0;
   window.FLYDIY_LAZY_SRC = SRC;
   var lazy = window.FLYDIY_LAZY = function (names) {
     return Promise.all([].concat(names).map(function (n) {
@@ -171874,7 +171898,10 @@ var SKY_GLARE = (function () {
 // ============================================================
 var CLOUDS = (function () {
   'use strict';
-  const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
+  const S = { overcast: 1, ovcRho: 0.1,   // ovcRho (RAIN 13): a full deck's mean density for its diffuse light (tau = sigma x ovcRho x thickness); 0.1 (was 0.35): THE USER 23 Nov, "the lighter grey option definitely, maybe even less than this"
+                // THE OVERCAST (17 Nov): a deck at cover >= 0.85 - a solid base, darker under its thickness (0 = as before)
+    rainExt: 1, rainLight: 0.6, rainKm: 30, rainSteps: 6,   // RAIN step 1c (16 Nov): the shafts' density (x the 07d law), the sky light in them, their reach (km), the steps (lean 4)
+    mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
               shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, noiseMips: 0, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
@@ -171893,6 +171920,7 @@ var CLOUDS = (function () {
     uAmbTop: { value: null }, uAmbBot: { value: null }, uScale: { value: 1 }, uSteps: { value: null }, uFrame: { value: 0 },
     uDials: { value: null }, uCloudTex: { value: null }, uKeyTex: { value: null }, uTexel: { value: null }, uUp: { value: 1 }, uPM: { value: 0 },
     uShadowK: { value: null }, uDials2: { value: null }, uDepthK: { value: 1 }, uEye: { value: null }, uShape: { value: null },
+    uRain: { value: null }, uRainW: { value: null },   // RAIN step 1c: (the day's rain or 0, the density dial, steps, reach m) / (wind x / vFall, wind z / vFall, the sky light, 0)
   };
   // THE SHADOW'S SHARED UNIFORM: the scalars by reference through ShaderLib and inject(); the tile itself is
   // in ATMO's atlas (uApAtlas, already on every fogged program)
@@ -171963,8 +171991,11 @@ var CLOUDS = (function () {
     uniform vec4 uGlob;             // sigma (/m at full density), the map's span (m), detail period (m), the deck count
     uniform vec4 uLayerA[MAXL];     // per deck: base (m), thickness (m), on (1 / 0), the base noise's period (m)
     uniform vec4 uProfA[MAXL];      // per deck: bot, top, erode (the worley fbm's share subtracted from the base), coverage gain
-    uniform vec4 uDriftA[MAXL];     // per deck: drift x, drift z (m, the wind at the deck x the clock), 0, 0
-    uniform vec4 uShape;            // detail strength, curl, 0, 0
+    uniform vec4 uDriftA[MAXL];     // per deck: drift x, drift z (m, the wind at the deck x the clock), the deck's cover (THE OVERCAST, 17 Nov), 0
+    uniform vec4 uShape;            // detail strength, curl, the overcast's strength (17 Nov), 0
+    // THE OVERCAST (17 Nov; the user: "the cloud coverage is not there" - a storm's cb 98 % drew a wispy, pale-blue base that read as
+    // cirrus over a blue sky): how overcast deck li is, 0 below cover 0.85 (fair and broken skies untouched), x the dial
+    float ovcOf(int li) { return smoothstep(0.70, 0.90, uDriftA[li].z) * uShape.z; }   // (RAIN 15, 23 Nov: from 70 % cover - an ordinary 86 % stratus day kept the clear sky's blue deck under 0.85 - 1.0)
     // THE NOISE'S LEVELS (LOOK-1 2a, the study's C4): both 3D textures carry mips, and a ray has no useful derivatives, so every read names its
     // level. The main march sets these from the pixel's footprint; the shadow, the sky fit and the probes stay at level 0, as they were
     float gLodB = 0.0, gLodD = 0.0;
@@ -171990,7 +172021,7 @@ var CLOUDS = (function () {
       float hf = dn.r * 0.625 + dn.g * 0.25 + dn.b * 0.125;
       hf = mix(hf, 1.0 - hf, clamp(h * 8.0, 0.0, 1.0));           // wispy at the bottom, billowy above
       hf = mix(hf, 0.5, smoothstep(0.5, 2.5, gLodD));             // beyond the texel the erosion goes to its mean (what the levels converge on): the far cloud keeps its mass and loses the alias
-      return remap(base, hf * uShape.x, 1.0, 0.0, 1.0);
+      return remap(base, hf * uShape.x * (1.0 - 0.85 * ovcOf(li)), 1.0, 0.0, 1.0);   // (an overcast's base stays solid: the erosion fades out)
     }`;
 
   // ---- the march --------------------------------------------------------------
@@ -172021,11 +172052,14 @@ var CLOUDS = (function () {
   const MARCH_GLSL = () => `
     uniform vec4 uSun, uMoon;   // direction xyz, w: the moon lit?
     uniform vec3 uSunCol, uMoonCol, uAmbTop, uAmbBot;   // sun units
+    uniform vec4 uRain, uRainW;   // RAIN step 1c: x the day's rain (0 = dry: the march is what it was), y the density dial, z steps, w reach (m) / the slant per metre of fall, the sky light
     uniform float uScale, uFrame; uniform vec2 uSteps; uniform vec4 uDials, uDials2;   // dials: powder, g, ms decay, maxKm | jitter, the upper decks' shadow softness, the ambient's depth fall-off, 0
     // set by the screen march's main() only: the angle of a march texel (rad, 0 = the dome and the sky fit: level 0, as they were)
     float gPix = 0.0, gFullJ = 0.0, gTm = 0.0;   // gFullJ: the history is on: a whole step's jitter, per frame, at every distance; gTm: out: the cloud's mean distance (m)
     ${DENSITY_GLSL}
     ${ATMO_GLSL()}
+    // RAIN 13: the light falling on a full deck's top, as a grey (the sun x its height / pi + the sky); x 1 / (1 + 0.75 tau (1 - g)) below it
+    float ovcTop() { vec3 E = uSunCol * (max(uSun.y, 0.0) * 0.3183099) + uAmbTop; return dot(E, vec3(0.2126, 0.7152, 0.0722)); }
     float hg(float c, float g) { float g2 = g * g; return (1.0 - g2) / (12.5663706 * pow(1.0 + g2 - 2.0 * g * c, 1.5)); }
     float phase(float c, float g) { return 0.7 * hg(c, g) + 0.3 * hg(c, -0.3 * g); }
     // the light march: optical depth toward the sun from p, within deck li (its self-shadow)
@@ -172076,6 +172110,33 @@ var CLOUDS = (function () {
       }
       return tIn;
     }
+    // RAIN SHAFTS AND THE VEIL (RAIN step 1c, LOOK-1, 16 Nov 2026; RAIN-STUDY-2026-11-16 section 3 (a)). The ray's stretch BELOW the
+    // lowest live deck's base, to the scene or the reach, in uRain.z steps: each reads the decks' rain potential (the weather map's
+    // A) up-wind by the fall from each base (the shafts slant), x the day's rain; the extinction is the game's own law (07d: R =
+    // 12 rain^1.5 mm/h, 0.25 R^0.63 per km) x a dial; lit by the sky's light and the sun the raining deck lets through. Seen from
+    // afar it is the shaft under the shower; from inside it, the grey of the near distance (the veil) - the same integral, clipped
+    // at the scene's depth. The screen march only (gPix > 0): the dome and the sky's fit never see it.
+    void rainSeg(vec3 o, vec3 d, float r0, float r1, float j, float cosT, inout vec3 col, inout float T, inout float tw, inout float tsum) {
+      float ns = uRain.z, dt = (r1 - r0) / ns;
+      for (int i = 0; i < 8; i++) {
+        if (float(i) >= ns || T < 0.01) break;
+        float t = r0 + (float(i) + j) * dt;
+        vec3 p = o + d * t;
+        float A = 0.0, cov = 0.0, ovR = 0.0, thR = 0.0;
+        for (int li = 0; li < MAXL; li++) {
+          if (uLayerA[li].z < 0.5 || p.y >= uLayerA[li].x) continue;
+          vec3 ps = p - vec3(uRainW.x, 0.0, uRainW.y) * (uLayerA[li].x - p.y);
+          vec4 w = weather(li, ps);
+          if (w.w > A) { A = w.w; cov = w.x; ovR = ovcOf(li); thR = uLayerA[li].y; }
+        }
+        if (A <= 0.0) continue;
+        float R = 12.0 * pow(A * uRain.x, 1.5), ext = 0.00025 * pow(R, 0.63) * uRain.y;
+        float Tstep = exp(-ext * dt), a = 1.0 - Tstep;
+        vec3 Ls = mix(uAmbBot, uAmbTop, 0.5) * uRainW.z + uSunCol * phase(cosT, 0.5) * exp(-cov * 3.0) * step(-0.05, uSun.y);
+        if (ovR > 0.0) Ls = mix(Ls, vec3(ovcTop() / (1.0 + 0.1125 * uGlob.x * uShape.w * thR)), ovR);   // RAIN 13b: under a full deck the veil is lit by its diffused light
+        col += T * Ls * a; tw += T * a * t; tsum += T * a; T *= Tstep;
+      }
+    }
     vec4 march(vec3 o, vec3 d, float tScene, float jitterK) {
       float tMax = min(tScene, uDials.w * 1000.0);
       float s0[MAXL], s1[MAXL]; int ord[MAXL]; int n = 0;
@@ -172091,14 +172152,23 @@ var CLOUDS = (function () {
         for (; k > 0; k--) { if (s0[k - 1] <= t0) break; s0[k] = s0[k - 1]; s1[k] = s1[k - 1]; ord[k] = ord[k - 1]; }
         s0[k] = t0; s1[k] = t1; ord[k] = li; n++;
       }
-      ${FM_A ? '' : 'if (n == 0) return vec4(0.0);'}
+      float r0 = 0.0, r1 = -1.0;
+      if (uRain.x > 0.0 && gPix > 0.0) {
+        float yb = 1e9; for (int li = 0; li < MAXL; li++) if (uLayerA[li].z > 0.5) yb = min(yb, uLayerA[li].x);
+        float rEnd = min(tScene, uRain.w);
+        if (o.y < yb) { r1 = d.y > 1e-5 ? min(rEnd, (yb - o.y) / d.y) : rEnd; }
+        else if (d.y < -1e-5) { r0 = (yb - o.y) / d.y; r1 = rEnd; }
+      }
+      bool rainOn = r1 > r0 + 1.0;
+      ${FM_A ? '' : 'if (n == 0 && !rainOn) return vec4(0.0);'}
       vec3 col = vec3(0.0); float T = 1.0, tw = 0.0, tsum = 0.0;
       vec3 L = uSun.xyz; float cosT = dot(d, L), cosM = dot(d, uMoon.xyz);
       float N = uSteps.x, budget = N * 4.0 + 64.0, used = 0.0;   // the step budget, shared by the decks
       // a jitter per PIXEL (interleaved gradient noise) breaks the banding. Without a history it is frozen to the screen (uFrame 0): the
       // clouds slide under a fixed grain, the "smoke pattern" (the study's C1). With one (the main view) it moves per frame and the history averages it
       float j = fract(52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y) + uFrame * 0.618034);
-${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
+${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o, d, r0, r1, j, cosT, col, T, tw, tsum); rainOn = false; }
+      for (int s = 0; s < MAXL; s++) {
         if (s >= n || T < 0.01) break;
         int li = ord[s]; float t0 = s0[s], t1 = s1[s];
         // THE STEP: N steps over the slab when the path is short; a floor and a ceiling on the step so a
@@ -172134,7 +172204,20 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
           // the sky's light: dimmed under a deck above (to half at most - the sides see round it), and inside the
           // cloud by the depth toward the sun (the sun's march, a proxy for the depth under the top: a core is
           // darker than a fringe - the flat grey underside had no such gradation), never below a third
-          Ls += mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z));
+          // THE OVERCAST'S LIGHT (RAIN 13, 21 Nov; the 18 Nov shoot read the march itself: the storm deck's radiance ~0.01, blue, the same
+          // with the sky's light off or the sun off - the deck was nearly BLACK and the thin haze before it was all the eye saw). The
+          // march carries the sun's light only along near-straight paths (the octaves: exp(-od a)), which 4 km of cloud kills; a real
+          // overcast is bright because the light DIFFUSES down through it - a plane-parallel cloud of optical depth tau passes
+          // ~1 / (1 + 0.75 tau (1 - g)) of what falls on its top (the two-stream result; g 0.85 for droplets), and the many scatterings
+          // mix the hues: neutral. So on a full deck (ovcOf) the sky light term is that diffuse light: the sun and the sky on the top
+          // (uSunCol x the sun's height / pi + uAmbTop), through the cloud ABOVE the sample (tau x (1 - h): brighter toward the top),
+          // grey. tau = sigma x the column's mean density (S.ovcRho, 0.1 since the user's look) x the deck's thickness: a 300 m stratus passes 0.79, a 4 km
+          // storm ~7 %. A fair or broken sky (ovcOf 0) is exactly as it was. No new program: two lines in the march.
+          float ovG = ovcOf(li);
+          vec3 ambL = mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z));
+          if (ovG > 0.0) { float tauA = uGlob.x * uShape.w * uLayerA[li].y * (1.0 - h);
+            ambL = mix(ambL, vec3(ovcTop() / (1.0 + 0.1125 * tauA)), ovG); }
+          Ls += ambL;
           float a = 1.0 - Tstep;
           col += T * Ls * a;
           tw += T * a * t; tsum += T * a;
@@ -172142,13 +172225,23 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
           t += dt;
         }
       }
+      if (rainOn) rainSeg(o, d, r0, r1, j, cosT, col, T, tw, tsum);
       float alpha = 1.0 - T;
       if (alpha < 0.002) return vec4(0.0);
       // the aerial perspective and the mist at the cloud's transmittance-weighted mean distance
       float tm = tsum > 0.0 ? tw / tsum : s0[0];
       gTm = tm;
       vec3 c = col / max(alpha, 1e-4);
-      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001)); c = c * ap.a + ap.rgb; c = mistApply(c * uScale, d, tm, o.y) / uScale; }
+      // THE OVERCAST'S AIR (RAIN 12b, 17 Nov; the 18:05 shoot: the storm deck OPAQUE at the screen's centre, alpha 0.997, and still blue):
+      // the haze was taken at the cloud's MEAN distance - kilometres deep in a 4 km deck whose thin base lets the eye in - so the clear
+      // sky's blue in-scatter of kilometres of air was laid over a cloud that IS that air. The clear air ends at the deck: on a full deck
+      // (ovcOf) the haze is taken at the first deck's entry (after gTm: the history keeps the cloud's mean distance). Every fair and
+      // broken sky keeps the mean distance, exactly as it was
+      float ovA = 0.0;
+      if (n > 0) { ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }
+      // (RAIN 13b) and the air under a full deck is lit by the deck, not by the sun and the blue dome: there the haze's in-scatter takes
+      // the cloud's own neutral light (its transmittance kept) - the 18 Nov read: the blue the eye saw was this in-scatter
+      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001)); c = c * ap.a + mix(ap.rgb, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))) * (1.0 - ap.a), ovA); c = mistApply(c * uScale, d, tm, o.y) / uScale; }
       return vec4(c * uScale, alpha);
     }`;
   // the fullscreen march: the ray from the inverse projection, the scene's depth from the resolve target
@@ -172475,6 +172568,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     U.uSteps.value = new THREE.Vector2(S.steps, S.lightSteps); U.uDials.value = new THREE.Vector4(S.powder, S.g, S.ms, S.maxKm); U.uTexel.value = new THREE.Vector2();
     U.uShadowK.value = new THREE.Vector2(S.shadowSteps, 1); U.uDials2.value = new THREE.Vector4(S.jitter, 0, 0, 0); U.uEye.value = new THREE.Vector3();
     U.uShape.value = new THREE.Vector4(S.detail, S.curl, 0, 0); U.uDZ.value = new THREE.Vector3(0, 0.5, 1e5);
+    U.uRain.value = new THREE.Vector4(0, 1, 6, 30000); U.uRainW.value = new THREE.Vector4(0, 0, 0.6, 0);
     const uni = Object.assign({}, U);
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
     else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
@@ -172664,7 +172758,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
       const per = q => map.span / Math.max(1, Math.round(map.span / q));
       LA[o] = l.base; LA[o + 1] = l.thick; LA[o + 2] = l.cover > 0.003 ? 1 : 0; LA[o + 3] = per(S.period > 0 ? S.period : T.period);
       PA[o] = T.bot; PA[o + 1] = T.top; PA[o + 2] = T.erode * S.erodeK; PA[o + 3] = S.calCover ? coverGain[i] : S.covGain;
-      DA[o] = wrapSpan(drifts[i][0], map.span); DA[o + 1] = wrapSpan(drifts[i][1], map.span); DA[o + 2] = 0; DA[o + 3] = 0;   // G1050: wrapped (below)
+      DA[o] = wrapSpan(drifts[i][0], map.span); DA[o + 1] = wrapSpan(drifts[i][1], map.span); DA[o + 2] = l.cover; DA[o + 3] = 0;   // G1050: wrapped (below); z the deck's cover (THE OVERCAST)
     }
     U.uGlob.value.set(S.sigma, map.span, map.span / Math.max(1, Math.round(map.span / S.detailPeriod)), L.length);   // the detail's period divides the span too
     // the clock's seconds for the drift: the day's UT seconds plus a per-date offset (97 days' worth wraps) - a
@@ -172672,6 +172766,8 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     // 11 m detail jittered); continuous through a day, a jump at the date's roll
     drift[0] = drifts[0][0]; drift[1] = drifts[0][1];
     const wx = winds[0][0], wz = winds[0][1];   // the first deck's wind (the veil's is scaled from it)
+    // RAIN (step 1, 16 Nov): the local rain at the eye - what the near rain, the glass, the sound and the airframe's wash read
+    if (camera && camera.position) rainEye = rainAt(camera.position.x, camera.position.z, camera.position.y); else rainEye = rainAt(0, 0, 0);
     // the light: the sun's transmittance at the layer's middle, the sky's irradiance at its top, the ground's light below
     const midKm = (lay.base + lay.thick * 0.5) / 1000, topKm = lay.top / 1000;
     const sun = day.sun, moon = day.moon, A = (typeof ATMO !== 'undefined') ? ATMO : null;
@@ -172696,7 +172792,14 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
       U.uScale.value = A.U.scale.value;
     } else { U.uSunCol.value.set(1, 1, 1); U.uAmbTop.value.set(0.2, 0.25, 0.35); U.uAmbBot.value.set(0.1, 0.1, 0.1); }
     U.uSteps.value.set(S.steps, S.lightSteps); U.uDials.value.set(S.powder, S.g, S.ms, S.maxKm); U.uDials2.value.set(S.jitter, S.shadowSoft, S.ambDepth, 0);
-    U.uShape.value.set(S.detail, S.curl, 0, 0);
+    U.uShape.value.set(S.detail, S.curl, S.overcast, S.ovcRho);
+    if (U.uRain.value) {
+      const G = typeof window !== 'undefined' && window.GFX && window.GFX.get ? window.GFX.get() : null, q = typeof location !== 'undefined' && /[?&]rain=0(?![.0-9]*[1-9])/.test(location.search || '');
+      const tier = G && G.rain === 'off' ? 'off' : (G && (G.rain === 'lean' || (G.rain !== 'full' && /^(laptop|potato|retro)$/.test(G.preset || ''))) ? 'lean' : 'full');
+      const r = !q && tier !== 'off' && dayRef && +dayRef.rain > 0 ? Math.min(1, +dayRef.rain) : 0, vF = (typeof CLOUD_FIELD !== 'undefined' && CLOUD_FIELD.VFALL) || 6.5;
+      U.uRain.value.set(r, S.rainExt, tier === 'lean' ? Math.min(4, S.rainSteps) : S.rainSteps, S.rainKm * 1000);
+      U.uRainW.value.set(winds[0][0] / 1.5 / vF, winds[0][1] / 1.5 / vF, S.rainLight, 0);
+    }
     lastCover = L.reduce((m, l) => Math.max(m, l.cover), 0);   // any deck with cover keeps the pass live
     // THE VEIL (C4): cirrus over the low layer - a share of the cover by type (a cumulus day carries a thin
     // one, an overcast a fuller), drifted by the upper wind (twice the surface's, veered), lit by the sun's
@@ -172962,7 +173065,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     if (!ready || !renderer) return null;
     const out = {};
     if (rt) { const px = new Uint16Array(4 * 16 * 16); renderer.readRenderTargetPixels(rt, (rtW >> 1) - 8, (rtH >> 1) - 8, 16, 16, px);
-      let a = 0, c = 0; for (let i = 0; i < 256; i++) { a += px[i * 4 + 3]; c += px[i * 4]; } out.marchA = a / 256; out.marchR = c / 256; }
+      let a = 0, c = 0, g = 0, b = 0; for (let i = 0; i < 256; i++) { a += px[i * 4 + 3]; c += px[i * 4]; g += px[i * 4 + 1]; b += px[i * 4 + 2]; } out.marchA = a / 256; out.marchR = c / 256; out.marchG = g / 256; out.marchB = b / 256; }   // (RAIN 12c: G and B - the overcast's hue, read straight from the march)
     const px = new Float32Array(4 * PROBE_N * PROBE_N);
     for (const [k, w] of [['noise', 0], ['detail', 1], ['weather', 2], ['depth', 3], ['shadow', 4]]) {
       probeRead(renderer, w, px);
@@ -173000,7 +173103,26 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     try { r.setRenderTarget(t); quad.material = marchMat; r.render(fsScene, fsCam); } finally { r.setRenderTarget(prev); t.dispose(); }
     return true;
   }
-  const API = { S, init, install, inject, update, draw, composite, warmList, warmDraw, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
+  // RAIN (step 1, LOOK-1, 16 Nov 2026; RAIN-STUDY-2026-11-16 section 3.0): the rain rate 0..1 at (x, z, h) from the DRAWN decks -
+  // the same fitted maps and drifts the march samples, so you fly into the shower you saw. Each deck's A channel (its rain
+  // potential) x the day's rain, read up-wind below the base (the shafts slant: the wind at the base, not the 1.5 x the
+  // clouds ride); the wettest deck wins. A dry day reads nothing and returns 0. With the cloud pass off (a phone tier) there
+  // is no drawn deck to rain from: the day's rain, uniform.
+  let rainEye = 0;
+  const _rw = [0, 0];
+  function rainAt(x, z, h) {
+    const r = dayRef && +dayRef.rain > 0 ? Math.min(1, +dayRef.rain) : 0;
+    if (!r) return 0;
+    if (S.mode === 'off' || !maps.length || typeof CLOUD_FIELD === 'undefined' || !CLOUD_FIELD.rainAt) return r;
+    let best = 0;
+    for (let i = 0; i < lays.length && i < maps.length; i++) {
+      const l = lays[i]; if (!(l.cover > 0.003)) continue;
+      _rw[0] = winds[i][0] / 1.5; _rw[1] = winds[i][1] / 1.5;
+      const v = CLOUD_FIELD.rainAt(maps[i], l, x, z, h, { rain: r, drift: drifts[i], wind: _rw }); if (v > best) best = v;
+    }
+    return best;
+  }
+  const API = { S, init, rainAt, get rain() { return rainEye; }, install, inject, update, draw, composite, warmList, warmDraw, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();
@@ -186873,6 +186995,252 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WATER;
 var DUST_ATLAS = {"A":"media/tex/dust/dustsix_a.ac0f788b.png","B":"media/tex/dust/dustsix_b.4b0a9c69.png","W":256,"H":256,"F":16,"C":4,"R":4,"PX":64,"tauRef":7.4464,"zoom":0.72,"gain":[1.6546,1.7084,1.7667,1.8279,1.8984,1.9748,2.0635,2.1655,2.2988,2.471,2.7024,2.9968,3.3566,3.7906,4.3108,4.9484],"sig":"80d143dda1e10bf8"};
 if (typeof window !== 'undefined') window.DUST_ATLAS = DUST_ATLAS;
 if (typeof module !== 'undefined' && module.exports) module.exports = DUST_ATLAS;
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// RAIN AROUND YOU (RAIN step 1b, LOOK-1, 16 Nov 2026; the user: "a proper, very optimized job", never "a couple of
+// particles"; flydiy-notes/studies/RAIN-STUDY-2026-11-16.md section 3 (b)).
+//
+// STATELESS STREAKS IN CAMERA-WRAPPED BOXES. One quad, drawn instanced; nothing per drop lives on the CPU or in a
+// buffer. The vertex shader makes each drop from its instance id: a hashed seed in a box of side L (three nested boxes,
+// co-prime sizes 11 / 27 / 61 m, the near one densest), moved by the fall and the wind (an offset the CPU wraps in double
+// precision), wrapped round the eye - so the drops stand still in the world, fall and drift, and the eye flies through
+// them. Each drop is a streak along its velocity RELATIVE TO THE EYE x an exposure: parked they fall straight, at 50 m/s
+// they come at you from the point you fly to (Wang & Wade's FS2004 cone, in 3D). The streak is clamped in length (world
+// and screen), its width at least ~1 px with the alpha paying for the extra width (a far streak never reads thick).
+//
+// LIGHT: a little of the sky's ambient, and the forward-scatter boost when the sun is BEHIND the drop (Garg & Nayar: a
+// streak is bright backlit, nearly invisible otherwise). At night: the landing light's cone lights the drops in it.
+// WHERE IT DOES NOT RAIN: the hardware depth test against the real scene (the drops are real 3D points), the CABIN box
+// (an oriented box in the aircraft's frame: a drop inside it collapses to nothing), and up to 8 ROOF boxes (oriented,
+// in the world: under a roof, below its top, no drop).
+//
+// COST: 1 draw, 0 samplers, 0 textures, one 4-vertex quad; the instance count is the local rain x the tier's count, so
+// a dry day draws nothing - and the program is only made (compiled) the first time it rains near the eye (app.js: lazy).
+// ============================================================
+var RAIN_FX = (function () {
+  'use strict';
+  // the tiers (gfx_settings 'rain'): per box [size m, drops at full rain]; 'off' draws no streak
+  const TIERS = Object.freeze({
+    off:  Object.freeze({ boxes: [] }),
+    lean: Object.freeze({ boxes: [[11, 2400], [27, 1600]] }),
+    full: Object.freeze({ boxes: [[11, 6000], [27, 6000], [61, 6000]] }),
+  });
+  // the look (the F9 world editor's "rain" block reads and writes these; EXPORT carries them)
+  const LOOK = {
+    exposure: 0.05,     // s - the streak's length = the relative speed x this (a camera's shutter)
+    maxLen: 2.4,        // m - the longest streak in the world
+    maxNdc: 0.12,       // the longest streak on screen (NDC units, ~6 % of the screen's height)
+    width: 0.0025,      // m - the drop's width in the world (2.5 mm)
+    minPx: 1.1,         // px - never thinner on screen; the alpha falls by the ratio instead
+    opacity: 0.32,      // the streak's peak alpha
+    ambient: 0.55,      // x the sky's ambient colour
+    back: 3.0,          // the forward-scatter boost when backlit (x the sun's colour)
+    backPow: 10,        // its tightness
+    vFall: 6.5,         // m/s - a 2 mm drop (Gunn & Kinzer 1949)
+    nearFade: 1.2,      // m - no streak closer than this (fades in to 2 x)
+    cockpitK: 0.35,     // in the cockpit at speed: the density's floor (the windscreen carries the rest)
+    cockpitV: 40,       // m/s - the airspeed at which the cockpit's density reaches its floor
+    cabinHalf: [0.8, 0.7, 1.1],   // m - the dry box round the head in the cockpit (camera axes: right, up, back); the real cabin is a later step
+  };
+  const MAX_ROOFS = 8;
+
+  const VERT = [
+    // (a three ShaderMaterial, GLSL3: three declares position, viewMatrix, projectionMatrix and maps varying)
+    // THE DEPTH CONVENTION (the soft run, 16 Nov eve: no streak drew): the renderer is reversed-z where EXT_clip_control is, else
+    // LOGARITHMIC (app.js) - a custom shader must take three's logdepthbuf chunks as dust.js and spray.js do, or it fails the depth test
+    '#include <common>',
+    '#include <logdepthbuf_pars_vertex>',
+    'uniform vec3 uCam;',                 // the eye (world)
+    'uniform vec4 uBoxA[3];',             // per box: L, the first instance id, the drawn count, the count at full rain
+    'uniform vec3 uOff[3];',              // per box: (the fall + the wind's drift) - the eye, wrapped into [0, L) on the CPU
+    'uniform vec3 uVrel;',                // the drop's velocity relative to the eye (world, m/s)
+    'uniform vec4 uLen;',                 // exposure, maxLen, maxNdc, width
+    'uniform vec4 uPx;',                  // 2 / viewport width, 2 / viewport height, minPx, nearFade
+    'uniform mat4 uCabinInv;',            // world -> the cabin box's frame
+    'uniform vec3 uCabinH;',              // its half extents (0 = no cabin)
+    'uniform vec4 uRoofA[' + MAX_ROOFS + '];', // per roof: centre x, centre z, cos yaw, sin yaw
+    'uniform vec4 uRoofB[' + MAX_ROOFS + '];', // half x, half z, the roof's top (world y), 1 = on
+    // position: the quad, x in {-1, 1} across, y in {0, 1} along
+    'varying vec2 vQ;',
+    'varying float vA;',
+    'varying vec3 vDir;',
+    'float h1(float n) { return fract(sin(n * 12.9898 + 4.1414) * 43758.5453); }',
+    'vec3 h3(float n) { return vec3(h1(n), h1(n + 17.31), h1(n + 41.77)); }',
+    'void main() {',
+    '  float id = float(gl_InstanceID);',
+    '  int b = id < uBoxA[1].y ? 0 : (id < uBoxA[2].y ? 1 : 2);',
+    '  vec4 B = uBoxA[b];',
+    '  float L = B.x, k = id - B.y;',
+    '  gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vQ = vec2(0.0); vA = 0.0; vDir = vec3(0.0);',
+    '  if (k >= B.z) return;',
+    // the drop: its seed in the box, the fall and the drift (uOff, wrapped), wrapped round the eye
+    '  vec3 s = h3(k * 1.618 + float(b) * 9301.0);',
+    '  vec3 p = mod(s * L + uOff[b], L) - 0.5 * L;',
+    '  vec3 w = uCam + p;',
+    // the cabin: inside its box, nothing
+    '  if (uCabinH.x > 0.0) { vec3 c = (uCabinInv * vec4(w, 1.0)).xyz; if (all(lessThan(abs(c), uCabinH))) return; }',
+    // the roofs: under one (inside its footprint, below its top), nothing
+    '  for (int i = 0; i < ' + MAX_ROOFS + '; i++) { vec4 A = uRoofA[i], R = uRoofB[i]; if (R.w < 0.5) continue;',
+    '    vec2 d = w.xz - A.xy; vec2 q = vec2(d.x * A.z + d.y * A.w, -d.x * A.w + d.y * A.z);',
+    '    if (abs(q.x) < R.x && abs(q.y) < R.y && w.y < R.z) return; }',
+    // the streak: from the drop back along the relative velocity x the exposure, clamped in the world
+    '  vec3 tail = -uVrel * uLen.x; float tl = length(tail); if (tl > uLen.y) tail *= uLen.y / tl;',
+    // THE QUAD IN VIEW SPACE (16 Nov eve: the NDC construction - a width from the projected direction - drew no pixel on SwiftShader
+    // though every input was right, bisected in seven soft runs; this one never divides by a projected length): the streak from
+    // the drop along the tail, the side across both the streak and the line of sight, the half-width the drop's own or minPx pixels
+    // at that depth, the on-screen cap (maxNdc) turned into metres at that depth the same way
+    '  vec4 v0 = viewMatrix * vec4(w, 1.0);',
+    '  vec3 sv = (viewMatrix * vec4(tail, 0.0)).xyz;',
+    '  float zc = -v0.z;',
+    '  if (zc < 0.05 || zc + sv.z * -1.0 < 0.05) return;',
+    '  float dist = length(p);',
+    '  float mpp = uPx.y * zc / projectionMatrix[1][1];',                     // metres per pixel at this depth
+    '  float slen = length(sv), maxL = uLen.z / uPx.y * mpp;',              // maxNdc in pixels, in metres here
+    '  if (slen > maxL) { sv *= maxL / slen; slen = maxL; }',
+    // (no vector ?: - SwiftShader drew nothing through one, 16 Nov eve: a guarded division instead; a still drop gets a 1 mm up stub)
+    '  sv += vec3(0.0, 1e-3, 0.0) * step(slen, 1e-5); slen = max(length(sv), 1e-5);',
+    '  vec3 sd = sv / slen;',
+    '  vec3 side = cross(sd, normalize(v0.xyz)); side = side / max(length(side), 1e-5);',
+    '  float wMin = uPx.z * mpp, hw = 0.5 * max(uLen.w, wMin), alpha = clamp(uLen.w / max(max(uLen.w, wMin), 1e-6), 0.08, 1.0);',
+    '  vec3 vp = v0.xyz + sv * position.y + side * (position.x * hw);',
+    '  gl_Position = projectionMatrix * vec4(vp, 1.0);',
+    '  #include <logdepthbuf_vertex>',
+    // the fades: near the eye, at the box's edge (the wrap never pops), and the box's share of the rain
+    '  float edge = 1.0 - smoothstep(0.30 * L, 0.5 * L, max(abs(p.x), max(abs(p.y), abs(p.z))));',
+    '  float near = smoothstep(uPx.w, 2.0 * uPx.w, dist);',
+    '  vQ = vec2(position.x, position.y); vA = alpha * edge * near;',
+    '  vDir = normalize(p);',
+    '}'].join('\n');
+  const FRAG = [
+    // (GLSL3 on a three ShaderMaterial: no gl_FragColor of its own - declared here, like clouds.js GLSL3_OUT; the soft compile check, 16 Nov eve)
+    'layout(location = 0) out highp vec4 rainC;',
+    '#define gl_FragColor rainC',
+    '#include <common>',
+    '#include <logdepthbuf_pars_fragment>',
+    'uniform vec3 uSun, uSunCol, uSkyCol, uLampPos, uLampDir, uLampCol;',
+    'uniform vec4 uLook;',                 // opacity, ambient, back, backPow
+    'uniform vec2 uLampCone;',             // cos of the cone's half angle, the lamp's range (m)
+    'varying vec2 vQ;',
+    'varying float vA;',
+    'varying vec3 vDir;',
+    'void main() {',
+    '  #include <logdepthbuf_fragment>',
+    '  if (vA <= 0.0) discard;',
+    '  float across = 1.0 - vQ.x * vQ.x;',                         // the drop's profile across (no texture)
+    '  float along = smoothstep(0.0, 0.25, vQ.y) * (1.0 - smoothstep(0.6, 1.0, vQ.y));',
+    '  float a = uLook.x * vA * across * along;',
+    '  if (a < 0.002) discard;',
+    '  float back = pow(max(0.0, dot(vDir, uSun)), uLook.w);',    // the sun behind the drop, the eye looking toward it
+    '  vec3 col = uSkyCol * uLook.y + uSunCol * back * uLook.z;',
+    '  if (uLampCone.y > 0.0) { vec3 L = normalize(vDir); float ca = dot(L, uLampDir); col += uLampCol * smoothstep(uLampCone.x, mix(uLampCone.x, 1.0, 0.4), ca); }',
+    '  gl_FragColor = vec4(col * a, a);',                             // premultiplied
+    '}'].join('\n');
+
+  // the CPU's half: the boxes' offsets, wrapped in double precision (the fall x a day's seconds is far past a float)
+  const wrap = (v, L) => ((v % L) + L) % L;
+  function offsets(t, cam, wind, vFall, boxes, out) {
+    for (let b = 0; b < 3; b++) {
+      const L = boxes[b] ? boxes[b][0] : 1, o = out[b];
+      o[0] = wrap(wind[0] * t - cam[0], L); o[1] = wrap(-vFall * t - cam[1], L); o[2] = wrap(wind[1] * t - cam[2], L);
+    }
+    return out;
+  }
+  // the density at the eye: the local rain, and in the cockpit at speed a floor (the windscreen carries the rest)
+  function density(rain, o) {
+    if (!(rain > 0)) return 0;
+    let k = Math.min(1, rain);
+    if (o && o.cockpit) { const v = Math.max(0, o.V || 0), f = Math.min(1, v / LOOK.cockpitV); k *= 1 - f * (1 - LOOK.cockpitK); }
+    return k;
+  }
+  // the instance ranges for a tier at a density: [first, drawn, full] per box, and the total drawn
+  function ranges(tier, k) {
+    const T = TIERS[tier] || TIERS.full, R = [];
+    let first = 0;
+    for (let b = 0; b < 3; b++) {
+      const bx = T.boxes[b];
+      if (!bx) { R.push([bx ? bx[0] : 1, first, 0, 0]); continue; }
+      const full = bx[1], drawn = Math.round(full * Math.max(0, Math.min(1, k)));
+      R.push([bx[0], first, drawn, full]); first += full;
+    }
+    // the shader takes box b's instances from its first id: the drawn ones sit at the start of each box's range, so the
+    // instance count is the LAST box's first + drawn (the gaps between boxes are culled in the shader by k >= drawn)
+    let last = 0; for (let b = 0; b < 3; b++) if (R[b][2] > 0) last = R[b][1] + R[b][2];
+    return { R, count: last };
+  }
+
+  // make(THREE) -> { mesh, sync(camera, o), setRoofs(list), dispose }
+  function make(THREE) {
+    const g = new THREE.InstancedBufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, 0, 0, 1, 0, 0, -1, 1, 0, 1, 1, 0]), 3));
+    g.setIndex([0, 1, 2, 2, 1, 3]);
+    g.instanceCount = 0;
+    const V3 = () => new THREE.Vector3(), V4 = () => new THREE.Vector4();
+    const U = {
+      uCam: { value: V3() },
+      uBoxA: { value: [V4(), V4(), V4()] }, uOff: { value: [V3(), V3(), V3()] }, uVrel: { value: V3() },
+      uLen: { value: V4() }, uPx: { value: V4() },
+      uCabinInv: { value: new THREE.Matrix4() }, uCabinH: { value: V3() },
+      uRoofA: { value: Array.from({ length: MAX_ROOFS }, V4) }, uRoofB: { value: Array.from({ length: MAX_ROOFS }, V4) },
+      uSun: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color(0, 0, 0) }, uSkyCol: { value: new THREE.Color(0.5, 0.55, 0.6) },
+      uLampPos: { value: V3() }, uLampDir: { value: new THREE.Vector3(0, 0, -1) }, uLampCol: { value: new THREE.Color(0, 0, 0) }, uLampCone: { value: new THREE.Vector2(1, 0) },
+      uLook: { value: V4() },
+    };
+    const M = MATLIB.make(THREE, 'shader', { glslVersion: THREE.GLSL3, vertexShader: VERT, fragmentShader: FRAG, uniforms: U,
+      // DoubleSide (17 Nov 02:00, THE cause of "no pixel" on SwiftShader AND the RTX): the quad's winding follows the streak's
+      // direction on screen - a falling drop's tail points up, its side left, the triangles wind clockwise and three's default
+      // FrontSide culled every one; every debug quad drawn right / up (counter-clockwise) drew
+      side: THREE.DoubleSide,
+      transparent: true, depthWrite: false, depthTest: true, blending: THREE.CustomBlending,
+      blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
+    M.toneMapped = true; M.name = 'rain';
+    const mesh = new THREE.Mesh(g, M); mesh.frustumCulled = false; mesh.renderOrder = 5; mesh.name = 'rain'; mesh.visible = false;
+    const off = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], cam = [0, 0, 0];
+    const api = {
+      mesh, material: M, drawn: 0, k: 0, tier: 'full',
+      // o: { rain (the local rain 0..1), t (s, the day's clock), wind [wx, wz] m/s, eyeVel [x, y, z] m/s, cockpit (bool), V (airspeed),
+      //      tier, sun [x y z] (toward the sun), sunCol, skyCol (THREE.Color), cabin { inv (Matrix4 world -> box), half [x y z] } | null,
+      //      lamp { pos, dir, col, cosHalf, range } | null }
+      sync(camera, o) {
+        const tier = o.tier || 'full', k = density(o.rain, o), T = TIERS[tier] || TIERS.full;
+        api.k = k; api.tier = tier;
+        if (!(k > 0) || !T.boxes.length) { mesh.visible = false; api.drawn = 0; g.instanceCount = 0; return; }
+        const rg = ranges(tier, k);
+        camera.updateMatrixWorld();
+        const me = camera.matrixWorld.elements; cam[0] = me[12]; cam[1] = me[13]; cam[2] = me[14];   // the WORLD eye (a cockpit camera may be parented)
+        const wind = o.wind || [0, 0];
+        offsets(o.t || 0, cam, wind, LOOK.vFall, rg.R.map(r => [r[0]]), off);
+        for (let b = 0; b < 3; b++) { const r = rg.R[b]; U.uBoxA.value[b].set(r[0], r[1], r[2], r[3]); U.uOff.value[b].set(off[b][0], off[b][1], off[b][2]); }
+        U.uCam.value.set(cam[0], cam[1], cam[2]);
+        const ev = o.eyeVel || [0, 0, 0];
+        U.uVrel.value.set(wind[0] - ev[0], -LOOK.vFall - ev[1], wind[1] - ev[2]);
+        U.uLen.value.set(LOOK.exposure, LOOK.maxLen, LOOK.maxNdc, LOOK.width);
+        const vw = o.viewport || [1920, 1080];
+        U.uPx.value.set(2 / vw[0], 2 / vw[1], LOOK.minPx, LOOK.nearFade);
+        if (o.cabin && o.cabin.inv) { U.uCabinInv.value.copy(o.cabin.inv); U.uCabinH.value.set(o.cabin.half[0], o.cabin.half[1], o.cabin.half[2]); } else U.uCabinH.value.set(0, 0, 0);
+        if (o.sun) U.uSun.value.set(o.sun[0], o.sun[1], o.sun[2]).normalize();
+        if (o.sunCol) U.uSunCol.value.copy(o.sunCol); if (o.skyCol) U.uSkyCol.value.copy(o.skyCol);
+        if (o.lamp) { U.uLampPos.value.set(o.lamp.pos[0], o.lamp.pos[1], o.lamp.pos[2]); U.uLampDir.value.set(o.lamp.dir[0], o.lamp.dir[1], o.lamp.dir[2]).normalize();
+          U.uLampCol.value.copy(o.lamp.col); U.uLampCone.value.set(o.lamp.cosHalf, o.lamp.range); } else U.uLampCone.value.set(1, 0);
+        U.uLook.value.set(LOOK.opacity, LOOK.ambient, LOOK.back, LOOK.backPow);
+        g.instanceCount = rg.count; api.drawn = rg.R.reduce((a, r) => a + r[2], 0); mesh.visible = rg.count > 0;
+      },
+      // roofs: [{ x, z, yaw, hx, hz, top }] - the nearest MAX_ROOFS the caller picked; the rest switched off
+      setRoofs(list) {
+        const A = U.uRoofA.value, B = U.uRoofB.value, L = list || [];
+        for (let i = 0; i < MAX_ROOFS; i++) { const r = L[i];
+          if (!r) { B[i].set(0, 0, 0, 0); continue; }
+          A[i].set(r.x, r.z, Math.cos(r.yaw || 0), Math.sin(r.yaw || 0)); B[i].set(r.hx, r.hz, r.top, 1); }
+      },
+      dispose() { g.dispose(); M.dispose(); },
+    };
+    return api;
+  }
+  const API = { TIERS, LOOK, MAX_ROOFS, VERT, FRAG, make, offsets, density, ranges, wrap };
+  if (typeof window !== 'undefined') window.RAIN_FX = API;
+  return API;
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = RAIN_FX;
 </script>
 <script type="text/x-flydiy">
 // dust.js — THE DUST (DIRT-DUST, 2026-11-09): what flies off a dry strip - the clouds a take-off, a landing, a taxi and
@@ -202460,6 +202828,13 @@ function aeroMudStep(m, dt, o) {
   return aeroWxClamp01(m + (acc - wash) * dt);
 }
 // the coat onto the live block: the layers it raises (none at m = 0 - the old look exactly)
+// aeroWxSetRain(THREE, wet, V, t, g): the glass's wetness, the airspeed (m/s), the clock (s), gravity in craft space [x y z] (RAIN step 2)
+function aeroWxSetRain(THREE, wet, V, t, g) {
+  const U = aeroWxSharedU(THREE), a = U.uRainG.value, b = U.uRainF.value;
+  a.x = Math.max(0, Math.min(1, +wet || 0)); a.y = Math.max(0, +V || 0); a.z = (+t || 0) % 3600;
+  if (g) { b.x = g[0]; b.y = g[1]; b.z = g[2]; }
+  return a.x;
+}
 function aeroWxSetMud(THREE, m) {
   if (THREE) aeroWxSharedU(THREE);
   m = aeroWxClamp01(m);
@@ -202840,6 +203215,10 @@ function aeroWxSharedU(THREE) {
     uWxB:   { value: new THREE.Vector4(K.bakeGain, K.bakeConvex, K.chipLip, K.mudRelief) },
     uSpiral: { value: new THREE.Vector4(0, 1, 0.10, 0.30) },   // on, hand, pitch m, width at the base
     uSpiralC: { value: new THREE.Vector4(1, 1, 1, 1) },       // linear rgb, strength
+    // RAIN ON THE GLASS (RAIN step 2 prototype, LOOK-1, 17 Nov): x the glass's wetness 0..1 (0 = dry: the block is skipped), y airspeed
+    // m/s, z the clock s, w the look's gain; uRainF xyz gravity in craft space (down), w the drop cells per metre
+    uRainG: { value: new THREE.Vector4(0, 0, 0, 1) },
+    uRainF: { value: new THREE.Vector4(0, 0, -1, 45) },
     // GROUND-FX (16 Nov): THE LIVE TERM's block (AERO_GD_PARS below; app.js gdFrame writes it) - the deposit's two 3-D
     // textures (null: three binds its empty one), the grid's box, the colours, the PBR and the rain on the skin
     tGdMud:  { value: null },                                 // RGBA8: the mud's cover by arrival (up, aft, port, starboard)
@@ -203082,6 +203461,8 @@ const AERO_WX_PARS_FS = AERO_GD_PARS + `
 #define AEROWX_LE_SIGN 1.0
 uniform sampler2D tGrunge;
 uniform vec4 uWxL[AEROWX_NL];
+uniform vec4 uRainG, uRainF;   // RAIN step 2: the glass's wetness, airspeed, clock, gain / gravity in craft space, cells per metre
+float aeroRainD = 0.0, aeroRainR = 0.0;   // the drops' cover and their dark rims (the glass block writes them, the glass output reads them)
 uniform vec4 uWxC[8];
 uniform vec4 uWxE[AEROWX_NE];
 uniform vec4 uWxEd[AEROWX_NE];
@@ -203714,6 +204095,38 @@ const AERO_WX_GLASS_FS = `
         }
       }
     }
+    // RAIN ON THE GLASS (RAIN step 2 PROTOTYPE, LOOK-1, 17 Nov; RAIN-STUDY 3 (c); our own cells, no copied shader): the flow on the pane
+    // is the airflow (craft +y, aft) blended with gravity by airspeed, projected on the glass - parked the drops run down, flying they
+    // stream up and back; two layers in metres on the pane: the beads (stripped at speed) and the runners with a short trail
+    if (uRainG.x > 0.0) {
+      vec3 rN = normalize(vCraftNrm) * (gl_FrontFacing ? 1.0 : -1.0);
+      float rV = uRainG.y, rAir = smoothstep(4.0, 25.0, rV), rT = uRainG.z, rWet = uRainG.x, rC = uRainF.w;
+      vec3 rF = vec3(0.0, 1.0, 0.0) * (rAir * 3.0) + uRainF.xyz * (1.0 - rAir) + vec3(0.0, 1e-3, 0.0);
+      vec3 rT1 = rF - rN * dot(rF, rN); rT1 = rT1 / max(length(rT1), 1e-4);
+      vec3 rT2 = cross(rN, rT1);
+      vec2 rq = vec2(dot(vCraftPos, rT2), dot(vCraftPos, rT1));          // metres on the pane: x across the flow, y along it
+      // 1 the beads: cells of 1 / rC m, each holding one bead that swells in and dries out; stripped from the glass at speed
+      vec2 rcA = rq * rC, riA = floor(rcA), rfA = fract(rcA) - 0.5;
+      float rhA = fract(sin(dot(riA, vec2(127.1, 311.7))) * 43758.5453), rhB = fract(sin(dot(riA, vec2(269.5, 183.3))) * 43758.5453);
+      float rLife = fract(rT * (0.05 + 0.1 * rhB) + rhA);
+      float rOnA = step(rhA, rWet * 0.85) * smoothstep(0.0, 0.15, rLife) * (1.0 - smoothstep(0.75, 1.0, rLife)) * (1.0 - 0.85 * smoothstep(20.0, 40.0, rV));
+      float rR = 0.12 + 0.22 * rhB, rdA = length(rfA - (vec2(rhA, rhB) - 0.5) * 0.5);
+      float rBead = (1.0 - smoothstep(rR * 0.85, rR, rdA)) * rOnA;
+      float rRimA = smoothstep(rR * 0.45, rR * 0.95, rdA) * rBead;
+      // 2 the runners: columns 1.3 x the bead cell wide, one drop each, sliding along the flow, a trail behind (the side it came from)
+      float rCol = rC * 1.3, rix = floor(rq.x * rCol), rhC = fract(sin(rix * 91.7 + 3.1) * 43758.5453);
+      float rSp = mix(0.02 + 0.06 * rhC, min(2.5, 0.04 * rV), rAir);   // m/s along the pane
+      float rSeg = 0.35 + 0.5 * rhC, ryy = rq.y - rT * rSp;
+      float riy = floor(ryy / rSeg), rhD = fract(sin((rix * 17.0 + riy) * 13.37) * 43758.5453);
+      float rBack = rSeg - fract(ryy / rSeg) * rSeg;                     // metres behind the segment's front: the drop sits at 0.02
+      float rfx = fract(rq.x * rCol) - 0.5 + (rhD - 0.5) * 0.3, rOnB = step(rhD, rWet * 0.7);
+      float rHeadR = 0.0045 + 0.003 * rhD;
+      float rHead = (1.0 - smoothstep(rHeadR * 0.7, rHeadR, length(vec2(rfx / rCol, (rBack - 0.02) * 0.8)))) * rOnB;
+      float rTrail = (1.0 - smoothstep(0.1, 0.5, abs(rfx))) * smoothstep(0.02, 0.06, rBack) * (1.0 - smoothstep(0.06, 0.25, rBack)) * rOnB * 0.35;
+      aeroRainD = clamp((rBead + rHead + rTrail) * uRainG.w, 0.0, 1.0);
+      aeroRainR = clamp((rRimA + rHead * 0.6) * uRainG.w, 0.0, 1.0);
+      roughnessFactor = mix(roughnessFactor, 0.02, aeroRainD);   // the water is glossy: the bead catches the sky and the sun
+    }
 `;
 
 // THE MULTIPLY PASS with craft space: insects darken what is seen through
@@ -203756,7 +204169,7 @@ const AEROWX_API = {
   AERO_WX_DEF, AERO_WX_GLOSS_OK, AERO_WX_NL, AERO_WX_NE, AERO_WX_NW, AERO_WX,
   aeroWxResolve, aeroWxMacroFromSpec, aeroWxMacroToSpec,
   aeroWxGrunge, aeroWxGrungeTex, AERO_WX_GRUNGE_PX, aeroWxCavity, aeroWxBakeCavity,
-  aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin, AERO_MUD, aeroMudStep, aeroWxSetMud,
+  aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin, AERO_MUD, aeroMudStep, aeroWxSetMud, aeroWxSetRain,
   aeroWxSetDebug, aeroWxSetSources, aeroWxCraftOf, aeroWxSetSpiral, AERO_WX_SPIRAL_DEF,
   aeroWxLabGet, aeroWxLabSet, aeroWxLabReset, aeroWxLabResetRow, aeroWxLabExport, AERO_WX_LAB_KEY, AERO_WX_KNOB_RANGE,
   AERO_WX_PARS_FS, AERO_WX_SURF_FS, AERO_WX_CC_FS, AERO_WX_GLASS_FS,
@@ -208761,6 +209174,12 @@ const AEROGLASS_HOOK = function (shader) {
   // DIRT AT THE FRAME IS A PALE FILM, not only a rough patch: grime scatters,
   // so it lightens what you see through it. Same reason the wear system
   // lightens rather than darkens on the airframe.
+  // RAIN ON THE GLASS (step 2 prototype): no refraction copy - a bead is a darker rim (it bends the darker world below into view) and a
+  // touch of pale water, its gloss (roughness, above) catching the sky and the sun
+  if (aeroRainD > 0.0) {
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.35, aeroRainR * 0.8);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.78, 0.84), aeroRainD * 0.15);
+  }
   if (aeroGDirt > 0.0)
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.60, 0.56),
                            aeroGDirt * 0.55);
@@ -235100,6 +235519,13 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
         { v: 'off',  label: 'off', why: 'a clear sky whatever the day' },
         { v: 'half', label: 'half', why: 'the layer marched at half resolution (the cost of a few ms)' },
         { v: 'full', label: 'full', why: 'every pixel marched - for screenshots and the strongest cards' } ] },
+    // THE RAIN (RAIN step 1, LOOK-1, 16 Nov): the streaks round the eye (src/viewer/rain.js) - nothing is made or drawn on a dry day.
+    // FREE (the presets stay as shipped, GATE GFX 10): 'auto' is lean on laptop / potato / retro (a phone draws laptop), full above
+    { k: 'rain', label: 'rain', free: true, def: 'auto', steps: [
+        { v: 'off',  label: 'off', why: 'no falling rain drawn (the sky, the ground and the sound still know it rains)' },
+        { v: 'auto', label: 'auto', why: 'lean on the light presets (laptop, potato, retro), full above' },
+        { v: 'lean', label: 'lean', why: 'the streaks round you in two boxes (4 000 drops at full rain)' },
+        { v: 'full', label: 'full', why: 'three boxes, near to 30 m (18 000 drops at full rain)' } ] },
     // THE POST PASSES (POST-FX study, 2026-09-21; src/viewer/post_fx.js): six switches, every
     // one OFF in every preset - the user's ruling: "ensure we can perfectly operate as of today
     // when turning the post fx off". Each is a pass over the resolved frame, in display space,
@@ -235633,7 +236059,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
     { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover', 'lawn'] },
     { k: 'water', label: 'water', sub: 'the sea and its reflections', rows: ['water', 'mirror'] },
-    { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'fmist', 'glare'] },
+    { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'fmist', 'rain', 'glare'] },
     { k: 'post', label: 'post-fx', sub: 'the passes over the finished frame', rows: ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'] },
     { k: 'town', label: 'town', sub: 'which towns, their detail, the road furniture', rows: ['town', 'scenery', 'rails', 'poles'] },
     // CONTROLS-STRIP (the user 16 Nov): the eighth fold - what the screen shows over the flight, not the picture's
@@ -265102,6 +265528,72 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     F.ms = performance.now() - t0;
   }
   if (typeof window !== 'undefined') window.DUST_FX = { get fx() { return dustFx; }, make: () => dustMake() };
+  // RAIN AROUND YOU (RAIN step 1b, LOOK-1, 16 Nov; src/viewer/rain.js): the streaks round the eye, fed by the clouds' local rain
+  // (CLOUDS.rain: the drawn decks' rain potential x the day's rain, read up-wind under the base). MADE LAZILY: nothing is built or
+  // compiled until it first rains near the eye - a dry day never pays the program. ?rain=0 switches it off (no program ever);
+  // the GRAPHICS row 'rain' picks the tier (off / lean / full). The eye's velocity is the camera's own (any view: a parked
+  // chase, the cockpit at 50 m/s, the free eye), smoothed; in the cockpit the box round the head is dry and the density falls
+  // with airspeed (the windscreen carries the rest). Not yet: roofs (setRoofs is there, the premises' list is not wired) and
+  // the landing light's cone - the next steps.
+  const RAIN_Q = (() => { try { const m = /[?&]rain=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
+  let rainFx = null;
+  const RAIN_ST = { t: 0, last: null, vel: [0, 0, 0], vp: null, cabInv: null, light: null, why: 'dry' };
+  // RAIN ON THE GLASS (step 2 prototype, 17 Nov): the glass's wetness rises in rain (~6 s) and dries out of it (~60 s), handed to the glass
+  // program with the airspeed, the clock and gravity in craft space (world down through the shared uCraftInv) - the drops' flow
+  let glassWet = 0;
+  const _gDown = [0, 0, -1];
+  function glassRainFrame(dt, R, off) {
+    if (typeof AEROWX === 'undefined' || !AEROWX.aeroWxSetRain) return;
+    const target = off ? 0 : (R > 0 ? R : 0);
+    if (dt > 0) { glassWet += (target - glassWet) * Math.min(1, dt / (target > glassWet ? 6 : 60)); if (target === 0 && glassWet < 0.002) glassWet = 0; }
+    if (!(glassWet > 0) && !(target > 0)) { AEROWX.aeroWxSetRain(THREE, 0, 0, 0, null); return; }
+    let g = null;
+    try { const U = window.AEROSKIN && AEROSKIN.aeroSharedU ? AEROSKIN.aeroSharedU(THREE) : null;
+      if (U && U.uCraftInv) { const e = U.uCraftInv.value.elements, x = -e[4], y = -e[5], z = -e[6], n = Math.hypot(x, y, z) || 1; _gDown[0] = x / n; _gDown[1] = y / n; _gDown[2] = z / n; g = _gDown; } } catch (err) {}
+    const V = sim && sim.cgVel ? Math.hypot.apply(null, sim.cgVel()) : 0;
+    AEROWX.aeroWxSetRain(THREE, glassWet, V, RAIN_ST.t, g);
+  }
+  function syncRainFx(dt) {
+    const R = typeof CLOUDS !== 'undefined' && CLOUDS.ready ? CLOUDS.rain : 0, G = window.GFX && window.GFX.get ? window.GFX.get() : null;
+    const pick = RAIN_Q === 0 ? 'off' : ((G && G.rain) || 'auto');
+    const tier = pick === 'auto' ? (G && /^(laptop|potato|retro)$/.test(G.preset || '') ? 'lean' : 'full') : pick;   // auto: lean on the light presets
+    glassRainFrame(dt, R, RAIN_Q === 0);   // the drops on the glass (the streaks' tier does not switch them; ?rain=0 does)
+    // NO FREEZE WHEN THE FIRST SHOWER COMES (RAIN, 21 Nov; the user's table rows 8-9: no frame over 100 ms in flight): the streaks'
+    // one program is made on a day that RAINS SOMEWHERE (the day's rain > 0, ~23 % of the plan's days) while it is still dry here, and
+    // linked off the frame (renderer.compileAsync, the prop disc's way); a dry day never makes it. Until the link lands the streaks
+    // stay hidden (a shower's first fraction of a second without them) - a draw would have linked it synchronously in the frame
+    const dayRains = !!(world && world.day && +world.day.rain > 0);
+    if (!rainFx) {
+      if (!(R > 0 || dayRains) || tier === 'off' || typeof RAIN_FX === 'undefined' || !THREE.InstancedBufferGeometry) { RAIN_ST.why = R > 0 ? 'off (' + tier + ')' : 'dry'; return; }
+      rainFx = RAIN_FX.make(THREE); scene.add(rainFx.mesh);
+      RAIN_ST.vp = new THREE.Vector2(); RAIN_ST.cabInv = new THREE.Matrix4();
+      RAIN_ST.light = { sunCol: new THREE.Color(), skyCol: new THREE.Color() };
+      rainFx.linked = typeof renderer.compileAsync !== 'function';
+      if (!rainFx.linked) { const fx = rainFx; RAIN_ST.linkT0 = performance.now(); fx.mesh.visible = true;
+        renderer.compileAsync(fx.mesh, camera, scene).then(() => { fx.linked = true; RAIN_ST.linkMs = performance.now() - RAIN_ST.linkT0; }, () => { fx.linked = true; });
+        fx.mesh.visible = false; }
+    }
+    if (!rainFx.linked) { rainFx.mesh.visible = false; RAIN_ST.why = 'linking'; return; }
+    camera.updateMatrixWorld();
+    const me = camera.matrixWorld.elements, p = [me[12], me[13], me[14]], S = RAIN_ST;
+    if (dt > 0) {
+      S.t += dt;
+      if (S.last) { const k = Math.min(1, dt * 6); for (let i = 0; i < 3; i++) { const v = (p[i] - S.last[i]) / dt; S.vel[i] += ((Math.abs(v) < 400 ? v : 0) - S.vel[i]) * k; } }
+      S.last = p;
+    }
+    const W = LKW(), L = S.light;
+    let sun = null;
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; sun = [sd.x, sd.y, sd.z];
+      L.sunCol.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); L.skyCol.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity); }
+    renderer.getDrawingBufferSize(S.vp);
+    const cockpit = cam.mode === 'cockpit';
+    if (cockpit) S.cabInv.copy(camera.matrixWorldInverse);
+    const V = sim && sim.cgVel ? Math.hypot.apply(null, sim.cgVel()) : Math.hypot(S.vel[0], S.vel[1], S.vel[2]);
+    rainFx.sync(camera, { rain: R, t: S.t, wind: W ? [W[0], W[1]] : [0, 0], eyeVel: S.vel, cockpit, V, tier, sun, sunCol: L.sunCol, skyCol: L.skyCol,
+      viewport: [S.vp.x, S.vp.y], cabin: cockpit ? { inv: S.cabInv, half: RAIN_FX.LOOK.cabinHalf } : null });
+    S.why = rainFx.drawn ? 'drawn' : (R > 0 ? 'off (' + tier + ')' : 'dry');
+  }
+  if (typeof window !== 'undefined') window.RAIN_LIVE = { get fx() { return rainFx; }, get st() { return RAIN_ST; }, get q() { return RAIN_Q; }, get glassWet() { return glassWet; } };
   // ---- GROUND-FX (16 Nov 2026): THE MUD ON THE AEROPLANE, COMPUTED FROM ITS GEOMETRY, live (ground_deposit.js; the design
   // futureDesigns/GROUND-FX-2026-11-15.md sections 3 and 7). THE USER, 15 Nov: "projecting on the right places, as a function
   // of the actual plane geometry". THE GRID: the flown aeroplane's own meshes in craft space (uCraftInv x each mesh's world),
@@ -278656,6 +279148,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
     gdFrame(running ? fdt : 0);                                    // GROUND-FX: the mud computed from the geometry, the dust film, the rain on the skin
+    if (!inGarage) syncRainFx(running ? fdt : 0); else if (rainFx) rainFx.mesh.visible = false;   // RAIN: the streaks round the eye (made the first time it rains)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets
