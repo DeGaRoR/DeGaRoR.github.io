@@ -3271,7 +3271,13 @@
     "provider": "clients",
     "gain": 0
    },
-   "client": "adam"
+   "client": "adam",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1407,
+    "sig": "8c21b0ca"
+   }
   },
   {
    "id": "booze.02",

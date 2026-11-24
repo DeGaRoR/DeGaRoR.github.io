@@ -4,14 +4,14 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 54,
+  "feasible": 55,
   "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
-  "not flown": 7,
+  "not flown": 6,
   "infeasible": 16,
   "stale": 3
  },
- "flownS": 104358,
+ "flownS": 105765,
  "rows": [
   {
    "id": "field.01",
@@ -2080,8 +2080,44 @@
    "id": "booze.01",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1407,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 552,
+     "how": "stopped",
+     "at": "w5",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w5",
+     "to": "w8",
+     "t": 855,
+     "how": "stopped",
+     "at": "w8",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "booze.02",

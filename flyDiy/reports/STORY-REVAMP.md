@@ -107,8 +107,8 @@ Whoever takes this on needs this section, the table "Where it stands" and the ta
 ### The feasibility state
 
 <!-- feas-state -->
-ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 54 FEASIBLE, 19 red or waiting for a plane the player builds, 10 not flown yet on this sim (3 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
-The feasible ones, by the aeroplane that flew them: 25 Piper Cub, 7 STOL Cub, 7 light metal Cessna with the STOL kit (test build), 4 PC-6 Turbo Porter, 4 Cessna 172 floats (career), 4 Jodel D112, 2 Cessna 172, 1 PC-6 on Wiplines.
+ON L40K's SIM (this branch; the table `reports/STORY-REVAMP/feasibility.md`, each row `reports/STORY-REVAMP/feasibility/<id>.json`), of the pack's 91 missions outside the tutorial: 55 FEASIBLE, 19 red or waiting for a plane the player builds, 9 not flown yet on this sim (3 of them have a row from L40J, marked stale), 8 aircraft orders (not flights).
+The feasible ones, by the aeroplane that flew them: 26 Piper Cub, 7 STOL Cub, 7 light metal Cessna with the STOL kit (test build), 4 PC-6 Turbo Porter, 4 Cessna 172 floats (career), 4 Jodel D112, 2 Cessna 172, 1 PC-6 on Wiplines.
 Those, by cause:
 - heritage.02: no official plane can carry it (300 kg into a 150 m strip): a STOL hauler the player builds - a named class, not flown
 - lumber.02, lumber.04: water cargo over about 95 kg: the float Cessna's loading card takes 90 to 98 kg with the pilot alone, the Twin busher 15 kg, and the PC-6 on Wiplines (wip list), started at HOME as an amphibian, does not line up there - a float hauler the player builds, or that PC-6's taxi
