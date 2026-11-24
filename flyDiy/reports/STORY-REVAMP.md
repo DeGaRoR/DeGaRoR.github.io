@@ -10,6 +10,26 @@ Inputs read: CLAUDE.md, HANDOVER (ritual, files, gates), `origin/claude/story-re
 missions (22 Nov, handed to this session: the remote community, home improvement, the observatory, the cultural
 heritage site). Where a backbone story and an older note disagree, the backbone story wins (the user, 22 Nov).
 
+## Status for A0 (Tue 24 Nov, seventh and last note, 04:45 UTC) - story-10, the session stands down
+
+- **`claude/ready/story-10`** = story-9 + the rows of the whole pack flown on L40K's sim, their flags on the missions
+  (`validated`), the handover's "what is left" by cause, the gaps named from the flights. It CONTAINS story-8 and
+  story-9: take the latest. Since story-9 nothing moved but report files, `src/missions/story.json` (flags only) and
+  this file; no built file moves.
+- GATES ON IT: STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS; MISSIONFEAS PASS (502 s, run alone, with
+  the final harness). As on story-9: MISSIONS red on master's 8 checks (the bush run), CONTRACTS on master's four.
+- THE PACK ON L40K: 81 of the 83 flights flown (about 32 hours of flight). 58 VALIDATED WITH AN AEROPLANE; 23 red or
+  waiting for a plane, each with its cause (the handover section: "what is left" groups them, "the feasibility state"
+  lists them). The last two (home.09, home.12: Cabin Lake landings) were still in the air when this ready was cut;
+  their rows go to `claude/story-revamp` if they land. The 8 aircraft orders are not flights: 4 pass their criteria
+  on an official plane, 3 are untested (no career design), 1 (resort.b2) fails its landing test at the altiport.
+- THE CLUB: four of the five scored events and the club's contract are validated (the Cub; the Jodel for the
+  contract); the multi-leg tour is red on its stop at w5 on this sim (it flew on L40J).
+- THE FOUR PROJECTS: the old hangar 5 of 5; the community 8 of 11 (three heavy loads wait for a hauler); home 7 of
+  14 flights (Cabin Lake's five, two heavy loads); the observatory 2 of 9 (the 210 m strip: loads, three aboard,
+  the taxi out); the heritage site 1 of 2 (the 300 kg load).
+- This session stands down here. Whoever takes it on: the HANDOVER section just below.
+
 ## Status for A0 (Mon 23 Nov, sixth note, 20:20 UTC) - story-9 c4d67392e
 
 - **`claude/ready/story-9`** = story-8 + (1) THE VALIDATED-WITH FLAG on the missions and its display in the mission
