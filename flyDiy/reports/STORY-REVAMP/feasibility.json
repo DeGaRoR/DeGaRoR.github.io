@@ -7,11 +7,11 @@
   "feasible": 57,
   "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
-  "infeasible": 16,
-  "stale": 2,
+  "infeasible": 17,
+  "stale": 1,
   "not flown": 5
  },
- "flownS": 108284,
+ "flownS": 108942,
  "rows": [
   {
    "id": "field.01",
@@ -2420,7 +2420,25 @@
    "id": "home.08",
    "where": "home:4",
    "kind": "contract",
-   "verdict": "stale",
+   "verdict": "infeasible",
+   "plane": "Twin busher floats 4b",
+   "timeS": 658,
+   "why": "the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "cb_sea",
+     "t": 658,
+     "how": "stopped",
+     "at": "cb_sea",
+     "stop": [],
+     "kg": 39,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {

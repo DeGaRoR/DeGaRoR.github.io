@@ -3668,7 +3668,14 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "567cfdc7"
+   }
   },
   {
    "id": "home.09",

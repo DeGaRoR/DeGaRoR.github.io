@@ -3,7 +3,7 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 57 feasible; 16 infeasible; 3 no official plane can fly it (the player builds one); 5 not flown; 2 stale. Time flown: 1804 min 44 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 57 feasible; 17 infeasible; 3 no official plane can fly it (the player builds one); 5 not flown; 1 stale. Time flown: 1815 min 42 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
@@ -74,7 +74,7 @@ Summary (91 missions): 8 an aircraft order (not a flight); 57 feasible; 16 infea
 | home.05 | home:2 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 14 min 50 s | HOME > w1 890 |  |
 | home.06 | home:3 | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 450 kg aboard, the cabin takes 90 kg; jodel: Jodel: 450 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 450 kg aboard, the cabin takes 280 kg; c172f: Cessna  |
 | home.07 | home:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 20 min 03 s | HOME > w3 472; w3 > w1 731 |  |
-| home.08 | home:4 | stale | - | - | - |  |
+| home.08 | home:4 | infeasible | Twin busher floats 4b | 10 min 58 s | SEA > cb_sea 658 | the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax |
 | home.09 | home:4 | not flown | - | - | - |  |
 | home.10 | home:5 | not flown | - | - | - |  |
 | home.11 | home:5 | not flown | - | - | - |  |
