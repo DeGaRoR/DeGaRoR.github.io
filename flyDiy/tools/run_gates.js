@@ -713,6 +713,7 @@ const GATES = [
   // tundra is a torus, every tail cone has its zone (the mirrored pod's too), the Mosquito's whole-cabin shoulder,
   // and the comment strip the source-scan gates share is a lexer. Seconds.
   { id: 'EDBUGS', file: '_edbugs_check.js', tier: 'core' },
+  { id: 'REFLOCK', file: '_reflock_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },   // REF-LOCK (the user 21 Nov): a locked row shows no slider
   // THE FITTINGS (G81-G85): GEN_ACCESS resolved against the built skin, and
   // the geometry that lands there. Every fitting on its own skin, one per
   // flank, snapped to real structure, standing OUT, no two in one place, and
@@ -845,6 +846,7 @@ const GATES = [
   // the build's occupants it leaves ashore off the layer) - the stand, the snapshot and the flown mesh follow, the spec
   // stays the build's. The page's load chain on the metal Cessna, four jobs, a probe; ~1-2 min
   { id: 'CREWSEATS', file: '_crewseats_check.js', tier: 'core', wall: 300 },
+  { id: 'CREWSYM', file: '_crewsym_check.js', argv: ['--selftest'], tier: 'core', wall: 300 },   // KNEE-SYM (the user 23 Nov): the pilot's knees mirror, the aeroplane turned or not
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)

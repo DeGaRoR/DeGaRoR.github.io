@@ -1,6 +1,6 @@
 {
  "what": "skis-base",
- "note": "GATE SKIS section 1: the no-ski witnesses (tools/_skis_bytes.js: def, shakedown sheet, 300 flown steps) by the core BEFORE the skis (origin/master 6a8d705c, train L40a; re-blessed at the rebase from 23ce68c1 / L39b). Re-bless in a base worktree with node tools/_skis_check.js --bless when a chantier landing before this one moves them.",
+ "note": "GATE SKIS section 1: the no-ski witnesses (tools/_skis_bytes.js: def, shakedown sheet, 300 flown steps) by the core BEFORE the skis (origin/master 6a8d705c, train L40a; re-blessed at the rebase from 23ce68c1 / L39b). Re-bless in a base worktree with node tools/_skis_check.js --bless when a chantier landing before this one moves them. RE-ANCHORED 24 Nov (FLAGSHIP, user-fixes-1121-2, A0 + Deform: named, measured base 56047b34e vs branch): the metal Cessna copy and the Super Petrel copy - 300 steps only (TRICYCLE-STANCE: a tricycle stood on its three wheels before the first step; def and sheet unchanged); the twin floatplane - def, sheet and 300 steps (TAPER-SHELL / TAPER-DIAG: the taper cover one shell, its skins split alike). Every other witness as blessed.",
  "base": "6a8d705c",
  "builds": {
   "builds/cub_2026-09-20_corrected.json": {
@@ -20,7 +20,7 @@
   "tools/fixtures/test_copies/cessnaMetal (1).json": {
    "def": "46c546c0a553",
    "sh": "99602d263023",
-   "sim": "5cddbb102aef",
+   "sim": "ab825eed1961",
    "nodes": 107,
    "ski": false
   },
@@ -32,16 +32,16 @@
    "ski": false
   },
   "tools/fixtures/build_v7_ultralight_2026-09-05.json": {
-   "def": "fad8c9b539f9",
-   "sh": "4c4b3095b3b9",
-   "sim": "697dcd96ca67",
+   "def": "6e8d0b0254ff",
+   "sh": "cc3846d4dddc",
+   "sim": "e7621e1059cc",
    "nodes": 123,
    "ski": false
   },
   "tools/fixtures/test_copies/superpetrel_V4_1.json": {
    "def": "4ee65ac963b1",
    "sh": "cbdc7611c54b",
-   "sim": "2b5738e6dc25",
+   "sim": "57e06216236d",
    "nodes": 184,
    "ski": false
   },

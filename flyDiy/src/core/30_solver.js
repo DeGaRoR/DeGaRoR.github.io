@@ -3075,14 +3075,28 @@ function makeSim(def, world) {
     const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = rC[tw] - rC[M[0]];
     const R = hyp2(A, B);
     if (R < 1e-6 || Math.abs(C) > R) return 0;
-    const th = Math.asin(C / R) - Math.atan2(B, A);
+    // TRICYCLE-STANCE (23 Nov, the refit 172's tail post on the ground at every spawn): A sin t + B cos t = C has two
+    // roots, asin(C/R) - phi and pi - asin(C/R) - phi (phi = atan2(B, A)). The first is the small one only when the
+    // third wheel is AFT of the mains (A > 0, a tailwheel); a nosewheel lies forward (-x), phi is near +-pi, the first
+    // root came out ~3 rad, the 34 deg guard refused it, and no tricycle was ever stood on its three wheels - it fell
+    // level onto its nosewheel, rocked back and (the refit 172) struck its tail post. The root nearest zero now.
+    const wrap = t => t - 2 * Math.PI * Math.round(t / (2 * Math.PI));
+    const r1 = wrap(Math.asin(C / R) - Math.atan2(B, A)), r2 = wrap(Math.PI - Math.asin(C / R) - Math.atan2(B, A));
+    const th = Math.abs(r1) <= Math.abs(r2) ? r1 : r2;
     if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
     const cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
+    // (TRICYCLE-STANCE: reset left the LOWEST contact 1 cm clear (+ its drop) - a nosewheel's, on a nose-low build - and
+    // the turn about the mains lifts it to the mains' line, 16 cm up on the refit 172: the lowest contact goes back to
+    // the height reset gave it. A tailwheel's turn ends with the mains still lowest, where they were: a no-op there.)
+    let min0 = Infinity, min1 = Infinity;
+    for (let i = 0; i < n; i++) min0 = Math.min(min0, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) {
       const dx = p[i*3] - ax, dy = p[i*3+1] - ay;
       p[i*3] = ax + dx * cs - dy * sn;
       p[i*3+1] = ay + dx * sn + dy * cs;
     }
+    for (let i = 0; i < n; i++) min1 = Math.min(min1, p[i*3+1] - rC[i]);
+    if (min1 > min0) for (let i = 0; i < n; i++) p[i*3+1] -= min1 - min0;
     return th;
   }
 

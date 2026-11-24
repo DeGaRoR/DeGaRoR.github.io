@@ -1018,6 +1018,50 @@ if (process.argv.includes('--selftest')) {
     bad.slice(0, 4).join(', '));
 }
 
+// TAPER-DIAG (the user 23 Nov, the Chinook's dark trapezoid low aft): THE TAPER SHELL SHOWS ITS OUTSIDE TO THE EYE. Its
+// panels' corners are lifted along mean normals, so a panel is not flat; drawn as triangles, the outer and the inner
+// skin must split on the SAME diagonal, or over half of each warped panel the inner skin stands outside the outer and
+// its back face (the cabin darkening) is what the eye meets. Rays from 20 cm outside, straight in along each skin
+// triangle's normal: the first taperPanel triangle met must face the ray. Selftest: the inner skin pushed outside.
+{
+  const sub = (a, b) => a.map((x, k) => x - b[k]), cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const dt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], un = a => { const l = Math.hypot(...a) || 1; return a.map(x => x / l); };
+  const trisOf = (M, V) => { const out = []; V = V || M.V;
+    for (const f of M.F) if (f.m === 'taperPanel') for (let i = 1; i + 1 < f.v.length; i++) {
+      const t = [V[f.v[0]], V[f.v[i]], V[f.v[i + 1]]];
+      const nn = cr(sub(t[1], t[0]), sub(t[2], t[0])); if (Math.hypot(...nn) > 1e-9) out.push({ t, n: un(nn), a: Math.hypot(...nn) / 2, f, i }); }
+    return out; };
+  // the selftest's sabotage, the very failure: the inner skin (the big triangles facing the shell's middle) pushed 1.5 cm
+  // OUTWARD, so it stands outside the outer skin
+  const innerOut = M => { const tris = trisOf(M), c = [0, 1, 2].map(k => tris.reduce((s, q) => s + q.t[0][k], 0) / tris.length);
+    const inner = new Set(), outer = new Set();
+    for (const q of tris) { if (q.a <= 2e-3) continue; const tc = [0, 1, 2].map(k => (q.t[0][k] + q.t[1][k] + q.t[2][k]) / 3), w = un(sub(c, tc)), d = dt(q.n, w);
+      const ids = [q.f.v[0], q.f.v[q.i], q.f.v[q.i + 1]]; if (d > 0.5) ids.forEach(x => inner.add(x)); else if (d < -0.5) ids.forEach(x => outer.add(x)); }
+    const V = M.V.slice(); for (const x of inner) if (!outer.has(x)) { const w = un(sub(V[x], c)); V[x] = V[x].map((y, k) => y + w[k] * 0.015); }
+    return trisOf(M, V); };
+  const hit = (o, d, t) => { const e1 = sub(t[1], t[0]), e2 = sub(t[2], t[0]), p = cr(d, e2), det = dt(e1, p); if (Math.abs(det) < 1e-12) return -1;
+    const s = sub(o, t[0]), u = dt(s, p) / det; if (u < 0 || u > 1) return -1; const q = cr(s, e1), v = dt(d, q) / det;
+    if (v < 0 || u + v > 1) return -1; return dt(e2, q) / det; };
+  const eyeTest = tris => { let n = 0, bad = 0;
+    for (const T0 of tris.filter(x => x.a > 2e-3)) for (const [a, b] of [[0.2, 0.2], [0.6, 0.2], [0.2, 0.6], [0.33, 0.33], [0.45, 0.45], [0.1, 0.8], [0.8, 0.1]]) {
+      const P = [0, 1, 2].map(k => T0.t[0][k] + a * (T0.t[1][k] - T0.t[0][k]) + b * (T0.t[2][k] - T0.t[0][k]));
+      const o = P.map((x, k) => x + T0.n[k] * 0.2), d = T0.n.map(x => -x);
+      let best = null; for (const U of tris) { const s = hit(o, d, U.t); if (s > 1e-6 && (!best || s < best.s)) best = { s, U }; }
+      if (!best) continue; n++; if (dt(best.U.n, d) > 0) bad++; }
+    return { n, bad }; };
+  const fs3 = require('fs'), chin = path.join(__dirname, '..', 'builds', 'chinook_2026-09-21_corrected.json');
+  const cases = [['rod + taper panels', Object.assign({}, PAGE_BASE, { boomStyle: 1, taperOn: 1, taperPanels: 1 })]];
+  if (fs3.existsSync(chin)) cases.push(['the Chinook', Object.assign({}, PAGE_BASE, JSON.parse(fs3.readFileSync(chin, 'utf8')).spec.cage)]);
+  for (const [name, P] of cases) {
+    const M = G.cageSheet(P, { step: 'crease', level: 2 }).sheet, tris = trisOf(M), r = eyeTest(tris);
+    check(tris.length > 0 && r.n > 20 && r.bad === 0, 'the taper shell shows its OUTSIDE to the eye: ' + name,
+      tris.length + ' triangles, ' + r.n + ' rays, ' + r.bad + ' met a back face first');
+    const s = eyeTest(innerOut(M));
+    console.log('  selftest ' + (s.bad > 0 ? 'caught  ' : 'MISSED  ') + 'taper eye test, the inner skin pushed outside the outer (' + name + ')');
+    check(s.bad > 0, 'the taper eye test is not inert (' + name + ')');
+  }
+}
+
 // ---------------------------------------------------------------------------
 const nParts = PARTS.CAGE_PARTS.filter(p => !p.root && p.parent !== null).length;
 const nAsm = PARTS.CAGE_PARTS.filter(p => p.parent === null && !p.root).length;

@@ -319285,3 +319285,67 @@ rows 14 and 15 met twice more on the merged tree (worst frame 133-150 ms, no pag
 This ready CONTAINS, merged: perf-lead-1, claude/ready/perf-worldbuild-3's code (369ad0ec9), deform-wreck-clear f49705343, perf-trace-8 e3c2e449e,
 perf-sliders-release-1 87aeb19fb. GATES on the tree: PROGRAMS, LIGHT, HULLWARM, FLIGHTREC, GARAGEFIRST, BACKGUARD, COMMITHYGIENE, COVER, COMPSTEPS,
 DMGSKINGPU, DMGPAGEW pass.
+## USER-FIXES 21 NOV - the user's bug list via A0 (FLAGSHIP, Sun 22 Nov 2026; claude/ready/user-fixes-1121 on chinook-user, on one-cessna-4)
+
+1. "the dashboard of the velis electro does not show": the dash builder (_cage_gen.js, I2) walked the windscreen base
+   from the FIRST loose end the map met. The Electric trainer's base is a 9-point chain plus two 2-point stubs at the
+   waist (an edge the band leaves out), so it took a stub (< 5 points) and drew no dash. Every chain is walked now, the
+   longest kept, and a stub within 8 cm of its end joined (DASH-CHAIN). The trainer: 920 dash + 140 face-plate faces
+   across the glass (x +-0.54); the Cessna's base is one chain - unchanged (728 / 108).
+2. "Seats lack a width setting": seatW, the preset's calibrated width x (0.60-1.60, every seat aboard; the cabin's room
+   still caps it - _seat_gen.js stance). Absent at 1 (CAGE_DEFAULT_ABSENT): no saved build moves.
+3. "seat the pilot correctly in any seat, the position of his bottom": pilSitZ / pilSitY (the pilot, the pilot pose
+   group) and paxSitZ / paxSitY (the co-pilot and every passenger, the passenger pose group), metres fore/aft and
+   up/down on the seat (_cage_crew.js seatOccupant); hands and feet IK onto the controls after it. Absent at 0. Drawing
+   only: the crew's mass stations are the seats', unchanged.
+4. The user's modified Chinook: its own ready, claude/ready/chinook-user (see CHINOOK-USER above); this branch sits on it.
+5. The Chinook's taper panels (_cage_gen.js, rod mode taperPanels): (a) "one is constantly shaded" - the normal was
+   turned outward and the winding was not, so the -x sides and the belly showed their back face outside, which the
+   cabin's shading darkens whatever the sun: the winding turns with the normal; (b) "a square shaded different in the
+   middle" - the top tubes (ceiling corners and the roof's middle to the rod's crown) rose through the flat top: the top
+   is two halves meeting at the crown; (c) "none of them joins properly" - each corner was pulled 6 % to the centre
+   (4 cm on a 0.65 m taper): a fixed 1.2 cm inset now (a tube's radius). Every taperPanels build moves (the Chinooks, the
+   birdman copies, the career's twin floatplane).
+6. "The propeller check ... 5 cm discrepancy on the station, tilting is different": the garage's Prop clearance circle
+   (app.js buildAids) stood on aidMap - the LOADED mains - while the aeroplane is drawn from the firewall ring on the
+   sim's raw axes: a spring leg's give moved the circle off the propeller; and it was drawn square to the body axis,
+   never the shaft. Now: aidMapBody (the model's own placement, def.refs.origin / sim.bodyOrigin / sim.axes) and the
+   circle square to the drawn shaft (CAGE_ENG units' propAxis -> genAidPropOff -> thrust/prop .dir). The ground posts keep
+   aidMap.
+7. The Chinook's taper, round 2 (the user 23 Nov: "we need a single body for the aft part"): TAPER-SHELL - the six boxes
+   are ONE shell (shared corners lifted along their panels' mean normal; outer skin outward, inner reversed, walls only
+   on the open edges); the seams and black lines went (stills before/after: flydiy-notes/evidence/chinook-taper-2026-11-23).
+   The dark trapezoid low aft stayed: the page's raycast through it met the INNER skin's back face first, the outer
+   3 mm behind. TAPER-DIAG - a lifted panel is not flat (~6 deg between its halves) and the outer [0,1,2,3] split on 0-2
+   while the reversed inner [3,2,1,0] split on 3-1: over half of each warped panel the inner stood outside. Both skins
+   now split on the same diagonal, as explicit triangles. GATE PARTS row "the taper shell shows its OUTSIDE to the eye"
+   (rays from outside along every skin triangle: the first taperPanel triangle met faces the ray; rod + taper panels and
+   the Chinook; selftest = the inner skin pushed outside): old code 84 / 11 rays back-first, new 0. PARTS' other reds
+   (cw_keelLevel cw_deckLevel cw_deckFall unclaimed) are master's (089297693 fails them too).
+NOT VERIFIED IN GAME (A0: no GPU / box runs while the user takes screenshots; the thermal rule): the dash, the panels and
+the prop circle are checked headless only (face counts, boxes) - A0's in-game round owed.
+TAILWHEEL E + I (down & out) on master since L40H: the twin-boom fixture flies the E-811, now 53 kg installed (the user's
+"modify the existing E-811"); it falls 20 m low on the slope at 80 m and goes around twice ("unstabilised approach"), out
+of circuit time; with the old 30 kg it lands. Routed to Pilot via A0 (power up when low on the slope); not touched here.
+
+## READY user-fixes-1121-2 (FLAGSHIP, Tue 24 Nov 2026 ~06:00; on L40K 56047b34e; for L40M) - claude/ready/user-fixes-1121-2
+CARRIES: USER-FIXES (the trainer's dash, seatW, pilSitZ/Y + paxSitZ/Y, the prop check), REF-LOCK (GATE REFLOCK), TAPER-SHELL +
+TAPER-DIAG (the Chinook's aft body one shell, its skins split alike: the dark trapezoid gone, seen in game; GATE PARTS eye row),
+KNEE-SYM (the user: "right knee more inside": the IK poles in the body's frame; GATE CREWSYM new), TRICYCLE-STANCE (sim.stance
+never stood a tricycle - the refit 172 struck its tail post at every spawn; GATE CONTACT 6), STANCE-AS-GAME 1+2 (A0's decision,
+Deform no objection: the damage gates' ground stagings call stance as the game does), SKIS-REANCHOR (named).
+BASE VS BRANCH (by check name, the night set):
+- FIXED: DMGSCUFF green, DMGSKIN green, DMGSCAR 5 -> 1 (the CORE_MATH census row, master's), DMGWRECK's FAR-drop row green - the
+  refit's nine "only the wheels touch" rows.
+- MOVED, re-anchored: SKIS's three no-ski witnesses (metal Cessna + Super Petrel 300 steps: the stance; the twin floatplane def /
+  sheet / steps: the taper shell); SKIS back to base's 1 red (the Jodel witness, identical).
+- THE SAME on both trees, row for row: the 22 stance gates (TAKEOFF c172 733 m both; the tricycle crosswind roll 11.78 -> 11.91 m
+  in its 12.5 m band; RADIALDIV, TAXICLEAR, ROUTE, FRAMECOST, CONTACT's pavement 5, STORAGE, ALTIPORT, UNIFY), DMGCERT, DMGCLUSTERS,
+  DMGDETERMINISM, DMGDRIVE (overspeed), DMGFABRIC, DMGGEAR, DMGINST, DMGINTEGRITY; DMGFPS / DMGFALL / DMGCERTCOST green. DESTTO
+  hit its 1800 s wall on BOTH (box load). Taildraggers in the gates that already called stance: unchanged rows.
+- NOT RUN on base by 05:45 (branch only): DMGNOSE DMGNOSEOVER DMGMEMBERS DMGOCCUPANT DMGPOD green; DMGSETTLE DMGWALL DMGDAMP DMGTYRE
+  TREECRASH APSMOOTH STAGES red on the branch - their base side not measured: the train's battery is the judge.
+- Touched gates on the tip: PARTS REFLOCK COMMITHYGIENE AIDS DASH FRAMES KNIFE CREWSYM PASS.
+OPEN (FLAGSHIP): the tail item (DMGCERT's fin side-pull breaks 16 fin:attach members on base and branch alike; a fin-root fittings
+row is drafted, not landed: flydiy-notes/fin-root-row-WIP-2026-11-24.patch), DMGDRIVE overspeed, WATERDAMP, MISSIONS bush run,
+ROUTE fly:metal, CLIP aerial, SAVE skiPos; TAILWHEEL I (Pilot's finding: the E-811 pusher's thrust moment).

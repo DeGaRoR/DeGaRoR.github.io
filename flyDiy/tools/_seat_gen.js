@@ -539,7 +539,10 @@ const grooves = (at, w, depth, axis, uMask) => (u, v) => {
 // the occupied lines (see THE SEATING REFERENCE) and the cabin fit
 function stance(A, P, g, pre, sbs) {
   const capW = sbs ? A.halfW * 0.47 : A.halfW * 0.66;
-  const kx = Math.min(1, capW / pre.hw);
+  // SEAT-WIDTH (the user 21 Nov: "Seats lack a width setting"): `seatW`, the preset's calibrated width x (absent = 1, every
+  // saved build draws the seat it drew); the cabin's room still caps it - a seat never draws through a side
+  const wK = Number.isFinite(+P.seatW) && +P.seatW > 0 ? Math.max(0.6, Math.min(1.6, +P.seatW)) : 1;
+  const kx = Math.min(wK, capW / pre.hw);
   const H = [g.panY + 0.065, g.zBack + 0.06];               // the hinge on the occupied faces (y, z)
   const panL = 0.43;
   const F = [H[0] + panL * Math.sin(g.tilt), H[1] + panL * Math.cos(g.tilt)];
@@ -550,7 +553,7 @@ function stance(A, P, g, pre, sbs) {
   const up = [bc, -bs];                                       // along the back, upward (y, z)
   const fwd = [bs, bc];                                       // the back's normal toward the occupant
   return { kx, H, F, B, panL, backL, bc, bs, up, fwd, hw: pre.hw * kx, sx: g.sx, floor: g.floor,
-           fit: kx < 0.999 || backL < pre.back - 1e-3 ? { kx, backL } : null };
+           fit: kx < wK - 1e-3 || backL < pre.back - 1e-3 ? { kx, backL } : null };
 }
 const yz = (y, z) => [y, z];
 const ptB = (S, k, off) => [S.H[0] + S.up[0] * k + S.fwd[0] * (off || 0), S.H[1] + S.up[1] * k + S.fwd[1] * (off || 0)];

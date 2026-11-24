@@ -6247,6 +6247,19 @@ function buildMatPanel() {
     console.error('finish view:', e); }
 }
 
+// REF-LOCK (the user 21 Nov: "it's a lot better when sliders are hidden when the value is editable only after unlocking
+// from the reference section. We do that in some section, but mostly not. Can we have this for all?"): ONE RULE for a
+// LOCKED row - a frame row that follows the reference section (`follow`, the "follows" tick) and a row linked to
+// another (`link`) alike: while locked, the slider, its number box and its metres readout are HIDDEN (the label and
+// the tick stay, so it can be unlocked); unlocked, they show. It was the linked rows' rule alone - the follow rows only
+// greyed out. GATE REFLOCK
+function rowLock(meta, locked) {
+  const vis = locked ? 'none' : '';
+  for (const e of [meta.el, meta.vf, meta.mu]) if (e && e.style) e.style.display = vis;
+  if (meta.el) meta.el.disabled = !!locked && !!meta.followEl;
+  if (meta.vf) meta.vf.disabled = !!locked && !!meta.followEl;
+  if (meta.row && meta.row.classList) meta.row.classList.toggle('follows', !!locked && !!meta.followEl);
+}
 // THE FOLLOW ROWS AFTER A BUILD (T2.1): their number is the generator's, so
 // it moves whenever the reference section or a neighbour does — refreshed
 // from CAGE_UI.frames after every build, the rest of the rows untouched
@@ -6255,9 +6268,7 @@ function syncFollow() {
     if (!meta.followEl || !meta.el) continue;
     const on = P[meta.k] == null;
     meta.followEl.checked = on;
-    meta.el.disabled = on;
-    if (meta.vf) meta.vf.disabled = on;
-    meta.row.classList.toggle('follows', on);
+    rowLock(meta, on);                   // REF-LOCK
     if (!on) continue;
     const v = frameVal(meta.opts.follow);
     if (v == null) continue;
@@ -6276,9 +6287,7 @@ function syncSliders() {
       const on = v == null;
       meta.followEl.checked = on;
       if (on) v = frameVal(opts.follow);
-      el.disabled = on;
-      if (meta.vf) meta.vf.disabled = on;
-      meta.row.classList.toggle('follows', on);
+      rowLock(meta, on);                 // REF-LOCK
       if (v == null) continue;
     }
     if (v == null) continue;
@@ -6297,11 +6306,8 @@ function syncSliders() {
       let on = false;
       try { on = !!t(P[k]); } catch (e) {}
       meta.linkEl.checked = on;
-      // while linked the number is the layer's to resolve — hide the widget
-      const vis = on ? 'none' : '';
-      el.style.display = vis;
-      if (meta.vf) meta.vf.style.display = vis;
-      if (meta.mu) meta.mu.style.display = vis;
+      // while linked the number is the layer's to resolve — hidden (REF-LOCK: the one rule)
+      rowLock(meta, on);
     }
   }
   applyRowVis();

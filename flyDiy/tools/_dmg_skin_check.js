@@ -313,7 +313,8 @@ if (argv[0] === '--build') {
     let Wd, strip;
     if (probe.hydro) { Wd = C.makeWorld(); strip = Wd.aerodromes.find(a => a.id === 'SEA'); } else ({ W: Wd, strip } = L.flatWorld(0));
     const sim = C.makeSim(def, Wd); H = SH.makeSimHost(C, { keepSim: { def, sim }, day: false, withV: true, world: {} }, Wd);
-    sim.reset(0); C.placeAtAerodrome(sim, Object.assign({}, strip, probe.hydro ? {} : { elev: 0, spawnElev: 0 }));
+    sim.reset(0); if (!probe.hydro && sim.stance) sim.stance();   // (STANCE-AS-GAME, A0 23 Nov: stood as the game stands it)
+    C.placeAtAerodrome(sim, Object.assign({}, strip, probe.hydro ? {} : { elev: 0, spawnElev: 0 }));
     H.started = true; H.manual = true; H.hand = null; H.ap = { t: 0, box: null, phase: 'FLY', report: null }; H.end = { air: false, wasAir: false, still: 0, over: false };
     for (let f = 0; f < 240; f++) { H.step(true); H.meta(); }
     const sink = L.far473(k);
