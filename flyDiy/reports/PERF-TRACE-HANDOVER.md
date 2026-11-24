@@ -72,3 +72,44 @@ and the hooks in `flight_recorder.js`.
 5. The rock ring reports itself like the cover ring's four layers; the far terrain's `deliver` gains its quadrant key.
 6. One origin for "seconds since the reveal" across the readers (crash_window says both; slot_frames uses the first).
 7. The recorder's own cost written up from the PROGID0 / REC0 rows of 22 Nov (measured, never reported).
+
+## 5. Added 24 Nov: the GPU's time by pass (the user: "get some headroom on the graphic card, maybe reach below 30 ms per frame")
+
+Ready refs `claude/ready/perf-trace-9` (the tool) and `-10` (it keeps the heavy frames), both on the lab's tip.
+
+| Tool | Use | What it answers |
+|---|---|---|
+| `?recgpu=pass[:N]` on the page | one frame in N (4) timed as a chain of GPU timer queries | nothing without the switch; the log's table `gpuPasses` |
+| `tools/gpu_passes.js <log> [--mark step] [--against other.json]` | a cruise flown with the switch | GPU ms by pass (median, p90, share, ms a megapixel), the passes' sum against the whole-frame timer, the render scale in time order with what the controller aims at, two logs side by side |
+| `tools/flight_scripts/perf/cruise_gpu*.json` | the journey's start, 30 s of climb, 75 s en route | the same seconds for every row; `_auto` switches the automatic scale on, `_smoke` is load + 8 s |
+| `evidence/perf-trace-gpu-2026-11-24/rows_0736.sh`, `rows_1300.sh` | a GPU window in one command (`PT_DRY=1` = the preflight alone) | the pattern for the next one: a smoke first, a baseline flown in the same hour, one setting down a row |
+
+The log's additions: table `gpuPasses { every, labels, frames, kept, lost, lostBy, segMax, segCap, rows }`, header
+`gpuTimer.byPass`, event `aascale { scale, auto, w, h, targetMs }` (the render scale when it changes).
+
+WHAT THE FIRST REAL ROWS SAID (24 Nov 07:36, RTX 3080, 5120x1271, the 75 s en route over land, the lab's tip):
+- The whole frame: 30.0 ms median, 42 at the 90th percentile with `mirpace` + `farslots` on (36 % of frames over 33.3 ms);
+  32.9 / 45.1 without them. 899 draw calls and 14.8 M triangles a frame (on the ground: 2 009 draws, 28.5 M, GPU 40 ms).
+- By pass (median ms, the base): scene pass 28.6 (87 %), clouds march 2.55, shadow maps 0.58, post 0.26, AA resolve 0.16,
+  uploads 0.1, the mirror 0 over land. The sums agree with the whole-frame timer (32.6 against 33.1; 30.0 against 30).
+- THE SCENE PASS IS MOSTLY NOT PIXELS: with the automatic scale at 0.5 (a quarter of the pixels) the GPU still takes 21 ms,
+  the scene pass about 16. Roughly a fixed 13 ms (the triangles and the draws) plus 1.9 ms a megapixel. Resolution alone
+  does not reach "below 30"; geometry (far terrain, forest density and detail, the cover) is the larger lever.
+- THE AUTOMATIC SCALE GOT STUCK LOW: a heavy stretch (the ground, the first climb) pushes it down; its way back up asked
+  g x k^2 < 0.8 T, the GPU's time as if all of it were pixels, so from 0.5 it predicted 37.7 ms at 0.67 where the same row
+  measured 20.3. PERF-LEAD changed the rule the same morning (the lab, aaAutoDecide: the part that does not scale is
+  learnt). Its target follows the frame cap (app.js tellScale) - I first wrote that it chased 60 whatever the cap: wrong.
+
+WHAT THE TOOL DOES NOT DO, learnt the same morning:
+- IT CANNOT SPLIT ONE PASS. Cover ring, far terrain, trees, the aeroplane are drawn interleaved in the scene pass. A
+  family's cost is the difference of two flights of the same seconds (`--against`), one setting down.
+- ITS FIRST BUILD (-9) LOST 60-70 % OF THE PASS FRAMES, the heavy ones: more renders in a frame than its 48 segments (the
+  shadow map's wrapper pushes on every renderer.render). The medians stood (the sums agreed); the tail was not in the split.
+  -10 fixes the cause I believe it was and counts every lost frame by its reason: READ `lostBy` FIRST on any new log.
+- A link wait's owner (tools/link_waits.js) is the program ASKED for its status. Where the driver was busy with something
+  else - the clouds march's two-output variant built at its first draw, 1.4 s - the owner is wrong and the milliseconds
+  are right. The program first drawn just before the wait is the one to look at.
+
+NEXT, in order: the 13:00 lever rows' table (ms saved a setting, each against a baseline of the same hour) decides which
+geometry to cut; the automatic scale's new rule flown (does it climb back to 0.85 and hold the card under 28 ms); the
+tail's split once `lostBy` reads zero; then the census pin of section 4.
