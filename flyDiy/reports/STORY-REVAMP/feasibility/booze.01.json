@@ -1,0 +1,111 @@
+{
+ "id": "booze.01",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 1407,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w5",
+   "t": 552,
+   "how": "stopped",
+   "at": "w5",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w5",
+   "to": "w8",
+   "t": 855,
+   "how": "stopped",
+   "at": "w8",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 60,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 552,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 22.5 m/s until clear",
+      "terrain-react: the ground ahead stands within 40 m of the plan on INBOUND - climbing to 102 m (planned 101)",
+      "descent-hold: 79 m over the slope 876 m from the aim - circling down to 84 m before the final"
+     ],
+     "landing": {
+      "run": 103,
+      "sink": 1.16,
+      "V": 16.5,
+      "offCentre": -0.1,
+      "pastAim": 53,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 72,
+      "stopLeft": 135
+     }
+    },
+    {
+     "from": "w5",
+     "to": "w8",
+     "t": 855,
+     "how": "stopped",
+     "kg": 60,
+     "pax": 0,
+     "said": [
+      "committed-takeoff: past the point of stopping at V=17.2 with 203 m left — continuing",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 22.5 m/s until clear",
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 416 m (planned 325)"
+     ],
+     "landing": {
+      "run": 92,
+      "sink": 1.47,
+      "V": 16.1,
+      "offCentre": 0.2,
+      "pastAim": 21,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 44,
+      "stopLeft": 255
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "waited for the window (after dusk): 2026-07-16 22146 s UT"
+ ],
+ "untested": false,
+ "key": "b4983122f1f2",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 620
+}

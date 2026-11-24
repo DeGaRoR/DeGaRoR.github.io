@@ -1,0 +1,73 @@
+{
+ "id": "minedock.05",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Cessna 172 floats (career)",
+ "timeS": 428,
+ "why": "",
+ "tried": [
+  "Cessna 172 floats (career):feasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "mk_sea",
+   "t": 428,
+   "how": "stopped",
+   "at": "mk_sea",
+   "stop": [
+    "sub:0@0",
+    "sub:1@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
+   "kg": 30,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 428,
+     "how": "stopped",
+     "kg": 30,
+     "pax": 0,
+     "said": [
+      "vref-raised: the elevator cannot hold 30.5 m/s at this power — flying the approach faster"
+     ],
+     "landing": {
+      "run": 351,
+      "sink": 0.44,
+      "V": 34,
+      "offCentre": -0.6,
+      "pastAim": 117,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 425,
+      "stopLeft": 724
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: Cessna 172 floats (career) flown with 1 aboard (the garage's seat door)",
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
+ "untested": false,
+ "key": "918a37884484",
+ "where": "harbour:1",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 362
+}

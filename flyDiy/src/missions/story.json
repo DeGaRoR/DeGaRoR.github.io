@@ -443,7 +443,13 @@
     "every": 3
    },
    "goods": "goods.mail",
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 2126,
+    "sig": "389d5d8d"
+   }
   },
   {
    "id": "field.hike",
@@ -559,7 +565,13 @@
     "provider": "field",
     "gain": 0.5
    },
-   "client": "leonard"
+   "client": "leonard",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 1252,
+    "sig": "682a1234"
+   }
   },
   {
    "id": "hangar.01",
@@ -909,6 +921,12 @@
      "who": "pete",
      "text": "ct.minedock.n1.done"
     }
+   },
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 2100,
+    "sig": "271d9c89"
    }
   },
   {
@@ -1076,6 +1094,12 @@
      "who": "pete",
      "text": "ct.minedock.01.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2364,
+    "sig": "18d901f7"
    }
   },
   {
@@ -1116,6 +1140,12 @@
      "who": "pete",
      "text": "ct.minedock.02.done"
     }
+   },
+   "validated": {
+    "with": "PC-6 Turbo Porter",
+    "sim": "L40K",
+    "flownS": 1326,
+    "sig": "c7d274be"
    }
   },
   {
@@ -1275,7 +1305,13 @@
      "mine"
     ]
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "PC-6 Turbo Porter",
+    "sim": "L40K",
+    "flownS": 2223,
+    "sig": "98534ec6"
+   }
   },
   {
    "id": "minedock.05",
@@ -1324,6 +1360,12 @@
      "who": "pete",
      "text": "ct.minedock.05.done"
     }
+   },
+   "validated": {
+    "with": "Cessna 172 floats (career)",
+    "sim": "L40K",
+    "flownS": 428,
+    "sig": "a48a6dde"
    }
   },
   {
@@ -1364,6 +1406,12 @@
      "who": "pete",
      "text": "ct.minedock.06.done"
     }
+   },
+   "validated": {
+    "with": "PA-18 on floats",
+    "sim": "L40K",
+    "flownS": 1286,
+    "sig": "4b5903f4"
    }
   },
   {
@@ -1398,7 +1446,13 @@
     "provider": "minedock",
     "gain": 0.5
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "Cessna 172 floats (career)",
+    "sim": "L40K",
+    "flownS": 419,
+    "sig": "71f71535"
+   }
   },
   {
    "id": "lumber.02",
@@ -1433,7 +1487,14 @@
     "provider": "minedock",
     "gain": 0.5
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 15 kg / 0 pax, the job is 150 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "01623f70"
+   }
   },
   {
    "id": "lumber.03",
@@ -1467,7 +1528,13 @@
     "provider": "minedock",
     "gain": 0.5
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "PC-6 on Wiplines",
+    "sim": "L40K",
+    "flownS": 3365,
+    "sig": "de97feec"
+   }
   },
   {
    "id": "lumber.04",
@@ -1507,7 +1574,14 @@
      "text": "ms.lumber.04.done"
     }
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "crashed: the damage ended the flight: a fus member broke",
+    "sim": "L40K",
+    "sig": "28745911"
+   }
   },
   {
    "id": "lumber.run",
@@ -1549,7 +1623,13 @@
      "lumber"
     ]
    },
-   "client": "pete"
+   "client": "pete",
+   "validated": {
+    "with": "Cessna 172 floats (career)",
+    "sim": "L40K",
+    "flownS": 420,
+    "sig": "ff06d5cd"
+   }
   },
   {
    "id": "resort.01",
@@ -1589,6 +1669,12 @@
      "who": "martha",
      "text": "ct.resort.01.done"
     }
+   },
+   "validated": {
+    "with": "Jodel D112",
+    "sim": "L40K",
+    "flownS": 962,
+    "sig": "11c6b7f4"
    }
   },
   {
@@ -1780,7 +1866,13 @@
     "every": 3
    },
    "goods": "goods.guests",
-   "client": "martha"
+   "client": "martha",
+   "validated": {
+    "with": "Jodel D112",
+    "sim": "L40K",
+    "flownS": 1793,
+    "sig": "2208cdc4"
+   }
   },
   {
    "id": "resort.02",
@@ -1820,6 +1912,12 @@
      "who": "martha",
      "text": "ct.resort.02.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2071,
+    "sig": "90aab816"
    }
   },
   {
@@ -1866,6 +1964,13 @@
      "who": "martha",
      "text": "ct.resort.03.done"
     }
+   },
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "never took off on tw_ski > tw_ski (689 s on the ground: HOLD>DEPART>TAXI>STOP>HOLD>STOPPED) - the page ended it as a stop and the career counted it (a step judg",
+    "sim": "L40K",
+    "sig": "7311e507"
    }
   },
   {
@@ -1901,7 +2006,13 @@
     "provider": "resort",
     "gain": 0.5
    },
-   "client": "martha"
+   "client": "martha",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1233,
+    "sig": "578869bc"
+   }
   },
   {
    "id": "resort.05",
@@ -1954,6 +2065,13 @@
      "who": "martha",
      "text": "ct.resort.05.done"
     }
+   },
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the flight did not end (2400 s)",
+    "sim": "L40K",
+    "sig": "63716c2e"
    }
   },
   {
@@ -2000,6 +2118,12 @@
      "who": "kate",
      "text": "ct.survey.01.done"
     }
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 2269,
+    "sig": "136859d0"
    }
   },
   {
@@ -2040,6 +2164,12 @@
      "who": "kate",
      "text": "ct.survey.02.done"
     }
+   },
+   "validated": {
+    "with": "Cessna 172 floats (career)",
+    "sim": "L40K",
+    "flownS": 1201,
+    "sig": "3c3a2c10"
    }
   },
   {
@@ -2103,6 +2233,12 @@
     "after": [
      "survey.01"
     ]
+   },
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 4010,
+    "sig": "907e2b01"
    }
   },
   {
@@ -2166,6 +2302,12 @@
    },
    "needs": {
     "rep": 1
+   },
+   "validated": {
+    "with": "Cessna 172",
+    "sim": "L40K",
+    "flownS": 1259,
+    "sig": "6bafce5d"
    }
   },
   {
@@ -2292,7 +2434,13 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 3841,
+    "sig": "1cd0a2b1"
+   }
   },
   {
    "id": "obs.02",
@@ -2326,7 +2474,14 @@
     "provider": "survey",
     "gain": 1
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax",
+    "sim": "L40K",
+    "sig": "8a8c0af7"
+   }
   },
   {
    "id": "obs.03",
@@ -2365,7 +2520,14 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "no progress: already loaded",
+    "sim": "L40K",
+    "sig": "6a3c875f"
+   }
   },
   {
    "id": "obs.04",
@@ -2399,7 +2561,14 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "no progress: already loaded [declined]",
+    "sim": "L40K",
+    "sig": "b43790d4"
+   }
   },
   {
    "id": "obs.05",
@@ -2434,7 +2603,13 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+    "sim": "L40K",
+    "flownS": 999,
+    "sig": "4ecbacd6"
+   }
   },
   {
    "id": "obs.06",
@@ -2469,7 +2644,14 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 150 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "bae9eaa4"
+   }
   },
   {
    "id": "obs.07",
@@ -2503,7 +2685,14 @@
     "provider": "survey",
     "gain": 0.5
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "no progress: already loaded [declined]",
+    "sim": "L40K",
+    "sig": "b43790d4"
+   }
   },
   {
    "id": "obs.08",
@@ -2538,7 +2727,14 @@
     "gain": 1
    },
    "goods": "goods.parts",
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 200 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "1b0527fc"
+   }
   },
   {
    "id": "obs.09",
@@ -2579,7 +2775,14 @@
      "text": "ms.obs.09.done"
     }
    },
-   "client": "kate"
+   "client": "kate",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 250 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "08e31835"
+   }
   },
   {
    "id": "clients.01",
@@ -2636,6 +2839,12 @@
      "who": "adam",
      "text": "ct.clients.01.done"
     }
+   },
+   "validated": {
+    "with": "Jodel D112",
+    "sim": "L40K",
+    "flownS": 2048,
+    "sig": "41b1f396"
    }
   },
   {
@@ -2698,6 +2907,12 @@
      "who": "adam",
      "text": "ct.clients.n1.done"
     }
+   },
+   "validated": {
+    "with": "Cessna 172",
+    "sim": "L40K",
+    "flownS": 1287,
+    "sig": "fbbac96b"
    }
   },
   {
@@ -2760,6 +2975,13 @@
     "after": [
      "clients.n1"
     ]
+   },
+   "validated": {
+    "with": null,
+    "verdict": "no official plane",
+    "why": "no official plane can carry it: a plane the player builds",
+    "sim": "L40K",
+    "sig": "21ef27c4"
    }
   },
   {
@@ -2822,6 +3044,13 @@
      "who": "adam",
      "text": "ct.clients.03.done"
     }
+   },
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "no progress: stopped at Skyline Altiport, not Jolene AFB 13/31",
+    "sim": "L40K",
+    "sig": "ddc3c380"
    }
   },
   {
@@ -3061,7 +3290,13 @@
     "provider": "clients",
     "gain": 0
    },
-   "client": "adam"
+   "client": "adam",
+   "validated": {
+    "with": "Piper Cub",
+    "sim": "L40K",
+    "flownS": 1407,
+    "sig": "8c21b0ca"
+   }
   },
   {
    "id": "booze.02",
@@ -3105,7 +3340,13 @@
      "booze.01"
     ]
    },
-   "client": "adam"
+   "client": "adam",
+   "validated": {
+    "with": "STOL Cub",
+    "sim": "L40K",
+    "flownS": 2296,
+    "sig": "0d25a9c2"
+   }
   },
   {
    "id": "home.01",
@@ -3440,7 +3681,14 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "567cfdc7"
+   }
   },
   {
    "id": "home.09",
@@ -3508,7 +3756,14 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "crashed: the damage ended the flight: a fus member broke",
+    "sim": "L40K",
+    "sig": "05d0610a"
+   }
   },
   {
    "id": "home.11",
@@ -3542,7 +3797,14 @@
     "provider": "home",
     "gain": 0.25
    },
-   "client": "sophie"
+   "client": "sophie",
+   "validated": {
+    "with": null,
+    "verdict": "infeasible",
+    "why": "the stop refuses the load: aboard 40 kg / 0 pax, the job is 200 kg / 0 pax",
+    "sim": "L40K",
+    "sig": "c3d10b6c"
+   }
   },
   {
    "id": "home.12",

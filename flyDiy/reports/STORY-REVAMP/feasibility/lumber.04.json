@@ -31,7 +31,7 @@
   {
    "plane": "Cessna 172 floats (career)",
    "verdict": "infeasible",
-   "why": "the stop refuses the load: aboard 98 kg / 1 pax, the job is 250 kg / 0 pax",
+   "why": "the stop refuses the load: aboard 98 kg / 0 pax, the job is 250 kg / 0 pax",
    "legs": [
     {
      "from": "SEA",
@@ -42,18 +42,18 @@
      "pax": 0,
      "said": [],
      "landing": {
-      "run": 283,
+      "run": 284,
       "sink": 0.4,
       "V": 31.1,
-      "offCentre": -1.1,
-      "pastAim": 114,
+      "offCentre": -1,
+      "pastAim": 111,
       "k": 0,
       "three": true,
       "onStrip": true,
-      "tdIn": 421,
-      "stopLeft": 796
+      "tdIn": 419,
+      "stopLeft": 797
      },
-     "stop": "aboard 98 kg / 1 pax, the job is 250 kg / 0 pax"
+     "stop": "aboard 98 kg / 0 pax, the job is 250 kg / 0 pax"
     }
    ]
   },
@@ -80,12 +80,13 @@
   }
  ],
  "notes": [
+  "the seats as the job asks: Cessna 172 floats (career) flown with 1 aboard (the garage's seat door)",
   "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
  ],
  "untested": false,
  "key": "2fa43b196913",
  "where": "lumber:3",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 2303
+ "sim": "L40K",
+ "wallS": 2133
 }

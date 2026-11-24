@@ -3,17 +3,17 @@
 tools/story_feas.js --table. Each mission flown the way the game flies it (tools/mission_feas.js: the stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop).
 A row is kept until its mission changes. Structure only: the verdict, the aeroplane, the time flown, where each flight ended.
 
-Summary (91 missions): 8 an aircraft order (not a flight); 33 feasible; 5 infeasible; 2 no official plane can fly it (the player builds one); 36 not flown; 7 stale. Time flown: 879 min 40 s.
+Summary (91 missions): 8 an aircraft order (not a flight); 58 feasible; 20 infeasible; 3 no official plane can fly it (the player builds one); 2 not flown. Time flown: 1903 min 38 s.
 
 | mission | step of | verdict | aeroplane | flown | flights (from > to, s) | why not |
 |---|---|---|---|---|---|---|
 | field.01 | contract | feasible | Piper Cub | 16 min 06 s | HOME > w3 533; w3 > HOME 432 |  |
 | field.02 | contract | feasible | Piper Cub | 16 min 15 s | HOME > w3 546; w3 > HOME 430 |  |
 | field.n1 | contract | feasible | Piper Cub | 17 min 08 s | HOME > w3 537; w3 > HOME 490 |  |
-| field.round | contract | not flown | - | - | - |  |
+| field.round | contract | feasible | STOL Cub | 35 min 26 s | HOME > w5 581; w5 > HOME 869; HOME > w3 676 |  |
 | field.hike | contract | feasible | Piper Cub | 17 min 43 s | HOME > w8 1063 |  |
 | field.ridge | contract | feasible | STOL Cub | 20 min 58 s | HOME > w3 564; w3 > w4 694 |  |
-| field.cannery | contract | not flown | - | - | - |  |
+| field.cannery | contract | feasible | STOL Cub | 20 min 52 s | HOME > w5 553; w5 > HOME 699 |  |
 | hangar.01 | hangar:1 | feasible | Piper Cub | 16 min 43 s | HOME > w3 560; w3 > HOME 443 |  |
 | hangar.02 | hangar:1 | feasible | Piper Cub | 19 min 52 s | HOME > w5 555; w5 > HOME 637 |  |
 | hangar.03 | hangar:2 | feasible | Piper Cub | 18 min 13 s | HOME > w3 573; w3 > HOME 520 |  |
@@ -21,52 +21,52 @@ Summary (91 missions): 8 an aircraft order (not a flight); 33 feasible; 5 infeas
 | hangar.05 | hangar:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 18 min 55 s | HOME > w3 472; w3 > HOME 664 |  |
 | heritage.01 | heritage:1 | feasible | STOL Cub | 15 min 31 s | HOME > nv_strip 931 |  |
 | heritage.02 | heritage:2 | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 300 kg aboard, the cabin takes 90 kg; jodel: Jodel: 300 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 300 kg aboard, the cabin takes 280 kg; c172f: Cessna  |
-| minedock.n1 | contract | not flown | - | - | - |  |
-| minedock.b1 | contract | order | - | - | - |  |
-| minedock.b2 | contract | order | - | - | - |  |
-| minedock.01 | mine:1 | not flown | - | - | - |  |
-| minedock.02 | mine:2 | not flown | - | - | - |  |
+| minedock.n1 | contract | feasible | STOL Cub | 35 min 00 s | HOME > mn_strip 969; mn_strip > HOME 1131 |  |
+| minedock.b1 | contract | order | Cessna 172 floats (career) | 46 min 45 s | SEA > SEA 405; SEA > SEA 2400 |  |
+| minedock.b2 | contract | order | Piper Cub | 21 min 45 s | HOME > mn_strip 966; mn_strip > mn_strip 339 |  |
+| minedock.01 | mine:1 | feasible | Piper Cub | 39 min 24 s | HOME > HOME 1745; HOME > HOME 619 |  |
+| minedock.02 | mine:2 | feasible | PC-6 Turbo Porter | 22 min 06 s | HOME > mn_strip 1326 |  |
 | mine.03 | mine:3 | feasible | Piper Cub | 46 min 02 s | HOME > mn_strip 994; mn_strip > w3 1048; w3 > mn_strip 720 |  |
 | mine.04 | mine:4 | feasible | PC-6 Turbo Porter | 22 min 06 s | HOME > mn_strip 1326 |  |
-| mine.tour | contract | not flown | - | - | - |  |
-| minedock.05 | harbour:1 | not flown | - | - | - |  |
-| minedock.06 | harbour:2 | not flown | - | - | - |  |
-| lumber.01 | lumber:1 | stale | - | - | - |  |
-| lumber.02 | lumber:2 | not flown | - | - | - |  |
-| lumber.03 | lumber:2 | not flown | - | - | - |  |
-| lumber.04 | lumber:3 | stale | - | - | - |  |
-| lumber.run | contract | not flown | - | - | - |  |
-| resort.01 | contract | not flown | - | - | - |  |
+| mine.tour | contract | feasible | PC-6 Turbo Porter | 37 min 03 s | HOME > mn_strip 1326; mn_strip > HOME 897 |  |
+| minedock.05 | harbour:1 | feasible | Cessna 172 floats (career) | 7 min 08 s | SEA > mk_sea 428 |  |
+| minedock.06 | harbour:2 | feasible | PA-18 on floats | 21 min 26 s | SEA > mk_sea 413; mk_sea > SEA 874 |  |
+| lumber.01 | lumber:1 | feasible | Cessna 172 floats (career) | 6 min 59 s | SEA > mk_sea 419 |  |
+| lumber.02 | lumber:2 | infeasible | Twin busher floats 4b | 6 min 37 s | SEA > mk_sea 397 | the stop refuses the load: aboard 15 kg / 0 pax, the job is 150 kg / 0 pax |
+| lumber.03 | lumber:2 | feasible | PC-6 on Wiplines | 56 min 05 s | HOME > mk_sea 1128; mk_sea > mk_sea 993; mk_sea > SEA 1244 |  |
+| lumber.04 | lumber:3 | infeasible | PC-6 on Wiplines | 18 min 12 s | HOME > SEA 1092 | crashed: the damage ended the flight: a fus member broke |
+| lumber.run | contract | feasible | Cessna 172 floats (career) | 7 min 00 s | SEA > mk_sea 420 |  |
+| resort.01 | contract | feasible | Jodel D112 | 16 min 02 s | HOME > tw_ski 962 |  |
 | resort.04 | contract | order | - | - | - |  |
-| resort.b2 | contract | order | - | - | - |  |
-| resort.guests | contract | not flown | - | - | - |  |
-| resort.02 | skyline:1 | not flown | - | - | - |  |
-| resort.03 | skyline:2 | not flown | - | - | - |  |
-| skyline.03 | skyline:2 | stale | - | - | - |  |
-| resort.05 | skyline:3 | not flown | - | - | - |  |
-| survey.01 | contract | not flown | - | - | - |  |
-| survey.02 | contract | not flown | - | - | - |  |
-| survey.03 | contract | not flown | - | - | - |  |
-| survey.05 | contract | not flown | - | - | - |  |
+| resort.b2 | contract | order | Jodel D112 | 10 min 53 s | HOME > tw_ski 653 |  |
+| resort.guests | contract | feasible | Jodel D112 | 29 min 53 s | HOME > tw_ski 962; tw_ski > HOME 830 |  |
+| resort.02 | skyline:1 | feasible | Piper Cub | 34 min 31 s | HOME > w3 570; w3 > tw_ski 1502 |  |
+| resort.03 | skyline:2 | infeasible | STOL Cub | 21 min 01 s | HOME > tw_ski 572; tw_ski > tw_ski 689 | never took off on tw_ski > tw_ski (689 s on the ground: HOLD>DEPART>TAXI>STOP>HOLD>STOPPED) - the page ended it as a stop and the career counted it (a step judged on stop.aero alone) |
+| skyline.03 | skyline:2 | feasible | Piper Cub | 20 min 33 s | HOME > tw_ski 1233 |  |
+| resort.05 | skyline:3 | infeasible | PC-6 Turbo Porter | 40 min 00 s | HOME > tw_ski 2400 | the flight did not end (2400 s) |
+| survey.01 | contract | feasible | Piper Cub | 37 min 49 s | HOME > HOME 1650; HOME > HOME 619 |  |
+| survey.02 | contract | feasible | Cessna 172 floats (career) | 20 min 01 s | SEA > mk_sea 427; mk_sea > SEA 774 |  |
+| survey.03 | contract | feasible | Piper Cub | 66 min 50 s | HOME > HOME 1650; HOME > HOME 1744; HOME > HOME 616 |  |
+| survey.05 | contract | feasible | Cessna 172 | 20 min 59 s | HOME > w3 547; w3 > HOME 711 |  |
 | survey.04 | contract | order | - | - | - |  |
-| obs.01 | observatory:1 | stale | - | - | - |  |
-| obs.02 | observatory:2 | not flown | - | - | - |  |
-| obs.03 | observatory:2 | stale | - | - | - |  |
-| obs.04 | observatory:3 | not flown | - | - | - |  |
-| obs.05 | observatory:3 | stale | - | - | - |  |
-| obs.06 | observatory:4 | not flown | - | - | - |  |
-| obs.07 | observatory:4 | not flown | - | - | - |  |
-| obs.08 | observatory:5 | not flown | - | - | - |  |
-| obs.09 | observatory:6 | not flown | - | - | - |  |
-| clients.01 | contract | not flown | - | - | - |  |
-| clients.n1 | contract | not flown | - | - | - |  |
-| clients.n2 | contract | not flown | - | - | - |  |
-| clients.03 | contract | not flown | - | - | - |  |
+| obs.01 | observatory:1 | feasible | Piper Cub | 64 min 01 s | HOME > HOME 1426; HOME > HOME 1798; HOME > HOME 617 |  |
+| obs.02 | observatory:2 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 11 min 18 s | HOME > mt_strip 678 | the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax |
+| obs.03 | observatory:2 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 24 min 52 s | HOME > mt_strip 669; mt_strip > mt_strip 411; mt_strip > mt_strip 411 | no progress: already loaded |
+| obs.04 | observatory:3 | infeasible | PC-6 Turbo Porter | - | HOME > HOME 0; HOME > HOME 0; HOME > HOME 0 | no progress: already loaded [declined] |
+| obs.05 | observatory:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 16 min 39 s | HOME > w3 467; w3 > mt_strip 531 |  |
+| obs.06 | observatory:4 | infeasible | PC-6 Turbo Porter | - | HOME > HOME 0 | the stop refuses the load: aboard 0 kg / 0 pax, the job is 150 kg / 0 pax |
+| obs.07 | observatory:4 | infeasible | PC-6 Turbo Porter | - | HOME > HOME 0; HOME > HOME 0; HOME > HOME 0 | no progress: already loaded [declined] |
+| obs.08 | observatory:5 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 11 min 13 s | HOME > mt_strip 673 | the stop refuses the load: aboard 50 kg / 0 pax, the job is 200 kg / 0 pax |
+| obs.09 | observatory:6 | infeasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 11 min 13 s | HOME > mt_strip 673 | the stop refuses the load: aboard 50 kg / 0 pax, the job is 250 kg / 0 pax |
+| clients.01 | contract | feasible | Jodel D112 | 34 min 08 s | HOME > w3 1191; w3 > tw_ski 857 |  |
+| clients.n1 | contract | feasible | Cessna 172 | 21 min 27 s | HOME > w3 625; w3 > HOME 663 |  |
+| clients.n2 | contract | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 175 kg aboard, the cabin takes 90 kg; jodel: Jodel: 175 kg aboard, the cabin takes 90 kg; c172: Cessna 172: stretcher (2 x 0.6 x 0.5 m) passes no door; c172f: Ce |
+| clients.03 | contract | infeasible | STOL Cub | 21 min 01 s | HOME > tw_ski 572; tw_ski > tw_ski 689 | no progress: stopped at Skyline Altiport, not Jolene AFB 13/31 |
 | clients.02 | contract | order | - | - | - |  |
-| clients.04 | contract | order | - | - | - |  |
+| clients.04 | contract | order | Piper Cub | 10 min 17 s | HOME > HOME 617 |  |
 | clients.b1 | contract | order | - | - | - |  |
-| booze.01 | contract | not flown | - | - | - |  |
-| booze.02 | contract | not flown | - | - | - |  |
+| booze.01 | contract | feasible | Piper Cub | 23 min 27 s | HOME > w5 552; w5 > w8 855 |  |
+| booze.02 | contract | feasible | STOL Cub | 38 min 16 s | HOME > w6 1193; w6 > w5 1102 |  |
 | home.01 | home:1 | feasible | Piper Cub | 19 min 44 s | HOME > w1 1184 |  |
 | home.02 | home:1 | feasible | Piper Cub | 24 min 20 s | HOME > w3 560; w3 > w1 900 |  |
 | home.03 | home:2 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 20 min 08 s | HOME > w3 486; w3 > w1 722 |  |
@@ -74,10 +74,10 @@ Summary (91 missions): 8 an aircraft order (not a flight); 33 feasible; 5 infeas
 | home.05 | home:2 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 14 min 50 s | HOME > w1 890 |  |
 | home.06 | home:3 | infeasible | - | - | - | no official plane can do it (73_ contractCanDo): cub: Cub: 450 kg aboard, the cabin takes 90 kg; jodel: Jodel: 450 kg aboard, the cabin takes 90 kg; c172: Cessna 172: 450 kg aboard, the cabin takes 280 kg; c172f: Cessna  |
 | home.07 | home:3 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 20 min 03 s | HOME > w3 472; w3 > w1 731 |  |
-| home.08 | home:4 | stale | - | - | - |  |
+| home.08 | home:4 | infeasible | Twin busher floats 4b | 10 min 58 s | SEA > cb_sea 658 | the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax |
 | home.09 | home:4 | not flown | - | - | - |  |
-| home.10 | home:5 | not flown | - | - | - |  |
-| home.11 | home:5 | not flown | - | - | - |  |
+| home.10 | home:5 | infeasible | PC-6 on Wiplines | 18 min 12 s | HOME > SEA 1092 | crashed: the damage ended the flight: a fus member broke |
+| home.11 | home:5 | infeasible | Twin busher floats 4b | 6 min 36 s | SEA > mk_sea 396 | the stop refuses the load: aboard 40 kg / 0 pax, the job is 200 kg / 0 pax |
 | home.12 | home:6 | not flown | - | - | - |  |
 | home.13 | home:7 | infeasible | PC-6 Turbo Porter | 19 min 04 s | HOME > w1 1144 | the stop refuses the load: aboard 0 kg / 0 pax, the job is 280 kg / 0 pax |
 | home.14 | home:7 | feasible | light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) | 19 min 53 s | HOME > w3 480; w3 > w1 713 |  |

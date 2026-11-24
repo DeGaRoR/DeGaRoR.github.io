@@ -23,7 +23,6 @@
    "kg": 90,
    "pax": 0,
    "faults": [
-    "yield",
     "prop-strike"
    ],
    "events": []
@@ -43,21 +42,21 @@
      "kg": 90,
      "pax": 0,
      "said": [
-      "off-the-strip: touched 117 m in, stopped -106 m past the end of 280 m (15 m off the centreline)",
-      "slope: stopped on a 16.1 % grade — rolling 40 m on to the level part",
+      "off-the-strip: touched 116 m in, stopped -107 m past the end of 280 m (15 m off the centreline)",
+      "slope: stopped on a 16.9 % grade — rolling 40 m on to the level part",
       "slope-parked: the grade is too steep to taxi up - parked on the brakes 40 m short of the level part"
      ],
      "landing": {
       "run": 57,
-      "sink": -1,
+      "sink": -1.02,
       "V": 15.6,
-      "offCentre": 5.6,
-      "pastAim": 100,
+      "offCentre": 5.7,
+      "pastAim": 99,
       "k": 1,
       "three": true,
       "onStrip": false,
-      "tdIn": 117,
-      "stopLeft": 106
+      "tdIn": 116,
+      "stopLeft": 107
      }
     }
    ]
@@ -68,6 +67,6 @@
  "key": "e4c3ba76412f",
  "where": "skyline:2",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 446
+ "sim": "L40K",
+ "wallS": 485
 }

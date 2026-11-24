@@ -1,0 +1,71 @@
+{
+ "id": "lumber.run",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Cessna 172 floats (career)",
+ "timeS": 420,
+ "why": "",
+ "tried": [
+  "Cessna 172 floats (career):feasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "mk_sea",
+   "t": 420,
+   "how": "stopped",
+   "at": "mk_sea",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 80,
+   "pax": 1,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 420,
+     "how": "stopped",
+     "kg": 80,
+     "pax": 1,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 30.5 m/s until clear",
+      "vref-raised: the elevator cannot hold 32.5 m/s at this power — flying the approach faster"
+     ],
+     "landing": {
+      "run": 361,
+      "sink": 0.48,
+      "V": 35.1,
+      "offCentre": -1.5,
+      "pastAim": 128,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 436,
+      "stopLeft": 704
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
+ "untested": false,
+ "key": "e6f5c4e7ef51",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 362
+}

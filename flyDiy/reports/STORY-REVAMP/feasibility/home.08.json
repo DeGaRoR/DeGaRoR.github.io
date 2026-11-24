@@ -3,8 +3,8 @@
  "kind": "contract",
  "verdict": "infeasible",
  "plane": "Twin busher floats 4b",
- "timeS": 649,
- "why": "the stop refuses the load: aboard 39 kg / 1 pax, the job is 150 kg / 0 pax",
+ "timeS": 658,
+ "why": "the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax",
  "tried": [
   "Cessna 172 floats (career):infeasible",
   "PC-6 on Wiplines:infeasible",
@@ -14,7 +14,7 @@
   {
    "from": "SEA",
    "to": "cb_sea",
-   "t": 649,
+   "t": 658,
    "how": "stopped",
    "at": "cb_sea",
    "stop": [],
@@ -28,19 +28,19 @@
   {
    "plane": "Cessna 172 floats (career)",
    "verdict": "infeasible",
-   "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+   "why": "crashed: the damage ended the flight: an impact of 12 g",
    "legs": [
     {
      "from": "SEA",
      "to": "cb_sea",
-     "t": 550,
+     "t": 558,
      "how": "crashed",
      "kg": 150,
      "pax": 0,
      "said": [
-      "flare-guard: not flaring 223 m over the aim of Cabin Lake (25 m at most) - the final flies on",
-      "wings-level: the rudder eased off: the aileron on its stop against 26 deg of bank (24 deg of sideslip)",
-      "capsized: on its back in FINAL at 21.2 m/s (bank 90 deg)"
+      "slip: high on the final (86 m over the slope at idle) — slipping it down",
+      "flare-guard: not flaring 216 m over the aim of Cabin Lake (25 m at most) - the final flies on",
+      "wings-level: the rudder eased off: the aileron on its stop against 21 deg of bank (42 deg of sideslip)"
      ],
      "stop": "the aeroplane is wrecked: nothing is delivered"
     }
@@ -70,44 +70,45 @@
   {
    "plane": "Twin busher floats 4b",
    "verdict": "infeasible",
-   "why": "the stop refuses the load: aboard 39 kg / 1 pax, the job is 150 kg / 0 pax",
+   "why": "the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax",
    "legs": [
     {
      "from": "SEA",
      "to": "cb_sea",
-     "t": 649,
+     "t": 658,
      "how": "stopped",
      "kg": 39,
      "pax": 0,
      "said": [
-      "vx-climb: ground ahead above the aeroplane — climbing at Vx 29.3 m/s until clear",
-      "aim-displaced: the approach to Cabin Lake needs 22.5 deg over the obstacle 600 m out (249 m); flying 8.5 deg to an aim 1162 m in",
-      "off-the-strip: touched 1180 m in, stopped 39 m past the end of 1400 m (1 m off the centreline)"
+      "aim-displaced: the approach to Cabin Lake needs 22.5 deg over the obstacle 600 m out (249 m); flying 8.6 deg to an aim 1154 m in",
+      "off-the-strip: touched 1178 m in, stopped 55 m past the end of 1400 m (1 m off the centreline)"
      ],
      "landing": {
-      "run": 259,
-      "sink": 1.53,
-      "V": 27.8,
-      "offCentre": 0.4,
-      "pastAim": 18,
+      "run": 277,
+      "sink": 1.46,
+      "V": 28.5,
+      "offCentre": 0.3,
+      "pastAim": 24,
       "k": 0,
       "three": true,
       "onStrip": false,
-      "tdIn": 1180,
-      "stopLeft": -39
+      "tdIn": 1178,
+      "stopLeft": -55
      },
-     "stop": "aboard 39 kg / 1 pax, the job is 150 kg / 0 pax"
+     "stop": "aboard 39 kg / 0 pax, the job is 150 kg / 0 pax"
     }
    ]
   }
  ],
  "notes": [
-  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+  "the seats as the job asks: Cessna 172 floats (career) flown with 1 aboard (the garage's seat door)",
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats",
+  "the seats as the job asks: Twin busher floats 4b flown with 1 aboard (the garage's seat door)"
  ],
  "untested": false,
  "key": "e84f8afb87b9",
  "where": "home:4",
  "pool": "official+57,58+test builds, the seats filled",
- "sim": "L40J",
- "wallS": 3383
+ "sim": "L40K",
+ "wallS": 3619
 }

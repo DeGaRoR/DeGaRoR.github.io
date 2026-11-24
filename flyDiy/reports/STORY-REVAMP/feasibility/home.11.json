@@ -1,0 +1,119 @@
+{
+ "id": "home.11",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "Twin busher floats 4b",
+ "timeS": 396,
+ "why": "the stop refuses the load: aboard 40 kg / 0 pax, the job is 200 kg / 0 pax",
+ "tried": [
+  "Cessna 172 floats (career):infeasible",
+  "PC-6 on Wiplines:infeasible",
+  "Twin busher floats 4b:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "mk_sea",
+   "t": 396,
+   "how": "stopped",
+   "at": "mk_sea",
+   "stop": [],
+   "kg": 40,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 100 kg / 0 pax, the job is 200 kg / 0 pax",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 434,
+     "how": "stopped",
+     "kg": 100,
+     "pax": 0,
+     "said": [],
+     "landing": {
+      "run": 284,
+      "sink": 0.41,
+      "V": 31.1,
+      "offCentre": -1,
+      "pastAim": 111,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 419,
+      "stopLeft": 797
+     },
+     "stop": "aboard 100 kg / 0 pax, the job is 200 kg / 0 pax"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 on Wiplines",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mk_sea",
+     "t": 1092,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "lineup-timeout: could not line up in 120 s — stopping to replan",
+      "replan: not lined up with a run ahead (2039 m, 307.9 m off) — planning the departure again",
+      "gave-up: still in TAXI at t=884 s — out of patience, not out of sky"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "Twin busher floats 4b",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 40 kg / 0 pax, the job is 200 kg / 0 pax",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 396,
+     "how": "stopped",
+     "kg": 40,
+     "pax": 0,
+     "said": [],
+     "landing": {
+      "run": 224,
+      "sink": 0.69,
+      "V": 27.9,
+      "offCentre": 0.7,
+      "pastAim": 59,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 366,
+      "stopLeft": 910
+     },
+     "stop": "aboard 40 kg / 0 pax, the job is 200 kg / 0 pax"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: Cessna 172 floats (career) flown with 1 aboard (the garage's seat door)",
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats",
+  "the seats as the job asks: Twin busher floats 4b flown with 1 aboard (the garage's seat door)"
+ ],
+ "untested": false,
+ "key": "c57c7821c85f",
+ "where": "home:5",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 3264
+}

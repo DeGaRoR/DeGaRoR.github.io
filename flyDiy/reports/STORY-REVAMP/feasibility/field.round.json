@@ -1,0 +1,230 @@
+{
+ "id": "field.round",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "STOL Cub",
+ "timeS": 2126,
+ "why": "",
+ "tried": [
+  "Piper Cub:infeasible",
+  "Jodel D112:infeasible",
+  "STOL Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w5",
+   "t": 581,
+   "how": "stopped",
+   "at": "w5",
+   "stop": [
+    "sub:0@0"
+   ],
+   "kg": 20,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w5",
+   "to": "HOME",
+   "t": 869,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "picked:1@0"
+   ],
+   "kg": 20,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 676,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "sub:1@0",
+    "stage@0",
+    "done"
+   ],
+   "kg": 20,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "infeasible",
+   "why": "no progress: stopped at Cannery Runway: the job runs Jolene AFB 13/31 to Fishing Village Strip",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 562,
+     "how": "stopped",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "aim-displaced: the approach to Cannery Runway needs 22.2 deg over the obstacle 25 m out (10 m); flying 8.5 deg to an aim 144 m in",
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 185 m",
+      "off-the-strip: touched 174 m in, stopped -90 m past the end of 310 m (22 m off the centreline)"
+     ],
+     "landing": {
+      "run": 46,
+      "sink": 1.38,
+      "V": 15.2,
+      "offCentre": 0.6,
+      "pastAim": 30,
+      "k": 1,
+      "three": false,
+      "onStrip": false,
+      "tdIn": 174,
+      "stopLeft": 90
+     }
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 1551,
+     "how": "stopped",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (90 m, 21.6 m off) — planning the departure again",
+      "taxi-timeout: the route took 386 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "stopped at Cannery Runway: the job runs Jolene AFB 13/31 to Fishing Village Strip"
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 1551,
+     "how": "stopped",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "replan: not lined up with a run ahead (90 m, 21.5 m off) — planning the departure again",
+      "taxi-timeout: the route took 386 s — stopping where it is",
+      "taxi-lost: could not reach a lined-up hold in 3 plans — giving up on the ground"
+     ],
+     "stop": "stopped at Cannery Runway: the job runs Jolene AFB 13/31 to Fishing Village Strip"
+    }
+   ]
+  },
+  {
+   "plane": "Jodel D112",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 499,
+     "how": "crashed",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "out-of-energy: the engine seized at t=497 s, 3 m up — an emergency: gliding straight ahead for a forced landing",
+      "wings-level: the rudder eased off: the aileron on its stop against 44 deg of bank (-55 deg of sideslip)",
+      "capsized: on its back in ROLLOUT at 6.2 m/s (bank -92 deg) - after \"forced-landing\""
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "STOL Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 581,
+     "how": "stopped",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "aim-displaced: the approach to Cannery Runway needs 22.2 deg over the obstacle 25 m out (10 m); flying 9.1 deg to an aim 133 m in",
+      "terrain-react: the ground ahead stands within 40 m of the plan on BASE - climbing to 162 m",
+      "slip: high on energy on the short final (+8.5 m at idle) — slipping it down"
+     ],
+     "landing": {
+      "run": 24,
+      "sink": 1.35,
+      "V": 11.5,
+      "offCentre": 1.1,
+      "pastAim": 12,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 145,
+      "stopLeft": 142
+     }
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 869,
+     "how": "stopped",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 124 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 17.6 m/s until clear",
+      "taxi-in: taxiing in to the stand, 806 m"
+     ],
+     "landing": {
+      "run": 37,
+      "sink": 1.32,
+      "V": 11.4,
+      "offCentre": 1.1,
+      "pastAim": 18,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 28,
+      "stopLeft": 2259
+     }
+    },
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 676,
+     "how": "stopped",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 167 deg that the wheels (11.4 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 17.6 m/s until clear"
+     ],
+     "landing": {
+      "run": 28,
+      "sink": 1.06,
+      "V": 11.6,
+      "offCentre": -0.1,
+      "pastAim": 9,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 19,
+      "stopLeft": 496
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "e2de9039cc77",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 4435
+}

@@ -1,0 +1,111 @@
+{
+ "id": "survey.02",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Cessna 172 floats (career)",
+ "timeS": 1201,
+ "why": "",
+ "tried": [
+  "Cessna 172 floats (career):feasible"
+ ],
+ "legs": [
+  {
+   "from": "SEA",
+   "to": "mk_sea",
+   "t": 427,
+   "how": "stopped",
+   "at": "mk_sea",
+   "stop": [
+    "picked:0@0"
+   ],
+   "kg": 20,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "mk_sea",
+   "to": "SEA",
+   "t": 774,
+   "how": "stopped",
+   "at": "SEA",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "say",
+    "done"
+   ],
+   "kg": 20,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 427,
+     "how": "stopped",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "vref-raised: the elevator cannot hold 30.1 m/s at this power — flying the approach faster"
+     ],
+     "landing": {
+      "run": 357,
+      "sink": 0.45,
+      "V": 34.2,
+      "offCentre": -0.7,
+      "pastAim": 122,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 430,
+      "stopLeft": 713
+     }
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 774,
+     "how": "stopped",
+     "kg": 20,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+18.5 m at idle) — slipping it down",
+      "go-around: unstabilised approach at 32 m: sinking 2.6 m/s (attempt 1)",
+      "wont-climb: no climb left (0.11 m/s) — accepting 290 m"
+     ],
+     "landing": {
+      "run": 308,
+      "sink": 0.56,
+      "V": 32.6,
+      "offCentre": 4.5,
+      "pastAim": 133,
+      "k": 1,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 440,
+      "stopLeft": 752
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: Cessna 172 floats (career) flown with 1 aboard (the garage's seat door)",
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
+ "untested": false,
+ "key": "488c1003c849",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 891
+}

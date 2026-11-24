@@ -4,14 +4,13 @@
  "pack": "story",
  "missions": 91,
  "summary": {
-  "feasible": 33,
-  "not flown": 36,
-  "no official plane can fly it (the player builds one)": 2,
+  "feasible": 58,
+  "no official plane can fly it (the player builds one)": 3,
   "an aircraft order (not a flight)": 8,
-  "stale": 7,
-  "infeasible": 5
+  "infeasible": 20,
+  "not flown": 2
  },
- "flownS": 52780,
+ "flownS": 114218,
  "rows": [
   {
    "id": "field.01",
@@ -150,8 +149,58 @@
    "id": "field.round",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 2126,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 581,
+     "how": "stopped",
+     "at": "w5",
+     "stop": [
+      "sub:0@0"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 869,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "picked:1@0"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 676,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "sub:1@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "field.hike",
@@ -229,8 +278,44 @@
    "id": "field.cannery",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 1252,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 553,
+     "how": "stopped",
+     "at": "w5",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w5",
+     "to": "HOME",
+     "t": 699,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "hangar.01",
@@ -493,36 +578,204 @@
    "id": "minedock.n1",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 2100,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 969,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mn_strip",
+     "to": "HOME",
+     "t": 1131,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "minedock.b1",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 2805,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "SEA",
+     "t": 405,
+     "how": "stopped",
+     "at": "SEA",
+     "stop": [
+      "pending"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "SEA",
+     "to": "SEA",
+     "t": 2400,
+     "how": "timeout",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "timeout"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "validated",
    "cls": "order"
   },
   {
    "id": "minedock.b2",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1305,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 966,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "pending"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mn_strip",
+     "to": "mn_strip",
+     "t": 339,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
    "cls": "order"
   },
   {
    "id": "minedock.01",
    "where": "mine:1",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 2364,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1745,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 619,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "minedock.02",
    "where": "mine:2",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 1326,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 1326,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "mine.03",
@@ -615,274 +868,1403 @@
    "id": "mine.tour",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 2223,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 1326,
+     "how": "stopped",
+     "at": "mn_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mn_strip",
+     "to": "HOME",
+     "t": 897,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "minedock.05",
    "where": "harbour:1",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 428,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 428,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "sub:0@0",
+      "sub:1@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 30,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "minedock.06",
    "where": "harbour:2",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "PA-18 on floats",
+   "timeS": 1286,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 413,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 874,
+     "how": "stopped",
+     "at": "SEA",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "lumber.01",
    "where": "lumber:1",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 419,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 419,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "lumber.02",
    "where": "lumber:2",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "Twin busher floats 4b",
+   "timeS": 397,
+   "why": "the stop refuses the load: aboard 15 kg / 0 pax, the job is 150 kg / 0 pax",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 397,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [],
+     "kg": 15,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "lumber.03",
    "where": "lumber:2",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "PC-6 on Wiplines",
+   "timeS": 3365,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mk_sea",
+     "t": 1128,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 993,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 1244,
+     "how": "stopped",
+     "at": "SEA",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "lumber.04",
    "where": "lumber:3",
    "kind": "contract",
-   "verdict": "stale",
+   "verdict": "infeasible",
+   "plane": "PC-6 on Wiplines",
+   "timeS": 1092,
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "SEA",
+     "t": 1092,
+     "how": "crashed",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "crash",
+      "yield",
+      "break"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "lumber.run",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 420,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 420,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 80,
+     "pax": 1,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "resort.01",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Jodel D112",
+   "timeS": 962,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 962,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "resort.04",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "untested",
+   "plane": null,
+   "timeS": 0,
+   "why": "no criterion fails on Electric trainer (not a career design: untested here - powertrain, seats, enduranceMin, landAt)",
+   "legs": [],
+   "pool": "validated",
    "cls": "order"
   },
   {
    "id": "resort.b2",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "Jodel D112",
+   "timeS": 653,
+   "why": "crashed: the damage ended the flight: a tail member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 653,
+     "how": "crashed",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "crash",
+      "break",
+      "prop-strike"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "validated",
    "cls": "order"
   },
   {
    "id": "resort.guests",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Jodel D112",
+   "timeS": 1793,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 962,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "tw_ski",
+     "to": "HOME",
+     "t": 830,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "resort.02",
    "where": "skyline:1",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 2071,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 570,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "tw_ski",
+     "t": 1502,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [
+      "prop-strike"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "resort.03",
    "where": "skyline:2",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "STOL Cub",
+   "timeS": 1261,
+   "why": "never took off on tw_ski > tw_ski (689 s on the ground: HOLD>DEPART>TAXI>STOP>HOLD>STOPPED) - the page ended it as a stop and the career counted it (a step judged on stop.aero alone)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 572,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "tw_ski",
+     "to": "tw_ski",
+     "t": 689,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "skyline.03",
    "where": "skyline:2",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1233,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 1233,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 90,
+     "pax": 0,
+     "faults": [
+      "prop-strike"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "resort.05",
    "where": "skyline:3",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 2400,
+   "why": "the flight did not end (2400 s)",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 2400,
+     "how": "timeout",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "timeout"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "survey.01",
    "where": "contract",
    "kind": "survey",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 2269,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1650,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 619,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "survey.02",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172 floats (career)",
+   "timeS": 1201,
+   "why": "",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 427,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mk_sea",
+     "to": "SEA",
+     "t": 774,
+     "how": "stopped",
+     "at": "SEA",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "survey.03",
    "where": "contract",
    "kind": "survey",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 4010,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1650,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1744,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:1@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 616,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "survey.05",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172",
+   "timeS": 1259,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 547,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 100,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 711,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 20,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "survey.04",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "untested",
+   "plane": null,
+   "timeS": 0,
+   "why": "no criterion fails on Piper Cub, Jodel D112, Chinook, Stearman-alike, Tiger Moth-alike, Camel-alike, DC-3-alike, PA-18 on floats, Super Petrel LS, Ruckus Solo 103, Ruckus Back-Country, Carbon Cub SS, Cessna 172, Electric trainer, Cessna 172 floats (career), Rufus, Client Cub, Twin busher floats 4b, STOL Cub, ugly bi, mosquito, pusherLight, twinBoomFail, B-ITES, Ultralight twin on floats, Archaeopteryx-alike, LS4-alike (not a career design: untested here - takeoffAt, landAt)",
+   "legs": [],
+   "pool": "validated",
    "cls": "order"
   },
   {
    "id": "obs.01",
    "where": "observatory:1",
    "kind": "survey",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 3841,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1426,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 1798,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:1@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 617,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "obs.02",
    "where": "observatory:2",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 678,
+   "why": "the stop refuses the load: aboard 140 kg / 1 pax, the job is 200 kg / 1 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 678,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [],
+     "kg": 140,
+     "pax": 1,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "obs.03",
    "where": "observatory:2",
    "kind": "contract",
-   "verdict": "stale",
+   "verdict": "infeasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 1492,
+   "why": "no progress: already loaded",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 669,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mt_strip",
+     "to": "HOME",
+     "t": 411,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "mt_strip",
+     "to": "HOME",
+     "t": 411,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "obs.04",
    "where": "observatory:3",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 0,
+   "why": "no progress: already loaded [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "obs.05",
    "where": "observatory:3",
    "kind": "contract",
-   "verdict": "stale",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 999,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 467,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "mt_strip",
+     "t": 531,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 120,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "obs.06",
    "where": "observatory:4",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 0,
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 150 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "obs.07",
    "where": "observatory:4",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 Turbo Porter",
+   "timeS": 0,
+   "why": "no progress: already loaded [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    },
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "declined"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "obs.08",
    "where": "observatory:5",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 673,
+   "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 200 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 673,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [],
+     "kg": 50,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "obs.09",
    "where": "observatory:6",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "timeS": 673,
+   "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 250 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 673,
+     "how": "stopped",
+     "at": "mt_strip",
+     "stop": [],
+     "kg": 50,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "clients.01",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Jodel D112",
+   "timeS": 2048,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 1191,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "tw_ski",
+     "t": 857,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "clients.n1",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Cessna 172",
+   "timeS": 1287,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 625,
+     "how": "stopped",
+     "at": "w3",
+     "stop": [
+      "sub:0@0",
+      "stage@0"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 663,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@1",
+      "stage@1",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "clients.n2",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "infeasible",
+   "plane": null,
+   "timeS": 0,
+   "why": "no official plane can do it (73_ contractCanDo): cub: Cub: 175 kg aboard, the cabin takes 90 kg; jodel: Jodel: 175 kg aboard, the cabin takes 90 kg; c172: Cessna 172: stretcher (2 x 0.6 x 0.5 m) passes no door; c172f: Cessna floats: stretcher (2 x 0.6 x 0.5 m) passes no door; L8: Chinook: 175 kg aboard, the cabin takes 90 kg; L9: Stearman-alike: 175 kg aboard, the cabin takes 120 kg; L10: Tiger Moth-alike: 175 kg aboard, the cabin takes 100 kg; L11: Camel-alike: 1 passengers, 0 seats beside the pilot; L12: DC-3-alike: stretcher (2 x 0.6 x 0.5 m) passes no door; L25: PA-18 on floats: 175 kg abo",
+   "legs": [],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "player-built"
   },
   {
    "id": "clients.03",
    "where": "contract",
    "kind": "challenge",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "STOL Cub",
+   "timeS": 1261,
+   "why": "no progress: stopped at Skyline Altiport, not Jolene AFB 13/31",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "tw_ski",
+     "t": 572,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "tw_ski",
+     "to": "HOME",
+     "t": 689,
+     "how": "stopped",
+     "at": "tw_ski",
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "clients.02",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "feasible",
+   "plane": null,
+   "timeS": 0,
+   "why": "",
+   "legs": [],
+   "pool": "validated",
    "cls": "order"
   },
   {
    "id": "clients.04",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 617,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "HOME",
+     "t": 617,
+     "how": "stopped",
+     "at": "HOME",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "say",
+      "done"
+     ],
+     "kg": 0,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "validated",
    "cls": "order"
   },
   {
    "id": "clients.b1",
    "where": "contract",
    "kind": "build",
-   "verdict": "not flown",
+   "verdict": "untested",
+   "plane": null,
+   "timeS": 0,
+   "why": "no criterion fails on Ruckus Solo 103, Electric trainer, Rufus, pusherLight, twinBoomFail, Ultralight twin on floats, Archaeopteryx-alike, LS4-alike (not a career design: untested here - tankL, enduranceMin)",
+   "legs": [],
+   "pool": "validated",
    "cls": "order"
   },
   {
    "id": "booze.01",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "Piper Cub",
+   "timeS": 1407,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w5",
+     "t": 552,
+     "how": "stopped",
+     "at": "w5",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w5",
+     "to": "w8",
+     "t": 855,
+     "how": "stopped",
+     "at": "w8",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 60,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "booze.02",
    "where": "contract",
    "kind": "contract",
-   "verdict": "not flown",
-   "cls": null
+   "verdict": "feasible",
+   "plane": "STOL Cub",
+   "timeS": 2296,
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w6",
+     "t": 1193,
+     "how": "stopped",
+     "at": "w6",
+     "stop": [
+      "picked:0@0"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    },
+    {
+     "from": "w6",
+     "to": "w5",
+     "t": 1102,
+     "how": "stopped",
+     "at": "w5",
+     "stop": [
+      "sub:0@0",
+      "stage@0",
+      "done"
+     ],
+     "kg": 80,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
+   "cls": "feasible"
   },
   {
    "id": "home.01",
@@ -1117,7 +2499,25 @@
    "id": "home.08",
    "where": "home:4",
    "kind": "contract",
-   "verdict": "stale",
+   "verdict": "infeasible",
+   "plane": "Twin busher floats 4b",
+   "timeS": 658,
+   "why": "the stop refuses the load: aboard 39 kg / 0 pax, the job is 150 kg / 0 pax",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "cb_sea",
+     "t": 658,
+     "how": "stopped",
+     "at": "cb_sea",
+     "stop": [],
+     "kg": 39,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
@@ -1131,14 +2531,54 @@
    "id": "home.10",
    "where": "home:5",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "PC-6 on Wiplines",
+   "timeS": 1092,
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "SEA",
+     "t": 1092,
+     "how": "crashed",
+     "at": null,
+     "stop": [],
+     "kg": 0,
+     "pax": 0,
+     "faults": [
+      "crash",
+      "yield",
+      "break"
+     ],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {
    "id": "home.11",
    "where": "home:5",
    "kind": "contract",
-   "verdict": "not flown",
+   "verdict": "infeasible",
+   "plane": "Twin busher floats 4b",
+   "timeS": 396,
+   "why": "the stop refuses the load: aboard 40 kg / 0 pax, the job is 200 kg / 0 pax",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "mk_sea",
+     "t": 396,
+     "how": "stopped",
+     "at": "mk_sea",
+     "stop": [],
+     "kg": 40,
+     "pax": 0,
+     "faults": [],
+     "events": []
+    }
+   ],
+   "pool": "official+57,58+test builds, the seats filled",
    "cls": null
   },
   {

@@ -1,0 +1,156 @@
+{
+ "id": "mine.tour",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 2223,
+ "why": "",
+ "tried": [
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible",
+  "PC-6 Turbo Porter:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mn_strip",
+   "t": 1326,
+   "how": "stopped",
+   "at": "mn_strip",
+   "stop": [
+    "sub:0@0",
+    "stage@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "mn_strip",
+   "to": "HOME",
+   "t": 897,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@1",
+    "stage@1",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "no progress: already loaded [declined]",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 277 m landing run - not going there"
+     ]
+    },
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 277 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    },
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Copperhead Mine Street has 250 m of strip for a 277 m landing run - not going there"
+     ],
+     "stop": "already loaded"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mn_strip",
+     "t": 1326,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-short: 250 m of strip for a 246 m landing run — landing short-field, no margin",
+      "go-around: floating on the short field with 233 m left, 233 m to stop (attempt 2)",
+      "strip-short: 250 m of strip for a 246 m landing run — landing short-field, no margin"
+     ],
+     "landing": {
+      "run": 158,
+      "sink": 1.04,
+      "V": 24.6,
+      "offCentre": 0.1,
+      "pastAim": 47,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 37,
+      "stopLeft": 55
+     }
+    },
+    {
+     "from": "mn_strip",
+     "to": "HOME",
+     "t": 897,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "committed-takeoff: past the point of stopping at V=16.5 with 196 m left — Vr in 59 m, continuing",
+      "taxi-in: taxiing in to the stand, 444 m",
+      "pivot: a turn of 175 deg that the wheels (16.4 m) cannot steer on the route - turning on the spot"
+     ],
+     "landing": {
+      "run": 597,
+      "sink": 1.42,
+      "V": 26.6,
+      "offCentre": -0.2,
+      "pastAim": 19,
+      "k": 0,
+      "three": true,
+      "onStrip": true,
+      "tdIn": 533,
+      "stopLeft": 1195
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats filled as the job asks: light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) flown with 3 aboard (the garage's seat-fill)",
+  "the seats filled as the job asks: PC-6 Turbo Porter flown with 3 aboard (the garage's seat-fill)"
+ ],
+ "untested": false,
+ "key": "c1af1a098f08",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 2167
+}
