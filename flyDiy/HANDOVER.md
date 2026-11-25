@@ -319904,3 +319904,27 @@ in the open frame between the pod and the boom.)
   rows (occupants, baggage) now sit in a fold, closed by default; the sweep runs only while it is open (`job.chart`), and its
   answer is kept per aeroplane and loading (CHART_KEY): reopening an unchanged build draws the kept chart. The shakedown and
   the fill readouts are unchanged. GATE ENERGY pins it ('lag: the CG-against-fuel chart is swept only when ...').
+
+## L40N (A0, Wed 25 Nov 2026, ~02:00) - GARAGE FIRST AS THE DEFAULT, the good switches on, the shadow thinning, the Lazair / Minimax / tanks / small engines
+
+WHAT LANDED (on L40L+M 237aa5754): perf-lead-9 (the user: garage first is the DEFAULT on a real page - ?boot=loadfirst the old
+screen; Go joins the load; ?mirpace + ?farslots + the world-build switches on; the forest shadow thinned: shrubs < 1 m cast none, the
+world shadow map every 3rd frame, ?shrate=2 = old) + perf-worldbuild-7 (the garage's worst freeze behind the load 0.55 s); slope-fix
+(PILOT: the contact slope centred along the aeroplane - the tw_ski ruts); hangar-switch-3 (GAME, UISMOKE's sandbox line with its
+reason); phone-testflight-ux (the phone's test flight: an instant screen, worded failures, a Plaque button); lazair-twin-fix-2 (A0's
+agent: the divergence - the substep rule now proves the network (netGuard), bit-identical elsewhere; the tail-down spawn on the V tips;
+the V tip ties + vtBar row; tube construction drawn as tubes; THE GENERIC PROP CHECK + one marker per disc in its own plane);
+small-engines-2 (FLAGSHIP: Rotax 185, Pioneer 5.5, Hirth F-33, Polini Thor 202/250/303, Simonini Mini 3, Joby JM1 as dial points via
+ENGINEDIALS --emit; the Minimax's wgStrutAxle); garage-view-3 (the door view links in the shed, not during the roll-out); tank-bays-2
+(A0's agent: tanks behind the pod / on the boom / in the aft fairing / in the aero nose, the clean plastic finish, GATE TANKBAYS; the
+CG-vs-fuel chart only on demand).
+
+THE PERF CHECK (PERF-LEAD 01:20-01:48, quiet, 5K, build 41d2688b8000): GO. The garage interactive at 39.7 / 40.3 s cold, 33.7 s
+returning (L40M: the world first, 121.7 s); Go 12 s after the garage: one roll-out screen of 83 s. The journey 73.2 % of seconds at 29+
+fps (L40M 53.9), GPU 24.8 ms median (the user's < 30 met), 7 frames > 100 ms. The crash met twice. The shadow thinning: within
+run-to-run of the switches alone. 3-4 gaps of 0.3-0.55 s under the roll-out screen only.
+
+NAMED, NOT HELD: PLANELISTS (the Lazair / Minimax test fixtures outside test_copies - A0's agents), POD (its base to re-bless - A0),
+STOL chinook / floatplane fly + UNIFY cub expert + TOW / TREECRASH moves (slope-fix's contact normals on Jolene's non-flat ground and
+the physics - PILOT / PHYSICS), DMGSCAR skip runs (Deform); the Lazair's take-off at HOME (full power pitches it onto its nose - open);
+L40L+M's named list stands.
