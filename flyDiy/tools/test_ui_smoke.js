@@ -1008,8 +1008,15 @@ try {
     if (!PL || typeof PL.set !== 'function' || typeof PL.place !== 'function') throw new Error('FLYDIY_PLAYER is missing (G2230)');
     if (!GA || typeof GA.place !== 'function' || typeof GA.slotsChanged !== 'function' || typeof GA.flyFrom !== 'function' || typeof GA.bringHome !== 'function')
       throw new Error('the garage bridge lacks the fleet ledger doors (place / slotsChanged / flyFrom / bringHome)');
+    // HANGAR-SWITCH (the user 22 Nov: "the three hangars should be constructed, renovated" in the sandbox): today's sandbox holds
+    // HOME and the two hangars it is GIVEN (71_player_bases.js playerSandboxHangars, sandbox: true) - nothing else. This block's
+    // ledger is about ONE hangar held (the base row a line; a second held makes it a select), so the given two are taken off first
+    const dS = PL.doc();
+    if (dS.mode !== 'sandbox' || dS.here !== 'HOME' || !dS.sheds.HOME || Object.keys(dS.sheds).some(k => k !== 'HOME' && !(dS.sheds[k] && dS.sheds[k].sandbox)))
+      throw new Error('the page\'s player is not today\'s sandbox: ' + JSON.stringify(dS).slice(0, 200));
+    { const one = JSON.parse(JSON.stringify(dS)); for (const k of Object.keys(one.sheds)) if (k !== 'HOME') delete one.sheds[k]; PL.set(one); }
     const d0 = PL.doc();
-    if (d0.mode !== 'sandbox' || d0.here !== 'HOME' || Object.keys(d0.sheds).join() !== 'HOME') throw new Error('the page\'s player is not today\'s sandbox: ' + JSON.stringify(d0).slice(0, 200));
+    if (Object.keys(d0.sheds).join() !== 'HOME') throw new Error('the one-hangar sandbox did not take: ' + Object.keys(d0.sheds).join());
     for (const w of ['garage', 'rollout']) {
       const row = R.baseRow(w);
       if (!row || row.kind !== 'line' || row.text !== 'Home base · the WWII hangar') throw new Error(`the sandbox's ${w} base row is not today's line: ${JSON.stringify(row && { kind: row.kind, text: row.text })}`);
