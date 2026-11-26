@@ -17471,7 +17471,8 @@
     window.FLYDIY_WORLD_BUDGET = { left: () => G.deadline - performance.now() };
     // (the user, 23 Nov 22:10: "turn them on by default" - the strips stood coarse for a moment and the settle on the near set,
     //  PERF-WORLDBUILD's two switches with a visible state: on under the live host, ?nearfirst=0 and ?settle=0 turn each off)
-    if (!window.FLYDIY_WORLD_DEFAULTS) window.FLYDIY_WORLD_DEFAULTS = { nearfirst: true, settle: 'near' };
+    // (26 Nov, the user on L40N: the trees drawn as black stand-ins under load, "unacceptable at any level of detail": the two
+    //  world-build switches with a visible state are OFF again - ?nearfirst=1 and ?settle=near turn them on)
     let i = 0;
     const end = () => {
       G.running = false; G.done = true; G.step = null; G.ms = Math.round(performance.now() - G.t0); tripClose(t); behind(false);
