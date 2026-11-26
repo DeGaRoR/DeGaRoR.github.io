@@ -1,8 +1,7 @@
 # PERF-WORLDBUILD - handover (23 Nov 2026)
 
 Branch `claude/perf-worldbuild-next`. Landed ref for L40M: `claude/ready/perf-worldbuild-2` = 43f58e871 (off
-`claude/perf-codex` 4421e5416, on `claude/ready/perf-worldbuild-1`). For L40N: `claude/ready/perf-worldbuild-5` (the defaults under
-the garage-first host; its row is in section 1) and, on PERF-LEAD's word after a row, `claude/ready/perf-worldbuild-7`. After it, on the branch: round three = 72d9aa4db
+`claude/perf-codex` 4421e5416, on `claude/ready/perf-worldbuild-1`). After it, on the branch: round three = 72d9aa4db
 (gated), round four = b49b8a4cd, round five = 369ad0ec9 (`claude/ready/perf-worldbuild-3` = a226782a7 carries both), round six = 55fcb24fb
 (`claude/ready/perf-worldbuild-4`; its browser row is below). The canonical entry is HANDOVER.md "PERF-WORLDBUILD 2"; this file is the working picture for
 whoever takes the world build next.
@@ -69,21 +68,6 @@ freeze is gone - one task of 87 ms between the steps (622 + 207 quiet, 902 + 566
 INSIDE the world step under no label (texture calls 432 ms, bufferData 118 ms; a 750 ms gap between frames) - see
 section 5, step 0. Totals: 55 tasks of 50 ms+ behind the garage, 14 over 100 ms, the worst 648 (61 / 16 / 1 419 at
 16:00; 104 tasks and a worst of 3 456 ms on the morning's builds). The world step 26.9 s, ready at 90.3 s: no cost seen.
-
-The defaults in the browser (PERF-LEAD, 24 Nov 03:00, a quiet box, `claude/ready/perf-worldbuild-5` in build
-a843af6b52cf, THE PLAIN ADDRESS - garage first and all six switches by default, no query): the garage shown at 32.0 s,
-the world ready 90.6 s after the run began (world 28.5 | town 5.1 | ring 6.5 | settle 7.9 with settle=near | worldCompile
-18.8 | craft 19.4). Behind the garage: 59 tasks of 50 ms+, 15 over 100 ms, the worst 752 ms, 6.5 s in all - no
-regression from the defaults, the four workers' switches on and used. By label: the impostors' bake 752 (6 tasks not the
-build's own slices, 1 538 ms: `perf-worldbuild-6`'s target); the settle 16 tasks / 3 over 100 / worst 389; town 4 / 3 /
-203; frames 8 / 2 / 261; the built links 118; patch ground: its fields 109; roads 102; under 100: patch ground 83, a
-site 82, forest mist 79, far terrain patch 77, the shelves 74, houses 74, houses: the kit 72, trees 64, ground material
-61, far terrain: a quadrant 53. After the world step: 98 ms.
-
-`perf-worldbuild-6` in the browser (PERF-LEAD, 24 Nov 07:30, quiet, build 70425113286a): ITS TREE BLOCK DID NOT FIRE
-(scene.userData.treeWarm absent) and the bake is still one task (worst 677 ms; 783 ms between two frames). Totals 53 tasks
-of 50 ms+, 11 over 100 ms, 5.7 s; garage 37.0 s, world ready 92.6 s. Why, and the fix: `claude/ready/perf-worldbuild-7`
-(section 5, step 0). `perf-worldbuild-7` has NO row yet.
 
 ## 2. The world build's steps, as they stand
 
@@ -195,16 +179,12 @@ LAKEBED lift the drawn lakes' closure; LOOKS quotes the fields texture's line): 
 
 ## 5. Next, in order
 
-0. THE 650-750 ms TASK IS THE TREE IMPOSTORS' BAKE (cut from `GF_READY.cpuprofile.json` at 66.4 s: plantWoodland <
-   impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll - the bake's draws are the tree models' first: maps
-   377 ms, buffers 115-142 ms, a link wait 50 ms). On a cold load it does NOT run in the build's 'trees' step (the tree
-   maps have not landed: cones) but in the replant queued after the build - so `perf-worldbuild-6`, which uploaded the
-   packs at the 'trees' step, never fired (07:30 row). `claude/ready/perf-worldbuild-7` does it before the queued replant,
-   a map or a 16 MB batch a task, and makes the after-build queue wait for it. NEVER RUN IN NODE (the tree maps do not
-   settle there): read `WORLD.scene.userData.treeWarm` in its first browser row - `via: 'after'`, `done: true`, tex > 0 -
-   and look for the bake's task gone. If the bake is still long with treeWarm done, what is left is the bake's own draws
-   and its programs' link (then: the bakes one a task - bakeImpostorAtlasNow split into its prologue, which takes the
-   layer, and its GPU body, queued; the layers' order must stay the calls' order).
+0. THE 648 ms TASK WAS THE TREE IMPOSTORS' BAKE, not the hand-over (cut from `GF_READY.cpuprofile.json` at 66.4 s:
+   plantWoodland < impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll - the bake's draws were the tree models'
+   first: maps 377 ms, buffers 115-142 ms, a link wait 50 ms). `claude/ready/perf-worldbuild-6` uploads the tree pool's
+   packs (maps a step each, geometry 16 MB a step) before plantWoodland, under the budget. THAT BLOCK HAS NEVER RUN IN
+   NODE (the tree maps do not settle there): look for `scene.userData.treeWarm` and the 'trees: ' labels in the first
+   browser row, and for the bake's task gone. If the bake is still long, what is left is its own draws and the link.
 0b. THE SETTLE'S LONG TASKS (evening row: 371 / 270 / 133 / 100 / 96 ms at 79.6-81.6 s; cut the same profile there).
    Every streamer honours the slice's clock (`FLYDIY_SLICE.until`) only before STARTING a unit, and the unit is atomic:
    scenery_life.js tick < place < mastLife < freeForMast < offRoad < roadDist (the life's whole stand in one call, with
