@@ -3334,7 +3334,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       //  is the old way; the node page (flydiy-node) keeps it off. No picture changes: big uploads 28 -> 0 in the journey)
       const FSLOT = (() => { if (typeof location === 'undefined' || !THREE.GLBufferAttribute) return null;
         { const S = location.search || '', real = typeof window !== 'undefined' && window.FLYDIY_REAL_PAGE === true;   // (the page says so - app.js: no device test here, GATE GFX's rule)
-          if (!(/[?&]farslots=1(?:&|$)/.test(S) || (real && !/[?&]farslots=0(?:&|$)/.test(S)))) return null; }
+          if (!/[?&]farslots=1(?:&|$)/.test(S)) return null; }   // HOTFIX 26 Nov: OFF by default again (the user: the far mountains transparent with it on)
         const gl = renderer && renderer.getContext ? renderer.getContext() : null;
         return gl && gl.copyBufferSubData && gl.COPY_WRITE_BUFFER ? gl : null; })();
       FARLOD.slots = FSLOT ? { on: true, sentKB: 0, grows: 0, moved: 0, writes: 0 } : { on: false };
