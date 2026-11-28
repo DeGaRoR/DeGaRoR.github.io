@@ -15180,11 +15180,19 @@
     if (want.indexOf('thrust') >= 0 && A.thrust) {
       const r = row('aid.thrust'), col = r && r.level !== 'pass' ? lvlC(r) : C.thrust;
       for (const t of A.thrust) {
+        // WS-027: THE ARROW IS THE FORCE - along the thrust's own direction (t.dir: the drawn shaft's, tilt and all, pointing
+        // where the thrust pushes, a pusher's too), the thrust line through the aeroplane along it, and the offset from the
+        // CG square to that line (it was all drawn level along -x, whatever the tilt)
         const p = t.at, L = 1.0 + 1.2 * Math.min(1, t.T / 3000);
-        rod(p, [p[0] - L, p[1], p[2]], col, 0.03, true);
-        seg([p[0] + 1.2, p[1], p[2]], [cg[0] - 2.5, p[1], p[2]], col);           // the thrust line, through the aeroplane
-        seg([cg[0], cg[1], 0], [cg[0], p[1], 0], col);                           // its offset from the CG
-        label([cg[0] - 0.9, p[1] + 0.25, 0], 'thrust ' + R2(Math.abs(t.dy)) + ' m ' + (t.dy >= 0 ? 'above' : 'below') + ' the CG', col,
+        const d = Array.isArray(t.dir) && Math.hypot(t.dir[0], t.dir[1]) > 1e-6 ? t.dir : [-1, 0, 0];
+        const along = k => [p[0] + d[0] * k, p[1] + d[1] * k, p[2]];
+        rod(p, along(L), col, 0.03, true);
+        const reach = Math.abs((cg[0] - p[0]) * d[0] + (cg[1] - p[1]) * d[1]) + 2.5;
+        seg(along(-1.2), along(reach), col);                                      // the thrust line, through the aeroplane
+        const k0 = (cg[0] - p[0]) * d[0] + (cg[1] - p[1]) * d[1];                 // the foot of the CG on the line
+        const foot = [p[0] + d[0] * k0, p[1] + d[1] * k0, 0];
+        seg([cg[0], cg[1], 0], foot, col);                                        // its offset from the CG
+        label([foot[0] - 0.9, foot[1] + 0.25, 0], 'thrust ' + R2(Math.abs(t.dy)) + ' m ' + (t.dy >= 0 ? 'above' : 'below') + ' the CG', col,
               'full power: nose-' + (t.Mup >= 0 ? 'up ' : 'down ') + Math.round(Math.abs(t.Mup)) + ' N m' + (t.elev != null ? ' · ' + Math.round(t.elev * 100) + ' % elevator' : ''));
       }
     }

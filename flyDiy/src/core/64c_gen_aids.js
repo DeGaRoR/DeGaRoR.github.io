@@ -238,9 +238,6 @@ function genDesignAids(def, bal, opts) {
     out.thrust = at.map((e0, i) => {
       const off = PO && PO[i] ? PO[i] : null;
       const e = off ? Object.assign({}, e0, { x: e0.x + off[0], y: e0.y + off[1] }) : e0;
-      const dy = e.y - cg[1];
-      // thrust forward (-x): about the CG the moment's nose-up part is -dy * T (a line above the CG pitches nose-down)
-      const Mup = -dy * T;
       // PROP-CHECK: the disc's axis is the drawn shaft's (the engine's tilt) when the editor measured it; the body axis else.
       // A pusher's shaft points aft in the model, its thrust forward all the same: the axis is taken pointing forward
       // (LAZAIR-TWIN: the editor's record is [dx, dy, ax, ay, R, fit, why]; without a measured shaft, the drawn tilt's axis)
@@ -248,6 +245,14 @@ function genDesignAids(def, bal, opts) {
       const ax = off && off[2] != null && off[3] != null ? (() => { const h = Math.hypot(off[2], off[3]) || 1, s = off[2] > 0 ? -1 : 1;
         return [s * off[2] / h, s * off[3] / h, 0]; })() : tl ? [-CORE_MATH.cos(tl), -CORE_MATH.sin(tl), 0] : [-1, 0, 0];
       const z = (e0.side < 0 ? -1 : 1) * (e.z || 0), Ri = off && off[4] > 0 ? off[4] : R;
+      // WS-027 (the user: "changing engine tilt does not appear to change thrust direction ... the thrust arrow is in the
+      // wrong direction for pushers too"): THE LINE OF ACTION IS THE TILTED ONE. `dy` is the line's offset from the CG
+      // measured square to the line (the moment arm: r x dir, + above), and the nose-up moment is -dy * T - the same
+      // two numbers as before on an untilted line (dir -x: the arm is the engine's height over the CG), a downthrust
+      // pusher's line now passing nearer the CG as the physics already flew it (30_solver, G477: the force turned by tilt)
+      const rx = e.x - cg[0], ry = e.y - cg[1];
+      const dy = rx * ax[1] - ry * ax[0];
+      const Mup = -dy * T;
       return { at: [e.x, e.y, z], dir: ax, T, R: Ri, mount: e.mount || 'nose',
                side: e0.side || 0, dy, Mup, drawn: !!off, elev: Mde ? Math.abs(Mup) / Mde : null,
                ...(off && off[5] === 0 ? { skinHit: off[6] || 'the drawn skin' } : {}) };
