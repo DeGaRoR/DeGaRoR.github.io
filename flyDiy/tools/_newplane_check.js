@@ -162,7 +162,7 @@ function domStub() {
       insertAdjacentHTML() {}, set innerHTML(v) { this.children = []; this._html = v; }, get innerHTML() { return this._html || ''; },
       querySelector(sel) { if (sel === 'img.npThumb') return this.children.find(c => c.tagName === 'IMG' && c.className === 'npThumb') || null; return this._q[sel] || (this._q[sel] = mk('div')); },
       prepend(c) { this.children.unshift(c); c.parentNode = this; return c; },
-      querySelectorAll() { return []; }, click() { for (const f of (this._l.click || [])) f(); },
+      querySelectorAll(sel) { return /button/.test(sel || '') ? Object.values(this._q).concat(tilesIn(this)) : []; }, click() { for (const f of (this._l.click || [])) f(); },
       get isConnected() { return true; }, scrollTop: 0 };
     all.push(e);
     return e;
@@ -322,6 +322,14 @@ async function flowCheck(np) {
   t(cnt.bake === 1 && cnt.set === 2 && UI.LOG.generated === 1 && UI.LOG.fit && UI.LOG.fit.passes === 1,
     'ONE generate: one bake, one load, + one load for the fit pass that moved a leg (and none for the pass that did not) - bake ' + cnt.bake + ', loads ' + cnt.set + (UI.LOG.fit ? ' fit ' + JSON.stringify(UI.LOG.fit) : ''));
   t(store.spec && store.spec.meta && store.spec.meta.newPlane && store.spec.meta.newPlane.class, 'the spec on the stand says what was chosen (meta.newPlane)');
+  // WS-001 (the user's register, BLOCKER): a SECOND new plane after a generate - the panel opens with its buttons live (the spinner
+  // disabled them all; the stub's 'button' sweep reaches the head and foot buttons as a page's does)
+  UI.open();
+  const ws1 = ['.npNext', '.npCancel'].filter(s => body.querySelector(s).disabled);
+  t(UI.isOpen() && ws1.length === 0, 'WS-001: New plane again after a generate - start / next and cancel are live', ws1.length ? 'disabled: ' + ws1.join(', ') : undefined);
+  UI._next();
+  t(UI._state().page === 'step', 'WS-001: the second chooser moves forward (start -> the first step)');
+  UI.close();
   D.designBake = realBake;
   global.document = prevDoc; W.requestAnimationFrame = prevRaf;
   return out;

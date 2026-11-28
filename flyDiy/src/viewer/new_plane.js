@@ -177,6 +177,10 @@ function render() {
     '" title="' + esc(s.title) + '"></i>').join('') + '<i class="sum' + (page === 'summary' ? ' on' : '') + '" title="summary"></i>';
   const fb = el.querySelector('.npBack'), fs = el.querySelector('.npSkip'), fn = el.querySelector('.npNext');
   const hint = el.querySelector('.npHint');
+  // WS-001 (the user's register, BLOCKER: "Create a new aircraft, then start New Plane again. The Move Forward button never
+  // activates"): the spinner disables every button and a good build closes the panel without giving them back - the head and
+  // foot buttons outlive the build (the body's tiles are redrawn), so every render hands them back; none renders while busy
+  el.querySelector('.npCancel').disabled = false; fs.disabled = false; fn.disabled = false;
   fb.disabled = page === 'start';
   fs.hidden = page !== 'step';
   fn.textContent = page === 'summary' ? 'generate' : page === 'start' ? 'start ›' : 'next ›';
