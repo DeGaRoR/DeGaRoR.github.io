@@ -585,6 +585,71 @@ function phoneFlyChecks() {
   if (went !== '/flyDiy/?profile=phone') throw new Error('the shed button on the phone test flight went to ' + went + ', expected the garage page /flyDiy/?profile=phone');
   console.log('the way back: the shed button loads ' + went + ' (the garage page, no world in memory)');
 }
+// PHONE-TESTFLIGHT-UX (the user, 24 Nov, on the phone: "There's little feedback on button push, and the test flight might
+// rather be an option in the plaque"): THE PLAQUE'S TEST FLIGHT AND THE HAND-OFF SAID. The markup: #pqFlyRow is the
+// information panel's first line (inside #edInfoBody, ahead of #plaque) and hidden by its markup (the desktop never
+// shows it), #phFlyGo hidden by its markup. On the phone garage app.js shows the row and wires #pqFly to the same ask as
+// the menu's line: the hand-off screen at once, then the bench's own row (BENCH_RUN('flight'), which calls the bench
+// api's testFlight as bench.js's row does - bench.js is not run here, so a stand-in does exactly that). Held: a hand-off
+// that goes (the intent stored, the page reloaded, the screen "Taking ... to the test field"), one the browser refuses
+// (no session store: the screen says it could not start, with an OK that puts it down), a busy bench (said), and the
+// menu's line asking the same
+function phoneFlyAskChecks() {
+  const W = sandbox.window, B = sandbox.benchApi;
+  const iBody = html.indexOf('<div id="edInfoBody">'), iRow = html.indexOf('<div id="pqFlyRow" hidden>'), iPq = html.indexOf('<section id="plaque">');
+  if (!(iBody >= 0 && iRow > iBody && iPq > iRow)) throw new Error('index.html: #pqFlyRow (hidden) is not the information panel\'s first line, ahead of the plaque (' + [iBody, iRow, iPq].join(' ') + ')');
+  if (!/<div id="pqFlyRow" hidden>\s*<button id="pqFly" type="button">Test flight<\/button>/.test(html)) throw new Error('index.html: the plaque\'s Test flight button is not in #pqFlyRow');
+  if (!/<div id="phFlyGo"[^>]* hidden>/.test(html)) throw new Error('index.html: the hand-off screen #phFlyGo is not hidden by its markup');
+  const row = els.pqFlyRow, box = () => els.phFlyGo, msg = () => (els.phFlyMsg && els.phFlyMsg.textContent) || '';
+  if (!row || row.hidden) throw new Error('the phone garage does not show the plaque\'s Test flight (#pqFlyRow)');
+  if (typeof handlers['pqFly'] !== 'function') throw new Error('#pqFly (the plaque\'s Test flight) is not wired');
+  if (typeof handlers['phFlyOk'] !== 'function') throw new Error('#phFlyOk (the hand-off screen\'s OK) is not wired');
+  if (!B || typeof B.testFlight !== 'function') throw new Error('the bench api has no testFlight (the hand-off)');
+  const keep = { R: W.BENCH_RUN, ss: W.sessionStorage, loc: W.location };
+  const runs = [];
+  const stand = () => { const R = id => { runs.push(id); R.why = ''; const ok = id === 'flight' && !!B.testFlight({ alt: null, V: null, fp: null }); if (!ok) R.why = 'refused'; return ok; }; return R; };
+  const UX = W.PHONE_FLY_UX;
+  try {
+    // 1. THE HAND-OFF GOES: the session store takes the intent, the page reloads, the screen says where the aeroplane goes
+    const store = {}; let reloads = 0;
+    W.sessionStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+    W.location = { search: '?profile=phone', pathname: '/flyDiy/', hash: '', reload: () => { reloads++; } };
+    W.BENCH_RUN = stand();
+    handlers['pqFly']();
+    if (runs.join() !== 'flight') throw new Error('the plaque\'s Test flight did not run the bench\'s flight row (ran ' + runs.join() + ')');
+    if (reloads !== 1 || !store['flydiy.phone.fly']) throw new Error('the plaque\'s Test flight did not hand off (reloads ' + reloads + ', intent ' + store['flydiy.phone.fly'] + ')');
+    if (box().hidden || box().className !== 'go' || !/^Taking .+ to the test field/.test(msg())) throw new Error('the hand-off screen is not up on a test flight that went (' + box().hidden + ' ' + box().className + ' "' + msg() + '")');
+    if (!UX || UX.note().kind !== 'go') throw new Error('PHONE_FLY_UX.note() does not read the hand-off (' + JSON.stringify(UX && UX.note()) + ')');
+    console.log('the plaque\'s Test flight: the bench\'s row run, the intent stored, the page reloaded, the screen "' + msg() + '"');
+    handlers['phFlyOk']();
+    if (!box().hidden || UX.note().kind) throw new Error('the hand-off screen\'s OK did not put it down');
+    // 2. THE HAND-OFF REFUSED (no session store: profile.js flyStart says no) - said, with an OK
+    W.sessionStorage = undefined; runs.length = 0;
+    handlers['pqFly']();
+    if (runs.join() !== 'flight' || reloads !== 1) throw new Error('the refused hand-off: ran ' + runs.join() + ', reloads ' + reloads);
+    if (box().hidden || box().className !== 'bad' || !/Could not start the test flight/.test(msg()) || els.phFlyOk.hidden) throw new Error('a refused hand-off does not say so (' + box().hidden + ' ' + box().className + ' "' + msg() + '", OK hidden ' + els.phFlyOk.hidden + ')');
+    console.log('a refused hand-off: "' + msg() + '" with an OK');
+    handlers['phFlyOk']();
+    // 3. A BUSY BENCH (BENCH_RUN false, why 'busy') - said
+    W.BENCH_RUN = Object.assign(id => { runs.push(id); return false; }, { why: 'busy' });
+    handlers['pqFly']();
+    if (box().hidden || box().className !== 'bad' || !/bench is busy/.test(msg())) throw new Error('a busy bench is not said (' + box().className + ' "' + msg() + '")');
+    console.log('a busy bench: "' + msg() + '"');
+    handlers['phFlyOk']();
+    // 4. THE MENU'S LINE ASKS THE SAME (the hand-off screen, then the bench's row)
+    runs.length = 0; W.BENCH_RUN = Object.assign(id => { runs.push(id); return false; }, { why: 'off' });
+    const M = W.FLYDIY_MENU;
+    if (!M || typeof M.act !== 'function') throw new Error('FLYDIY_MENU has no act');
+    M.act('testflight');
+    if (runs.join() !== 'flight' || box().className !== 'bad' || !/Could not start the test flight/.test(msg())) throw new Error('the menu\'s Test flight line does not ask as the plaque does (ran ' + runs.join() + ', ' + box().className + ' "' + msg() + '")');
+    console.log('the menu\'s Test flight line: the same ask ("' + msg() + '")');
+    handlers['phFlyOk']();
+  } finally {
+    W.BENCH_RUN = keep.R; W.sessionStorage = keep.ss;
+    if (keep.loc === undefined) delete W.location; else W.location = keep.loc;
+    if (UX) UX.down();
+  }
+}
 function phoneChecks() {
   const W = sandbox.window, G = sandbox.garageApi;
   if (W.FLYDIY_SIMW) throw new Error('the phone garage made the sim worker');
@@ -598,6 +663,7 @@ function phoneChecks() {
   if (!G.inGarage()) throw new Error('Roll out left the phone garage (profile.js fly none: there is no world)');
   if (W.FLYDIY_TRIPS && W.FLYDIY_TRIPS.some(t => t && t.kind === 'rollout')) throw new Error('a roll-out trip ran on the phone');
   console.log('the phone garage: no sim worker, preset laptop, roll-out refused (still in the garage after ' + 10 + ' frames)');
+  phoneFlyAskChecks();
   // phone.css: every rule under html.phone, or a default that HIDES one of the phone's own elements
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'phone.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   // (the selector carries the test flight's stand-down since PHONE-1b, html.phone:where(:not(.phfly)) - G3910)
@@ -942,8 +1008,15 @@ try {
     if (!PL || typeof PL.set !== 'function' || typeof PL.place !== 'function') throw new Error('FLYDIY_PLAYER is missing (G2230)');
     if (!GA || typeof GA.place !== 'function' || typeof GA.slotsChanged !== 'function' || typeof GA.flyFrom !== 'function' || typeof GA.bringHome !== 'function')
       throw new Error('the garage bridge lacks the fleet ledger doors (place / slotsChanged / flyFrom / bringHome)');
+    // HANGAR-SWITCH (the user 22 Nov: "the three hangars should be constructed, renovated" in the sandbox): today's sandbox holds
+    // HOME and the two hangars it is GIVEN (71_player_bases.js playerSandboxHangars, sandbox: true) - nothing else. This block's
+    // ledger is about ONE hangar held (the base row a line; a second held makes it a select), so the given two are taken off first
+    const dS = PL.doc();
+    if (dS.mode !== 'sandbox' || dS.here !== 'HOME' || !dS.sheds.HOME || Object.keys(dS.sheds).some(k => k !== 'HOME' && !(dS.sheds[k] && dS.sheds[k].sandbox)))
+      throw new Error('the page\'s player is not today\'s sandbox: ' + JSON.stringify(dS).slice(0, 200));
+    { const one = JSON.parse(JSON.stringify(dS)); for (const k of Object.keys(one.sheds)) if (k !== 'HOME') delete one.sheds[k]; PL.set(one); }
     const d0 = PL.doc();
-    if (d0.mode !== 'sandbox' || d0.here !== 'HOME' || Object.keys(d0.sheds).join() !== 'HOME') throw new Error('the page\'s player is not today\'s sandbox: ' + JSON.stringify(d0).slice(0, 200));
+    if (Object.keys(d0.sheds).join() !== 'HOME') throw new Error('the one-hangar sandbox did not take: ' + Object.keys(d0.sheds).join());
     for (const w of ['garage', 'rollout']) {
       const row = R.baseRow(w);
       if (!row || row.kind !== 'line' || row.text !== 'Home base · the WWII hangar') throw new Error(`the sandbox's ${w} base row is not today's line: ${JSON.stringify(row && { kind: row.kind, text: row.text })}`);

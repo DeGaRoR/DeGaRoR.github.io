@@ -1332,6 +1332,9 @@ function garageInit(api) {
   if ($('gNew')) $('gNew').addEventListener('click', () => {
     if (window.DESIGN_FLOW) window.DESIGN_FLOW.openBirth();
   });
+  // NEW FROM REF (the user 22 Nov: "the start reference plane should actually not be its own option in the start menu. It should be
+  // when you push on the little disk there, it should say new or new from ref"): the drafting table, its own light page
+  if ($('gNewRef')) $('gNewRef').addEventListener('click', () => { try { location.href = 'drafting.html'; } catch (e) {} });
   if ($('gLoad')) $('gLoad').addEventListener('click', () => openFleet('mine'));
   if ($('gSave')) $('gSave').addEventListener('click', () =>
     saveAs(slotName || (prompt('Name this aeroplane:', 'My aeroplane') || '').trim()));
@@ -1420,10 +1423,20 @@ function garageInit(api) {
     if (nameEl && nameEl.setAttribute)
       nameEl.setAttribute('aria-expanded', on ? 'true' : 'false');
   };
+  // ONE POPUP AT A TIME (the user 22 Nov: "when you open the menu, you should close the menu of the loading planes and vice
+  // versa"): the plane's shelf opening closes the burger's menu, the hangar list and the load screen; they close it (GARAGE_SHELF)
+  const closeOthers = () => {
+    try { if (window.FLYDIY_MENU && window.FLYDIY_MENU.isOpen && window.FLYDIY_MENU.isOpen()) window.FLYDIY_MENU.close(); } catch (e) {}
+    try { if (window.HANGAR_SWITCH && window.HANGAR_SWITCH.close) window.HANGAR_SWITCH.close(); } catch (e) {}
+    try { if (window.FLEET_SCREEN && window.FLEET_SCREEN.isOpen && window.FLEET_SCREEN.isOpen()) window.FLEET_SCREEN.close(); } catch (e) {}
+  };
+  if (typeof window !== 'undefined') window.GARAGE_SHELF = { close: () => menuOpen(false), isOpen: () => !!(shelfEl && !shelfEl.hidden) };
   if (nameEl && nameEl.addEventListener)
     nameEl.addEventListener('click', e => {
       if (e.stopPropagation) e.stopPropagation();
-      menuOpen(!!(shelfEl && shelfEl.hidden));
+      const on = !!(shelfEl && shelfEl.hidden);
+      if (on) closeOthers();
+      menuOpen(on);
     });
   // CAPTURE, so the menu is gone before the verb it was chosen from runs:
   // `save` and `save as` open a blocking prompt, and a menu still standing

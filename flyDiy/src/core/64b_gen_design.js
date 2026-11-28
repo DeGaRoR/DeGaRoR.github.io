@@ -222,6 +222,24 @@ function genDcMove(d) {
 }
 
 // the check: rows with levels and pointers
+// THE RUDDER ROW'S ARITHMETIC (ctl.rudder; WS-088 / WS-080, 28 Nov). The steady sideslip full rudder holds is
+// Cn_dr / Cn_beta, and the crosswind is the approach speed (1.3 Vs) x sin of it (FAR 23.233 asks 0.2 Vs). With the
+// weathercock stability at zero or below there is NO steady sideslip: the aeroplane does not return to the wind and full
+// rudder starts a yaw that keeps growing. The divisor was floored at 1e-6 and the Risen V-tail's -0.001 printed "full
+// rudder holds 5883796.03 deg of sideslip" while its crosswind read Va sin(0.6) - the most any aeroplane could score -
+// into the contracts' xwindKt (72_accept). Unstable: no crosswind held (0), said so. Past 0.6 rad (34 deg) the fin has
+// stalled long before: the sideslip is printed capped there, as the crosswind always was. Pure (GATE FLIGHTQ feeds it).
+function genRudderHold(Cnb, CnDr, Vs) {
+  const r2 = x => Math.round(x * 100) / 100, cap = 0.6, capDeg = r2(cap * 180 / Math.PI);
+  const stable = Cnb > 0, bMax = stable ? Math.abs(CnDr) / Cnb : 0, Va = 1.3 * Vs;
+  const xw = stable ? Va * CORE_MATH.sin(Math.min(cap, bMax)) : 0, need = 0.2 * Vs;
+  const level = !stable ? 'fail' : xw >= need ? 'pass' : xw >= 0.5 * need ? 'warn' : 'fail';
+  const why = !stable
+    ? 'no steady sideslip to hold: the weathercock stability is ' + (+Cnb).toFixed(4) + ' per rad (it must be above 0), so the aeroplane does not return to the wind and full rudder starts a yaw that keeps growing'
+    : 'full rudder holds ' + (bMax > cap ? 'more than ' + capDeg : r2(bMax * 180 / Math.PI)) + ' deg of sideslip at ' + r2(Va * 3.6) + ' km/h'
+      + (bMax > cap ? ' (past the fin\'s stall: counted as ' + capDeg + ')' : '');
+  return { stable, bMax, Va, xw, need, level, why };
+}
 function genDesignCheck(def, sh, simIn, opts) {
   const S = def.spec;
   const sim = simIn || makeSim(def, null);
@@ -469,13 +487,10 @@ function genDesignCheck(def, sh, simIn, opts) {
   }
   {
     // the steady sideslip full rudder holds, and the crosswind that is at the approach
-    const bMax = Math.abs(D.dr.Cn) / Math.max(1e-6, D.Cnb);
-    const Va = 1.3 * Vs, xw = Va * CORE_MATH.sin(Math.min(0.6, bMax));
-    const need = 0.2 * Vs;                                     // FAR 23.233: 0.2 Vso demonstrated
-    const lvl = D.Cnb <= 0 ? 'fail' : xw >= need ? 'pass' : xw >= 0.5 * need ? 'warn' : 'fail';
-    row({ id: 'ctl.rudder', group: 'control', label: 'Rudder: crosswind it can hold', value: r2(xw * 1.944), unit: 'kt', level: lvl,
-          limit: 'full rudder must hold the sideslip of a 0.2 Vs crosswind at the approach (FAR 23.233): ' + r2(need * 1.944) + ' kt here',
-          why: 'full rudder holds ' + r2(bMax * 180 / Math.PI) + ' deg of sideslip at ' + r2(Va * 3.6) + ' km/h',
+    const RH = genRudderHold(D.Cnb, D.dr.Cn, Vs), lvl = RH.level;
+    row({ id: 'ctl.rudder', group: 'control', label: 'Rudder: crosswind it can hold', value: r2(RH.xw * 1.944), unit: 'kt', level: lvl,
+          limit: 'full rudder must hold the sideslip of a 0.2 Vs crosswind at the approach (FAR 23.233): ' + r2(RH.need * 1.944) + ' kt here',
+          why: RH.why,
           fix: lvl === 'pass' ? '' : 'a bigger rudder (more of the fin\'s chord, or more fin)' });
   }
   // TANK-FIT (the user, 3 Nov: an unfit tank is "red warning and refusal of certification, but flies"): A POD ON STRUTS

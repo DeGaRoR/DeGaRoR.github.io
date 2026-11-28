@@ -1,0 +1,7 @@
+{ "name": "cub_w5_stand", "what": "the Cub: from w5's stand to HOME", "plane": "list:1", "from": "w5", "to": "HOME", "day": "game", "persona": "expert",
+  "steps": [
+    { "name": "board", "do": "board" },
+    { "name": "start-up", "do": "start", "until": { "engine": true }, "capS": 10 },
+    { "name": "take-off", "until": { "agl": 30 }, "capS": 600 },
+    { "name": "land and stop on HOME", "until": { "stoppedAt": "HOME" }, "capS": 1500 }
+  ] }

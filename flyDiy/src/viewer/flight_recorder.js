@@ -52,6 +52,7 @@
   const now = () => perf.now();
   const q = (W.location && W.location.search) || '';
   let OFF = /[?&]rec=0/.test(q), NOGPU = /[?&]recgpu=0/.test(q);
+  const PASSQ = /[?&]recgpu=pass(?::(\d+))?(?:&|$)/.exec(q);   // PERF-TRACE 9: the GPU's time by pass, one frame in N (4) - see THE GPU'S TIME BY PASS
   try { if (W.localStorage && W.localStorage.getItem('flydiy.rec.off') === '1') OFF = true; } catch (e) {}
   try { if (W.localStorage && W.localStorage.getItem('flydiy.rec.gpu') === '0') NOGPU = true; } catch (e) {}   // (the GPU timer alone off)
 
@@ -93,7 +94,15 @@
   const C = {}; COLS.forEach((k, i) => { C[k] = i; });
   const NC = COLS.length, C_SLOT0 = C.script;
   // flags: what the frame was
-  const F = { garage: 1, running: 2, held: 4, manual: 8, away: 16, freeze: 32, boot: 64, gpuForeign: 128, noRender: 256 };
+  const F = { garage: 1, running: 2, held: 4, manual: 8, away: 16, freeze: 32, boot: 64, gpuForeign: 128, noRender: 256, fewDraws: 512, notShown: 1024 };
+  // notShown (PERF-LEAD, 23 Nov, with the user watching a crash): the frame was rendered into its target and NOT presented -
+  // the draw guard held a draw, so the resolve was skipped (aa_resolve.js: 'held') and the screen kept its last picture, or
+  // the page's colour. Its dt is a frame's; the PICTURE'S age is the run of such frames: the log's worst frame read 233 ms
+  // while the screen stood still for 4 to 9 s. app.js says so with FLIGHT_REC.notShown() before the frame's end.
+  // PERF-TRACE 7 (the user's row 14: "no sky blue screen (failed render frame)" at a crash): fewDraws - a frame of the
+  // WORLD (not the garage, not under a loading screen) that rendered and whose renders summed to under FEW_DRAWS draw
+  // calls: the sky and the post passes without the scene. The world draws hundreds; the header says the bar.
+  const FEW_DRAWS = 60;
   const FREEZE_MS = 250;              // PACE's own line for a stall (app.js): a frame this long is a freeze, kept and flagged
 
   function make(opt) {
@@ -122,6 +131,8 @@
     // wait the frame's next GL call would have paid). A frame under a loading screen is not a sample.
     let depth = 0, open = false, fi = 0, taken = 0, owed = 0, selfN = 0, samp = false, sampN = 0;
     let calls = 0, tris = 0, lastCap = -1, lastBoot = '', revealAt = -1, freezes = 0;
+    const PASS_EVERY = OFF || NOGPU || opt.noGpu ? 0 : opt.gpuPass ? Math.max(1, +opt.gpuPass || 4) : PASSQ ? Math.max(1, +PASSQ[1] || 4) : 0;
+    let brk = 0, crashAt = -1, restN = 0, brkSaid = 0, unshown = false;   // PERF-TRACE 7: the crash (the probe's `breaks`: the broken members)
     // G1995 (HW-COVERAGE): THE REVEAL IS THE FLIGHT'S, NOT THE SCREEN'S. A roll-out whose plan is empty (the world built in
     // the one loading, B9 - every first roll-out of a boot that finished) reveals with no screen at all, and the reveal was
     // only ever marked on a roll-out screen gone: the user's GTX 660 log (4 Oct) and the 1660 Ti log (5 Oct) both read
@@ -198,7 +209,7 @@
     // probe's word that a new flight began (the 'flight' event: its route, pilot, day, damage and build at its start)
     const probeOut = { garage: false, running: false, held: false, manual: false, phase: '', cam: '', spd: NaN, vs: NaN, agl: NaN, wms: NaN, wdil: NaN, wran: NaN,
       hdg: NaN, pitch: NaN, bank: NaN, beta: NaN, ias: NaN, ail: NaN, elev: NaN, rud: NaN, thr: NaN, brake: NaN, brd: NaN, flap: NaN, pilot: '', wspd: NaN, wdir: NaN,
-      windSpec: null, newFlight: false };
+      windSpec: null, newFlight: false, breaks: 0 };
     const names = { phase: [''], cam: [''], pilot: [''] }, codes = { phase: new Map([['', 0]]), cam: new Map([['', 0]]), pilot: new Map([['', 0]]) };
     // G3322: the flights of this session, each as it began (the header's `flight` is the last one's)
     let flightN = 0, lastFlight = null;
@@ -233,6 +244,9 @@
     // ---- the frame's clock --------------------------------------------------------------------------------
     function push(s) {
       if (!open) return;
+      // (the shadow maps: their own GPU segment - inside the scene pass and the unmarked laps only. The wrapper pushes on EVERY
+      //  renderer.render: under the post chain's, the resolve's and the clouds' marks a full-screen quad has no shadow map to draw)
+      if (PASS && PASS.on && s === S.shadow && !PASS.spoiled && depth < 8 && (PASS.mark === -1 || PASS.mark === PASS.sceneId)) { PASS.sp[depth] = 1; pEndSeg(-1); pBeginSeg(S.shadow); }
       if (depth < 8) { stT[depth] = clock(); stSlot[depth] = s; stChild[depth] = 0; }
       depth++;
       if (s === 1) taken++;                          // a solver step taken
@@ -242,6 +256,7 @@
       if (!open || depth <= 0) return;
       depth--;
       if (depth >= 8) return;
+      if (PASS && PASS.sp[depth]) { PASS.sp[depth] = 0; if (PASS.on && !PASS.spoiled) { pEndSeg(S.shadow); pBeginSeg(PASS.mark); } }
       const tp = clock(), d = tp - stT[depth];
       acc[stSlot[depth]] += d - stChild[depth];
       if (depth > 0) stChild[depth - 1] += d; else V[NESTED] += d;
@@ -273,6 +288,7 @@
       const t = clock();
       acc[s] += (t - V[LAST]) - V[NESTED]; V[NESTED] = 0; V[LAST] = t;
       lapNote(s, t);
+      if (PASS && PASS.on) pLap(s);
       if (samp) V[SAMP] += clock() - t;
     }
     // a rendered frame starts: ts is rAF's timestamp (the PACE frame's), pc the PACE frame (steps owed)
@@ -297,9 +313,11 @@
     // the frame ends: rendered (false: the loop returned before its render - the boot's hold), the loop's CG
     // (the query ends INSIDE the frame's work: endQuery is a GL call, and a GL call blocks while the GPU's command
     // buffer is full - that wait is the frame's, in `other`, never the recorder's own time)
+    function notShown() { if (open) unshown = true; }
     function end(rendered, cg) {
       if (!open) return;
       if (samp) { const te = clock(); gpuEnd(false); V[SAMP_GL] += clock() - te; } else gpuEnd(false);
+      if (PASS && PASS.on) PASS.ending = true;   // (the last lap closes the chain and opens no new segment)
       lap(S.other);
       close(rendered !== false, cg, false);
     }
@@ -307,6 +325,7 @@
       const t = V[LAST], j = (fi & (N - 1)) * NC;
       open = false;
       if (rec.gpu.active) gpuEnd(broken);
+      if (PASS && PASS.on) pClose(broken);
       let sum = 0;
       for (let i = 0; i < NS; i++) { ringF[j + C_SLOT0 + i] = acc[i]; sum += acc[i]; }
       const work = t - V[T0];
@@ -332,6 +351,18 @@
       const P = probeOut;
       if (rec.probe) { try { rec.probe(P, cg); } catch (e) { rec.probe = null; event('err', t, null, 'probe: ' + String(e && e.message || e)); } }
       if (P.garage) fl |= F.garage; if (P.running) fl |= F.running; if (P.held) fl |= F.held; if (P.manual) fl |= F.manual;
+      if (rendered && !P.garage && calls < FEW_DRAWS && !(W.BOOT && W.BOOT.state !== 'gone')) fl |= F.fewDraws;
+      if (unshown) { fl |= F.notShown; unshown = false; }
+      // THE CRASH HAS ITS MOMENTS IN THE LOG (PERF-TRACE 7; PERF-LEAD: "so no reader has to guess the moment from the speed").
+      // The probe gives the count of broken members (app.js: the damage state as the page last had it; 0 with no damage).
+      // 'crash' { k: 'impact' } at the first one, { k: 'breaks' } as more follow (four a second at most), { k: 'rest' }
+      // when the speed has stayed under 0.5 m/s for 30 frames - its ms the time since the impact. A prop strike or a bent
+      // member with nothing broken is not an impact here.
+      { const nb = P.breaks > 0 ? P.breaks : 0;
+        if (nb > brk) { if (brk === 0) { crashAt = t; restN = 0; brkSaid = t; event('crash', t, null, { k: 'impact', breaks: nb, spd: P.spd === P.spd ? r1e(P.spd) : null, agl: P.agl === P.agl ? r1e(P.agl) : null }); }
+          else if (t - brkSaid >= 250) { brkSaid = t; event('crash', t, crashAt >= 0 ? t - crashAt : null, { k: 'breaks', breaks: nb }); } brk = nb; }
+        else if (nb < brk) { brk = nb; if (nb === 0) crashAt = -1; }   // (healed, a new aeroplane, a new flight)
+        if (crashAt >= 0) { if (P.spd === P.spd && P.spd < 0.5) { if (++restN === 30) { event('crash', t, t - crashAt, { k: 'rest', breaks: brk }); crashAt = -1; } } else restN = 0; } }
       ringF[j + C.agl] = P.agl; ringF[j + C.spd] = P.spd; ringF[j + C.vs] = P.vs;
       ringF[j + C.wms] = P.wms; ringF[j + C.wdil] = P.wdil; ringF[j + C.wran] = P.wran;
       ringF[j + C.phase] = codeOf('phase', P.phase); ringF[j + C.cam] = codeOf('cam', P.cam);
@@ -425,11 +456,13 @@
     function gpuBegin() {
       const G = rec.gpu;
       if (!G.ext || G.off) return;                  // (G1995: G.off - the self-test's 'timer off' variant, live)
-      if ((fi & 3) === 0) gpuPoll();                  // the results read every 4th frame, in a batch (each read is a GL call)
+      if ((fi & 3) === 0) { gpuPoll(); if (PASS) passPoll(); }   // the results read every 4th frame, in a batch (each read is a GL call)
       G.open = 0;                                     // (a query is begun and ended inside one frame: a count left over is a failed begin's)
       if (fi % G.share === G.share - 1) { G.subF++; return; }   // the subsystems' frame
       if (fi - G.rogueF < 120) return;                // a timer that does not ask ran on our frame in the last 2 s: not ours to open
       G.req++;
+      if (PASS && fi % PASS.every === 0 && PASS.head - PASS.tail < PFR) {   // this frame is timed pass by pass: its `gpu` is their sum
+        PASS.on = true; PASS.k = 0; PASS.spoiled = false; PASS.why = -1; PASS.ending = false; PASS.mark = -1; pBeginSeg(-1); return; }
       const qy = G.pool.length ? G.pool.pop() : (G.pend.length < 16 ? G.gl.createQuery() : null);
       if (!qy) return;
       G.active = qy; G.activeF = fi; G.spoiled = false;
@@ -462,6 +495,109 @@
       if (G.open > 0) G.nest++;                       // inside another module's open query: GL refuses it (counted, never fixed here)
       G.open++;
       if (G.active && !G.spoiled) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.spoiled = true; G.rogue++; G.rogueF = fi; }
+      if (PASS && PASS.cur) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.pool.push(PASS.cur); PASS.cur = null; PASS.spoiled = true; PASS.why = WHY_ROGUE; G.rogue++; G.rogueF = fi; }   // (a pass frame's chain: spoiled the same way)
+    }
+
+    // ---- THE GPU'S TIME BY PASS (?recgpu=pass[:N]; PERF-TRACE 9, 24 Nov) -------------------------------------------
+    // The user, 23 Nov: "try and get some headroom on the graphic card, maybe reach below 30 ms per frame". At 5120x1440
+    // the GPU takes 32.7 ms a frame in cruise and the log had ONE number for it. Under the switch - nothing by default -
+    // one frame in N (4) is timed as a CHAIN of TIME_ELAPSED queries instead of one: a query ends and the next begins at
+    // every boundary the frame already has, so the GL commands of each pass sit in their own query and the frame's
+    // passes sum to the frame (queries cannot nest; they can follow each other). The boundaries:
+    //   - the loop's laps (app.js: other, world, scene, hud, mirror, render): a segment is its lap's slot - `mirror` is
+    //     the water mirror's capture, `world` the streamers' uploads;
+    //   - the shadow maps (the wrapper of shadowMap.render pushes `shadow`): their own segment, inside whatever pass;
+    //   - FLIGHT_REC.gpuMark(name), called by aa_resolve.js inside the `render` lap: 'clouds march' (the pre hook),
+    //     'scene pass' (the world into the AA target), 'clouds overlay', 'aa resolve', 'post', 'frame tap'. A mark stands
+    //     until the next mark or lap; any module may add one (a name becomes a label the first time it is seen).
+    // WHAT A SEGMENT IS NOT: a family inside one pass. The cover ring, the far terrain, the trees and the aeroplane are
+    // drawn interleaved in 'scene pass' (three sorts a pass by material and depth): their GPU cost is read by flying the
+    // same seconds with the family off (the gfx settings) and comparing two logs - tools/gpu_passes.js --against.
+    // Each segment also keeps the draw calls and triangles submitted in it. The frame's own `gpu` column is the sum of
+    // its segments, so the coverage of the whole-frame number does not drop. Another module's timer on such a frame
+    // spoils it (counted with the rogues). Typed arrays allocated once, and only under the switch.
+    // The log's table: gpuPasses { every, labels, frames, rows: [t, frame, ms a label..., draws a label..., triangles a
+    // label...] } - only the labels that carried something. tools/gpu_passes.js reads it.
+    // (9c, the first real rows, 24 Nov 07:36: 60-70 % of the pass frames were LOST with no rogue timer - a frame of the game has
+    //  more renders than the 48 segments allowed, and the heavy frames, the tail the split is wanted for, were the ones dropped.
+    //  128 now, the shadow maps split only where they can work, and every lost frame is counted by its reason: lostBy.)
+    const PSEG = 128, PFR = 8, PLAB = 28, PW = 2 + 3 * PLAB, WHY_SEG = 0, WHY_NOQ = 1, WHY_OPEN = 2, WHY_BROKEN = 3, WHY_EMPTY = 4, WHY_RING = 5, WHY_ROGUE = 6;
+    const PASS = PASS_EVERY ? { every: PASS_EVERY, labels: SLOTS.slice(), ids: new Map(), on: false, cur: null, over: -1, mark: -1, sceneId: -2, sp: new Uint8Array(9), why: -1, lostBy: [0, 0, 0, 0, 0, 0, 0], segMax: 0, spoiled: false, ending: false, k: 0,
+      segQ: new Array(PSEG).fill(null), segL: new Int16Array(PSEG), segC: new Float64Array(PSEG), segT: new Float64Array(PSEG), v: new Float64Array(2),
+      flQ: new Array(PFR * PSEG).fill(null), flL: new Int16Array(PFR * PSEG), flC: new Float64Array(PFR * PSEG), flT: new Float64Array(PFR * PSEG), flN: new Int16Array(PFR), flF: new Float64Array(PFR), flTs: new Float64Array(PFR), head: 0, tail: 0,
+      cap: opt.gpuPassRows || 4096, rows: null, n: 0, ok: 0, lost: 0, bad: 0 } : null;
+    if (PASS) PASS.rows = new Float64Array(PASS.cap * PW);
+    function pId(name) { let i = PASS.ids.get(name); if (i === undefined) { if (PASS.labels.length >= PLAB) return S.other; i = PASS.labels.length; PASS.labels.push(String(name)); PASS.ids.set(name, i); if (name === 'scene pass') PASS.sceneId = i; } return i; }
+    function pBeginSeg(over) {
+      const G = rec.gpu;
+      if (PASS.k >= PSEG) { PASS.spoiled = true; PASS.why = WHY_SEG; return; }
+      const qy = G.pool.length ? G.pool.pop() : G.gl.createQuery();
+      if (!qy) { PASS.spoiled = true; PASS.why = WHY_NOQ; return; }
+      PASS.cur = qy; PASS.over = over; PASS.v[0] = calls; PASS.v[1] = tris;
+      G.begin.call(G.gl, G.ext.TIME_ELAPSED_EXT, qy);
+    }
+    function pEndSeg(label) {
+      const G = rec.gpu, qy = PASS.cur;
+      if (!qy) return;
+      PASS.cur = null; G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT);
+      const k = PASS.k++; PASS.segQ[k] = qy; PASS.segL[k] = PASS.over >= 0 ? PASS.over : label; PASS.segC[k] = calls - PASS.v[0]; PASS.segT[k] = tris - PASS.v[1];
+    }
+    function pLap(s) {   // a lap ends: its open segment is the lap's, and so is every segment left unnamed since the last lap
+      if (PASS.spoiled) return;
+      pEndSeg(s);
+      for (let i = 0; i < PASS.k; i++) if (PASS.segL[i] === -1) PASS.segL[i] = s;
+      PASS.mark = -1;
+      if (!PASS.ending) pBeginSeg(-1);
+    }
+    function gpuMark(name) {
+      if (!PASS || !PASS.on || PASS.spoiled || !open) return;
+      pEndSeg(-1); PASS.mark = name == null ? -1 : pId(name); pBeginSeg(PASS.mark);
+    }
+    function pClose(broken) {
+      const G = rec.gpu;
+      if (PASS.cur) { G.end.call(G.gl, G.ext.TIME_ELAPSED_EXT); G.pool.push(PASS.cur); PASS.cur = null; if (!PASS.spoiled) PASS.why = WHY_OPEN; PASS.spoiled = true; }   // the frame never reached its end
+      PASS.on = false; if (PASS.k > PASS.segMax) PASS.segMax = PASS.k;
+      if (PASS.spoiled || broken || !PASS.k || PASS.head - PASS.tail >= PFR) { for (let i = 0; i < PASS.k; i++) G.pool.push(PASS.segQ[i]);
+        PASS.lostBy[PASS.spoiled && PASS.why >= 0 ? PASS.why : broken ? WHY_BROKEN : !PASS.k ? WHY_EMPTY : WHY_RING]++; PASS.k = 0; PASS.lost++; return; }
+      const o = PASS.head % PFR, b = o * PSEG;
+      for (let i = 0; i < PASS.k; i++) { PASS.flQ[b + i] = PASS.segQ[i]; PASS.flL[b + i] = PASS.segL[i]; PASS.flC[b + i] = PASS.segC[i]; PASS.flT[b + i] = PASS.segT[i]; }
+      PASS.flN[o] = PASS.k; PASS.flF[o] = fi; PASS.flTs[o] = ringT[fi & (N - 1)]; PASS.head++; PASS.k = 0;
+    }
+    function passPoll() {
+      const G = rec.gpu, gl = G.gl;
+      while (PASS.tail < PASS.head) {
+        const o = PASS.tail % PFR, n = PASS.flN[o], b = o * PSEG;
+        if (!gl.getQueryParameter(PASS.flQ[b + n - 1], gl.QUERY_RESULT_AVAILABLE)) return;   // (in order: the last one ready means the frame is)
+        const disjoint = gl.getParameter(G.ext.GPU_DISJOINT_EXT), r = (PASS.n % PASS.cap) * PW;
+        let ok = !disjoint, sum = 0;
+        PASS.rows.fill(NaN, r, r + PW);
+        for (let i = 0; i < n; i++) {
+          const qy = PASS.flQ[b + i]; PASS.flQ[b + i] = null;
+          if (ok && gl.getQueryParameter(qy, gl.QUERY_RESULT_AVAILABLE)) {
+            const ms = gl.getQueryParameter(qy, gl.QUERY_RESULT) / 1e6, L = PASS.flL[b + i] < 0 ? S.other : PASS.flL[b + i], a = r + 2 + L;
+            PASS.rows[a] = (PASS.rows[a] === PASS.rows[a] ? PASS.rows[a] : 0) + ms; sum += ms;
+            PASS.rows[a + PLAB] = (PASS.rows[a + PLAB] === PASS.rows[a + PLAB] ? PASS.rows[a + PLAB] : 0) + PASS.flC[b + i];
+            PASS.rows[a + 2 * PLAB] = (PASS.rows[a + 2 * PLAB] === PASS.rows[a + 2 * PLAB] ? PASS.rows[a + 2 * PLAB] : 0) + PASS.flT[b + i];
+          } else ok = false;
+          G.pool.push(qy);
+        }
+        const f = PASS.flF[o];
+        if (ok) { PASS.rows[r] = PASS.flTs[o]; PASS.rows[r + 1] = f; PASS.n++; PASS.ok++; G.ok++; if (fi - f < N) ringF[(f & (N - 1)) * NC + C.gpu] = sum; }
+        else { PASS.bad++; G.bad++; }
+        PASS.tail++;
+      }
+    }
+    function passTable() {
+      if (!PASS) return null;
+      const n = Math.min(PASS.n, PASS.cap), used = [], rows = [], r2 = v => v === v ? Math.round(v * 100) / 100 : null;
+      for (let L = 0; L < PASS.labels.length; L++) { let any = false; for (let i = 0; i < n && !any; i++) if (PASS.rows[i * PW + 2 + L] === PASS.rows[i * PW + 2 + L]) any = true; if (any) used.push(L); }
+      const first = PASS.n > PASS.cap ? PASS.n % PASS.cap : 0;
+      for (let k = 0; k < n; k++) { const o = ((first + k) % PASS.cap) * PW, row = [r2(PASS.rows[o]), PASS.rows[o + 1]];
+        for (let j = 0; j < 3; j++) for (const L of used) row.push(j ? (PASS.rows[o + 2 + j * PLAB + L] === PASS.rows[o + 2 + j * PLAB + L] ? PASS.rows[o + 2 + j * PLAB + L] : null) : r2(PASS.rows[o + 2 + L]));
+        rows.push(row); }
+      const B = PASS.lostBy;
+      return { every: PASS.every, labels: used.map(L => PASS.labels[L]), frames: PASS.n, kept: n, lost: PASS.lost, disjoint: PASS.bad, segMax: PASS.segMax, segCap: PSEG,
+        lostBy: { segments: B[WHY_SEG], noQuery: B[WHY_NOQ], open: B[WHY_OPEN], broken: B[WHY_BROKEN], empty: B[WHY_EMPTY], ring: B[WHY_RING], foreign: B[WHY_ROGUE] }, rows };
     }
 
     // ---- the renderer's wrappers: the same calls, counted and timed ------------------------------------------
@@ -619,14 +755,15 @@
         cores: (W.navigator && W.navigator.hardwareConcurrency) || null, memGB: (W.navigator && W.navigator.deviceMemory) || null,
         screen: W.screen ? { w: W.screen.width, h: W.screen.height, availW: W.screen.availWidth, availH: W.screen.availHeight } : null,
         window: { w: W.innerWidth, h: W.innerHeight }, dpr: W.devicePixelRatio || 1,
-        cols: COLS, slots: SLOTS, flags: F, freezeMs: FREEZE_MS, codes: names, units: UNITS,
+        cols: COLS, slots: SLOTS, flags: F, fewDrawsUnder: FEW_DRAWS, freezeMs: FREEZE_MS, codes: names, units: UNITS,
         sceneDetail: detail ? detail.meta() : null,
         frames: fi, ring: N, events: events.length, eventsDropped: evDropped, revealAt,
         overhead: { frameUsMean: sampN ? +(V[SAMP_SUM] / sampN * 1000).toFixed(1) : null, frameUsMax: +(V[SAMP_MAX] * 1000).toFixed(1), sampled: sampN,
           gpuTimerUsMean: sampN ? +(V[SAMP_GL_SUM] / sampN * 1000).toFixed(1) : null,
           endUsMean: selfN ? +(V[SELF_US] / selfN).toFixed(2) : null, endUsMax: +V[SELF_MAX].toFixed(1), frames: selfN },
         gpuTimer: rec.gpu.ext ? { ok: rec.gpu.ok, disjoint: rec.gpu.bad, foreignFrames: rec.gpu.foreign,
-          requested: rec.gpu.req, coverage: rec.gpu.req ? +(rec.gpu.ok / rec.gpu.req).toFixed(3) : null, subsystemFrames: rec.gpu.subF, rogue: rec.gpu.rogue, nested: rec.gpu.nest } : null,
+          requested: rec.gpu.req, coverage: rec.gpu.req ? +(rec.gpu.ok / rec.gpu.req).toFixed(3) : null, subsystemFrames: rec.gpu.subF, rogue: rec.gpu.rogue, nested: rec.gpu.nest,
+          byPass: PASS ? { every: PASS.every, frames: PASS.ok, lost: PASS.lost, disjoint: PASS.bad, segMax: PASS.segMax, lostBy: PASS.lostBy.slice() } : null } : null,
         programs: rec.pid ? rec.pid.summary() : null,   // PERF-TRACE: the program registry's count (owned / unowned / seen ready / drawn) and its own cost
         // PERF-TRACE: the GPU data of the whole run - the frames (and gaps) that made or updated any, and the totals
         gpuData: { frames: UPT[0], texCalls: UPT[1], texMs: Math.round(UPT[2]), megapixels: Math.round(UPT[3]), compressedMB: Math.round(UPT[4] / 1048576), bufferCalls: UPT[5], bufferMs: Math.round(UPT[6]),
@@ -684,7 +821,7 @@
         Math.round(r.startTime), Math.round(r.responseEnd), Math.round((r.transferSize || r.encodedBodySize || 0) / 1024), r.initiatorType || '']) : null; } catch (e) {}
       let wks = null; try { wks = typeof WK !== 'undefined' && WK.on ? wkRows(true) : null; } catch (e) {}   // PERF-TRACE: the workers' traffic in 250 ms buckets
       parts.push('},"events":' + JSON.stringify(events) + ',"programs":' + JSON.stringify(progs) + ',"resources":' + JSON.stringify(resrc) + ',"premises":' + JSON.stringify(prem) + ',"uploads":' + JSON.stringify(upl) +
-        ',"workers":' + JSON.stringify(wks) + ',"laps":' + JSON.stringify(lapsTable()) + '}');
+        ',"workers":' + JSON.stringify(wks) + ',"laps":' + JSON.stringify(lapsTable()) + (PASS ? ',"gpuPasses":' + JSON.stringify(passTable()) : '') + '}');
       return parts;
     }
     // a chunk's rows as a plain record (IndexedDB)
@@ -721,7 +858,7 @@
     } : null;
     const api = {
       SLOTS, S, COLS, C, F, N, CHUNK, rec, sceneDetail: detail,
-      attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince, reveal, gpuMay, town,
+      attach, begin, end, lap, push, pop, notShown, event, stats, header, logParts, chunkRec, eventsSince, reveal, gpuMay, gpuMark, passTable, town,
       codeOf, names,
       get frame() { return fi; }, get open() { return open; }, get events() { return events; },
       set chunkSink(fn) { chunkSink = fn; },
@@ -824,7 +961,7 @@
   const API = {
     make, SLOTS, COLS, S: REC.S, F: REC.F,
     attach: (renderer, probe) => OFF ? null : REC.attach(renderer, probe),
-    begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop, town: REC.town,   // G3415: the town meter
+    begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop, town: REC.town, notShown: REC.notShown,   // G3415: the town meter
     event: (kind, ms, detail) => REC.event(kind, null, ms, detail),
     // PHONE-EDIT-PERF (D): a garage task by name - the commit, the bench's re-checks - run as fn() and logged as 'gtask'
     // when it took 16 ms or more (the timers after an edit, named in the log). The clock is a rig's real one where it
@@ -836,6 +973,7 @@
     },
     reveal: how => REC.reveal(how),
     gpuMay: () => OFF || REC.gpuMay(),   // PERF-1 P1: may a subsystem open its GPU timer this frame? (the recorder's arbitration)
+    gpuMark: REC.gpuMark,   // PERF-TRACE 9 (?recgpu=pass): a pass begins here - its GL commands get their own GPU timer segment; nothing without the switch
     gpuTimer: on => { if (on !== undefined) REC.rec.gpu.off = !on; return !!REC.rec.gpu.ext && !REC.rec.gpu.off; },   // G1995: the GPU timer on / off, live (the self-test)   // G1995: the flight handed to the player (app.js flRevealStart), screen or none
     stats: w => REC.stats(w), header: () => REC.header(), self: REC.self,
     get off() { return OFF; }, rec: REC,
@@ -844,7 +982,7 @@
     mount: (body, H) => mount(body, H),
     mountMeter: (body, H) => mountMeter(body, H), mountLog: (body, H) => mountLog(body, H),   // G760
   };
-  if (OFF) { API.begin = API.end = API.lap = API.push = API.pop = API.town = NOOP; }
+  if (OFF) { API.begin = API.end = API.lap = API.push = API.pop = API.town = API.notShown = API.gpuMark = NOOP; }
 
   // ---- the page's events ------------------------------------------------------------------------------------------
   const ev = (k, t, ms, d) => REC.event(k, t, ms, d);

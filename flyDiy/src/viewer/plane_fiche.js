@@ -120,18 +120,19 @@
   // the drawn points (a few hundred a mesh) and the aeroplane's own axes, its air attitude
   function frameOf(T, root) {
     root.updateMatrixWorld(true);
-    const box = new T.Box3(), gb = new T.Box3(), pts = [], p = new T.Vector3();
+    const box = new T.Box3(), pts = [], wp = [];
+    // FRAME-DRAWN (the user 22 Nov): only what the fiche's cameras draw makes the frame - a drawn mesh's drawn triangles'
+    // vertices, never a hidden face group's (ui_layer.js UI_LAYER.drawn / drawnPoints); the box from the same points
+    const DR = m => (typeof UI_LAYER !== 'undefined' && UI_LAYER.drawn) ? UI_LAYER.drawn(m) : !!(m.isMesh && m.geometry);
     root.traverseVisible(m => {
-      if (!m.isMesh || !m.geometry) return;
-      const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox();
-      gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld); box.union(gb);
+      const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa || !DR(m)) return;
+      const at = i => { const q = new T.Vector3().fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld); box.expandByPoint(q); wp.push(q); };
+      if (typeof UI_LAYER !== 'undefined' && UI_LAYER.drawnPoints) { UI_LAYER.drawnPoints(m, 300, at); return; }
+      const step = Math.max(1, Math.floor(pa.count / 300));
+      for (let i = 0; i < pa.count; i += step) at(i);
     });
     const c = box.getCenter(new T.Vector3());
-    root.traverseVisible(m => {
-      const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa) return;
-      const step = Math.max(1, Math.floor(pa.count / 300));
-      for (let i = 0; i < pa.count; i += step) pts.push(p.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c));
-    });
+    for (const q of wp) pts.push(q.sub(c));
     const fwd = new T.Vector3(0, 0, 1).transformDirection(root.parent.matrixWorld); fwd.y = 0; fwd.normalize();
     const up = new T.Vector3(0, 1, 0), left = new T.Vector3().crossVectors(up, fwd).normalize();
     const ext = { f: [1e9, -1e9], l: [1e9, -1e9], u: [1e9, -1e9] };

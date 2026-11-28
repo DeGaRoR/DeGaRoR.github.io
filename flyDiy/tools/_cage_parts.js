@@ -703,7 +703,7 @@ const CAGE_PARTS = [
              at: 'the foot, on the fuselage side' },
     groups: [
       ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil']],
-      ['options', ['wgStrutSec', 'wgJury']],   // STRUT-OPTIONS
+      ['options', ['wgStrutSec', 'wgJury', 'wgStrutAxle']],   // STRUT-OPTIONS (+ STRUT-AXLE 24 Nov: the foot on the main axle)
     ] },
 
   // THE WING RADIATORS (27 Oct): a ducted radiator under each wing, or one and an oil cooler - their own layer
@@ -1228,6 +1228,7 @@ const CAGE_PARTS = [
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
       ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold', 'whTex', 'whTexPat', 'whTexDirt']],
       ['boom wheels outboard', ['twBoomOut']],   // CAR-4
+      ['V tip wheels', ['vtWheels', 'vtD', 'vtWide', 'vtFork', 'vtCastor', 'vtBar', 'vtBarAt']],   // LAZAIR: under a V hung down (LAZAIR-TWIN: its bar)
       ['fairing build', ['fairCons']],
     ] },
 
@@ -1248,7 +1249,7 @@ const CAGE_PARTS = [
              at: 'on the cabin floor' },
     groups: [
       ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
-                   'seatTilt', 'seatGap']],
+                   'seatTilt', 'seatW', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
       ['passenger seats', ['paxSeatType', 'paxSeatZ', 'paxGap', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
@@ -1321,9 +1322,9 @@ const CAGE_PARTS = [
       // G3700: the pilot is the racer (no select); the co-pilot picks
       ['aboard', ['pilOn', 'cabOcc', 'cabWho']],
       ['pilot pose', ['pilElbows', 'pilKnees', 'pilRecline',
-                      'pilHandGrip', 'pilFist', 'pilStickFwd', 'pilIdle']],
+                      'pilHandGrip', 'pilFist', 'pilStickFwd', 'pilSitZ', 'pilSitY', 'pilIdle']],
       ['hands', ['pilHandsApart', 'pilFistL', 'pilFistR', 'pilGripL', 'pilGripR']],   // G2797
-      ['passenger pose', ['paxRecline', 'paxFeetOn', 'paxFeetZ',
+      ['passenger pose', ['paxRecline', 'paxSitZ', 'paxSitY', 'paxFeetOn', 'paxFeetZ',
                           'paxFeetY', 'paxFeetX', 'paxIdle']],
     ] },
 

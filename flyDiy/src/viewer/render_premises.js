@@ -81,25 +81,69 @@ function farWant(eye, need, shown) {
   return true;
 }
 // ---- PATCH FAR (G3088) END --------------------------------------------------------------------------------------------
+// PERF-WORLDBUILD (22 Nov 2026): THE MATERIAL MAP'S RASTER, SELF-CONTAINED - paintMaterials' loop (the record's material
+// polygons' weights, O.materialWeight, into the N x N RGBA bytes D over the world box mb / MW / MH; slots[q]: material q's
+// channel, -1 none). The page runs it; with ?patchw=1 the house worker runs THIS SOURCE TEXT on its own composition
+// (house_worker.js 'matmap') and the page takes the bytes: 1.2-1.7 s of one main-thread task of the world step (node).
+// It reads nothing but its arguments. -> whether any texel was written.
+function PREM_MATERIAL_RASTER(O, D, N, mb, MW, MH, slots) {
+  const mats = O.materials || [], F = O.frame;
+  let any = false;
+  for (let q = 0; q < mats.length; q++) {
+    const m = mats[q], k = slots[q]; if (!(k >= 0)) continue;
+    // the pixels the polygon and its fade band cover, in the bounds' raster
+    const bb = m.bbox, f = m.fade;
+    // (a turned frame: the four corners of the local box, not two of them)
+    const cw = [[bb.x0, bb.z0], [bb.x1, bb.z0], [bb.x1, bb.z1], [bb.x0, bb.z1]].map(c => F.toWorld(c[0], c[1]));
+    const px0 = Math.max(0, Math.floor((Math.min(...cw.map(c => c[0])) - mb.x0) / MW * N) - 2), px1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(c => c[0])) - mb.x0) / MW * N) + 2);
+    const pz0 = Math.max(0, Math.floor((Math.min(...cw.map(c => c[1])) - mb.z0) / MH * N) - 2), pz1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(c => c[1])) - mb.z0) / MH * N) + 2);
+    const lo = Math.min(px0, px1) - Math.ceil(f / MW * N) - 1, hi = Math.max(px0, px1) + Math.ceil(f / MW * N) + 1, lz = Math.min(pz0, pz1) - Math.ceil(f / MH * N) - 1, hz = Math.max(pz0, pz1) + Math.ceil(f / MH * N) + 1;
+    for (let j = Math.max(0, lz); j <= Math.min(N - 1, hz); j++) for (let i = Math.max(0, lo); i <= Math.min(N - 1, hi); i++) {
+      const wx = mb.x0 + (i + 0.5) / N * MW, wz = mb.z0 + (j + 0.5) / N * MH, L = F.toLocal(wx, wz);
+      const w = O.materialWeight(m, L[0], L[1]); if (w <= 0) continue;
+      const at = (j * N + i) * 4;
+      for (let c = 0; c < 4; c++) D[at + c] = Math.round(D[at + c] * (1 - w));
+      D[at + k] = Math.min(255, D[at + k] + Math.round(255 * w));
+      any = true;
+    }
+  }
+  return any;
+}
+// the stations' builder for the cable solver: the generator's build, no finish (only the hooks are read)
+// G1400 (EDITOR-LAG): MEMOISED by the generator and its parameters - the cable's solver builds each station three
+// times a composition (its line angle converging) and reads only the hooks, and every edit's compose ran those six
+// house builds again on the same parameters (1.1 s of a taxi point's commit, headless). A build is a pure function
+// of (gen, P); the solver reads it and never writes it. Bounded: a long session's edits do not grow it
+// (PERF-WORLDBUILD, 22 Nov: the memo is the MODULE's now, not a renderer's - composeSteps below composes before a renderer
+//  exists and make() takes its overlay: the same builds, built once)
+const BUILT = new Map();
+const buildFor = r => {
+  const GEN = window[r.gen]; if (!GEN) return null;
+  const k = r.gen + '|' + JSON.stringify(r.P);
+  let b = BUILT.get(k);
+  if (b === undefined) { b = GEN.build(r.P, 0); if (BUILT.size >= 48) BUILT.clear(); BUILT.set(k, b); }
+  return b;
+};
+// PERF-WORLDBUILD (22 Nov 2026): THE GAME'S COMPOSITION IN STEPS (the world build under ?compsteps=1). make() composed
+// the record in its first lines: one task of 2.6-2.9 s, the load's longest. composeSteps(world, rec0, pool) is that same
+// composition - the record normalised as make does, the same builder, the pool taken as make takes it - through
+// world.premises.setSteps (20_world.js: a step a call, the standing premises in force until the swap); it RETURNS
+// { rec, O, pool }, which the host hands to make as opts.precomposed: make composes nothing then and wears exactly this
+// record and overlay. null where the world has no stepped setter: make composes as before.
+function* composeSteps(world, rec0, pool) {
+  if (!(world && world.premises && world.premises.setSteps && PG.composeSteps)) return null;
+  const rec = PG.normalise(rec0 || PG.DEF()), list = pool();
+  const O = (yield* world.premises.setSteps(rec, { build: buildFor, pool: list })) || PG.compose(rec, world.premises.base, { pool: pool(), globals: window, build: buildFor });
+  return { rec, O, pool: list };
+}
 function make(THREE, scene, world, rec0, opts) {
   const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null, game: false, editing: () => true, patchMat: null, patchUV: null }, opts || {});
-  let rec = PG.normalise(rec0 || PG.DEF());
-  // the stations' builder for the cable solver: the generator's build, no finish (only the hooks are read)
-  // G1400 (EDITOR-LAG): MEMOISED by the generator and its parameters - the cable's solver builds each station three
-  // times a composition (its line angle converging) and reads only the hooks, and every edit's compose ran those six
-  // house builds again on the same parameters (1.1 s of a taxi point's commit, headless). A build is a pure function
-  // of (gen, P); the solver reads it and never writes it. Bounded: a long session's edits do not grow it
-  const BUILT = new Map();
-  const buildFor = r => {
-    const GEN = window[r.gen]; if (!GEN) return null;
-    const k = r.gen + '|' + JSON.stringify(r.P);
-    let b = BUILT.get(k);
-    if (b === undefined) { b = GEN.build(r.P, 0); if (BUILT.size >= 48) BUILT.clear(); BUILT.set(k, b); }
-    return b;
-  };
+  let PRE = o.precomposed && o.precomposed.O && o.game && world.premises ? o.precomposed : null;   // (PERF-WORLDBUILD ?compsteps=1: composed in steps before this call - composeSteps above)
+  let rec = PRE ? PRE.rec : PG.normalise(rec0 || PG.DEF());
   // (G830: the tree pool the game's recompose took is kept - the house worker recomposes with the same, hwCompose)
   let composedPool = null;
   const composeNow = () => {
+    if (PRE) { const p = PRE; PRE = null; composedPool = p.pool; return p.O; }   // (once: the make's own; every later composition as before)
     if (o.game && world.premises) { composedPool = o.pool(); return world.premises.set(rec, { build: buildFor, pool: composedPool }) || PG.compose(rec, world.premises.base, { pool: o.pool(), globals: window, build: buildFor }); }
     composedPool = null;
     return PG.compose(rec, world, { pool: o.pool(), globals: window, build: buildFor });
@@ -365,14 +409,25 @@ function make(THREE, scene, world, rec0, opts) {
   // benches) it switches at once, as before.
   const LAMPS = { pool: [], pub: [], glass: new Map(), lens: new Set(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500,
     armed: false, prep: null, prepping: null, ready: null, prepTok: 0 };
+  // ?lampsfixed=1 (PERF-LEAD 22 Nov, OPT-IN, the default unchanged): THE POOL KEEPS ITS COUNT BY DAY TOO. Armed or not is
+  // today's only change in the world's light counts (8 + the aircraft's 2 point lights at night, 2 by day), and crossing
+  // the threshold re-keys every lit material: 164 programs made at noon after a night load (Codex's trace, 21 Nov). With
+  // the flag the 8 stay VISIBLE at every hour, at intensity 0 while the day does not ask for them: one count, one set of
+  // programs, nothing to link when the time of day changes. Its price is the test's question: 8 more point-light
+  // iterations a lit fragment by day, and day programs as heavy as the night's. fixedCount is the hook app.js already
+  // reads (lampsPrep has nothing to prepare; craftHullWarm warms the hull capture's own signature).
+  LAMPS.fixedCount = typeof location !== 'undefined' && /[?&]lampsfixed=1(&|$)/.test(location.search || '');
+  if (LAMPS.fixedCount) LAMPS.armed = true;
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
     for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = LAMPS.armed; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }  // pre-ok: intensity 0 here; LAMPS.update drives it x P
   };
   // arm(on): the pool's count, now (the host's compile dress and the roll-out's key call it; update() goes through prep)
-  LAMPS.arm = on => { lampPoolInit(); on = !!on; LAMPS.armed = on; for (const l of LAMPS.pool) { l.visible = on; if (!on) l.intensity = 0; } return on; };
+  LAMPS.arm = on => { lampPoolInit(); on = LAMPS.fixedCount || !!on; LAMPS.armed = on; for (const l of LAMPS.pool) { l.visible = on; if (!on) l.intensity = 0; } return on; };
   // want(on): the count the day asks for (the lamps' level `on` 0..1)
-  LAMPS.want = on => on > 0 && !LAMPS.muted;
+  LAMPS.want = on => LAMPS.fixedCount || (on > 0 && !LAMPS.muted);
+  // lit(on): the pool gives light (the same test as want, but for ?lampsfixed=1, where the count no longer says it)
+  LAMPS.lit = on => on > 0 && !LAMPS.muted;
   const _lp = new THREE.Vector3();
   // eye: a Vector3; on: the day's 0..1; ex: the live exposure base
   LAMPS.update = (eye, on, ex) => {
@@ -404,7 +459,7 @@ function make(THREE, scene, world, rec0, opts) {
           .then(() => { if (tok === LAMPS.prepTok) { LAMPS.ready = want; LAMPS.prepping = null; } });
       }
     }
-    if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; if (LAMPS.streaks && typeof WATER !== 'undefined' && WATER.lamps) { WATER.lamps(null); LAMPS.streaks = null; } return; }
+    if (!LAMPS.lit(on) || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; if (LAMPS.streaks && typeof WATER !== 'undefined' && WATER.lamps) { WATER.lamps(null); LAMPS.streaks = null; } return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
       const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent && (!e.chunk || e.grp.parent.parent));   // (G2955: a line's lamp chunk stays parented to its line - the line itself must still stand)
@@ -493,7 +548,10 @@ function make(THREE, scene, world, rec0, opts) {
         '  }\n#include <color_fragment>');
   }
   // the map painted: every material polygon in priority order, "over" per pixel with its fade weight
-  function paintMaterials() {
+  // (PERF-WORLDBUILD: cut in three - the set-up (the bounds, the slots, the tiles), the raster (PREM_MATERIAL_RASTER: here,
+  // or the house worker's under ?patchw=1 - paintMaterialsSteps below), the finish (the uniforms, the slot count))
+  function paintMaterials() { const S = matSetup(); matFinish(PREM_MATERIAL_RASTER(O, MMD, MMN, mb, MW, MH, S.slots), S.mats); }
+  function matSetup() {
     const mats = O.materials || [], F = O.frame, N = MMN;
     const D = MMD; D.fill(0);
     // the bounds: the bench's window; the game's the polygons' union with their fades and a texel's margin
@@ -506,27 +564,15 @@ function make(THREE, scene, world, rec0, opts) {
     uMB.value.set(mb.x0, mb.z0, MW, MH);
     for (let i = 0; i < 4; i++) SLOTS[i] = null;
     const slotOf = key => { let k = SLOTS.indexOf(key); if (k < 0) { k = SLOTS.indexOf(null); if (k < 0) return -1; SLOTS[k] = key; } return k; };
-    let any = false;
+    const slots = [];
     for (const m of mats) {
-      const k = slotOf(m.set); if (k < 0) { console.warn('premises: a fifth material set (' + m.set + ') has no slot'); continue; }
+      const k = slotOf(m.set); slots.push(k); if (k < 0) { console.warn('premises: a fifth material set (' + m.set + ') has no slot'); continue; }
       const tile = m.tile || (texSets()[m.set] || {}).tile || 2.4;
       uTile.value.setComponent(k, tile);
-      // the pixels the polygon and its fade band cover, in the bounds' raster
-      const bb = m.bbox, f = m.fade;
-      // (a turned frame: the four corners of the local box, not two of them)
-      const cw = [[bb.x0, bb.z0], [bb.x1, bb.z0], [bb.x1, bb.z1], [bb.x0, bb.z1]].map(q => F.toWorld(q[0], q[1]));
-      const px0 = Math.max(0, Math.floor((Math.min(...cw.map(q => q[0])) - mb.x0) / MW * N) - 2), px1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(q => q[0])) - mb.x0) / MW * N) + 2);
-      const pz0 = Math.max(0, Math.floor((Math.min(...cw.map(q => q[1])) - mb.z0) / MH * N) - 2), pz1 = Math.min(N - 1, Math.ceil((Math.max(...cw.map(q => q[1])) - mb.z0) / MH * N) + 2);
-      const lo = Math.min(px0, px1) - Math.ceil(f / MW * N) - 1, hi = Math.max(px0, px1) + Math.ceil(f / MW * N) + 1, lz = Math.min(pz0, pz1) - Math.ceil(f / MH * N) - 1, hz = Math.max(pz0, pz1) + Math.ceil(f / MH * N) + 1;
-      for (let j = Math.max(0, lz); j <= Math.min(N - 1, hz); j++) for (let i = Math.max(0, lo); i <= Math.min(N - 1, hi); i++) {
-        const wx = mb.x0 + (i + 0.5) / N * MW, wz = mb.z0 + (j + 0.5) / N * MH, L = F.toLocal(wx, wz);
-        const w = O.materialWeight(m, L[0], L[1]); if (w <= 0) continue;
-        const at = (j * N + i) * 4;
-        for (let c = 0; c < 4; c++) D[at + c] = Math.round(D[at + c] * (1 - w));
-        D[at + k] = Math.min(255, D[at + k] + Math.round(255 * w));
-        any = true;
-      }
     }
+    return { mats, slots };
+  }
+  function matFinish(any, mats) {
     for (let i = 0; i < 4; i++) uSet[i].value = SLOTS[i] ? setTex(SLOTS[i]) : null;
     uMatOn.value = any ? 1 : 0;
     // the slot count the programs declare (G527.1): a change recompiles every ground that takes the injection
@@ -534,6 +580,25 @@ function make(THREE, scene, world, rec0, opts) {
     if (used !== NSLOT) { NSLOT = used; groundMat.needsUpdate = true; for (const M of patchMatOwn) if (M) M.needsUpdate = true; }
     matTex.needsUpdate = true;
     stats.materials = mats.length;
+  }
+  // the game's first rebuild (rebuildSteps): the raster asked of the house worker under ?patchw=1 - the page sets up, sleeps
+  // on the answer through the host (FLYDIY_WORLD_WAIT), takes the bytes and finishes; any miss rasters here, as before
+  function* paintMaterialsSteps() {
+    const S = matSetup();
+    let any = null;
+    if (PATCHW.on && S.mats.length && typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true && hwOn()) {
+      const seq = ++PATCHW.seq; let ans = null;
+      HWK.onMatmap = m => { if (m.seq === seq) ans = m; };
+      if (HWK.post({ cmd: 'matmap', epoch: HWQ.epoch, seq, N: MMN, mb: { x0: mb.x0, z0: mb.z0 }, MW, MH, slots: S.slots, src: String(PREM_MATERIAL_RASTER) })) {
+        const tW = performance.now();
+        while (!ans && hwOn()) { window.FLYDIY_WORLD_WAIT = HWK.next(); yield 'materials: the map'; }
+        PATCHW.waitMs += performance.now() - tW;
+        if (ans && ans.d && ans.d.length === MMD.length) { MMD.set(ans.d); any = !!ans.any; PATCHW.matmap = 'worker'; PATCHW.matMs = Math.round(ans.ms || 0); }
+        else if (ans && ans.miss) console.warn('house worker: the material map (' + ans.miss + ') - rastered here');
+      }
+    }
+    if (any === null) { any = PREM_MATERIAL_RASTER(O, MMD, MMN, mb, MW, MH, S.slots); PATCHW.matmap = 'here'; }
+    matFinish(any, S.mats);
   }
   const OV = document.createElement('canvas'); OV.width = OV.height = 1024;
   const ovTex = new THREE.CanvasTexture(OV); ovTex.flipY = false; ovTex.wrapS = ovTex.wrapT = THREE.ClampToEdgeWrapping;
@@ -574,7 +639,8 @@ function make(THREE, scene, world, rec0, opts) {
   // the rails, the life, the cars) reads the cooked raster where its cell is cooked and the analytic composer elsewhere,
   // never a lazy bake: with the town on, these readers baked ~11 000 tiles over Metlakatla at every boot
   // (functions, not consts: heightAt is hoisted and the life's host can read it before this line runs)
-  function groundB(x, z) { return world.terrainHBuild ? world.terrainHBuild(x, z) : world.terrainH(x, z); }
+  function groundB(x, z) { if (PATCHF) return PATCHF.g;   // (PERF-WORLDBUILD ?patchw=1: the patch vertex being sampled - its build read came from the house worker)
+    return world.terrainHBuild ? world.terrainHBuild(x, z) : world.terrainH(x, z); }
   const waterB = world.waterHBuild || world.waterH;
   function heightAt(x, z) { return o.game ? groundB(x, z) : O.terrainH(x, z, world.terrainH(x, z)); }
   function buildChunk(i, j) {
@@ -731,12 +797,17 @@ function make(THREE, scene, world, rec0, opts) {
   // Everywhere else - the grass between and beside the pavements, a stand on grass - the patch IS the ground the eye
   // sees under a tyre, and it is drawn at terrainH. 0..drop, per point.
   const PATCH_LOT_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park'];
+  // PERF-WORLDBUILD (22 Nov 2026): THE PATCH'S QUERIES FROM THE HOUSE WORKER (?patchw=1, patchFieldsAsk below). While the
+  // patch's sampler is on a vertex whose answers the worker sent, PATCHF holds them: g - the build read of the ground there
+  // (world.terrainHBuild), q1 - O.pavedAt(x, z, PATCH_TUCK.sideR1), q2 - O.pavedAt(x, z). The laws below and in
+  // buildPatchSteps read them where they asked the core themselves; null (always, without the flag): they ask, as before.
+  let PATCHF = null;
   let lotZones = null;
   const lotChunks = new Map();
   function patchDrop(x, z) {
     const P = PATCH_TUCK;
     let k = 0;
-    const q = O.pavedAt ? O.pavedAt(x, z, P.sideR1) : null;
+    const q = PATCHF ? PATCHF.q1 : (O.pavedAt ? O.pavedAt(x, z, P.sideR1) : null);
     // (G2115: not under a grass road - PAVEMENT.translucent: its own tl margin, sinkAt's, is the gap; the 2 cm on top made it 9)
     if (q && !(typeof PAVEMENT !== 'undefined' && PAVEMENT.translucent && PAVEMENT.translucent(q.cls, q.kind))) { const d = q.dPre !== undefined ? q.dPre : q.d; if (d >= -P.sideR0) return P.drop; const t = (d + P.sideR1) / (P.sideR1 - P.sideR0); k = t * t * (3 - 2 * t); }
     if (!lotZones) {
@@ -814,6 +885,53 @@ function make(THREE, scene, world, rec0, opts) {
   // G680: the patch in slices (a chunk batch of the ground sampling, a block of the LODs, a yield each) - the
   // roll-out's world step drives it through rebuildSteps; an edit's rebuild runs it to the end at once
   function buildPatch() { const g = buildPatchSteps(); while (!g.next().done); }
+  // PERF-WORLDBUILD (22 Nov 2026): THE PATCH'S QUERIES OFF THE MAIN THREAD (?patchw=1, opt-in: the default samples here).
+  // The patch's 2 m sampling was 6.2 s of the world step on the page's thread (node), and half of it and more is three
+  // questions asked of the CORE at every one of its 3.1 M vertices: the ground's build read and the pavement at the point,
+  // twice (with the side's reach for the 2 cm drop, without for the sink). The house worker holds the page's composed world
+  // bit for bit, so the whole list of chunks is asked of it at the build's start (one message behind its composition) and it
+  // answers a batch of chunks at a time: the heights dense (Float64), the two pavement answers sparse (most vertices are on
+  // no pavement). The sampler below reads them through PATCHF and applies the SAME laws, here: every vertex is the float it
+  // was. A batch not in yet is waited for through the host's sleep (app.js FLYDIY_WORLD_WAIT); a miss, a stale answer (the
+  // soil's scales moved), the worker gone: the rest of the list is sampled here. A part build (an edit, the town later), a
+  // build no host sleeps for and a page without the worker sample here, as before. GATE PATCHWORKER: the patch byte for byte.
+  // (PERF-WORLDBUILD, 23 Nov 2026: a world-build switch's word - render_world.js has the rule: the URL, a host's
+  //  FLYDIY_WORLD_DEFAULTS, then on under a host's budget for the switches a gate holds to the page's own bytes)
+  const wbSwitch = (name, underHost) => { const q = typeof location !== 'undefined' ? (location.search || '') : ''; if (new RegExp('[?&]' + name + '=1(?:&|$)').test(q)) return true; if (new RegExp('[?&]' + name + '=0(?:&|$)').test(q)) return false; const D = typeof window !== 'undefined' ? window.FLYDIY_WORLD_DEFAULTS : null; if (D && D[name] !== undefined) return !!D[name]; return !!(underHost && typeof window !== 'undefined' && window.FLYDIY_WORLD_BUDGET); };
+  const PATCHW = { on: wbSwitch('patchw', true), seq: 0, asked: 0, used: 0, here: 0, batches: 0, workerMs: 0, waitMs: 0, why: null };
+  if (typeof window !== 'undefined' && o.game) window.FLYDIY_PATCHW = PATCHW;
+  function patchFieldsAsk(list, RES, n, sink) {
+    if (!PATCHW.on) { PATCHW.why = 'off'; return null; }
+    if (!(typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true)) { PATCHW.why = 'no host to wait'; return null; }
+    if (!hwOn() || !world.wearScales || !list.length) { PATCHW.why = 'no worker'; return null; }
+    const seq = ++PATCHW.seq, per = (n + 1) * (n + 1), BATCH = 32, got = new Map(), wearKey = JSON.stringify(world.wearScales());
+    let dead = false, cur = null;
+    HWK.onPatch = m => { if (m.seq === seq) { got.set(m.b0, m); PATCHW.batches++; PATCHW.workerMs += m.ms || 0; } };
+    if (!HWK.post({ cmd: 'patch', epoch: HWQ.epoch, seq, RES, n, PCH, batch: BATCH, sideR1: PATCH_TUCK.sideR1, sink: !!sink, wear: world.wearScales(), chunks: list.map(k => k.split(',').map(Number)) })) { PATCHW.why = 'post failed'; return null; }
+    PATCHW.asked = list.length; PATCHW.used = 0; PATCHW.here = 0; PATCHW.why = 'asked';
+    // a sparse answer -> the vertex's slot (-1: no pavement there) and one object a hit, shaped as O.pavedAt's
+    const open = Q => { const slot = new Int32Array(cur.n * per).fill(-1), obj = [];
+      if (Q) for (let t = 0; t < Q.idx.length; t++) { slot[Q.idx[t]] = t; obj.push({ d: Q.d[t], cls: Q.cls[t], halfW: Q.halfW[t], kind: Q.kind[t], id: Q.id[t], dPre: Q.dPre[t] }); }
+      return { slot, obj }; };
+    const H = { g: 0, q1: null, q2: null };   // (one holder, re-filled a vertex: 3 M objects would be the collector's)
+    return {
+      // chunk c's reader: set(k) fills the holder for its vertex k (j * (n + 1) + i); null - not in yet, or never
+      take(c) {
+        if (dead) return null;
+        const b0 = c - (c % BATCH);
+        if (!cur || cur.b0 !== b0) {
+          const m = got.get(b0); if (!m) return null;
+          got.delete(b0);
+          if (m.miss || !m.g || JSON.stringify(world.wearScales()) !== wearKey) { dead = true; PATCHW.why = m.miss ? 'miss: ' + m.miss : 'stale'; return null; }
+          cur = { b0, n: m.n, g: m.g }; cur.a = open(m.q1); cur.b = open(m.q2);
+        }
+        const base = (c - b0) * per, C = cur;
+        return { set(k) { const v = base + k, s1 = C.a.slot[v], s2 = C.b.slot[v]; H.g = C.g[v]; H.q1 = s1 < 0 ? null : C.a.obj[s1]; H.q2 = s2 < 0 ? null : C.b.obj[s2]; return H; } };
+      },
+      alive: () => !dead && hwOn(),
+      wait: () => HWK.next(),
+    };
+  }
   // part (G2063, TOWN-GEO): { A, blocks } - the blocks named made again on the active set A (the town's chunks joining the
   // patch, geoLaterSteps), each in place of the one standing; without, the whole patch (the town's left out while GEO.split)
   // the part build for an edit's box (premises frame): the active chunks now, the blocks whose chunks touch the box - and
@@ -838,16 +956,6 @@ function make(THREE, scene, world, rec0, opts) {
     }
     return blocks.size ? { A, blocks, edit: true } : null;
   }
-  function* buildPatchSteps(part) {
-    const b = extentWorld();
-    const A = part ? part.A : activeChunks(b, GEO.split ? geoLater : null);
-    let list = [...A.act].sort();
-    const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
-    const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
-    if (!part && patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
-    if (!part) { FAR.src.clear(); FAR.cells.clear(); FAR.group = null; }   // (G3088: the merges went with the patch)
-    patchAct = A; patchB = b; patchDepthCells.clear();   // invalidate on full builds, edits and town expansion alike
-    lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
     // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
     const matOwn = (k, tier) => {
@@ -874,6 +982,42 @@ function make(THREE, scene, world, rec0, opts) {
       if (tier) { M.polygonOffset = true; M.polygonOffsetFactor = -1; M.polygonOffsetUnits = -1; return (patchMatTier[k] = M); }
       return (patchMatOwn[k] = M);
     };
+  // PERF-WORLDBUILD (23 Nov 2026, for PERF-LEAD's early links): THE PATCH PROGRAM'S STAND-IN. The patch's clone of the
+  // ring's twin is the one ground program no host could reach before the first chunk stood: the clone is made by the
+  // build and its key and text carry the SLOT COUNT, set when the material map is painted (matFinish), after the patch.
+  // patchWarm() names the count as matSetup + matFinish will (the record's sets in order, four slots: nothing is
+  // rastered), makes the clone the build will use (matOwn's memo: the same object) and gives { name, key, material,
+  // mesh } - the clone on one bare triangle flagged as a chunk's mesh, never in a scene, the same object every call.
+  // The far terrain's clone is not listed: with no set injected it keys as its base (G1310) - the outer ring's program,
+  // render_world's ground.warm(). Nothing is made or named until a host asks.
+  let patchWarmMesh = null;
+  function patchWarm() {
+    if (!o.game || !o.patchMat) return [];
+    const S = [null, null, null, null];
+    for (const m of (O.materials || [])) { let k = S.indexOf(m.set); if (k < 0) { k = S.indexOf(null); if (k >= 0) S[k] = m.set; } }
+    const used = S.filter(Boolean).length;
+    if (used !== NSLOT) { NSLOT = used; groundMat.needsUpdate = true; for (const M of patchMatOwn) if (M) M.needsUpdate = true; }
+    if (!patchWarmMesh) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 0, 1]), 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0]), 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(6), 2));
+      patchWarmMesh = new THREE.Mesh(g, matOwn(0)); patchWarmMesh.name = 'warm:premises-patch'; patchWarmMesh.receiveShadow = true; patchWarmMesh.frustumCulled = false;
+    }
+    const M = patchWarmMesh.material;
+    return [{ name: 'premises-patch', key: M.customProgramCacheKey(), material: M, mesh: patchWarmMesh }];
+  }
+  function* buildPatchSteps(part) {
+    const patchDue = () => { const Bd = part || typeof window === 'undefined' ? null : window.FLYDIY_WORLD_BUDGET; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };   // (PERF-WORLDBUILD: the roll-out's build under a host's budget)
+    const b = extentWorld();
+    const A = part ? part.A : activeChunks(b, GEO.split ? geoLater : null);
+    let list = [...A.act].sort();
+    const key = [b.x0, b.z0, b.x1, b.z1].join(',') + '|' + list.join(';');
+    const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
+    if (!part && patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
+    if (!part) { FAR.src.clear(); FAR.cells.clear(); FAR.group = null; }   // (G3088: the merges went with the patch)
+    patchAct = A; patchB = b; patchDepthCells.clear();   // invalidate on full builds, edits and town expansion alike
+    lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     patchMatOf = matOwn;
     // TWO GROUNDS UNDER ONE PATCH (G527): a chunk wears the ground it lies on - the host's patchPick says
     // which (the game: the inner ring's material and uv law inside the ring, the far terrain's past it). It
@@ -891,17 +1035,23 @@ function make(THREE, scene, world, rec0, opts) {
     const PAVs = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
     const pavR = PAVs && O.pavedAt ? PAVs.resolve(null, O.rec, null).recipe : null;
     let sinkQ = null;   // (G2115: the pavement sinkOf read last - the near level's sink reads it again)
-    const sinkOf = pavR ? (x, z) => { const q = sinkQ = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre, PAVs.translucent && PAVs.translucent(q.cls, q.kind) ? PAVs.SINK.tl : 0) : 0; } : null;   // (G2115: a grass road's margin)
+    const sinkOf = pavR ? (x, z) => { const q = sinkQ = PATCHF ? PATCHF.q2 : O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre, PAVs.translucent && PAVs.translucent(q.cls, q.kind) ? PAVs.SINK.tl : 0) : 0; } : null;   // (G2115: a grass road's margin)
     const sink0Of = q => sinkNear(q, pavR);   // G2115: the near level's (sinkNear, above)
     let sunk = 0;
     // G1528 (POTATO-DEEP): each sunk vertex's own drop, kept for the deeper sink a coarse patch needs (below, the blocks)
     const SK = sinkOf && PL.tolPx > 1 ? new Float32Array(list.length * per) : null;
     let Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, Y1 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
+    // (PERF-WORLDBUILD ?patchw=1) the core's answers for the whole list asked of the house worker; a chunk's are read below
+    const PWF = part ? null : patchFieldsAsk(list, RES, n, !!sinkOf);
     for (let c = 0; c < list.length; c++) {
       const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
       const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
-      for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+      let FW = null;
+      if (PWF) { const tW = performance.now(); while (!(FW = PWF.take(c)) && PWF.alive()) { window.FLYDIY_WORLD_WAIT = PWF.wait(); yield 'patch ground: its fields'; } PATCHW.waitMs += performance.now() - tW;
+        if (FW) PATCHW.used++; else PATCHW.here++; }
+      try { for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
         const v = c * per + j * (n + 1) + i, x = cx0 + i * RES, z = cz0 + j * RES;
+        if (FW) PATCHF = FW.set(j * (n + 1) + i);
         // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge (patchDepth, G752)
         const r = Math.min(1, patchDepth(x, z) / PATCH_TUCK.tuckW);
         // AT the ground (G1541), 2 cm under it only where a lot can be (patchDrop; G434.2 had the whole patch 2 cm under:
@@ -910,19 +1060,20 @@ function make(THREE, scene, world, rec0, opts) {
         Y0[v] = groundB(x, z) - patchDrop(x, z) * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);   // (G1406: the build read)
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; if (SK) SK[v] = sk; }
         if (Y1 !== Y) Y1[v] = Y0[v] - sink0Of(sinkQ);   // G2115: the near level's
+        PATCHF = null;
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
-      }
-      if (part || (c & 7) === 7) yield 'patch ground';   // (G2063: a chunk a slice in flight)
+      } } finally { PATCHF = null; }
+      if (part || (c & 7) === 7 || patchDue()) yield 'patch ground';   // (G2063: a chunk a slice in flight; PERF-WORLDBUILD: a chunk a check under a host's budget - eight were 87-109 ms)
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
     let NRM = new Float32Array(list.length * per * 3);
-    for (let c = 0; c < list.length; c++) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+    for (let c = 0; c < list.length; c++) { if (c && !(c & 15) && patchDue()) yield 'patch ground'; for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
       const at = (ii, jj) => Y0[c * per + Math.max(0, Math.min(n, jj)) * (n + 1) + Math.max(0, Math.min(n, ii))];
       const i0 = Math.max(0, i - 1), i1 = Math.min(n, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(n, j + 1);
       const gx = (at(i1, j) - at(i0, j)) / ((i1 - i0) * RES), gz = (at(i, j1) - at(i, j0)) / ((j1 - j0) * RES);
       const l = Math.hypot(gx, 1, gz), v = (c * per + j * (n + 1) + i) * 3;
       NRM[v] = -gx / l; NRM[v + 1] = 1 / l; NRM[v + 2] = -gz / l;
-    }
+    } }
     // ---- the blocks
     const blocks = new Map();
     const chunkIdx = new Map(list.map((k, c) => [k, c]));   // (G2115: a chunk's neighbour, for the skirts between them)
@@ -1185,6 +1336,54 @@ function make(THREE, scene, world, rec0, opts) {
     // G981: nor over an apron - the taxiways' bands crossed the pad
     for (const pp of K.pp) { if (bbFar(pp.bb, L[0], L[1], 5)) continue; const d = PG.sdPoly(pp.poly, L[0], L[1]); if (d <= 0) return 0; k = Math.min(k, Math.max(0, Math.min(1, (d - 1) / 4))); }
     return k; };
+  // PERF-WORLDBUILD (22 Nov 2026): THE ROADS' AND THE APRONS' GEOMETRY OFF THE MAIN THREAD (?roadw=1, opt-in: the default
+  // builds here). PAVEMENT.roadGeometry and polyGeometry were 5.8 s of the world step on the page's thread (node), the
+  // island road alone a 0.9 s task. Asked of the house worker in one message as the first rebuild starts (paveAsk: behind
+  // the patch's queries, before the strips - the page's own order of stages), each job the builder's options as resolved
+  // here (roadSpec / polySpec: numbers only); buildRoadsSteps and buildPolysSteps stand PAVEMENT.pavUnpack's arrays,
+  // sleeping on the worker through the host for one not in yet. The rails, the power lines, the marks, the materials and the
+  // merges stay here. A miss, a stale answer, the editor's rebuilds, a part build: built here, as before. GATE PATCHWORKER.
+  const ROADW = { on: wbSwitch('roadw', true), jobs: new Map(), seq: 0, epoch: -1, asked: 0, used: 0, here: 0, missed: 0, workerMs: 0, waitMs: 0, why: null };
+  if (typeof window !== 'undefined' && o.game) window.FLYDIY_ROADW = ROADW;
+  const roadSpec = (rd, RS) => ({ w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6),
+    sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road') : null,   // the patch is sunk under it (G660)
+    refine: nearRunway(rd.pts) });   // G2115: an aerodrome's taxiway or lane: its stations where the ground curves (pavement.js REFINE)
+  const polySpec = (pp, RS) => ({ cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw,
+    sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') : null,
+    refine: RS.cls !== 'grass' && nearRunway(pp.poly) });   // G2115: an aerodrome's apron or stand: its rows where the ground curves (pavement.js REFINE); not a grass one (translucent: the patch is seen through it - 41 k for nv_meadow)
+  const paveLift = () => !!(o.game && O.pavedAt && PAV.liftOver);
+  const paveKey = spec => JSON.stringify([spec, paveLift(), world.wearScales ? world.wearScales() : null, PAV.recipe ? PAV.recipe.fadeW : null]);
+  function paveAsk() {
+    if (ROADW.epoch === GEO.epoch) return;
+    ROADW.epoch = GEO.epoch; ROADW.jobs.clear();
+    if (!ROADW.on) { ROADW.why = 'off'; return; }
+    if (!(typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true)) { ROADW.why = 'no host to wait'; return; }
+    if (!PAV || !PAV.pavUnpack || !hwOn() || !world.wearScales || (o.editing && o.editing())) { ROADW.why = 'no worker'; return; }
+    const jobs = [], lift = paveLift(), add = (kind, id, spec, extra) => { const seq = ++ROADW.seq;
+      ROADW.jobs.set(kind + ':' + id, { seq, key: paveKey(spec), r: null, done: false, miss: null });
+      jobs.push({ seq, kind, id, lift, o: Object.assign({}, extra, spec) }); };
+    for (const rd of O.roads) { if (rd.ribbon === false || geoLater(rd)) continue; const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
+      const RS = PAV.resolve(rd, O.rec, L), spec = roadSpec(rd, RS);
+      // (the recipe's fade and the refinement's reuse flag are the PAGE's: named, where the builder reads its own module's)
+      add('road', rd.id, spec, { fadeW: Math.min(PAV.recipe.fadeW, spec.shoulderW * 0.6), reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }); }
+    for (const pp of O.pavePolys || []) { if (geoLater(pp)) continue; const L = PG.RUNWAY_LOOKS[pp.look]; if (!L || !L.cls) continue;
+      add('poly', pp.id, polySpec(pp, PAV.resolve(pp, O.rec, L)), {}); }
+    if (!jobs.length) { ROADW.why = 'nothing to ask'; return; }
+    HWK.onPave = m => { for (const [, J] of ROADW.jobs) if (J.seq === m.seq) { J.done = true; J.r = m.r || null; J.miss = m.miss || null; ROADW.workerMs += m.ms || 0; } };
+    const keepSrc = 'const KB = { O: null, bbO: null, rw: null, pp: null, bb: new WeakMap() };\nconst bbOf = ' + String(bbOf) + ';\nconst bbFar = ' + String(bbFar) + ';\nconst keepBoxes = ' + String(keepBoxes) + ';\nconst stripKeep = ' + String(stripKeep) + ';\nreturn stripKeep;';
+    if (!HWK.post({ cmd: 'pave', epoch: HWQ.epoch, wear: world.wearScales(), keepSrc, jobs })) { ROADW.jobs.clear(); ROADW.why = 'post failed'; return; }
+    ROADW.asked = jobs.length; ROADW.used = 0; ROADW.here = 0; ROADW.missed = 0; ROADW.why = 'asked';
+  }
+  // a job still in the worker (the caller's generator sleeps on it), and the geometry: the worker's when it is in and still
+  // the entry's (the same options, the same scales), else null - built here
+  const paveWaiting = k => { const J = ROADW.jobs.get(k); return !!(J && !J.done && hwOn()); };
+  function paveTake(k, spec) {
+    const J = ROADW.jobs.get(k); if (!J) return null;
+    ROADW.jobs.delete(k);
+    if (J.done && J.r && J.key === paveKey(spec)) { try { const g = PAV.pavUnpack(THREE, J.r); ROADW.used++; return g; } catch (e) { console.warn('house worker: ' + k + ' did not stand (' + (e && e.message) + ') - built here'); } }
+    else if (J.miss) console.warn('house worker: ' + k + ' (' + J.miss + ') - built here');
+    ROADW.missed++; return null;
+  }
   const disposePav = m => { if (m.material && m.material.userData && (m.material.userData.pav || m.material.userData.pavTable) && PAV) PAV.dispose(m.material, m.geometry); };   // G925: the table's row(s) given back
   // THE GUARDRAIL (2026-09-22): the W-beam module decides WHERE from the ground itself (the drop past
   // the shoulder, the bend's outside); this says where one may not stand - the user's "the large road
@@ -1203,14 +1402,17 @@ function make(THREE, scene, world, rec0, opts) {
       return true;
     };
   }
-  function buildRail(rd, pr) {
+  function buildRail(rd, pr) { const g = buildRailSteps(rd, pr, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // (PERF-WORLDBUILD, 23 Nov 2026: the rail in steps - guardrail.js buildSteps - for the roads' loop under a host's budget)
+  function* buildRailSteps(rd, pr, due) {
     if (!RAIL || rd.rail === 'off') return null;
     if (METLA_BARE && isMetla(rd.id)) return null;   // G3210: Metlakatla without its barriers (the user, 14 Oct)
     const F = O.frame, hL = (lx, lz) => { const W = F.toWorld(lx, lz); return heightAt(W[0], W[1]); };
-    const m = RAIL.build(THREE, { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
+    const RO = { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
       hAt: hL, heightAt, toWorld: (x, z) => F.toWorld(x, z), seed: PG.fnv(String(rd.id)) % 997,
       waterY: waterB ? ((lx, lz) => { const W2 = F.toWorld(lx, lz); return waterB(W2[0], W2[1]); }) : null,   // (G1406: the build read)
-      keep: railKeep(rd) });
+      keep: railKeep(rd) };
+    const m = RAIL.buildSteps ? yield* RAIL.buildSteps(THREE, RO, due) : RAIL.build(THREE, RO);
     if (m) { m.userData.premId = rd.id; G.roads.add(m); }
     return m;
   }
@@ -1308,6 +1510,7 @@ function make(THREE, scene, world, rec0, opts) {
   // ?pavcache=0, the A/B's restand)
   const PC = { map: new Map(), merged: { road: null, pave: null }, keep: new Map(), keepMerged: new Set() };
   function* buildRoadsSteps(part) {
+    const HOSTB = typeof window !== 'undefined' && !!window.FLYDIY_WORLD_BUDGET;   // (a host's budget is armed: the steps only it needs)
     const want = e => (part ? isTown(e) : !geoLater(e));
     const useRC = !part && !!PAV && RC.on && window.FLYDIY_PAVCACHE !== false && !!(o.editing && o.editing()) && !GEO.split && !!PG.roadBuildKeys;
     if (!useRC || RC.flush) { RC.map.clear(); RC.flush = false; PC.map.clear(); PC.merged = { road: null, pave: null }; }   // (G3101: the aprons and the merges with them)
@@ -1365,17 +1568,23 @@ function make(THREE, scene, world, rec0, opts) {
         const L = PG.RUNWAY_LOOKS[rd.look]; if (!L || !L.cls) continue;
         const RS = PAV.resolve(rd, O.rec, L);
         const pr = PG.polyRoad(rd.pts, rd.w);
-        const geo = PAV.roadGeometry(THREE, { road: pr, w: rd.w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(rd.id), toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, lift: 0.07, step: 3, resV: Math.max(0.5, rd.w / 6), shoulderK: stripKeep,
-          sinkD0: o.game ? PAV.opaqueDepth(RS.cls, rd.w / 2, RS.recipe, 'road') : null,   // the patch is sunk under it (G660)
-          liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, rd.id) : null,   // G2115: no lift over another pavement
-          refine: nearRunway(rd.pts) });   // G2115: an aerodrome's taxiway or lane: its stations where the ground curves (pavement.js REFINE)
+        // (PERF-WORLDBUILD ?roadw=1: the ribbon's geometry the house worker's when it was asked - roadSpec holds the options)
+        const RSP = roadSpec(rd, RS), jk = 'road:' + rd.id;
+        if (paveWaiting(jk)) { const tW = performance.now(); while (paveWaiting(jk)) { window.FLYDIY_WORLD_WAIT = HWK.next(); yield 'roads: its geometry'; } ROADW.waitMs += performance.now() - tW; }
+        let geo = part ? null : paveTake(jk, RSP);
+        if (!geo) { ROADW.here++; geo = PAV.roadGeometry(THREE, Object.assign({}, RSP, { road: pr, toWorld: (x, z) => O.frame.toWorld(x, z), heightAt, shoulderK: stripKeep,
+          liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, rd.id) : null })); }   // G2115: no lift over another pavement
         const marks = RS.marks === 'none' ? { rects: [], segs: [], wid: rd.w } : PAV.roadMarks(pr.length, rd.w, RS.cls, RS.recipe);
         if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
         const rb = geo.boundingSphere, rKeep = rb ? stripBoxesNear(rb.center.x - rb.radius, rb.center.z - rb.radius, rb.center.x + rb.radius, rb.center.z + rb.radius, null) : [];
         const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, wx: RS.wx, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!(rd.sided || rd.taxiway), geo });   // G981: the junctions; G980: a taxiway's sides; G925: a row of the table
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
-        const railG = buildRail(rd, pr), lineG = buildLine(rd, pr, railG);
+        // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the rail and the line are steps of their own - the rail's plan
+        //  and runs in steps besides; the same calls in the same order)
+        let railG, lineG;
+        if (HOSTB) { yield 'roads: its rail'; railG = yield* buildRailSteps(rd, pr); yield 'roads: its line'; lineG = buildLine(rd, pr, railG); }
+        else { railG = buildRail(rd, pr); lineG = buildLine(rd, pr, railG); }
         if (useRC) RC.map.set(rd.id, { key: keys.get(rd.id), mesh: m, row: geo.userData.pavRow || null, line: lineG || null, rail: railG || null });
         yield 'roads';
       }
@@ -1446,10 +1655,12 @@ function make(THREE, scene, world, rec0, opts) {
       { const K = !part && PC.keep.get(pp.id); if (K && K.mesh) { if (!K.mesh.parent && !PC.keepMerged.has('pave')) { if (K.row) K.mesh.geometry.userData.pavRow = K.row; G.roads.add(K.mesh); } continue; } }
       const RS = PAV.resolve(pp, O.rec, L);
       const poly = pp.poly.map(q => O.frame.toWorld(q[0], q[1]));
-      const geo = PAV.polyGeometry(THREE, { poly, cls: RS.cls, seed: pavSeed(pp.id), shoulderW: PAV.shoulderFor(RS.band, RS.recipe), heightAt, lift: 0.08, res: 2, yaw: (pp.yaw || 0) + O.frame.yaw,
-        sinkD0: o.game ? PAV.opaqueDepth(RS.cls, 1e3, RS.recipe, 'poly') : null,
-        liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, pp.id) : null,   // G2115: no lift over another pavement
-        refine: RS.cls !== 'grass' && nearRunway(pp.poly) });   // G2115: an aerodrome's apron or stand: its rows where the ground curves (pavement.js REFINE); not a grass one (translucent: the patch is seen through it - 41 k for nv_meadow)
+      // (PERF-WORLDBUILD ?roadw=1: the house worker's geometry when it was asked - polySpec holds the options)
+      const PSP = polySpec(pp, RS), jk = 'poly:' + pp.id;
+      if (paveWaiting(jk)) { const tW = performance.now(); while (paveWaiting(jk)) { window.FLYDIY_WORLD_WAIT = HWK.next(); yield 'paved: its geometry'; } ROADW.waitMs += performance.now() - tW; }
+      let geo = part ? null : paveTake(jk, PSP);
+      if (!geo) { ROADW.here++; geo = PAV.polyGeometry(THREE, Object.assign({}, PSP, { poly, heightAt,
+        liftAt: o.game && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, pp.id) : null })); }   // G2115: no lift over another pavement
       // an apron may be a PARKING AREA: its stands' lead-in lines and nose stops, in its own frame
       const marks = pp.stands ? PAV.standMarks(pp.stands, (geo.userData.pav || {}).halfW || 0) : { rects: [], segs: [] };
       // THE AREA'S MARKS (v1.36, G2912): parking bays, a dock's edge and bollards, hatching - in the pavement's own frame
@@ -3205,7 +3416,9 @@ function make(THREE, scene, world, rec0, opts) {
     }
     CITY.hitMs += performance.now() - t0;
   }
-  function cityBuild() {
+  function cityBuild() { const g = cityBuildSteps(() => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  // (PERF-WORLDBUILD, 23 Nov 2026: the town's host in steps - townkit.js townSteps - for the 'houses' step under a host's budget)
+  function* cityBuildSteps(due) {
     if (CITY.host && CITY.O === O) return;
     const T = tarr(), HG = window.HOUSE_GEN;
     if (!T || !HG || !KT.pack) return;
@@ -3215,9 +3428,10 @@ function make(THREE, scene, world, rec0, opts) {
       shell.color.setScalar(CITY.city.lod.farGain); shell.name = 'city:shell';
       CITY.farMats = { shell };
       try {
-        CITY.host = window.TOWNKIT.town(THREE, { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell, far: CITY_FAR,
+        const TO = { pack: KT.pack, city: CITY.city, tarr: T, HG, farMats: CITY.farMats, propGeo: cityPropGeo, onCell: cityCell, far: CITY_FAR,
                                                 lotMats: cityLotMats(), lotGround: cityLotGround,
-                                                band: { W0: HLOD.fadeW || 40, W1: 120 } });
+                                                band: { W0: HLOD.fadeW || 40, W1: 120 } };
+        CITY.host = window.TOWNKIT.townSteps ? yield* window.TOWNKIT.townSteps(THREE, TO, due) : window.TOWNKIT.town(THREE, TO);
       } catch (e) { CITY.status = 'error'; CITY.err = String((e && e.message) || e); console.warn('city host: the host', e); return; }
       root.add(CITY.host.group); CITY.host.freeze(); stats.town = 1;
     }
@@ -4999,9 +5213,12 @@ function make(THREE, scene, world, rec0, opts) {
     if (o.game) {
       // (G2917) an editor's edit re-patches the BLOCKS its box touches (G2063's part build), not the whole patch: an
       // island-long road's corridor was every block of the island, re-sampled at 2 m for one point moved
-      if (groundDirty) { const pb = patchPartFor(dirty); if (pb) yield* buildPatchSteps(pb); else yield* buildPatchSteps(); n = 1; }
+      // (PERF-WORLDBUILD ?roadw=1: the roads and the aprons asked of the house worker as the whole rebuild's patch starts -
+      //  behind the patch's own queries, before the strips: the page's order of stages)
+      if (groundDirty) { const pb = patchPartFor(dirty), gP = pb ? buildPatchSteps(pb) : buildPatchSteps(); for (;;) { const rP = gP.next(); if (rP.done) break; if (!dirty && !pb) paveAsk(); yield rP.value; } n = 1; }
+      if (!dirty) paveAsk();   // (no patch built: asked here)
       yield 'materials';
-      paintMaterials();
+      yield* paintMaterialsSteps();   // (PERF-WORLDBUILD: the raster the house worker's under ?patchw=1)
       yield 'lots';
       placeLots();
       yield 'roads';
@@ -5016,6 +5233,9 @@ function make(THREE, scene, world, rec0, opts) {
       if (o.editing()) { buildOutlines(dirty); buildHandles(); markDirty(dirty); }   // (G3084: the outlines its box concerns)
       else { for (const c of G.outlines.children.slice()) { G.outlines.remove(c); if (c.geometry) c.geometry.dispose(); } LINES.clear(); for (const h of HANDLES) G.handles.remove(h); HANDLES.length = 0; for (const m of JMARKS) G.handles.remove(m); JMARKS.length = 0; }
       syncHouses();
+      // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the town's host is made in steps HERE, behind hwPrefetch's own
+      //  guards - its ktBuild below then finds it made; the same call at the same place otherwise)
+      if (typeof window !== 'undefined' && window.FLYDIY_WORLD_BUDGET && CITY.on && hwOn() && o.anchor && o.prefetchReach > 0 && !ktWait()) yield* cityBuildSteps();
       hwPrefetch();   // G831: the town step's own dispatch, now - the worker generates while the page lays out the rest
       // THE GAME HAD NEVER DRAWN A RECORD TREE (2026-09-23, the user: "I can see no
       // trees in no garden nor empty lots"). This early return is the game's whole
@@ -5203,8 +5423,13 @@ function make(THREE, scene, world, rec0, opts) {
     },
     pavedAt: (x, z, reach, skip) => (O.pavedAt ? O.pavedAt(x, z, reach, skip) : null),       // G660: the patch is sunk under a pavement's opaque interior by it (G2115: reach, skip passed on)
     patchCovers: (x, z) => !!(patchAct && patchAct.act.has(patchAct.key(Math.floor(x / PCH), Math.floor(z / PCH)))),
+    patchWarm,   // (PERF-WORLDBUILD: the patch program's stand-in, above)
+    patchActive: () => !!patchAct,   // (PERF-WORLDBUILD: the patch's active set is known - patchCovers answers)
     patchDepth, ringSink, tuck: PATCH_TUCK,   // G752: metres inside the patch (0 outside); the rings' sink by it (0 at the border); the two laws' dials
     patchBounds: () => (patch ? extentWorld() : null),
+    // PERF-WORLDBUILD (22 Nov): what the premises still owe besides their queue - the far town's cells to merge, the obstacles
+    // waiting for their registration, the life's stand (the settle gate's ledger, render_world settleStat)
+    owed: () => ({ hlod: HLOD.todo ? HLOD.todo.length : 0, hit: PENDING_HIT.filter(q => q.grp.parent).length, life: LIFE && LIFE.owedN ? LIFE.owedN() : 0 }),
     geoPending: () => GEO.pending, geoDist, geoLaterSteps,   // G2063 (TOWN-GEO): the town's patch and roads, later (render_world drives them)
     life: LIFE,       // SCENERY LIFE: .set(rec.life), .stats, .items(cat), .masts()
     drainNear, stream, prewarm, streamState: STREAM, cellLive, hwWait, hw: HWQ,   // G830: the house worker's pending answer (a promise, or null); its queue's state   // G591/G592: the aircraft-centred stream, its dials and state; a cell with nothing queued
@@ -5212,7 +5437,8 @@ function make(THREE, scene, world, rec0, opts) {
     kit: KIT, kitSet,             // C3b: the town kit's look review (?kitab=...): .host (.stats, .rungs(), .setBand), kitSet('kit' | 'unique' | toggle)
     kitTown: KT, kitTownStats: ktStats, kitOf, city: CITY, cityStats,   // G3417: the town host from its pack (?cityhost=1)
       // C3c: Metlakatla on the kit (the town on): its state, its census, a plot's table row (-1: unique)
-    materialMap: () => ({ on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
+    materialMap: () => ({ sum: () => { let h = 2166136261; for (let i = 0; i < MMD.length; i++) { h ^= MMD[i]; h = Math.imul(h, 16777619); } return h >>> 0; },   // (the map's bytes, hashed: GATE PATCHWORKER)
+      on: uMatOn.value, bounds: Object.assign({}, mb), n: MMN, slots: SLOTS.slice(), loaded: uSet.map(u => !!(u.value && u.value.image && u.value.image.complete)), at: (x, z) => { const i = Math.floor((x - mb.x0) / MW * MMN), j = Math.floor((z - mb.z0) / MH * MMN); if (i < 0 || j < 0 || i >= MMN || j >= MMN) return null; const k = (j * MMN + i) * 4; return [MMD[k], MMD[k + 1], MMD[k + 2], MMD[k + 3]]; } }),
     get game() { return !!o.game; },
     get record() { return rec; },
     get overlay() { return O; },
@@ -5236,7 +5462,7 @@ function make(THREE, scene, world, rec0, opts) {
   return R;
 }
 
-const API = { make, CHUNK, LAYER_COL, ZONE_COL };
+const API = { make, composeSteps, CHUNK, LAYER_COL, ZONE_COL };
 if (typeof window !== 'undefined') window.RENDER_PREMISES = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

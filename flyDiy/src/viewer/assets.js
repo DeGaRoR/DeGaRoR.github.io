@@ -141,10 +141,21 @@
   }
   const waiting = g => { const p = g.attributes.position; return !!(p && p.array && p.array.length); };
   let FL = null;
+  const FLUSH_CAP = 24 * 1024 * 1024;
+  const geoBytes = g => { let b = 0; for (const k in g.attributes) { const a = g.attributes[k]; if (a && a.array) b += a.array.byteLength; } if (g.index && g.index.array) b += g.index.array.byteLength; return b; };
   function flush(renderer) {
     if (!PEND.size || !renderer || typeof renderer.render !== 'function' || typeof THREE === 'undefined' || !THREE.WebGLRenderTarget || typeof MATLIB === 'undefined' || !MATLIB.shared) return 0;
-    const list = [...PEND].filter(waiting); PEND.clear();
+    let list = [...PEND].filter(waiting); PEND.clear();
     if (!list.length) return 0;
+    // PERF-WORLDBUILD (23 Nov 2026): UNDER A HOST'S BUDGET (window.FLYDIY_WORLD_BUDGET: the world built behind a live garage)
+    // AT MOST FLUSH_CAP BYTES A CALL, one geometry at least - a slice that only landed a worker's bytes (the strips, the
+    // roads, the patch) was a short step and then one upload of all of it: a frozen garage frame the build never logged
+    // (290 and 203 ms at 5K, 23 Nov). The rest waits for the next flush (every slice's end; app.js drains what is left when
+    // the build ends). A geometry not flushed yet uploads at its first draw, as every geometry did before G1230.
+    if (typeof window !== 'undefined' && window.FLYDIY_WORLD_BUDGET && list.length > 1) {
+      let b = 0, k = 0; for (; k < list.length; k++) { b += geoBytes(list[k]); if (b > FLUSH_CAP && k > 0) break; }
+      if (k < list.length) { for (let q = k; q < list.length; q++) PEND.add(list[q]); list = list.slice(0, k); }
+    }
     if (!FL) { FL = { scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), rt: new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false }),
                       mat: MATLIB.shared(THREE, 'basic', { colorWrite: false, depthWrite: false, depthTest: false }, 'geoflush', 'assets / geometry upload flush / invisible draw') };   // (MATLIB's: GATE ASSETS)  pre-ok: colorWrite false
                 FL.scene.matrixWorldAutoUpdate = false; }
@@ -164,6 +175,17 @@
     return list.length;
   }
   gpuOnlyGeo.stats = stats;
+  // PERF-WORLDBUILD (24 Nov 2026): A CALLER'S GEOMETRIES ON THE GPU NOW, by the flush's own stand-in draw (GPU-only or not:
+  // a plain geometry keeps its arrays). What was waiting for its flush is put back untouched. Under a host's budget a call
+  // uploads at most FLUSH_CAP: hand batches of that size. (render_world: the tree packs before the impostors' bake.)
+  function upload(renderer, geos) {
+    const mine = (geos || []).filter(g => g && g.attributes && waiting(g)); if (!mine.length) return 0;
+    const held = [...PEND]; PEND.clear(); for (const g of mine) PEND.add(g);
+    let n = 0; try { n = flush(renderer) | 0; } finally { for (const g of mine) PEND.delete(g); for (const g of held) PEND.add(g); }
+    return n;
+  }
+  gpuOnlyGeo.upload = upload;
   gpuOnlyGeo.flush = flush;
+  gpuOnlyGeo.pending = () => PEND.size;
   if (typeof window !== 'undefined') window.GPU_ONLY_GEO = gpuOnlyGeo;
 })();

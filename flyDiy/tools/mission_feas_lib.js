@@ -78,8 +78,15 @@ function planePool() {
 // stands in CONTRACT_DESIGNS / FREIGHT_CARDS under 'L<list n>' FOR THIS PROCESS ONLY (the game's tables are not written).
 // The validated designs come first, in their order: the smallest capable career design still flies a mission it can.
 let WIDE = null;
-function widePool() {
-  if (WIDE) return WIDE;
+// `also` (the user 23 Nov: "you can really try any of the official planes. If it works with the PC6 or the DC3, it's OK"):
+// plane-list numbers added to the pool whatever their list - the PC-6 stands on the wip list (57 on wheels, 58 on floats)
+// `builds`: TEST BUILDS that stand on no list ("there would also be many ways to build a STOL Cessna, maybe you can even build
+// a quick one to clear these. The players will not be limited to existing planes, they will modify them, and that's the
+// point") - build files under the repo, [{ file, name }]; measured and flown as any other row, named as test builds
+function widePool(also, builds) {
+  const alsoN = (also || []).map(Number).filter(n => n > 0), tb = (builds || []).filter(b => b && b.file && fs.existsSync(path.join(ROOT, b.file)));
+  const wk = alsoN.join() + '|' + tb.map(b => b.file).join();
+  if (WIDE && WIDE.key === wk) return WIDE.out;
   const base = planePool(), have = new Set(base.map(p => p.file)), out = base.slice();
   let FSITE = null; try { FSITE = require(path.join(T, '_freight_site.js')); } catch (e) { FSITE = null; }
   // measured once a core and a build file (minutes for the whole list: the hold is swept off the mesh): kept in the OS
@@ -100,8 +107,11 @@ function widePool() {
     try { fs.writeFileSync(f, JSON.stringify(M)); } catch (e) { /* a read-only temp: measured every run */ }
     return M;
   };
-  for (const r of officialRows()) {
+  const extra = planeList().filter(r => alsoN.includes(r.n) && r.file && !r.rides && fs.existsSync(path.join(ROOT, r.file)) && !OFFICIAL_LISTS.includes(r.list));
+  const tests = tb.map((b, i) => ({ n: 900 + i, name: b.name || path.basename(b.file, '.json') + ' (test build)', file: b.file, list: 'test' }));
+  for (const r of officialRows().concat(extra, tests)) {
     if (have.has(r.file)) continue;
+    have.add(r.file);
     try {
       const M = measure(r), D = M.D, card = M.card, k = D.id;
       if (![D.seats, D.massKg, D.emptyKg, D.toM, D.rangeKm].every(v => typeof v === 'number' && isFinite(v))) continue;
@@ -110,7 +120,8 @@ function widePool() {
       out.push({ design: k, file: r.file, name: r.name, reg: r.reg || null, list: r.list, n: r.n, card: card && card.hold ? card : null, wide: true });
     } catch (e) { (widePool.skipped = widePool.skipped || []).push(r.name + ': ' + String(e && e.message || e).slice(0, 80)); }
   }
-  return (WIDE = out);
+  WIDE = { key: wk, out };
+  return out;
 }
 // the official rows a BUILD order is judged against (every official file: the player's own design could be any of them)
 function officialRows() { return planeList().filter(r => OFFICIAL_LISTS.includes(r.list) && r.file && !r.rides && fs.existsSync(path.join(ROOT, r.file))); }
@@ -122,6 +133,32 @@ function planeDef(file) {
   const def = TR.defOf(C, PT, path.join(ROOT, file));
   const shake = C.genShakedown(C.buildGen(def.spec), { corners: false });
   return (DEFS[file] = { def, spec: def.spec, shake });
+}
+
+// (STORY-REVAMP, the wider pool) THE SEATS FILLED AS THE JOB ASKS. The stop counts the BUILD's occupants (the garage's seat-fill),
+// and a build saved with its pilot alone is refused a passenger job it has the seats for - what a player settles in the
+// garage before the flight. With opts.fill the build is flown with 1 + the job's passengers in its seats (never more than
+// it has), by THE GARAGE'S OWN DOOR (balance.js / 64_ genLoadingEnvelope's corner): the spec the game flies, its cabin's
+// pilots 1, pax n - 1, `occupied` null ("the first N seats"), built as any build - the mass and the pilot's speeds follow.
+// (Writing cabin.occupied into the FILE does nothing: the load door's page chain rebuilds the cabin from the design - the
+// first version of this did that and flew every "filled" plane with its pilot alone, 23 Nov.) The default (no fill) is the
+// build as saved - GATE MISSIONFEAS's rows
+// EXACT (23 Nov, home.13 and lumber.04 read: "aboard 140 kg / 1 pax, the job is 280 kg / 0 pax"): a build saved with a
+// passenger aboard flew a CARGO job with that seat taken, and the loading card had half the room. With `exact` the
+// cabin is seated as the job asks both ways - the pilot alone for freight - as a player loads it.
+function planeDefFilled(file, pax, exact) {
+  const base = planeDef(file), seats = base.spec.seats | 0, want = Math.min(seats, 1 + Math.max(0, pax | 0));
+  const occ = base.spec.occupants != null ? base.spec.occupants : 1;
+  if (!base.spec.cabin || (exact ? want === occ : want <= occ)) return base;
+  const k = file + '#' + want;
+  if (DEFS[k]) return DEFS[k];
+  const cs = JSON.parse(JSON.stringify(base.spec));
+  cs.cabin.pilots = 1; cs.cabin.pax = Math.max(0, want - 1); cs.cabin.occupied = null;
+  const def = C.buildGen(cs);
+  def.params = Object.assign({}, def.params, { damage: true });
+  if ((def.spec.occupants | 0) !== want) return base;          // the build did not take the fill: flown as saved, and no note says otherwise
+  const shake = C.genShakedown(C.buildGen(def.spec), { corners: false });
+  return (DEFS[k] = { def, spec: def.spec, shake, filled: want });
 }
 
 // ---- THE PACKS ----------------------------------------------------------------------------------------------------
@@ -274,12 +311,85 @@ function nextTarget(doc, rec, cur) {
 }
 
 // the drawn route through the objectives (38c ROUTE-DRAW's record, end 'dest': on to the leg's To and land there)
-function routeFor(W, objs, survey) {
+const RUN_IN = 1800, RUN_OUT = 1200;
+function routeFor(W, objs, survey, from) {
   const pts = [];
   const gnd = (x, z) => Math.max(W.terrainH(x, z), W.waterH ? W.waterH(x, z) : -Infinity);
+  // (STORY-REVAMP, 23 Nov) THE COURSE'S ENTRY AND EXIT, AS A COMPETITOR FLIES THEM. Read off the flown tracks:
+  //   - the entry point alone is a corner of its own: out of a field AHEAD of it (club.regular: HOME 3 km down the course)
+  //     the turn onto the axis there is 160 deg, the pilot's fillet has no room, and the Jodel turned back 2 km short of
+  //     the entry and joined the axis PAST the first gate (216 m wide). With `from` (the field the flight leaves) a turn
+  //     of more than 75 deg at the entry is flown as a BASE TURN: a point abeam the entry on the field's side (1200 m
+  //     out), moved back along the axis until the corner there is no more than ~110 deg, then the axis;
+  //   - the run-in and the run-out are flown AT THE GATE'S OWN HEIGHT (msl), not 100 m over whatever ground lies there:
+  //     a run-out on rising ground (club.regular's, 85 m up; club.tour's second leg, on the hill beside the strip) was a
+  //     climb the profile moved EARLIER, and the last gate was crossed at 191 m (150 at most). A run-in point is never
+  //     under 80 m of ground
+  //   - THE PILOT'S PLANNER LOOKS 1500 m PAST EVERY LEG'S END, 300 m either side (44_vprofile.js, a leg's minimum en-route
+  //     altitude), and moves a climb EARLIER: a run-out that points at high ground 1.5 km on (club.tour's second leg: the
+  //     hills east of the strip, 519 m asked at the route's end) is a climb begun at the first gate - both gates crossed
+  //     at 373 and 498 m. So the points added here are CHOSEN ON THE PLANNER'S OWN MEASURE (meaOf): the run-out the
+  //     longest and straightest whose legs ask no more than the gate's height + 20 m (else turned 30 / 60 / 90 deg either
+  //     way, else none); the base turn on the side the planner asks less of
+  const meaOf = P => {
+    if (!C.VPROFILE || typeof C.VPROFILE.plan !== 'function' || P.length < 2) return 0;
+    try {
+      const L = []; for (let k = 1; k < P.length; k++) L.push({ name: 'L' + k, A: [P[k - 1].x, P[k - 1].z], B: [P[k].x, P[k].z], hA: P[k - 1].alt, hB: P[k].alt });
+      const vp = C.VPROFILE.plan(W, L, { h0: P[0].alt, margin: C.ROUTE_MARGIN || 60, gClimb: 0.06, gDesc: 0.06, gDescMax: 0.06 }, {});
+      return vp ? Math.max(...vp.legs.map(l => l.mea)) : 0;
+    } catch (e) { return 0; }
+  };
+  const axisPts = (cx, cz, dx, dz, hGate) => {
+    const at = (x, z, clear) => ({ x, z, alt: Math.round(Math.max(hGate, gnd(x, z) + clear)), ref: 'msl', V: null });
+    const gP = { x: cx, z: cz, alt: hGate };
+    const entry = (runIn, flip) => {
+      const E = { x: cx - runIn * dx, z: cz - runIn * dz }, eP = at(E.x, E.z, 80);
+      if (!from || typeof from.x !== 'number') return flip ? null : [eP];
+      const fx = from.x - E.x, fz = from.z - E.z, fl = Math.hypot(fx, fz) || 1;
+      const turn = Math.acos(Math.max(-1, Math.min(1, (-fx * dx - fz * dz) / fl))) * 180 / Math.PI;
+      if (turn <= 75) return flip ? null : [eP];
+      const nx = -dz, nz = dx, lat = fx * nx + fz * nz, t = fx * dx + fz * dz, w = 1200;
+      const side = (lat >= 0 ? 1 : -1) * (flip ? -1 : 1), sd = flip ? -Math.abs(lat) : Math.abs(lat);
+      const b = Math.max(0, Math.round(2.75 * (w - sd) - t));
+      if (b > (flip ? 1500 : 3000)) return null;               // a base turn that far back is no entry: another candidate
+      const out = [at(E.x - b * dx + side * w * nx, E.z - b * dz + side * w * nz, 100)];
+      if (b > 0) out.push(at(E.x - b * dx, E.z - b * dz, 80));
+      return out.concat([eP]);
+    };
+    // A FIELD THAT LOOKS DOWN THE AXIS NEEDS NO RUN-IN: the gate's lead-in point (600 m before it) within 35 deg of the
+    // axis from the field and 400 m away at least - the take-off is the run-in (club.tour's third leg: the strip 1 km
+    // before its first gate; a run-in there was a base turn 3 km back, over the hills)
+    if (from && typeof from.x === 'number') {
+      const lx = cx - 600 * dx - from.x, lz = cz - 600 * dz - from.z, ll = Math.hypot(lx, lz);
+      if (ll >= 400 && Math.acos(Math.max(-1, Math.min(1, (lx * dx + lz * dz) / ll))) * 180 / Math.PI <= 35) return [];
+    }
+    // the field's own side and the long run-in first; the first the planner asks no more than the gate's height + 40 m of,
+    // else the one it asks least of
+    let best = null, bestM = Infinity;
+    for (const [runIn, flip] of [[RUN_IN, false], [1200, false], [RUN_IN, true], [1200, true]]) {
+      const P = entry(runIn, flip);
+      if (!P) continue;
+      const m = meaOf(P.concat([gP]));
+      if (m <= hGate + 40) return P;
+      if (m < bestM) { best = P; bestM = m; }
+    }
+    return best || entry(RUN_IN, false) || [at(cx - RUN_IN * dx, cz - RUN_IN * dz, 80)];
+  };
+  const runOut = (cx, cz, dx, dz, hGate, trail) => {
+    const g0 = { x: cx, z: cz, alt: hGate }, t0 = { x: cx + trail * dx, z: cz + trail * dz, alt: hGate };
+    for (const deg of [0, 30, -30, 60, -60, 90, -90]) {
+      const a = deg * Math.PI / 180, ux = dx * Math.cos(a) - dz * Math.sin(a), uz = dx * Math.sin(a) + dz * Math.cos(a);
+      for (const d of (deg ? [900] : [RUN_OUT, 900, 600])) {
+        const q = { x: t0.x + (d - trail) * ux, z: t0.z + (d - trail) * uz, alt: Math.round(hGate), ref: 'msl', V: null };
+        if (meaOf([g0, t0, q]) <= hGate + 20) return [q];
+      }
+    }
+    return [];
+  };
   // the lead-in / lead-out: 600 m / 300 m, never more than 0.45 of the way from the objective before (no zig-zag back)
   let prev = null;
   const lead = (cx, cz, k) => { const d = prev ? 0.45 * Math.hypot(cx - prev[0], cz - prev[1]) : Infinity; prev = [cx, cz]; return Math.min(k, d); };
+  const lastObj = objs.length ? objs[objs.length - 1] : null;
   for (const s of objs) {
     const P = s.place;
     if (P.gate) {
@@ -291,12 +401,25 @@ function routeFor(W, objs, survey) {
       const top = P.alt && P.alt.max != null ? (P.alt.ref === 'msl' ? P.alt.max - gnd(cx, cz) : P.alt.max) : 150;
       const bot = P.alt && P.alt.min != null ? (P.alt.ref === 'msl' ? P.alt.min - gnd(cx, cz) : P.alt.min) : 0;
       const agl = Math.max(bot + 10, Math.min(top - 30, 100));
+      const firstObj = !prev;
       const li = lead(cx, cz, 600);
+      // (STORY-REVAMP) THE FIRST GATE'S RUN-IN. The pilot flies a drawn route by its corners (43_ routeStart: the turn onto a leg
+      // is a fillet), and out of the climb the turn onto the first gate's axis can be 120-150 deg: a fillet of that angle
+      // rejoins the axis 2 to 4 turn radii past the corner - beyond a gate 600 m from it. Flown: club.regular's first gate
+      // passed 280 to 790 m wide by four aeroplanes, club.tour's by 88 and 424 m, club.pylons' by 68 m (the Jodel). A
+      // competitor lines up from far out: the first objective gets an entry point 1800 m before it on its axis (axisPts)
+      if (firstObj) pts.push(...axisPts(cx, cz, dx, dz, gnd(cx, cz) + agl));
       pts.push({ x: cx - li * dx, z: cz - li * dz, alt: agl, ref: 'agl', V: null }, { x: cx, z: cz, alt: agl, ref: 'agl', V: null }, { x: cx + 0.5 * Math.min(li, 600) * dx, z: cz + 0.5 * Math.min(li, 600) * dz, alt: agl, ref: 'agl', V: null });
+      // ...AND THE LAST GATE'S RUN-OUT: the route ends 300 m past its last objective and the way home begins - a turn back
+      // (a fillet begun before the corner) and a climb the profile moves EARLIER for a slow climber. Flown: club.regular's
+      // last gate crossed at 191 m by the Cub and the Jodel (150 m at most), at 98 m by the Cessna. An exit point on (runOut)
+      if (s === lastObj) pts.push(...runOut(cx, cz, dx, dz, gnd(cx, cz) + agl, 0.5 * Math.min(li, 600)));
     } else if (P.ring) {
       let dx = 0, dz = -1;
       if (typeof P.dir === 'number') { const a = P.dir * Math.PI / 180; dx = Math.sin(a); dz = -Math.cos(a); }
+      const firstObj = !prev;
       const li = lead(P.ring[0], P.ring[2], 600);
+      if (firstObj) pts.push(...axisPts(P.ring[0], P.ring[2], dx, dz, P.ring[1]));
       pts.push({ x: P.ring[0] - li * dx, z: P.ring[2] - li * dz, alt: P.ring[1], ref: 'msl', V: null }, { x: P.ring[0], z: P.ring[2], alt: P.ring[1], ref: 'msl', V: null },
                { x: P.ring[0] + 0.5 * li * dx, z: P.ring[2] + 0.5 * li * dz, alt: P.ring[1], ref: 'msl', V: null });
     } else if (P.pt) {
@@ -407,8 +530,9 @@ function flyOne(ctx, cur, to, o) {
 function flyMission(env, rec, plane, opts) {
   const o = opts || {};
   const { W } = env;
-  const P = planeDef(plane.file);
+  const P = o.seat != null ? planeDefFilled(plane.file, o.seat, true) : o.fill ? planeDefFilled(plane.file, o.fill) : planeDef(plane.file);
   const out = { plane: plane.name, design: plane.design, file: plane.file, legs: [], timeS: 0, stops: [], notes: [] };
+  if (P.filled) out.notes.push('the seats as the job asks: ' + plane.name + ' flown with ' + P.filled + ' aboard (the garage\'s seat door)');
   let { doc, why, effects } = careerWith(rec, plane.design);
   if (why) { out.verdict = 'broken'; out.why = why; return out; }
   out.effects = effects;
@@ -472,7 +596,7 @@ function flyMission(env, rec, plane, opts) {
     // (COMPETE) a leg with a STOL line open is tracked too, objectives or not (mission_live.js arm)
     const TN = C.missionTrackNew(rec, doc.career.contracts.live[rec.id], { reach });
     const T0 = tgt.objs || (TN.stol && TN.stol.length) ? TN : null;
-    const route = (tgt.objs || tgt.survey) ? routeFor(W, tgt.objs || [], tgt.survey) : null;
+    const route = (tgt.objs || tgt.survey) ? routeFor(W, tgt.objs || [], tgt.survey, W.aerodromes.find(q => q.id === cur) || null) : null;
     // (STORY-REVAMP, COMPETE) A LANDING LINE NAMES THE WAY IT IS LANDED. 73c measures a touchdown only when it runs the line's
     // `dir` (msrStolStep: within 90 deg) and every line of the stop must be measured - so the competitor lands THAT way,
     // whatever the wind; the pilot left to itself takes the wind's end and the event is "not measured" (club.spot flown: the
@@ -575,14 +699,14 @@ function judgeMission(env, packRow, m, opts) {
   R.static = S;
   if (S.broken.length) { R.verdict = 'broken'; R.why = S.broken.join('; '); return R; }
   const subs = C.contractSubsOf(rec);
-  const pool = o.official ? widePool() : planePool();
+  const pool = o.official ? widePool(o.also, o.builds) : planePool();
   R.pool = pool.map(p => p.design);
   // on offer at all? (the career's own offer list, with everything before it done) - an order is judged on it first; a
   // job after the game's capability rule (its reason - the load, the gear, the strip - is the more specific one)
   const offerWhy = () => { const cw = careerWith(rec, pool[0].design); return cw.offer === false ? cw.why : ''; };
   if (rec.kind === 'build') { const w = offerWhy(); if (w) { R.verdict = 'infeasible'; R.why = w; return R; } }
   const isBuild = rec.kind === 'build';
-  let order = [];
+  let order = [], paxAsk = 0;
   if (isBuild) {
     // the client's own airframe (startFrom: a design) is the one delivered; else the official planes that answer the order
     const BC = buildCandidates(rec);
@@ -612,12 +736,17 @@ function judgeMission(env, packRow, m, opts) {
     const doers = C.contractDoers(subs, C.CONTRACT_FIELDS, Object.fromEntries(pool.map(p => [p.design, C.CONTRACT_DESIGNS[p.design]])));
     R.doers = doers;
     order = pool.filter(p => doers.includes(p.design));
+    // (the wider pool) the career's designs first, as before; then the others THE SHORTEST TAKE-OFF RUN FIRST - what a short
+    // strip asks for is tried before what merely carries the load
+    if (o.official) order = order.filter(p => !p.wide).concat(order.filter(p => p.wide).sort((a, b) => C.CONTRACT_DESIGNS[a.design].toM - C.CONTRACT_DESIGNS[b.design].toM));
     // THE SEATS THE STOP COUNTS: app.js careerStopApply hands careerStopRecord the BUILD's occupants (spec.occupants - the
     // garage's seat-fill), not the job's passengers (a passengers-only job has no loading-view door: "they board, they
     // don't fit"). A plane that seats too few for the job's passengers is tried last, and said
     const paxNeed = Math.max(0, ...subs.map(s => (s.load && s.load.pax) || 0));
+    paxAsk = paxNeed;
     if (paxNeed > 0) {
-      const seatsOk = p => { const P = planeDef(p.file); return Math.max(0, (P.spec.occupants != null ? P.spec.occupants : 1) - 1) >= paxNeed; };
+      // (the wider pool fills the seats: what counts there is the seats the build HAS)
+      const seatsOk = p => { const P = planeDef(p.file); return Math.max(0, (o.official ? (P.spec.seats | 0) : (P.spec.occupants != null ? P.spec.occupants : 1)) - 1) >= paxNeed; };
       const short = order.filter(p => !seatsOk(p));
       if (short.length) R.notes.push('the stop counts the build\'s occupants: ' + short.map(p => p.name + ' flies with ' + planeDef(p.file).spec.occupants + ' aboard (' + paxNeed + ' passenger(s) asked)').join('; '));
       order = order.filter(seatsOk).concat(short);
@@ -639,7 +768,7 @@ function judgeMission(env, packRow, m, opts) {
                                              flights: book.slice() });
       return C.acceptVerdict(crit, ev);
     };
-    const A = flyMission(env, rec, plane, { log: o.log, tMax: o.tMax, maxFlights: o.maxFlights, verdictOf });
+    const A = flyMission(env, rec, plane, { log: o.log, tMax: o.tMax, maxFlights: o.maxFlights, verdictOf, seat: o.official ? paxAsk : null });
     R.attempts.push(A);
     finalize({ attempts: [A] });
     if (A.verdict === 'feasible' || A.verdict === 'broken') break;
@@ -705,5 +834,5 @@ function mdTable(rows) {
   return out.join('\n');
 }
 
-module.exports = { C, TR, SH, SLOT, planePool, widePool, officialRows, planeDef, readPacks, spotsPack, installPack, staticCheck, careerDaySpec, careerWith,
+module.exports = { C, TR, SH, SLOT, planePool, widePool, officialRows, planeDef, planeDefFilled, readPacks, spotsPack, installPack, staticCheck, careerDaySpec, careerWith,
   nextTarget, routeFor, flyOne, flyMission, buildCandidates, judgeMission, finalize, makeEnv, mdTable, legLine, fmtT };

@@ -488,10 +488,14 @@ function waterRing() {
     biomeAt: () => 'land', codeAt: () => 1, okAt: x => x < 60, lakeSD: x => x - 60, waterY: x => (x > 59 ? 0 : null) });
   CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
   for (let i = 0; i < 4; i++) CR.update();
-  const lily = [];
+  const lily = []; let padGeo = null;
   CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'cover' || !(o.material && o.material.map)) return; const M = o.instanceMatrix.array;
-    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) lily.push([M[i * 16 + 12], M[i * 16 + 13]]); });
-  return { lily, stat: CR.stat ? CR.stat() : {} };
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) lily.push([M[i * 16 + 12], M[i * 16 + 13]]);
+    if (!padGeo) { const G = o.geometry, I = G.index, P = G.getAttribute('position'), U = G.getAttribute('uv'); let area = 0, up = true;
+      const v = k => new THREE.Vector3().fromBufferAttribute(P, k), nt = I ? I.count / 3 : 0;
+      for (let t = 0; t < nt; t++) { const a = v(I.getX(t * 3)), b = v(I.getX(t * 3 + 1)), c = v(I.getX(t * 3 + 2)), n = b.sub(a).cross(c.sub(a)); area += n.length() / 2; if (n.y <= 0) up = false; }
+      padGeo = { tris: nt, uv: U ? U.count : 0, up: nt > 0 && up, area }; } });
+  return { lily, padGeo, stat: CR.stat ? CR.stat() : {} };
 }
 { let r = null;
   try { r = waterRing(); } catch (e) { ok(false, '12 the water plants plant', (e && e.message || String(e)).slice(0, 200)); }
@@ -499,7 +503,12 @@ function waterRing() {
     // depth 0.08-1.8 m on a 0.1 m/m bed: x 60.8-78; the band 1-14 m out: x 61-74
     ok(L.length > 20 && xs.every(x => x >= 61 - 1e-6 && x <= 74 + 1e-6) && ys.every(y => Math.abs(y) < 1e-6),
        '12 THE WATER PLANTS: the lily pads stand on the lake, 1-14 m out from the drawn line within their depth, at the water\'s level - none on the land',
-       L.length + ' pads, x ' + (L.length ? Math.min(...xs).toFixed(1) + '..' + Math.max(...xs).toFixed(1) : '-') + ', y ' + (L.length ? Math.min(...ys).toFixed(3) + '..' + Math.max(...ys).toFixed(3) : '-')); } }
+       L.length + ' pads, x ' + (L.length ? Math.min(...xs).toFixed(1) + '..' + Math.max(...xs).toFixed(1) : '-') + ', y ' + (L.length ? Math.min(...ys).toFixed(3) + '..' + Math.max(...ys).toFixed(3) : '-'));
+    // (VEG-NIGHT 23 Nov: 9 600 pads planted and none drawn for six days - the float quad's uv and index sat inside a comment)
+    const g = r.padGeo;
+    ok(g && g.tris === 2 && g.uv === 4 && g.up && g.area > 0.1,
+       '12b THE WATER PLANTS ARE DRAWN: the pad\'s float quad is two triangles facing the sky, with its picture\'s uv',
+       g ? 'tris ' + g.tris + ', uv ' + g.uv + ', up ' + g.up + ', area ' + g.area.toFixed(2) + ' m2' : 'no pad mesh'); } }
 // 13 THE ROCKS' OWN RING (MOUNTAIN-VEG, the user 17 Nov: "rock should be visible for a little while ... a bit further"): layer
 // 'rocks' plants the rock rows' rocks at least rockSplit m tall (the model's height x its scale) on the cover ring's own cells and
 // stream, and the cover ring under that split keeps the rest: together EXACTLY the cover ring's rocks alone - no rock twice, none lost
@@ -536,5 +545,39 @@ function splitRings() {
     ok(A.size > 100 && S.size > 20 && G.size > 20 && !both && !lost && !extra && bigOk && smallOk && r.big.debris === 0 && r.small.debris > 0 && r.big.layer === 'rocks',
        '13 THE ROCKS’ OWN RING: it plants the rocks at least rockSplit m tall (no debris), the cover ring the smaller ones - together exactly the cover ring’s rocks alone',
        'alone ' + A.size + ' | small ' + S.size + ' + big ' + G.size + ', twice ' + both + ', lost ' + lost + ', extra ' + extra + ', debris ' + r.small.debris + ' / ' + r.big.debris); } }
+// 14 THE ALPINE ROCKS (MOUNTAIN-VEG, the user 22 Nov: "a lot more rocks in the alpine section ... rocks are a bit like trees" and "not to
+// land very easily on mountain tops"): a mix's forest.rockUp [h0, h1, k] multiplies its rocks above the band (and fades the exposed rule);
+// the rocks' own ring registers each landed cell's big rocks as ONE trunk-law hit set (world.treeHits) and drops it with the cell;
+// ?alprocks=0 = neither; the runs ask ?alprocks=1 / =0 outright, so the check holds whichever default a branch ships (the lab: off)
+function alpRing(height, off) {
+  const B = boot(), { THREE, ctx } = B;
+  ctx.location = { search: off ? '?alprocks=0' : '?alprocks=1' };   // (MOUNTAIN-VEG 23 Nov: the lab's default is OFF unless ?alprocks=1 - the 'on' runs ask for it, as a player of the lab would)
+  B.load(path.join('src', 'viewer', 'trees.js')); B.load(path.join('src', 'core', '29_obstacles.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  const cols = [{ name: 'rocks', kind: 'rock', place: {} }];
+  const built = new Map();
+  const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, 1.2, 0.5], h: 1.2 } }));
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 1.2, 1); g.translate(0, 0.6, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const mix = { species: { rocks: { proportion: 1, exposed: 0.85 } }, forest: { cover: 1, reach: 220, rocks: 20, rockUp: [700, 950, 1.5] } };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => ({}), edgeOn: false };
+  const TH = require('vm').runInContext('TREE_HITS.make()', ctx);   // (a top-level const: visible to the context's scripts, not as ctx's own property)
+  const world = { terrainH: () => height, waterH: () => -10, island: null, treeHits: TH };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, height + 3, 0); camera.lookAt(0, height, 40); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const R = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'rocks',
+    biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
+  R.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0, maxCells: 1e5, rockSplit: 0.1, reach: 120 }); for (let i = 0; i < 4; i++) R.update();
+  let n = 0; R.root.traverse(m => { if (m.isInstancedMesh && m.userData.coverKind === 'rock') n += m.userData.n === undefined ? m.count : m.userData.n; });
+  const sets = TH.keys().filter(k => /^alprocks:/.test(k)).length, cyl = TH.count, alp = R.alp;
+  R.replant(); const after = TH.keys().filter(k => /^alprocks:/.test(k)).length;
+  return { n, sets, cyl, after, alp };
+}
+{ let lo = null, hi = null, off = null;
+  try { lo = alpRing(0); hi = alpRing(1000); off = alpRing(1000, true); } catch (e) { ok(false, '14 the alpine rocks plant', (e && e.message || String(e)).slice(0, 200)); }
+  if (lo && hi && off) ok(hi.n > 2.5 * lo.n && off.n < 1.2 * lo.n && hi.sets > 0 && hi.cyl > hi.n * 0.5 && hi.after === 0 && off.sets === 0 && hi.alp === true && off.alp === false,
+    '14 THE ALPINE ROCKS: above the band the rocks multiply (and the flat keeps more), each landed cell’s big rocks are ONE hit set dropped with the cell; ?alprocks=0 neither',
+    'rocks low ' + lo.n + ' / high ' + hi.n + ' / high off ' + off.n + '; hit sets ' + hi.sets + ' (' + hi.cyl + ' cylinders), after replant ' + hi.after + ', off ' + off.sets); }
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

@@ -39,8 +39,9 @@
    G3722 (PHONE-GARAGE): and the garage top bar's card (#edPopCard, editor.js, body-level: the explode slider).
    NEW-PLANE: and the full-screen new-aeroplane chooser (#npWrap, new_plane.js, body-level).
    FLEET: and the full-screen fleet (#flWrap, fleet_screen.js, body-level).
-   START-CHOOSER: and the start sheet (#scSheet, start_chooser.js, body-level). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard, #npWrap, #flWrap, #scSheet, #gEmptyCard) {
+   START-CHOOSER: and the start sheet (#scSheet, start_chooser.js, body-level).
+   PHONE-TESTFLIGHT-UX: and the phone's test-flight hand-off (#phFlyGo, body.html, body-level; phone.css lays it out). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard, #npWrap, #flWrap, #scSheet, #gEmptyCard, #phFlyGo) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -2357,3 +2358,34 @@ body.shot #gmPanel, body.shot #gmMenu { display:none !important; }
 #edLaunch .lkH { font:500 8.5px/1 'IBM Plex Sans'; letter-spacing:.14em; text-transform:uppercase; color:var(--ed-faint); }
 #edLaunch .verb { display:flex; flex-direction:column; align-items:flex-start; gap:5px; text-align:left; }
 #edLaunch .verb span { font:400 11px/1.2 'IBM Plex Sans'; letter-spacing:0; text-transform:none; opacity:.75; }
+
+/* HANGAR-SWITCH (the user 22 Nov: "on the left side, a little burger menu, a little hangar menu, a little hangar icon, and make
+   sure that it looks different from a home icon, otherwise it's confusing, and a little plane icon"): the top-left plate holds
+   three icons - the burger, the HANGAR (a wide arched roof over a big door: never a house's pitched roof and small door), the
+   PLANE (replaces the disk: the user, "it shouldn't be a little disk icon in there ... Just make it a little plain icon").
+   hangar_switch.js mounts #edHangar and its compact list #edHangarList (three lines, a drawn outline each). */
+#edFleet #edHangar { position:relative; display:block; width:34px; height:32px; padding:0; border:0; border-radius:7px;
+  background:transparent; color:var(--ed-dim); cursor:pointer; transition:background .12s ease; }
+#edFleet #edHangar::before { content:''; position:absolute; left:8px; top:7px; width:18px; height:18px; background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M1.5 15V9.5C1.5 5.6 4.9 3 9 3s7.5 2.6 7.5 6.5V15'/%3E%3Cpath d='M1 15h16'/%3E%3Cpath d='M5 15V9.2h8V15'/%3E%3Cpath d='M7.7 9.2V15M10.3 9.2V15'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M1.5 15V9.5C1.5 5.6 4.9 3 9 3s7.5 2.6 7.5 6.5V15'/%3E%3Cpath d='M1 15h16'/%3E%3Cpath d='M5 15V9.2h8V15'/%3E%3Cpath d='M7.7 9.2V15M10.3 9.2V15'/%3E%3C/svg%3E") center / contain no-repeat; }
+#edFleet #edHangar:hover { background:rgba(255,255,255,.07); color:var(--ed-ink); }
+#edFleet #edHangar.open { background:rgba(255,255,255,.09); color:var(--ed-ink); }
+#edHangarList { position:absolute; top:calc(100% + 6px); left:34px; z-index:30; width:232px; padding:4px; display:flex; flex-direction:column;
+  gap:2px; background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+#edHangarList[hidden] { display:none; }
+#edHangarList .hsRow { display:grid; grid-template-columns:26px 1fr 14px; gap:8px; align-items:center; padding:6px 8px; border:0;
+  border-radius:6px; background:transparent; color:var(--ed-ink); text-align:left; cursor:pointer; font:500 12px/1.2 'IBM Plex Sans'; }
+#edHangarList .hsRow svg { width:26px; height:16px; color:var(--ed-faint); }
+#edHangarList .hsRow:hover { background:rgba(255,255,255,.07); }
+#edHangarList .hsRow.here { background:var(--ed-acc-soft, rgba(127,194,155,.16)); cursor:default; }
+#edHangarList .hsRow.here svg, #edHangarList .hsTick { color:var(--ed-acc); }
+#edHangarList .hsRow.locked { opacity:.5; cursor:not-allowed; }
+#edHangarList .hsName { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#edHangarList .hsSub { display:block; font:400 10.5px/1.25 'IBM Plex Sans'; color:var(--ed-faint); overflow:hidden; text-overflow:ellipsis; }
+#edHangarList .hsTick { font:600 12px/1 'IBM Plex Mono', monospace; }
+#edHangarList .hsNote { padding:8px; font:400 11px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
+/* THE PLANE, not the disk (the user 22 Nov): the same #fbName and its shelf, a small aeroplane seen from above */
+#edFleet #fbName::before {
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath fill='black' d='M9.8 2c.4 0 .7.4.7.9v4.3l5.9 2.6v1.4l-5.9-1.3v3.4l1.8 1.3v1.1L9 15l-3.3.7v-1.1l1.8-1.3V9.9L1.6 11.2V9.8l5.9-2.6V2.9c0-.5.3-.9.7-.9h1.6z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath fill='black' d='M9.8 2c.4 0 .7.4.7.9v4.3l5.9 2.6v1.4l-5.9-1.3v3.4l1.8 1.3v1.1L9 15l-3.3.7v-1.1l1.8-1.3V9.9L1.6 11.2V9.8l5.9-2.6V2.9c0-.5.3-.9.7-.9h1.6z'/%3E%3C/svg%3E") center / contain no-repeat; }

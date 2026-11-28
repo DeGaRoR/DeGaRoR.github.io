@@ -123,6 +123,7 @@ const GATES = [
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
   { id: 'FMIST', file: '_fmist_check.js', tier: 'core' },   // FOREST-MIST (2026-11-10): off is identical, the map, the weather's law, the row
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
+  { id: 'RAIN', file: '_rain_check.js', tier: 'core' },   // RAIN step 1 (LOOK-1, 16 Nov): the rain field - the weather map's A channel, rainAt, a dry day dry
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
   // G2820 (STOL-WING): slats / slots, VGs, fences, cuffs, endplates, drooped tips, drooping ailerons, Fowler area
@@ -233,6 +234,7 @@ const GATES = [
   { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
   { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
   { id: 'WATERTANK', file: '_watertank_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: water tanks - spec.water, the blue tank, the fill, the dump valve, the outlet's checked run)
+  { id: 'FLIGHTQ', file: '_flightq_check.js', tier: 'core', wall: 400 },   // (WS-088, 28 Nov: the test flight's own measure; the rudder row's sideslip)
   { id: 'SAILPLANE', file: '_sailplane_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: the category's load factor, the airbrakes, the LS4-alike card)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
@@ -589,6 +591,20 @@ const GATES = [
   // the default; the island built with them and without (?pavepolybound=0&pavereuse=0) is the same patch, strips, roads, aprons,
   // rails, poles and far terrain byte for byte. Two page processes one after the other
   { id: 'PAVEXACT', file: '_pavexact_check.js', tier: 'core', wall: 300 },
+  // PERF-WORLDBUILD (22 Nov 2026): the strips' geometry built in the house worker (?stripw=1) is the inline build's, byte for
+  // byte, on every pavement strip of Jolene and at two more soil rungs; none built on the page's thread; arrays transferred.
+  // And NEAR FIRST (?nearfirst=1): the held strips stand coarse at the load, land one a task, each byte-equal to the inline
+  // build, the end state one refined mesh a strip, unmerged. Two page processes one after the other
+  { id: 'STRIPWORKER', file: '_stripworker_check.js', tier: 'core', wall: 480 },
+  // PERF-WORLDBUILD (22 Nov 2026): the premises' patch sampled from the house worker's answers (?patchw=1) is the page's own,
+  // byte for byte, every chunk read from the worker; the other families untouched. Two page processes one after the other
+  { id: 'PATCHWORKER', file: '_patchworker_check.js', tier: 'core', wall: 300 },
+  // GATE COMPSTEPS (PERF-WORLDBUILD, 22 Nov): the premises composed in steps (?compsteps=1) are the premises composed in one
+  // task - the overlay's records, the world's aerodromes and every family built from them, byte for byte; the standing
+  // premises in force until the swap. Two page processes in node, ~4 min.
+  { id: 'COMPSTEPS', file: '_compsteps_check.js', tier: 'core', wall: 300 },
+  // PERF-LEAD (23 Nov): ?boot=garagefirst - the page without it boots as before; the background run's own logic on fakes
+  { id: 'GARAGEFIRST', file: '_garagefirst_check.js', tier: 'core' },
   { id: 'STAND', file: '_stand_check.js', tier: 'core' },   // A1-STAND G600-G604: the shed merged, the near registry, the exterior glass, the ring's keys
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
@@ -699,6 +715,7 @@ const GATES = [
   // tundra is a torus, every tail cone has its zone (the mirrored pod's too), the Mosquito's whole-cabin shoulder,
   // and the comment strip the source-scan gates share is a lexer. Seconds.
   { id: 'EDBUGS', file: '_edbugs_check.js', tier: 'core' },
+  { id: 'REFLOCK', file: '_reflock_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },   // REF-LOCK (the user 21 Nov): a locked row shows no slider
   // THE FITTINGS (G81-G85): GEN_ACCESS resolved against the built skin, and
   // the geometry that lands there. Every fitting on its own skin, one per
   // flank, snapped to real structure, standing OUT, no two in one place, and
@@ -722,6 +739,20 @@ const GATES = [
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
   { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 1200 },   // G2228: measured ALONE 13 Oct 1 078 s (the Cub 404 s: boot 89 + 13 rows ~20 s; the metal 674 s: boot 108 + 13 rows ~36 s) - no slow row, the old 480 was stale
+  // PERF-SLIDERS (23 Nov): GATE INSTANT's check where the Cub and the metal Cessna cannot see - a twin with its engines and
+  // its retracting gear on the wing (the DC-3-alike: its wing span's release left the engines' layer one build behind)
+  // a hull with a pylon engine (the Super Petrel) and the Cub; six rows each, the main gear's station along the fuselage
+  // among them (a row that turns the sit: the Cub's tank, the limbs) - _instant_rel_check.js
+  // (A0, 23 Nov: 1 405 s alone was the battery's longest chunk - one aeroplane a shard: the DC-3 ~7 min, the Petrel ~13, the Cub ~4)
+  { id: 'INSTANTREL', file: '_instant_rel_check.js', tier: 'core', shards: 3, wall: 900 },
+  // PERF-SLIDERS: A DERIVED READ GIVES THE AEROPLANE THE RAW READ GAVE (CAGE_CHAIN.derived: the dash's gear selector asks
+  // "do the mains stand off the centreline", the crew layer no longer re-runs on every tick of the gear's station) - per
+  // aeroplane and derived row, three walks from the same aeroplane (ON, OFF, OFF: the two OFF name the noise), the scene's
+  // fingerprint and the resolved spec; core: the DC-3-alike and the Super Petrel, full: every aeroplane a player can open
+  { id: 'DERIVED', file: '_derived_check.js', tier: 'core', wall: 2400 },
+  // PERF-SLIDERS: the dash's gear selector placed by the cheap search (_panel_gen.js placeGear: the plate's outline asked
+  // once a column) stands where the plain search put it - 2 000 random dashes, the old function kept in the check
+  { id: 'PANELGEAR', file: '_panel_gear_check.js', tier: 'core', wall: 120 },
   // G2071 (GARAGE-LAPTOP): the shed's shadow cache (shed_shadow.js) draws what the full pass draws - per light, the bake's
   // casters + the live pass's == the full pass's, each once (at rest, a prop moved, a prop hidden, a lamp moved, the key
   // held by the day's step); retro's shed frame under 40 % of the full pass's draws (the page in node, the Jodel)
@@ -733,6 +764,10 @@ const GATES = [
   // G3630 (HANGAR-VIEW): the view out of the garage door is the world - the capture's faces and the lookup one convention,
   // the distance resolve inverts three's depth, the boot / return / lights / outdoors seams, no GPU readback
   { id: 'HANGARVIEW', file: '_hangarview_check.js', tier: 'core', wall: 30 },
+  // GARAGE-VIEW (22 Nov): the cooked world out of a hangar's door is TODAY's world - every pack's sheds stand where the record
+  // puts them and its signature is the record's rev (a miss names the pack to cook again), the scene whole and under its budget,
+  // placed by the shed's true yaw, the room's hand-drawn outdoors down while it stands
+  { id: 'GARAGEVIEW', file: '_garageview_check.js', tier: 'core', wall: 15 },
   // G2111 (GARAGE-LAPTOP): the flown model hidden behind the editor's cage is not deformed in the garage - two deterministic
   // pages (the skip, the old every-frame pose) hold bit-identical skins when it is shown for a call and on the stand after
   // the roll-out; the idle garage uploads no more skin than before
@@ -826,6 +861,7 @@ const GATES = [
   // the build's occupants it leaves ashore off the layer) - the stand, the snapshot and the flown mesh follow, the spec
   // stays the build's. The page's load chain on the metal Cessna, four jobs, a probe; ~1-2 min
   { id: 'CREWSEATS', file: '_crewseats_check.js', tier: 'core', wall: 300 },
+  { id: 'CREWSYM', file: '_crewsym_check.js', argv: ['--selftest'], tier: 'core', wall: 300 },   // KNEE-SYM (the user 23 Nov): the pilot's knees mirror, the aeroplane turned or not
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)
@@ -1388,6 +1424,11 @@ const GATES = [
   // sizes; the mount is gone and each vessel's hardware is raycast from its
   // centre against every other surface (the fuselage sheet included)
   { id: 'TANKMOUNT', file: '_tank_mount_check.js', tier: 'core' },
+  // TANK-BAYS (the user 24 Nov, a Lazair: "the fuel tanks ... stick to the back face of a pod ... Anywhere in the boom,
+  // attached to the aft pod, inside an aft cowl or aero pods is fine ... I'd need a clean plastic one"): the four mounted
+  // bays (behind the pod, on the boom, in the aft fairing, in the aero nose) placed, judged, drawn and said in the page's
+  // own chain, billed where drawn; the clean translucent jug (no grunge, its owner, no new program)
+  { id: 'TANKBAYS', file: '_tank_bays_check.js', tier: 'core', wall: 240 },
   // THE PANEL ARC, session 1 (2026-09-11): the sources the instruments read
   // — the shaft speed against the J-3's real numbers, the burn against the
   // thermo sheet, nz at rest and in free fall, the key and the starter

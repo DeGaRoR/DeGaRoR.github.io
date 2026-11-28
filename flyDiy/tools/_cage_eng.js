@@ -1799,7 +1799,11 @@ function engPlace(ctx, prev) {
     // the drawn disc's offset from the mount the aids measure the prop's clearance from (app.js aidPropOff)
     let propAt = null;
     if (pg) { const pv = pg.position.clone(); ug.updateMatrix(); pv.applyMatrix4(ug.matrix); propAt = [pv.x, pv.y, pv.z]; }
-    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, faceZ: f.z, faceYc: f.yc, propAt,
+    // PROP-CHECK (the user 21 Nov: the check's tilt differs from the propeller's): the SHAFT, the unit's own +z turned by its
+    // tilt (ug.rotation), in the same frame - the aids draw the disc square to it
+    let propAxis = null;
+    if (pg) { const av = new THREE.Vector3(0, 0, 1).applyQuaternion(ug.quaternion); propAxis = [av.x, av.y, av.z]; }
+    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, faceZ: f.z, faceYc: f.yc, propAt, propAxis,
                    at: [ug.position.x, ug.position.y, ug.position.z],
                    prop: pg ? { hub: propHub, R: 0.5 * Math.max(0.2, +CW.P.propD || 1.5), group: pg } : null,
                    propFit: null });
@@ -1829,6 +1833,11 @@ function engPlace(ctx, prev) {
       // push-pull's twin booms): AF.surf holds the last section past AF.z0, which read the whole disc behind a
       // blunt pod as inside it. A rod boom is part of AF (its z0 is the rod's end), so a pusher on a rod reads as before
       if (aft && isFinite(AF.z0) && z < AF.z0 - 1e-3) return false;
+      // LAZAIR-TWIN (24 Nov; the user's Minimax: "the prop check ... rejecting when too small"): the same for a TRACTOR's
+      // disc AHEAD of the body's front (the cowl's, CAGE_GEAR's withCowl): AF.surf past z1 is its end section held,
+      // which read a small disc's inner rings, turning ahead of the cowl, as inside the body - the smaller the
+      // propeller, the surer the refusal
+      if (!aft && isFinite(AF.z1) && z > AF.z1 + 1e-3) return false;
       let lo, hi;
       try { lo = AF.surf(z, 0); hi = AF.surf(z, Math.PI); } catch (e) { return false; }
       if (!lo || !hi || !isFinite(lo[1]) || !isFinite(hi[1]) || hi[1] <= lo[1] + 0.01) return false;

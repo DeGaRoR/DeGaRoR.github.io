@@ -46,6 +46,7 @@ function bumpyWorld(elev, A, lam) {
 function circuit(key, o) {
   const C = L.core(), def = L.defOf(key, { probe: true }), world = C.makeWorld();
   const sim = C.makeSim(def, world); sim.reset(0); sim._def = def; L.lastRun.sim = sim;
+  if (!sim.hydro && sim.stance) sim.stance();     // (STANCE-AS-GAME, A0 23 Nov: stood as the game stands it)
   const a = world.aerodromes.find(x => x.id === (sim.hydro ? 'SEA' : 'HOME')) || world.aerodromes[0];
   if (o.xw && world.setWind) { const h = a.hdg; world.setWind({ base: [-Math.sin(h) * o.xw, 0, Math.cos(h) * o.xw], gust: 0 }); }
   if (sim.hydro) C.placeAtAerodrome(sim, a);
@@ -79,7 +80,7 @@ function taxi(key, o) {
     strip = W.aerodromes.find(a => a.id === 'SEA'); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, strip);
   } else {
     ({ W, strip } = o.rough ? bumpyWorld(0, o.rough.A, o.rough.lam) : L.flatWorld(0));
-    sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 }));
+    sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance(); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 }));   // (STANCE-AS-GAME)
   }
   sim._def = def; L.lastRun.sim = sim;
   for (let f = 0; f < 240; f++) sim.step(1 / 60);
@@ -129,6 +130,7 @@ function bracketDrop(key, o) {
 function groundLoop(key, o) {
   const C = L.core(), def = L.defOf(key, {}), { W, strip } = L.flatWorld(0);
   const sim = C.makeSim(def, W); sim.reset(0); L.lastRun.sim = sim;
+  if (sim.stance) sim.stance();                    // (STANCE-AS-GAME, A0 23 Nov: stood as the game stands it)
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 }));
   for (let f = 0; f < 240; f++) sim.step(1 / 60);
   const n = sim.n, c0 = sim.cgPos(), th = (o.yaw || 0) * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th);
@@ -158,6 +160,7 @@ function groundLoop(key, o) {
 function porpoise(key, o) {
   const C = L.core(), def = L.defOf(key, {}), { W, strip } = L.flatWorld(0);
   const sim = C.makeSim(def, W); sim.reset(0); L.lastRun.sim = sim;
+  if (sim.stance) sim.stance();                    // (STANCE-AS-GAME, A0 23 Nov: stood as the game stands it)
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 }));
   for (let f = 0; f < 240; f++) sim.step(1 / 60);
   const tw = def.refs.tw, n = sim.n, B = sim.beams;

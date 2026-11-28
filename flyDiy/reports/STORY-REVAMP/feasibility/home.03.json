@@ -1,18 +1,18 @@
 {
  "id": "home.03",
  "kind": "contract",
- "verdict": "infeasible",
- "plane": "Cessna 172 (career)",
- "timeS": 1673,
- "why": "crashed: the damage ended the flight: broke up: the fuselage parted (TPB off the core)",
+ "verdict": "feasible",
+ "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+ "timeS": 1208,
+ "why": "",
  "tried": [
-  "Cessna 172 (career):infeasible"
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):feasible"
  ],
  "legs": [
   {
    "from": "HOME",
    "to": "w3",
-   "t": 551,
+   "t": 486,
    "how": "stopped",
    "at": "w3",
    "stop": [
@@ -26,25 +26,84 @@
   {
    "from": "w3",
    "to": "w1",
-   "t": 1122,
-   "how": "crashed",
-   "at": null,
-   "stop": [],
+   "t": 722,
+   "how": "stopped",
+   "at": "w1",
+   "stop": [
+    "sub:0@0",
+    "stage@0",
+    "done"
+   ],
    "kg": 250,
    "pax": 0,
-   "faults": [
-    "crash",
-    "yield",
-    "break",
-    "prop-strike"
-   ],
+   "faults": [],
    "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 486,
+     "how": "stopped",
+     "kg": 250,
+     "pax": 0,
+     "said": [
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 27.2 m/s until clear",
+      "slip: high on energy on the short final (+4.2 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 23.6 m/s at this power — flying the approach faster"
+     ],
+     "landing": {
+      "run": 159,
+      "sink": 0.85,
+      "V": 27.3,
+      "offCentre": 4.1,
+      "pastAim": 2,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 12,
+      "stopLeft": 371
+     }
+    },
+    {
+     "from": "w3",
+     "to": "w1",
+     "t": 722,
+     "how": "stopped",
+     "kg": 250,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+10.4 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 23.6 m/s at this power — flying the approach faster",
+      "slope: stopped on a 10.9 % grade — rolling 90 m on to the level part"
+     ],
+     "landing": {
+      "run": 124,
+      "sink": 0.98,
+      "V": 27.4,
+      "offCentre": -14.6,
+      "pastAim": 47,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 57,
+      "stopLeft": 203
+     }
+    }
+   ]
   }
  ],
  "notes": [],
  "untested": false,
  "key": "78208ba13b4d",
  "where": "home:2",
- "pool": "validated",
- "wallS": 2488
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 905
 }

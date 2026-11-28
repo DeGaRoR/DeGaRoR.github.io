@@ -1,0 +1,79 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_cruise_gpu",
+ "what": "A CRUISE FOR THE GPU'S TIME BY PASS (PERF-TRACE 9, 24 Nov; the user: 'get some headroom on the graphic card, maybe reach below 30 ms per frame'): the journey's start - load, roll-out, skip to the start, take-off - then 30 s of climb and 75 s en route in the chase view, nothing else touched. Flown with ?recgpu=pass; tools/gpu_passes.js --mark cruise reads the 75 s",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "HOME",
+ "to": "w7",
+ "steps": [
+  {
+   "name": "load typical",
+   "do": "load",
+   "preset": "typical"
+  },
+  {
+   "name": "roll-out",
+   "do": "start",
+   "until": {
+    "phase": [
+     "TAXI",
+     "DEPART",
+     "LINEUP",
+     "STOP",
+     "HOLD"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "skip to the start",
+   "do": "skip",
+   "until": {
+    "phase": [
+     "HOLD",
+     "ROLL",
+     "LIFTOFF",
+     "CLIMB"
+    ]
+   },
+   "capS": 90
+  },
+  {
+   "name": "take-off",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "ENROUTE",
+     "INBOUND"
+    ]
+   },
+   "capS": 240
+  },
+  {
+   "name": "climb 30 s",
+   "do": "wait",
+   "until": {
+    "s": 30
+   },
+   "capS": 45
+  },
+  {
+   "name": "cruise 75 s",
+   "do": "wait",
+   "until": {
+    "s": 75
+   },
+   "capS": 95
+  },
+  {
+   "name": "the recorder says",
+   "do": "page",
+   "js": "(() => { const A = window.FLYDIY_AA, R = window.FLIGHT_REC, H = R && R.header ? R.header() : null;  return JSON.stringify({ aa: A && A.autoState ? A.autoState() : null, scale: A && A.scale ? A.scale() : null, gpuTimer: H ? H.gpuTimer : null }); })()",
+   "until": {
+    "s": 1
+   },
+   "capS": 10
+  }
+ ]
+}

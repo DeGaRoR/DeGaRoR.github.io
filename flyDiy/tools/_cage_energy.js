@@ -268,6 +268,15 @@ function measureBays(S, ctx) {
     let r = null;
     try { r = C.bayResolve(S, k, null); } catch (e) { r = null; }
     if (!r) continue;
+    // TANK-BAYS: a mounted bay is offered only where the drawing has the thing, and measured off it (mountBay)
+    if (B.mount) {
+      if (!ctx.mesh || !VG() || legacyFit()) continue;
+      const why = mountAbsent(ctx, S, B);
+      if (why) { MOUNT_GONE[k] = why; continue; }
+      delete MOUNT_GONE[k];
+      if (mountBay(ctx, S, r, zFwOf(), EN.vessels.some(v => v.bay === k))) out.push(r);
+      continue;
+    }
     if (r.on === 'body' && ctx.mesh && BAY()) {
       const zFw = zFwOf();
       const key = bayKey(r, zFw);
@@ -561,6 +570,427 @@ function bayCacheOf(ctx, bay, zFw) {
   if (bay.cowl) bay.hx1 = MathL.max(bay.hx1 != null ? bay.hx1 : bay.x1, bay.cowl.x1 - 0.01);
   return c;
 }
+
+// ===========================================================================
+// TANK-BAYS - THE MOUNTED BAYS (the user 24 Nov, building a Lazair: "I would want the fuel tanks to be able to stick to
+// the back face of a pod, where the aft aero pod goes ... Anywhere in the boom, attached to the aft pod, inside an aft
+// cowl or aero pods is fine")
+// ===========================================================================
+// The core's four mounted bays (60c GEN_BAYS podAft / boom / aeroAft / aeroNose), each placed off what is DRAWN:
+//   face    (podAft) OUTSIDE the pod: its front face against the pod's aft face, upright, on the centreline, between
+//           the pod's keel and the rod; a cradle (a tray under it, two pads to the face) and the straps hold it. The
+//           real Lazair's 5-gallon jug stands exactly there, strapped behind the seat back in the open frame.
+//   rod     (boom on a tail rod) a cylinder slung under the tube on two clamps, its top a clamp's band below the rod
+//   inside  (aeroAft, aeroNose, boom inside a lofted boom) inside the drawn sections, as any body tank, beside the rod
+//           where the rod runs through (the aft fairing's: under a high rod, over a low one), clear of the crew
+// A tank with no station takes the FIRST place that clears (mountSearch: fore to aft from the face, a level at a time,
+// judged as the layout judges it) and that station is written into the vessel - the ledger bills what is drawn. Then
+// it is the player's: the fore / aft and up / down rows move it, and the verdict says, in words, what it meets.
+// THE CLEARANCES are the body tanks' (judgeTank: the sheet - its skin, the frame tubes, the rod -, the engine and the
+// cowl, and the crew) and, for a tank out in the open, MORE (surfMnt): the gear, the wing and its struts, the tail, the
+// hinges and the control runs (the hinge layer's pushrods and cables), the bracing; and the propellers' discs
+// (propDiscHit: a hand clear of each disc swept, not only of the blades as drawn).
+let MOUNT_GONE = {};              // why a mounted bay is not offered on this aeroplane, by key (the panel's words)
+const MOUNT_GAP = 0.006;          // m: a jug's face off the pod's aft face (the cradle's pads; CLEAR_GAP is 5 mm)
+const MOUNT_REACH = 0.15;         // m: the cradle reaches the face from no farther
+const ROD_HANG = 0.022;           // m: the rod's underside to the tank's top (the clamp's band and its pad)
+const ROD_UNDER = 0.015;          // m: a tank inside a fairing stays this far under the rod
+const ROD_FINE = 3.5;             // a rod tank's length over its diameter
+const PROP_CLR = 0.05;            // m: a hand clear of a propeller's disc
+// a bay's own shape when the player has drawn none (L along, W across, H up): the face's jug stands tall and shallow
+const MOUNT_ASPECT = { aftFace: [0.55, 0.85, 1.0], aeroAft: [1.0, 0.85, 0.7], aeroNose: [1.0, 0.8, 0.7], boom: [1.0, 0.85, 0.7] };
+const round3 = x => MathL.round(x * 1000) / 1000;
+// where the drawing offers the bay, or why not (the panel's words for a tank left in one)
+function mountAbsent(ctx, S, B) {
+  const P = (ctx && ctx.P) || {};
+  const podEnds = +P.boomStyle === 1 || !!+P.boomTwin;
+  const em = MathL.round(+P.engMount || 0), pusher = em === 1 || em === 4;
+  const aeroAft = !!(+P.aeroAftOn && podEnds && (!pusher || +P.aeroAftOver));
+  const rod = +P.boomStyle === 1 && !+P.boomTwin && !(P.rodOn != null && !+P.rodOn);
+  switch (B.mount) {
+    case 'aftFace':
+      if (!podEnds) return 'this body does not end in a pod: there is no aft face to strap a tank to (a pod and rod, or twin booms, has one)';
+      if (pusher) return 'the pod’s aft face carries the pusher engine: there is no room for a tank behind it';
+      if (aeroAft) return 'the aero aft fairing covers the pod’s aft face: put the tank inside the aft fairing';
+      if (+P.boomStyle === 1 && !+P.boomTwin && +P.taperOn && +P.taperPanels)
+        return 'the taper’s panels close the frame behind the pod: there is no open face to strap a tank to (the taper panels off opens it)';
+      return null;
+    case 'boom':
+      if (rod) return null;
+      if (S && S.fuse && S.fuse.shape === 'boom' && !+P.boomTwin && +P.boomStyle !== 1) return null;   // a lofted boom: inside it
+      return 'this aeroplane has no boom to hang a tank on (a pod and rod, or a lofted boom)';
+    case 'aeroAft':
+      return aeroAft ? null : 'there is no aero aft fairing behind the pod (the body’s “aero aft”, on a rod or twin booms)';
+    case 'aeroNose':
+      return (em === 0 || em === 4 || em === 5) ? 'the nose carries the engine: there is no aero nose to hold a tank' : null;
+  }
+  return 'not a bay of this aeroplane';
+}
+// THE ROD, MEASURED: the sheet's own tube ('boomTube'), its vertices in rings along it - each ring's centre and radius,
+// and between rings the line through them (layer metres; `along` metres aft of the datum)
+const RODS = new WeakMap();
+function rodGeo(ctx, zFwM) {
+  const M = ctx && ctx.mesh, FS = fsOf(ctx);
+  if (!M || !M.F || !M.V) return null;
+  const k = RODS.get(M);
+  if (k && k.FS === FS && k.zFwM === zFwM) return k.geo;
+  const seen = new Set(), pts = [];
+  for (const f of M.F) if (f.m === 'boomTube' && f.v) for (const vi of f.v) {
+    if (seen.has(vi)) continue;
+    seen.add(vi);
+    const q = M.V[vi];
+    pts.push([q[0] * FS, q[1] * FS, zFwM - q[2] * FS]);
+  }
+  let geo = null;
+  if (pts.length >= 8) {
+    pts.sort((a, b) => a[2] - b[2]);
+    const rings = [];
+    for (let i = 0; i < pts.length;) {
+      let j = i, xl = Infinity, xh = -Infinity, yl = Infinity, yh = -Infinity, s = 0;
+      while (j < pts.length && pts[j][2] - pts[i][2] < 0.012) {
+        const p = pts[j++];
+        if (p[0] < xl) xl = p[0]; if (p[0] > xh) xh = p[0]; if (p[1] < yl) yl = p[1]; if (p[1] > yh) yh = p[1]; s += p[2];
+      }
+      if (j - i >= 4 && yh > yl) rings.push({ a: s / (j - i), x: 0.5 * (xl + xh), y: 0.5 * (yl + yh), r: 0.5 * (yh - yl) });
+      i = j;
+    }
+    if (rings.length >= 2) geo = {
+      a0: rings[0].a, a1: rings[rings.length - 1].a, rings,
+      at: along => {
+        if (!(along >= rings[0].a - 0.01 && along <= rings[rings.length - 1].a + 0.01)) return null;
+        let lo = rings[0], hi = rings[rings.length - 1];
+        for (let i = 0; i + 1 < rings.length; i++) if (along >= rings[i].a && along <= rings[i + 1].a) { lo = rings[i]; hi = rings[i + 1]; break; }
+        const t = hi.a > lo.a ? MathL.max(0, MathL.min(1, (along - lo.a) / (hi.a - lo.a))) : 0;
+        const L = (p, q) => p + (q - p) * t, y = L(lo.y, hi.y), r = L(lo.r, hi.r);
+        return { x: L(lo.x, hi.x), y, r, yTop: y + r, yBot: y - r };
+      },
+    };
+  }
+  RODS.set(M, { FS, zFwM, geo });
+  return geo;
+}
+// the crew's reach along the body (metres aft of the datum): the seats, the people, the panel and the sticks
+function crewAlong(ctx, zFwM) {
+  const inv = layerInv(ctx);
+  if (!inv) return null;
+  if (!CREW_PTS || !crewFresh(ctx.scene, inv)) CREW_PTS = crewPoints(ctx.scene, inv);
+  const P = CREW_PTS, b = P.buf;
+  if (!P.n) return null;
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < P.n; i++) { const a = zFwM - b[i * 3 + 2]; if (a < lo) lo = a; if (a > hi) hi = a; }
+  return [lo, hi];
+}
+// THE BAY, MEASURED OFF THE DRAWING (the swept field where the bay is in or against the body, the rod, the crew); the
+// sweep only for a bay a tank is in (G2799's rule) - the options list reads the rule's room
+function mountBay(ctx, S, r, zFw, holds) {
+  const P = ctx.P || {}, FS = fsOf(ctx), G = VG();
+  if (zFw == null || !G) return false;
+  const zFwM = zFw * FS;
+  const rod = rodGeo(ctx, zFwM);
+  const rodWanted = r.mount === 'boom' && +P.boomStyle === 1 && !+P.boomTwin;
+  if (rodWanted && !rod) { MOUNT_GONE[r.key] = 'the rod is not drawn: there is no tube to hang the tank on'; return false; }
+  r.mode = r.mount === 'aftFace' ? 'face' : rodWanted ? 'rod' : 'inside';
+  r.rod = rod;
+  r.roomL = r.litres;
+  r.ruleX = [r.x0, r.x1];
+  if (holds) mountSweep(ctx, r, zFw);
+  return true;
+}
+function mountSweep(ctx, r, zFw) {
+  const FS = fsOf(ctx), G = VG(), zFwM = zFw * FS;
+  r.swept = true;
+  if (r.mode === 'rod') {
+    // from behind the pod (the field's end, where the frame round the pod stops being the body) to the tail's reach
+    const c = bayCacheOf(ctx, r, zFw);
+    const face = c && c.axisMax != null ? c.axisMax : r.ruleX[0] - 0.15;
+    const R = r.rod;
+    r.x0 = MathL.max(face + 0.1, R.a0 + 0.05); r.x1 = MathL.max(r.x0 + 0.3, MathL.min(r.ruleX[1], R.a1 - 0.3));
+    r.hx0 = r.x0; r.hx1 = MathL.max(r.x1, R.a1 - 0.05);
+    r.face = face;
+    return;
+  }
+  const c = bayCacheOf(ctx, r, zFw);
+  if (!c || c.axisMax == null) { r.faceExt = null; return; }
+  if (r.mode === 'face') {
+    // the pod's aft face: where the swept field ends (the face itself, or its last ring - the search then finds the
+    // first station clear of the drawn face, its pillars and the frame aft of it); the pod's section just ahead of it
+    const face = c.axisMax;
+    r.face = face; r.faceExt = G.bayExtAt(c, FS, zFw, face - 0.02);
+    r.x0 = face; r.x1 = face + 0.6; r.hx0 = face - 0.05; r.hx1 = face + 0.9;
+    return;
+  }
+  // INSIDE: the field's own reach (the fairing's end, the nose's tip) and the crew's (behind them, or ahead of the feet)
+  const ca = crewAlong(ctx, zFwM);
+  if (r.mount === 'aeroNose') {
+    r.x0 = c.axisMin + 0.02;
+    r.x1 = MathL.min(r.ruleX[1], ca ? ca[0] - 0.02 : r.ruleX[1]);
+    r.hx0 = r.x0; r.hx1 = MathL.max(r.x1, MathL.min(0, r.x1 + 0.3));
+  } else {
+    r.x0 = MathL.max(c.axisMin + 0.01, ca ? ca[1] + 0.02 : r.ruleX[0]);
+    r.x1 = c.axisMax - 0.02;
+    r.hx0 = MathL.max(c.axisMin + 0.01, r.x0 - 0.3); r.hx1 = r.x1;
+  }
+  if (!(r.x1 > r.x0 + 0.05)) { r.x1 = r.x0 + 0.05; }
+  // its room: the swept sections between the limits, under the rod where it runs through
+  let L = 0;
+  for (let a = r.x0 + 0.025; a < r.x1; a += 0.05) {
+    const e = G.bayExtAt(c, FS, zFw, a), rs = r.rod ? r.rod.at(a) : null;
+    if (!e) continue;
+    const h = rs ? MathL.max(rs.yBot - ROD_UNDER - e.yLo, e.yHi - (rs.yTop + ROD_UNDER)) : e.yHi - e.yLo;
+    if (h > 0) L += MathL.PI / 4 * (e.xHi - e.xLo) * MathL.min(h, e.yHi - e.yLo) * 0.05 * 1000;
+  }
+  r.roomL = L;
+}
+// the bay's own shape for the litres, when the player drew none (a rod's tank a cylinder, ROD_FINE long)
+function mountDims(bay, v, res) {
+  const G = VG(), vk = vesselKeyV(v), form = formOf(v);
+  if (v.dims) return G.vesselDims(vk, res.installedL, v.dims, form);
+  const m3 = MathL.max(0.0005, res.installedL / 1000);
+  const ff = f => (G.installedFromDims(vk, { L: 1, W: 1, H: 1 }, f) / 1000) || 1;
+  let d;
+  if (bay.mode === 'rod') {
+    if (form === 'cyl') { const D = MathL.cbrt(m3 / (ROD_FINE * ff('cyl'))); d = { L: ROD_FINE * D, W: D, H: D }; }
+    else { const D = MathL.cbrt(m3 / (ROD_FINE * ff('box'))); d = { L: ROD_FINE * D, W: D, H: D }; }
+  } else {
+    const a = MOUNT_ASPECT[bay.mount] || MOUNT_ASPECT.boom, f = ff(form === 'cyl' ? 'cyl' : 'box');
+    const k = MathL.cbrt(m3 / (a[0] * a[1] * a[2] * f));
+    d = { L: a[0] * k, W: a[1] * k, H: a[2] * k };
+  }
+  return G.vesselDims(vk, res.installedL, d, form === 'cyl' ? 'cyl' : 'box');
+}
+// ONE PLACEMENT for a mounted tank (bodyPlace's answer: centre, half extents, turn, section): `lv` is the tank's level
+// between the band's floor (0: its bottom on the floor) and its top (1: its top at the band's top)
+function mountPlace(ctx, bay, v, dims, zFw) {
+  const FS = fsOf(ctx), G = VG(), zFwM = zFw * FS;
+  const along = v.along != null ? v.along : (bay.mode === 'face' ? bay.x0 + dims.L / 2 + MOUNT_GAP : 0.5 * (bay.x0 + bay.x1));
+  const lv = v.lv != null ? MathL.max(0, MathL.min(1, v.lv)) : 0.5;
+  const rot = (v.rot || 0) * MathL.PI / 180;
+  const out = { on: 'body', ok: true, why: [], mount: bay.mount, mode: bay.mode, along, lv, rot,
+                outsideHand: 0, inBand: true, fitsSkin: true };
+  const zc = zFwM - along, e = [dims.W / 2, dims.H / 2, dims.L / 2];
+  const rs = bay.rod ? bay.rod.at(along) : null;
+  if (bay.mode === 'rod') {
+    if (!rs) { out.ok = false; out.why.push('no rod at ' + along.toFixed(2) + ' m to hang it on'); return out; }
+    out.c = [rs.x, rs.yBot - ROD_HANG - e[1], zc]; out.e = e; out.rodAt = rs;
+    out.section = { yLo: out.c[1] - e[1], yHi: rs.yBot, xLo: rs.x - 0.3, xHi: rs.x + 0.3, band: [out.c[1] - e[1], rs.yBot] };
+    return out;
+  }
+  let ext = null;
+  if (bay.mode === 'face') ext = bay.faceExt;
+  else { const c = bay._ck ? BAY_CACHES[bay._ck] : null; ext = c ? G.bayExtAt(c, FS, zFw, along) : null; }
+  if (!ext) {
+    out.ok = false;
+    out.why.push(bay.mode === 'face' ? 'the pod’s aft face was not found'
+      : 'past the ' + (bay.mount === 'aeroNose' ? 'aero nose' : bay.mount === 'aeroAft' ? 'aft fairing' : 'boom') + ' at ' + along.toFixed(2) + ' m');
+    return out;
+  }
+  // the rod runs through: the tank takes the side of it with the more room (under a high rod, over a low one)
+  let yLo = ext.yLo, yHi = ext.yHi;
+  if (rs) { if (ext.yHi - (rs.yTop + ROD_UNDER) > rs.yBot - ROD_UNDER - ext.yLo) yLo = MathL.max(yLo, rs.yTop + ROD_UNDER);
+            else yHi = MathL.min(yHi, rs.yBot - ROD_UNDER); }
+  const room = yHi - yLo;
+  const yc = room > dims.H ? yLo + dims.H / 2 + lv * (room - dims.H) : 0.5 * (yLo + yHi);
+  out.c = [0, yc, zc]; out.e = e;
+  out.section = { yLo: ext.yLo, yHi: ext.yHi, xLo: ext.xLo, xHi: ext.xHi, band: [yLo, yHi] };
+  return out;
+}
+// THE FIRST PLACE THAT CLEARS: fore to aft from the face (aft to fore in the nose, ahead of the feet), a level at a time
+// - the layout's own verdict on each (judgeTank on the light solid, then the open air's own: the discs, the reach)
+function mountSearch(ctx, inv, bay, v, dims, zFw) {
+  const judge = (along, lv) => {
+    const cand = Object.assign({}, v, { along, lv, rot: 0 });
+    const pl = mountPlace(ctx, bay, cand, dims, zFw);
+    if (!pl.c) return false;
+    pl.v = cand; pl.dims = dims; pl.bay = bay;
+    pl.lightSolid = lightSolid(pl, formOf(cand));
+    JUDGE.fast = true;
+    try { judgeTank(ctx, ctx.scene, inv, pl); } finally { JUDGE.fast = false; }
+    if (pl.ok) mountExtra(ctx, inv, pl);
+    return pl.ok;
+  };
+  const step = 0.01;
+  const lvs = bay.mode === 'rod' ? [0] : bay.mount === 'aeroAft' ? [0, 0.25, 0.5, 0.75]
+            : [0.5, 0.35, 0.65, 0.2, 0.8, 0.05, 0.95];
+  const a0 = bay.x0 + dims.L / 2 + (bay.mode === 'face' ? MOUNT_GAP : 0.01), a1 = MathL.max(a0, bay.x1 - dims.L / 2);
+  const fwd = bay.mount !== 'aeroNose';
+  const N = MathL.min(200, MathL.max(0, MathL.floor((a1 - a0) / step + 1e-9)));
+  for (let k = 0; k <= N; k++) {
+    const along = fwd ? a0 + k * step : a1 - k * step;
+    for (const lv of lvs) if (judge(along, lv)) return { along: round3(along), lv, ok: true };
+  }
+  return { along: round3(fwd ? a0 : a1), lv: lvs[0], ok: false };
+}
+// THE OPEN AIR'S OWN CLEARANCES, after judgeTank: a propeller's disc, and (behind the pod) the cradle's reach to the face
+function mountExtra(ctx, inv, r) {
+  if (!r || !r.c) return;
+  const why = [];
+  const pd = propDiscHit(ctx, inv, r);
+  if (pd) why.push(pd);
+  if (r.mode === 'face') {
+    r.faceGap = faceGap(ctx, inv, r);
+    if (r.faceGap == null) why.push('not against the pod’s aft face: the cradle reaches ' + MathL.round(MOUNT_REACH * 1000) +
+      ' mm forward and finds nothing to bolt to (slide it forward)');
+  }
+  if (r.mode === 'rod' && !r.rodAt) why.push('no rod above it to clamp to');
+  if (why.length) { r.ok = false; r.why.push(...why); }
+}
+// from the tank's front face forward (its own +z, turned with it) to the first drawn surface: the pod's aft face, its
+// pillars or its frame - the gap the cradle's pads bridge (null: nothing within MOUNT_REACH)
+function faceGap(ctx, inv, r) {
+  const S = surfMnt(ctx, ctx.scene, inv), O = S._O;
+  if (!O || !O.n) return null;
+  const cs = MathL.cos(r.rot), sn = MathL.sin(r.rot), e = r.e, c = r.c;
+  let best = null;
+  for (const [fx, fy] of [[0, 0], [-0.6, -0.6], [0.6, -0.6], [-0.6, 0.6], [0.6, 0.6]]) {
+    const lx = fx * e[0], ly = fy * e[1], lz = e[2];
+    const p = [c[0] + cs * lx + sn * lz, c[1] + ly, c[2] - sn * lx + cs * lz];
+    const q = [p[0] + sn * MOUNT_REACH, p[1], p[2] + cs * MOUNT_REACH];
+    const h = obstSeg(O, p, q);
+    if (h && (best == null || h.t * MOUNT_REACH < best)) best = h.t * MOUNT_REACH;
+  }
+  return best;
+}
+// THE PROPELLERS' DISCS (the engine layer's edProp groups): each blade set's hub, the radius it sweeps and its plane's
+// thickness, in this layer's frame; the thrust line taken fore-aft (the garage's mounts all point the disc along z)
+let PROP_DISCS = { sig: null, discs: [] };
+function propDiscs(scene, inv) {
+  if (!scene || !inv || !window.THREE) return [];
+  let eng = null;
+  (function find(o, d) { for (const ch of o.children || []) { if (eng) return; if ((ch.name || '') === 'cageLayer:eng') { if (ch.visible !== false) eng = ch; return; } if (d < 3 && !/^cageLayer:/.test(ch.name || '')) find(ch, d + 1); } })(scene, 0);
+  if (!eng) return [];
+  const props = [];
+  eng.traverse(o => { if (/^edProp/.test(o.name || '')) props.push(o); });
+  let sig = String(matSig(inv));
+  for (const o of props) { o.updateMatrixWorld(true); sig += '|' + o.id + ':' + matSig(o.matrixWorld); }
+  if (PROP_DISCS.sig === sig) return PROP_DISCS.discs;
+  const V = new THREE.Vector3(), discs = [];
+  for (const o of props) {
+    const pts = [];
+    o.traverse(m => {
+      if (!m.isMesh || !m.geometry || m.visible === false) return;
+      const pos = m.geometry.getAttribute('position'); if (!pos) return;
+      for (let i = 0; i < pos.count; i++) { V.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).applyMatrix4(inv); pts.push([V.x, V.y, V.z]); }
+    });
+    if (pts.length < 6) continue;
+    let xl = Infinity, xh = -Infinity, yl = Infinity, yh = -Infinity, zl = Infinity, zh = -Infinity;
+    for (const p of pts) { if (p[0] < xl) xl = p[0]; if (p[0] > xh) xh = p[0]; if (p[1] < yl) yl = p[1]; if (p[1] > yh) yh = p[1]; if (p[2] < zl) zl = p[2]; if (p[2] > zh) zh = p[2]; }
+    // the hub: the centre of the blades' box across the disc (two blades or more are symmetric about it)
+    const hx = 0.5 * (xl + xh), hy = 0.5 * (yl + yh);
+    let R = 0;
+    for (const p of pts) R = MathL.max(R, MathL.hypot(p[0] - hx, p[1] - hy));
+    discs.push({ x: hx, y: hy, z: 0.5 * (zl + zh), R, t: MathL.max(0.03, 0.5 * (zh - zl)) });
+  }
+  PROP_DISCS = { sig, discs };
+  return discs;
+}
+function propDiscHit(ctx, inv, r) {
+  const D = propDiscs(ctx.scene, inv);
+  if (!D.length) return null;
+  const cs = MathL.abs(MathL.cos(r.rot)), sn = MathL.abs(MathL.sin(r.rot)), e = r.e, c = r.c;
+  const ex = cs * e[0] + sn * e[2], ez = sn * e[0] + cs * e[2];
+  for (const d of D) {
+    if (c[2] + ez < d.z - d.t - PROP_CLR || c[2] - ez > d.z + d.t + PROP_CLR) continue;
+    const dx = MathL.max(c[0] - ex - d.x, 0, d.x - (c[0] + ex)), dy = MathL.max(c[1] - e[1] - d.y, 0, d.y - (c[1] + e[1]));
+    if (MathL.hypot(dx, dy) < d.R + PROP_CLR)
+      return 'in the propeller’s disc' + (MathL.abs(d.x) > 0.06 ? (d.x < 0 ? ', left' : ', right') : '') +
+        ' (it sweeps ' + MathL.round(d.R * 1000) + ' mm round its hub; a tank stays a hand clear of it)';
+  }
+  return null;
+}
+// THE OPEN AIR'S SURFACES: the soup every body tank is judged against (the sheet, the engine, the cowl) and the layers
+// a tank outside the skin can meet - the gear, the wing and its struts, the tail, the hinges and the control runs, the
+// bracing. Its own index (S._O), kept beside the body tanks' (whose OBST it leaves alone).
+const MNT_LAYERS = { 'cageLayer:eng': 'engine', 'cageLayer:cowl': 'cowl', 'cageLayer:gear': 'landing gear',
+  'cageLayer:hinge': 'control run', 'cageLayer:stab': 'tailplane', 'cageLayer:fin': 'fin', 'cageLayer:wing': 'wing',
+  'cageLayer:wing2': 'second wing', 'cageLayer:boom': 'boom', 'cageLayer:brace': 'bracing', 'cageLayer:hangMast': 'mast',
+  'cageLayer:hubSocket': 'hub', 'cageLayer:cabPylon': 'pylon', 'cageLayer:pod': 'belly pod', 'cageLayer:float': 'float',
+  'cageLayer:light': 'light', 'cageLayer:rad': 'radiator' };
+let SURF_MNT = null;
+function surfMnt(ctx, scene, inv) {
+  const M = ctx && ctx.mesh;
+  const objs = [];
+  let nL = 0, sig = inv ? String(matSig(inv)) : 'x';
+  if (scene && inv && window.THREE) {
+    for (const ch of scene.children) {
+      const word = MNT_LAYERS[ch.name || ''];
+      if (!word || ch.visible === false) continue;
+      ch.traverse(o => {
+        if (!o.isMesh || !o.geometry || o.visible === false) return;
+        const pos = o.geometry.getAttribute('position'); if (!pos) return;
+        const idx = o.geometry.index, nT = MathL.floor((idx ? idx.count : pos.count) / 3);
+        objs.push([o, word]); nL += nT;
+        sig += '|' + o.id + ':' + pos.count + ':' + matSig(o.matrixWorld);
+      });
+    }
+  }
+  if (SURF_MNT && SURF_MNT.mesh === M && SURF_MNT.sig === sig) return SURF_MNT;
+  const sh = (M && M.F && M.V) ? sheetSoup(M, fsOf(ctx)) : null;
+  const nS = sh ? sh.n : 0;
+  const buf = new Float64Array((nS + nL) * 15), tag = new Uint16Array(nS + nL);
+  if (sh) { buf.set(sh.buf.subarray(0, nS * 15)); if (sh.tag) tag.set(sh.tag.subarray(0, nS)); }
+  let n = nS;
+  for (const [o, word] of objs) {
+    const pos = o.geometry.getAttribute('position'), idx = o.geometry.index;
+    const nT = MathL.floor((idx ? idx.count : pos.count) / 3), I = idx ? idx.array : null, tg = tagOf(word);
+    const Mx = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld).elements, Q = new Float64Array(9);
+    for (let t = 0; t < nT; t++) {
+      tag[n] = tg;
+      for (let k = 0; k < 3; k++) {
+        const vi = I ? I[t * 3 + k] : t * 3 + k;
+        const x = pos.getX(vi), y = pos.getY(vi), z = pos.getZ(vi);
+        const w = 1 / (Mx[3] * x + Mx[7] * y + Mx[11] * z + Mx[15]);
+        Q[k * 3] = (Mx[0] * x + Mx[4] * y + Mx[8] * z + Mx[12]) * w;
+        Q[k * 3 + 1] = (Mx[1] * x + Mx[5] * y + Mx[9] * z + Mx[13]) * w;
+        Q[k * 3 + 2] = (Mx[2] * x + Mx[6] * y + Mx[10] * z + Mx[14]) * w;
+      }
+      soupAdd(buf, n++, Q[0], Q[1], Q[2], Q[3], Q[4], Q[5], Q[6], Q[7], Q[8]);
+    }
+  }
+  const S = { mesh: M, inv, sig, buf, n, tag, nSheet: nS, own: true };
+  const keep = OBST; OBST = null;
+  try { S._O = obstIndex(S); } finally { OBST = keep; }
+  SURF_MNT = S;
+  return S;
+}
+// THE CRADLE AND THE CLAMPS, drawn with the tank (steel, the tank's hardware; red with it when it does not fit):
+// behind the pod a tray under the jug reaching the face and two pads bridging the gap; on a rod two clamps round the
+// tube and a hanger from each down to the tank's straps
+function mountHardware(group, r, i, bad) {
+  if (!r || !r.c || !window.THREE) return;
+  const T3 = window.THREE, mat = slotMat('hard', false, i, r.v);
+  const cs = MathL.cos(r.rot), sn = MathL.sin(r.rot), c = r.c, e = r.e;
+  // a local point of the tank's frame (x across, y up, z forward) to the layer's
+  const P = (lx, ly, lz) => [c[0] + cs * lx + sn * lz, c[1] + ly, c[2] - sn * lx + cs * lz];
+  const add = (geo, p, rx, nm) => {
+    const m = new T3.Mesh(geo, mat);
+    m.position.set(p[0], p[1], p[2]); m.rotation.y = r.rot; if (rx) m.rotation.x = rx;
+    m.name = 'edVessel_' + i + '_' + nm;
+    if (bad) m.userData.edUnfit = 1;
+    group.add(m);
+    return m;
+  };
+  if (r.mode === 'face') {
+    const g = r.faceGap != null ? MathL.max(0.004, r.faceGap) : 0;
+    const t = 0.005, Lt = 2 * e[2] + g;
+    add(new T3.BoxGeometry(1.8 * e[0], t, Lt), P(0, -e[1] - t / 2 - 0.001, g / 2), 0, 'cradle');
+    if (g > 0) for (const sx of [-1, 1]) add(new T3.BoxGeometry(0.03, 0.03, g), P(sx * 0.55 * e[0], 0.45 * e[1], e[2] + g / 2), 0, 'pad' + (sx < 0 ? 'L' : 'R'));
+  } else if (r.mode === 'rod' && r.bay && r.bay.rod) {
+    for (const s of [-1, 1]) {
+      const a = r.along + s * 0.3 * 2 * e[2], rs = r.bay.rod.at(a);
+      if (!rs) continue;
+      const zc = c[2] - s * 0.3 * 2 * e[2];
+      const ring = new T3.Mesh(new T3.TorusGeometry(rs.r + 0.004, 0.005, 6, 20), mat);
+      ring.position.set(rs.x, rs.y, zc); ring.name = 'edVessel_' + i + '_clamp' + (s < 0 ? 'F' : 'A');
+      if (bad) ring.userData.edUnfit = 1;
+      group.add(ring);
+      const h = MathL.max(0.004, rs.yBot - (c[1] + e[1]));
+      const hg = new T3.Mesh(new T3.BoxGeometry(0.008, h, 0.025), mat);
+      hg.position.set(rs.x, c[1] + e[1] + h / 2, zc); hg.name = 'edVessel_' + i + '_hanger' + (s < 0 ? 'F' : 'A');
+      if (bad) hg.userData.edUnfit = 1;
+      group.add(hg);
+    }
+  }
+}
 function placeAll(ctx, inv) {
   const C = core(), G = VG();
   const results = [];
@@ -602,6 +1032,17 @@ function placeAll(ctx, inv) {
               'its struts back, or move the tank to another bay)'] });
       continue;
     }
+    // TANK-BAYS: a tank in a mounted bay this aeroplane does not offer (the pod lost its rod, a pusher took the face)
+    // keeps its bay and its station - weighed there, as a body tank past the body is - drawn nowhere, red with the reason
+    { const MB = (C.BAYS || {})[v.bay];
+      if (MB && MB.mount && !BAYS.find(b => b.key === v.bay) && !legacyFit()) {
+        const res0 = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
+        results.push({ on: 'body', ok: false, gone: true, v, res: res0, needL: res0.installedL, roomL: 0, crewHits: 0,
+          bay: { key: v.bay, name: MB.name, on: 'body', mount: MB.mount, x0: 0, x1: 0 },
+          why: [(MOUNT_GONE[v.bay] || 'this aeroplane does not offer that place') +
+                ' - the tank is kept and weighed at its station but not drawn: move it to another bay'] });
+        continue;
+      } }
     const bay = BAYS.find(b => b.key === v.bay) || BAYS.find(b => b.on === 'body');
     if (!bay) continue;
     const prov = crewPending && bay.on === 'body' && (!v.dims || v.along == null || v.lv == null)
@@ -711,6 +1152,18 @@ function placeAll(ctx, inv) {
       pl = (sl && sm > 0)
         ? G.wingPlace(sm, bay, v, res.installedL, slPr, C.RULES || {}, bay.litres, prof)
         : { on: 'wing', ok: false, why: ['no wing to put it in'], sides: [] };
+    } else if (bay.mode) {
+      // TANK-BAYS: a mounted bay's tank, placed off what is drawn there (mountPlace); with no station of its own it
+      // takes the first place that clears (mountSearch), and that station is written into the vessel
+      if (!bay.swept) mountSweep(ctx, bay, zFw);
+      if (bay.mode === 'rod' && (v.along == null || v.lv == null) && !v.dims && v.form !== 'cyl') { v.form = 'cyl'; wroteBack = true; }
+      dims = mountDims(bay, v, res);
+      if (v.along == null || v.lv == null) {
+        const s = mountSearch(ctx, inv, bay, v, dims, zFw);
+        v.along = s.along; v.lv = s.lv; v.rot = 0;
+        wroteBack = true;
+      }
+      pl = mountPlace(ctx, bay, v, dims, zFw);
     } else {
       const cache = cacheOf(bay);
       // A STATION OUTSIDE ITS BAY IS NO STATION. A remembered `along` from
@@ -1591,7 +2044,8 @@ function judgeTank(ctx, scene, inv, r) {
   //  and built a whole drawn tank for each, 20-60 ms apiece; the drawn tank is judged whole by the layout after)
   const sol0 = r.lightSolid || vesselSolid(r);
   if (!sol0 || !(sol0.shell || sol0.light) || !VM) return;
-  const S = surfAll(ctx, scene, inv), O = obstIndex(S), tag = S.tag;
+  // (TANK-BAYS: a mounted tank out in the open is judged against the open air's surfaces too - surfMnt)
+  const S = r.bay && r.bay.mode ? surfMnt(ctx, scene, inv) : surfAll(ctx, scene, inv), O = S._O || obstIndex(S), tag = S.tag;
   const yaw = r.rot + (sol0.yaw || 0);
   const tj0 = msNow();
   // 1. THE STANDOFF PIECES (the filler neck, the vent, the outlet, the sump...) are drawn only where they clear:
@@ -1881,6 +2335,7 @@ function drawOutlet(group, r, i, tankBad) {
 }
 function judgeAll(scene, inv, results, ctx) {
   for (const r of results) if (r.on === 'body' && r.c) judgeTank(ctx, scene, inv, r);
+  for (const r of results) if (r.on === 'body' && r.c && r.mode) mountExtra(ctx, inv, r);   // TANK-BAYS: the discs, the face
   for (const r of results) if (r.on === 'body' && r.c && isWater(r.v)) outletJudge(ctx, scene, inv, r);   // WATER TANKS: the outlet's run
   // RETRACT G3 (RETRACT-STUDY §8.3): THE GEAR'S WELLS ARE STRUCTURE - a tank that meets the volume a retracting gear's
   // stowed unit reserves is red, as one through the skin is (the gear layer ran before this one: its wells are this
@@ -2205,6 +2660,11 @@ const FINISH = {
   airframe: { name: 'painted like the airframe', set: null, col: 0xe9e9e4, skin: 'alclad' },
   // WATER TANKS (the user: "blue plastic, so we can tell them apart with the eventual fuel tanks")
   bluePoly: { name: 'blue polyethylene', set: 'plastic', col: 0x2f6fd0 },
+  // TANK-BAYS (the user 24 Nov: "the plastic one is really dirty, with a grunge texture that can't be taken off. I'd need
+  // a clean plastic one"): a CLEAN moulded jug - natural HDPE, milky and a little yellow, translucent so the fuel level
+  // shows through it as on a real jerrican; no scanned set under it (no grunge), the tint row its colour. `clean`: its own
+  // material (cleanShellMat), the fuel's own program variant (a plain standard material, transparent, no maps)
+  cleanPoly: { name: 'clean plastic (translucent)', set: 'cleanPoly', col: 0xf2e8c4, clean: true },
 };
 // what a catalogue vessel is made of when the player has not said. A rubber
 // bladder is rubber, a moulded tank is polythene, a welded one is bare alloy,
@@ -2311,6 +2771,7 @@ const HUE_FN = [
 //           the editor, because a drag must not have to recompile
 function vesselMat(o) {
   const O = o || {};
+  if (O.set === 'cleanPoly') return cleanShellMat(O);          // TANK-BAYS: the clean jug
   const F = { set: (VTEX() && VTEX()[O.set]) ? O.set : (O.set || 'alu'),
               col: O.col == null ? 0xffffff : O.col };
   const bad = !!O.bad;
@@ -2350,6 +2811,24 @@ function vesselMat(o) {
   m.userData.vesSet = F.set;
   if (O.hueOn) m.userData.vesHueOn = 1;
   // every material this factory has made follows the room, the game's included
+  m.userData.env0 = 1;
+  m.envMapIntensity = VES_ENV_F;
+  vesAll.push(m);
+  return m;
+}
+// THE CLEAN JUG'S SHELL (TANK-BAYS): no scanned maps at all - a smooth, slightly glossy, translucent polyethylene, its
+// colour the tint (natural HDPE by default). The same contract as every vessel material (vesSet carries it to the flown
+// aeroplane, the room's mood scales its environment, red when it does not fit) and the same program as the fuel inside
+// it (MeshStandardMaterial, transparent, no map, front side, no hook): it adds a material, not a shader.
+function cleanShellMat(O) {
+  const bad = !!O.bad;
+  const m = new THREE.MeshStandardMaterial({ userData: { progOwner: 'aircraft / fuel tanks and batteries / clean plastic jug' },
+    color: new THREE.Color(O.tint == null ? FINISH.cleanPoly.col : O.tint), roughness: 0.38, metalness: 0.0,
+    transparent: true, opacity: 0.72, depthWrite: false,
+    emissive: new THREE.Color(bad ? 0xff2a1a : 0x000000), emissiveIntensity: bad ? 0.45 : 0 });
+  m.userData.hue = 0;
+  m.userData.aeroskin = 1;
+  m.userData.vesSet = 'cleanPoly';
   m.userData.env0 = 1;
   m.envMapIntensity = VES_ENV_F;
   vesAll.push(m);
@@ -2821,6 +3300,7 @@ function drawResults(group, ctx, results) {
                            'edVessel_' + i + '_' + slot, r.c, yaw, true);
         if (m && bad) m.userData.edUnfit = 1;
       }
+      if (r.mode && !legacyFit()) mountHardware(group, r, i, bad);     // TANK-BAYS: the cradle, the clamps
       // THE FUEL INSIDE, at the slider's fill. It is the shell's own section
       // inset by the wall and cut flat at the level — so in a round tank the
       // fuel has a round bottom and a flat top, and the level itself is placed
@@ -3080,6 +3560,7 @@ function dragLayout(now, vi) {
 function lvKeepingHeight(i, along) {
   const v = EN.vessels[i], r = LAST.results[i], ctx = LAST.ctx, G = VG();
   if (!v || !r || !r.c || r.on !== 'body' || !ctx || !G || !G.bayExtAt) return v ? v.lv : null;
+  if (r.mode) return v.lv;            // (TANK-BAYS: a mounted tank's level is its own band's, read by mountPlace)
   const bay = r.bay, c = bay && bay._ck ? BAY_CACHES[bay._ck] : null;
   const zFw = G.firewallZ ? G.firewallZ(ctx.spec, CG2()) : null;
   if (!c || zFw == null) return v.lv;
@@ -3132,7 +3613,8 @@ PAGE.post = ctx => {
   // bay: drawn nowhere, red in the panel with the reason, carrying nothing (the core: `unmounted`), and back on its
   // struts the moment the aeroplane has them.
   for (const v of EN.vessels)
-    if (!BAYS.find(b => b.key === v.bay) && !(v.bay === 'strut' && !legacyFit())) v.bay = (BAYS[0] || {}).key || 'nose';
+    if (!BAYS.find(b => b.key === v.bay) && !(v.bay === 'strut' && !legacyFit()) &&
+        !(!legacyFit() && core().BAYS && core().BAYS[v.bay] && core().BAYS[v.bay].mount)) v.bay = (BAYS[0] || {}).key || 'nose';
   if (HAS_DOM) { mountPanel(); renderPanel(); }
   relayout();
 };
@@ -3236,6 +3718,12 @@ function watchReadouts(elm) {
 let balEl = null, fillEl = null, barEl = null, tableEl = null, chartEl = null;
 let LAST_CHART = null;
 let LAST_SHAKE = null;
+// CHART-ON-DEMAND (the user 24 Nov: "The graph with the CG as a function of fuel should only be generated on demand"):
+// the chart's sweep (BALANCE.compute: the CG re-weighed at every fuel step) runs only while its row is OPEN, and its
+// answer is kept for the aeroplane and the loading it was drawn for (CHART_KEY): reopening an unchanged build draws the
+// kept chart, a build or a loading row while it is closed computes nothing
+let CHART_OPEN = false, CHART_KEY = null, READ_KEY = null;
+const chartKeyOf = job => job ? JSON.stringify([job.spec, job.occupants, job.baggage, job.fill]) : null;
 
 // THE READOUTS RUN OFF THE MAIN THREAD (2026-09-04). Fourteen aero solves —
 // the full shakedown with its reserve sheet and four corners inside it, the
@@ -3256,7 +3744,11 @@ let readWorker = null, readWorkerDead = false, readSeq = 0;
 function readoutJob() {
   const G = window.GARAGE_SPEC;
   if (!G || !G.get) return null;
-  return { spec: G.get(), occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill };
+  const job = { spec: G.get(), occupants: VIEW.occupants, baggage: VIEW.baggage, fill: VIEW.fill };
+  // CHART-ON-DEMAND: the sweep only for an open chart whose kept answer is not this aeroplane's
+  READ_KEY = chartKeyOf(job);
+  job.chart = CHART_OPEN && READ_KEY !== CHART_KEY;
+  return job;
 }
 // the job, computed with whatever core is in scope: the worker's or the
 // page's. Self-contained on purpose — it is stringified into the worker.
@@ -3269,7 +3761,7 @@ function readoutCompute(job, core, BAL) {
     const L = S0.fuel.litres * MathL.min(1, MathL.max(0, job.fill == null ? 1 : job.fill));
     out.litres = L;
     out.fillSh = core.genShakedown(core.buildGen(core.genSpecAtFuel(S0, L)), { slim: true });
-    if (BAL) out.chart = BAL.compute(S0, core,
+    if (BAL && job.chart) out.chart = BAL.compute(S0, core,
       { occupants: job.occupants, baggage: job.baggage, fill: job.fill, envelope: shake.envelope });
   }
   return out;
@@ -3466,8 +3958,9 @@ function applyReadouts(r) {
     } else fillEl.textContent = '';
   }
   drawBar(E, sh ? sh.cgX : null);
-  if (r.chart && chartEl && window.BALANCE) {
-    try { window.BALANCE.draw(chartEl, r.chart, chartStyle()); LAST_CHART = r.chart; }
+  if (r.chart) { LAST_CHART = r.chart; CHART_KEY = READ_KEY; }
+  if (CHART_OPEN && LAST_CHART && CHART_KEY === READ_KEY && chartEl && window.BALANCE) {
+    try { window.BALANCE.draw(chartEl, LAST_CHART, chartStyle()); }
     catch (e) { console.error('balance chart:', e); }
   }
 }
@@ -3662,6 +4155,10 @@ function bayOptions() {
   // them where there are none sees its bay named, and not offered to anything else
   if (!BAYS.find(b => b.key === 'strut') && EN.vessels.some(v => v.bay === 'strut'))
     out.push(['strut', 'On the lift struts · this wing has none', true]);
+  // TANK-BAYS: ...and a mounted bay a tank is in, which this aeroplane no longer offers
+  const CB = core().BAYS || {};
+  for (const k of new Set(EN.vessels.map(v => v.bay)))
+    if (CB[k] && CB[k].mount && !BAYS.find(b => b.key === k)) out.push([k, CB[k].name + ' · ' + (MOUNT_GONE[k] || 'not offered here'), true]);
   return out;
 }
 
@@ -3830,6 +4327,8 @@ function renderPanel() {
         v.bay = nb; v.along = null; v.lv = null; v.rot = 0;
         // TANK-FIT Part 2: a tank moved to the nose is fitted to it (the shape row can make it free again)
         if (nb === 'nose' && NOSE_AUTO_ON && !legacyFit()) { v.fit = 'auto'; v.dims = null; v.form = 'box'; } else delete v.fit;
+        // TANK-BAYS: a mounted bay gives the tank its own shape (the jug, the rod's cylinder) and the first place that clears
+        { const MB = (core().BAYS || {})[nb]; if (MB && MB.mount) { v.dims = null; v.form = MB.mount === 'boom' ? 'cyl' : 'box'; } }
         selected = i; renderPanel(); relayout(); commit();
       });
 
@@ -3954,7 +4453,11 @@ function renderPanel() {
         x => { foreAft(x); dragLayout(false, i); },
         x => { foreAft(x); relayout(); if (v.lv != null) syncRow(i, 'up / down', v.lv, fmtF); commitSoon(); });
       const lvB = bay.lv || [0, 1];
-      range(box, 'up / down', 'keel to crown, within the bay’s own band', lvB[0],
+      // (TANK-BAYS: a tank slung under the rod hangs at the clamps' drop - no level of its own; behind the pod and in
+      // the fairings the level runs from the pod's keel line to the rod's underside)
+      if (bay.mode !== 'rod')
+      range(box, 'up / down', bay.mode ? 'from its bottom on the keel line (0) to its top under the rod or the pod’s roof (1)'
+        : 'keel to crown, within the bay’s own band', lvB[0],
         lvB[1], 0.01, v.lv != null ? v.lv : 0.5 * (lvB[0] + lvB[1]), fmtF,
         x => { unAuto(); v.lv = x; dragLayout(false, i); }, x => { unAuto(); v.lv = x; relayout(); commitSoon(); });
       range(box, 'turn (yaw)', 'about the vertical: a long tank across a wide bay, ' +
@@ -4050,17 +4553,33 @@ function renderPanel() {
   // the core's shakedown over genSpecAtFuel — the same door as the reserve
   // sheet, the corners and the slider above.
   if (inGame() && window.BALANCE) {
+    // CHART-ON-DEMAND: the chart and its two loading rows fold away, and nothing is swept until the fold is opened
+    const chDet = document.createElement('details');
+    chDet.className = 'cgChartFold';
+    chDet.open = CHART_OPEN;
+    const chSum = document.createElement('summary');
+    chSum.textContent = 'CG against fuel (chart) · drawn when opened';
+    chSum.title = 'the CG walking as the fuel burns, at a loading you choose - computed only when this is open, and kept until the aeroplane changes';
+    chDet.appendChild(chSum);
+    B.appendChild(chDet);
+    chDet.addEventListener('toggle', () => {
+      CHART_OPEN = chDet.open;
+      if (!CHART_OPEN) return;
+      const job = readoutJob();
+      if (job && CHART_KEY === READ_KEY && LAST_CHART && chartEl) { try { window.BALANCE.draw(chartEl, LAST_CHART, chartStyle()); } catch (e) {} }
+      else readoutsRequest();
+    });
     const S0 = (() => { try { return window.GARAGE_SPEC.resolved(); } catch (e) { return null; } })();
     const seats = MathL.max(1, (S0 && S0.seats) | 0);
     if (VIEW.occupants == null) VIEW.occupants = MathL.max(1, MathL.min(seats, (S0 && S0.occupants) || 1));
     if (VIEW.baggage == null) VIEW.baggage = (S0 && S0.cabin && S0.cabin.baggage) || 0;
     const fmtN = x => x.toFixed(0);
     const fmtKg = x => x.toFixed(0) + ' kg';
-    range(B, 'occupants', 'how many people the chart is drawn for (the pilot ' +
+    range(chDet, 'occupants', 'how many people the chart is drawn for (the pilot ' +
       'and the seats behind, front to back)', 1, seats, 1, VIEW.occupants, fmtN,
-      x => { VIEW.occupants = x; }, x => { VIEW.occupants = x; chartReadout(); });
-    range(B, 'baggage', 'kilograms in the baggage bay for the chart', 0, 60, 1,
-      VIEW.baggage, fmtKg, x => { VIEW.baggage = x; }, x => { VIEW.baggage = x; chartReadout(); });
+      x => { VIEW.occupants = x; }, x => { VIEW.occupants = x; if (CHART_OPEN) chartReadout(); });
+    range(chDet, 'baggage', 'kilograms in the baggage bay for the chart', 0, 60, 1,
+      VIEW.baggage, fmtKg, x => { VIEW.baggage = x; }, x => { VIEW.baggage = x; if (CHART_OPEN) chartReadout(); });
     chartEl = document.createElement('canvas');
     chartEl.className = 'cgChart';
     chartEl.title = 'weight and balance: CG across (% of the mean chord), mass up. ' +
@@ -4069,7 +4588,7 @@ function renderPanel() {
       'the circles are the four loading corners; NEUTRAL is where the static ' +
       'margin reaches zero and CAUTION 5% of the chord ahead of it. No forward ' +
       'limit is drawn: the model has no elevator-authority rule to place one.';
-    B.appendChild(chartEl);
+    chDet.appendChild(chartEl);
   }
   tableEl = el('div', 'r note');
   B.appendChild(tableEl);
@@ -4132,6 +4651,9 @@ function syncReadouts() {
     bits.push(r.res.vesselKg.toFixed(1) + ' kg ' + (EN.kind === 'battery' ? 'case + cells' : 'tank') +
       (EN.kind === 'battery' ? '' : ' + ' + r.res.contentsKg.toFixed(1) + ' kg fuel'));
     if (r.on === 'body' && !r.crewHits) bits.push('clears the crew');
+    // TANK-BAYS: how a mounted tank is held
+    if (r.mode === 'face' && r.faceGap != null) bits.push('strapped to the pod’s aft face on its cradle (' + MathL.round(r.faceGap * 1000) + ' mm to the face)');
+    if (r.mode === 'rod' && r.rodAt) bits.push('slung under the rod on two clamps');
     if (r.v.shaped === 'auto' && r.v.fit === 'auto') bits.push('fitted to the nose (' + ((r.v.gap != null ? r.v.gap : NOSE_GAP) * 100).toFixed(0) + ' cm under the deck)');
     else if (r.v.shaped) bits.push('shaped to the bay' +
       (r.v.shaped === 'crew' ? ', height capped above the crew'
@@ -4156,6 +4678,9 @@ window.CAGE_ENERGY = {
   // look rows (_cage_parts.js `panel` / `panelFinish`)
   panelFinish: lookElement,
   results: () => LAST.results, bays: () => BAYS, last: () => LAST,
+  mountGone: () => Object.assign({}, MOUNT_GONE),            // TANK-BAYS: why a mounted bay is not offered here
+  propDiscs: () => (LAST.ctx && LAST.inv ? propDiscs(LAST.ctx.scene, LAST.inv) : []),   // TANK-BAYS: the propellers' discs the open air clears
+  discHit: r => (LAST.ctx && LAST.inv ? propDiscHit(LAST.ctx, LAST.inv, r) : null),     // ...and a box asked against them
   // TANK-FIT: the drag's one-frame layout (dragLayout(true) runs it now), the fore/aft hand's level, the knobs
   dragLayout: (now, i) => dragLayout(now, i == null ? DRAG.i : i), lvKeepingHeight,
   clearance: { CLEAR_GAP, CREW_GAP, SAMPLE_STEP, NEAR_R },

@@ -1,0 +1,10 @@
+# MONDAY 23 Nov 07:00, PART 1: ?latelinks=bg WITH AN EARLY GO, WATCHED TO THE FLIGHT (PERF-LEAD)
+# The evening's three early-Go rows (6, 8, 12 s after the reveal) never showed the flight inside the rig's 8.5 s watch:
+# the reveal waits for every program still linking (app.js programsReady), the background twins included. These rows
+# watch up to 60 s after the roll-out's screen lifts (--rollout-watch 60) and 120 s in all: "flying after N ms" is the
+# number an early Go costs with the switch; "never" at 60 s is a hang and the switch is not landed.
+# Run with LM_AFTER=6 (the first two), then LM_AFTER=12 (its own file), then the base at 6.
+# TAG ; BUILT DIR ; QUERY ; PROFILE ; MODE ; EXTRA
+GO6_BG_1   ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+GO6_BASE_1 ; D:/Dev/perf-lab-built ; -            ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js
+GO6_BG_2   ; D:/Dev/perf-lab-built ; latelinks=bg ; new ; H5K ; --rollout --rollout-watch 60 --rollout-secs 120 --init-file tools/perf/init_longtasks.js

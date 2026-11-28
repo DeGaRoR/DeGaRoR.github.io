@@ -1,0 +1,91 @@
+{
+ "id": "obs.06",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "PC-6 Turbo Porter",
+ "timeS": 0,
+ "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 150 kg / 0 pax",
+ "tried": [
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible",
+  "PC-6 Turbo Porter:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mt_strip",
+   "t": 0,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "declined"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 150 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 673,
+     "how": "stopped",
+     "kg": 50,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+4.7 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 21.2 m/s at this power — flying the approach faster",
+      "strip-short: Ardent Altiport: the elevator holds 23.4 m/s, the short-field stop from it needs 157 m, 130 m are left past the aim and the flo"
+     ],
+     "landing": {
+      "run": 77,
+      "sink": 2.01,
+      "V": 25.1,
+      "offCentre": 11.9,
+      "pastAim": 1,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 11,
+      "stopLeft": 122
+     },
+     "stop": "aboard 50 kg / 0 pax, the job is 150 kg / 0 pax"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 Turbo Porter",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 0 kg / 0 pax, the job is 150 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 0,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "strip-too-short: Ardent Altiport has 210 m of strip for a 226 m landing run - not going there"
+     ],
+     "stop": "aboard 0 kg / 0 pax, the job is 150 kg / 0 pax"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) flown with 1 aboard (the garage's seat door)"
+ ],
+ "untested": false,
+ "key": "8a3833559405",
+ "where": "observatory:4",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 549
+}

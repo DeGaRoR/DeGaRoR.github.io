@@ -1,0 +1,84 @@
+{
+ "id": "home.10",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "PC-6 on Wiplines",
+ "timeS": 1092,
+ "why": "crashed: the damage ended the flight: a fus member broke",
+ "tried": [
+  "Cessna 172 floats (career):infeasible",
+  "PC-6 on Wiplines:infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "SEA",
+   "t": 1092,
+   "how": "crashed",
+   "at": null,
+   "stop": [],
+   "kg": 0,
+   "pax": 0,
+   "faults": [
+    "crash",
+    "yield",
+    "break"
+   ],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Cessna 172 floats (career)",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: an impact of 12 g",
+   "legs": [
+    {
+     "from": "SEA",
+     "to": "cb_sea",
+     "t": 552,
+     "how": "crashed",
+     "kg": 98,
+     "pax": 0,
+     "said": [
+      "slip: high on the final (79 m over the slope at idle) — slipping it down",
+      "flare-guard: not flaring 212 m over the aim of Cabin Lake (25 m at most) - the final flies on",
+      "wings-level: the rudder eased off: the aileron on its stop against 19 deg of bank (38 deg of sideslip)"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  },
+  {
+   "plane": "PC-6 on Wiplines",
+   "verdict": "infeasible",
+   "why": "crashed: the damage ended the flight: a fus member broke",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "SEA",
+     "t": 1092,
+     "how": "crashed",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "gave-up: still in TAXI at t=708 s — out of patience, not out of sky",
+      "lineup-timeout: could not line up in 120 s — stopping to replan",
+      "replan: not lined up with a run ahead (2039 m, 307.9 m off) — planning the departure again"
+     ],
+     "stop": "the aeroplane is wrecked: nothing is delivered"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: Cessna 172 floats (career) flown with 1 aboard (the garage's seat door)",
+  "a float build: the page places it on the water lane SEA (sim_host place / app.js applyRoute), the game's own spawn for floats"
+ ],
+ "untested": false,
+ "key": "f813aa626627",
+ "where": "home:5",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 2732
+}

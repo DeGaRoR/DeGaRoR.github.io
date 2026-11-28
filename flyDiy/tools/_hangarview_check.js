@@ -105,7 +105,9 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
     '3o no control byte in the view\'s sources, and ?hvc=door\'s test is a word boundary (HVC-DOOR: a backspace byte never matched)', bad.join('; '));
   // HANGAR-VIEW C (the 9 Nov sheet: a red-brown band past the Shed's door): the plot's pad hangs under room:polish, which the view
   // keeps, and reached 14 m out of the door over the world's grass. It goes with the outdoors
-  ok(/if \(pm\) \{ outdoor\(pm\.material\); inner\.add\(pm\); ROOM_PAD = pm; \}/.test(han) && /if \(ROOM_PAD\) ROOM_PAD\.visible = !viewOut;/.test(han),
+  // (GARAGE-VIEW, 22 Nov: the same line also keeps the pad down while a COOKED scene stands - `&& !GVIEW` - which draws the
+  // world's real pad there; the rule held here is unchanged: with the world's view up, the pad is not drawn)
+  ok(/if \(pm\) \{ outdoor\(pm\.material\); inner\.add\(pm\); ROOM_PAD = pm; \}/.test(han) && /if \(ROOM_PAD\) ROOM_PAD\.visible = !viewOut(?: && !GVIEW)?;/.test(han),
     '3p the plot\'s ground pad goes with the room\'s outdoors while the world\'s view stands in (the Shed\'s brown band past the door)');
   // the world's sky dome rides the world camera, which is in the world scene: a live-sky capture drew it opaque over every sky
   // pixel, so the shells never discarded there and hid the room's clouds (the 9 Nov 08:32 probe: clouds with the shells off only)

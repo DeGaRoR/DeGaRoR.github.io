@@ -7479,52 +7479,76 @@ function cageInterior(m, S) {
       }
       // ---- optional flat cover panels on the truss ----
       if (S.taper.panels) {
-        const TR = 0.015;                  // sit on the tube surfaces
-        const panel = pts => {
-          const cen = [0, 0, 0];
-          for (const p of pts) for (let i = 0; i < 3; i++)
-            cen[i] += p[i] / pts.length;
-          // sheet normal from the diagonals, oriented away from the
-          // rod axis so the panel lies OUTSIDE the tubes
-          const d1 = [pts[2][0] - pts[0][0], pts[2][1] - pts[0][1],
-                      pts[2][2] - pts[0][2]];
-          const d2 = [pts[3][0] - pts[1][0], pts[3][1] - pts[1][1],
-                      pts[3][2] - pts[1][2]];
-          let n2 = [d1[1] * d2[2] - d1[2] * d2[1],
-                    d1[2] * d2[0] - d1[0] * d2[2],
-                    d1[0] * d2[1] - d1[1] * d2[0]];
-          const nl = Math.hypot(n2[0], n2[1], n2[2]) || 1;
-          n2 = [n2[0] / nl, n2[1] / nl, n2[2] / nl];
-          const away = [cen[0], cen[1] - yAxR(cen[2]), 0];
-          if (n2[0] * away[0] + n2[1] * away[1] < 0)
-            n2 = [-n2[0], -n2[1], -n2[2]];
-          const th = 0.004;
-          const at = (p, s) => {
-            const p2 = [p[0] + (cen[0] - p[0]) * 0.06,
-                        p[1] + (cen[1] - p[1]) * 0.06,
-                        p[2] + (cen[2] - p[2]) * 0.06];
-            return [p2[0] + n2[0] * (TR + s), p2[1] + n2[1] * (TR + s),
-                    p2[2] + n2[2] * (TR + s)];
-          };
-          // 'taperPanel' — PART OF THE FUSELAGE (user ruling): fades
-          // with the fuselage alpha, culls with the skin, and the
-          // fin's deck sweep may root a dorsal on it
-          const fa = pts.map(p => at(p, th));
-          const fbk = pts.map(p => at(p, 0));
-          q4(fa[0], fa[1], fa[2], fa[3], 'taperPanel');
-          q4(fbk[3], fbk[2], fbk[1], fbk[0], 'taperPanel');
-          for (let k = 0; k < 4; k++) {
-            const j = (k + 1) % 4;
-            q4(fa[k], fbk[k], fbk[j], fa[j], 'taperPanel');
-          }
-        };
+        // TAPER-SHELL (the user 23 Nov, the Chinook: "we need a single body for the aft part"): THE COVER IS ONE SHELL, not
+        // six boxes. Every corner (the bulkhead's three nodes a side, the roof's middle, the collar's points and the crown)
+        // is ONE vertex shared by every panel that meets it, lifted off its tubes along the AVERAGE of those panels' outward
+        // normals - so the skin is continuous and its shading runs across the joins; the outer skin is wound outward (the
+        // cabin shader darkens a back face whatever the sun), the inner reversed, and walls close only the shell's open
+        // edges (at the bulkhead and at the collar). It sits on its tubes: no pull toward each panel's centre.
+        const TR = 0.015, th = 0.004;      // the tube's radius under it; the sheet's thickness
         const A = NS[1], B = NS['-1'];
-        if (A.t && A.w) panel([A.t, A.w, cp(1.571, 1), cp(0.785, 1)]);
-        if (A.w && A.b) panel([A.w, A.b, cp(2.356, 1), cp(1.571, 1)]);
-        if (B.t && B.w) panel([B.t, B.w, cp(1.571, -1), cp(0.785, -1)]);
-        if (B.w && B.b) panel([B.w, B.b, cp(2.356, -1), cp(1.571, -1)]);
-        if (A.t && B.t) panel([B.t, A.t, cp(0.785, 1), cp(0.785, -1)]);
-        if (A.b && B.b) panel([B.b, A.b, cp(2.356, 1), cp(2.356, -1)]);
+        const quads = [];
+        const crown = cp(0, 1);
+        if (A.t && A.w) quads.push([A.t, A.w, cp(1.571, 1), cp(0.785, 1)]);
+        if (A.w && A.b) quads.push([A.w, A.b, cp(2.356, 1), cp(1.571, 1)]);
+        if (B.t && B.w) quads.push([B.t, B.w, cp(1.571, -1), cp(0.785, -1)]);
+        if (B.w && B.b) quads.push([B.w, B.b, cp(2.356, -1), cp(1.571, -1)]);
+        // the top in two halves meeting at the crown: the top tubes (the ceiling corners and the roof's middle to the
+        // rod's crown) rise above a flat top laid to the collar's 45 deg points (TAPER-PANELS, 21 Nov)
+        if (A.t && B.t) {
+          const topMid = [(A.t[0] + B.t[0]) / 2, (A.t[1] + B.t[1]) / 2 + 0.03, (A.t[2] + B.t[2]) / 2];
+          quads.push([topMid, A.t, cp(0.785, 1), crown]);
+          quads.push([B.t, topMid, crown, cp(0.785, -1)]);
+        }
+        if (A.b && B.b) quads.push([B.b, A.b, cp(2.356, 1), cp(2.356, -1)]);
+        const keyOf = p => p.map(x => Math.round(x * 1e5)).join(',');
+        const norm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+        // each quad wound OUTWARD (away from the rod's axis through its own centre)
+        const faces = quads.map(pts => {
+          const cen = [0, 1, 2].map(k => (pts[0][k] + pts[1][k] + pts[2][k] + pts[3][k]) / 4);
+          const d1 = [0, 1, 2].map(k => pts[2][k] - pts[0][k]), d2 = [0, 1, 2].map(k => pts[3][k] - pts[1][k]);
+          let n2 = norm([d1[1] * d2[2] - d1[2] * d2[1], d1[2] * d2[0] - d1[0] * d2[2], d1[0] * d2[1] - d1[1] * d2[0]]);
+          const away = [cen[0], cen[1] - yAxR(cen[2])];
+          if (n2[0] * away[0] + n2[1] * away[1] < 0) { n2 = n2.map(x => -x); pts = [pts[0], pts[3], pts[2], pts[1]]; }
+          return { pts, keys: pts.map(keyOf), n: n2 };
+        });
+        // the shared corners: one outer and one inner vertex each, along the mean of their panels' normals
+        const corner = new Map();
+        for (const f of faces) f.pts.forEach((p, i) => {
+          const k = f.keys[i];
+          if (!corner.has(k)) corner.set(k, { p, n: [0, 0, 0] });
+          const c = corner.get(k); for (let j = 0; j < 3; j++) c.n[j] += f.n[j];
+        });
+        for (const c of corner.values()) {
+          const n = norm(c.n);
+          c.o = V.push([c.p[0] + n[0] * (TR + th), c.p[1] + n[1] * (TR + th), c.p[2] + n[2] * (TR + th)]) - 1;
+          c.i = V.push([c.p[0] + n[0] * TR, c.p[1] + n[1] * TR, c.p[2] + n[2] * TR]) - 1;
+        }
+        // 'taperPanel' - PART OF THE FUSELAGE (user ruling): fades with the fuselage alpha, culls with the skin, and the
+        // fin's deck sweep may root a dorsal on it
+        const qi = v => add.push({ v, m: 'taperPanel', fit: 1 });
+        const edgeUse = new Map();
+        for (const f of faces) for (let e = 0; e < 4; e++) {
+          const a = f.keys[e], b2 = f.keys[(e + 1) % 4], k = a < b2 ? a + '|' + b2 : b2 + '|' + a;
+          edgeUse.set(k, (edgeUse.get(k) || 0) + 1);
+        }
+        for (const f of faces) {
+          const C = f.keys.map(k => corner.get(k));
+          // TAPER-DIAG (the user 23 Nov, the dark trapezoid low aft): a panel's corners are lifted along the mean normals,
+          // so its quad is not flat (~6 degrees between its halves on the Chinook's lower flank). A quad is drawn as two
+          // triangles fanned from its first corner: the outer [0,1,2,3] split on 0-2, the reversed inner [3,2,1,0] on 3-1
+          // - opposite diagonals, so over half of each warped panel the inner skin stood centimetres OUTSIDE the outer
+          // one and its back face (the cabin darkening) was what the eye met (the page's raycast through the patch: the
+          // back face first, the front 3 mm behind). Both skins now split on the SAME diagonal, as explicit triangles.
+          qi([C[0].o, C[1].o, C[2].o]); qi([C[0].o, C[2].o, C[3].o]);   // the outer skin, outward (split on 0-2)
+          qi([C[2].i, C[1].i, C[0].i]); qi([C[3].i, C[2].i, C[0].i]);   // the inner, reversed (split on 0-2 too)
+          for (let e = 0; e < 4; e++) {                          // walls on the shell's OPEN edges only
+            const a = f.keys[e], b2 = f.keys[(e + 1) % 4], k = a < b2 ? a + '|' + b2 : b2 + '|' + a;
+            if (edgeUse.get(k) !== 1) continue;
+            const ca = corner.get(a), cb = corner.get(b2);
+            qi([ca.o, ca.i, cb.i, cb.o]);
+          }
+        }
       }
     })();
   })();
@@ -9881,6 +9905,7 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 const CAGE_DEFAULT_ABSENT = { rodOn: 1, spinOn: 1,   // (CAR-1: the rod's tube and the spinner's cone, drawn - absent at 1, as every build before them)
   canClear: 0, certCat: 0, dashHood: 0, wgBrake: 0, wgBrakeAt: 0.30, wgBrakeLen: 0.16, wgBrakeH: 0.20, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
+  vtWheels: 0, vtD: 0.20, vtWide: 0, vtFork: 0.03, vtCastor: 0, vtBar: 0, vtBarAt: 0.5,   // (LAZAIR: the V hung down's tip wheels, off; their size, tyre, fork, castoring)
   wgBrake: 0, wgBrakeAt: 0.30, wgBrakeLen: 0.16, wgBrakeH: 0.20,   // (AIRBRAKES: none; a Standard Class's box when on)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
@@ -9899,6 +9924,8 @@ const CAGE_DEFAULT_ABSENT = { rodOn: 1, spinOn: 1,   // (CAR-1: the rod's tube a
   acc_gpsAerial_sL: 0, acc_gpsAerial_lv: 0, acc_eltAerial_sL: 0, acc_eltAerial_lv: 0,
   // C172-CLIP part 2 (9 Nov): the elevators' own end inset (_cage_hinge.js hgOutSt), 0 = the surfaces' hgOut
   hgOutSt: 0,
+  // SEAT-WIDTH / SIT-OFFSET (the user 21 Nov): the seat's width x and the crew's bottom on the seat
+  seatW: 1, pilSitZ: 0, pilSitY: 0, paxSitZ: 0, paxSitY: 0,
   // ENGINE-DIALS (9 Nov): the engine's tune and build (eng_bmepK, eng_massK: 1), the reduction's ratio (1), the maximum
   // rpm (0 = rated) and the constant-speed propeller (0) - applyEngPreset writes every engine row, so without this a
   // save would carry them into every cage
@@ -10539,7 +10566,10 @@ function cageSpec(P) {
     }
   }
   // (G2047: glassfibre, the sixth stop, is built as the composite is - the moulded shell's idiom)
-  const consG = ['carbon', 'tube', 'wood', 'metal', 'metal', 'carbon', 'tube'][   // (index 4 'metal': the clamp's old reading; 6 the soft shell's poles)
+  // LAZAIR-TWIN (24 Nov, the user: "This is tube construction, but still draws the frames as ajoure (lightened) aluminium
+  // frames, rather than tubes"): index 4, 'aluminium tube' (the join's aluTube), is built in the TUBE idiom - section
+  // rings, longerons and bay diagonals of tube - as the steel tube is; it read 'metal' (the clamp's old reading of 4)
+  const consG = ['carbon', 'tube', 'wood', 'metal', 'tube', 'carbon', 'tube'][   // (6 the soft shell's poles)
     Math.max(0, Math.min(6, Math.round(P.intCons || 0)))];
   const skinTv = Math.max(0, P.skinT || 0);
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,

@@ -1602,9 +1602,20 @@ function makeSim(def, world) {
     }
   }
   // the nose ring and the engine's nodes: on the ground, the prop has been through it (a nose-over)
-  const NOSE_G = new Uint8Array(n);
-  if (DMG_ON) for (const i of (def.refs.noseFrame || []).concat(def.refs.engine || [])) if (i >= 0 && i < n) NOSE_G[i] = 1;
-  let noseGnd = false;
+  // LAZAIR-TWIN (24 Nov): ...THE NOSE RING STRIKES THE NOSE'S PROPELLER, AN ENGINE'S NODE ITS OWN. The rule was written for
+  // the nose tractor (every engine struck when the nose ring touched); the user's Lazair (two pushers on the wing, the
+  // pod's keel 3 cm over the grass) read 'the propeller struck' when its pod nose brushed the grass at full power, its
+  // discs 0.7 m up. NOSE_G: bit 0 the nose ring (the engines mounted at the nose, or with no mount: the old reading),
+  // bit k+1 engine k's own nodes (refs.engineOf). A single nose engine reads exactly as before
+  const NOSE_G = new Uint32Array(n), NOSE_ENG = [];
+  if (DMG_ON) {
+    const SE = (def.spec && Array.isArray(def.spec.engines)) ? def.spec.engines : [];
+    for (let k = 0; k < Math.max(SE.length, def.params.nEngines || 1); k++) { const m = SE[k] && SE[k].mount; if (!m || m === 'nose') NOSE_ENG.push(k); }
+    for (const i of (def.refs.noseFrame || [])) if (i >= 0 && i < n) NOSE_G[i] |= 1;
+    const EO = def.refs.engineOf, EN = def.refs.engine || [];
+    for (let j = 0; j < EN.length; j++) { const i = EN[j]; if (i >= 0 && i < n) NOSE_G[i] |= (EO && EO[j] != null && EO[j] < 30) ? (2 << EO[j]) : 1; }
+  }
+  let noseGnd = 0;
   // RETRACT-1 (2026-11-03, futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR - params.retract, a
   // tricycle's only (null on every other build: nothing below runs and the flight is master's to the bit). THE NODE DOES
   // NOT MOVE (the study's option A): the axle stays where the frame built it, and what the gear's position changes is
@@ -1880,7 +1891,10 @@ function makeSim(def, world) {
     const gC = dtFrame > 0 ? Math.hypot(cIx, cIy, cIz) / (totalM * 9.81 * dtFrame) : 0;
     cIx = cIy = cIz = 0;
     gF += (gC - gF) * Math.min(1, dtFrame / 0.05);
-    if (noseGnd) { noseGnd = false; for (let k = 0; k < eng.length; k++) propStrike(k, 'ground', PR.D / 2, 'soft'); }
+    if (noseGnd) {
+      const g = noseGnd; noseGnd = 0;
+      for (let k = 0; k < eng.length; k++) if (((g & 1) && NOSE_ENG.includes(k)) || (g & (2 << k))) propStrike(k, 'ground', PR.D / 2, 'soft');
+    }
     if (gF > DMG.gPeak) DMG.gPeak = gF;
     // a holed hull slice (GEAR-WATER 2's S8.br: the slam past its skin's breach pressure) is skin damage - a dent
     if (typeof WB !== 'undefined' && WB && WB.slices) { let h = 0; for (const S8 of WB.slices) if (S8.br) h++; DMG.holed = h; }
@@ -2112,6 +2126,15 @@ function makeSim(def, world) {
   // it was read (the normal is the ground's at the tyre's patch, not the substep's: 24 substeps a frame read it 24
   // times). The cache is the frame's own (snFrame, bumped by step()), so a frame's forces depend on its start state
   // only - determinism and a reset() need no bookkeeping. Typed arrays: the contact pass allocates nothing.
+  // SLOPE-FIX (24 Nov; GATE SLOPE 1 red since L40H: the free roll on tw_ski's ~9.4 % ran 7.3 % fast, Crr 0.046 down and
+  // 0.057 pushed up - a downhill push of 0.5 % g on top of the grade): THE DIFFERENCE IS TAKEN ALONG THE AEROPLANE, CENTRED.
+  // The forward difference stepped 0.25 m along world +x and +z; on the halved altiport the strip's ruts (1-2 cm, a metre
+  // either side of the centreline) put each main on a rut wall, and an x step and a z step from there read two different
+  // walls - the mains read 7.8 % and 11.7 % downhill where the ground falls 9.4 % (along the track, 0.25 m: 9.41 / 9.35 %;
+  // the CG's own path 9.36 %). Now the two steps are the aeroplane's horizontal forward and its right (xAft's, the rolling
+  // direction the wheel pass below uses), each centred over +-GROUND_SLOPE_D (four terrainH, still once a frame a
+  // contact): the rolling direction reads the grade it rolls on, a rut's cross slope stays across. Flat ground still
+  // differences to exactly zero: the old lines, master's to the bit
   const GROUND_SLOPE_D = 0.25, GROUND_SLOPE_RE2 = (GROUND_SLOPE_D / 2) * (GROUND_SLOPE_D / 2);
   const snCx = new Float64Array(n), snCz = new Float64Array(n), snCn = new Float64Array(n * 3), snCf = new Int32Array(n).fill(-1);
   let snFrame = 0;
@@ -3067,22 +3090,46 @@ function makeSim(def, world) {
     simT = 0;
   }
   function stance() {
-    const M = def.refs && def.refs.mains, tw = def.refs && def.refs.tw;
+    const M = def.refs && def.refs.mains;
+    let tw = def.refs && def.refs.tw;
     if (!M || !M.length || tw == null || tw < 0) return 0;
     let ax = 0, ay = 0;
     for (const i of M) { ax += p[i*3]; ay += p[i*3+1]; }
     ax /= M.length; ay /= M.length;
+    // LAZAIR-TWIN (24 Nov, the user: "The Lazair actually sits on its tail at rest, the front wheel is there for braking"):
+    // a nose wheel ahead of the mains, the CG behind them and the V tips' extra wheels aft (refs.xw): it rests on the
+    // mains and the tips - the pose is pitched onto the TIPS, the nose wheel a bumper over the ground. No refs.xw: as before
+    const XW = def.refs && def.refs.xw;
+    if (XW && XW.length && p[tw*3] < ax && p[XW[0]*3] > ax) {
+      let mx = 0, mt = 0;
+      for (let i = 0; i < n; i++) { const mi = def.nodes[i].m || 0; mx += p[i*3] * mi; mt += mi; }
+      if (mt > 0 && mx / mt > ax) tw = XW[0];
+    }
     const A = p[tw*3] - ax, B = p[tw*3+1] - ay, C = rC[tw] - rC[M[0]];
     const R = hyp2(A, B);
     if (R < 1e-6 || Math.abs(C) > R) return 0;
-    const th = Math.asin(C / R) - Math.atan2(B, A);
+    // TRICYCLE-STANCE (23 Nov, the refit 172's tail post on the ground at every spawn): A sin t + B cos t = C has two
+    // roots, asin(C/R) - phi and pi - asin(C/R) - phi (phi = atan2(B, A)). The first is the small one only when the
+    // third wheel is AFT of the mains (A > 0, a tailwheel); a nosewheel lies forward (-x), phi is near +-pi, the first
+    // root came out ~3 rad, the 34 deg guard refused it, and no tricycle was ever stood on its three wheels - it fell
+    // level onto its nosewheel, rocked back and (the refit 172) struck its tail post. The root nearest zero now.
+    const wrap = t => t - 2 * Math.PI * Math.round(t / (2 * Math.PI));
+    const r1 = wrap(Math.asin(C / R) - Math.atan2(B, A)), r2 = wrap(Math.PI - Math.asin(C / R) - Math.atan2(B, A));
+    const th = Math.abs(r1) <= Math.abs(r2) ? r1 : r2;
     if (!(Math.abs(th) < 0.6)) return 0;          // 34 deg: past that it is not a stance
     const cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
+    // (TRICYCLE-STANCE: reset left the LOWEST contact 1 cm clear (+ its drop) - a nosewheel's, on a nose-low build - and
+    // the turn about the mains lifts it to the mains' line, 16 cm up on the refit 172: the lowest contact goes back to
+    // the height reset gave it. A tailwheel's turn ends with the mains still lowest, where they were: a no-op there.)
+    let min0 = Infinity, min1 = Infinity;
+    for (let i = 0; i < n; i++) min0 = Math.min(min0, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) {
       const dx = p[i*3] - ax, dy = p[i*3+1] - ay;
       p[i*3] = ax + dx * cs - dy * sn;
       p[i*3+1] = ay + dx * sn + dy * cs;
     }
+    for (let i = 0; i < n; i++) min1 = Math.min(min1, p[i*3+1] - rC[i]);
+    if (min1 > min0) for (let i = 0; i < n; i++) p[i*3+1] -= min1 - min0;
     return th;
   }
 
@@ -3636,8 +3683,12 @@ function makeSim(def, world) {
         // laterals add. (2026-09-04 wrote MINUS here against an outward-
         // leaning normal; the same yaw, measured again at G209: d(yawLeft)/
         // d(dr) unchanged on the V-tail archetype.)
+        // LAZAIR (24 Nov): A V HUNG DOWN (sinV < 0: 62_gen_aero's strips off a negative tail.vG) leans its normals
+        // OUTWARD, so the same lift asked of the port panel pushes the tail to PORT: the rudder's share is the other
+        // panel's - the mix's sign is the lean's (the join's drawn ruddervators read it off the hinge axis, G3801).
+        // sinV >= 0 on every V before it: the old line, to the bit
         al = (DWM === 'vortex' ? al : (1 - P_.downwash) * al) + P_.stabTrim - P_.elevTau * ctl.de
-             + P_.rudTau * ctl.dr * PAR.rudderSign * st.side;
+             + P_.rudTau * ctl.dr * PAR.rudderSign * (st.sinV < 0 ? -st.side : st.side);
         P = P_.polarTail;
       } else {
         al += P_.rudTau * ctl.dr * PAR.rudderSign;
@@ -3876,6 +3927,11 @@ function makeSim(def, world) {
   // scar, no scuff). Absent on every aeroplane without them: the array is all zeros, the branch the bytes it was
   const SKD = new Uint8Array(n);
   if (def.refs && Array.isArray(def.refs.skids)) for (const i of def.refs.skids) if (i >= 0 && i < n) SKD[i] = 1;
+  // LAZAIR (61_gen_frame refs.xw): THE V TIPS' EXTRA WHEELS roll as a main does without its brakes (1, fixed: the body's
+  // heading, the tyre's side force) or castor freely (2, refs.xwFree: the rolling drag alone, no side force). Absent on
+  // every aeroplane without them: the array is all zeros, the branch the bytes it was
+  const XWK = new Uint8Array(n);
+  if (def.refs && Array.isArray(def.refs.xw)) for (const i of def.refs.xw) if (i >= 0 && i < n) XWK[i] = def.refs.xwFree ? 2 : 1;
   const TW_ARC = TW_SCOTT.arc;
   // (MONOWHEEL: a NOSE skid flies the skid's law too - twMode 4 on a nose unit; a nose wheel stays the rudder's, 0)
   const TWM = (TW1 >= 0 && (P_.twSteer > 0 || P_.twMode === 4)) ? (P_.twMode || 1) : 0;
@@ -4554,13 +4610,18 @@ function makeSim(def, world) {
       else skiSoft = false;
       const pen = FnT !== null ? 1 : gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
-      if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
+      if (NOSE_G[i]) noseGnd |= NOSE_G[i];           // G1470: the nose on the ground - the prop has struck it (LAZAIR-TWIN: whose)
       // TOW-LAUNCH: the terrain's normal (n = (-gx, 1, -gz)/|.|); exactly flat -> the old lines, bit for bit
       let snx = 0, sny = 1, snz = 0;
       if (gH && FnT === null) {   // (a ski node: its own law, master's - SKIS)
         const cdx = p[i3] - snCx[i], cdz = p[i3+2] - snCz[i];
         if (snCf[i] !== snFrame || cdx * cdx + cdz * cdz > GROUND_SLOPE_RE2) {   // the frame's first contact, or the node ran on
-          const sgx = (gH(p[i3] + GROUND_SLOPE_D, p[i3+2]) - gy) / GROUND_SLOPE_D, sgz = (gH(p[i3], p[i3+2] + GROUND_SLOPE_D) - gy) / GROUND_SLOPE_D;
+          let fx = -xAft[0], fz = -xAft[2]; const fl = Math.hypot(fx, fz);   // SLOPE-FIX: the aeroplane's horizontal forward (a vertical nose: world x)
+          if (fl > 1e-6) { fx /= fl; fz /= fl; } else { fx = 1; fz = 0; }
+          const px = p[i3], pz = p[i3+2], D2 = 2 * GROUND_SLOPE_D;
+          const gF = (gH(px + fx * GROUND_SLOPE_D, pz + fz * GROUND_SLOPE_D) - gH(px - fx * GROUND_SLOPE_D, pz - fz * GROUND_SLOPE_D)) / D2;
+          const gR = (gH(px - fz * GROUND_SLOPE_D, pz + fx * GROUND_SLOPE_D) - gH(px + fz * GROUND_SLOPE_D, pz - fx * GROUND_SLOPE_D)) / D2;   // right = (-fz, fx)
+          const sgx = gF * fx - gR * fz, sgz = gF * fz + gR * fx;
           if (sgx !== 0 || sgz !== 0) { sny = 1 / Math.sqrt(sgx * sgx + sgz * sgz + 1); snx = -sgx * sny; snz = -sgz * sny; }
           snCf[i] = snFrame; snCx[i] = p[i3]; snCz[i] = p[i3+2]; snCn[i3] = snx; snCn[i3+1] = sny; snCn[i3+2] = snz;
         } else { snx = snCn[i3]; sny = snCn[i3+1]; snz = snCn[i3+2]; }
@@ -4581,7 +4642,7 @@ function makeSim(def, world) {
       }
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
-      if ((isMain || (isTW && TWM !== 4)) && (GR === null || (isTW && RET.fixedTw) || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
+      if (XWK[i] !== 0 || ((isMain || (isTW && TWM !== 4)) && (GR === null || (isTW && RET.fixedTw) || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02)))) {   // (LAZAIR: the V tips' extra wheels roll whatever the gear's travel)   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
@@ -4660,7 +4721,7 @@ function makeSim(def, world) {
         // fork's only, TWL.k: flown in series with the tyre (1/C_eff = 1/C_alpha + trail/k), a give of 0.06 rad at full grip
         // tightened the Jodel's taxi turn at 0.2 of rudder from 31.8 to 25.1 m (GATE DMGTYRE: x0.62 of the old law) and the
         // arc's breakout does not need it)
-        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
+        const kL = XWK[i] === 2 ? 0 : Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);   // (LAZAIR: a castoring extra wheel takes no side force)
         if (flat) {
         if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;

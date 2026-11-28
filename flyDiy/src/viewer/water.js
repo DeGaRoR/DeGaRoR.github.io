@@ -208,7 +208,7 @@ const WATER = (() => {
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch; uniform vec4 uWGlint; uniform vec2 uWStrL; uniform vec4 uWStar, uWStar2; uniform float uWMirMax; uniform vec4 uWDirN; uniform vec4 uWLampP[12]; uniform vec4 uWLampC[12]; uniform vec4 uWLampK;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform vec4 uWNight2; uniform float uWStretch; uniform vec4 uWGlint; uniform vec4 uWDisc; uniform vec2 uWStrL; uniform vec4 uWStar, uWStar2; uniform float uWMirMax; uniform vec4 uWDirN; uniform vec4 uWLampP[12]; uniform vec4 uWLampC[12]; uniform vec4 uWLampK;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
     float wIblR, wIblR0;   // (G2839, debug views 15 / 17: the lookup's roughness, the material's)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
@@ -487,6 +487,27 @@ const WATER = (() => {
           // into the body colour (the flat navy). Under the mirror's weight the probe is lifted by uWSky.y (MIR.skyGain:
           // 1 / the scene's intensity under the ring, 1 elsewhere) - the two halves of one sky at one level
           iblRadiance *= mix(1.0, uWSky.y, uWMirror4.x);
+          // NIGHT-SUN, A DISC IS REFLECTED ONCE (the user 21 Nov: "crazy red reflections in the sea of a sun which is not there"; the in-game stills of
+          // 22 Nov, the open sea toward a moon 2.6 deg up): the probe holds the MOON'S DISC (the dome's own, deep orange through the air, ~4x the
+          // moonlight's level) and the sea's wide Cox-Munk lobe read it as an orange block forty degrees across, beside the moonlight's own white
+          // glitter path - the same disc reflected twice, in two colours. At night the disc's reflection is the direct highlight's alone (the
+          // key light: its colour, its level, its visibility from the path): round the moon's direction the probe's lookup is held to the SKY's -
+          // the same lookup mirrored to the far side of the moon's azimuth, where the sky has no disc - never raised (min). uWDisc: xyz the key
+          // moon's direction (world), w the weight (frame(): the deep night's ramp while the moon is the key; 0 by day - the branch is not taken,
+          // the sun's reflection is LOOK-GLINT's as it was). One more probe lookup on those pixels, none elsewhere
+          if (uWDisc.w > 0.0) {
+            vec3 wLd = normalize((viewMatrix * vec4(uWDisc.xyz, 0.0)).xyz), wUpF = wUpV * faceDirection;
+            float wDm = smoothstep(0.64, 0.906, dot(rr2, wLd)) * uWDisc.w;   // whole inside 25 deg of the moon, none past 50
+            if (wDm > 0.0) {
+              vec3 wLh = wLd - wUpF * dot(wLd, wUpF); float wLhL = length(wLh);
+              if (wLhL > 1.0e-3) {
+                wLh /= wLhL;
+                vec3 rr3 = normalize(rr2 - 2.0 * dot(rr2, wLh) * wLh);   // the same ray, mirrored to the far side of the moon's azimuth
+                vec3 wSk = getIBLRadiance( geometryViewDir, normalize(geometryViewDir + rr3), material.roughness * mix(1.0, uWSky.x, uWMirror4.x) ) * mix(1.0, uWSky.y, uWMirror4.x);
+                iblRadiance = mix(iblRadiance, min(iblRadiance, wSk), wDm);
+              }
+            }
+          }
           wIblP = iblRadiance;
           // BRUNETON'S MEAN FRESNEL (2010, eq. for a rough sea): a prefiltered lookup has no masking - a rough sea at
           // grazing reflects a third of the mirror's sky, its facets shadowing each other and turning the eye toward
@@ -578,7 +599,10 @@ const WATER = (() => {
           // NIGHT-BRIGHT, THE SEA'S SHEEN (stylised; the user 4 Nov: "the water is completely black"): at a low eye the surface mirrors the ridge,
           // so at night it was as black as the ridge. Wave slopes do turn a grazing ray up to the higher, brighter sky - this says so at one
           // uniform's cost, in the reflection, so the Fresnel, the hull's mirror and the lamps' reflections stay over it. 0 by day
-          iblRadiance += uWNight.rgb * (uWNight.a + (1.0 - uWNight.a) * smoothstep(0.01, 0.09, length(wNw.xz)));   // a share flat, the rest on the ripples' slopes: a flat lift reads milky
+          // NIGHT-SUN (the user 22 Nov, on the aurora night's stills: "a little too blue ... when we have non-reflective water ... it starts looking like this big
+          // blue carpet ... make it darker"): the sheen x uWNight2.x past the near water (uWNight2.y .. z metres from the eye) - near, the mirror's reflections carry the
+          // surface; far, the sheen was all of it, one flat blue to the horizon. WATER.nightSea.k / col the level and the hue, farK / far the far water's share
+          iblRadiance += uWNight.rgb * (uWNight.a + (1.0 - uWNight.a) * smoothstep(0.01, 0.09, length(wNw.xz))) * mix(1.0, uWNight2.x, smoothstep(uWNight2.y, uWNight2.z, distance(vWP0, cameraPosition)));   // a share flat, the rest on the ripples' slopes: a flat lift reads milky
           // NIGHT-SHINE, THE LAMPS' OWN STREAKS (the user 5 Nov: "there's nothing going down from the lights, and you have other things going down from nowhere"; Cox-Munk's glitter path, Podee 2021's elliptical Gaussian): each
           // listed lamp, in slope space: the half vector against this pixel's rippled normal, so it DANCES where the ripples are drawn, and the variance the pixel cannot draw (wSig) stretches it far out. The grazing geometry
           // makes the long narrow streak by itself, straight under its lamp. x: lamps, y: variance floor, z: share of wSig, w: the deep-night ramp (frame()); fed from the premises lamps (render_premises). Over the sheen, under the hull's mirror
@@ -650,12 +674,16 @@ const WATER = (() => {
         vec3 wDiff = material.diffuseContribution; material.diffuseColor = vec3(0.0); material.diffuseContribution = vec3(0.0);
         vec3 wUpN = wUpV * faceDirection;`)
       // LOOK-GLINT (GLINT above): wGR is 0 in the point and spot loops, the day's weight from the directional loop on
+      // NIGHT-SUN (21 Nov; the user: "crazy red reflections in the sea of a sun which is not there"): the visibility (uWGlint.x) was the day's
+      // alone - x mix(1, vis x gain, the day's weight): at night a moon behind the ridge, or under the horizon, kept its whole glitter path.
+      // It is the KEY light's now (app.js glintVis: the sun's, the moon's when the moon is the key; the terrain along the path x the disc's
+      // share over the water's horizon) and it holds at every hour; the day's weight keeps what is the day's look (the lobe, the gain)
       .replace('#include <lights_fragment_begin>', `
-        float wGR = 0.0, wGlR = wRough(0.003 + 0.00512 * uWWind.x), wGlK = uWGlint.x * uWGlint.y;
+        float wGR = 0.0, wGV = 1.0, wGlR = wRough(0.003 + 0.00512 * uWWind.x);   // (NIGHT-SUN: wGV the key light's visibility from the path, at every hour - 1 in the point and spot loops)
 ` + (typeof THREE !== 'undefined' && THREE.ShaderChunk && THREE.ShaderChunk.lights_fragment_begin || '')
-        .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight ); wGR = uWGlint.w;')
+        .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight ); wGR = uWGlint.w; wGV = uWGlint.x;')
         .replace(/RE_Direct\( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight \);/g,
-          '{ float wR0 = material.roughness; vec3 wDS0 = reflectedLight.directSpecular; material.roughness = mix(wR0, max(wR0, wGlR), wGR); RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight ); reflectedLight.directSpecular = wDS0 + (reflectedLight.directSpecular - wDS0) * mix(1.0, wGlK, wGR); material.roughness = wR0; } reflectedLight.directDiffuse += directLight.color * saturate(dot(wUpN, directLight.direction)) * BRDF_Lambert(wDiff);'))
+          '{ float wR0 = material.roughness; vec3 wDS0 = reflectedLight.directSpecular; material.roughness = mix(wR0, max(wR0, wGlR), wGR); RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight ); reflectedLight.directSpecular = wDS0 + (reflectedLight.directSpecular - wDS0) * (wGV * mix(1.0, uWGlint.y, wGR)); material.roughness = wR0; } reflectedLight.directDiffuse += directLight.color * saturate(dot(wUpN, directLight.direction)) * BRDF_Lambert(wDiff);'))
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         reflectedLight.indirectDiffuse += (irradiance + iblIrradiance) * BRDF_Lambert(wDiff);`)
       // the debug views are the LAST word: a plain value, no light, no tone map, no AP (the rig reads them back)
@@ -775,10 +803,11 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
-      uWGlint: { value: new THREE.Vector4(1, 1, 0, 0) },   // LOOK-GLINT (frame()): x the sun's visibility from the glint, y gain, z the hidden sun's cap (r3), w the day's weight
+      uWDisc: { value: new THREE.Vector4(0, 1, 0, 0) },   // NIGHT-SUN (frame()): xyz the key moon's direction, w the weight of "the disc out of the probe's reflection" (the deep night's ramp; 0 by day)
+      uWGlint: { value: new THREE.Vector4(1, 1, 0, 0) },   // LOOK-GLINT (frame()): x the key light's visibility from the glint (NIGHT-SUN: at every hour), y gain, z the hidden sun's cap (r3), w the day's weight
       uWStretch: { value: 0 }, uWStar: { value: new THREE.Vector4(0, 0, 0, 0) }, uWStar2: { value: new THREE.Vector4(1, 25, 0, 0) }, uWStrL: { value: new THREE.Vector2(1, 1) }, uWMirMax: { value: 1e9 }, uWDirN: { value: new THREE.Vector4(0, 150, 600, 0) },   // NIGHT-SHINE (frame())
       uWLampP: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampC: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampK: { value: v4(0) },   // NIGHT-SHINE: lamps()
-      uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
+      uWNight: { value: v4(0) }, uWNight2: { value: new THREE.Vector4(1, 150, 1500, 0) },   // (NIGHT-SUN: uWNight2 the far water's share of the sheen, from / to metres)   // NIGHT-BRIGHT: the sheen's radiance (frame())
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
       uWSubA: { value: arr(SUB_N) }, uWSubB: { value: arr(SUB_N) }, uWSubN: { value: 0 },   // SWIMMERS: setSubmerged()
@@ -800,8 +829,15 @@ const WATER = (() => {
   // is an equilibrium k^-3 in height (k^-2 in slope) over wavelengths L/2 .. L/24 with a cos^2 spread
   // about +x (the wind); the crest channel is the height's own -Laplacian; the alpha a value noise.
   // Deterministic (its own LCG), ~2 ms at 256. `w` is the slope range the RG encode spans.
-  function bakeTile(N, seed) {
-    N = N || 256;
+  // PERF-WORLDBUILD (23 Nov 2026): THE BAKE IN STEPS. 96 waves on 256^2 texels is ~190 ms in one task of the world build's
+  // 'water' step (the dial above was a 64^2 tile's) - a frozen garage frame when the world is built behind it. bakeTileSteps
+  // is the same arithmetic in the same order as a generator: it yields at a row's end when `due()` says so - the host's
+  // budget (window.FLYDIY_WORLD_BUDGET.left() <= 0); with no host budget it never yields. bakeTile drains it: the same bytes
+  // (GATE WATER 4).
+  const hostDue = () => { const Bd = typeof window !== 'undefined' ? window.FLYDIY_WORLD_BUDGET : null; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };
+  function bakeTile(N, seed) { const g = bakeTileSteps(N, seed, () => false); for (;;) { const r = g.next(); if (r.done) return r.value; } }
+  function* bakeTileSteps(N, seed, due) {
+    N = N || 256; due = due || hostDue;
     let s = (seed || 12345) >>> 0;
     const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
     // a PEAKED spectrum (a Pierson-Moskowitz shape in k: k^-3 above the peak at kp cycles, a k^-4
@@ -819,12 +855,13 @@ const WATER = (() => {
     }
     const h = new Float32Array(N * N), sx = new Float32Array(N * N), sz = new Float32Array(N * N), lap = new Float32Array(N * N);
     let hmax = 0;
-    for (let j = 0, p = 0; j < N; j++) for (let i = 0; i < N; i++, p++) {
+    for (let j = 0, p = 0; j < N; j++) { if (j && due()) yield 'water: the tile'; for (let i = 0; i < N; i++, p++) {
       const u = i / N, v = j / N; let H = 0, X = 0, Z = 0, L = 0;
       for (const w of waves) { const ph = w.kx * u + w.kz * v + w.ph; const c = Math.cos(ph), sn = Math.sin(ph);
         H += w.a * c; X -= w.a * w.kx * sn; Z -= w.a * w.kz * sn; L -= w.a * w.k2 * c; }
       h[p] = H; sx[p] = X; sz[p] = Z; lap[p] = L; if (Math.abs(H) > hmax) hmax = Math.abs(H);
-    }
+    } }
+    if (due()) yield 'water: the tile';
     // THE CRESTS SHARPEN, THE TROUGHS FLATTEN (G460.11): a Stokes second-order profile h' = h + c h^2 / hmax
     // (c 0.4) - a sum of cosines is a gaussian sea, symmetric, and read as a soft plastic sheen up close;
     // the real chop is cusped. The slopes follow: s' = s (1 + 2 c h / hmax); the Laplacian (the crest mask)
@@ -850,9 +887,10 @@ const WATER = (() => {
     return { data, N, w: W, srms: 0.09, hmax: hmax * g };
   }
   let tile = null;
-  function makeTile(THREE) {
-    if (tile) return tile;
-    const b = bakeTile(256, 12345);
+  function makeTile(THREE) { return tile || tileOf(THREE, bakeTile(256, 12345)); }
+  // (PERF-WORLDBUILD: the tile made in steps ahead of the material - the world build's 'water' step under a host's budget)
+  function* makeTileSteps(THREE, due) { if (tile || !THREE.DataTexture) return tile; const b = yield* bakeTileSteps(256, 12345, due); return tile || tileOf(THREE, b); }
+  function tileOf(THREE, b) {
     const t = new THREE.DataTexture(b.data, b.N, b.N, THREE.RGBAFormat, THREE.UnsignedByteType);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
     t.generateMipmaps = true; t.flipY = false; t.anisotropy = 8; t.needsUpdate = true;
@@ -1146,7 +1184,27 @@ const WATER = (() => {
     ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0,
+    // PERF-LEAD LAB (22 Nov, both OFF by default; the user: "look into an optimization method for that mirror ... one of the best
+    // features of the game"). The journey's log: the capture ran 19 % of a normal flight, 62 % of that above 400 m (lakes and bays
+    // keep it to 900 m), every frame, 8.8 ms of submission at the median and twice the frame's triangles.
+    //   pace (?mirpace=1, or ?mirpace=<K in % of the height>): a LIVE capture is KEPT while the eye has moved less than paceK of its
+    //     height over the water (0.5 %) and turned inside 0.8 of the guard band's margin, for paceMax frames at most (4). The water
+    //     reads a capture through the capture's own view-projection (uWMirrorVP), so a kept one stays in place; the ripples are the
+    //     water's shader's (perturb), at every frame. Low over the water one frame's move is over the limit: every frame, as today
+    //   lean (?mirlean=1): a lake's / a bay's capture above leanAgl m leaves the cover ring and the grass out, as the sea ring's does
+    pace: false, paceK: 0.005, paceMax: 4, paceN: 0, kept: 0, lean: false, leanAgl: 150, leaned: 0,
     starsK: 10, starPx: 0.75 };   // STAR-LOVE: the stars in the mirror's sky - x their level in the sky (10 x the dome's STAR_LVL 0.03 = 0.3 of the old field's light: the user's 'quite lower'), their discs' radius in capture pixels
+  // ?mirpace ON BY DEFAULT ON A REAL PAGE since 23 Nov 2026 (the user, 22:10: "turn on all switches leading to good results, we
+  // can turn them off easily afterwards, when I'll have a look"): ?mirpace=0 turns it off. VISIBLE, not yet looked at by the
+  // user: a reflection kept a little longer while the eye has barely moved. The node page (flydiy-node) keeps it off.
+  // ?mirlean STAYS A SWITCH: it takes the grass and the cover out of a lake's reflection from high up, and the user's rule of
+  // 20 Oct is that lakes keep the full mirror (GATE WATER) - on only with his word on that rule. (With ?farslots the three
+  // took the journey from 55 to 72 % of seconds at 29+ frames, the card from 33 to 24 ms: the split between them not measured)
+  // (the default itself is set by the page - app.js, FLYDIY_REAL_PAGE - on MIR.pace: no device test in this module, GATE GFX's rule)
+  { const S = typeof location !== 'undefined' ? (location.search || '') : '';
+    const qp = /[?&]mirpace=([0-9.]+)(?:&|$)/.exec(S);
+    if (qp && +qp[1] > 0) { MIR.pace = true; if (+qp[1] !== 1) MIR.paceK = +qp[1] / 100; }
+    MIR.lean = /[?&]mirlean=1(?:&|$)/.test(S); }
   // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};
@@ -1331,6 +1389,11 @@ const WATER = (() => {
     if (live && MIR.last && !vis) { MIR.skipped++; return false; }
     const pos = camera.position, q = camera.quaternion;
     let due = live || !MIR.last;
+    // (PERF-LEAD LAB, ?mirpace) the live capture KEPT while the eye has barely moved for its height: the weight still follows every frame
+    if (live && MIR.pace && MIR.last && MIR.rt) {
+      const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
+      if (++MIR.paceN < MIR.paceMax && moved <= eyeAgl * MIR.paceK && turned <= 0.8 * (L.margin || 0) && Math.abs(waterY - L.wy) <= 0.05) { U.uWMirror4.value.x = MIR.w; MIR.kept++; return false; }
+    }
     if (!due && MIR.last) {
       const L = MIR.last, moved = Math.hypot(pos.x - L.x, pos.y - L.y, pos.z - L.z), turned = 2 * Math.acos(Math.min(1, Math.abs(q.x * L.qx + q.y * L.qy + q.z * L.qz + q.w * L.qw)));
       const jump = moved > MIR.jumpM || turned > MIR.jumpDeg * Math.PI / 180 || Math.abs(waterY - L.wy) > 0.5;
@@ -1427,7 +1490,12 @@ const WATER = (() => {
       if (SU) { SU.stars.value = st0 * MIR.starsK; SU.starK.value.x = MIR.starPx; }
       // STAR-DIRECT: the water draws the points itself (NIGHT_SEA.direct) - the capture keeps the Milky Way's glow, no points; its sky is flagged (alpha 2)
       const sPts = SU && SU.starPts ? SU.starPts.value : 1; if (SU && SU.starPts && NIGHT_SEA.direct) SU.starPts.value = 0; if (SU && SU.skyA) SU.skyA.value = 2;
+      // NIGHT-SUN: the aurora over the dome in the capture (aurora.js mirror(): its own sphere at the mirrored eye, drawn after the dome) - the mirror's sky
+      // had the stars and the clouds and no aurora, so the near water never reflected it
+      const aurM = typeof window !== 'undefined' && window.AURORA && window.AURORA.mirror ? window.AURORA.mirror() : null;
+      if (aurM) { MIR.skyScene.add(aurM); aurM.position.copy(mc.position); aurM.renderOrder = (sky.renderOrder || 0) + 1; }
       renderer.render(MIR.skyScene, mc);
+      if (aurM) MIR.skyScene.remove(aurM);
       if (SU) { SU.stars.value = st0; SU.starK.value.x = sp0; if (SU.starPts) SU.starPts.value = sPts; if (SU.skyA) SU.skyA.value = 1; }
       sky.visible = skyVis;
     }
@@ -1453,8 +1521,12 @@ const WATER = (() => {
     // MIR.skip: objects left out of the scene's draw only (the culls a census names; the sky pass above keeps the dome)
     const skipped = [];
     // (G2836 ring guard) the small things out of the capture: the cover ring (grass, tufts, rocks, debris), the route helpers
+    const lean = !RG && MIR.lean && eyeAgl > MIR.leanAgl; if (lean) MIR.leaned++;   // (PERF-LEAD LAB, ?mirlean: the lake's / the bay's capture, high up)
     const skipList = RG && MIR.ringSkip ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : MIR.skip;
-    for (const o of skipList) if (o && o.visible) { o.visible = false; skipped.push(o); }
+    // (?mirlean=1, a SWITCH, off by default: the user's rule of 20 Oct stands - a lake keeps the grass and the cover in its mirror.
+    //  GATE WATER pins the line above; the lab's first cut of 22 Nov had rewritten it and the gate was red on every perf-lead ready)
+    const skipLean = lean ? MIR.skip.concat(scene.children.filter(o => /^(coverRing|patternVis|grassField|grass)/.test(o.name || ''))) : null;
+    for (const o of (skipLean || skipList)) if (o && o.visible) { o.visible = false; skipped.push(o); }
     // (G2836 ring guard) THE SCISSOR: a water pixel reads the capture at its own screen row (G460.11.4: projected uv = pixel uv on y),
     // so only the rows under the water's horizon (+ a margin for the slope's walk and the edge fade) are ever read - the rest is not
     // rasterised. The horizon: the plane's far points along the view's left / centre / right headings, through the MAIN camera
@@ -1469,7 +1541,7 @@ const WATER = (() => {
     }
     MIR.capturing = true;
     try { renderer.render(scene, mc); } finally { MIR.capturing = false; for (const o of skipped) o.visible = true; if (sc) { MIR.rt.scissorTest = false; MIR.rows = MIR.rows || 1; } }
-    MIR.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0; MIR.captures++;
+    MIR.calls = renderer.info && renderer.info.render ? renderer.info.render.calls : 0; MIR.captures++; MIR.paceN = 0;
     scene.background = bg;
     renderer.setClearColor(cc, ca); renderer.setRenderTarget(prevT); renderer.autoClear = ac; renderer.shadowMap.autoUpdate = sm;
     for (const m of hidden) m.visible = true;
@@ -1851,12 +1923,16 @@ const WATER = (() => {
   // OFF SWITCH: ?glint=0 (a rig's A/B) = master to the bit; WATER.glint.<key> live.
   const GLINT = { vis: 1, gain: 1, calm: 0.3, cap: 6 };
   const GLINT_OFF = typeof location !== 'undefined' && /[?&]glint=0/.test(location.search || '');
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 1, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  // NIGHT-SUN (the user, 22 Nov, on the aurora night's stills: "a little too blue there ... tone it down a little bit ... this big blue carpet ... make it
+  // darker" - and their pick of the three levels shown): the sheen at 70 % (k 0.38 -> 0.266) and, on far water, at half of that (farK 1 -> 0.5)
+  const NIGHT_SEA_MASTER = { k: 0.38, farK: 1 };   // ?nightsun=0: the sea as it was
+  const NIGHT_SEA = { k: 0.266, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 1, cap: 2.2, glintFar: 1, lamps: 1, disc: 1, farK: 0.5, far: [150, 1500], shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
-      const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), kN = NIGHT_SEA.k * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
+      const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), nsOffN = typeof ATMO !== 'undefined' && ATMO.NIGHTSUN_OFF, kN = (nsOffN ? NIGHT_SEA_MASTER.k : NIGHT_SEA.k) * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
       U.uWNight.value.set(NIGHT_SEA.col[0] * kN, NIGHT_SEA.col[1] * kN, NIGHT_SEA.col[2] * kN, NIGHT_SEA.flat);
+      if (U.uWNight2) U.uWNight2.value.set(nsOffN ? NIGHT_SEA_MASTER.farK : NIGHT_SEA.farK, NIGHT_SEA.far[0], Math.max(NIGHT_SEA.far[0] + 1, NIGHT_SEA.far[1]), 0);
       // NIGHT-BRIGHT, the user 4 Nov: "more ripples on the water, because they make the beautiful reflections": up to 5 x at night, capped at the level seen in the shot (3.1).
       // NIGHT-RIPPLE: here, every frame, eased with the sheen: in setWind (which runs when the wind CHANGES) it latched through the next day or never came on at a calm dusk. The day's to the bit
       const zD = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8), zC = GLINT_OFF ? zD : S.detailK * Math.min(1, Math.max(0.12, GLINT.calm) + IN.wind[0] / 8);   // LOOK-GLINT: the day's calm floor, faded out on the night's ramp
@@ -1866,7 +1942,13 @@ const WATER = (() => {
       const kE = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
       // LOOK-GLINT r4 (t53 17:54: the column stood under the hidden sun at every cap and with the mirror off): the day's weight is 1 - the DEEP
       // night's ramp tS - on the sheen's tN (from dusk) the golden hour was half night, the path half hidden and half its old sharp lobe
-      if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : GLINT.vis, GLINT_OFF ? 1 : GLINT.gain, GLINT.cap, GLINT_OFF ? 0 : 1 - tS);
+      // NIGHT-SUN: x is the KEY light's visibility from its glitter path and the direct highlight takes it at every hour (the shader: wGV);
+      // under ?nightsun=0 it is folded with the day's weight here, which is what master's shader did (the night untouched)
+      const nsOff = typeof ATMO !== 'undefined' && ATMO.NIGHTSUN_OFF, wDay = GLINT_OFF ? 0 : 1 - tS;
+      if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : (nsOff ? 1 - wDay + GLINT.vis * wDay : GLINT.vis), GLINT_OFF ? 1 : GLINT.gain, GLINT.cap, wDay);
+      // NIGHT-SUN: the moon's disc out of the probe's reflection (the shader, A DISC IS REFLECTED ONCE): on the deep night's ramp, while the moon is the key
+      if (U.uWDisc) { const SN = typeof ATMO !== 'undefined' && ATMO.seen && !ATMO.NIGHTSUN_OFF ? ATMO.seen() : null, mv = SN && SN.keyMoon && ATMO.U && ATMO.U.moon ? ATMO.U.moon.value : null;
+        if (mv && NIGHT_SEA.disc) U.uWDisc.value.set(mv.x, mv.y, mv.z, NIGHT_SEA.disc * tS); else U.uWDisc.value.w = 0; }
       if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; if (U.uWStrL) U.uWStrL.value.set(NIGHT_SEA.slod, NIGHT_SEA.rmip);
         // STAR-DIRECT: the reflected stars' light = the dome's level x the mirror's starsK x the dome's scale x dK; the moon's wash as the dome's
         const AU = typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.stars && ATMO.U.scale ? ATMO.U : null;
@@ -1926,7 +2008,7 @@ const WATER = (() => {
   }
   const API = { lamps, nightSea: NIGHT_SEA, glint: GLINT, NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
-    gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
+    gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, bakeTileSteps, makeTile, makeTileSteps, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
     stamp, fieldStep, fieldOn, fieldProbe, warmList, setSubmerged, SUB_N: 12, setSlicks, SLICK_N: 6, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };

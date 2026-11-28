@@ -1,0 +1,69 @@
+{
+ "id": "obs.09",
+ "kind": "contract",
+ "verdict": "infeasible",
+ "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+ "timeS": 673,
+ "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 250 kg / 0 pax",
+ "tried": [
+  "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build):infeasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "mt_strip",
+   "t": 673,
+   "how": "stopped",
+   "at": "mt_strip",
+   "stop": [],
+   "kg": 50,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build)",
+   "verdict": "infeasible",
+   "why": "the stop refuses the load: aboard 50 kg / 0 pax, the job is 250 kg / 0 pax",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "mt_strip",
+     "t": 673,
+     "how": "stopped",
+     "kg": 50,
+     "pax": 0,
+     "said": [
+      "slip: high on energy on the short final (+4.7 m at idle) — slipping it down",
+      "vref-raised: the elevator cannot hold 21.2 m/s at this power — flying the approach faster",
+      "strip-short: Ardent Altiport: the elevator holds 23.4 m/s, the short-field stop from it needs 157 m, 130 m are left past the aim and the flo"
+     ],
+     "landing": {
+      "run": 77,
+      "sink": 2.01,
+      "V": 25.1,
+      "offCentre": 11.9,
+      "pastAim": 1,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 11,
+      "stopLeft": 122
+     },
+     "stop": "aboard 50 kg / 0 pax, the job is 250 kg / 0 pax"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "the seats as the job asks: light metal Cessna (the retired list:40) with the STOL kit and a larger elevator (test build) flown with 1 aboard (the garage's seat door)"
+ ],
+ "untested": false,
+ "key": "321a88f095ea",
+ "where": "observatory:6",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 502
+}

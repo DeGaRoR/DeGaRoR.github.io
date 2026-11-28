@@ -47,6 +47,14 @@ const BUILDS = {
   cub:        { file: 'builds/cub_2026-09-20_corrected.json', fly: true, ref: true },
   synth:      { file: 'builds/jodel_2026-09-20_corrected.json', fly: false,
                 edit: s => { s.gear.suspension = 'oleo'; s.gear.stiffness = 3; s.fuselage.material = 'carbon'; s.engines[0].type = 'r985_hs2b20'; } },
+  // LAZAIR-TWIN (24 Nov): the user's Lazair (a hanging nacelle on a rod, two pushers on the wing, the V hung down on its
+  // tip wheels): its mast's lattice (0.15 kg nodes on 8-12 cabane members each) read 5.44 at the old rule's 167 substeps,
+  // every member under its own bound - NaN on the first frame, 'sim-diverged' at t 0. The rule's step is now proved on
+  // the network (62_gen_aero netGuard). The construction and the rest are asked; its flight is not yet (a full-power
+  // start puts its pod's keel, 3 cm over the grass, on the ground: the take-off's own chantier)
+  // (its REST strain is the AIRFRAME's: its bungee legs stand 5-7 % into their stroke at rest - a soft ultralight's gear
+  // compressed, not a ringing truss; every other build's row reads every member, as it always has)
+  lazair:     { file: 'tools/fixtures/lazair_user_2026-11-24.json', fly: false, airframe: true },
 };
 const NET_MAX = 3.0, REST_STRAIN = 0.05, REST_TURN = 5, HO_TURN = 15, AIR_BY = 300;
 const D = 180 / Math.PI;
@@ -81,7 +89,7 @@ function start(def, W, a, lineup) {
   if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
   return sim;
 }
-function rest(def, thr) {
+function rest(def, thr, airframe) {
   const W = jolene(), a = W.aerodromes.find(x => x.id === 'HOME'), sim = start(def, W, a, true);
   let hp = nose(sim), turn = 0, smax = 0;
   for (let s = 0; s < 30 * 60; s++) {
@@ -89,7 +97,10 @@ function rest(def, thr) {
     sim.step(1 / 60);
     if (!finite(sim)) return { nan: +(s / 60).toFixed(2) };
     const h = nose(sim); turn += wrap(h - hp); hp = h;
-    if (s >= 300) smax = Math.max(smax, sim.stats().smax);
+    if (s >= 300) {
+      if (!airframe) smax = Math.max(smax, sim.stats().smax);
+      else for (const b of sim.beams) if (!b.gear) smax = Math.max(smax, Math.abs(b.strain));
+    }
   }
   return { turn: +(turn * D).toFixed(2), smax: +smax.toFixed(4) };
 }
@@ -138,9 +149,9 @@ function run(asBuilt, rows) {
     const def = defOf(key, asBuilt);
     const m = netMetric(def);
     check(m <= NET_MAX + 1e-9, key + ': CONSTRUCTION the network inside the margin at ' + def.params.substeps + ' substeps', m.toFixed(3) + ' <= ' + NET_MAX);
-    const r0 = rest(def, 0);
+    const AF = !!BUILDS[key].airframe, r0 = rest(def, 0, AF);
     if (check(r0.nan == null, key + ': REST idle finite', r0.nan != null ? 'NaN at ' + r0.nan + ' s' : null)) {
-      check(r0.smax < REST_STRAIN, key + ': REST idle, the largest strain after 5 s', r0.smax + ' < ' + REST_STRAIN);
+      check(r0.smax < REST_STRAIN, key + ': REST idle, the largest ' + (AF ? 'airframe ' : '') + 'strain after 5 s', r0.smax + ' < ' + REST_STRAIN);
       check(Math.abs(r0.turn) < REST_TURN, key + ': REST idle, no turn on the spot', r0.turn + ' deg, bound ' + REST_TURN);
     }
     if (asBuilt || !BUILDS[key].fly) continue;    // (the selftest asks the construction and the rest; the flight is the user's builds')

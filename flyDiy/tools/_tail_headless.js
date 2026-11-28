@@ -134,7 +134,9 @@ function buildStab(P, mesh, L, fin, approx) {
   const ivI = Math.max(0, Math.min(3, Math.round(+P.stIvDir || 0))), ivOut = ivI % 2 === 1;
   const ivReach = !TB ? 0 : ivOut ? Math.max(0.20, Math.min(2.0, P.stIvReach == null || !(+P.stIvReach > 0) ? TB.x - 0.15 : +P.stIvReach))
                                   : TB.x - 0.5 * ivGap;
-  const cantDeg = IV ? Math.max(20, Math.min(55, +P.stCant || 35)) : Math.max(0, +P.stCant || 0);
+  // (LAZAIR: a negative cant lays the classic V downward, as _cage_stab.js reads it)
+  const cantDeg = IV ? Math.max(20, Math.min(55, +P.stCant || 35))
+                     : +P.stCant < 0 && !TB ? Math.max(-55, +P.stCant) : Math.max(0, +P.stCant || 0);
   const cant = cantDeg * Math.PI / 180;
   // T2.3 (140): the incidence, degrees, leading edge up +; pitched about
   // the root chord's leading edge (the most forward root-line vertex)
@@ -149,7 +151,10 @@ function buildStab(P, mesh, L, fin, approx) {
     const zH = D().zH1 + dzS;
     const plateTop = deck.top(zH) + saddleH() / scaleOf(P);
     const under = yRef + (P.stY || 0) - 0.5 * (P.stThick || 0.05);
-    if (under < plateTop) yRef += plateTop - under;
+    // (LAZAIR: a downward V hangs under the tube, its root's upper face against the belly's plate)
+    if (cantDeg < 0) { const plateBot = deck.bot(zH) - saddleH() / scaleOf(P), over = yRef + (P.stY || 0) + 0.5 * (P.stThick || 0.05);
+                       if (over > plateBot) yRef -= over - plateBot; }
+    else if (under < plateTop) yRef += plateTop - under;
   }
   if ((mount === 3 || IV) && deck)
     yRef = 0.5 * (deck.top(D().zH1 + dzS) + deck.bot(D().zH1 + dzS));
@@ -227,7 +232,7 @@ function tailRows(t) {
     const a = m.chordAt(0.25 * m.span), b = m.chordAt(0.75 * m.span);
     return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : 1;
   };
-  const isV = !!(t.stab && t.stab.cant >= 20);
+  const isV = !!(t.stab && Math.abs(t.stab.cant) >= 20);   // (LAZAIR: a downward V is a V)
   if (t.stab && t.stab.measure.areaTail > 0) {
     const m = t.stab.measure;
     out.hSpan = 2 * (m.span + m.rootX);
@@ -262,7 +267,7 @@ function tailApply(spec, rows) {
   if (rows.ivAngle >= 20) { tl.ivAngle = rows.ivAngle; tl.ivGap = rows.ivGap; if (rows.ivS > 0) tl.ivS = rows.ivS;   // G3800
     if (rows.ivDir && rows.ivDir !== 'downIn') tl.ivDir = rows.ivDir; else delete tl.ivDir;                         // G3801
     if (rows.ivReach > 0) tl.ivReach = rows.ivReach; else delete tl.ivReach; }
-  else if (rows.tailCant >= 20) { tl.type = 'v'; tl.vAngle = rows.tailCant; }
+  else if (Math.abs(rows.tailCant) >= 20) { tl.type = 'v'; tl.vAngle = rows.tailCant; }   // (LAZAIR: signed - below 0 the V hangs down)
   if (typeof rows.dorsalArea === 'number') tl.dorsal = Object.assign({}, tl.dorsal || {}, { area: rows.dorsalArea });
   if (rows.elevChord > 0 || rows.rudChord > 0) {
     const ct = spec.controls || (spec.controls = {});

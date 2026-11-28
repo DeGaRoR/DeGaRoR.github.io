@@ -372,6 +372,13 @@ const WING_ITEMS = [
      { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
     ['wgJury', 'jury strut', 0, 2, 1, ['none', 'up to the wing', 'back to the cabin'],
      { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
+    // STRUT-AXLE (24 Nov; the user, the Minimax 1100R: "I'd need strut connecting to the main wheels center (only
+    // available with the center rod option, so essentially fixed landing gear)"): the lift struts' feet on the MAIN AXLE,
+    // outboard of the wheel (a mid-wing Mini-MAX's extended axle - flyminimax.com, its brake kit: "use extended axles when
+    // the landing gear has a strut on the outside of the gear"). Offered with the mains' cross axle (the centre rod): the
+    // gear is then a fixed truss with the wing. Absent at 0: the fuselage ring, as every build before it
+    ['wgStrutAxle', 'strut foot', 0, 1, 1, ['on the fuselage', 'on the main axle (outboard of the wheel)'],
+     { when: P => +P.wingOn && !Math.round(P.wgBrace) && +P.s1On && Math.round(+P.s1Leg) === 1 && +P.s1_linkAxle, absent: 0 }],
   ], on],
   ['control surfaces', [
     ['wgFlapType', 'flaps',      0, FLAP_KEYS.length - 1, 1,
@@ -425,7 +432,7 @@ const WING_ITEMS = [
 // (biplane audit, 2026-09-21: wgDy dropped too — the second plane's
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
-const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil', 'wgStrutSec', 'wgJury',   // T2.3: the strut count is the fuselage fan's
+const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil', 'wgStrutSec', 'wgJury', 'wgStrutAxle',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
                          'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',
                          'wgBrake', 'wgBrakeAt', 'wgBrakeLen', 'wgBrakeH',   // (AIRBRAKES: the first plane's) TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
@@ -1232,7 +1239,7 @@ function cabPylonDraw(ctx) {
     const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
                 foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
     cabPyGroup = new THREE.Group(); cabPyGroup.name = 'cageLayer:cabPylon';
-    PY.drawPylonBlade(cabPyGroup, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
+    PY.drawPylonBlade(cabPyGroup, f, ((window.CAGE_CHAIN && window.CAGE_CHAIN.over) || ((p, o) => Object.assign({}, p, o)))(P, { engPylonFair: 3 }), GK, false,   // (PERF-SLIDERS: CAGE_CHAIN.over, no copy of every row)
                       PY.pylonCaster(ctx, FS, PLS ? [-0.4, 0.4, zc - Math.max(1.2, Lp), zc + Math.max(1.2, Lp)] : [-1.0, 1.0, zc - 1.2, zc + 1.2]));
     scene.add(cabPyGroup);
   } catch (e) { console.error('cabane pylon:', e); }
@@ -2667,7 +2674,15 @@ const wingPost = ctx => {
         // is the same answer the gear layer asks for: one description of
         // "the nearest tube", not a second copy of it here.
         const solid = !bareSkin && (!AF.solidAt || AF.solidAt(site.z, site.ang));
-        const mount = solid ? null
+        // STRUT-AXLE (24 Nov): a strut rooted on a MAIN AXLE node (61_gen_frame, bracing.strutAxle) stands its lug pair
+        // on the axle's outer end - outboard of the wheel, the extended axle - not on the fuselage's skin or a tube
+        const onAxle = /^AXLE[LR]$/.test((N2[root] && N2[root].tag) || '');
+        const axleMount = () => {
+          const c = nodeCageBody(rp), out = c[0] >= 0 ? 1 : -1;
+          const wR = +(def.spec.gear && def.spec.gear.wheelR) || 0.16;
+          return { p: [c[0] + out * (0.45 * wR + 0.06), c[1], c[2]], n: [0, 1, 0], fore: [0, 0, 1], side: [out, 0, 0], r: 0.015, d: 0 };
+        };
+        const mount = onAxle ? axleMount() : solid ? null
           : GG.memberFrame(window.CAGE_MEMBERS,
                            AF.surf(site.z, site.ang), FS,
                            Math.max(0.25, AF.halfWAt(site.z) * 1.2));

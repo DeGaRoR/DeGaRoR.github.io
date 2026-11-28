@@ -113,7 +113,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let innerPatchShared = null;        // G386: the inner ring's material and uv law, for the premises' patch
   let outerMatShared = null;          // G398.3: the outer ring's material (its canopy tint), for a premises' patch beyond the inner ring
   let outerUVShared = null;           // G527: ...and its uv law (an island's grid, not the analytic world's square), for the same patch
-  let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [] };   // G400: the island's live ground stack (set in the terrain block)
+  let groundApi = { on: () => false, get: () => ({}), set: () => ({}), modes: () => [], warm: () => [] };   // G400: the island's live ground stack (set in the terrain block)
   const groundGeos = [];              // G387: the ring geometries, so a live premises edit can re-sample them
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let groundTier = null;              // G2115 (TERRAIN-MATCH): the 1 m contact tier under the aeroplane (ground_tier.js; its update, its state)
@@ -564,6 +564,142 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const pavSeed = id => { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 37; };
   const pavLookOf = a => { if (!PGm) return null; if (a.premises && a.look) return PGm.RUNWAY_LOOKS[a.look] || null; const k = a.surface === world.SURFACE.PAVED ? 'asphalt' : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass'; return PGm.RUNWAY_LOOKS[k]; };
   const pavRec = () => (world.premises && world.premises.rec) || null;
+  // PERF-WORLDBUILD (22 Nov 2026): THE STRIPS' GEOMETRY OFF THE MAIN THREAD. PAVEMENT.stripGeometry was 11.9 s of the world
+  // step (node), one uninterruptible task a strip - 4.7 s the dearest: the rows bisected where the ground curves, a bumpy
+  // strip's down to its ruts. The house worker holds the page's composed ground bit for bit, so the build asks it for every
+  // pavement strip as soon as the premises' patch knows its chunks (stripsAsk: nearest the stand first), goes on with the
+  // patch and the roads, and at the 'strips' stage stands each geometry from the arrays that came back (PAVEMENT.stripUnpack)
+  // - waiting for one still in the worker through the host's sleep (window.FLYDIY_WORLD_WAIT, app.js buildWorldSliced). A
+  // strip whose answer is missing, late (STRIPW.patience), stale (its options or the soil's scales moved since the ask) or
+  // refused is built here, as before; so is every strip of a build no host sleeps for (buildWorldScene: the rigs, the gates),
+  // of a live edit's repaint, and of a page without the worker. OPT-IN while it is measured: ?stripw=1 (the default is the
+  // inline build). GATE STRIPWORKER: the worker's arrays are the inline build's, byte for byte.
+  // NEAR FIRST (?nearfirst=1, PERF-LEAD's rule of 22 Nov: "the reveal waits for the near set only; everything else is built
+  // nearest first in the worker and arrives after" - OPT-IN, a visible change the user sees in game before it is a default).
+  // For the strips: the load stands the COARSE form of every strip whose answer is not in (the same builder, its
+  // refinement off: 0.1 s for all 14 of Jolene, 47 k vertices against 2.1 M) and waits only for the strip the aeroplane
+  // stands on; the others LAND as the worker answers - one strip a task (stripwLand: the strip taken away and stood again
+  // on the refined arrays, a few ms of the page's thread), in the garage as in flight. The strips then stay UNMERGED (their
+  // draw order is G664's renderOrder, as before G926's merge): the merge saved 4 draws of 14 on Jolene and would upload all
+  // 167 MB a second time in the first seconds of the flight. The wheels never read a mesh (world.terrainH), so a coarse strip
+  // changes no take-off; what differs for those seconds is the drawn surface between its 6 m rows.
+  // FLYDIY_STRIPW_HOLD (a gate's): every strip but the stand's is stood coarse and landed after, whenever its answer came.
+  // PERF-WORLDBUILD (23 Nov 2026, the user to PERF-LEAD 21:05 on garage first: "Make it default"): A WORLD-BUILD SWITCH'S WORD.
+  // The URL first (?name=1 on, ?name=0 off); then a host's (window.FLYDIY_WORLD_DEFAULTS = { name: true|false }); then, for the
+  // switches whose output is the page's own bytes by a gate (stripw: STRIPWORKER; patchw, roadw: PATCHWORKER; compsteps:
+  // COMPSTEPS), ON WHEN A HOST'S BUDGET IS ARMED (window.FLYDIY_WORLD_BUDGET: the world built behind a live garage) - a page
+  // with no host (the one loading screen, node, a gate) keeps them off, as they were. The two switches with a VISIBLE state
+  // (nearfirst: a coarse strip for a moment; settle=near: stand-in cards for longer past 1.5 km) stay off until asked: the
+  // user sees them in game before they are a default - a host turns them on with FLYDIY_WORLD_DEFAULTS when that is said.
+  const wbSwitch = (name, underHost) => { const q = typeof location !== 'undefined' ? (location.search || '') : ''; if (new RegExp('[?&]' + name + '=1(?:&|$)').test(q)) return true; if (new RegExp('[?&]' + name + '=0(?:&|$)').test(q)) return false; const D = typeof window !== 'undefined' ? window.FLYDIY_WORLD_DEFAULTS : null; if (D && D[name] !== undefined) return !!D[name]; return !!(underHost && typeof window !== 'undefined' && window.FLYDIY_WORLD_BUDGET); };
+  const STRIPW = { on: wbSwitch('stripw', true) || wbSwitch('nearfirst', false), jobs: new Map(), seq: 0, asked: 0, used: 0, inline: 0, missed: 0,
+    workerMs: 0, waitMs: 0, patience: 120000, why: null,
+    near: wbSwitch('nearfirst', false), at: null, late: new Map(), coarse: 0, landed: 0, lost: 0, reasked: 0, landing: false, land: null, pumpT: 0, landMs: 0, landMax: 0, t0: 0, lastLandS: 0 };
+  if (typeof window !== 'undefined') window.FLYDIY_STRIPW = STRIPW;
+  const stripwHost = () => (typeof window !== 'undefined' && window.HOUSE_WORKER && window.HOUSE_WORKER.ok() ? window.HOUSE_WORKER : null);
+  // a pavement strip's builder options, as standStrip resolves them (null: not a pavement strip). `data` is numbers only -
+  // what the worker is sent; the two closures (heightAt, liftAt) are made from micro / lift on whichever thread builds
+  function stripSpec(a) {
+    const LKp = PAV ? pavLookOf(a) : null; if (!PAV || !LKp || !LKp.cls) return null;
+    const onPatch = !!(premisesR && premisesR.patchCovers && premisesR.patchCovers(a.x, a.z));
+    const RS = PAV.resolve(a.premises ? a : null, a.premises ? pavRec() : null, LKp), shW = PAV.shoulderFor(RS.band, RS.recipe);
+    const micro = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id), lift = !!(onPatch && a.premises && premisesR.pavedAt && PAV.liftOver);
+    const data = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), lift: 0.07, resU: 6, resV: 3,
+      sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
+      refineMin: micro ? STRIP_MICRO.REFINE_MIN : 0, refineMinV: micro ? STRIP_MICRO.REFINE_MIN_V : 0 };
+    return { LKp, RS, shW, onPatch, micro, lift, data };
+  }
+  const stripKey = SP => JSON.stringify([SP.data, SP.micro, SP.lift, world.wearScales ? world.wearScales() : null, PAV.recipe ? PAV.recipe.fadeW : null]);
+  const stripWanted = a => !(a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises));
+  // the ask: every pavement strip's job, nearest the stand first, in ONE message behind the worker's composition
+  function stripsAsk() {
+    if (STRIPW.asked) return;
+    STRIPW.asked = 1;
+    const HWK = stripwHost(), HQ = premisesR && premisesR.hw;
+    if (!STRIPW.on) { STRIPW.why = 'off'; return; }
+    if (!(typeof window !== 'undefined' && window.FLYDIY_WORLD_ASYNC === true)) { STRIPW.why = 'no host to wait'; return; }
+    if (!HWK || !HQ || !(HQ.epoch >= 0) || HQ.dead || !PAV || !PAV.stripUnpack || !world.wearScales) { STRIPW.why = 'no worker'; return; }
+    let at = null; try { at = window.FLYDIY_TOWN_AT ? window.FLYDIY_TOWN_AT() : null; } catch (e) { at = null; }
+    STRIPW.at = at && isFinite(at[0]) && isFinite(at[2]) ? [at[0], at[2]] : null;
+    const wear = world.wearScales(), jobs = [];
+    for (const a of world.aerodromes) {
+      if (!stripWanted(a)) continue;
+      let SP = null; try { SP = stripSpec(a); } catch (e) { SP = null; }
+      if (!SP) continue;
+      const seq = ++STRIPW.seq, d = STRIPW.at ? stripBoxDist(a, STRIPW.at[0], STRIPW.at[1]) : 0;   // (to the strip's box: a long strip passing the stand is near)
+      STRIPW.jobs.set(a.id, { seq, key: stripKey(SP), r: null, done: false, miss: null, t0: performance.now(), ms: 0 });
+      // (the recipe's fade and the refinement's reuse flag are the PAGE's: named, where the builder reads its own module's)
+      // (late: under near first the load waits for none of these - the worker's queue serves the houses before them, house_worker.js PRI)
+      jobs.push({ seq, id: a.id, d, late: !!STRIPW.near, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) });
+    }
+    if (!jobs.length) { STRIPW.why = 'no strip'; return; }
+    jobs.sort((p, q) => p.d - q.d);
+    HWK.onStrip = stripwAnswer;
+    if (!HWK.post({ cmd: 'strips', epoch: HQ.epoch, wear, jobs })) { STRIPW.jobs.clear(); STRIPW.why = 'post failed'; return; }
+    STRIPW.asked = jobs.length; STRIPW.why = 'asked';
+  }
+  // metres from (x, z) to a strip's box (its length and width; 0 on it)
+  function stripBoxDist(a, x, z) { const c = Math.cos(a.hdg || 0), s = Math.sin(a.hdg || 0), dx = x - a.x, dz = z - a.z, u = dx * c + dz * s, v = dx * s - dz * c;
+    return Math.hypot(Math.max(0, Math.abs(u) - a.len / 2), Math.max(0, Math.abs(v) - a.wid / 2)); }
+  // the worker's answer to a strip's job (the boot's ask, or a later one's): filed; a strip waiting coarse lands on the next task
+  function stripwAnswer(m) {
+    for (const [id, J] of STRIPW.jobs) if (J.seq === m.seq) { J.done = true; J.r = m.r || null; J.miss = m.miss || null; J.ms = m.ms || 0; STRIPW.workerMs += J.ms;
+      if (STRIPW.late.has(id)) stripwPump(); }
+  }
+  // one strip asked again (its options or the soil's scales moved while it waited coarse)
+  function stripAskOne(a) {
+    const HWK = stripwHost(), HQ = premisesR && premisesR.hw; let SP = null; try { SP = stripSpec(a); } catch (e) { SP = null; }
+    if (!HWK || !HQ || !(HQ.epoch >= 0) || HQ.dead || !SP) return false;
+    const seq = ++STRIPW.seq;
+    STRIPW.jobs.set(a.id, { seq, key: stripKey(SP), r: null, done: false, miss: null, t0: performance.now(), ms: 0 });
+    HWK.onStrip = stripwAnswer;
+    return HWK.post({ cmd: 'strips', epoch: HQ.epoch, wear: world.wearScales(), jobs: [{ seq, id: a.id, d: 0, micro: SP.micro, lift: SP.lift, sd: Object.assign({ fadeW: PAV.recipe.fadeW, reuseRefine: !!(PAV.REFINE && PAV.REFINE.reuseHeight) }, SP.data) }] });
+  }
+  // THE LANDING: one strip a task. A strip standing coarse whose answer is in is taken away and stood again on the refined
+  // arrays (STRIPW.land: the strips' block sets it); a stale answer is asked again (the strip stays coarse meanwhile); an
+  // answer that will not come (a miss, the worker gone) leaves the strip coarse and says so - a refined strip is NEVER built
+  // on the page's thread in flight (4.7 s for the dearest).
+  function stripwPump() {
+    if (STRIPW.pumpT || !STRIPW.late.size || !STRIPW.land) return;
+    STRIPW.pumpT = setTimeout(() => {
+      STRIPW.pumpT = 0;
+      let more = false;
+      for (const [id, a] of STRIPW.late) {
+        const J = STRIPW.jobs.get(id), alive = !!stripwHost();
+        if (!J || (J.done && !J.r) || (!J.done && !alive)) { STRIPW.late.delete(id); STRIPW.jobs.delete(id); STRIPW.lost++; console.warn('strip worker: ' + id + ' stays coarse (' + (J && J.miss || (alive ? 'no answer' : 'the worker is gone')) + ')'); continue; }
+        if (!J.done) continue;
+        let SP = null; try { SP = stripSpec(a); } catch (e) { SP = null; }
+        if (!SP || J.key !== stripKey(SP)) { STRIPW.reasked++; if (!SP || STRIPW.reasked > 40 || !stripAskOne(a)) { STRIPW.late.delete(id); STRIPW.jobs.delete(id); STRIPW.lost++; console.warn('strip worker: ' + id + ' stays coarse (stale)'); } continue; }
+        STRIPW.late.delete(id);
+        const tL = performance.now(), TAPL = typeof window !== 'undefined' && typeof window.FLYDIY_STRIPW_LAND === 'function' ? window.FLYDIY_STRIPW_LAND : null;   // (a gate's clock)
+        if (TAPL) TAPL(id, 0);
+        try { STRIPW.land(a); STRIPW.landed++; } catch (e) { STRIPW.lost++; console.warn('strip worker: ' + id + ' did not land (' + (e && e.message) + ')'); }
+        if (TAPL) TAPL(id, 1);
+        { const dL = performance.now() - tL; STRIPW.landMs += dL; if (dL > STRIPW.landMax) STRIPW.landMax = dL; STRIPW.lastLandS = +((performance.now() - STRIPW.t0) / 1000).toFixed(2);
+          // (PERF-TRACE's ledger: a delivery - its main-thread ms, s since the world's build ended, n still to land, what)
+          const FRd = typeof window !== 'undefined' && window.FLIGHT_REC; if (FRd && FRd.event) try { FRd.event('deliver', dL, { s: STRIPW.lastLandS, n: STRIPW.late.size, what: 'strip ' + id }); } catch (e) {} }
+        more = true; break;   // one a task
+      }
+      if (more && STRIPW.late.size) stripwPump();
+    }, 0);
+  }
+  // a strip's geometry: the worker's when its answer is in and still the strip's (the same options, the same scales), else built here
+  function stripGeoOf(a, SP, sd) {
+    const J = STRIPW.jobs.get(a.id);
+    if (STRIPW.landing && !(J && J.done && J.r && J.key === stripKey(SP))) throw new Error('no refined answer');   // (never a refined strip built here in flight)
+    if (J) {
+      STRIPW.jobs.delete(a.id);
+      if (J.done && J.r && J.key === stripKey(SP)) {
+        try { const g = PAV.stripUnpack(THREE, sd, J.r); STRIPW.used++;
+          if (typeof window !== 'undefined' && typeof window.FLYDIY_STRIPW_TAP === 'function') window.FLYDIY_STRIPW_TAP(a.id, sd, g);   // (GATE STRIPWORKER's read)
+          return g; }
+        catch (e) { if (STRIPW.landing) throw e; console.warn('strip worker: ' + a.id + ' did not stand (' + (e && e.message) + ') - built here'); }
+      } else if (J.miss) console.warn('strip worker: ' + a.id + ' (' + J.miss + ') - built here');
+      STRIPW.missed++;
+    }
+    STRIPW.inline++;
+    return PAV.stripGeometry(THREE, sd);
+  }
   let pavLibShared = null;
   const pavLib = keys => (pavLibShared = PAV.sharedLib(THREE, keys));
   // THE STONES: the rock pack's subjects, their coarsest rung; the scatter reads the strip's field (the band's
@@ -974,6 +1110,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let envMap = null, probe = null;
   let envIn = null, probeIn = null, interiorView = false;   // A6: the cabin's own probe (a neutral cap), swapped in for the cockpit view
   yield 'sky';
+  // PERF-WORLDBUILD (23 Nov 2026): HOSTB - A HOST'S BUDGET IS ARMED (window.FLYDIY_WORLD_BUDGET = { left: () => ms }: the world
+  // built behind a live garage). Read once, here. The steps only such a host needs hang on it - the sky in five, the ground
+  // colour's rows, the albedo, the island ground's parts, the far terrain's first cut, the water's tile; with none the
+  // build's yields are the ones it had (the loading screen's text and bar are the yields').
+  const HOSTB = typeof window !== 'undefined' && !!window.FLYDIY_WORLD_BUDGET;
+  const hostDue = () => { const Bd = window.FLYDIY_WORLD_BUDGET; return !!(Bd && typeof Bd.left === 'function' && Bd.left() <= 0); };   // (asked only under HOSTB)
   if (ATMO_ON && THREE.PMREMGenerator && renderer && renderer.setRenderTarget) {
     // THE PROBE FOLLOWS THE SUN (S5). The sky-view LUT for the boot hour and
     // the dome's scale (K_SUN x the world's light unit - LIGHT_UNIT below is
@@ -982,17 +1124,47 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the day's dials changed - the window fix, and the water's and the
     // skin's. The cap under it is lit by the day (atmo.js groundIrradiance).
     ATMO.update(renderer, world.day, 0);
+    // PERF-WORLDBUILD (23 Nov 2026): THE PROBE BAKE'S UNLINKED PROGRAM, LINKED BEHIND THE STEPS. The clouds' dome in the
+    // probe's scene (CLOUDS.domeMesh: a 34 k fragment) first met the GPU inside the bake, and the draw blocked on its link:
+    // 1.4 s of the 2.0 s this step froze a live garage at 5K (PERF-LEAD's profile, 23 Nov: gl.getProgramInfoLog <
+    // getUniforms < renderBufferDirect; program 'sky / clouds / dome' into PMREM.cubeUv). Under a host with a budget that
+    // can sleep (app.js FLYDIY_WORLD_WAIT), the same maker's mesh - the same text, the same attributes: the same program
+    // key - goes to compileAsync HERE, as the bake will draw it (a bare scene: no light, no fog; a render target bound:
+    // linear out, no tone map), the link runs behind the mist's work, and the step before the bake sleeps on what is left
+    // of it ('sky: the probe programs'). Its material is kept (a program lives while a material holds it). A failure or
+    // 20 s without an answer: the bake goes on and links it itself, as it did.
+    let skyLink = null;
+    if (HOSTB && window.FLYDIY_WORLD_ASYNC === true && typeof renderer.compileAsync === 'function' && THREE.WebGLRenderTarget && typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh) {
+      try { const wm = CLOUDS.domeMesh(0, 20, 24);
+        if (wm) { const ws = new THREE.Scene(); ws.add(wm); const wrt = new THREE.WebGLRenderTarget(4, 4), prev = renderer.getRenderTarget(); let done = false, p = null;
+          try { renderer.setRenderTarget(wrt); p = renderer.compileAsync(ws, camera); } finally { renderer.setRenderTarget(prev); }
+          const fin = () => { done = true; };
+          skyLink = { p: Promise.resolve(p).then(fin, fin), done: () => done, t0: performance.now(), mesh: wm, end() { ws.remove(wm); wrt.dispose(); wm.geometry.dispose(); } };
+          scene.userData.skyLink = skyLink.stats = { linked: false, linkMs: null, sleptMs: null }; } }
+      catch (e) { console.warn('sky: the probe programs: ' + (e && e.message)); skyLink = null; }
+    }
+    // PERF-WORLDBUILD (23 Nov 2026): THE SKY STEP IN FIVE under a host's budget (window.FLYDIY_WORLD_BUDGET - the world
+    // built behind a live garage: this step was its 1.9 s freeze at 5K, 23 Nov): the tables, the mist field, the forest
+    // mist (its map in steps of its own), the world's probe, the cabin's. Nothing between two of them reads what the
+    // next makes (a frame there sees the sky the frames before 'sky' saw: no environment yet, or the world's). With no
+    // host budget: one step, as it was - the loading screen's text and bar are the yields'.
+    if (HOSTB) yield 'sky: the mist field';
     // F2: the mist's field - where the layer LIES, from this world's valley floors and water.
     // Once per world, here, because this is where the world's own fields are already in hand.
     try { const f = ATMO.bakeField && ATMO.bakeField(renderer, world); if (f) console.log('mist field: ' + f.N + '^2 in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'); } catch (e) { console.warn('mist field: ' + e.message); }
     // FOREST-MIST (prototype, ?fmist only): where the pockets can sit, baked from the same land, into the same atlas
-    if (typeof FMIST !== 'undefined' && FMIST.ON) { try { FMIST.bake(renderer, world, scene); } catch (e) { console.warn('forest mist: ' + e.message); } }
+    if (HOSTB) yield 'sky: the forest mist';
+    if (typeof FMIST !== 'undefined' && FMIST.ON) { try { if (HOSTB && FMIST.bakeSteps) yield* FMIST.bakeSteps(renderer, world, scene); else FMIST.bake(renderer, world, scene); } catch (e) { console.warn('forest mist: ' + e.message); } }
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
     // G1460 (SOFT-GPU) NO SKY PROBE ON A SOFTWARE RENDERER: on SwiftShader the probe's PMREM poisons every Standard
     // material of the world - the ground, the trees, the sheds and the aeroplane drew BLACK at the stand (the Lambert far
     // terrain and the sky right), and with scene.environment taken away the same frame drew whole. No probe (null, the
     // path a world without ATMO takes for it), no cube bakes; the hemisphere and the sun light the world
     const softEnv = typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft();
+    if (HOSTB) yield 'sky: the probe';
+    if (skyLink) { const tS = performance.now();   // (linkMs: from the hand-over to the link seen; sleptMs: the part this step slept - the host's log reads both)
+      while (!skyLink.done() && performance.now() - skyLink.t0 < 20000) { window.FLYDIY_WORLD_WAIT = skyLink.p; yield 'sky: the probe programs'; }
+      Object.assign(skyLink.stats, { linked: skyLink.done(), linkMs: Math.round(performance.now() - skyLink.t0), sleptMs: Math.round(performance.now() - tS) }); skyLink.end(); }
     probe = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, pre: true, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
       // re-baked as the clouds drift past the eye
@@ -1006,6 +1178,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // material in the cabin took it as its ambient from below. The same sky over a NEUTRAL cap (the
     // cabin's own floor and walls, a dark warm grey) is the environment while the eye is in the cockpit
     // (app.js hands the view over through WORLD_RIG.interior); baked on the world probe's schedule.
+    if (HOSTB) yield 'sky: the cabin probe';
     probeIn = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, pre: true, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
     if (probeIn) probeIn.bake(world.day);
@@ -1625,6 +1798,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   };
 
   let drawnLakeSD = () => -1e9;   // G753: the drawn lakes' field (the terrain block's lakeRsd), for the cover ring's test
+  // PERF-WORLDBUILD (22 Nov, PERF-LEAD's ?pavefirst=1): the fog (set at the top), the environment (the 'sky' step's probe,
+  // baked there) and the lights (the hemisphere, the sun and the craft's near shadow light, just above) all stand: every
+  // scene input of a lit program's key. A host that matches this label hands PAVEMENT.warmMesh(THREE) to its compiler
+  // here, ~40 s before the first strip's draw would key it. This step does nothing itself.
+  yield 'pavement program';
   yield 'terrain';
   { // terrain (24 km domain, W6): two-ring mesh — 17.6 m polys over the
     // home ±4500 so river carves resolve, coarse ~100 m strips out to
@@ -1713,7 +1891,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const hG = new Float32Array(N * N), lowG = new Float32Array(N * N);
       const mimg = opts.mini ? sctx.createImageData(N, N) : null;
       const fimg = opts.mask ? sctx.createImageData(N, N) : null;
-      for (let j = 0; j < N; j++) { if (j && !(j & 31)) yield 'ground colour'; for (let i = 0; i < N; i++) {
+      // (PERF-WORLDBUILD, 23 Nov 2026: under a host's budget the rows are led by it - a block of 32 was 70-117 ms behind a live
+      //  garage at 5K; the same texels in the same order)
+      for (let j = 0; j < N; j++) { if (j && (HOSTB ? hostDue() : !(j & 31))) yield 'ground colour'; for (let i = 0; i < N; i++) {
         const x = x0 + (i + 0.5) / N * EXT, z = z0 + (j + 0.5) / N * EXT;
         colorAt(x, z);
         hG[j * N + i] = _h; lowG[j * N + i] = _low;
@@ -1777,7 +1957,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const FIELDS = ['#8a9a4e', '#c0aa61', '#b0a05e', '#96764f', '#6d8036',
                       '#9aa855', '#a8ab52', '#7e8f42'];
       const CS = 190;
-      for (let fz = z0; fz < z1; fz += CS) for (let fx = x0; fx < x1; fx += CS) {
+      // (PERF-WORLDBUILD, 23 Nov 2026: a row of fields a check under a host's budget - the outer bake's fields were one task)
+      for (let fz = z0; fz < z1; fz += CS) { if (HOSTB && fz > z0 && hostDue()) yield 'ground fields'; for (let fx = x0; fx < x1; fx += CS) {
         const cx = fx + CS / 2, cz = fz + CS / 2;
         const low = lowAt(cx, cz);
         if (low < 0.25) continue;
@@ -1813,7 +1994,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         g.strokeStyle = '#55672f'; g.lineWidth = 1.3;
         g.strokeRect(-W2/2, -D2/2, W2, D2);
         g.restore();
-      }
+      } }
       g.globalAlpha = 1;
       if (opts.grain) yield 'ground grain';
       if (opts.grain) { // fine speckle so the ground has texture down low
@@ -1850,8 +2031,36 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     //     (9830..10180, -9220..-8890), level 2.67 m, on the route from the field.
     // This copy of the field is the one the RENDERER reads: a texel inside a lake whose composed ground stands 5 cm over
     // the lake's level is set outside (-16 m). The physics' field (world.island.lake, the hydrology's) is not touched.
+    // PERF-WORLDBUILD (23 Nov 2026): UNDER A HOST'S BUDGET THE SAME FIELD IS MADE IN STEPS FIRST (the closure below was a
+    // 196 ms task behind a live garage at 5K): the closure's own statements with a yield between two lakes and every 256
+    // texels of the fill's test ('ground: the lakes'), and the closure hands the result on. The closure's text stays as it
+    // is but for that one line (GATE LOOKS and GATE LAKEBED lift it and run it). The fields' texture carries the field in
+    // its alpha: GATE COMPSTEPS under COMPSTEPS_BUDGET compares that texture's bytes with the default world's.
+    let lakeRPre = null;
+    if (HOSTB && ISLA && ISLA.lake && ISLA.lakes) lakeRPre = yield* (function* () {
+      // (a texel's lake is not recorded: it is judged against the HIGHEST level of every lake whose box covers it - a
+      // higher neighbour's water inside a lower lake's box is its own, not a fill)
+      const G = ISLA.grid, L8 = ISLA.lake.slice(), top = new Map(); let n = 0;
+      const boxOf = L => [Math.max(0, Math.floor((L.x0 - G.x0) / G.cell) - 2), Math.min(G.w - 1, Math.ceil((L.x1 - G.x0) / G.cell) + 2),
+                          Math.max(0, Math.floor((L.z0 - G.z0) / G.cell) - 2), Math.min(G.h - 1, Math.ceil((L.z1 - G.z0) / G.cell) + 2)];
+      for (const L of ISLA.lakes) { if (hostDue()) yield 'ground: the lakes'; const [i0, i1, j0, j1] = boxOf(L);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * G.w + i; if (L8[k] <= 128) continue; const t = top.get(k); if (t === undefined || L.level > t) top.set(k, L.level); } }
+      // ONLY WHERE THE PREMISES RAISED IT: the composed ground over the level AND over the island's own ground (the base
+      // world's). 46 natural lakes have field texels whose raw DEM stands 0.8-3 m over their level (4 282 texels on
+      // Jolene) - drawn as they always were; this is the premises' fill, not a re-judgement of the island's lakes
+      const B = world.premises && world.premises.base && world.premises.base.terrainH ? world.premises.base : null;
+      let nq = 0;
+      if (B) for (const [k, lv] of top) {
+        if (!(++nq & 255) && hostDue()) yield 'ground: the lakes';
+        const i = k % G.w, j = (k - i) / G.w, x = G.x0 + (i + 0.5) * G.cell, z = G.z0 + (j + 0.5) * G.cell, h = world.terrainH(x, z);
+        if (h >= lv + 0.05 && h > B.terrainH(x, z) + 0.02) { L8[k] = 124; n++; }
+      }
+      if (n) console.log('lakes: ' + n + ' field texels the composed ground fills, not drawn as water');
+      return L8;
+    })();
     const lakeR = (() => {
       if (!ISLA || !ISLA.lake || !ISLA.lakes) return ISLA ? ISLA.lake : null;
+      if (typeof lakeRPre !== 'undefined' && lakeRPre) return lakeRPre;   // (made in steps above, under a host's budget)
       // (a texel's lake is not recorded: it is judged against the HIGHEST level of every lake whose box covers it - a
       // higher neighbour's water inside a lower lake's box is its own, not a fill)
       const G = ISLA.grid, L8 = ISLA.lake.slice(), top = new Map(); let n = 0;
@@ -1890,8 +2099,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // G1230 (MEM-BUDGET): UPLOADED AS THE STEP ENDS, NOT AT FIRST LIGHT. The four island textures (~162 MiB of derived
     // bytes) were the GPU's only at the loading's 'upload' step - held through the whole load, the town's and the forest's
     // peak included. initTexture now: onUpdate drops the bytes there and then (the derivation stays for a lost context)
-    const gpuUploadNow = () => { if (!renderer || typeof renderer.initTexture !== 'function') return 0; let n = 0;
-      for (const [t] of gpuTex) if (t.image && t.image.data && t.version > 0) { try { renderer.initTexture(t); n++; } catch (e) { console.warn('island texture upload:', e && e.message); } }
+    const gpuUploadNow = (one) => { if (!renderer || typeof renderer.initTexture !== 'function') return 0; let n = 0;   // (one: that texture alone - the island ground's step in parts)
+      for (const [t] of gpuTex) if ((!one || t === one) && t.image && t.image.data && t.version > 0) { try { renderer.initTexture(t); n++; } catch (e) { console.warn('island texture upload:', e && e.message); } }
       return n; };
     const gpuRestore = () => { let n = 0; for (const [t, derive] of gpuTex) if (!t.image.data) { t.image.data = derive(); t.needsUpdate = true; n++; } return n; };
     { const cv = renderer && renderer.domElement;
@@ -1913,6 +2122,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           for (let k = 0; k < 3; k++) out[o + k] = (src[a + k] + src[b + k] + src[c + k] + src[d + k] + 2) >> 2;
           out[o + 3] = 255; } }
       return out; };
+    if (HOSTB && ISLA) yield 'ground: the albedo';   // (PERF-WORLDBUILD: the drawn lakes' field above, the albedo's texels below - two parts under a host's budget)
     if (ISLA) {
       const G = ISLA.grid, n = G.w * G.h;
       // (G1230: read at the call, not captured - a budget that drops the colour grids once drawn (app.js) leaves this a
@@ -1967,6 +2177,28 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     let GROUND_DISC_SHARED = typeof location !== 'undefined' && /[?&]groundshare=1(&|$)/.test(location.search);
     let groundSync = () => {}, groundFullNow = false, groundKey = base => () => base;
     const islandKeyed = (m, base) => { m.customProgramCacheKey = groundKey(base); m.groundFamily = GROUND_FAMILY; GROUND_FAMILY.add(m); return m; };
+    // PERF-WORLDBUILD (23 Nov 2026, for PERF-LEAD's ?groundfirst=1): THE GROUND FAMILY'S STAND-INS. A host that links the
+    // ground's programs early found only the ring: the fine tiles and the contact tier are built by the frames, the far
+    // terrain's quadrants by its first cut - no mesh to hand to the compiler until the eye is there. groundWarm lists
+    // each DRAWN material of the family with the attribute names its meshes carry (three's key reads which exist; the
+    // hook reads them) - groundApi.warm() gives, for each, { name, key, material, mesh }: the material ITSELF on one
+    // bare triangle flagged as the drawn meshes are (receiveShadow), never in the scene, the same object every call.
+    // (The twin is not in the list: it is only ever drawn as the premises patch's clone - render_premises patchWarm. Nor
+    // is the contact tier's copy of the fine material: the same key, so the fine tiles' program - three links it once.)
+    // Nothing is made until a host asks.
+    const GROUND_WARM = [], WARM_SIZE = { position: 3, normal: 3, uv: 2, aCoarse: 1, aCoarseN: 3 };
+    const groundWarm = (name, mat, attrs) => { GROUND_WARM.push({ name, mat, attrs, mesh: null }); };
+    const groundWarmList = () => GROUND_WARM.map(e => {
+      if (!e.mesh) {
+        const g = new THREE.BufferGeometry();
+        for (const a of e.attrs) g.setAttribute(a, new THREE.BufferAttribute(new Float32Array(3 * WARM_SIZE[a]), WARM_SIZE[a]));
+        g.attributes.position.setXYZ(1, 1, 0, 0); g.attributes.position.setXYZ(2, 0, 0, 1);
+        for (let i = 0; i < 3; i++) g.attributes.normal.setXYZ(i, 0, 1, 0);
+        const m = new THREE.Mesh(g, e.mat()); m.name = 'ground:warm:' + e.name; m.receiveShadow = true; m.frustumCulled = false;
+        e.mesh = m;
+      }
+      return { name: e.name, key: e.mesh.material.customProgramCacheKey(), material: e.mesh.material, mesh: e.mesh };
+    });
     yield 'island ground';
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
@@ -1979,7 +2211,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const dataTex = (d) => { const t = new THREE.DataTexture(d, G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType);
         t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true; return t; };
       // (a null b channel is 255; the packB's b is zeros, as it was: new Uint8Array(n) then, a flag now - no 12 MB array)
-      const pk4 = (r, g, b, a) => { const make = () => { const d = new Uint8Array(n * 4); for (let k = 0, j = 0; k < n; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b === 0 ? 0 : b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; } return d; };
+      // (PERF-WORLDBUILD, 23 Nov 2026: pk4Fill is the loop, a range at a time; pk4Pre holds bytes a host's budget had made in
+      //  steps - the texture's FIRST make takes them, a later make (a lost context) fills its own, as before)
+      const pk4Fill = (d, r, g, b, a, k0, k1) => { for (let k = k0, j = k0 * 4; k < k1; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b === 0 ? 0 : b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; } };
+      let pk4Pre = null;
+      const pk4 = (r, g, b, a) => { const make = () => { if (pk4Pre) { const p = pk4Pre; pk4Pre = null; return p; } const d = new Uint8Array(n * 4); pk4Fill(d, r, g, b, a, 0, n); return d; };
         return gpuOnly(dataTex(make()), make); };
       // G1251 B IN TWO CHANNELS (QUICK-BYTES): only (ndvi, terrain type) were ever read - .r and .g, which an RG8
       // texture returns unchanged - so B is RG8: 2 bytes a texel, not 4 (23.14 MiB on the 3095x3920 grid). A row is
@@ -2043,13 +2279,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         gU.uGW1.value = gpuOnly(dataTex(w1()), w1); gU.uGW2.value = gpuOnly(dataTex(w2()), w2);
         return true;
       };
+      // PERF-WORLDBUILD (23 Nov 2026): THE ISLAND GROUND'S STEP IN PARTS under a host's budget (HOSTB: the world built behind
+      // a live garage - this step was a 474 ms freeze at 5K, 23 Nov): the tint (above), the fields' texture, the types' flags
+      // (splat_ground oneCodeSteps: its run passes a block of rows a step), their texture, the uploads one a step, the water's
+      // fields, the sets. The same work in the same order (the uniforms in two assigns, their order kept); nothing between two parts reads what the next makes. With no
+      // host budget: one step, as it was.
+      if (HOSTB) { yield 'island ground: the fields';
+        const d = new Uint8Array(n * 4); for (let k0 = 0; k0 < n; k0 += 1048576) { if (k0 && hostDue()) yield 'island ground: the fields'; pk4Fill(d, ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR, k0, Math.min(n, k0 + 1048576)); }
+        pk4Pre = d; }
       Object.assign(gU, {
         uGTint: { value: tintTex },
-        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
-        // (G2075, GROUND-COST: bit 7 of the type = the splat's vote window is one code - splat_ground oneCode; the GPU copy only)
-        // (a plain ground at the build skips it: no vote reads the bit, and a cell without it is only the full vote - correct either way)
-        uGPackB: { value: pk2(ISLA.ndvi, ISLA.ttype ? () => (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND.oneCode && !(typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain')
-          ? SPLAT_GROUND.oneCode(ISLA.ttype, G.w, G.h) : ISLA.ttype) : null) },
+        uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) } });   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
+      // (G2075, GROUND-COST: bit 7 of the type = the splat's vote window is one code - splat_ground oneCode; the GPU copy only)
+      // (a plain ground at the build skips it: no vote reads the bit, and a cell without it is only the full vote - correct either way)
+      const oneOn = () => typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND.oneCode && !(typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain');
+      let one1 = null;   // (the flags made in steps: the texture's first make takes them; a later make - a lost context - makes its own)
+      if (HOSTB) { yield 'island ground: the types'; if (ISLA.ttype && oneOn() && SPLAT_GROUND.oneCodeSteps) one1 = yield* SPLAT_GROUND.oneCodeSteps(ISLA.ttype, G.w, G.h); }
+      const packB = pk2(ISLA.ndvi, ISLA.ttype ? () => { if (one1) { const o = one1; one1 = null; return o; } return oneOn() ? SPLAT_GROUND.oneCode(ISLA.ttype, G.w, G.h) : ISLA.ttype; } : null);
+      Object.assign(gU, {
+        uGPackB: { value: packB },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
@@ -2073,7 +2321,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       });
       GROUND.on = true;
       classWeights();   // a saved stack that starts at the class layer asks for them now
-      gpuUploadNow();
+      if (HOSTB) { for (const e of gpuTex.slice()) { const t = e[0]; if (!(t.image && t.image.data && t.version > 0)) continue; yield 'island ground: an upload'; gpuUploadNow(t); }
+        yield 'island ground: the calm field'; }
+      else gpuUploadNow();
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
       if (typeof WATER !== 'undefined' && WATER.setCoast && ISLA) WATER.setCoast(ISLA.grid, ISLA.coast, lakeR);   // G2839: the same fields on the CPU - the ring's distances to land and water
       // BAY-MIRROR: the sea's shelter - the world's own calm field (28_island.js), the bytes its waterH scales the floats' swell
@@ -2088,6 +2338,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const GPLAIN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain';
       // G2075 (GROUND-COST): ...and the LEAN program at the build (retro: one set a type compiled in) - the row's own key from the first compile
       const GLEAN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'lean';
+      if (HOSTB) yield 'island ground: the sets';
       SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA, { plain: GPLAIN0, lean: GLEAN0 }) : null;
       // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22): `side` says what a material does at the disc
       // of fine tiles round the eye - the near ring (-1) DISCARDS its fragments inside the disc's
@@ -2375,6 +2626,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (u && gU[u]) gU[u].value = GROUND[k]; } classWeights(); groundSync(); return groundApi.get(); },
       classWeights: () => !!(gU.uGW1 && gU.uGW1.value.image.width > 1),   // built yet? (AS1, G906: on demand)
       gpuTex: () => ({ list: gpuTex.map(([t]) => t), restore: gpuRestore }),   // the GPU-only island textures and their re-derive (GATE FRAMECOST reads it)
+      warm: () => groundWarmList(),   // PERF-WORLDBUILD: the family's stand-ins (groundWarm above), whole from the 'ground programs' step
     };
     yield 'ground bake';
     const tex = islandTex || (yield* bakeGroundSteps(-INNER, -INNER, INNER, INNER, 512, { grain: true }));
@@ -2385,16 +2637,18 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
 
     yield 'ring';
     const geo = new THREE.PlaneGeometry(2 * INNER, 2 * INNER, 512, 512);
+    if (HOSTB) yield 'ring: its plane';
     geo.rotateX(-Math.PI / 2);
+    if (HOSTB) yield 'ring heights';
     const posA = geo.attributes.position;
     // G995 (A5-LOAD): 513^2 heights, a yield every 16 rows (the raster reads made this one 2 s task of the world step)
     const gB = world.terrainHBuild || world.terrainH;   // (G1406: the build read - the ring's 9 km reach crosses Metlakatla)
     for (let i = 0; i < posA.count; i++) {
-      if (i && !(i % (513 * 16))) yield 'ring heights';
+      if (i && (HOSTB ? !(i & 63) && hostDue() : !(i % (513 * 16)))) yield 'ring heights';   // (PERF-WORLDBUILD: led by the host's budget, 64 vertices a check)
       posA.setY(i, gB(posA.getX(i), posA.getZ(i)));
     }
     if (islandUV) { const uvA = geo.attributes.uv;
-      for (let i = 0; i < posA.count; i++) { const t = islandUV(posA.getX(i), posA.getZ(i)); uvA.setXY(i, t[0], t[1]); } }
+      for (let i = 0; i < posA.count; i++) { if (HOSTB && i && !(i & 4095) && hostDue()) yield 'ring heights'; const t = islandUV(posA.getX(i), posA.getZ(i)); uvA.setXY(i, t[0], t[1]); } }
     yield 'ring normals';
     geo.computeVertexNormals();
     groundGeos.push(geo);
@@ -2564,7 +2818,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
     if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring'); rockGroundMat = gMat;
-      gMatTwin.onBeforeCompile = islandGroundHook0; islandKeyed(gMatTwin, 'island-twin'); }   // (the hooks share one source text: the keys keep the programs apart)
+      gMatTwin.onBeforeCompile = islandGroundHook0; islandKeyed(gMatTwin, 'island-twin');   // (the hooks share one source text: the keys keep the programs apart)
+      groundWarm('island-ring', () => gMat, ['position', 'normal', 'uv']); }
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
@@ -2725,6 +2980,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (FINE.on) {
       FINE.mat = new THREE.MeshStandardMaterial({ userData: { progOwner: 'terrain / island ground / fine ring' }, map: tex, roughness: 1, metalness: 0 });
       FINE.mat.onBeforeCompile = sh => { islandGroundHookFine(sh); sh.uniforms.uTier = TIER_U.fine; }; islandKeyed(FINE.mat, 'island-fine');   // (G2115: the tier's sink, its own)
+      groundWarm('island-fine', () => FINE.mat, ['position', 'normal', 'uv', 'aCoarse', 'aCoarseN']);
       const SEG = 2 * INNER / 512, RP = geo.attributes.position, RN = geo.attributes.normal, RW = 513;
       // the ring's surface at (x, z): its own triangles (PlaneGeometry's a-b-d / b-c-d split, the
       // diagonal from (ix, iy+1) to (ix+1, iy)) and its own vertex normals, so the tile's rim is the ring
@@ -2807,8 +3063,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let fineTierMat = null;
       const fineMatTier = () => { if (fineTierMat) return fineTierMat;
         const m = FINE.mat.clone(); m.onBeforeCompile = islandGroundHookFine; islandKeyed(m, 'island-fine');   // the fine program, the hook's own uTier (off)
-        m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1; return (fineTierMat = m); };
-      const Hf = (x, z) => world.terrainH(x, z) - groundSink(x, z);   // FINE.build's H
+        m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1; return (fineTierMat = m); };      const Hf = (x, z) => world.terrainH(x, z) - groundSink(x, z);   // FINE.build's H
       const fineUV = (x, z) => (islandUV ? islandUV(x, z) : [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]);
       const modeAt = (cx, cz) => {
         const P = premisesR;
@@ -2876,8 +3131,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
       const oMat = worldLambert({ userData: { progOwner: 'terrain / island ground / outer ring' }, map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;
-      if (islandGroundHook) islandKeyed(oMat, 'island-outer');
+      if (islandGroundHook) { islandKeyed(oMat, 'island-outer'); groundWarm('island-outer', () => oMat, ['position', 'normal', 'uv']); }
       outerMatShared = oMat;
+      // PERF-WORLDBUILD (23 Nov): the family is whole here - the ring, the fine tiles and this one. A host
+      // that matches this label hands groundApi.warm()'s meshes (scene.userData.groundWarm(), the api is not out yet) to
+      // its compiler, before the far terrain's first cut. This step does nothing itself.
+      scene.userData.groundWarm = () => groundWarmList();
+      yield 'ground programs';
       outerUVShared = islandUV ? ((x, z) => islandUV(x, z)) : ((x, z) => [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]);   // the far terrain's own law (patchOf)
       // (the lake-free twin, PERF 2026-09-23, is gone with the lake cut, G1335: one material, every quadrant one draw)
       // THE CUT FOLLOWS THE EYE (PERF 2026-09-23, the frame study: every leaf drawn at every
@@ -2895,6 +3155,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const seaFloor = world.island.seaFloor, lakeBed = world.island.lakeBed, qs = FH.side / 4;
       const FARLOD = { tolPx: BUD && BUD.terrain > 1 ? BUD.terrain : 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
                        stats: { nodes: 0, tris: 0, quads: 0, rebuilds: 0, cached: 0, ms: 0 } };
+      // PERF-LEAD LAB (?fartol=N, 22 Nov; a DIAL for an A/B, nothing changes without it): the far terrain's error tolerance
+      // in pixels. At 1 px on a 5120-wide view the cruise at 700 m drew 65 million triangles a frame for 412..437 s of the
+      // journey (GPU 46.5 ms against 29.2; PERF-TRACE), each quadrant drawn by the view, the water mirror and the shadows.
+      // A visible choice (the far relief's silhouette): shown before / after before any default moves.
+      { const q = typeof location !== 'undefined' && /[?&]fartol=([0-9.]+)(?:&|$)/.exec(location.search || ''); if (q && +q[1] >= 1) FARLOD.tolPx = +q[1]; }
       const boxOf = n => { const s = FH.side / (1 << n.d); return [FH.bounds.x0 + n.ix * s, FH.bounds.z0 + n.iz * s, s]; };
       const underRing = (ox, oz, s) => ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250;   // fully under the inner ring
       const nearRing = (ox, oz, s) => ox < INNER + 250 && ox + s > -INNER - 250 && oz < INNER + 250 && oz + s > -INNER - 250;
@@ -2903,7 +3168,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       let farIds = 0;
       // a node keeps its quantised samples (AS1, G905: 19_terrain_codec decodeRaw); its heights as doubles, the same numbers
       const hts = n => TERRAIN_CODEC.heights(n);
-      (function measure(n) {
+      // (PERF-WORLDBUILD, 23 Nov 2026: a generator the build delegates to - under a host's budget it yields between two nodes
+      //  ('far terrain: the measure': the walk was the 114 ms slice that ended on 'far terrain: the cut' behind a live garage);
+      //  with none it runs in one go: the same walk, the same order, the same numbers)
+      yield* (function* measure(n) {
+        if (HOSTB && hostDue()) yield 'far terrain: the measure';
         n.fid = farIds++;
         const nh = hts(n);
         let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = nh[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
@@ -2911,7 +3180,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (!n.kids) return;
         let e = 0;
         for (const c of n.kids) {
-          measure(c);
+          yield* measure(c);
           const qx = c.ix - n.ix * 2, qz = c.iz - n.iz * 2, ch = hts(c);
           let ec = 0;
           for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -3046,7 +3315,83 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         for (const P of parts) if (P !== first && upper(P) > r2) scan(P);
         geo.boundingBox = box; geo.boundingSphere = new THREE.Sphere(center, Math.sqrt(r2));
       };
+      // PERF-LEAD LAB (?farslots=1, OFF by default; 22 Nov): A RE-CUT SENDS ONLY THE NODES THAT CHANGED. buildQuad below makes a
+      // quadrant's whole geometry anew when ONE node of its cut changes level: position + normal + uv + index, 12-44 MB at once -
+      // the journey's log has 46 such uploads of 30-92 ms in 26 minutes of flight (16 of its 35 frames over 100 ms). Every patch
+      // has the same NV vertices and the same index template, so a quadrant is a row of fixed SLOTS in four buffers of its own
+      // (GLBufferAttribute: the buffers are ours, nothing is kept on the CPU - G1200's diet holds): a node leaving frees its slot,
+      // a node coming takes a free one or the row's end, a hole left over takes the last live node, and only those slots are
+      // written (bufferSubData from the patch cache, on COPY_WRITE_BUFFER: three's own bindings are not touched). The index is
+      // each slot's template + its base, written once a slot. A row that is full grows by half, its live part copied ON the GPU.
+      // (ON BY DEFAULT ON A REAL PAGE since 23 Nov 2026, the user's word - "turn on all switches leading to good results": ?farslots=0
+      //  is the old way; the node page (flydiy-node) keeps it off. No picture changes: big uploads 28 -> 0 in the journey)
+      const FSLOT = (() => { if (typeof location === 'undefined' || !THREE.GLBufferAttribute) return null;
+        { const S = location.search || '', real = typeof window !== 'undefined' && window.FLYDIY_REAL_PAGE === true;   // (the page says so - app.js: no device test here, GATE GFX's rule)
+          if (!/[?&]farslots=1(?:&|$)/.test(S)) return null; }   // (26 Nov: OFF by default again - the far mountains drawn TRANSPARENT on the user's L40N, the re-cut's missing nodes; ?farslots=1 to measure)
+        const gl = renderer && renderer.getContext ? renderer.getContext() : null;
+        return gl && gl.copyBufferSubData && gl.COPY_WRITE_BUFFER ? gl : null; })();
+      FARLOD.slots = FSLOT ? { on: true, sentKB: 0, grows: 0, moved: 0, writes: 0 } : { on: false };
+      if (typeof window !== 'undefined') window.FLYDIY_FARSLOTS = FARLOD.slots;   // (the rig's read: tools/perf/load_matrix_eval.js)
+      const slotAlloc = (cap, from) => {
+        const gl = FSLOT, T = gl.COPY_WRITE_BUFFER, R = gl.COPY_READ_BUFFER, live = from ? from.n : 0;
+        const mk = (per, old) => { const b = gl.createBuffer(); gl.bindBuffer(T, b); gl.bufferData(T, cap * per, gl.DYNAMIC_DRAW);
+          if (old && live) { gl.bindBuffer(R, old); gl.copyBufferSubData(R, T, 0, 0, live * per); gl.bindBuffer(R, null); }
+          return b; };
+        const S = { cap, n: live, fids: from ? from.fids.slice(0, live) : [], at: from ? new Map(from.at) : new Map(),
+                    pos: mk(NV * 12, from && from.pos), nor: mk(NV * 12, from && from.nor), uv: mk(NV * 8, from && from.uv), idx: mk(TPL.length * 4, from && from.idx) };
+        const c0 = from ? from.cap : 0, idx = new Uint32Array((cap - c0) * TPL.length);   // the new slots' indices (the old ones were copied)
+        for (let i = c0, o = 0; i < cap; i++) { const b = i * NV; for (let k = 0; k < TPL.length; k++) idx[o++] = TPL[k] + b; }
+        gl.bindBuffer(T, S.idx); gl.bufferSubData(T, c0 * TPL.length * 4, idx); gl.bindBuffer(T, null);
+        const geo = S.geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.GLBufferAttribute(S.pos, gl.FLOAT, 3, 4, cap * NV));
+        geo.setAttribute('normal', new THREE.GLBufferAttribute(S.nor, gl.FLOAT, 3, 4, cap * NV));
+        geo.setAttribute('uv', new THREE.GLBufferAttribute(S.uv, gl.FLOAT, 2, 4, cap * NV));
+        geo.setIndex(new THREE.GLBufferAttribute(S.idx, gl.UNSIGNED_INT, 1, 4, cap * TPL.length));
+        FARLOD.slots.sentKB += (cap - c0) * TPL.length * 4 / 1024;
+        return S;
+      };
+      const slotWrite = (S, slot, P) => { const gl = FSLOT, T = gl.COPY_WRITE_BUFFER;
+        gl.bindBuffer(T, S.pos); gl.bufferSubData(T, slot * NV * 12, P.pos);
+        gl.bindBuffer(T, S.nor); gl.bufferSubData(T, slot * NV * 12, P.nor);
+        gl.bindBuffer(T, S.uv); gl.bufferSubData(T, slot * NV * 8, P.uv);
+        FARLOD.slots.sentKB += NV * 32 / 1024; FARLOD.slots.writes++; };
+      const buildQuadSlots = Q => {
+        const nodes = Q.want || [], want = new Map(nodes.map(n => [n.fid, n])), old = Q.m.geometry;
+        const tq = performance.now(), was = Q.sig ? Q.sig.split(',').length : 0, kb0 = FARLOD.slots.sentKB;
+        let S = Q.slots;
+        const put = (slot, n) => { slotWrite(S, slot, patchOf(n)); S.fids[slot] = n.fid; S.at.set(n.fid, slot); };
+        // (a re-sink dropped some patches: the same nodes, new heights - their slots are written again; all of them when it is not said which)
+        if (S && Q.sig === '') for (const [fid, slot] of S.at) if (want.has(fid) && (!Q.dirty || Q.dirty.has(fid))) slotWrite(S, slot, patchOf(want.get(fid)));
+        Q.dirty = null;
+        const free = [];
+        if (S) for (let s = 0; s < S.n; s++) if (!want.has(S.fids[s])) { S.at.delete(S.fids[s]); S.fids[s] = -1; free.push(s); }
+        const add = nodes.filter(n => !S || !S.at.has(n.fid));
+        const need = (S ? S.n - free.length : 0) + add.length;
+        let prev = null;
+        if (!S || need > S.cap) { prev = S; S = Q.slots = slotAlloc(Math.max(8, Math.ceil(need * 1.5)), S); if (S.n) FARLOD.slots.grows++; }
+        for (const n of add) { if (free.length) put(free.pop(), n); else put(S.n++, n); }
+        // more nodes left than came: the row is closed from its end (a free last slot is dropped, a live one moves into a hole)
+        free.sort((a, b) => a - b);
+        while (free.length) { const last = S.n - 1;
+          if (S.fids[last] === -1) { free.splice(free.indexOf(last), 1); S.n--; continue; }
+          const hole = free.shift(), fid = S.fids[last]; put(hole, want.get(fid)); S.fids[last] = -1; S.n--; FARLOD.slots.moved++; }
+        FSLOT.bindBuffer(FSLOT.COPY_WRITE_BUFFER, null);
+        const geo = S.geo;
+        if (nodes.length) farBounds(geo, null, nodes.map(patchOf));
+        else if (old && old.boundingSphere) { geo.boundingSphere = old.boundingSphere; geo.boundingBox = old.boundingBox; }
+        else { geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1); geo.boundingBox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3()); }
+        geo.setDrawRange(0, S.n * TPL.length);
+        if (old !== geo) { Q.m.geometry = geo; if (old && old.dispose) old.dispose(); }
+        // (the old row's buffers: three deletes them with a geometry it has drawn; one it never drew is ours to delete - twice is
+        // nothing to GL, and the copy into the new row is already queued before either)
+        if (prev) for (const b of [prev.pos, prev.nor, prev.uv, prev.idx]) FSLOT.deleteBuffer(b);
+        Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
+        // (PERF-TRACE's 'deliver', as buildQuad says it below: the nodes before and after, the KB this re-cut SENT - its changed slots)
+        { const FRq = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+          if (FRq && FRq.event) FRq.event('deliver', performance.now() - tq, { s: 'far terrain', what: 'quadrant re-cut (slots)', n: nodes.length, was, kb: Math.round(FARLOD.slots.sentKB - kb0) }); }
+      };
       const buildQuad = Q => {
+        if (FSLOT) return buildQuadSlots(Q);
         const nodes = Q.want || [], patches = [], tq = performance.now(), was = Q.sig ? Q.sig.split(',').length : 0;
         const pos = new Float32Array(nodes.length * NV * 3), uv = new Float32Array(nodes.length * NV * 2), nor = new Float32Array(nodes.length * NV * 3);
         const idx = new Uint32Array(nodes.length * TPL.length);
@@ -3092,7 +3437,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             if (!force && nMax == null && performance.now() - t0 >= 4) break;
           }
           // the patches no quadrant draws any more leave the cache
-          const live = new Set(); for (const Q of FARLOD.quads.values()) for (const f of Q.sig.split(',')) if (f) live.add(+f);
+          // (PERF-WORLDBUILD, 23 Nov 2026: ...and the patches a quadrant still STALE wants stay too. A resink in steps warms the
+          //  dropped patches first, a patch a step (G2063), then re-cuts a quadrant a step: the first quadrant's sweep dropped
+          //  the warmed patches of every other stale quadrant - each made them again inside its own step, all of its patches,
+          //  one task ('far terrain sink' 119 ms behind a live garage at 5K, 23 Nov). The same patches, made once.)
+          const live = new Set(); for (const Q of FARLOD.quads.values()) { for (const f of Q.sig.split(',')) if (f) live.add(+f);
+            if (Q.want && Q.sig !== Q.wantSig) for (const nd of Q.want) live.add(nd.fid); }
           for (const f of [...FARLOD.cache.keys()]) if (!live.has(f)) FARLOD.cache.delete(f);
         }
         let nodes = 0, tris = 0; for (const Q of FARLOD.quads.values()) { tris += Q.tris; nodes += Q.sig ? Q.sig.split(',').length : 0; }
@@ -3113,20 +3463,30 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         for (const nd of warm.values()) if (!FARLOD.cache.has(nd.fid)) { patchOf(nd); yield 'far terrain patch'; }
         // ...and only the quadrants that drew a dropped patch are stale - the others rebuild from the same cached patches,
         // the same mesh (a town's sink 9 km out re-cut every quadrant: 66 ms frames in flight)
-        for (const Q of FARLOD.quads.values()) if (Q.sig && Q.sig.split(',').some(f => f && gone.has(+f))) Q.sig = '';
+        for (const Q of FARLOD.quads.values()) if (Q.sig && Q.sig.split(',').some(f => f && gone.has(+f))) { Q.sig = ''; Q.dirty = new Set(gone); }   // (dirty: ?farslots=1 writes those nodes' slots only)
+          else if (!Q.sig && Q.dirty) for (const f of gone) Q.dirty.add(f);   // (a second re-sink before the quadrant was re-cut)
         FARLOD.update(true, 1);
         while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain sink'; FARLOD.update(false, 1); }
         return n;
       };
-      FARLOD.update(true);
+      // PERF-WORLDBUILD (23 Nov 2026): THE FIRST CUT A QUADRANT A STEP under a host's budget (it was one task - every quadrant's
+      // patches, 358 ms behind a live garage at 5K): the cut once, then the resink's own way (nMax 1), nearest first as the
+      // forced update sorts them - the same quadrants from the same patches (GATE COMPSTEPS under COMPSTEPS_BUDGET: the digest)
+      // (...and finer, 23 Nov: a quadrant with its patches was still 191 ms - so the node errors' measure above ends its own
+      //  slice, the cut is made alone (nMax 0: no quadrant built; the sweep keeps what the stale quadrants want), every
+      //  wanted patch is made a step, and a quadrant's step only assembles them)
+      if (HOSTB) { yield 'far terrain: the cut'; FARLOD.update(true, 0);
+        for (const Q of [...FARLOD.quads.values()]) for (const nd of (Q.want || [])) if (!FARLOD.cache.has(nd.fid)) { if (hostDue()) yield 'far terrain: a patch'; patchOf(nd); }
+        while ([...FARLOD.quads.values()].some(Q => Q.want && Q.sig !== Q.wantSig)) { yield 'far terrain: a quadrant'; FARLOD.update(false, 1); } }
+      else FARLOD.update(true);
       farLod = FARLOD;
       console.log('island far terrain: ' + FARLOD.quads.size + ' meshes, ' + FARLOD.stats.nodes + ' patches, ' + (FARLOD.stats.tris / 1e6).toFixed(2) + ' M tris at the first cut (the eye at ' + camera.position.toArray().map(v => v | 0).join(',') + ')');
     } else { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = worldLambert({ userData: { progOwner: 'terrain / island ground / outer ring' }, map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;   // the far tier lives mostly out here
-      if (islandGroundHook) islandKeyed(oMat, 'island-outer');
+      if (islandGroundHook) { islandKeyed(oMat, 'island-outer'); groundWarm('island-outer', () => oMat, ['position', 'normal', 'uv']); }
       outerMatShared = oMat;
-      const strip = (x0, z0, x1, z1, sx, sz) => {
+      const strip =(x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);
         g2.rotateX(-Math.PI / 2);
         g2.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
@@ -3157,6 +3517,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // ?water=0: the stock material, for an A/B (the perf rig's, the eye's)
     const WSH = (typeof WATER !== 'undefined' && THREE.MeshPhysicalMaterial && !(typeof location !== 'undefined' && /[?&]water=0/.test(location.search))) ? WATER : null;
     yield 'water';
+    if (HOSTB && WSH && WSH.makeTileSteps) yield* WSH.makeTileSteps(THREE);   // (PERF-WORLDBUILD: the detail tile's bake by rows under a host's budget - make() finds it made)
     const waterMat = WSH ? WSH.make(THREE) : new THREE.MeshStandardMaterial({ userData: { progOwner: 'water / sea / plain surface (water shader off)' },
       color: C(0x3a7e96), roughness: 0.16, metalness: 0.0, side: THREE.DoubleSide });
     const wtag = (g, body, wavy) => WSH ? WSH.tag(THREE, g, body, wavy) : g;
@@ -5587,6 +5948,38 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
     };
     yield 'trees';
+    // PERF-WORLDBUILD (24 Nov 2026): UNDER A HOST'S BUDGET THE TREE PACKS MEET THE GPU BEFORE THE PLANTING. plantWoodland bakes
+    // the impostors' atlases, and the bake's draws were the tree models' FIRST: three uploaded their maps (377 ms) and their
+    // buffers (115-142 ms) at those draws - the 648 ms task of the live garage, the worst left (PERF-LEAD's GF_READY profile,
+    // 23 Nov 19:57: plantWoodland < impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll). Here, a step each: every
+    // series' L0 build of the pool's packs (treeBuild's own cache: what ladderFor hands the bake), its maps initTextured one a
+    // step, its geometry uploaded 16 MB a step (assets.js GPU_ONLY_GEO.upload). The bake then only draws; its own code - its
+    // layers' order, its sheets' checks - is untouched. scene.userData.treeWarm = { packs, tex, geo, bytes } for the host's log.
+    if (HOSTB && renderer && typeof renderer.initTexture === 'function' && treesSettled() && typeof treeBuild === 'function') {
+      const tw = { packs: 0, tex: 0, geo: 0, bytes: 0 }; scene.userData.treeWarm = tw;
+      try {
+        const GUP = typeof GPU_ONLY_GEO === 'function' && typeof GPU_ONLY_GEO.upload === 'function' ? GPU_ONLY_GEO : null;
+        const seenT = new Set(), seenG = new Set(); let batch = [], bb = 0;
+        const gbytes = g => { let b = 0; for (const k in g.attributes) { const at = g.attributes[k]; if (at && at.array) b += at.array.byteLength; } if (g.index && g.index.array) b += g.index.array.byteLength; return b; };
+        for (const p of treePool()) for (const ser of SERIES) {
+          if (hostDue()) yield 'trees: a pack';
+          let B0 = null; try { B0 = treeBuild(THREE, p.key, 0, ser); } catch (e) { B0 = null; }
+          if (!B0 || !B0.parts) continue;
+          tw.packs++;
+          for (const q of B0.parts) {
+            const mt = q.mat, cand = [];
+            if (mt) { for (const k in mt) cand.push(mt[k]); if (mt.uniforms) for (const k in mt.uniforms) cand.push(mt.uniforms[k] && mt.uniforms[k].value); }
+            for (const t of cand) if (t && t.isTexture && t.image && !seenT.has(t)) { seenT.add(t); yield 'trees: a texture'; try { renderer.initTexture(t); tw.tex++; } catch (e) {} }
+            const g = q.geo;
+            if (GUP && g && g.attributes && !seenG.has(g)) { seenG.add(g); const b = gbytes(g);
+              if (batch.length && bb + b > 16777216) { yield 'trees: the geometry'; tw.geo += GUP.upload(renderer, batch) | 0; batch = []; bb = 0; }
+              batch.push(g); bb += b; tw.bytes += b; }
+          }
+        }
+        if (GUP && batch.length) { yield 'trees: the geometry'; tw.geo += GUP.upload(renderer, batch) | 0; }
+        yield 'trees: the planting';
+      } catch (e) { console.warn('trees: the packs\' early upload: ' + (e && e.message)); }
+    }
     plantWoodland();
     // ONE CALL, AND IT WAS THE WHOLE OF W0c'S LAST MILE. Everything else was
     // written and gated: the payload, the codec, the loader, the switch above.
@@ -5972,6 +6365,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         fillDeadline = Infinity;
         try { let r; do r = g.next(); while (!r.done); return r.value; } finally { fillDeadline = dl; }
       }
+      // THE SIZE OF ONE FILL TREE (the build's, and TREE_FILL.census's: one rule, written once)
+      const fillSize = (SH, kSz, sp, w, can) => can < 0 ? -can   // TOWN-1: a town tree, at its record's own size
+        : (can >= EDGE_CAN && SH.h)   // FOREST-EDGE's outward band / a grove's fade: its wood's canopy x the band's size, under the island's floor (a sapling)
+        ? Math.max(0.1, Math.min(FILL.island.max, (can - EDGE_CAN) * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
+        : (ISLC && can > 0 && SH.h)
+        ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
+        : SH.white ? sizeOf(SH.size, w)
+                   : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
       function* buildGen(cx, cz, recs, t0, t1, part) {
         const meshes = [], near = [], imp = [], recsOut = [];
         let act = 0, ts = performance.now();   // the build's own time, its slices summed (STAT.buildMs)
@@ -6047,13 +6448,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // map says (x gain), over the model's own height, with the mix's
             // spread as jitter; elsewhere the collection's size
             if (can < 0) { (rec.town || (rec.town = new Uint8Array(n)))[i] = 1; rec.townN = (rec.townN || 0) + 1; }   // TOWN-1
-            const s = can < 0 ? -can   // TOWN-1: a town tree, at its record's own size
-              : (can >= EDGE_CAN && SH.h)   // FOREST-EDGE's outward band / a grove's fade: its wood's canopy x the band's size, under the island's floor (a sapling)
-              ? Math.max(0.1, Math.min(FILL.island.max, (can - EDGE_CAN) * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
-              : (ISLC && can > 0 && SH.h)
-              ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
-              : SH.white ? sizeOf(SH.size, w)
-                         : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
+            const s = fillSize(SH, kSz, sp, w, can);
             // the stand series is drawn stretched - the dial, not the bake
             sv.set(s, s * (SH.white ? 1 : 0.9 + w * 0.25) * S.scaleY, s);
             pv.set(r[o] - ox, r[o + 1] - 0.05 - (SH.sink || 0) * sv.y, r[o + 2] - oz);
@@ -6302,6 +6697,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // (17 Nov 16:15, A0 for the L40f train: no frame time measured yet and ~2-4x the rocks drawn - the shipped dials lower than the
           // ring's own 380 m / 140 m / 0.45 m: gone at 300 m, full to 100 m, rocks 0.6 m and up; the F9 rail keeps every dial for the user)
           rockLayer.set({ reach: 300, near: 100, rockSplit: 0.6 });
+          // THE ALPINE ROCKS (MOUNTAIN-VEG 22 Nov, ?alprocks=0 = the line above alone): further and higher - the summit fields read from the air -
+          // and only the big ones cast (PERF-LEAD: small far rocks must not cast into the far map)
+          if (rockLayer.alp) rockLayer.set({ reach: 420, aglFull: 300, aglOff: 700, aglPre: 780, castMinH: 1.2 });
           rockSync();
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
@@ -6470,6 +6868,39 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             for (let i = 0; i < out.length; i += 3) if (out[i] >= x0 && out[i] <= x1 && out[i + 1] >= z0 && out[i + 1] <= z1) r.push(out[i], out[i + 1], out[i + 2]);
             return r;
           },
+          // GARAGE-VIEW (22 Nov): THE TREES THE FILL DRAWS in a rectangle, each as the build stands it - the walk's records
+          // (the town's trees with them) through the build's own series, size (fillSize), sink and yaw; nothing built or kept.
+          // For the cook of the hangars' outdoor scene (tools/garage_view_cook.js) -> [{ key, ser, x, y, z, yaw, s, sy, h, town }]
+          // (y: where the model's origin stands; s / sy: its scale across / up; h: the model's own height, m)
+          census: (x0, z0, x1, z1) => {
+            const out = [];
+            for (let cz = Math.floor(z0 / CH); cz <= Math.floor(z1 / CH); cz++)
+              for (let cx = Math.floor(x0 / CH); cx <= Math.floor(x1 / CH); cx++)
+                for (const part of [BASE, FILLP]) {
+                  const recs = SHAPE.list.map(() => []);
+                  walk(cx, cz, recs, 0, NG, part);
+                  recs.forEach((r, gi) => {
+                    const SH = SHAPE.list[gi], kSz = (SH.key && SP_SIZE[SH.key.split('|')[0]]) || 1;
+                    for (let o = 0; o < r.length; o += FILL_REC) {
+                      const x = r[o], z = r[o + 2]; if (x < x0 || x > x1 || z < z0 || z > z1) continue;
+                      const sp = r[o + 3], w = r[o + 4], can = r[o + 5], md = r[o + 6];
+                      const si = SH.series.length > 1 ? seriesOf(w, TREE_MIX.mixDead && md >= 0 ? md : SH.dead) : 0;
+                      const s = fillSize(SH, kSz, sp, w, can), sy = s * (SH.white ? 1 : 0.9 + w * 0.25) * ((SH.series[si] && SH.series[si].scaleY) || 1);
+                      out.push({ key: SH.key || '', ser: si, x, y: r[o + 1] - 0.05 - (SH.sink || 0) * sy, z, yaw: w * 6.283, s, sy, h: SH.h || 0, town: can < 0 ? 1 : 0 });
+                    }
+                  });
+                }
+            return out;
+          },
+          // GARAGE-VIEW (22 Nov): THE SPECIES' IMPOSTOR SHEETS, for the cook of the hangars' far trees - every baked sheet's facts
+          // (its key and series, its layer, the square it frames: cy / diam in metres, the grid and the tile, its tint as the draw
+          // applies it) and its bytes read back (atlas.read: N x N RGBA - the albedo sRGB and premultiplied, or the normals)
+          sheets: () => { const out = [], num = u => (u && typeof u.value === 'number') ? u.value : null;
+            for (const a of ATLAS.values()) { if (!a || !(a.layer >= 0) || a.refused || !a.key) continue; const t = IMPA.tintU[a.layer];
+              out.push({ key: a.key, series: a.series, layer: a.layer, N: a.N, grid: IMP_G, tile: IMP_TILE, cy: a.cy, diam: a.diam,
+                tint: t ? { hue: num(t.uHue), sat: num(t.uSat), light: num(t.uLightB || t.uLight), flat: num(t.uFlat) } : null }); }
+            return out; },
+          sheetRead: (layer, which) => { for (const a of ATLAS.values()) if (a && a.layer === layer && a.read) { const px = new Uint8Array(a.N * a.N * 4); a.read(px, which); return px; } return null; },
           set: ng => { FILL.ng = NG = Math.max(16, Math.min(400, ng | 0)); SP2 = CH / NG; staleAll(); return NG; },
           // the thinning ramp (metres): full density to d0, the base's quarter from d1
           thin: (d0, d1) => { if (d0 !== undefined) uThin.value.set(+d0, Math.max(+d0 + 1, +d1)); return [uThin.value.x, uThin.value.y]; },
@@ -7628,6 +8059,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   yield 'props';
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
+  const COMPSTEPS = wbSwitch('compsteps', true);   // (PERF-WORLDBUILD: the composition in steps, below)
   // G1340: the premises lamps' level by the day (0..1: on below a 2 deg sun) and the host's compile of the pool's other
   // count (app.js lampsPrep: the lit programs keyed and linked in the background before the pool arms / disarms)
   const lampsOn = day => Math.max(0, Math.min(1, (2 - day.sunEl) / 4));
@@ -7665,7 +8097,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       yield 'premises';
       // G909: a generator the record names may still be loading (build.js MANIFEST.lazy, asked for by world_boot.js)
       for (let n = 0; window.FLYDIY_LAZY && window.FLYDIY_LAZY.pending && window.FLYDIY_LAZY.pending() && n < 2000; n++) yield 'premises: the generators';
-      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, world.premises.rec, {
+      // PERF-WORLDBUILD (22 Nov, ?compsteps=1, opt-in): the renderer's composition - one task of 2.6-2.9 s inside make() -
+      // made HERE in steps instead (RENDER_PREMISES.composeSteps: the same record, builder and pool; the standing premises
+      // in force until its last step swaps them) and handed to make, which then composes nothing
+      const premRec0 = world.premises.rec;
+      const premPre = COMPSTEPS && window.RENDER_PREMISES.composeSteps ? (yield* window.RENDER_PREMISES.composeSteps(world, premRec0, premisesTreePool)) : null;
+      if (typeof window !== 'undefined') window.FLYDIY_COMPSTEPS = { on: COMPSTEPS, used: !!premPre };
+      if (premPre) yield 'premises: the renderer';   // (the swap was the step before: make()'s own body is this one)
+      premisesR = window.RENDER_PREMISES.make(THREE, scene, world, premRec0, { precomposed: premPre,
         game: true, pool: premisesTreePool, editing: () => !!(window.PREMISES_HOST_OPEN), shedDims: () => shedDims,   // (G3096: the main hangar grabbed as drawn)
         // G831: where the town step will build from (app.js's stand, the one loading's) and how far: the house worker is
         // given that same dispatch at the rebuild, to generate while the rest of the world is laid out
@@ -7682,9 +8121,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         defer: townGeoDefer(), geoReach: geoQ('reach'),
         tierU: TIER_U.patch,   // G2115: the patch under the contact tier sinks by it
       });
+      // (PERF-WORLDBUILD, 23 Nov: the patch program's stand-in for a host's early link - render_premises patchWarm; the
+      // record's slot count is named there, so the key and the text are the drawn ones from this step on)
+      scene.userData.patchWarm = () => (premisesR && premisesR.patchWarm ? premisesR.patchWarm() : []);
       yield 'premises made';
       if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
-      if (premisesR.rebuildSteps) yield* premisesR.rebuildSteps(); else premisesR.rebuild();   // G680: the rebuild in its own slices
+      // G680: the rebuild in its own slices (PERF-WORLDBUILD: ...and the strips asked of the house worker as soon as the patch
+      // knows its chunks - a strip's options read patchCovers - so the worker builds them under the patch and the roads)
+      if (premisesR.rebuildSteps) { const gR = premisesR.rebuildSteps(); for (;;) { const rR = gR.next(); if (rR.done) break; if (!STRIPW.asked && premisesR.patchActive && premisesR.patchActive()) stripsAsk(); yield rR.value; } }
+      else premisesR.rebuild();
       if (typeof renderer.compileAsync !== 'function' || !premisesR.prewarm) { if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4); }   // G562 / G591: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
       yield 'premises ground';
@@ -7786,7 +8231,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
       for (const p of parts) { scene.remove(p.o); const k = p.stood.indexOf(p.o); if (k >= 0) p.stood.splice(k, 1); p.o.geometry.dispose(); }
     };
-    const standStrip = a => {
+    const standStrip = (a, coarse) => {   // coarse (NEAR FIRST): the pavement's rows unrefined - the refined strip lands later (stripwLand)
       const kind = a.surface === world.SURFACE.PAVED ? 'paved'
         : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass';
       // (G927: the kind's 512 x 64 canvas is painted only for a strip that wears it - a PAVEMENT strip never did)
@@ -7845,16 +8290,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (PAV && LKp && LKp.cls) {
         // THE PAVEMENT STRIP (v1.16): the class from the look, the recipe resolved with the premises',
         // the band beside it, the markings recorded off sitePaintStrip, the rocks along the band
-        const RS = PAV.resolve(a.premises ? a : null, a.premises ? pavRec() : null, LKp);
-        const shW = PAV.shoulderFor(RS.band, RS.recipe);
+        const SP = stripSpec(a), RS = SP.RS, shW = SP.shW;   // (PERF-WORLDBUILD: the options resolved in one place - the worker's ask reads the same)
         // G660: on the premises' patch the ground is sunk under the strip's opaque interior, and the strip is
         // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
-        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.stoneH && typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH, lift: 0.07, resU: 6, resV: 3,
-          sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
-          liftAt: onPatch && a.premises && premisesR.pavedAt && PAV.liftOver ? PAV.liftOver(premisesR.pavedAt, a.id) : null,   // G2115: no lift over another pavement
-          refineMin: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN : 0,
-          refineMinV: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN_V : 0 };   // (and 5 cm across: the ruts' walls)   // DIRT-STRIP: a bumpy strip's rows down to its bumps
-        const pgeo = PAV.stripGeometry(THREE, sd);
+        // (stripSpec's data: sinkD0 - the ground is sunk under it; refineMin / refineMinV - DIRT-STRIP, a bumpy strip's rows down to
+        // its bumps, 5 cm across: the ruts' walls)
+        const sd = Object.assign({}, SP.data, { heightAt: world.stoneH && SP.micro ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH,
+          liftAt: SP.lift ? PAV.liftOver(premisesR.pavedAt, a.id) : null });   // G2115: no lift over another pavement
+        const pgeo = coarse ? PAV.stripGeometry(THREE, Object.assign({}, sd, { refine: false, refineMin: 0, refineMinV: 0 })) : stripGeoOf(a, SP, sd);
+        if (coarse) STRIPW.coarse++;
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
         // G664: the side is cut per pixel over every other strip's surface (the game's strips never had the
@@ -7874,7 +8318,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const F = PAV.field(sd);
         // (DIRT-STRIP) a bumpy strip's stones on it: the field's [u, v, R] (its v the ribbon's flipped), a stone R wide stands 1.1 R tall
         const extra = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.rocksOf ? STRIP_MICRO.rocksOf(a.id).map(r => { const w = F.frame.toWorld(r[0], -r[1]); return [w[0], w[1], 1.1 * r[2], 2 * r[2]]; }) : null;
-        rocksWhenReady(() => standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld, extra }, keep));
+        rocksWhenReady(() => stripStood.get(a.id) === stood && standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld, extra }, keep));
       } else if (LK && (a.look === 'none' || LK.set)) {
         const lookTex = LK.set ? mkLook(LK.set, a.len, a.wid) : null;
         if (lookTex) {
@@ -7910,11 +8354,33 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // a WATER lane stands nothing (a decal under the sea and a windsock in it, G434)
     for (const a of world.aerodromes) {
       if (a.kind === 'meadow' || a.kind === 'water' || (a.id === 'HOME' && !a.premises)) continue;
+      // (PERF-WORLDBUILD) its geometry asked of the house worker and not in yet: the host sleeps on the worker's next message
+      // (NEAR FIRST) a strip the aeroplane does not stand on, its answer not in (or held: a gate's): coarse now, landed later
+      if (STRIPW.near && STRIPW.jobs.has(a.id) && !(STRIPW.at && stripBoxDist(a, STRIPW.at[0], STRIPW.at[1]) < 15)
+          && (!STRIPW.jobs.get(a.id).done || (typeof window !== 'undefined' && window.FLYDIY_STRIPW_HOLD === true))) {
+        STRIPW.late.set(a.id, a); standStrip(a, true); yield 'strip ' + a.id + ' (coarse)'; continue; }
+      { const J = STRIPW.jobs.get(a.id);
+        if (J && !J.done) { const tW = performance.now();
+          while (!J.done && stripwHost() && performance.now() - J.t0 < STRIPW.patience) { window.FLYDIY_WORLD_WAIT = stripwHost().next(); yield 'strip ' + a.id + ': its geometry'; }
+          STRIPW.waitMs += performance.now() - tW; } }
       standStrip(a);
       // Let the host's existing slice budget run between strips. Building the
       // entire island here was one measured 7.2-second, uninterruptible task.
       yield 'strip ' + a.id;
     }
+    for (const id of Array.from(STRIPW.jobs.keys())) if (!STRIPW.late.has(id)) STRIPW.jobs.delete(id);   // (an answer nobody stood: a strip the loop skipped)
+    // one strip taken away (a repaint's removal, one strip's): everything it stood, its windsock, its weather entry
+    const unstandStrip = id => {
+      const stood = stripStood.get(id); if (!stood) return;
+      for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material, o.geometry); if (o.userData && o.userData.rwyLight) { const L = o.userData.rwyGlow ? RWY.glows : RWY.meshes, k = L.indexOf(o); if (k >= 0) L.splice(k, 1); } }
+      stripStood.delete(id);
+      for (let i = WXG.length - 1; i >= 0; i--) if (WXG[i].id === id) WXG.splice(i, 1);
+    };
+    // (NEAR FIRST) a coarse strip's landing: away, and stood again on the worker's refined arrays; a failure stands it coarse again
+    STRIPW.land = a => { STRIPW.landing = true;
+      try { unstandStrip(a.id); standStrip(a); }
+      catch (e) { STRIPW.landing = false; try { unstandStrip(a.id); standStrip(a, true); } catch (e2) {} throw e; }
+      finally { STRIPW.landing = false; } };
     // THE PREMISES' STRIPS REPAINTED (v8): after a live edit the decal, the sock and the far patch of
     // every premises strip are taken away and stood again from the registry as it is now
     // (G3008) A REPAINT ONLY WHEN A STRIP IS CONCERNED: every edit of the premises (a road's, a site's, an area's) stood
@@ -7932,6 +8398,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (!need) return false;
       }
       stripSig = stripSigOf();
+      if (STRIPW.late.size) { STRIPW.late.clear(); STRIPW.jobs.clear(); }   // (NEAR FIRST: a repaint stands every strip whole, here - nothing left to land)
       unmergeStrips();
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
@@ -7942,7 +8409,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);
       mergeStrips();
     };
-    mergeStrips();
+    if (!STRIPW.near) mergeStrips();   // (NEAR FIRST: the strips stay unmerged - see STRIPW)
+    else { STRIPW.t0 = performance.now(); stripwPump(); }   // ...and the ones standing coarse land as their answers come
     if (PAV && PAV.onRebuild) PAV.onRebuild(() => { if (typeof window === 'undefined' || !window.WORLD || window.WORLD.scene === scene) repaintStrips(); });   // G928: the A/B stands them again the other way (this world's scene only)
   }
 
@@ -8292,7 +8760,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // day's cloud base, by its cover.
   const SUN_MIN_Y = Math.sin(2 * Math.PI / 180);
   const SUNW = { on: true, dirty: false, EMPTY: 31 };   // G655: the world's sun map on (the tiers full / ultra) or empty ('near': the craft's map alone)
-  const SHADOW_RATE = { every: 2, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
+  // (FOREST-SHADOW 24 Nov: every 3rd frame - the big map holds the still world (the forest, the ground, the houses) and its lookup
+  //  matrix is the one it was drawn with, so a shadow never slides; the craft's own shadow is the near map's, every frame. At 30 fps
+  //  the world's shadows are re-drawn 10 times a second instead of 15: a third fewer frames carry the forest's shadow draws. ?shrate=2 the old cadence)
+  const SHADOW_RATE = { every: (typeof location !== 'undefined' && /[?&]shrate=(\d)(&|$)/.exec(location.search || '') || [])[1] | 0 || 3, n: 0 };   // the big sun map's cadence (worldUpdate, PERF 2026-09-23)
   const groundAt = (x, z) => world.terrainH(x, z);   // G1080: the ground under the drawn aeroplane (shadow_near.js follow)
   if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
@@ -8668,6 +9139,20 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // THE GROUND UNDER THE CRAFT: the class mix the belly sees, the albedo eased toward it, the cap the probe last baked
     groundUnder: () => Object.assign(groundUnder(), { baked: probe ? probe.cap : null, bakes: probe ? probe.bakes : 0, pin: GU.pin }),
     probeState: () => (probe ? { bakes: probe.bakes, fade: probe.fade, fading: probe.fading } : null),   // G1351 (the luma trace reads it)
+    // GARAGE-VIEW (22 Nov): THE WORLD'S LIGHT FOR A DAY, for a room that shows the world through its door - dayApply's own call to
+    // sky_light on stand-in lights, with no renderer and no pre-exposure: nothing of the world moves. The caller (hangar.js applyDay)
+    // makes it BEFORE its own SKY_LIGHT.applyDay, which writes the dome's scale and the night grade back for the room. The key has
+    // no cloud in it (the world shadows its sun per pixel); cT is the cloud's transmittance at the eye, for the hemisphere.
+    lightFor: (day, cT) => {
+      if (!ATMO_ON || typeof SKY_LIGHT === 'undefined' || !day) return null;
+      const k = { intensity: 0, color: new THREE.Color(1, 1, 1) }, h = { intensity: 0, color: new THREE.Color(1, 1, 1), groundColor: new THREE.Color(0, 0, 0) }, t = cT == null ? 1 : cT;
+      const r = SKY_LIGHT.applyDay(day, { key: k, hemi: h, renderer: null, unit: LIGHT_UNIT, nightVisibility: 1.4, sunGain: RIG.sun / 2.8,
+        hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(t) : 1), exposureK: rigCur.exposure / 0.92,
+        gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(), gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain, hemiGnd: rigCur.hemiGnd, gb, altM: 0, cloudT: t });
+      if (!r) return null;
+      return { isMoon: r.isMoon, exposure: r.exposure, sunI: k.intensity, sunC: [k.color.r, k.color.g, k.color.b], hemiI: h.intensity, hemiC: [h.color.r, h.color.g, h.color.b],
+               gndC: [h.groundColor.r, h.groundColor.g, h.groundColor.b], scale: (typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.scale) ? ATMO.U.scale.value : 0 };
+    },
     // THE WORLD'S MEAN ALBEDO and the hemisphere's ground half derived from it (the F8 readout, the rig)
     worldAlbedo: () => ({ alb: worldAlbedo(), src: WALB.pin ? 'pinned' : WALB.src, pin: WALB.pin,
                           img: albedoFromImagery(), cls: albedoFromClassifier(),   // both, so the scale gap between them is measured and not asserted
@@ -8740,6 +9225,24 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
     ringReady: (cg, reach, loose) => fillApi ? fillApi.ringReady(cg, reach, loose) : true,   // (B9: the reach passed through - it was dropped here)
     ringStat: () => fillApi ? fillApi.ringStat() : null,
+    // PERF-WORLDBUILD (22 Nov): WHAT EACH STREAMER STILL OWES, COUNTED BY THE STREAMER ITSELF (the settle gate's ledger, app.js
+    // worldAtRest - a report: the gate's own rule is unchanged). 0 = that streamer is at rest. prem: the premises' entries
+    // within the stream's reach; geo: the town's patch and roads owed; fill: the forest's queue, the whole ring (R_ACT, ~9 km);
+    // fillNear: 1 while the forest within `reach` of cg (the 'ring' step's own test) does not stand; cover / grass / lawn /
+    // rocks: each ring's cells queued + blocks to rebuild; rockRing: its chunks queued + in flight in its worker; cards: the
+    // stand-in cards' chunks to make; hlod / hit / life: the premises' far-town cells to merge, its obstacles to register,
+    // its life's stand. geo is the town's geometry waiting for the eye to near it (G2063): a state, not work the gate owes
+    settleStat: (cg, reach) => {
+      const q = r => { if (!r || !r.stat) return 0; let s = null; try { s = r.stat(); } catch (e) { return 0; } return (s.queued || 0) + (s.dirty || 0) + (s.inflight || 0); };
+      const rs = fillApi ? fillApi.ringStat() : null;
+      return { prem: premisesR && premisesR.streamState ? (premisesR.streamState.near || 0) : 0,
+        geo: premisesR && premisesR.geoPending && premisesR.geoPending() ? 1 : 0,
+        fill: rs ? (rs.queued || 0) + (rs.busy && !rs.queued ? 1 : 0) : 0,
+        fillNear: fillApi && cg && !fillApi.ringReady(cg, reach, true) ? 1 : 0,
+        cover: q(coverRing), grass: q(grassField), lawn: q(lawnField), rocks: q(rockLayer), rockRing: q(rockRing), cards: q(standCards),
+        stripsFar: STRIPW.late.size,   // (NEAR FIRST: the strips standing coarse, their refined form still to land - never the gate's to wait for)
+        ...(premisesR && premisesR.owed ? premisesR.owed() : {}) };
+    },
     // REVEAL-HITCH (19 Oct): the grass field's and the cover ring's cells round each eye [x, y, z, rad], planted now (cover_ring
     // plantNear; rad in metres, or 'reach': the ring's whole) - app.js hands it the reveal's eyes. `ms` for the call; { built, done }
     coverPlant: (eyes, ms) => {

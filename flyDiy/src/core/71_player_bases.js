@@ -1194,6 +1194,27 @@ function playerAcquire(doc, aero, plotId, shell, tenure) {
   playerCharge(d, cost, 'acquire', plotId);
   return { ok: true, doc: d, hangar: plotId, cost, why: '' };
 }
+// HANGAR-SWITCH (the user 22 Nov: "There should be a way to swap between the three hangars of the game, at least in sandbox mode,
+// where the three hangars should be constructed, renovated, and all the stuff"; the rule SANDBOX = THE FINAL STAGE, 17 Nov): THE
+// SANDBOX HOLDS THE GAME'S THREE HANGARS - the club at HOME (its main, as ever), the Shed at the Cabin Strip (w1, the field shed)
+// and the large hangar at HOME (HOME.2, the works, RESTORED: its track's last stage). Given, never bought (no wallet, no story);
+// the same records playerAcquire writes (the offer's kits and dims), so the world, storage and the garage read them as held. A
+// career is never touched (its hangars are the story's). Pure; idempotent: a hangar the document holds stays as it is.
+const SANDBOX_HANGARS = [['w1', 'w1', 'field'], ['HOME', 'HOME.2', 'works']];
+function playerSandboxHangars(doc) {
+  if (!doc || doc.mode === 'career' || !doc.sheds || typeof doc.sheds !== 'object') return doc;
+  let d = doc;
+  for (const [aero, id, shell] of SANDBOX_HANGARS) {
+    if (d.sheds[id]) continue;
+    const O = BASE_OFFERS[aero], P = O && O.plots && O.plots[id];
+    if (!P || !Array.isArray(P.shells) || !P.shells.includes(shell) || !SHELLS[shell] || SHELLS[shell].status !== 'live') continue;
+    if (d === doc) d = pbClone(doc);
+    d.sheds[id] = { shell, kits: (P.kits || HANGAR_KITS_DEFAULT).slice(), base: aero, tenure: 'own',
+                    dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}), price: 0, since: 0, sandbox: true };
+    if (P.closedTrack && shell === P.shells[0]) d.sheds[id].dims.stage = restoreTrack(d, P);   // (the sandbox: the track's last)
+  }
+  return d;
+}
 function playerRelease(doc, hangarId) {
   const shed = doc.sheds[hangarId];
   if (!shed) return pbNo(doc, 'no hangar ' + hangarId);

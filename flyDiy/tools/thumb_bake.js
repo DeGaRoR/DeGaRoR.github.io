@@ -74,8 +74,12 @@ const IDX = path.join(OUT, 'index.json');
 const index = { what: 'flydiy-' + FIELD, v: 1, baked: new Date().toISOString().slice(0, 10), view: VIEW, [FIELD]: KEYS && fs.existsSync(IDX) ? JSON.parse(fs.readFileSync(IDX, 'utf8'))[FIELD] : {} };
 // a whole bake redraws stock / cand / design only: the arch: and list: rows (--plus / --keys pictures) it did not draw this
 // time carry over from the index on disk - else the prune below would drop them
+// ...and (FRAME-DRAWN 22 Nov: a whole bake dropped the buggy's and the roadster's thumbs - the cars' list, not the pool, names
+// them) every row builds/lists/vehicles.json reads (`thumb`), its picture still on disk
+const VEH_KEYS = (() => { try { const V = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'lists', 'vehicles.json'), 'utf8'));
+  return new Set((V.vehicles || V.cars || V.rows || (Array.isArray(V) ? V : [])).map(r => r && r.thumb).filter(Boolean)); } catch (e) { return new Set(); } })();
 if (!KEYS) { let old = {}; try { old = JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8'))[FIELD] || {}; } catch (e) {}
-  for (const k in old) if (/^(arch|list|veh):/.test(k) && !(k in index[FIELD])) index[FIELD][k] = old[k]; }
+  for (const k in old) if ((/^(arch|list|veh):/.test(k) || (VEH_KEYS.has(k) && fs.existsSync(path.join(OUT, old[k])))) && !(k in index[FIELD])) index[FIELD][k] = old[k]; }
 const jobs = [];
 for (const png of fs.readdirSync(tmp).filter(f => f.endsWith(SUFFIX)).sort()) {
   const base = png.slice(0, -SUFFIX.length);

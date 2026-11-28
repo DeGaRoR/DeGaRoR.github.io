@@ -1,0 +1,47 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_cruise_gpu_smoke",
+ "what": "THE SMOKE LOAD of a GPU-by-pass window: load, roll-out, 8 s - does the build load, does the recorder time frames pass by pass on this GPU",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "HOME",
+ "to": "w7",
+ "steps": [
+  {
+   "name": "load typical",
+   "do": "load",
+   "preset": "typical"
+  },
+  {
+   "name": "roll-out",
+   "do": "start",
+   "until": {
+    "phase": [
+     "TAXI",
+     "DEPART",
+     "LINEUP",
+     "STOP",
+     "HOLD"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "taxi 8 s",
+   "do": "wait",
+   "until": {
+    "s": 8
+   },
+   "capS": 20
+  },
+  {
+   "name": "the recorder says",
+   "do": "page",
+   "js": "(() => { const A = window.FLYDIY_AA, R = window.FLIGHT_REC, H = R && R.header ? R.header() : null;  return JSON.stringify({ aa: A && A.autoState ? A.autoState() : null, scale: A && A.scale ? A.scale() : null, gpuTimer: H ? H.gpuTimer : null }); })()",
+   "until": {
+    "s": 1
+   },
+   "capS": 10
+  }
+ ]
+}

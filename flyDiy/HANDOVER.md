@@ -316804,6 +316804,24 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
 - NOT RUN on a page yet: the --gpu half of this version (A0: the node gate is enough for the ready). INFRAME uses
   camera.matrixWorldInverse / projectionMatrix as last drawn; a sim on the worker without cgPos falls back to camGet, said so.
 
+## RAIN (LOOK-1, 16-17 Nov 2026; the user: "a proper, very optimized job"; flydiy-notes/studies/RAIN-STUDY-2026-11-16.md)
+- THE FIELD: 08_cloud_field weather map A = each deck's rain POTENTIAL (st / sc / as: k x coverage; cu / cb: the dense tall
+  columns; cuh, ac never); the day's d.rain multiplies it at use - a dry day is bit-identical. CLOUD_FIELD.rainAt reads it up-wind
+  below the base (wind x (base - h) / 6.5 m/s); CLOUDS.rainAt / CLOUDS.rain (the eye's) from the drawn decks. The plan rains on
+  ~23 % of days (sc 96, cu 52, st 20 of 730).
+- THE STREAKS: src/viewer/rain.js - one instanced quad, the drops from gl_InstanceID in 3 camera-wrapped boxes (11 / 27 / 61 m), a
+  streak along the drop's velocity RELATIVE TO THE EYE, built in VIEW space, DOUBLE-SIDED (the winding follows the streak: FrontSide
+  culled every one), three's logdepthbuf chunks, its own GLSL3 output; cut in the cockpit's dry box and under setRoofs boxes (the
+  premises' list not wired yet). MADE LAZILY: a dry day never compiles it. GRAPHICS row 'rain' (free, auto = lean on laptop /
+  potato / retro). ?rain=0 off. Traps met: a vector ?: and the NDC width construction drew nothing on SwiftShader - kept out.
+- THE SHAFTS + THE VEIL: clouds.js rainSeg, the ray under the lowest base in the march (6 steps, lean 4), the 07d law; screen march
+  only (gPix > 0); uRain.x 0 when dry. THE OVERCAST: a deck at cover >= 0.85 keeps a solid base and darkens with its thickness
+  (ovcOf, S.overcast; the user: "the cloud coverage is not there" - the storm drew a wispy pale base); below 0.85 untouched.
+- THE GLASS (step 2 PROTOTYPE): drops in the glass program (aeroweather AERO_WX_GLASS_FS, gated by uRainG.x, the wetness app.js
+  glassRainFrame raises in rain / dries after), the flow airflow + gravity projected on the pane. Its look is not done.
+- F9 > air & map > the rain: every RAIN_FX.LOOK number + the shafts' and the overcast's dials, in THE LOOK. GATE RAIN 1-11 (node);
+  pictures: https://claude.ai/artifact/PHDYPwCxjBBEzXcvtfywfw. Not done: roofs, the landing light's cone, ground rings / splashes.
+
 ## GRASS TO THE EDGE (LOOK-1, 16-17 Nov 2026; the user: "wild grass coming close up", then "taller grass on the strip side and the wild
 ## grass I validated", then "no grass should be smaller than 30 cm I think, even mown")
 - 27_premises GRASS_SIDES: softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = before: w1 4 m, w4
@@ -319235,3 +319253,678 @@ LEFT RED, MINE, TRUTHFUL (never weakened) - owners please:
 - the tow's owner: TOW "LAUNCH" the car's corners off the runway 0 -> 21 samples (the launch itself within 1 %).
 GATES: 109 of the core tier's 367 run on the branch, reds read against master by check name; NOT the full battery, nothing in a browser, no flights re-flown (real_check --all and real_report are stale for every moved plane). Master's own reds met: GROUNDQUERY FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT SLOPE TAILWHEEL MONOWHEEL DESTTO WINGROWS JOINPARITY SAVE PARTS DESIGN CANDIDATES, GLIDE "CIRCUIT archaeopteryx", UNIFY "STRIP the user's Cub".
 STILL OPEN IN THE MODEL: the clean end (Archaeopteryx glide 16.6 of 28, the Velis 12.8 of 15), the utility end (PC-6; the Petrel +12 %), the Stearman -11 % on top speed.
+
+## PERF-LEAD 1 - NO BLUE SCREEN AT A CRASH, THE SCREEN IS THE MEASURE, GARAGE FIRST AS A SWITCH (23 Nov 2026, claude/ready/perf-lead-1 on master L40J 089297693)
+The user, 22-23 Nov: "No blue screen, not in the garage, not in the world, not when crashing, ever"; "the 200 ms quoted before are rubbish, it
+freezes for several seconds"; "the draw guard code is rubbish, it does worse than just freezing a frame"; "I revise my target of world loading
+time to 1 minute, including the background loading (so ideally 1 minute spent in the garage)". The table is flyDiy/PERF-OBJECTIVES.md (rows 1-15,
+the bars for this week, how a frame is counted against a limit); the full handover is flyDiy/reports/PERF-HANDOVER-2026-11-24.md.
+WHAT CHANGES BY DEFAULT (one thing):
+- THE DRAW GUARD HOLDS THE WHOLE FRAME FOR THE GROUND'S FAMILY ONLY (app.js, ?holdframe=ground; ?holdframe=all is the old way, =0 none).
+  A draw whose program is still linking is still skipped; only a missing GROUND draw keeps the frame off the canvas. Measured on the screen's own
+  recording, the Cub put nose-down into the ground from 50 m: 'all' showed the PAGE for 6.3-10.3 s at every crash (six recorded crashes) while
+  the frame times read 200 ms; 'ground' in four crashes showed no page and held no frame, the worst frame 217-250 ms. Cost: a torn-edge copy
+  not yet linked is not drawn for the 2-3 s its program takes (the Deform Coordinator's crash-prelink ready removes those links altogether).
+WHAT THE LOG NOW SAYS (no behaviour change):
+- 'still' events (app.js after aa.render; window.FLYDIY_STILL): every run of frames the guard held, from the last picture PRESENTED to the next,
+  { f: frames, keep }. Rows 14 and 15 are read on them and on the screen's recording, never on frame times alone.
+SWITCHES, ALL OFF BY DEFAULT AND INERT (each measured headed at 5120x1440; the numbers are in the handover):
+- ?boot=garagefirst (LAB.gf, gfArm / gfRun / gfJoin): the boot runs none of the world's steps; they run behind the live garage on a budget
+  (?gfrest=12 ms a task at rest, ?gfbusy=3 while the pointer or a key moves; window.FLYDIY_WORLD_BUDGET.left() for the world build); Go joins
+  the load where it stands. First quiet run: the garage on screen 31 s (today 119-127), the world ready 98 s later, Go -> flying 2.6 s with no
+  loading screen. ?gfwarm=0 leaves the world's first draws to Go.
+- ?latelinks=bg (the scuff's and the see-through view's links after the reveal), ?pavefirst=1 / ?groundfirst=1 (the heavy ground programs
+  handed to the driver at their yields; the world build's own stand-ins), ?pace=N, ?settle=near: with stripw the best load 85-88 s against 120.
+- ?farslots=1, ?fartol=N, ?mirpace=1, ?mirlean=1 (the far terrain's buffers and the water mirror's captures in flight: 72 % of seconds at 29+
+  frames against 55 %, 7 frames over 100 ms against 25-31; THE PICTURE HAS NOT BEEN REVIEWED BY THE USER), ?coverbudget=K (not yet flown),
+  ?keepframe=1 (the canvas keeps its last picture).
+TOOLS (flyDiy/tools/perf/, each prints its use): window_train_check.sh (a train's perf check in one command: loads cold x2 + returning, the
+journey's first 8 minutes and the nose-down crash with the screen recorded), load_matrix.sh (a rows file of timed loads; it now checks that the
+port serves the row's folder), user_log.py (any flight log against the table), screen_read.py (the picture pass: the page shown, the screen
+frozen, exit 1 on a page frame), profile_window.py (a freeze named by function), lab_build.sh; tools/boot_perf.js --rollout-once / --profile-out,
+tools/flight_script.js --screencast and the 'page' step; scenarios in tools/flight_scripts/perf/.
+GATES run on the tree: BACKGUARD, PROGRAMS, FLIGHTREC, HULLWARM, LIGHT, AA, POSTFX, GFX, ROLLANIM, BOOT, DMGLOOK, DMGSKINGPU, DMGSCUFF's two
+text checks, the world build's workers and COMPSTEPS, AUDIO pass; every other red on it is L40J's own by check name (UISMOKE, DMGSKIN, DMGWRECK,
+FRAMECOST's pins, ROUNDTRIP).
+
+## PERF-LEAD 2 - GARAGE FIRST: THE GARAGE'S TWO 1.4 s FREEZES WHILE THE WORLD LOADS, AND GO'S 0.47 s FRAME (23 Nov 2026, claude/ready/perf-lead-2 on master L40K 56047b34e)
+The user, 23 Nov: "If that's background loading, but the garage freezes for the whole time, there's little point. That's the right solution, but
+garage shouldn't freeze." Everything here acts only under ?boot=garagefirst (a switch, OFF by default); a page without it is unchanged.
+- A compile behind the live garage puts back the program the garage's frames were drawing (compileSliced under gfLive; gfS.kept): the craft step's
+  compile of the shed as the roll-out shot dresses it left the sky's two domes on programs still linking, and the garage's next frame waited 1.4 s.
+- The clouds' first draw (CLOUDS.warmDraw: the march's two-output variant, built on the GPU's main thread) runs at the boot's end, under the
+  garage's own loading screen, not behind the visible garage (gfArm; ?gfcloud=late is the old place). A NAMED LOAD COST: about 1.5 s of that screen.
+- The world's vertex buffers go up a slice a task behind the garage (worldBuffersWarm; ?gfbuf=0): Go's first world frame handed 2 684 buffers, 402 MB.
+- tools/perf/gf_garage.py: the garage's tasks of 50 ms+ by step and label AND the picture standing still (the recorder's gaps of 250 ms+): a row
+  with a 1.45 s frozen picture and no long task had read clean. GATE GARAGEFIRST 1j.
+MEASURED (headed, 5120x1440): both 1.4 s gaps gone (16:00 quiet for the first, 17:35 on a busy box for the second); Go's frame gone; the crash's
+rows 14 and 15 met twice more on the merged tree (worst frame 133-150 ms, no page). STILL OPEN in the garage: 0.9-1.4 s right after the world step
+(the world's textures uploaded at a draw of the garage's frame), three ~0.3 s world-update calls in the settle (premises, masts, obstacles, cover).
+This ready CONTAINS, merged: perf-lead-1, claude/ready/perf-worldbuild-3's code (369ad0ec9), deform-wreck-clear f49705343, perf-trace-8 e3c2e449e,
+perf-sliders-release-1 87aeb19fb. GATES on the tree: PROGRAMS, LIGHT, HULLWARM, FLIGHTREC, GARAGEFIRST, BACKGUARD, COMMITHYGIENE, COVER, COMPSTEPS,
+DMGSKINGPU, DMGPAGEW pass.
+## USER-FIXES 21 NOV - the user's bug list via A0 (FLAGSHIP, Sun 22 Nov 2026; claude/ready/user-fixes-1121 on chinook-user, on one-cessna-4)
+
+1. "the dashboard of the velis electro does not show": the dash builder (_cage_gen.js, I2) walked the windscreen base
+   from the FIRST loose end the map met. The Electric trainer's base is a 9-point chain plus two 2-point stubs at the
+   waist (an edge the band leaves out), so it took a stub (< 5 points) and drew no dash. Every chain is walked now, the
+   longest kept, and a stub within 8 cm of its end joined (DASH-CHAIN). The trainer: 920 dash + 140 face-plate faces
+   across the glass (x +-0.54); the Cessna's base is one chain - unchanged (728 / 108).
+2. "Seats lack a width setting": seatW, the preset's calibrated width x (0.60-1.60, every seat aboard; the cabin's room
+   still caps it - _seat_gen.js stance). Absent at 1 (CAGE_DEFAULT_ABSENT): no saved build moves.
+3. "seat the pilot correctly in any seat, the position of his bottom": pilSitZ / pilSitY (the pilot, the pilot pose
+   group) and paxSitZ / paxSitY (the co-pilot and every passenger, the passenger pose group), metres fore/aft and
+   up/down on the seat (_cage_crew.js seatOccupant); hands and feet IK onto the controls after it. Absent at 0. Drawing
+   only: the crew's mass stations are the seats', unchanged.
+4. The user's modified Chinook: its own ready, claude/ready/chinook-user (see CHINOOK-USER above); this branch sits on it.
+5. The Chinook's taper panels (_cage_gen.js, rod mode taperPanels): (a) "one is constantly shaded" - the normal was
+   turned outward and the winding was not, so the -x sides and the belly showed their back face outside, which the
+   cabin's shading darkens whatever the sun: the winding turns with the normal; (b) "a square shaded different in the
+   middle" - the top tubes (ceiling corners and the roof's middle to the rod's crown) rose through the flat top: the top
+   is two halves meeting at the crown; (c) "none of them joins properly" - each corner was pulled 6 % to the centre
+   (4 cm on a 0.65 m taper): a fixed 1.2 cm inset now (a tube's radius). Every taperPanels build moves (the Chinooks, the
+   birdman copies, the career's twin floatplane).
+6. "The propeller check ... 5 cm discrepancy on the station, tilting is different": the garage's Prop clearance circle
+   (app.js buildAids) stood on aidMap - the LOADED mains - while the aeroplane is drawn from the firewall ring on the
+   sim's raw axes: a spring leg's give moved the circle off the propeller; and it was drawn square to the body axis,
+   never the shaft. Now: aidMapBody (the model's own placement, def.refs.origin / sim.bodyOrigin / sim.axes) and the
+   circle square to the drawn shaft (CAGE_ENG units' propAxis -> genAidPropOff -> thrust/prop .dir). The ground posts keep
+   aidMap.
+7. The Chinook's taper, round 2 (the user 23 Nov: "we need a single body for the aft part"): TAPER-SHELL - the six boxes
+   are ONE shell (shared corners lifted along their panels' mean normal; outer skin outward, inner reversed, walls only
+   on the open edges); the seams and black lines went (stills before/after: flydiy-notes/evidence/chinook-taper-2026-11-23).
+   The dark trapezoid low aft stayed: the page's raycast through it met the INNER skin's back face first, the outer
+   3 mm behind. TAPER-DIAG - a lifted panel is not flat (~6 deg between its halves) and the outer [0,1,2,3] split on 0-2
+   while the reversed inner [3,2,1,0] split on 3-1: over half of each warped panel the inner stood outside. Both skins
+   now split on the same diagonal, as explicit triangles. GATE PARTS row "the taper shell shows its OUTSIDE to the eye"
+   (rays from outside along every skin triangle: the first taperPanel triangle met faces the ray; rod + taper panels and
+   the Chinook; selftest = the inner skin pushed outside): old code 84 / 11 rays back-first, new 0. PARTS' other reds
+   (cw_keelLevel cw_deckLevel cw_deckFall unclaimed) are master's (089297693 fails them too).
+NOT VERIFIED IN GAME (A0: no GPU / box runs while the user takes screenshots; the thermal rule): the dash, the panels and
+the prop circle are checked headless only (face counts, boxes) - A0's in-game round owed.
+TAILWHEEL E + I (down & out) on master since L40H: the twin-boom fixture flies the E-811, now 53 kg installed (the user's
+"modify the existing E-811"); it falls 20 m low on the slope at 80 m and goes around twice ("unstabilised approach"), out
+of circuit time; with the old 30 kg it lands. Routed to Pilot via A0 (power up when low on the slope); not touched here.
+
+## READY user-fixes-1121-2 (FLAGSHIP, Tue 24 Nov 2026 ~06:00; on L40K 56047b34e; for L40M) - claude/ready/user-fixes-1121-2
+CARRIES: USER-FIXES (the trainer's dash, seatW, pilSitZ/Y + paxSitZ/Y, the prop check), REF-LOCK (GATE REFLOCK), TAPER-SHELL +
+TAPER-DIAG (the Chinook's aft body one shell, its skins split alike: the dark trapezoid gone, seen in game; GATE PARTS eye row),
+KNEE-SYM (the user: "right knee more inside": the IK poles in the body's frame; GATE CREWSYM new), TRICYCLE-STANCE (sim.stance
+never stood a tricycle - the refit 172 struck its tail post at every spawn; GATE CONTACT 6), STANCE-AS-GAME 1+2 (A0's decision,
+Deform no objection: the damage gates' ground stagings call stance as the game does), SKIS-REANCHOR (named).
+BASE VS BRANCH (by check name, the night set):
+- FIXED: DMGSCUFF green, DMGSKIN green, DMGSCAR 5 -> 1 (the CORE_MATH census row, master's), DMGWRECK's FAR-drop row green - the
+  refit's nine "only the wheels touch" rows.
+- MOVED, re-anchored: SKIS's three no-ski witnesses (metal Cessna + Super Petrel 300 steps: the stance; the twin floatplane def /
+  sheet / steps: the taper shell); SKIS back to base's 1 red (the Jodel witness, identical).
+- THE SAME on both trees, row for row: the 22 stance gates (TAKEOFF c172 733 m both; the tricycle crosswind roll 11.78 -> 11.91 m
+  in its 12.5 m band; RADIALDIV, TAXICLEAR, ROUTE, FRAMECOST, CONTACT's pavement 5, STORAGE, ALTIPORT, UNIFY), DMGCERT, DMGCLUSTERS,
+  DMGDETERMINISM, DMGDRIVE (overspeed), DMGFABRIC, DMGGEAR, DMGINST, DMGINTEGRITY; DMGFPS / DMGFALL / DMGCERTCOST green. DESTTO
+  hit its 1800 s wall on BOTH (box load). Taildraggers in the gates that already called stance: unchanged rows.
+- NOT RUN on base by 05:45 (branch only): DMGNOSE DMGNOSEOVER DMGMEMBERS DMGOCCUPANT DMGPOD green; DMGSETTLE DMGWALL DMGDAMP DMGTYRE
+  TREECRASH APSMOOTH STAGES red on the branch - their base side not measured: the train's battery is the judge.
+- Touched gates on the tip: PARTS REFLOCK COMMITHYGIENE AIDS DASH FRAMES KNIFE CREWSYM PASS.
+OPEN (FLAGSHIP): the tail item (DMGCERT's fin side-pull breaks 16 fin:attach members on base and branch alike; a fin-root fittings
+row is drafted, not landed: flydiy-notes/fin-root-row-WIP-2026-11-24.patch), DMGDRIVE overspeed, WATERDAMP, MISSIONS bush run,
+ROUTE fly:metal, CLIP aerial, SAVE skiPos; TAILWHEEL I (Pilot's finding: the E-811 pusher's thrust moment).
+
+## NIGHT-SUN - THE LIGHT SEEN: one visibility for the sky's two lights; no red "sun" on the night sea, no red halo (21-22 Nov 2026, claude/ready/night-sun off master 9349a62c1 = L40H)
+THE USER (21 Nov): "In the midst of an aurora night (preset), I can still see crazy red reflections in the sea of a sun
+which is not there, and the horizon keeps showing a huge red halo ... the fix we applied for disabling reflections when
+hidden by the terrain would deserve more focus to be really generic and physically correct."
+THE CAUSE (seen in game, stills page https://claude.ai/artifact/6zky4z9Fq7HyAwb4KvsH5K): the preset is 22 Aug 23:00 at
+55 N - the sun at -19.7 deg, and a 78 % MOON 2.6 deg up, red through the air. Three things, none of them the sun's disc:
+- the red band on the horizon = the sky model's single-scatter twilight tail (R/B 60-300), a few 1e-6 of daylight, under
+  the night's exposure (x 2e5). The model has no ozone-deep / multiple-scatter night, so the tail is pure red and lasts
+  to -18 deg (all night in June at 55 N).
+- the orange block on the OPEN sea = the low moon's disc in the reflection probe, read by the water's wide GGX lobe
+  (near a shore the planar mirror carries the reflection: no block there). LOOK-HALO skipped the moon and LOOK-GLINT
+  was day-only, so nothing hid or weighed it.
+- the white column = the moon key's own glitter path (right, kept).
+WHAT IS BUILT (atmo.js "THE LIGHT SEEN"; ?nightsun=0 = master's picture, every branch below has its OFF arm):
+- discOver(sinEl, altKm, rad): the share of a disc over the model sphere's horizon (the dip included, a circular
+  segment); twilight(elDeg): 1 above -12 deg, 0 under -18 deg (TWILIGHT.from / .to), the weight of the SUN's sky light;
+  SEEN = { sun, moon: { hor, ter, eye }, keyMoon, tw } written each frame; the terrain's share is the KEY light's
+  (the moon at night: app.js sunHiddenEye runs for it too) and ATMO.sunHidden(eased, raw) takes both.
+- THE READERS (one answer, every sun-derived term): the sky-view and aerial tables (uESun = twilight), the dome
+  (uSeen: the discs x the share over the horizon, the coronas on it instead of the old smoothstep; the PROBE's dome
+  takes the eye's terrain share once it has held 600 ms and re-bakes, seenMoved()), the hemisphere and the clouds'
+  ambient (skyIrradiance(alt, sun, out, E) - E left out = bit-identical), the mist's colour and forward peak (the key
+  light's), the ground irradiance, the flare (sky_glare `seen`), forest_mist's beam, the moon key's ramp (falls
+  through the horizon on the sun's ramp, 0 under -1.5 deg), and the water's direct highlight at EVERY hour (wGV; a key
+  under the water's horizon draws no glitter path).
+- water.js A DISC IS REFLECTED ONCE (uWDisc, night only, while the moon is the key): the probe's lookup round the moon
+  is held to the sky's beside it (min, never raised); the direct highlight carries the disc. By day w = 0: the branch
+  is not taken.
+- NO ADDED SHADER PROGRAM: every change is a uniform or a branch inside an existing program (GATE PROGRAMS green);
+  the aurora's mirror sphere below is a second mesh of the aurora's own program.
+THE USER'S STEER (22 Nov, on the page) AND PICKS ("go with the defaults"):
+- the twilight fade STAYS -12..-18 (the 22:00 glow is wanted); the orange glow round a low moon stays.
+- "a little too blue there ... this big blue carpet ... make it darker": WATER.nightSea.k 0.38 -> 0.266 (the sheen at
+  70 %) and farK 0.5 (uWNight2: far water takes half of it, fading 150 m -> 1.5 km from the eye: near, the mirror's
+  reflections carry the surface; far, the sheen was all of it). Level B (k 0.19, farK 0.35) was shown and not taken.
+- "a bit bothered with the moonlight level": ATMO.MOON_PROBE = { k: 'own', white: 1 } - the probe's moon disc at the
+  moonlight's own level and colour (moonProbeOwn: LIGHT_RIG.moonE over the dome disc's own illuminance; the disc was
+  2.6x the key's moonlight at the full moon and 5.6x at this gibbous one, in the air's orange when low). Measured on
+  the full-moon night's stills: the land 7 to 11 % lower; the orange streaks on metal under a low moon gone.
+- "really at the water level, so that it's very mirrory": the lake was a flat blue with no aurora in it - the aurora
+  rides the MAIN camera, the planar mirror's capture never held it. aurora.js mirror() hands water.js mirrorRender a
+  second sphere (same program) for the capture's sky pass; AURORA.mirrorK.k is its dial.
+LIVE DIALS (console / a rig): ATMO.TWILIGHT, ATMO.MOON_PROBE { k: number | 'own', white 0..1 }, WATER.nightSea
+{ k, col, farK, far, disc }, AURORA.mirrorK.k; ATMO.seen() reads the frame's answer.
+GATES: ATMO section 9 (the light seen: 20-odd checks, the picks pinned). GATE CLOUD pins the probe's re-bake line by
+text: seenMoved() sits on its OWN line under it. Red on master 9349a62c1 itself, not this work: SHADOWSKY, MEDIA, ASSETS.
+EVIDENCE: D:/Dev/flydiy-notes/evidence/night-sun-2026-11-22/ (before = master; final, final2 = this build; r2, r3 =
+the variants shown). Dusk (19:30, 20:30) and noon are unchanged within 0.2/255 by the visibility work.
+LEFT, NAMED (not done, a later round if the user wants it): the night water's reflection stops short of the far
+shore and the mountains are not in it (the mirror's reach at night); the clouds keep their own sun gate at dusk
+(uSun.y > -0.1); the model still has no true deep-twilight colour (the fade removes the red tail, it does not paint
+the blue hour's last glow).
+## PERF-SLIDERS RELEASE 1 - TWO RELEASES THAT DID NOT END ON THE PLAIN BUILD'S AEROPLANE GO WHOLE: two master reds fixed, GATE INSTANTREL (PERF-SLIDERS, 23 Nov 2026, claude/ready/perf-sliders-release-1 off origin/master 089297693)
+TWO MASTER REDS, FOUND AND FIXED HERE (GATE INSTANT's own check on master's own tools/_cage_chain.js and _cage_ui.js, 23 Nov 10:13-10:20; logs in D:/Dev/flydiy-notes/evidence/perf-sliders-2026-11-23/). GATE INSTANT could see neither: its two aeroplanes carry one engine on the nose and its rows turn no sit.
+- 1. THE DC-3-ALIKE'S WING SPAN (list:12): the drag ends 587 of 1 265 objects and the resolved spec away from the plain build (instant_dc3_base.log). What the player sees: the nacelle engines' layer one build behind - the weathering's engine sources 14.5 cm from the nacelles, another exported spec - until the next whole build. WHY: a preview runs the wing at the hand's last value, so the release's plan (G1451) finds the wing's reads as they stand, does not run it, and its release edge to the engine layer (CAGE_CHAIN REL_FEEDS wing > eng, cowl) never fires. THE RULE (tools/_cage_ui.js, beside "the crew moved in the drag"): the wing layer ran in a preview since the last whole build AND the engine stands on the wing (engMount 2, 3, 5, 6, 7, or 1 with the hanging nacelle) -> the whole build, RELEASE_INFO 'the wing moved under its engines'. A nose or pusher engine keeps the plan.
+- 2. THE CUB'S MAIN GEAR STATION ALONG THE FUSELAGE (s1Z): after the drag the Cub still shows its fuel tank (edVessel_0 shell / hard points / seal / mark and edFuel_0: five meshes) where the plain build draws none, and the pilot's limbs stand a hair off; the resolved spec is the same both ways (instant_cub_s1Z_base.log: 700 objects against 695; the order-free comparison cub_s1Z_multiset_before_rule.log: 19 objects only the drag's way holds, 14 only the plain build's). The DC-3's s1Z: the elbows 0.3 mm off (65 objects). WHY: the crew is posed under the mount as the last draw stood it and its limbs are aimed along the WORLD's axes (_cage_crew.js solveGripJob: the poles), so the crew - and the tank's clearance of the pilot's body - belong to the sit they were built under; until 2 Nov a moved sit sent every release whole, PHONE-EDIT-PERF kept the plan for it. THE RULE: the mount's rotation is not the one the last build measured (to 1e-6) -> the whole build, 'the sit turned under the crew'. A sit that only MOVED (a float's step along the hull) keeps the plan: PHONE-EDIT-PERF's floatplane releases stay as they are.
+- TRIED AND DROPPED for 1: firing the release's edges on what ran in the drag (the engine and the cowl alone in the release) - 372 objects off on the DC-3, also off on the Super Petrel (gate_instantrel_ready.log): the wing places a wing-mounted unit once more over the wing it publishes (CAGE_WING_EARLY), the nacelles' wells are cut from the gear's legs. The whole build is right by construction.
+- THE COST, NAMED: those releases are whole builds again. The DC-3's wing drag in the desktop garage at 5120: about 1.9 s where the (wrong) plan took 0.83 s; a gear drag that changes the stance (the station along the fuselage, a leg's drop, a wheel's size) likewise on every aeroplane. On master the Super Petrel's wing layer runs on every tick of any row (its cabin pylon copies the rows: PERF-SLIDERS' CAGE_CHAIN.over, in claude/ready/perf-sliders-1), so there every release goes whole until that lands. The release in steps is what makes whole releases bearable (PERF-SLIDERS' next steps).
+- GATE INSTANTREL (tools/_instant_rel_check.js, a core row of run_gates.js, about 25 min alone): GATE INSTANT's check (tools/_instant_check.js: builds dc3 and petrel added, --gate names the verdict line, --multiset prints what each way holds that the other does not) on the DC-3-alike, the Super Petrel and the Cub, six rows each: wgSpan, wgChord, stSpan, s1X, s1Z, seatH. PASS on this ready's own tree (a0e88a80d, an exported copy), 23 Nov 14:54: 18 rows, every drag ended on the plain build's aeroplane (gate_instantrel_ready2.log) - the DC-3's and the Petrel's wing rows release whole ('the wing moved under its engines'), the s1Z rows whole ('the sit turned under the crew'), the Cub's wing, tail and track rows keep the plan. The first content of this ready (the wing rule alone, 5dba696e5) had passed its ten rows at 12:18.
+- OPEN, NOT THIS READY'S: (a) the root of 2 - the limbs' poles in the aeroplane's frame instead of the world's - moves every tail-dragger pilot's elbows and knees by an estimated 1-2 cm: the user's eye, before and after; (b) why a 5 % move of the Cub's gear station makes the plain build draw no tank at all (a fit against the posed pilot by a hair is a reading, not a finding).
+- Files: tools/_cage_ui.js (the two rules), tools/_instant_check.js, tools/_instant_rel_check.js (new), tools/run_gates.js (the row). No built file in this ready: the train builds.
+- GATE INSTANTREL IS THREE SHARDS (A0, 23 Nov: 1 405 s alone was the battery's longest chunk): run_gates.js `shards: 3`, tools/_instant_check.js deals its builds over the runner's --shard=i/N (tools/_shard.js), one aeroplane a shard - the DC-3 about 7 min, the Super Petrel about 13, the Cub about 4. Unsharded (--jobs=1, or the file run by hand) it is the same 18 rows in one process. The dealing was run on claude/perf-sliders c40be2bf4, 23 Nov 15:45-16:25: three shards, each 'SHARD i/3: 1 of 3 heavy jobs', the DC-3's and the Cub's PASS (6 rows each); the Petrel's shard there is red on stSpan for a reason this ready does not have (that branch's CAGE_CHAIN.over lets the Petrel's releases go by the plan, which shows a scene-order fault fixed there in f45ebda65; on this ready's tree every Petrel release is whole and the 18 rows passed unsharded at 14:54).
+- PETREL-FIXES-4 (SEAPLANES 23 Nov, A0): GATE PETRELTRIM row (e) STABLE - the Super Petrel's static margin at real_check's own loads (MIN / TYP / MTOW, the same cases, loaded def and shakedown as its band) stays at today's figures or above (floors 0.50 / 1.55 / 11.50 %, today 0.55 / 1.60 / 11.57). No other gate read the light loads: ls4-arch-1's STRADDLE-FIX (REAL-FIGURES' meant mass move, +3.6 kg empty, CG aft) took MIN 1.80 -> 0.55 % unseen. Measured on three trees (45d2e27f0 and 56dc08acc old, b8511c47b new; the build's seatH/bulkZ reverted change nothing) - so not PETREL-FIXES' rows, as first said. The LS4-ARCH-2 REALBAND reason's petrel42 line corrected to match. Whether 0.55 % needs lifting is the user's call (A0 asked): a target raises the floors in the row.
+- PILOT-SLOPE-POWER-2 READY NOTE (PILOT 23 Nov, claude/ready/pilot-slope-power-2 = 8b65d4439 on the L40K candidate 45d2e27f0; rides L40M; replaces claude/ready/pilot-slope-power): 43_pilot.js only. (1) SLOPE-POWER: on a slope's final with the elevator on its stop and the aeroplane low, power goes in and the approach is flown faster (tVAdapt raised, sKdot floored at 0), and low on the slope while regaining is not a go-around ("daring, not polite"). (2) FLARE-LOST: a flare flown 30 m over the ground while climbing or past the strip's end for 1 s goes around even when committed (the metal Cessna bounced off Skyline's end and "flared" 200 m up for 600 s). GATES vs the base 45d2e27f0: TAILWHEEL E green, only I down & out left (master's line: at full power the E-811 pusher holds the nose down and it never rotates; the abort's zoom-stall - a card / physics item, A0 -> FLAGSHIP); PILOT, PILOTACT, PROFILE PASS; PILOTMATRIX and APSMOOTH the base's rows (cub:HOME:x4 regresses on the base too). ALTIPORT row 4 (the metal Cessna HOME > tw_ski, "tried ... landed on tw_ski", 5 FAILs vs the base's 4), A0's call 23 Nov: the branch's go-around is the RIGHT behaviour, and the break-up comes from the card (the owed vref-raised elevator) - it lands NAMED against FLAGSHIP's card, not held, and not the pilot's. Logs: D:/Dev/pilot_runs/slope_power/ (sp2_, sp3_, sp4_, fl_, base45_).
+## STORY-REVAMP 10 - L40J MERGED IN, THE FLIGHTS READ AGAIN (cloud, 23 Nov)
+
+- MERGED origin/master 089297693 (train L40J) into claude/story-revamp (e82422d65). Source clean; HANDOVER = master's bytes + this branch's blocks; built files master's, rebuilt in a (built) commit.
+- MASTER'S MERGE LOST TWO CONTRACT_FIELDS LINES (7c30889ba inside f9f813191: ONE-CESSNA onto L40G took an older 72_contract_data.js): `xw_rough` out of the table, `tw_ski` back at 257 / -7707 / 380 m. The world still builds xw_rough and has tw_ski at 282 / -7751 / 280 m. Master's GATE CONTRACTS names it ("the 17 runways", "wheels at xw_rough", "amphibian at xw_rough"). The story pack's short-landing event lands on xw_rough: STORYPACK, TUTORWALK and MISSIONLIVE are red on plain L40J + the pack. Commit 28ef278e5 puts both lines back as they were at L40H (its own commit: droppable). CONTRACTS' other four reds are the refitted Cessna's (minedock.02 / .03, resort.05, "the C172 takes two into the mine street"): master's.
+- THE FEASIBILITY HARNESS, three faults of mine read off the rows (tools/mission_feas_lib.js):
+  - THE SEAT FILL NEVER TOOK: it wrote cabin.occupied into the build FILE, and the load door's page chain rebuilds the cabin from the design. planeDefFilled fills by the garage's own door now (the spec the game flies, pilots 1, pax n - 1, occupied null, as balance.js). A build that does not take the fill is flown as saved with no note.
+  - A COURSE'S ENTRY: routeFor(W, objs, survey, from). Out of a field ahead of the entry point the turn onto the axis was 160 deg; a base turn on the field's side now, chosen among candidates on the planner's own measure (meaOf: 44_vprofile's legs). A field that looks down the axis (35 deg, 400 m) gets no run-in.
+  - A COURSE'S EXIT: the planner looks 1500 m past a leg's end, 300 m either side, and moves a climb EARLIER; a run-out that pointed at high ground was a climb begun at the first gate. The run-out is the longest and straightest whose legs ask no more than the gate's height + 20 m, else turned, else none.
+- THE PACK (src/missions/story.json, the editor's format kept): club.tour's gates of legs two and three had their passing direction mirrored north-south (12 and 78 deg off the track). b1 / b2 at 90 deg with b2 at (1600, -2600); c1 / c2 at 231 deg. GATE STORYPACK PASS.
+- THE ROWS KNOW THEIR SIM (tools/story_feas.js `SIM`, bumped by hand at a merge of master): every row flown before L40J is stale and is flown again. TWO TEST BUILDS (tools/fixtures/storyfeas/, on no plane list): the light metal Cessna with the STOL kit and a larger elevator (the retired list:40), and the Cessna 172 (list:50) with the STOL kit (take-off run 414 -> 260 m).
+- NOT MINE, LISTED: the Cub lands off the end of w5 (Cannery Runway) on the game's day and the leg back never leaves - `node tools/flight_script.js reports/STORY-REVAMP/repro/cub_w5_back.json` (no mission in it); from w5's stand (`cub_w5_stand.json`) it flies home. club.tour's third leg waits on it.
+- A CLOUD LESSON: a background task lives two hours at most and is killed at the limit (finished rows are kept, the mission in flight is lost): fly in batches under two hours.
+
+## STORY-REVAMP 11 - L40K MERGED IN, story-8, THE SESSION STANDS DOWN (cloud, 23 Nov)
+
+- MERGED origin/master 56047b34e (train L40K) into claude/story-revamp (20c8f846f). Source clean: the tree is master's plus this branch's delta (tools/mission_feas_lib.js, mission_feas.js, story_feas.js, tools/fixtures/storyfeas/, src/missions/story.json 30 lines, reports/STORY-REVAMP*). Built files: master's, byte for byte (the build leaves them unchanged).
+- THE READY: claude/ready/story-8. Gates on it: STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE, MISSIONFEAS (alone) PASS; CONTRACTS 4 of 2585, master's four by name (L40K's own note).
+- THE HANDOVER OF THE WORK is in reports/STORY-REVAMP.md, section HANDOVER: what is done, how to run story_run / story_feas / one mission, what is left, the feasibility state. Read that, not this block, for the state.
+- A ROW'S SIM IS L40K NOW (tools/story_feas.js SIM). Measured on both trees: L40K builds 36 of the 79 builds of the lists differently (def or shakedown) - the Cub, the Jodel, the Cessna 172 and the STOL Cub among them - so the 26 rows flown on L40J (24 feasible, 2 red) are stale and flown again. story_feas --tmax=<sim s> bounds a leg (a red mission costs tries x legs x tmax).
+- THE PACK: club.breakfast's limit was a guess (14 min); the Jodel flies it in 16; now 20 (the pack's draft number, the editor edits it).
+- TWO GAPS MORE, LISTED: water cargo over about 100 kg has no float plane in the pool (the float Cessna's loading card takes 98 kg where the capability rule says 250; the PC-6 on Wiplines started at HOME does not line up there); L40K's gliders, winch and van tow have no club event authored on them yet.
+- A CLOUD LESSON MORE: a detached run dies when the turn ends (the container sleeps); it lives while a tracked task waits on it (while pgrep -f <run>; do sleep 60; done), started again every two hours.
+
+## STORY-REVAMP 12 - VALIDATED WITH: the flag on the missions, the editor shows it (cloud, 23 Nov; the user asked)
+
+- THE USER (23 Nov): "you probably want to add a flag on the missions, possibly direct in editor, like validated with XXX plane, that would help exploiting your data best".
+- A MISSION OF THE PACK CARRIES IT: validated { with: <aeroplane> | null, sim, flownS | verdict + why, sig }. node tools/story_feas.js --stamp writes it into src/missions/story.json from the kept flight rows (current rows only; never flown on this sim = no flag), in the editor's save format (GATE STORYPACK 9). The contract record does not carry it: a row's key, the career and the page are untouched.
+- THE EDITOR (tools/mission_editor.html, flownOf / flownLine / flownSummary): a mission's notes say "Validated with: <aeroplane> - time flown - sim" or why not or "not flown"; the list shows a mark and the aeroplane; the pack's notes count by aeroplane. sig = what the mission asks of a flight AS WRITTEN (flightSig, between the flight-sig marks: ONE definition, story_feas.js reads it from the editor's file) - not the contract record: the editor's lean core and node's whole core fill a load's item defaults differently (heritage.02, home.06, clients.n2 read "edited" with the record). An edited step reads "edited since the test pilot flew it".
+- THE EDITOR IS A BUILD INPUT: its change moves index.html, dev.html, sw.js, version.json (their own (built) commit); flight_core.js and the chunks do not move. story.json alone moves no built file.
+- THE HARNESS, a fourth fault of mine: the Cessnas and the DC-3-alike are saved with two aboard, so a CARGO job flew with a passenger seat taken (home.13: 140 kg aboard of 280). planeDefFilled(file, pax, exact) seats the cabin as the job asks both ways in the wider pool; GATE MISSIONFEAS's path is not touched.
+- THE READY: claude/ready/story-9 (contains story-8). The state of the flights: reports/STORY-REVAMP.md, section HANDOVER.
+## PERF-SLIDERS RELEASE 1 - TWO RELEASES THAT DID NOT END ON THE PLAIN BUILD'S AEROPLANE GO WHOLE: two master reds fixed, GATE INSTANTREL (PERF-SLIDERS, 23 Nov 2026, claude/ready/perf-sliders-release-1 off origin/master 089297693)
+TWO MASTER REDS, FOUND AND FIXED HERE (GATE INSTANT's own check on master's own tools/_cage_chain.js and _cage_ui.js, 23 Nov 10:13-10:20; logs in D:/Dev/flydiy-notes/evidence/perf-sliders-2026-11-23/). GATE INSTANT could see neither: its two aeroplanes carry one engine on the nose and its rows turn no sit.
+- 1. THE DC-3-ALIKE'S WING SPAN (list:12): the drag ends 587 of 1 265 objects and the resolved spec away from the plain build (instant_dc3_base.log). What the player sees: the nacelle engines' layer one build behind - the weathering's engine sources 14.5 cm from the nacelles, another exported spec - until the next whole build. WHY: a preview runs the wing at the hand's last value, so the release's plan (G1451) finds the wing's reads as they stand, does not run it, and its release edge to the engine layer (CAGE_CHAIN REL_FEEDS wing > eng, cowl) never fires. THE RULE (tools/_cage_ui.js, beside "the crew moved in the drag"): the wing layer ran in a preview since the last whole build AND the engine stands on the wing (engMount 2, 3, 5, 6, 7, or 1 with the hanging nacelle) -> the whole build, RELEASE_INFO 'the wing moved under its engines'. A nose or pusher engine keeps the plan.
+- 2. THE CUB'S MAIN GEAR STATION ALONG THE FUSELAGE (s1Z): after the drag the Cub still shows its fuel tank (edVessel_0 shell / hard points / seal / mark and edFuel_0: five meshes) where the plain build draws none, and the pilot's limbs stand a hair off; the resolved spec is the same both ways (instant_cub_s1Z_base.log: 700 objects against 695; the order-free comparison cub_s1Z_multiset_before_rule.log: 19 objects only the drag's way holds, 14 only the plain build's). The DC-3's s1Z: the elbows 0.3 mm off (65 objects). WHY: the crew is posed under the mount as the last draw stood it and its limbs are aimed along the WORLD's axes (_cage_crew.js solveGripJob: the poles), so the crew - and the tank's clearance of the pilot's body - belong to the sit they were built under; until 2 Nov a moved sit sent every release whole, PHONE-EDIT-PERF kept the plan for it. THE RULE: the mount's rotation is not the one the last build measured (to 1e-6) -> the whole build, 'the sit turned under the crew'. A sit that only MOVED (a float's step along the hull) keeps the plan: PHONE-EDIT-PERF's floatplane releases stay as they are.
+- TRIED AND DROPPED for 1: firing the release's edges on what ran in the drag (the engine and the cowl alone in the release) - 372 objects off on the DC-3, also off on the Super Petrel (gate_instantrel_ready.log): the wing places a wing-mounted unit once more over the wing it publishes (CAGE_WING_EARLY), the nacelles' wells are cut from the gear's legs. The whole build is right by construction.
+- THE COST, NAMED: those releases are whole builds again. The DC-3's wing drag in the desktop garage at 5120: about 1.9 s where the (wrong) plan took 0.83 s; a gear drag that changes the stance (the station along the fuselage, a leg's drop, a wheel's size) likewise on every aeroplane. On master the Super Petrel's wing layer runs on every tick of any row (its cabin pylon copies the rows: PERF-SLIDERS' CAGE_CHAIN.over, in claude/ready/perf-sliders-1), so there every release goes whole until that lands. The release in steps is what makes whole releases bearable (PERF-SLIDERS' next steps).
+- GATE INSTANTREL (tools/_instant_rel_check.js, a core row of run_gates.js, about 25 min alone): GATE INSTANT's check (tools/_instant_check.js: builds dc3 and petrel added, --gate names the verdict line, --multiset prints what each way holds that the other does not) on the DC-3-alike, the Super Petrel and the Cub, six rows each: wgSpan, wgChord, stSpan, s1X, s1Z, seatH. PASS on this ready's own tree (a0e88a80d, an exported copy), 23 Nov 14:54: 18 rows, every drag ended on the plain build's aeroplane (gate_instantrel_ready2.log) - the DC-3's and the Petrel's wing rows release whole ('the wing moved under its engines'), the s1Z rows whole ('the sit turned under the crew'), the Cub's wing, tail and track rows keep the plan. The first content of this ready (the wing rule alone, 5dba696e5) had passed its ten rows at 12:18.
+- OPEN, NOT THIS READY'S: (a) the root of 2 - the limbs' poles in the aeroplane's frame instead of the world's - moves every tail-dragger pilot's elbows and knees by an estimated 1-2 cm: the user's eye, before and after; (b) why a 5 % move of the Cub's gear station makes the plain build draw no tank at all (a fit against the posed pilot by a hair is a reading, not a finding).
+- Files: tools/_cage_ui.js (the two rules), tools/_instant_check.js, tools/_instant_rel_check.js (new), tools/run_gates.js (the row). No built file in this ready: the train builds.
+- GATE INSTANTREL IS THREE SHARDS (A0, 23 Nov: 1 405 s alone was the battery's longest chunk): run_gates.js `shards: 3`, tools/_instant_check.js deals its builds over the runner's --shard=i/N (tools/_shard.js), one aeroplane a shard - the DC-3 about 7 min, the Super Petrel about 13, the Cub about 4. Unsharded (--jobs=1, or the file run by hand) it is the same 18 rows in one process. The dealing was run on claude/perf-sliders c40be2bf4, 23 Nov 15:45-16:25: three shards, each 'SHARD i/3: 1 of 3 heavy jobs', the DC-3's and the Cub's PASS (6 rows each); the Petrel's shard there is red on stSpan for a reason this ready does not have (that branch's CAGE_CHAIN.over lets the Petrel's releases go by the plan, which shows a scene-order fault fixed there in f45ebda65; on this ready's tree every Petrel release is whole and the 18 rows passed unsharded at 14:54).
+## PERF-SLIDERS 1 - EVERY AEROPLANE IN THE GARAGE: row 1 measured per aeroplane, five exact cuts of the drag tick, the drag budget as a switch (PERF-SLIDERS, 23 Nov 2026, claude/ready/perf-sliders-1 off perf-lead-lab d21f414f7)
+The user, 22 Nov: "editing the dc3 is really laggy on the phone, while the chinook was really easy. Let's make sure that all planes are workable. The thing is laggy even before it updates." The whole account - the tables, the defects, the next steps - is flyDiy/reports/PERF-SLIDERS-HANDOVER.md; this entry is what the ready changes. The two release rules and GATE INSTANTREL are ALSO alone on claude/ready/perf-sliders-release-1 / -2 (off origin/master, L40M): the same text here.
+- MEASURED, row 1's first every-aeroplane table (a real visible Chrome, 23 Nov 08:20-10:12, a shared box; D:/Dev/flydiy-notes/evidence/perf-sliders-2026-11-23/TABLES.md): the desktop garage at 5120x1271, today: 0 of 30 aeroplanes keep every drag frame under 50 ms (DC-3 684 ms ... the Cub 67); with ?dragbudget=auto 10 of 30, by holding the model on 61 of 90 rows. The phone profile: 6 of 30 as quick as the Chinook (the user's bar for the phone) on all three drags. The user's S20 FE: the Chinook 145 / 440 ms a wing-drag frame, the DC-3 306 / 918 and 2 162 / 2 865 on the gear station.
+- ON BY DEFAULT, each exact (WHEN a layer runs or how often a thing is computed, never what is built):
+  1. tools/_cage_chain.js CAGE_CHAIN.derived + tools/_cage_panel.js gearLeverOf: the dash's gear selector records "do the mains stand off the centreline", not the row - the crew layer no longer re-runs on every tick of the gear station on a gear that retracts (the DC-3's tick in node 1 962 -> 75-83 ms). ?derived=0 off.
+  2. CAGE_CHAIN.over at four call sites (_cage_cowl.js engineFaces on engMount 4-7, _cage_wing.js the cabin pylon, _cage_gear.js the spare wheel, _cage_crew.js the passengers' own seat): the rows laid over P are read through, not copied - a copy read every row and the layer re-ran on EVERY tick of ANY slider (the Super Petrel: the wing - proven by GATE DERIVED's every-row lists). NOT the Pawnee / sailPlane / twinBoomFail, as first believed: their cowl still runs on every tick of any slider (104-126 ms in node) because its own slider sync (syncFitted -> CAGE_UI.syncSliders) runs inside its turn and the UI's reads of every row are booked as the cowl's (tools/perf/slider_all_probe.js) - FOUND, NOT FIXED, next step 1. Same switch.
+  3. tools/_panel_gen.js placeGear: the plate's outline asked once a column of candidates (the DC-3's seat-height tick in node 2 010 -> 563 ms).
+  4. CAGE_CHAIN.afMemo: GEAR_GEN.cageAirframe kept per sheet and scale under a stamp of everything it reads (it was rebuilt 3-4 times a whole build on the Cub and the Chinook - a dozen call sites, more on a twin - and 1-3 times a wing or gear tick). ?afmemo=0 off; off under RELEASE_FAST_OFF, so GATE INSTANT's long way proves it.
+  5. tools/_cage_ui.js standWanted: the stand is measured at a press only when the pressed row can move the sheet (the ~300 ms frame after every press of a wing, tail or gear row; 250-414 ms on the S20). CAGE_UI.standAlways restores.
+  6. the two release rules (a wing that moved under its engines; a sit that turned under a kept crew): the release goes whole - two master reds, see PERF-SLIDERS RELEASE 1.
+  7. the release puts back what a layer added BEFORE the layers under it (a hull's tub, sponsons, strakes: tools/_cage_chain.js `pre`) where a whole build adds it - the Super Petrel's tail-span release stood off the plain build's scene order once over let it go by the plan.
+- A SWITCH, OFF BY DEFAULT: ?dragbudget=auto | <ms> (tools/_cage_ui.js, THE DRAG BUDGET). A tick that fits is built, one whose own layer fits is built LITE (the layers it feeds are owed), else it is HELD until the hand rests 0.12 s or lets go. auto = the desktop 50 ms less the frame's work less 6; the touch profile 150 ms (the Chinook's own wing ticks on the S20 are 99.7 ms median, 203 worst). What the player sees with it: the knob never stutters, a heavy aeroplane's model waits for the hand. PERF-LEAD: the desktop's default does not change; the user tries both.
+- THE GATES (all core rows of run_gates.js, the page in node): all green on the game code 56f3924d6 (the commits after it touch gate files and docs only), 23 Nov 17:10-19:27, logs in D:/Dev/flydiy-notes/evidence/perf-sliders-2026-11-23/ - INSTANT PASS, 26 rows (the Cub, the metal Cessna; 655 s); INSTANTREL (new, three shards) PASS, 18 rows (the DC-3-alike, the Super Petrel, the Cub: wgSpan, wgChord, stSpan, s1X, s1Z, seatH); DERIVED (new) PASS on all 30 aeroplanes of the player's list: the 7 that matter compared (7 stands ON / OFF / OFF, 9 walks, all same; the crew's runs saved in the ticks 16; the Petrel's tail-span release by the plan with the switch on against a whole one with it off: the same aeroplane), the other 23 call neither derived nor over (counted) and are the same code in both modes; PANELGEAR (new) PASS; AFMEMO (tools/_derived_check.js --mode afmemo; not a battery row yet) PASS on all 30 aeroplanes (3020e6efb, 18:50-19:27): four plain builds ON / OFF / OFF / ON from a settled aeroplane, no object and no resolved spec differs by the memo, the memo used in every ON build (2-4 hits), three floatplanes' own build-to-build drift counted apart. The stand measured at a press (5) has no every-aeroplane run of its own: it rests on INSTANT's and INSTANTREL's 44 rows on four aeroplanes (every row is pressed before it is dragged) and on its construction (it moves when a measure is taken, not what is measured). NOT RUN by this session: the rest of the battery, any GPU gate. The browser sweep (tools/perf/slider_sweep.js --gate) is not a gate yet: by the bar as written it is red on all 30.
+- TOOLS: tools/perf/slider_sweep.js (the browser sweep: --setup desktop|phone, --query, --planes, --prof, --picture, --gate), slider_sweep_node.js (the same drags in node: layer ms, GL counts, profiles), slider_audit_node.js (which layers re-run for nothing, per slider), page_rig.js o.metrics / o.touch.
+- NOT DONE, in order (reports/PERF-SLIDERS-HANDOVER.md section 6): cheaper wing and gear ticks (the desktop's real answer), the release in steps, the audit's other wins, the floor's wall rays, the crew's poles in the aeroplane's frame (the user's eye), the real phone at 150 ms.
+- Files: tools/_cage_chain.js, _cage_ui.js, _cage_panel.js, _panel_gen.js, _cage_cowl.js, _cage_wing.js, _cage_gear.js, _cage_crew.js; the checks _derived_check.js, _panel_gear_check.js, _instant_rel_check.js (new), _instant_check.js; run_gates.js (three rows); tools/perf/* and page_rig.js; reports/PERF-SLIDERS-HANDOVER.md. No built file: the train builds.
+
+## LAZAIR - THE CLASSIC V HUNG DOWN ON A SINGLE BOOM, ITS TIP WHEELS AN OPTION (24 Nov 2026, A0's LAZAIR job; branch a0/lazair-iv-single off master 56047b34e)
+The user, building a Lazair: "an inverted V tail with a little wheel at each panel tip, on a single boom", then (via A0)
+"extend the classic V-tail's angle row so it can go down", "the controls accurate whatever the angle", "the tip wheels are
+an option with their own parameters". The twin booms' inverted V (stMount 4, G3800/G3801) is untouched.
+- **THE ROW:** stCant runs -55..55 (was 0..55). On a single body (a fuselage or one boom; twin booms read no negative cant)
+  a negative cant lays the classic V's two panels DOWN from their seat - finToStab's rotation with the cant's sign, so each
+  panel's upper face stays up and the winding is the upright V's. On a rod (boomStyle) a V canted down hangs UNDER the
+  tube: the saddle's plate on the belly, the root's upper face against it (a pedestal where stY holds it lower). The
+  design's tail-type read says 'v' for |cant| >= 20 (no new tile: the V-tail tile, then the slider below 0).
+- **THE JOIN / SPEC / FRAME:** tail.type 'v', tail.vAngle SIGNED (clampSpec keeps the sign, 20-55 on its size), Svt the
+  drawn panels' (as every V); tail.vRootY (keel datum, the key only on a V hung down) is the drawing's root height - the
+  frame hangs HTL/HTR vHeight under it (absent: under the tail's keel). vHeight stays a height (|sin|). With tip wheels
+  the frame's tip nodes stand AT the drawn tips (right over the wheels: a wheel hung off a node 0.4 m ahead swung up
+  about its leg) and the two tips are tied (internal): a single rod's ring is too narrow to hold a tip against rotation
+  about the boom's axis. MEASURED: a V whose tips hang well under the mains' ground line (the Chinook at -35 on its full
+  span: the tips 0.40 m under it) stands on its tail and folds it - a stance no aeroplane has; tune the cant / span /
+  stY so the tips sit near the mains' line (the gate's Lazair: -25 on 0.7 of the span, 1.4 deg tail-down; half the span
+  drew a V under the flown envelope's 1.5 m hSpan, which the join reports as an error - the drawn tail is not flown).
+- **THE CONTROLS:** 62_gen_aero's 'vtail' strips carry sinV < 0, so the solver's normal leans OUTWARD; the rudder's mix
+  sign is the lean's (30_solver: `st.sinV < 0 ? -side : side`, the old line for every V before it). Measured on the
+  generator's default at +-30 / +-55: the elevator's up pitches nose-up and the rudder's left yaws nose-left at all four, the
+  rudder's pitch under 2 %, nothing at zero input; the tail's own sideslip roll couple and the rudder's roll flip sign hung
+  down (proverse - real). The drawn ruddervators: the join's second drive engages on |cant| >= 20, its sign the hinge axis's
+  (G3801), both trailing edges to port on a nose-left pedal.
+- **THE TIP WHEELS (the gear page's 'V tip wheels' rows, shown only while the V hangs down past -20; every row ABSENT AT ITS
+  DEFAULT: CAGE_DEFAULT_ABSENT + GEN_CAGE_ROW_NEUTRAL):** vtWheels 0 off / 1 as the tail wheel / 2 extra wheels; vtD the
+  wheel's diameter (0.20), vtWide the tyre's width x the carcass's (0 its own), vtFork the hub's drop past the tyre under the
+  tip (0.03, the twin V's), vtCastor (extra wheels: castoring / fixed). The tips are THIS build's: the stab layer's build is
+  a function (stabBuild), and window.CAGE_STAB_TIPS(P, mesh) runs it dry for the gear layer, which draws first.
+  'As the tail wheel': station 2's leg 3 drawn at the two tips by tipMount + legTipWheel (the twin V's own), its kind the
+  third wheel's row (steerable, lockable, fixed, skid); the join measures it (twX / twY, gear.vTip.z), the frame makes TW +
+  TW2 there (refs.tw / tw2: the solver's two tail contacts, G3800). On a build with no tail unit (a tricycle) the tips take
+  'extra wheels': drawn with the airframe (no unit), CAGE_GEAR.vtExtra; gear.vTip { mode 'extra', x, y, z, R, fork,
+  castor }; the frame's refs.xw (+ xwFree): the solver rolls them as an unbraked main, a castoring one with no side force.
+- **GATE TAILWHEEL K** (the Chinook's rod as a Lazair at -25 on 0.7 of its span, the Cessna's tricycle, the generator's default): K1 the drawing (the
+  panels mirrored, a wheel contact under each tip below the root, the fin layer stood down, Svt = the drawn panels', the
+  ruddervators' TE to port), K2 the controls at +-30 / +-55, K3 the three modes (off: one centreline tailwheel; as the
+  tail: two tail contacts at the drawn tips, standing on them and nothing else; extra: the Cessna's nose wheel and mains to the bit, two
+  castoring contacts aft), K4 vtD / vtFork move the drawn wheel and the flown contact together, K5 the Lazair stands on its
+  tips, turns on the brake and flies HOME's circuit (tw_probe --build lazair).
+
+## LAZAIR-TWIN - THE USER'S LAZAIR DIVERGED AT t 0: THE OLD RULE'S STEP IS NOW PROVED ON THE NETWORK (24 Nov 2026, A0's LAZFIX job; branch a0/lazair-twin-fix off master 896877867)
+- **The user's report.** "My Lazair model makes the sim diverge in the current build" - the plaque's flight 'sim-diverged' at
+  t 0, "the propeller struck". The build: tools/fixtures/lazair_user_2026-11-24.json (a hanging nacelle - fuselage.hang's mast,
+  rodHub - on a rod, two rotax277 pushers on the wing, the V hung down on its tip wheels, gear.vTip 'extra').
+- **The cause (measured, substep by substep).** Not the engines (their x is the station, z the lateral 0.952: mirrored by
+  index, sense +1 / -1, as the twin-floats ultralight's) and not the V. The MAST's lattice (61_gen_frame 3d: 0.15 kg nodes,
+  each on 8-12 'cabane' members at 1.54e6 N/m, 345 N s/m) has every member under its own omega dt / c dt bound at the rule's
+  167 substeps, and the NETWORK at (omega dt)^2 + 2 gamma dt = 5.44 (the dampers 4.45) against symplectic Euler's hard 4. The
+  rule checked the network only on the G580 path (springs under the dampers) and at the G2630 cap; where the springs set the
+  step it returned the per-beam step unproved. The mast blew up within 40 substeps (MST nodes to 288 m/s), NaN on the first
+  frame; the flung engines read a prop strike.
+- **The fix (62_gen_aero genSubstepsTrue, netGuard).** The step the old rule returns (the springs' step, or atCap's) is proved
+  against the hard edge, 1.05 x 4 (genNetEig's own 5 % margin: the validated Petrel reads 4.02 at 200 and flies): a Gershgorin
+  bound first (O(beams), no power iteration unless it could be over), then genNetEig. Only a network past the edge is
+  touched: its dampers cut as G2630 cuts them (the largest per-beam c dt bound that brings it to GEN_NET_MAX), the step raised
+  toward the cap only where the springs alone take more than half the margin; the rigid floats' members left out (G790).
+  Measured: every build and fixture under builds/ and tools/fixtures/ (95, raw buildGen) and the six VALIDATED builds plus the
+  twin-floats ultralight, the Chinook, the DC-3 and the twin boom JOINED (loadBuild) are bit-identical (substeps, substepsTrue,
+  every k and c); the Lazair alone moves (167 substeps kept, 112 mast/hub dampers cut, the network 3.00).
+- **GATE RADIALDIV** asks the Lazair's CONSTRUCTION and REST (its REST strain the airframe's: its bungee legs stand 5-7 % into
+  their stroke at rest), and its selftest catches the old rule on it (5.44, NaN at 0 s). The selftest's mosquito pair reads
+  MISSED on master's core too (their REST does not go red on the old rule any more): not this change's.
+- **Not yet (the next step of the job).** With the divergence gone the Lazair rolls (tw_probe roll: 25 m/s in 8.9 s, straight),
+  but at HOME a full-power start pitches it onto its nose leg (the high thrust line, 1.27 m, the pod's keel 3 cm over the
+  grass) and the pilot rejects a nose-over at V 3; the V tips' four 'fus' ties to the rod (the rod's 0.7 mm gauge) yield under
+  the tail's load at the spawn (a dent); the solver's G1470 rule strikes EVERY propeller when the nose ring touches (wrong for
+  wing and pusher engines); aid.prop and the garage marker read disc 0 only.
+
+## LAZAIR-TWIN 2 - EVERY PROP DISC WHERE IT IS DRAWN; THE V's TIP TIES ARE ITS SPARS (AND ITS BAR); TAIL-DOWN ON THE TIPS; ALUMINIUM TUBE DRAWS AS TUBE (24 Nov 2026, A0's LAZFIX job, the user's rulings of 13:30; branch a0/lazair-twin-fix)
+- **The prop check is generic (64c genDesignAids, the garage marker app.js buildAids, 66c the fiche's discs).** Every disc of
+  every build: at its engine's station plus the editor's own hub offset (genAidPropOff: [dx, dy, R, fit, why]), its radius
+  the DRAWN blade's (CAGE_ENG units[i].prop.R), its axis the drawn tilt's, a wing pair's disc on its OWN side (engAt keeps
+  |z| and a `side`: both discs had stood at +z, one circle over the other - "draws only for a single engine"). Each disc is
+  judged (ground / water / the wing and stab strips along its axis / the other discs' circles / the editor's propFitCheck
+  of the drawn skin and wing, and for an off-centre disc the body's lattice nodes, the mast, the tail tips); the aid.prop
+  row is the worst disc, named (port / starboard), its fix sized (discs: "N m apart centre to centre, each nacelle X cm out").
+  A single centreline disc reads its row's words and numbers as before. The marker draws a circle per disc in its own
+  plane (square to its axis), coloured by its own verdict.
+- **The marker's frame (app.js aidMap).** The design x was laid along the sim's nose-ring-to-tail-mid line - right only
+  where that line is level in the design frame. The Lazair's rod climbs aft 9 deg: every aid stood 9 deg off the
+  aeroplane ("even the rotation plane seems wrong"). The same line is now read off the DESIGN nodes and a point is carried
+  by its body-frame coordinates (a build whose line is level: identical).
+- **"Rejecting when too small" (_cage_eng propFitCheck).** The body test read AF.surf past the cowl's front (z1): the end
+  section held there swallowed a small tractor disc's inner rings. A tractor's sample ahead of z1 is now outside the body,
+  as a pusher's behind z0 already was. The Minimax clears at D 1.72 / 1.2 / 0.9.
+- **The V on tip wheels (61_gen_frame isV).** Its tips' four ties a side were the rod's lattice ('fus' aft of the box: the
+  rod row's section, 0.7 mm): nine yielded at the spawn under ~50 N a tip, and on every take-off. On tip wheels they are the
+  panels' spars, class 'tail'; zero yields. **The bar** (the user's ask): gear page rows vtBar / vtBarAt (ABSENT at off /
+  0.5), the join's tail.vBar, a node on each panel's line at that station tied to the tip, the post and its ring corner, the
+  two joined (0.35 kg a side, INFERRED), drawn by the stab layer as a 25 mm tube.
+- **Tail-down on the tips (30_solver stance; 64c aid.stance).** A nose wheel ahead of the mains, the CG behind them and the
+  V tips' extra wheels aft (refs.xw): the spawn pitches onto the TIPS, and the stance aid judges a taildragger whose nose
+  wheel is a bumper (the Lazair: the mains 6.9 deg ahead of the CG, 0.8 deg tail-down, the nose wheel 4 cm up: pass).
+- **The nose ring strikes only the nose's propeller (30_solver NOSE_G).** G1470 struck every engine when the nose ring
+  touched; now the nose engines (mount 'nose' or none) and each engine's own nodes for that engine. A single nose engine
+  reads as before.
+- **Aluminium tube draws as tube (_cage_gen cageSpec consG).** intCons 4 ('aluminium tube', the join's aluTube) was built
+  in the 'metal' idiom (lightened sheet frames); now the tube idiom. The Chinook's joined spec is bit-identical.
+- **Open: the Lazair's take-off at HOME.** On the flat field (tw_probe roll) it rolls straight to 25 m/s in 8.7 s. At HOME
+  the full-power start compresses its nose leg, the pod's keel (3.8 cm over the grass at rest) drags, and it pivots over
+  its nose (the tail 0.6 m up at V 3.6); the pilot's nose-over reject (th < -12 deg) saves it at V 3.3. Relaxing the
+  reject (past its -8 deg rest) lets it capsize at V 4.5 - so the rule stays master's. The cause to chase: the nose leg's
+  spring on a build whose static nose share is ~0 (the CG behind the mains), and the pod's keel height.
+- PILOT-SLOPE-POWER-3 READY NOTE (PILOT 24 Nov, claude/ready/pilot-slope-power-3 on claude/ready/pilot-slope-power-2 990f44dfd; for L40M's late merge, A0 13:05): GATE APHONEST read FLARE-LOST's new go-around reason ('flown off the flare: N m up with M m of strip left') with no player's words. src/viewer/ap_why.js GA gains it ('it flew off the end of the strip in the flare (N m up)' past the end, 'it climbed away in the flare (N m up, M m of strip left)' over the strip) and tools/_aphonest_check.js's SAMPLE its row. No flight code changed: 43_pilot.js is 990f44dfd's.
+
+## STORY-REVAMP 13 - THE WHOLE PACK FLOWN ON L40K, story-10, THE SESSION STANDS DOWN (cloud, 24 Nov)
+
+- THE READY: claude/ready/story-10 (contains story-8 and story-9). Gates: STORYPACK, TUTORWALK, MISSIONLIVE, BUILT, COMMITHYGIENE PASS; MISSIONFEAS PASS (502 s, alone, the final harness); MISSIONS and CONTRACTS red on master's own checks, by name.
+- THE FLIGHTS ON L40K'S SIM: 81 of the pack's 83 flights flown; 58 validated with an aeroplane (each mission's flag: validated, shown in the mission editor), 23 red or waiting for a plane, each with its cause. The state and the causes: reports/STORY-REVAMP.md, section HANDOVER ("what is left", "the feasibility state"); the rows: reports/STORY-REVAMP/feasibility/<id>.json.
+- THE REDS ARE FIVE CAUSES, none the mission system's: (1) the capability rule against the loading card (contractCanDo says the Cessna's cabin takes 280 kg, the loading view puts 140 kg aboard, 50 kg for the 210 m strip, 90-100 kg on floats; the PC-6's and the DC-3-alike's cards take no cargo); (2) the test pilot's landing at the altiport tw_ski flown light or heavy, and the multi-leg tour's stop at w5; (3) the 210 m mountain strip with three aboard, and the taxi out of it; (4) Cabin Lake names no landing direction; (5) the PC-6 on Wiplines started at HOME does not line up.
+- AFTER A MERGE OF MASTER that changes the aeroplanes or the pilot: bump SIM in tools/story_feas.js, fly again (--fly --workers=4 --tmax=2400; about 14 hours of 4 cores), --table, --stamp, GATE STORYPACK. A red mission costs up to three aeroplanes of its legs.
+- A CLOUD LESSON MORE: the container was restarted once in the night under a tracked waiter (00:08 UTC): the flights in the air were lost, the pushed rows were not - commit rows as they land.
+
+## L40L + L40M (A0, Tue 24 Nov 2026, one combined train) - the physics audit, the crash's blue page gone, the DC-3 sliders, the three-wheel stance, the user's mission stories
+
+WHAT LANDED (on L40K 56047b34e + the LAZAIR push 896877867): PHYSICS-AUDIT 1d + batch 2 (PHYSICS_V 10: span efficiency, bracing
+wires, propeller fit / idle / governed; the seven cards; GLIDE + SAILPLANE fixed, JOIN / ENGCONFIG wakes restated sharp, ENGINEDIALS
+fixed, the fiche dedupe; the re-pins it agreed written ON THE BOX: POD / SKIS --bless (ENGCONFIG --pin prints a table to paste and TREECRASH --write-ref threw: both OWED, named below), reason
+"PHYSICS-AUDIT PHYSICS_V 10 (steps 1-6): the flown physics moves by design; checked 24 Nov against master's own run") + A0's LS4
+footprint row (TAXICLEAR, master's red since L40K); perf-lead-2d (the crash: NO blue page, rows 14/15 met on L40M's own build, worst
+frame 133 ms; UISMOKE + UILAYER fixed); FLAGSHIP's user-fixes-1121-2 (TRICYCLE-STANCE: no nosewheel plane was stood on three wheels;
+KNEE-SYM + GATE CREWSYM; TAPER; the DMG staging as the game); perf-sliders-1b + release-1/-2 (the DC-3's gear 2 158 -> 34 ms a tick;
+the Chinook's crew no longer rebuilt every slider tick); Deform's wreck-clear / wreck-rest / crash-prelink; night-sun-2; rain-4;
+frame-drawn-3; garage-view-2; audio-robust-2; petrel-fixes-4; pilot-slope-power-3; story-9 + story-10 (the user's mission stories).
+HELD to L40N: hangar-switch (its rebase not pushed).
+
+THE PERF CHECK (PERF-LEAD, 08:00-08:12 quiet, build 426ff43ba7b2): GO - the crash met (no page, 0 programs linked after the impact),
+cold 121.7 s (L40K 114-120), the journey L40K's level (garage first and the flight switches are not defaults here: L40N).
+
+NAMED, NOT HELD (owners):
+- PHYSICS-AUDIT (traced in PHYSICS-AUDIT-READY.md, batch 2): DMGGEAR (the Super Petrel's fin fitting, master red too), DMGINTEGRITY
+  (the metal firewall: a detached part, §8.2), DMGSETTLE (the bound inside the scatter), DMGWRECK clip (debris vs airframe), DMGCLUSTERS
+  twin (a calibration point), DMGFABRIC's base table (to re-pin from its printed bits), ROUTE fly:metal vs, UNIFY STRIP Brian, the TOW
+  / ALTIPORT push rows -> physics-audit-2 / the damage layer. BENCH: the Rufus re-stamp (A0, GPU).
+- PETRELTRIM (e) STABLE MIN 0.36 % / TYP 1.46 % vs the floors 0.50 / 1.55 (petrel-fixes-4): the cards' lighter Petrel (aluFabric wing)
+  moves the CG aft - positive, thin; the target is the user's call (SEAPLANES / REAL-FIGURES).
+- JOINPARITY + STOL twin floatplane (FLAGSHIP, MEANT): the taper cover redone - the cover's billed mass on a taperPanels build, the
+  twin floatplane +68 g; the join capture and the STOL fixture to re-take (a page capture). STOL jodel / metal and JOINPARITY's metal
+  rows: master's own since L40K.
+- ALTIPORT row 4 (the metal Cessna's short final): the card's owed vref-raised elevator (FLAGSHIP).
+- ENGCONFIG (18 build hashes) and TREECRASH (the Cub trunk reference) re-pins agreed by PHYSICS-AUDIT, OWED (A0): the table paste and the write-ref error.
+- Master's own (L40K's list) stand as they were.
+## PERF-WORLDBUILD 2 - THE WORLD BUILD OFF THE PAGE'S THREAD AND IN STEPS, ALL OPT-IN (23 Nov 2026, claude/ready/perf-worldbuild-2 off claude/perf-codex 4421e5416, on perf-worldbuild-1)
+PERF-LEAD's order (22-23 Nov), for the world built BEHIND A LIVE GARAGE (?boot=garagefirst, PERF-LEAD's host). NOTHING HERE IS ON BY DEFAULT: a page without the switches and without a host's budget builds the world it built, in the steps it had (the loading screen's text and bar are the build's yields). No visible change is claimed for any switch except ?nearfirst (below).
+THE SWITCHES (URL, all off):
+- ?stripw=1 - the strips' geometry built in the house worker and landed as bytes (render_world stripsAsk; the build sleeps on the worker through the host: app.js buildWorldSliced, window.FLYDIY_WORLD_WAIT). GATE STRIPWORKER: the same meshes and digests as the page's own build.
+- ?nearfirst=1 (with stripw) - the strips COARSE at the load, the one under the stand first, the fine ones landing after. THE ONE SWITCH WITH A VISIBLE STATE (a coarse strip for a moment): to be shown to the user in game before it is ever a default. Under it only the strips are digested by the gates.
+- ?patchw=1 - the premises patch's ground queries and the material map's raster asked of the house worker (GATE PATCHWORKER: the patch, the roads, the paved polygons, the rails, the poles, the far terrain on the page's digests).
+- ?roadw=1 - the roads' and the paved polygons' geometry in the house worker (GATE PATCHWORKER's same digests).
+- ?compsteps=1 - the premises' second composition (one task of 2.3-2.9 s) in steps, the standing premises in force until the swap (27_premises composeSteps, 20_world premises.setSteps; GATE COMPSTEPS: 11 of 11 records, seven families).
+- ?hworder=fifo - the worker's queue in arrival order, for an A/B (its default order - what the page reads first - only matters once a switch above asks the worker).
+- ?settle=near - PERF-LEAD's host rule in app.js (the settle near the stand first); no gate of mine.
+THE HOST'S HOOKS (JS, nothing without them):
+- window.FLYDIY_WORLD_BUDGET = { left: () => ms } (<= 0 = yield now), read ONCE by the build after its 'sky' yield (HOSTB). Under it: the composition's inner loops; the sky in five ('sky: the mist field' / 'the forest mist' - FMIST.bakeSteps, its map by rows / 'the probe' / 'the cabin probe'); 'ground colour' a row a check; 'ground: the albedo'; the island ground in parts ('island ground: the fields' / 'the types' - SPLAT_GROUND.oneCodeSteps / 'an upload' - a texture a step / 'the calm field' / 'the sets'); the far terrain's first cut a quadrant a step ('far terrain: a quadrant'); the water's tile by rows ('water: the tile', WATER.makeTileSteps); a road's rail and its power line ('roads: its rail', 'roads: its line'; guardrail.js planSteps / buildSteps).
+- THE PROBE BAKE'S UNLINKED PROGRAM (needs the budget and FLYDIY_WORLD_ASYNC): the clouds' dome in the world probe's scene was first drawn inside the bake and the draw blocked on its link - 1.4 s of the sky's 2.0 s freeze at 5K (PERF-LEAD's profile, 23 Nov). The build hands the same maker's mesh to renderer.compileAsync after the sky's tables and the step before the bake sleeps on what is left ('sky: the probe programs'; scene.userData.skyLink = { linked, linkMs, sleptMs }). NOT PROVEN YET: it does not run in node; the browser's word is PERF-LEAD's (13:00 rows, 23 Nov).
+- THE STAND-INS for a host's early links (made only when asked): WORLD.ground.warm() / scene.userData.groundWarm() at the yield 'ground programs' (island-ring, island-fine, island-outer), WORLD.premises.patchWarm() / scene.userData.patchWarm() at 'premises made', PAVEMENT.warmMesh - the drawn material itself on one bare triangle, never in the scene (GATE STRIPWORKER 2c: the same objects, key and hook text at the step and at the end; no drawn ground-family key without one).
+ON EVERY PATH (not opt-in), each on the same bytes:
+- The far terrain's cache sweep keeps the patches a quadrant still stale wants: a resink in steps warmed the dropped patches (G2063) and the first quadrant's sweep dropped them for the others, which made all of their patches again in their own step. Node: 'far terrain sink' 76 ms / longest 47 -> 10 / 6; the far terrain's digest unchanged (e8a4e969e4fec912).
+- Three bakes are generators drained in one go when no host asks. THE DEFAULT LOAD'S COST, NAMED (node, one run each, a hot box): the forest mist's 512^2 map 456 -> 478 ms (+22), the one-code flags 183 -> 191 (+8), the water's tile 185 -> 192 (+7).
+MEASURED IN THE BROWSER (PERF-LEAD, garage first, 5K headed, cold, one run each, 23 Nov; without -> with stripw + nearfirst + patchw + roadw + compsteps + settle=near, on 7c9ffa308): the world step 35.6 -> 25.4 s; the settle 20.8 -> 8.6 s; the garage's long tasks over 100 ms 57 -> 35, their sum 31.9 -> 21.5 s; the composition's 2 257 ms task gone (longest step 125 ms). The workers: strips 14 asked / 14 used, 12 coarse / 12 landed / 0 lost, the longest landing 4.8 ms; the patch 2 716 of 2 716 (the page slept 6.3 s on it); the roads 232 of 232. THE BUDGET-LED STEPS AND THE SKY'S LINK (d9bf9cc0a, a9fa841d6): one smoke so far (PERF-LEAD, 11:49, the lab build that carries a9fa841d6): it loaded, and the garage's worst world-build slice went 2.0 s -> 0.38 s; the rows by label and the link's own word (skyLink, no twin program) are PERF-LEAD's, to come.
+GATES (new: STRIPWORKER, PATCHWORKER, COMPSTEPS in tools/run_gates.js; COMPSTEPS_BUDGET=<ms> runs its steps side under a host budget that always answers that, COMPSTEPS_QUERY / STRIPWORKER_QUERY add switches). On a9fa841d6 (build 542b14aa8a54):
+- PASS: COMPSTEPS; COMPSTEPS under COMPSTEPS_BUDGET=0 (every guard of the build yields: 14 123 steps, every budget-led label seen except 'sky: the probe programs' - 11 of 11 records, the seven families' digests, the build's 26 big texture uploads hashed on their way up: the default world's); STRIPWORKER (with 2c, the stand-ins); PATCHWORKER; HOUSEWORKER; PAVEXACT; PAVEMENT; SCENERYED; AFB0220; VILLAGE; PREMCOOK; TOWNKIT; LOOKS; WATER (new check: the tile in steps = the one-task tile, byte for byte); SPLAT (new check: the flags in steps = the one-task flags). PREMISES on an export of the sha with Codex's perf fixture out of the gate's pattern (the base's throw, below): 541 checks, PASS.
+- The six switches TOGETHER (on 7c9ffa308, 23 Nov): COMPSTEPS with COMPSTEPS_QUERY=stripw=1&patchw=1&roadw=1&settle=near and STRIPWORKER's two loads with STRIPWORKER_QUERY=patchw=1&roadw=1&compsteps=1&settle=near: PASS.
+- RED, AND THE BASE'S, BY CHECK NAME (none in this branch's diff):
+  FMIST 3 - "atmo.js: every pocket switch is a ternary whose off arm is what was there (5 sites)"; "the stored choice compiles the veil alone"; "nothing stored, no flag: ON - the veil alone". The same three on an export of 7c9ffa308 (before this branch touched forest_mist.js); the last two since 8b38df7dc's preferred method. This branch's own check in the gate ("the map in steps is the one-task map bit for bit", 4 593 yields) is green.
+  GFX 1 - "no device test outside welcome.js beyond the six of 6 Oct": src/viewer/perf_bench.js (named since L40g).
+  TERRAINMATCH 6 - "HOME lane 2: |drawn - terrainH| ... worst 78.8 (<= 30) off 47 creased / stepped points" (gamer, potato); "HOME stand" and "HOME taxi": "the patch + the pavement within 3 km + the tier no more than master's" (potato, gamer). Number for number the six of perf-worldbuild-1's run of 22 Nov (master's own rows, its entry above).
+  LAKEBED 1 - "1 the hook's only discards are the fine disc's" (4 discards). PREMRASTER 2 - "the raster against the analytic ground ... worst 140.6 mm (grade w6:grade)"; "the cache is an LRU: the stand's tile ... is made 4 time(s)". STAGES 19 - "7 [...] the editor's save restores the whole record" (every track at 0 and 18 stages). A0's word, 23 Nov: these three are master's L40H and L40J battery reds, same counts.
+  PREMISES in the tree - throws at tools/_premises_check.js:256 (m.plane undefined) on Codex's perf fixture tools/fixtures/premises_v1_perf_town_third.json, as on the base (perf-worldbuild-1's entry).
+  MEDIA 1 - media/thumbs/index.json names media/thumbs/cand_cub_fittings_hand_2026-10.webp, not on disk. ASSETS 4 - two byte-identical media files (fc82782e117f8c7a, f722b458ddbc1812); `new THREE.*Material` sites in tools/_cowl_gen.js (2) and src/viewer/ground_material_cache.js (1). Run only because they read guardrail.js; not run on the base here.
+- Not run here (the box's and the train's): FRAMECOST, ROUNDTRIP, every GPU gate, the full battery.
+THE TOOL: tools/perf/world_build_node.js (the page in node, every label of the world step timed with its top functions; files a step under the label that OPENED it - PERF-LEAD's browser rows file a slice under the label it ENDED on).
+NEXT, in order (not started): the raster tile decodes on first touch under the rails' and the power lines' planning; the town kit's host build and a cabin's preparation inside the premises' renderer (a 306-384 ms slice); the composition's placement taken from the worker (a station 125 ms, a site 122: STUCK on the page otherwise).
+
+## PERF-WORLDBUILD 3 - THE GARAGE'S LONG TASKS OF THE WORLD BUILD, CUT UNDER THE HOST'S BUDGET (23 Nov 2026, claude/ready/perf-worldbuild-3 on perf-worldbuild-2)
+The user, 23 Nov 12:45, on the world built behind a live garage: "garage shouldn't freeze". PERF-LEAD's target: no task over 100 ms in the garage while the world loads. Rounds three to five of the same work as PERF-WORLDBUILD 2, and the same rule: EVERY CUT HANGS ON window.FLYDIY_WORLD_BUDGET (PERF-LEAD's garage-first host) - a page without it builds the world it built, in the steps it had. Nothing here is a URL switch and nothing is on by default. The working picture, the steps table and the next steps: flyDiy/reports/PERF-WORLDBUILD-HANDOVER.md.
+- ROUND THREE (72d9aa4db): the town's host in steps (townkit.js hostSteps / townSteps, render_premises cityBuildSteps: 'houses: the kit', 'houses: the town'); the ring's plane, turn and heights ('ring: its plane', 64 vertices a check); the drawn lakes' field in steps ahead of its closure ('ground: the lakes'; the closure keeps its text but for one line: GATE LOOKS and GATE LAKEBED lift it and run it); the far terrain's cut alone, a patch a step, a quadrant only assembles ('far terrain: the cut', 'far terrain: a patch'); the island's fields texture a million texels a step; the ground bake's fields a row a check.
+- ROUND FOUR (b49b8a4cd): GPU_ONLY_GEO.flush takes at most 24 MB a call under the budget and app.js buildWorldSliced drains the rest a tick at a time after the build (GPU_ONLY_GEO.pending()); worldBuilt's shedTexWarm hands the side sheds' textures one a tick; the patch's chunks a check each (they were eight a step).
+- ROUND FIVE (369ad0ec9): the far terrain's node errors' measure yields between two nodes ('far terrain: the measure').
+ON EVERY PATH, same bytes: the guardrail's plan and build, the town's host, the far terrain's measure and the drawn lakes' field are generators drained in one go when no host asks (as the three bakes of PERF-WORLDBUILD 2).
+MEASURED IN THE BROWSER (PERF-LEAD, garage first, 5K headed, a quiet box, the six switches, tasks of 50 ms+ behind the garage): round three against the same build without it (16:00) - trees 296 -> 64 ms, far terrain: a quadrant 142 -> 114 + 72, ring 122 / ground albedo 102 / island ground: the types 65 -> under 50; 61 tasks with 16 over 100 ms (70 and 17 without). ROUNDS FOUR AND FIVE HAVE NO BROWSER ROW YET (PERF-LEAD's row follows): the two upload cuts are GPU paths, read from its earlier rows (two long tasks of the world step that no slice accounts for, 185-318 ms; 522 buffers and 304 texture calls in a 621 ms task after the build), not measured.
+NOT CUT, named: a station's build with its AO bake ('premises: the built links' 117 ms: one call into the renderer's builder); the tree impostor sheets' readbacks after the world step (164 + 279 ms: the read is queued at the bake, the target is shared); the settle's worldUpdate calls that do not yield (PERF-LEAD's).
+GATES (the last build 863c37bf4d86): COMPSTEPS under COMPSTEPS_BUDGET=0 on each round's build (every budget-led label seen; 11 of 11 records; nine families - new: the town's batch and its far cells - on the default world's digests; the big texture uploads) PASS. Round three: HOUSEWORKER, PATCHWORKER, COMPSTEPS, VILLAGE, TOWNKIT, KITHOST, CITYHOST, METKIT, CITYCOOK PASS. Round four: PAVEXACT, STRIPWORKER, PATCHWORKER, COMPSTEPS, LOOKS, SPLAT, WATER, TOWNKIT, CITYHOST PASS; LAKEBED its one base red ("1 the hook's only discards are the fine disc's", 4 discards). Round five: STRIPWORKER, PATCHWORKER, COMPSTEPS, LOOKS PASS. The gates' quoted source lines (1 263 literals in app.js, assets.js, render_premises.js) all still stand. The base's reds are those of PERF-WORLDBUILD 2's entry, unchanged.
+- NODE DOES NOT SEE the geometry flush (the gates keep the arrays), the sheds' textures, nor any link: round four's two upload cuts and the sky's link of PERF-WORLDBUILD 2 are proven by a browser row or not at all.
+- Not run here (the box's and the train's): FRAMECOST, ROUNDTRIP, every GPU gate, the full battery.
+
+## PERF-WORLDBUILD 4 - THE WORLD'S UPLOADS BEFORE THE WORLD IS HANDED TO THE GARAGE'S FRAME (23 Nov 2026, claude/ready/perf-worldbuild-4 on perf-worldbuild-3)
+Round six of the same work, and the same rule: IT HANGS ON window.FLYDIY_WORLD_BUDGET (PERF-LEAD's garage-first host) - a page without it builds and hands over the world as before. PERF-LEAD's row on perf-worldbuild-3's 369ad0ec9 (23 Nov 17:42): right after the world step two tasks of 902 + 566 ms - three uploads the world's textures (516 ms) and buffers (177 ms) AT THE DRAW of the garage's first frame that meets them. Round four's two upload cuts (in perf-worldbuild-3) did not answer it: the sheds' textures "one a tick" lost the race with that frame, and the capped flush left buffers pending for it.
+- app.js buildWorldSliced: when the generator ends and BEFORE worldBuilt, worldPreUpload(scene) - the waiting geometry a capped flush a tick (24 MB), then every texture the scene's materials hold (sceneTexList: the boot's 'upload' step's own list), a texture a tick at least, 6 ms a tick; then worldBuilt. The hand-over comes later by the uploads' wall time (PERF-LEAD accepts 1-3 s; the garage stays live).
+- shedTexWarm, sliced (worldBuilt's own call under the budget): the side sheds are made inside worldBuilt, so they are HIDDEN while their textures go up one a tick, then shown.
+- THE ONE VISIBLE EFFECT, ONLY UNDER THE HOST: in garage first the side sheds appear a moment after the world. PERF-LEAD tells the user; it is not a default anywhere.
+- GATE COMPSTEPS: the texture uploads it hashes are the build's own (while its generator lives): the island's albedo, tint, fields and types - not what a host hands the GPU after.
+BROWSER (PERF-LEAD, 23 Nov 19:57, a quiet box, garage first, the six switches, the evening build 79648c6c155f): AFTER THE WORLD STEP THE FREEZE IS GONE - one task of 87 ms between the steps (it was 622 + 207 ms quiet, 902 + 566 busy). OPEN, NAMED AS NEXT: one task of 648 ms INSIDE the world step, under no label (a 750 ms gap between frames; texture calls 432 ms, bufferData 118 ms) - the hand-over still gives the GPU a lot in one task: one very large texture in a tick of worldPreUpload (a texture array is one initTexture), or worldBuilt's own body (GFX.onWorld, the sheds). The rest as before: patch fields 111, the built links 103, roads 89, patch ground 85, houses 84, a site 81. The world step 26.9 s, the world ready 90.3 s (88-95 before): no cost seen. Totals: 55 tasks of 50 ms+ behind the garage, 14 over 100 ms, the worst 648 (61 / 16 / 1 419 at 16:00).
+GATES (build 9d3c076bb520): COMPSTEPS under COMPSTEPS_BUDGET=0 PASS (11 of 11 records, nine families, the build's uploads); STRIPWORKER, PATCHWORKER, COMPSTEPS PASS; the gates' 764 quoted lines of app.js all stand. PERF-LEAD's merge (lab e07d54b70, the evening build 79648c6c155f): COMPSTEPS, COVER, BACKGUARD, GARAGEFIRST, COMMITHYGIENE pass. Node cannot see a draw-time upload: the browser's row above is the only proof. Not run here: FRAMECOST, ROUNDTRIP, every GPU gate, the full battery. The working picture: flyDiy/reports/PERF-WORLDBUILD-HANDOVER.md.
+
+## PERF-WORLDBUILD 5 - THE WORKERS AND THE STEPPED COMPOSITION ON BY DEFAULT UNDER THE GARAGE-FIRST HOST (23 Nov 2026, claude/ready/perf-worldbuild-5 on perf-worldbuild-4)
+The user to PERF-LEAD, 23 Nov 21:05, on garage first: "Make it default" - and 22:10, of the switches: "turn them on by default ... we can turn them off easily afterwards, when I'll have a look". PERF-LEAD's host boots a real page garage first (its ready); this is the build's side of it.
+- A WORLD-BUILD SWITCH'S WORD (wbSwitch, render_world.js and render_premises.js): the URL first (?name=1 on, ?name=0 off); then a host's (window.FLYDIY_WORLD_DEFAULTS = { name: true | false }); then ON WHEN A HOST'S BUDGET IS ARMED (window.FLYDIY_WORLD_BUDGET) for the four switches a gate holds to the page's own bytes - stripw (STRIPWORKER), patchw and roadw (PATCHWORKER), compsteps (COMPSTEPS). A page with no host - ?boot=loadfirst (the one loading screen), node, every gate - keeps them OFF, as they were: no pin moves.
+- THE TWO SWITCHES WITH A VISIBLE STATE stay off in the build's own defaults: nearfirst (a strip drawn coarse for a moment before its fine form lands) and settle=near (stand-in cards for longer past 1.5 km). They take a host's word: PERF-LEAD's host sets window.FLYDIY_WORLD_DEFAULTS = { nearfirst: true, settle: 'near' } on the user's word of 22:10. TO TURN ONE OFF: ?nearfirst=0, ?settle=0 (or ?stripw=0 ...), or drop the key from the host's FLYDIY_WORLD_DEFAULTS. app.js SETTLE_NEAR reads the host's word and ?settle=0 too (its line changed here).
+- So the default real page under garage first runs: the strips, the patch's queries, the material map and the roads in the house worker; the composition in steps; every budget-led step of PERF-WORLDBUILD 2-4; near first and the near settle by the host's word.
+GATES (build ab268955b4ec): COMPSTEPS under COMPSTEPS_BUDGET=0 - now the four TOGETHER BY DEFAULT with every budget-led step, checked: "0. the workers' switches: inline stripw off, patchw off, roadw off | steps stripw on 14/14, patchw on 2716/2716, roadw on 232/232", near first not on by default, 11 of 11 records, nine families and the build's uploads on the default world's - PASS. COMPSTEPS, STRIPWORKER, PATCHWORKER, PAVEXACT, LOOKS PASS with no host (the switches off, the pins as they were). The gates' quoted source lines (1 574 literals in app.js, render_world.js, render_premises.js) all still stand.
+NOT PROVEN HERE: the four without near first and without the near settle have no browser row (every row of PERF-LEAD's had all six); with the host's FLYDIY_WORLD_DEFAULTS the set is the six its rows measured. Not run here: FRAMECOST, ROUNDTRIP, every GPU gate, the full battery.
+
+## PERF-WORLDBUILD 6 - THE TREE PACKS MEET THE GPU BEFORE THE IMPOSTORS' BAKE (24 Nov 2026, claude/ready/perf-worldbuild-6 on perf-worldbuild-5)
+The user, 23 Nov 22:10: "Garage freezes, in particular when doing the background loading, should be avoided." His limits (PERF-LEAD): no freeze over 100 ms, at most 2 s of freezes in any minute; the evening row had 14 over 100 ms, the worst 648 ms. UNDER window.FLYDIY_WORLD_BUDGET ONLY (the garage-first host); nothing without it.
+- THE 648 ms, NAMED from PERF-LEAD's GF_READY profile (23 Nov 19:57, at 66.4 s): plantWoodland < impMatsFor < bakeImpostorAtlas < bakeImpostorAtlasNow < drawAll - THE TREE IMPOSTOR ATLASES' BAKE. Its draws were the tree models' first: three uploaded their maps (377 ms) and their buffers (115-142 ms) at those draws and waited on a link (50 ms). (The handover report had guessed the hand-over's own upload: wrong, only 58 ms of that task were it.)
+- THE CUT (render_world.js, after the 'trees' yield and before plantWoodland): every series' L0 build of the tree pool's packs - treeBuild's own cache, what ladderFor hands the bake - has its maps initTextured a step each ('trees: a texture') and its geometry uploaded 16 MB a step ('trees: the geometry'; assets.js GPU_ONLY_GEO.upload, new: a caller's geometries by the flush's own stand-in draw). The bake then only draws. Its own code - its layers' order, its sheets' checks - is untouched. scene.userData.treeWarm = { packs, tex, geo, bytes }.
+- NEVER EXECUTED BEFORE A BROWSER RUNS IT: the tree maps do not settle in the node page, so no gate enters the block (no 'trees: ' label under COMPSTEPS_BUDGET). It sits in a try / catch that falls through to plantWoodland as today.
+NO BROWSER ROW YET for this ref nor for perf-worldbuild-5 at the time of writing (PERF-LEAD's rows follow): the cut is read from a profile, not measured.
+NAMED, NOT CUT (the report's next steps): the settle's long tasks (371 / 270 / 133 ms in the evening row) - each streamer honours the slice's clock only before STARTING a unit and its unit is atomic: scenery_life.js place < mastLife (the life's whole stand in one call), render_premises hlodBake (one far-town cell's merge), 29_obstacles hull (one parked aeroplane); the patch's set-up before its first wait (111 ms); a station's build with its AO bake (103 ms); the impostor sheets' readbacks.
+GATES (build 00fca7ef8e06): COMPSTEPS under COMPSTEPS_BUDGET=0 (the four workers' switches on by default, every budget-led step; 11 of 11 records, nine families, the build's uploads) PASS; COMPSTEPS, LOOKS, PATCHWORKER, STRIPWORKER PASS. The gates' quoted lines of assets.js and render_world.js all stand. Not run here: FRAMECOST, ROUNDTRIP, every GPU gate, the full battery.
+
+## PERF-WORLDBUILD 7 - THE TREE PACKS' UPLOAD WHERE THE BAKE REALLY RUNS: BEFORE THE QUEUED REPLANT (24 Nov 2026, claude/ready/perf-worldbuild-7 on perf-worldbuild-6)
+PERF-LEAD's row on perf-worldbuild-6 (24 Nov 07:30, a quiet box, the plain address): scene.userData.treeWarm ABSENT - the block of -6 never fired - and the impostors' bake still one task (worst 677 ms; 752 on -5). WHY: on a cold load the tree maps land by a promise (treeSettle) AFTER the build's 'trees' step; the first plantWoodland stands cones, and the planting that bakes is the replant render_world queues for after the build (treeSettle().then(() => afterBuild(plantWoodland))) - the task the rows file under 'world: (not the build's)'. -6's block sat at the 'trees' step alone (treesSettled() false there): right on a warm cache, inert on a cold one. perf-worldbuild-6 is harmless and useless: this ref replaces it.
+- THE SAME PLAN, WHERE IT IS NEEDED (render_world.js treeWarmPlan / treeWarmTicks): under window.FLYDIY_WORLD_BUDGET, before the queued replant, every series' L0 build of the tree pool's packs has its maps initTextured and its geometry uploaded (16 MB batches, assets.js GPU_ONLY_GEO.upload) A TASK EACH, then plantWoodland; the build-step form stays for a load whose maps are already in. The bake's own code is untouched. scene.userData.treeWarm = { via: 'after' | 'build', packs, tex, geo, bytes, done }.
+- ON EVERY PATH: the after-build queue (BUILT.q's runner, afterBuild) waits for a callback that hands back a promise, so what is queued behind the replant - the fill's shapes, the cover ring's make, the rock jobs - still runs after it. With no host the replant is the same synchronous call and nothing waits: the order and the timing are as they were.
+- NEVER EXECUTED BEFORE A BROWSER RUNS IT (the tree maps do not settle in the node page): PERF-LEAD's next row is its first run. To read in it: treeWarm with via 'after' and done true; the 650-750 ms task gone, a run of short ones (a map each) before the replant in its place.
+GATES (build 74b5e5a3e18c): COMPSTEPS under COMPSTEPS_BUDGET=0 PASS; COMPSTEPS, LOOKS, WORLDRENDER, COVER, COVERIDLE, BOOT (the after-build queue's callbacks), STRIPWORKER, PATCHWORKER PASS. The gates' 343 quoted lines of render_world.js stand. Not run here: FRAMECOST, ROUNDTRIP, every GPU gate, the full battery.
+
+
+## PERF-LEAD 1 - NO BLUE SCREEN AT A CRASH, THE SCREEN IS THE MEASURE, GARAGE FIRST AS A SWITCH (23 Nov 2026, claude/ready/perf-lead-1 on master L40J 089297693)
+The user, 22-23 Nov: "No blue screen, not in the garage, not in the world, not when crashing, ever"; "the 200 ms quoted before are rubbish, it
+freezes for several seconds"; "the draw guard code is rubbish, it does worse than just freezing a frame"; "I revise my target of world loading
+time to 1 minute, including the background loading (so ideally 1 minute spent in the garage)". The table is flyDiy/PERF-OBJECTIVES.md (rows 1-15,
+the bars for this week, how a frame is counted against a limit); the full handover is flyDiy/reports/PERF-HANDOVER-2026-11-24.md.
+WHAT CHANGES BY DEFAULT (one thing):
+- THE DRAW GUARD HOLDS THE WHOLE FRAME FOR THE GROUND'S FAMILY ONLY (app.js, ?holdframe=ground; ?holdframe=all is the old way, =0 none).
+  A draw whose program is still linking is still skipped; only a missing GROUND draw keeps the frame off the canvas. Measured on the screen's own
+  recording, the Cub put nose-down into the ground from 50 m: 'all' showed the PAGE for 6.3-10.3 s at every crash (six recorded crashes) while
+  the frame times read 200 ms; 'ground' in four crashes showed no page and held no frame, the worst frame 217-250 ms. Cost: a torn-edge copy
+  not yet linked is not drawn for the 2-3 s its program takes (the Deform Coordinator's crash-prelink ready removes those links altogether).
+WHAT THE LOG NOW SAYS (no behaviour change):
+- 'still' events (app.js after aa.render; window.FLYDIY_STILL): every run of frames the guard held, from the last picture PRESENTED to the next,
+  { f: frames, keep }. Rows 14 and 15 are read on them and on the screen's recording, never on frame times alone.
+SWITCHES, ALL OFF BY DEFAULT AND INERT (each measured headed at 5120x1440; the numbers are in the handover):
+- ?boot=garagefirst (LAB.gf, gfArm / gfRun / gfJoin): the boot runs none of the world's steps; they run behind the live garage on a budget
+  (?gfrest=12 ms a task at rest, ?gfbusy=3 while the pointer or a key moves; window.FLYDIY_WORLD_BUDGET.left() for the world build); Go joins
+  the load where it stands. First quiet run: the garage on screen 31 s (today 119-127), the world ready 98 s later, Go -> flying 2.6 s with no
+  loading screen. ?gfwarm=0 leaves the world's first draws to Go.
+- ?latelinks=bg (the scuff's and the see-through view's links after the reveal), ?pavefirst=1 / ?groundfirst=1 (the heavy ground programs
+  handed to the driver at their yields; the world build's own stand-ins), ?pace=N, ?settle=near: with stripw the best load 85-88 s against 120.
+- ?farslots=1, ?fartol=N, ?mirpace=1, ?mirlean=1 (the far terrain's buffers and the water mirror's captures in flight: 72 % of seconds at 29+
+  frames against 55 %, 7 frames over 100 ms against 25-31; THE PICTURE HAS NOT BEEN REVIEWED BY THE USER), ?coverbudget=K (not yet flown),
+  ?keepframe=1 (the canvas keeps its last picture).
+TOOLS (flyDiy/tools/perf/, each prints its use): window_train_check.sh (a train's perf check in one command: loads cold x2 + returning, the
+journey's first 8 minutes and the nose-down crash with the screen recorded), load_matrix.sh (a rows file of timed loads; it now checks that the
+port serves the row's folder), user_log.py (any flight log against the table), screen_read.py (the picture pass: the page shown, the screen
+frozen, exit 1 on a page frame), profile_window.py (a freeze named by function), lab_build.sh; tools/boot_perf.js --rollout-once / --profile-out,
+tools/flight_script.js --screencast and the 'page' step; scenarios in tools/flight_scripts/perf/.
+GATES run on the tree: BACKGUARD, PROGRAMS, FLIGHTREC, HULLWARM, LIGHT, AA, POSTFX, GFX, ROLLANIM, BOOT, DMGLOOK, DMGSKINGPU, DMGSCUFF's two
+text checks, the world build's workers and COMPSTEPS, AUDIO pass; every other red on it is L40J's own by check name (UISMOKE, DMGSKIN, DMGWRECK,
+FRAMECOST's pins, ROUNDTRIP).
+
+## PERF-LEAD 2 - GARAGE FIRST: THE GARAGE'S TWO 1.4 s FREEZES WHILE THE WORLD LOADS, AND GO'S 0.47 s FRAME (23 Nov 2026, claude/ready/perf-lead-2 on master L40K 56047b34e)
+The user, 23 Nov: "If that's background loading, but the garage freezes for the whole time, there's little point. That's the right solution, but
+garage shouldn't freeze." Everything here acts only under ?boot=garagefirst (a switch, OFF by default); a page without it is unchanged.
+- A compile behind the live garage puts back the program the garage's frames were drawing (compileSliced under gfLive; gfS.kept): the craft step's
+  compile of the shed as the roll-out shot dresses it left the sky's two domes on programs still linking, and the garage's next frame waited 1.4 s.
+- The clouds' first draw (CLOUDS.warmDraw: the march's two-output variant, built on the GPU's main thread) runs at the boot's end, under the
+  garage's own loading screen, not behind the visible garage (gfArm; ?gfcloud=late is the old place). A NAMED LOAD COST: about 1.5 s of that screen.
+- The world's vertex buffers go up a slice a task behind the garage (worldBuffersWarm; ?gfbuf=0): Go's first world frame handed 2 684 buffers, 402 MB.
+- tools/perf/gf_garage.py: the garage's tasks of 50 ms+ by step and label AND the picture standing still (the recorder's gaps of 250 ms+): a row
+  with a 1.45 s frozen picture and no long task had read clean. GATE GARAGEFIRST 1j.
+MEASURED (headed, 5120x1440): both 1.4 s gaps gone (16:00 quiet for the first, 17:35 on a busy box for the second); Go's frame gone; the crash's
+rows 14 and 15 met twice more on the merged tree (worst frame 133-150 ms, no page). STILL OPEN in the garage: 0.9-1.4 s right after the world step
+(the world's textures uploaded at a draw of the garage's frame), three ~0.3 s world-update calls in the settle (premises, masts, obstacles, cover).
+This ready CONTAINS, merged: perf-lead-1, claude/ready/perf-worldbuild-3's code (369ad0ec9), deform-wreck-clear f49705343, perf-trace-8 e3c2e449e,
+perf-sliders-release-1 87aeb19fb. GATES on the tree: PROGRAMS, LIGHT, HULLWARM, FLIGHTREC, GARAGEFIRST, BACKGUARD, COMMITHYGIENE, COVER, COMPSTEPS,
+DMGSKINGPU, DMGPAGEW pass.
+
+## PERF-LEAD 3 - GARAGE FIRST IS THE DEFAULT (23 Nov 2026 21:05, claude/ready/perf-lead-3 on perf-lead-2 + claude/ready/perf-worldbuild-4)
+The user, 23 Nov 21:05, asked "garage first as the default in the last perf train?": "Make it default".
+- A REAL PAGE BOOTS GARAGE FIRST (GF_DEFAULT: a renderer that can compile ahead): the garage on screen in 30-40 s, the world's steps behind it on a
+  budget, Go joins the load where it stands. ?boot=loadfirst is the one loading screen as it was (the world before the garage: 114-129 s). The node
+  harness (no compileAsync) keeps the old boot. A page rig that reads the world right after the boot must wait for FLYDIY_LAB.gfS.done, click Go,
+  or ask ?boot=loadfirst. GATE GARAGEFIRST 1a RE-PINNED with this reason (it asked that only the switch turn it on); 1k added.
+- The clouds' first draw is inside the boot (the recheck step): at the boot's `done` its 1.5 s wait landed on the garage's first frame.
+MEASURED (headed, 5120x1440): quiet 20:00 on the switch - garage 38.5 s, world ready 90 s after, Go then 0.3 s, Go at 5 s an 84 s screen; the garage
+meanwhile 14 tasks over 100 ms, worst 0.65 s. As the default, 21:14 on a BUSY box: the plain address opens the garage (40 s), the clouds' wait is
+under the loading screen (1.4 s, 1.7 s before the screen goes), no freeze at the reveal; Go before the world is ready joins the load.
+NOT DONE: the world build's six switches (stripw, patchw, roadw, nearfirst, compsteps, settle=near) are still switches - the default page builds
+the world the slow way behind the garage until claude/ready/perf-worldbuild-5 flips them under the live host. THE FALLBACK is one line:
+GF_DEFAULT false. VISIBLE: the game opens in the garage; the side sheds appear a moment after the world.
+
+## PERF-LEAD 4 - THE SWITCHES THAT MEASURED WELL ARE ON BY DEFAULT; GATE WATER GREEN AGAIN (24 Nov 2026, claude/ready/perf-lead-4 on perf-lead-3 + claude/ready/perf-worldbuild-5)
+The user, 23 Nov 22:10: "turn them on by default. Let's ensure that you turn on all switches leading to good results, we can turn them off easily
+afterwards, when I'll have a look." ... "try and get some headroom on the graphic card, maybe reach below 30 ms per frame?"
+- ON BY DEFAULT ON A REAL PAGE (the node page, flydiy-node, keeps every old default - its pins stand): ?mirpace (water.js: a live mirror capture kept
+  while the eye has barely moved; ?mirpace=0), ?farslots (render_world.js: the far terrain's buffers refilled in place; ?farslots=0), and under the
+  live garage-first host PERF-WORLDBUILD's six (stripw, patchw, roadw, compsteps by its -5; nearfirst and settle=near by FLYDIY_WORLD_DEFAULTS).
+- ?mirlean STAYS A SWITCH: it takes the grass and the cover out of a lake's reflection from high up, and the user's rule of 20 Oct is that lakes keep
+  the full mirror (GATE WATER). On only with his word on that rule.
+- GATE WATER WAS RED ON perf-lead-1, -2 AND -3: the lab's ?mirlean cut of 22 Nov had rewritten the mirror's pinned skip-list line (the gate was not in
+  the lab's set). The line is restored, the lean case beside it; perf-lead-2b is perf-lead-2 with that one commit.
+- renderer.compile under a live garage-first run puts back the program the garage's frames were drawing, for every caller.
+MEASURED 24 Nov 03:00, quiet box, headed 5120x1440, build a843af6b52cf. THE JOURNEY's first 8 minutes (?boot=loadfirst): 72.6 % of seconds at 29+
+frames (54-55 % before), the graphics card 24.1 ms a frame median (32.7), 5 frames over 100 ms (17-31), worst 283 ms, 21 of 26 blocks uneven, no page,
+longest screen gap 210 ms. THE PLAIN ADDRESS: the garage at 32.0 s, the world ready 90.6 s after; the garage meanwhile 15 tasks over 100 ms, worst
+0.75 s (the tree impostor atlases' bake: PERF-WORLDBUILD's -6), 4.2 s of freezes a minute against the user's 2; no freeze at the reveal.
+VISIBLE, NOT YET LOOKED AT BY THE USER: a reflection kept a little longer; a strip drawn coarse for a moment and stand-in cards for longer past
+1.5 km while the world loads behind the garage.
+
+## PERF-LEAD 5 - GARAGE FIRST AS THE DEFAULT, MADE SAFE: GO AT ONCE JOINS THE LOAD; THE TREE CARDS; THE AUTOMATIC SCALE'S WAY BACK UP (24 Nov 2026, claude/ready/perf-lead-5 - it SUPERSEDES perf-lead-3 and -4: do not land those)
+- GO INSIDE THE BACKGROUND RUN'S 1.5 s START DELAY NOW BEGINS THE RUN AND JOINS IT. In -3 and -4 it fell to the old path: the garage frozen 28 s,
+  a 71 s roll-out screen, and the crash's programs never linked ahead (a rig's row of 24 Nov 07:51: 25 links after the impact, frames of 12 s and
+  7 s). Every rig clicks Go at once; a player can. GATE GARAGEFIRST 1i re-pinned with this reason. MEASURED 08:06, the plain address, Go 0.4 s after
+  the garage: one roll-out screen 88 s, then the flight and the crash - 0 links after the impact, worst frame 200 ms, no page.
+- THE HANGAR'S TREE CARDS ARE LINKED BEFORE THEY ARE SHOWN (hangar.treesFrom(S, hold) / treesGroup / treesShow; app.js hoTreesTick): three made and
+  linked their material inside a draw of the garage's frame, 155-234 ms in EVERY load (PERF-TRACE's read). 07:30: the town step's waits 3 -> 1.
+- THE AUTOMATIC RENDER SCALE'S WAY BACK UP (aa_resolve.js aaAutoDecide): it predicted the card's time at the larger scale as if all of it were
+  pixels; about 13 of 30 ms are triangles and draws (PERF-TRACE's by-pass table, 24 Nov), so once pushed down it sat at half scale for ever. It now
+  learns the part that does not scale from its own step (G0) and scales only the rest. G0 = 0 until learnt: the rule as it was. GATE AA passes.
+  NOT flown yet. The scale is 'auto' only where the graphics settings say so: nothing changes for a fixed scale.
+- NO DEVICE TEST OUTSIDE ITS PLACE: -4 had one in water.js and one in render_world.js for the defaults (GATE GFX red). The page says
+  window.FLYDIY_REAL_PAGE once (app.js); ?mirpace's default is set there, ?farslots reads it.
+- MERGED: claude/ready/perf-trace-9 (the card's time by pass: ?recgpu=pass, tools/gpu_passes.js), claude/ready/perf-worldbuild-6 (inert on a cold
+  load - its block does not fire; -7 replaces it).
+MEASURED 24 Nov 07:30, quiet, the plain address: garage 37.0 s, world ready 92.6 s after; the garage meanwhile 11 tasks over 100 ms (15 before),
+worst 0.68 s (the tree impostors' bake: perf-worldbuild-7), 3.7 s of freezes a minute against the user's 2.
+
+## PERF-LEAD 6 - GATE UISMOKE GREEN (24 Nov 2026, claude/ready/perf-lead-6 = perf-lead-5 + this + claude/ready/perf-trace-10; it supersedes -5. For L40M the same one line is claude/ready/perf-lead-2c)
+The loop's 'still' recorder read `performance.now()` bare (since perf-lead-1); tools/test_ui_smoke.js runs app.js with no `performance` and GATE
+UISMOKE / UISMOKE-PHONE crashed at the loop. It reads the page's guarded clock (perfNow). The red had been filed on 23 Nov as "L40J's own by check
+name" without reading its stack: it was this line. UISMOKE and UISMOKE-PHONE are in the perf lab's gate set from here.
+
+## PERF-LEAD 7 - GATE UILAYER GREEN; PERF-WORLDBUILD 7 (24 Nov 2026, claude/ready/perf-lead-7 = perf-lead-6 + this + claude/ready/perf-worldbuild-7; it supersedes -6. For L40M the same one line is claude/ready/perf-lead-2d)
+- flRevealStart hands the flight UI back FIRST (rollShotUi(false)); the lab's cover-budget line had been put before it since perf-lead-1 (GATE UILAYER U5).
+- perf-worldbuild-7: the tree pool's packs handed up a task each before the queued replant (57 packs, 27 maps, 93 geometry batches): the garage's
+  worst freeze while the world loads 0.68-0.75 s -> 0.55 s (busy box, 24 Nov 10:48). perf-worldbuild-8 (the bakes one a task) is NOT in: its first
+  deferred tick links three programs at once - a 1.47 s task in the 14:01 quiet row; its picture was right (far trees present, 57 of 57 bakes).
+- The lab's gate set from here also has UILAYER (four reds of this round reached readies through gates outside the set: WATER, GFX, UISMOKE, UILAYER).
+- SLOPE-FIX READY NOTE (PILOT 24 Nov, claude/ready/slope-fix on master L40K 56047b34e; for L40N; the user via A0 22 Nov: "we need slope fix for sure"): GATE SLOPE row 1 (the free roll on tw_ski's ~9.4 %) ran 7.3 % fast since L40H - the halved altiport's ruts (1-2 cm, a metre off the centreline) put each main on a rut wall, and 30_solver.js's forward difference along world x / z read 7.8 % / 11.7 % where the ground falls 9.4 %. The contact's slope is now differenced along the aeroplane's horizontal forward and right, centred over +-0.25 m (four terrainH, still once a frame a contact): the roll -2.0 %, the uphill push -1.1 %. GATE SLOPE row 5 (A0's ruling (a)): judged on its claim, the side grip = the drift across the wheels, plus a new row "it settles" (6-10 s under 3 cm); the row is UNBRAKED (run() with no brake), so its ~5 cm forward roll into a rut whose wall beats Crr is the user's "rolls as physics says", not a brake failing (row 4, braked on ~9 %, holds 0.23 cm). GATES, master 56047b34e vs the branch by check name: SLOPE FAIL (1) -> PASS; TAILWHEEL, ALTIPORT, PILOT, TAXICLEAR the same rows (TAILWHEEL I's touch 18 -> 18.43 m/s and ALTIPORT 4's damage counts move inside rows already red). BIT-IDENTITY: the exactly flat probe world is master's to the bit (cub, C172, Jodel, 40 s of power, rudder, stick and brakes); HOME on Jolene's island is not exactly flat, so its flights move a little (after 40 s: the cub 1.4 cm, the C172 ~30 cm, the Jodel at the 9th digit). Logs: D:/Dev/pilot_runs/slope_fix/ (br_*, m_*, bit_*).
+## READY small-engines-2 (FLAGSHIP, Tue 24 Nov 2026; on master 896877867) - claude/ready/small-engines-2
+THE USER (via A0, 24 Nov): the small end of the engine list (the Lazair's Rotax 185 and Pioneer chainsaw, the E-Lazair's
+Joby JM1, the Minimax 1100R's Hirth F-33 / Polini Thor 202-250-303 / Simonini Mini 3), "built using the rows" and set by
+"something matching an engine on power and weight targets"; the Minimax's strut to the main wheels' centre.
+- THE ENGINES: eight POWERPLANTS rows (00_registry.js, the sources and the estimates in their comments) with their garage
+  presets after the custom engine (no saved index moves), each a POINT ON THE DIALS - GATE ENGINEDIALS --emit, the matcher:
+  the row's preset, the tune bmepK and the build massK solved exactly onto the published kW and kg (engine_dial_points.json,
+  53 points, none of the 45 before moved). ROW LIMITS WIDENED, NO ROW ADDED: the tune from 0.35 (the Rotax 185 fire-pump
+  single at 0.41 of the two-stroke law, the Pioneer at 0.47), the bore from 40 mm, the rpm to 10 000 (the Thors).
+- STRUT-AXLE: wgStrutAxle (absent 0; lift struts + the mains' cross axle): each lift strut's foot on its side's main axle,
+  outboard of the wheel (the frame makes the axle pair before the wings, the gear takes it; the brace measured wing to
+  axle, so a mid wing's struts fly) and drawn as a lug pair on the axle's end. real_refs: the 1100R and the Lazair (trail).
+- FLOWN (tools/real_check.js on derived copies of the user's two builds, kept OUT of git in tools/perf/real_check_se/;
+  the bands are min .. MTOW load): MINIMAX on its 582 (the user's: 48 kW) climbs 7.9-8.4 m/s, 177 km/h - the "10 m/s".
+  Thor 303: 4.1-6.0 m/s (ref 650-1000 fpm = 3.3-5.1: inside), 151 km/h (ref 113-121: 25 % over); F-33: 2.5-3.9 m/s
+  (inside), 137 km/h; F-33 + axle struts (the card's ROUND tubes): 1.5-2.6 m/s, 102-105 km/h - the tubes' drag. Take-off
+  50-140 m against the brochure's "< 100 ft": the airframe's (empty 157-167 kg against 104-121). The card's static margin
+  goes to ~0 % with a light engine (the CG walks aft) - worth trimming on the user's side. LAZAIR (the user's: 154 kg empty
+  against 83-95, L/D 7.9 against 12-13): 2 x Rotax 185 0.8 m/s (ref 250-500 fpm: under - the airframe); 2 x Pioneer: no
+  climb; E-LAZAIR 2 x JM1 on 0.47 kWh in the wing roots: 2.1-2.7 m/s and 27-52 m (inside), ~4 min of level flight on the
+  packs (the honest check). The Lazair's pilot flights wait on a0/lazair-twin-fix (the spawn).
+- GATES on the tip: ENGID ENGINEDIALS AUDIOENG TECH RPM PROPS PROCURE PARTS REALREFS SPECFIX FRAMES KNIFE STRUT COMMITHYGIENE
+  PASS; ENGINE and ENGCONFIG red as on master (the same rows, the same hashes). small-engines-1 (c0ff676de) is this
+  without the note - superseded.
+
+## TANK-BAYS - A TANK BEHIND THE POD, ON THE BOOM, IN THE AFT FAIRING OR THE AERO NOSE; THE CLEAN PLASTIC JUG (24 Nov 2026, A0's TANK job; branch a0/tank-bays off master 896877867)
+The user, building a Lazair: "I would want the fuel tanks to be able to stick to the back face of a pod, where the aft aero
+pod goes. There's a lot of place there and the software prevents me from putting it there. Anywhere in the boom, attached
+to the aft pod, inside an aft cowl or aero pods is fine. And the plastic one is really dirty, with a grunge texture that
+can't be taken off. I'd need a clean plastic one". (The real Lazair's 5-gallon jug stands strapped behind the seat back,
+in the open frame between the pod and the boom.)
+- **WHY IT WAS REFUSED:** every body bay lives INSIDE the swept field (the sheet's sections) and is clamped to it; on a pod
+  and rod the field ends at the pod's aft face (`aftCabin` collapsed to x1 < x0, room 0 L: the capacity slider's top 1 L),
+  and the cabin bay behind the seat held a 5 L sliver. Nothing could stand outside the skin.
+- **THE CORE (60c GEN_BAYS, appended - the old bays' order and records untouched):** `podAft` "Behind the pod (on its aft
+  face)", `boom` "On the boom", `aeroAft` "Inside the aft fairing", `aeroNose` "Inside the aero nose". Each is a BODY bay to
+  the frame (61_gen_frame bodyRing at the vessel's `along` and `lv`: the kilos where drawn, the burn's `mFuel` there, the
+  hydro's tank volume on the same `_pair`); `mount` names the editor's placement; `ext` (podAft, boom) = outside the skin,
+  litres the rule's `room` (60 / 40 L, the slider's top). Ranges start at `genPodAftX(S)` (fuse.boxRear). The finish
+  clamps (60_gen_spec, fuel section, fuel vessel, water vessel) know `cleanPoly`.
+- **THE EDITOR (_cage_energy.js, TANK-BAYS block):** `mountAbsent` offers a bay only where the drawing has it (the face: a
+  rod or twin booms, no pusher on the face, no aero aft over it, no taper panels closing the frame; the rod: boomStyle 1
+  and the tube drawn - a lofted boom: inside it; the fairing: aeroAftOn drawn; the aero nose: no nose engine) and words
+  why not (`CAGE_ENERGY.mountGone()`, the panel's disabled option). A tank in a bay the aeroplane lost KEEPS its bay and
+  station (weighed there, drawn nowhere, red with the reason - the strut pod's rule). `mountBay`/`mountSweep` measure: the
+  face = the field's end (bayCacheOf axisMax) and the pod's section ahead of it; the rod = the sheet's `boomTube` rings
+  (`rodGeo`); the fairings' limits = the field's and the crew's reach. `mountPlace`: face - centreline, upright, `lv` from
+  the keel line (0) to the rod's underside (1); rod - a cylinder (ROD_FINE 3.5) its top 22 mm under the tube; inside -
+  in the sections, on the side of the rod with the more room. `mountSearch`: a tank with no station takes the FIRST place
+  that clears (fore to aft from the face, levels 0.5, 0.35, 0.65 ...; aft to fore in the nose), judged as the layout
+  judges, and the station is written into the vessel. JUDGED by judgeTank against `surfMnt` (the body tanks' soup + the
+  gear, wing, struts, tail, hinge layer's control runs, bracing...) and `mountExtra`: the propellers' discs
+  (`propDiscHit`, a hand (50 mm) clear of each disc swept, off the drawn edProp blades) and, behind the pod, the cradle's
+  reach to the face (150 mm: "not against the pod's aft face ... slide it forward"). DRAWN with the tank in steel: a tray
+  under the jug to the face and two pads (face), two clamps round the tube and their hangers (rod). The panel: no up/down
+  row on the rod; the readout says how it is held.
+- **THE CLEAN JUG (FINISH.cleanPoly "clean plastic (translucent)"):** natural HDPE (0xf2e8c4, the tint row its colour), no
+  scanned set at all, translucent (0.72, depthWrite off: the fuel level shows), `cleanShellMat` - owner 'aircraft / fuel
+  tanks and batteries / clean plastic jug', the fuel liquid's own program variant (plain standard, transparent, no map,
+  front side, no hook): no new program. vesSet 'cleanPoly' carries it to the flown aeroplane (app.js / parked.js matFor).
+  The moulded (grunge) plastic is untouched.
+- **THE USER'S LAZAIR (private build, not committed), 20 L, clean jug, vessel 'moulded':** the search puts it at 1.253 m aft
+  of the datum, 6 mm off the pod's aft face (the face measured 1.144, its pillars to 1.24), lv 0.05 (low: the truss tubes
+  converge above it), 0.32 x 0.38 x 0.21 m, on its cradle, clear. Flown: 292.2 kg, CG 0.775 m (wing root as saved: 0.751),
+  static margin 0.174 full / 0.187 reserves (0.184 as saved), FLIES A CIRCUIT (climb 3.99 m/s, take-off 89 m); empty the CG
+  moves 24.8 mm forward. Its other places: on the rod a 20 L cylinder meets the truss then the V hung under the rod
+  ("into the tailplane"); the short aero nose and a fin-shaped aero aft hold no 20 L (red, said).
+- **GATE TANKBAYS (new, core, ~4 min), tools/_tank_bays_check.js:** the rows appended and billed where drawn (0.3 m aft =
+  the tank's kilos x 0.3 / M, the burn in place); on the validated Chinook as a Lazair (engMount 3, taper panels off, rod
+  high) the jug placed against the face, committed, its cradle drawn; red into the pod (the crew) and away from the face;
+  the rod tank on its clamps; the aero aft (offered, the face not, in words) and a 15 L tank in it; the pusher's face
+  refused in words, a tank left there kept and red; the taper panels refused in words; the pusher's disc measured (1.71 m)
+  and a box in it red, a hand past its tip or behind its plane not; the clean jug's material, owner, program, game door.
+- **NOT DONE / STATED CUTS:** the thrust line is taken fore-aft for every disc; an external tank's buoyancy is carved from
+  its host hull slice (32_hydro) as if inside; the vertical billing is bodyRing's top/bottom pair; no browser look yet
+  (the jug's translucency over the fuel, the cradle's look).
+- **CHART-ON-DEMAND (follow-up, the user 24 Nov: "The graph with the CG as a function of fuel should only be generated on
+  demand"):** the energy panel's CG-against-fuel chart (BALANCE.compute's sweep inside readoutCompute) and its two loading
+  rows (occupants, baggage) now sit in a fold, closed by default; the sweep runs only while it is open (`job.chart`), and its
+  answer is kept per aeroplane and loading (CHART_KEY): reopening an unchanged build draws the kept chart. The shakedown and
+  the fill readouts are unchanged. GATE ENERGY pins it ('lag: the CG-against-fuel chart is swept only when ...').
+
+## L40N (A0, Wed 25 Nov 2026, ~02:00) - GARAGE FIRST AS THE DEFAULT, the good switches on, the shadow thinning, the Lazair / Minimax / tanks / small engines
+
+WHAT LANDED (on L40L+M 237aa5754): perf-lead-9 (the user: garage first is the DEFAULT on a real page - ?boot=loadfirst the old
+screen; Go joins the load; ?mirpace + ?farslots + the world-build switches on; the forest shadow thinned: shrubs < 1 m cast none, the
+world shadow map every 3rd frame, ?shrate=2 = old) + perf-worldbuild-7 (the garage's worst freeze behind the load 0.55 s); slope-fix
+(PILOT: the contact slope centred along the aeroplane - the tw_ski ruts); hangar-switch-3 (GAME, UISMOKE's sandbox line with its
+reason); phone-testflight-ux (the phone's test flight: an instant screen, worded failures, a Plaque button); lazair-twin-fix-2 (A0's
+agent: the divergence - the substep rule now proves the network (netGuard), bit-identical elsewhere; the tail-down spawn on the V tips;
+the V tip ties + vtBar row; tube construction drawn as tubes; THE GENERIC PROP CHECK + one marker per disc in its own plane);
+small-engines-2 (FLAGSHIP: Rotax 185, Pioneer 5.5, Hirth F-33, Polini Thor 202/250/303, Simonini Mini 3, Joby JM1 as dial points via
+ENGINEDIALS --emit; the Minimax's wgStrutAxle); garage-view-3 (the door view links in the shed, not during the roll-out); tank-bays-2
+(A0's agent: tanks behind the pod / on the boom / in the aft fairing / in the aero nose, the clean plastic finish, GATE TANKBAYS; the
+CG-vs-fuel chart only on demand).
+
+THE PERF CHECK (PERF-LEAD 01:20-01:48, quiet, 5K, build 41d2688b8000): GO. The garage interactive at 39.7 / 40.3 s cold, 33.7 s
+returning (L40M: the world first, 121.7 s); Go 12 s after the garage: one roll-out screen of 83 s. The journey 73.2 % of seconds at 29+
+fps (L40M 53.9), GPU 24.8 ms median (the user's < 30 met), 7 frames > 100 ms. The crash met twice. The shadow thinning: within
+run-to-run of the switches alone. 3-4 gaps of 0.3-0.55 s under the roll-out screen only.
+
+NAMED, NOT HELD: PLANELISTS (the Lazair / Minimax test fixtures outside test_copies - A0's agents), POD (its base to re-bless - A0),
+STOL chinook / floatplane fly + UNIFY cub expert + TOW / TREECRASH moves (slope-fix's contact normals on Jolene's non-flat ground and
+the physics - PILOT / PHYSICS), DMGSCAR skip runs (Deform); the Lazair's take-off at HOME (full power pitches it onto its nose - open);
+L40L+M's named list stands.

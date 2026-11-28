@@ -1,0 +1,110 @@
+{
+ "id": "field.01",
+ "kind": "contract",
+ "verdict": "feasible",
+ "plane": "Piper Cub",
+ "timeS": 966,
+ "why": "",
+ "tried": [
+  "Piper Cub:feasible"
+ ],
+ "legs": [
+  {
+   "from": "HOME",
+   "to": "w3",
+   "t": 533,
+   "how": "stopped",
+   "at": "w3",
+   "stop": [
+    "sub:0@0",
+    "stage@0"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  },
+  {
+   "from": "w3",
+   "to": "HOME",
+   "t": 432,
+   "how": "stopped",
+   "at": "HOME",
+   "stop": [
+    "sub:0@1",
+    "stage@1",
+    "say",
+    "done"
+   ],
+   "kg": 0,
+   "pax": 0,
+   "faults": [],
+   "events": []
+  }
+ ],
+ "attempts": [
+  {
+   "plane": "Piper Cub",
+   "verdict": "feasible",
+   "why": "",
+   "legs": [
+    {
+     "from": "HOME",
+     "to": "w3",
+     "t": 533,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "pivot: a turn of 106 deg that the wheels (11.3 m) cannot steer on the route - turning on the spot",
+      "vx-climb: ground ahead above the aeroplane — climbing at Vx 21.4 m/s until clear"
+     ],
+     "landing": {
+      "run": 73,
+      "sink": 0.8,
+      "V": 15.5,
+      "offCentre": 0.1,
+      "pastAim": 4,
+      "k": 1,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 69,
+      "stopLeft": 401
+     }
+    },
+    {
+     "from": "w3",
+     "to": "HOME",
+     "t": 432,
+     "how": "stopped",
+     "kg": 0,
+     "pax": 0,
+     "said": [
+      "terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 25 m",
+      "terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 78 m (planned 70)",
+      "taxi-in: taxiing in to the stand, 454 m"
+     ],
+     "landing": {
+      "run": 177,
+      "sink": 0.87,
+      "V": 17.1,
+      "offCentre": 0.3,
+      "pastAim": 37,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 550,
+      "stopLeft": 1598
+     }
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "untested": false,
+ "key": "390801787c00",
+ "where": "contract",
+ "pool": "official+57,58+test builds, the seats filled",
+ "sim": "L40K",
+ "wallS": 419
+}

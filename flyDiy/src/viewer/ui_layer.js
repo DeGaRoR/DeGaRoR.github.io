@@ -25,6 +25,7 @@
 //   UI_LAYER.see(cam, on)  the camera sees the UI layer (on !== false) or not
 //   UI_LAYER.blind(cam)    see(cam, false)
 //   UI_LAYER.is(obj)       claimed?
+//   UI_LAYER.drawn(mesh)   would a picture's camera draw it (not the UI layer alone, a material that shows)? - FRAME-DRAWN
 // ============================================================================
 var UI_LAYER = (function () {
   'use strict';
@@ -44,7 +45,37 @@ var UI_LAYER = (function () {
   }
   const blind = cam => see(cam, false);
   const is = o => !!(o && o.userData && o.userData.uiLayer);
-  return { LAYER, claim, see, blind, is };
+  // FRAME-DRAWN (the user 22 Nov: "in the generated pictures, some of them are poorly centered ... at the bottom right
+  // corner rather than being well centered like the others"): a picture frames what its camera DRAWS. A visible mesh on
+  // the UI layer alone (a helper: photo mode and every picture's camera are blind to it) or whose every material is hidden
+  // or writes no colour is drawn by nobody, yet traverseVisible walks it - and the frame made room for it. The portraits
+  // (plane_shot), the player's thumbnails (plane_thumb) and the fiche (plane_fiche) frame through this one test.
+  function drawn(m) {
+    if (!m || !m.isMesh || !m.geometry) return false;
+    if (m.layers && (m.layers.mask & ~(1 << LAYER)) === 0) return false;
+    const M = [].concat(m.material || []);
+    return M.some(x => x && x.visible !== false && x.colorWrite !== false);
+  }
+  // ...AND OF A DRAWN MESH, ONLY THE VERTICES IT DRAWS (the cause, found 22 Nov: B-ITES' and the electric twin's portraits
+  // framed a nose 3.7-4.5 m ahead of the spinner - the page's cage sheet carries face GROUPS whose material is hidden, the
+  // cowl's own path drawing that skin instead, and every buffer vertex was read). drawnPoints(mesh, max, fn) calls fn with
+  // the index of each sampled vertex (about `max`) of the groups whose material shows, inside the draw range, through
+  // the index - never a vertex no drawn triangle uses. Returns the count; 0 when the mesh is not drawn.
+  function drawnPoints(m, max, fn) {
+    if (!drawn(m)) return 0;
+    const g = m.geometry, pa = g.attributes && g.attributes.position; if (!pa) return 0;
+    const ix = g.index, len = ix ? ix.count : pa.count, dr = g.drawRange || { start: 0, count: Infinity };
+    const shows = x => !!x && x.visible !== false && x.colorWrite !== false;
+    const multi = Array.isArray(m.material) && g.groups && g.groups.length;
+    const groups = multi ? g.groups.filter(gr => shows(m.material[gr.materialIndex])) : [{ start: 0, count: len }];
+    const spans = []; let total = 0;
+    for (const gr of groups) { const s = Math.max(gr.start, dr.start), e = Math.min(gr.start + gr.count, dr.start + dr.count, len); if (e > s) { spans.push([s, e]); total += e - s; } }
+    const step = Math.max(1, Math.floor(total / (max || 300)));
+    let n = 0;
+    for (const [s, e] of spans) for (let k = s; k < e; k += step) { fn(ix ? ix.getX(k) : k); n++; }
+    return n;
+  }
+  return { LAYER, claim, see, blind, is, drawn, drawnPoints };
 })();
 if (typeof window !== 'undefined') window.UI_LAYER = UI_LAYER;
 if (typeof module !== 'undefined') module.exports = UI_LAYER;

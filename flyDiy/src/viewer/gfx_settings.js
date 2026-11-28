@@ -143,6 +143,13 @@
         { v: 'off',  label: 'off', why: 'a clear sky whatever the day' },
         { v: 'half', label: 'half', why: 'the layer marched at half resolution (the cost of a few ms)' },
         { v: 'full', label: 'full', why: 'every pixel marched - for screenshots and the strongest cards' } ] },
+    // THE RAIN (RAIN step 1, LOOK-1, 16 Nov): the streaks round the eye (src/viewer/rain.js) - nothing is made or drawn on a dry day.
+    // FREE (the presets stay as shipped, GATE GFX 10): 'auto' is lean on laptop / potato / retro (a phone draws laptop), full above
+    { k: 'rain', label: 'rain', free: true, def: 'auto', steps: [
+        { v: 'off',  label: 'off', why: 'no falling rain drawn (the sky, the ground and the sound still know it rains)' },
+        { v: 'auto', label: 'auto', why: 'lean on the light presets (laptop, potato, retro), full above' },
+        { v: 'lean', label: 'lean', why: 'the streaks round you in two boxes (4 000 drops at full rain)' },
+        { v: 'full', label: 'full', why: 'three boxes, near to 30 m (18 000 drops at full rain)' } ] },
     // THE POST PASSES (POST-FX study, 2026-09-21; src/viewer/post_fx.js): six switches, every
     // one OFF in every preset - the user's ruling: "ensure we can perfectly operate as of today
     // when turning the post fx off". Each is a pass over the resolved frame, in display space,
@@ -480,7 +487,7 @@
     const cov = W.TREE_FILL && W.TREE_FILL.cover ? W.TREE_FILL.cover() : null;
     if (cov && cov.set && applied.cover !== S.cover) {
       // (DEBRIS-SHADOW 26 Oct: castMinDebris - the debris's own shadow floor, the user's "no shadows on small ones")
-      const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35, castMinDebris: 1.0 }, lean: { on: true, reach: 120, density: 1, castMinH: 1, castMinDebris: 1.0 }, off: { on: false } }[S.cover];
+      const C = { full: { on: true, reach: 220, density: 2, castMinH: 0.35, castMinDebris: 1.0, castMinShrub: 1.0 }, lean: { on: true, reach: 120, density: 1, castMinH: 1, castMinDebris: 1.0, castMinShrub: 1.2 }, off: { on: false } }[S.cover];   // (castMinShrub, FOREST-SHADOW 24 Nov: the undergrowth casts no shadow)
       if (C) { cov.set(C); applied.cover = S.cover; }
     }
     // THE GRASS FIELD's column (GRASS-DENSE G2563/G2564/G2567, GRASS-STUDY §4.7): full = the gamer row (near 15 m, gone at 90, the AGL
@@ -676,7 +683,7 @@
     { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
     { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover', 'lawn'] },
     { k: 'water', label: 'water', sub: 'the sea and its reflections', rows: ['water', 'mirror'] },
-    { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'fmist', 'glare'] },
+    { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'fmist', 'rain', 'glare'] },
     { k: 'post', label: 'post-fx', sub: 'the passes over the finished frame', rows: ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'] },
     { k: 'town', label: 'town', sub: 'which towns, their detail, the road furniture', rows: ['town', 'scenery', 'rails', 'poles'] },
     // CONTROLS-STRIP (the user 16 Nov): the eighth fold - what the screen shows over the flight, not the picture's

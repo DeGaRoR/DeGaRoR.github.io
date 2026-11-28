@@ -365,7 +365,10 @@ function manifestFiles() {
   // LIVERY-TEXT (9 Nov): the livery's faces - aeroskin.js's AERO_TXT_FACES names each style's file and the family's
   // licence (tools/livery_fonts_prep.js owns media/fonts)
   const faces = [path.join(ROOT, 'src', 'viewer', 'aeroskin.js')];
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people, faces);
+  // GARAGE-VIEW (22 Nov): tools/garage_view/install.js owns media/garage_view; the pack list names every file of every cooked scene
+  // (its row's `files`), and install prunes what a scene no longer names
+  const gviewp = path.join(ROOT, 'src', 'core', 'garage_view_packs.json'), gview = fs.existsSync(gviewp) ? [gviewp] : [];
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people, faces, gview);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json|woff2|woff|txt)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380); woff2/woff/txt: LIVERY-TEXT's faces and their licences
