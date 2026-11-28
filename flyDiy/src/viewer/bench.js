@@ -436,11 +436,21 @@ const BENCH_TESTS = [
       const rep = f.report || { verdicts: [], outcome: null, landing: null };
       const L = rep.landing || null, T = f.td || null;
       const eventful = (rep.verdicts || []).length > 0;
-      const ok = !!f.arrived;
+      // WS-088 (28 Nov, the user's register: "Lazair and Chinook are certified despite flying extremely badly"): AN
+      // ARRIVAL IS NOT ENOUGH. The pilot measures the flight as it flies it (43_pilot PILOT_FQ: the pitch, the wings and
+      // the height held on the settled leg, the attitude, the speed over the stall, the controls on their stops) and a
+      // FAIL there withholds the certificate - the aeroplane landed, but it flew badly. A flight flown by hand is the
+      // person's flying, not the aeroplane's (its rule stays: a landing is a landing); a report from before the measure
+      // (no rep.quality) keeps the arrival's rule
+      const Q = rep.quality && Array.isArray(rep.quality.rows) ? rep.quality : null;
+      const qBad = !!f.arrived && !f.manual && !!Q && Q.level === 'fail';
+      const qFails = qBad ? Q.rows.filter(r => r.level === 'fail') : [];
+      const ok = !!f.arrived && !qBad;
       // DMG-D4b (train 41): a damaged aeroplane is not certified, and the card says why in plain words (app.js flArrival)
       const dmg = !ok && f.damaged ? String(f.damaged) : null;
       return {
         verdict: ok ? (f.manual ? 'ARRIVED, BY HAND' : eventful ? 'FLEW THE CIRCUIT, WITH NOTES' : 'FLEW THE CIRCUIT')
+                    : qBad ? 'ARRIVED, BUT FLEW BADLY'
                     : dmg ? 'NOT CERTIFIED'
                     : String(f.outcome || rep.outcome || 'no arrival').toUpperCase().replace(/-/g, ' '),
         damaged: dmg, wreck: !ok && !!f.wreck,
@@ -450,8 +460,11 @@ const BENCH_TESTS = [
                : T ? 'touchdown ' + benchNum(T.sink, 2) + ' m/s at ' + benchNum(T.V * 3.6, 0) + ' km/h'
                : 'no landing')
           + (f.t ? ' · ' + benchNum(f.t / 60, 0) + ' min' : '')
-          + (eventful ? ' · ' + rep.verdicts.map(v => v.code).join(', ') : ''),
-        fix: ok ? '' : dmg ? 'Not certified - the aeroplane was damaged: ' + dmg + '.'
+          + (eventful ? ' · ' + rep.verdicts.map(v => v.code).join(', ') : '')
+          + (qFails.length ? ' · flew badly: ' + qFails.map(r => r.label.toLowerCase() + ' ' + r.value + (r.unit ? ' ' + r.unit : '')).join(', ') : ''),
+        quality: Q,
+        fix: ok ? '' : qBad ? 'Not certified - it landed, but flew badly: ' + qFails.map(r => r.label.toLowerCase() + ' (' + r.value + (r.unit ? ' ' + r.unit : '') + '; ' + r.limit + ') - ' + r.why).join('; ') + '.'
+           : dmg ? 'Not certified - the aeroplane was damaged: ' + dmg + '.'
            : 'the phase it stopped in names the problem: a rejected take-off is '
            + 'power or field, a climb that never came is power against weight, '
            + 'a broken circuit is control authority.',

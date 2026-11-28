@@ -234,6 +234,7 @@ const GATES = [
   { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
   { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
   { id: 'WATERTANK', file: '_watertank_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: water tanks - spec.water, the blue tank, the fill, the dump valve, the outlet's checked run)
+  { id: 'FLIGHTQ', file: '_flightq_check.js', tier: 'core', wall: 400 },   // (WS-088, 28 Nov: the test flight's own measure; the rudder row's sideslip)
   { id: 'SAILPLANE', file: '_sailplane_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: the category's load factor, the airbrakes, the LS4-alike card)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance

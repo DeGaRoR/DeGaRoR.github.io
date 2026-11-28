@@ -138,6 +138,60 @@ const PILOT_STYLES = {
 const PILOT_STAB = { gateFt: 300, gateK: 0.6, vLo: 2.6, vHi: 5.1, devDeg: 0.7, devMin: 4, sinkK: 1.5, sinkAdd: 1.0, sinkMax: 5.08,
                      xtDeg: 2, dwell: 2, tau: 1 };
 // the rail's labels and the tick each phase sits under (app.js reads this)
+// WS-088 (28 Nov, the user's register: "Lazair and Chinook are certified despite flying extremely badly"): THE TEST
+// FLIGHT'S OWN MEASURE. The bench's flight row certified on ARRIVAL alone (bench.js judge: ok = arrived) - a circuit
+// flown with the nose swinging 15 deg, the wings rocking 18 deg and the speed under the stall still "FLEW THE CIRCUIT".
+// The pilot now measures the flight as it flies it (fqStep, read-only: nothing it does changes a control) and the
+// report carries the verdict (ap.report.quality: { v, level, rows }), which the bench's judge reads. The bounds, each
+// [warn, fail] - set on the validated fleet's own circuits, calm and in 6 m/s with 30 % gusts (the evidence:
+// reports/WS-088-FLIGHT-CRITERIA.md), with room between the worst good aeroplane and the first bad one:
+//   pitchDev  the nose's largest swing about its own 3 s mean on the settled leg (the downwind, else the cruise), deg -
+//             porpoising, a pitch oscillation the pilot cannot damp. The fleet: 1.4-3.1 calm
+//   bankDev   the same for the wings, deg - wing rock, a dutch roll. The fleet: 2.7-6.6 calm (the leg's own corrections)
+//   vsRms     the vertical speed's scatter about its mean on that leg, m/s - a phugoid, a height not held. Fleet 0.18-0.34
+//   bankMax   the steepest bank anywhere airborne, deg (the circuit asks 25-30)
+//   pitchUp / pitchDn  the attitude's limits airborne, deg
+//   vStall    the slowest airspeed airborne over the stall speed at the flap set (Vs to Vs0 by the flap), x - the
+//             circuit flown at or under the stall. The fleet: 1.06-1.30
+//   stopFrac / stopRun  a control (elevator, aileron, rudder) on its stop: the share of the airborne time, and the
+//             longest spell, s - an aeroplane flown at the end of its authority. The fleet: none
+// Not counted: the take-off roll and lift-off, the flare and roll-out, under 10 m (the ground's business), and a leg
+// shorter than legMin s (no settled leg flown: said, not judged).
+const PILOT_FQ = { v: 1, tau: 3, skip: 15, legMin: 20, pitchDev: [5, 8], bankDev: [10, 15], vsRms: [0.6, 1.0], bankMax: [35, 45],
+  pitchUp: [25, 30], pitchDn: [-15, -20], vStall: [1.05, 1.0], stopFrac: [0.03, 0.10], stopRun: [2, 5] };
+const PILOT_FQ_LEG = { DOWNWIND: 1, ENROUTE: 1, ROUTE: 1, INBOUND: 1 };
+const PILOT_FQ_OFF = { DEPART: 1, TAXI: 1, LINEUP: 1, STOP: 1, HOLD: 1, ROLL: 1, ABORT: 1, LIFTOFF: 1, PUTDOWN: 1, FLARE: 1, ROLLOUT: 1, STOPPED: 1 };
+// the summary off the recorder's state (pure: GATE FLIGHTQ feeds it scripted states)
+function pilotFqSummary(q) {
+  const B = PILOT_FQ, rows = [];
+  const lv = (x, b, up) => (up ? (x > b[1] ? 'fail' : x > b[0] ? 'warn' : 'pass') : (x < b[1] ? 'fail' : x < b[0] ? 'warn' : 'pass'));
+  const r1 = x => Math.round(x * 10) / 10, r2 = x => Math.round(x * 100) / 100;
+  if (q.airT > 0) {
+    if (q.legT >= B.legMin) {
+      const vr = Math.sqrt(q.vS2 / q.legT);
+      rows.push({ id: 'fq.pitch', label: 'Pitch held on the settled leg', value: r1(q.pDev), unit: 'deg', level: lv(q.pDev, B.pitchDev, true),
+        limit: 'the nose within ' + B.pitchDev[0] + ' deg of its own trend (fails past ' + B.pitchDev[1] + ')', why: 'a pitch oscillation: porpoising the pilot cannot damp - pitch stability or damping (the tail, the CG)' });
+      rows.push({ id: 'fq.bank', label: 'Wings held on the settled leg', value: r1(q.bDev), unit: 'deg', level: lv(q.bDev, B.bankDev, true),
+        limit: 'the wings within ' + B.bankDev[0] + ' deg of their own trend (fails past ' + B.bankDev[1] + ')', why: 'wing rock or a dutch roll - the fin, the dihedral, the aileron' });
+      rows.push({ id: 'fq.vs', label: 'Height held on the settled leg', value: r2(vr), unit: 'm/s', level: lv(vr, B.vsRms, true),
+        limit: 'vertical speed scatter under ' + B.vsRms[0] + ' m/s RMS (fails past ' + B.vsRms[1] + ')', why: 'a phugoid, or a height the aeroplane cannot be held at' });
+    } else rows.push({ id: 'fq.leg', label: 'A settled leg flown', value: r1(q.legT), unit: 's', level: 'warn',
+      limit: 'at least ' + B.legMin + ' s of a settled leg to judge the pitch, the wings and the height', why: 'not measured: no settled leg' });
+    const att = Math.max(q.bankMax > B.bankMax[1] || q.pMax > B.pitchUp[1] || q.pMin < B.pitchDn[1] ? 2 : 0, q.bankMax > B.bankMax[0] || q.pMax > B.pitchUp[0] || q.pMin < B.pitchDn[0] ? 1 : 0);
+    rows.push({ id: 'fq.att', label: 'Attitude in the circuit', value: Math.round(q.bankMax) + ' / ' + Math.round(q.pMax) + ' / ' + Math.round(q.pMin), unit: 'deg bank / up / down',
+      level: ['pass', 'warn', 'fail'][att], limit: 'bank under ' + B.bankMax[0] + ' deg, pitch between ' + B.pitchDn[0] + ' and +' + B.pitchUp[0] + ' (fails past ' + B.bankMax[1] + ', ' + B.pitchDn[1] + ' / +' + B.pitchUp[1] + ')',
+      why: 'an attitude no circuit asks for: control lost, or a divergence' });
+    if (isFinite(q.vRatio)) rows.push({ id: 'fq.speed', label: 'Speed above the stall', value: r2(q.vRatio), unit: 'x Vs', level: lv(q.vRatio, B.vStall, false),
+      limit: 'never under ' + B.vStall[0] + ' x the stall speed at the flap set (fails under ' + B.vStall[1] + ')', why: 'flown at or under its stall: too little power, too much drag, or a wing that stalls early' });
+    const sf = q.stopT / q.airT;
+    rows.push({ id: 'fq.stops', label: 'Controls off their stops', value: Math.round(sf * 1000) / 10 + ' % / ' + r1(q.stopRunMax) + ' s', unit: '',
+      level: sf > B.stopFrac[1] || q.stopRunMax > B.stopRun[1] ? 'fail' : sf > B.stopFrac[0] || q.stopRunMax > B.stopRun[0] ? 'warn' : 'pass',
+      limit: 'elevator, aileron and rudder on a stop under ' + Math.round(B.stopFrac[0] * 100) + ' % of the flight, ' + B.stopRun[0] + ' s at a time (fails past ' + Math.round(B.stopFrac[1] * 100) + ' %, ' + B.stopRun[1] + ' s)',
+      why: 'flown at the end of its control authority: too little elevator, aileron or rudder' + (q.stopWhich ? ' (' + q.stopWhich + ')' : '') });
+  }
+  const level = rows.some(r => r.level === 'fail') ? 'fail' : rows.some(r => r.level === 'warn') ? 'warn' : rows.length ? 'pass' : null;
+  return { v: B.v, level, rows, airS: r1(q.airT), legS: r1(q.legT) };
+}
 const PILOT_PHASES = {
   DEPART: ['DEPART', 'DEPART'], TAXI: ['TAXI', 'TAXI'], LINEUP: ['LINE UP', 'LINEUP'],
   STOP: ['STOP', 'LINEUP'], HOLD: ['HOLD', 'LINEUP'], ROLL: ['TAKEOFF ROLL', 'ROLL'],
@@ -372,6 +426,32 @@ function makePilot(sim, def, world, opts) {
   // a long flight's burn), the stall-scaled speeds go as sqrt(m / m_sheet) and the runs as m / m_sheet; within it, the
   // sheet as measured (every gate that flies its def's own load: to the bit)
   let sheetW = null;
+  // WS-088: THE TEST FLIGHT'S OWN MEASURE (PILOT_FQ above) - the recorder's state; fqStep reads, never writes a control
+  const FQ = { ph: null, phT: 0, pE: null, bE: null, vE: null, pDev: 0, bDev: 0, vS2: 0, legT: 0, airT: 0, bankMax: 0, pMax: -90, pMin: 90,
+               vRatio: Infinity, stopT: 0, stopRun: 0, stopRunMax: 0, stopWhich: '', nextT: 0 };
+  const fqStep = (dt, onG, agl, vcg, xA, zR) => {
+    const ph = ap.phase;
+    if (ph !== FQ.ph) { FQ.ph = ph; FQ.phT = 0; FQ.pE = FQ.bE = FQ.vE = null; } else FQ.phT += dt;
+    if (onG > 0 || agl < 10 || PILOT_FQ_OFF[ph]) { FQ.stopRun = 0; return; }
+    const pitch = -Math.asin(clamp(xA[1], -1, 1)) * 57.29578, bank = Math.asin(clamp(zR[1], -1, 1)) * 57.29578;
+    const V = sim.out && sim.out.V > 0 ? sim.out.V : Math.hypot(vcg[0], vcg[1], vcg[2]), c = sim.ctl;   // (the AIRSPEED: in a wind the ground speed is no stall margin)
+    FQ.airT += dt;
+    FQ.bankMax = Math.max(FQ.bankMax, Math.abs(bank)); FQ.pMax = Math.max(FQ.pMax, pitch); FQ.pMin = Math.min(FQ.pMin, pitch);
+    const SH0 = sheetOf();
+    if (SH0 && SH0.Vs > 0) {
+      const vs0 = SH0.Vs0 > 0 ? SH0.Vs0 : SH0.Vs, fl = clamp(+c.flap || 0, 0, 1);
+      FQ.vRatio = Math.min(FQ.vRatio, V / (SH0.Vs + (vs0 - SH0.Vs) * fl));
+    }
+    const sd = Math.abs(c.de) >= 0.95 ? 'elevator' : Math.abs(c.da) >= 0.95 ? 'aileron' : Math.abs(c.dr) >= 0.95 ? 'rudder' : '';
+    if (sd) { FQ.stopT += dt; FQ.stopRun += dt; if (FQ.stopRun > FQ.stopRunMax) { FQ.stopRunMax = FQ.stopRun; FQ.stopWhich = sd; } } else FQ.stopRun = 0;
+    if (PILOT_FQ_LEG[ph] && FQ.phT >= PILOT_FQ.skip) {
+      const k = Math.min(1, dt / PILOT_FQ.tau);
+      if (FQ.pE === null) { FQ.pE = pitch; FQ.bE = bank; FQ.vE = vcg[1]; }
+      FQ.pE += (pitch - FQ.pE) * k; FQ.bE += (bank - FQ.bE) * k; FQ.vE += (vcg[1] - FQ.vE) * k;
+      FQ.pDev = Math.max(FQ.pDev, Math.abs(pitch - FQ.pE)); FQ.bDev = Math.max(FQ.bDev, Math.abs(bank - FQ.bE));
+      FQ.vS2 += (vcg[1] - FQ.vE) * (vcg[1] - FQ.vE) * dt; FQ.legT += dt;
+    }
+  };
   const sheetOf = () => {
     if (!sheetDone) { sheetV = (typeof machineSheet === 'function' ? machineSheet(def, { shakedown: opts.shakedown }) : null); sheetDone = true; }
     const m0 = sheetV && sheetV.mass, m = sim.totalM;
@@ -2293,6 +2373,8 @@ function makePilot(sim, def, world, opts) {
       ap.restAlt = r0; ap.refAlt = r0;
     }
     const agl = cg[1] - ap.refAlt;
+    fqStep(dt, onG, agl, vcg, xA, zR);
+    if (ap.t >= FQ.nextT || FQ.phT === 0) { FQ.nextT = ap.t + 1; ap.report.quality = pilotFqSummary(FQ); }
     const F = ap.frame;
     const rxF = cg[0] - F.ox, rzF = cg[2] - F.oz;
     // G3914: the circuit height, once the sheet can be read (setCard's own height stands)
