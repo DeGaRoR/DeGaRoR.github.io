@@ -8468,13 +8468,13 @@
     pilotChoice = e.target.value;
     // mid-flight the change takes effect through a fresh departure; in the
     // garage it simply decides who flies the next roll-out
-    if (!inGarage) fullReset();
+    if (!inGarage) restartFlight();   // WS-087
   };
   if ($('selPersona')) $('selPersona').onchange = e => {
     personaLoad();
     personaChoice = e.target.value === 'custom' || PERSONA_ORDER.includes(e.target.value) ? e.target.value : 'expert';
     personaSave();
-    if (!inGarage) fullReset();
+    if (!inGarage) restartFlight();   // WS-087
   };
   // THE FLOATS IN FLIGHT (H1, G383). A float build carries sim.hydro — the
   // hull each float declares (32_hydro.js) and the four frame nodes its
@@ -17798,6 +17798,16 @@
     $('tsum').textContent = '';
     railPhase = ''; setRail(null);
   }
+  // WS-087 (the user's register: "Restarting a flight does not offer autopilot ... can leave the player unable to
+  // proceed"): fullReset leaves the flight NOT started, held for #bGo - but the fl2 screen has no #bGo (flight.css hides
+  // it: "No Fly ... Restart is in the pause menu"), and the autopilot toggle shows only once a flight has started
+  // (G3325). The pause menu's Restart left the aeroplane on its stand, held, no Go and no autopilot. A restart from
+  // the flight (the pause menu, the trailer row, a pilot or a persona changed mid-flight) now starts the new flight
+  // itself wherever no Go is shown, as #bGo's own reset-and-go always did (fullReset(); started = true)
+  function restartFlight() {
+    fullReset();
+    if (!inGarage && !driveOn() && document.body && document.body.classList.contains('fl2')) started = true;
+  }
   $('bReset').onclick = fullReset;
   // G3325: the toggle hands the aeroplane over, either way (the key's apToggle the same); the state for the story's cards
   if ($('bAP')) $('bAP').onclick = () => setManual(!manual, 'button');
@@ -22045,7 +22055,7 @@
     // the pause menu takes the rail's items (G3740 pages) and the bottom row's Restart; the log in one press
     const pg = (keys) => body => { for (const k of keys) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (!b) continue;
       try { (FL_SEC_BUILD[k] || FL_BUILD[k])(b); } catch (e) { flNote(b, 'This section failed to build: ' + (e && e.message)); } } };
-    window.FLYDIY_MENU.add({ k: 'restart', label: 'Restart the flight', when: () => gmFlying(), act: () => { gmOpen(false); fullReset(); }, before: 'contracts' });
+    window.FLYDIY_MENU.add({ k: 'restart', label: 'Restart the flight', when: () => gmFlying(), act: () => { gmOpen(false); restartFlight(); }, before: 'contracts' });   // WS-087
     if (window.DRIVE) window.DRIVE.menu();   // TOW-LAUNCH: the menu's Drive row
     window.FLYDIY_MENU.add({ k: 'camera', label: 'Camera', when: () => !inGarage, page: pg(['camera']), before: 'graphics' });
     window.FLYDIY_MENU.add({ k: 'display', label: 'Display', when: () => !inGarage, page: pg(['instruments', 'map', 'trace', 'screen']), before: 'graphics' });
@@ -24403,7 +24413,7 @@
     // the menu's trailer row (a float or hull build): on the trailer at the runway, or back to the water - each a restart
     if (window.FLYDIY_MENU) window.FLYDIY_MENU.add({ k: 'trailer', label: () => TRAILER.want ? 'Back to the water' : 'Launch from the trailer',
       when: () => !inGarage && (trailerAble() || TRAILER.want),
-      act: () => { window.FLYDIY_MENU.close(); TRAILER.want = !TRAILER.want; TOWS.failed = null; fullReset(); }, before: 'contracts' });
+      act: () => { window.FLYDIY_MENU.close(); TRAILER.want = !TRAILER.want; TOWS.failed = null; restartFlight(); }, before: 'contracts' });   // WS-087
     window.addEventListener('keydown', e => { if (e.code === 'KeyR' && towOn() && cam.mode !== 'free') { towOn().towRelease(); e.preventDefault(); } });
   }
   // THE SCENERY MODE (the world rail, 2026-09-24; the user: "launch only the graphics parts of the game, at least not

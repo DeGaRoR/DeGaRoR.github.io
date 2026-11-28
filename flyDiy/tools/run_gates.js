@@ -927,6 +927,7 @@ const GATES = [
   // ap.route, the toggle keeping the plan, a forced go-around and divert said in #apWhy; --selftest strips the route /
   // the report from the snapshots (red)
   { id: 'APHONEST', file: '_aphonest_check.js', tier: 'core', timeout: 2 * 3600_000, weight: 2, wall: 300 },
+  { id: 'WS087', file: '_ws087_check.js', tier: 'core', timeout: 3600_000, weight: 2, wall: 300 },   // WS-087: the pause menu's Restart starts the new flight (the fl2 screen has no Go) and offers the autopilot
   // G3320 (PILOTPAGE, the user 18 Oct: "some actual browser-based flying ... in case the numerical simulations would not be
   // fully representative"): the validated builds' legs flown BY THE PAGE (tools/pilotpage_legs.json: the persona the user
   // flies, the student, beside the expert), the expert legs held to node's track; a GPU job on a quiet box, run when the
